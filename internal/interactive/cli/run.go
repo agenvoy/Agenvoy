@@ -1,19 +1,33 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func Run(_ context.Context, cancel context.CancelFunc, fn func(chan<- agentTypes.Event) error) error {
+const (
+	ansiReset  = "\033[0m"
+	ansiGray   = "\033[90m"
+	ansiRed    = "\033[31m"
+	ansiYellow = "\033[33m"
+)
+
+var oneLineReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ")
+
+var dollarLinePending atomic.Bool
+
+func removeCommandConfirm() bool {
+	return dollarLinePending.Swap(false)
+}
+
+func Run(fn func(chan<- agentTypes.Event) error) error {
 	start := time.Now()
 	ch := make(chan agentTypes.Event, 16)
 	var execErr error
@@ -23,26 +37,57 @@ func Run(_ context.Context, cancel context.CancelFunc, fn func(chan<- agentTypes
 		execErr = fn(ch)
 	}()
 
+	pendingAgentSelect := false
 	for ev := range ch {
+		wasPendingAgentSelect := pendingAgentSelect
+		pendingAgentSelect = false
+
+		soruce := strings.TrimSpace(ev.Source)
+		if soruce != "" {
+			soruce = "  " + soruce + " "
+		}
+
 		switch ev.Type {
 		case agentTypes.EventSkillResult:
-			writeStdoutLine(fmt.Sprintf("[*] Skill: %s", ev.Text))
+			writeStdoutLine(colorize(ev, fmt.Sprintf("%s[*] [%s] Skill: %s", soruce, time.Now().Format("15:04:05"), ev.Text)))
 
 		case agentTypes.EventAgentSelect:
-			writeStdoutLine("[~] Selecting agent…")
+			writeStdoutLine(colorize(ev, fmt.Sprintf("%s[~] [%s] Agent: selecting...", soruce, time.Now().Format("15:04:05"))))
+			pendingAgentSelect = true
 
 		case agentTypes.EventAgentResult:
-			writeStdoutLine(fmt.Sprintf("[*] Agent: %s", ev.Text))
+			if wasPendingAgentSelect {
+				fmt.Print("\033[F\033[2K")
+			}
+			writeStdoutLine(colorize(ev, fmt.Sprintf("%s[*] [%s] Agent: %s", soruce, time.Now().Format("15:04:05"), ev.Text)))
 
 		case agentTypes.EventToolCall:
-			writeStdoutLine(fmt.Sprintf("[*] [%s] Tool: %s - %s", time.Now().Format("15:04:05"), ev.ToolName, printLog(ev.ToolName, ev.ToolArgs)))
+			if ev.ToolName == "ask_user" {
+				break
+			}
+			if removeCommandConfirm() {
+				fmt.Print("\033[F\033[2K")
+			}
+			writeStdoutLine(colorize(ev, fmt.Sprintf("%s[*] [%s] Tool: %s - ", soruce, time.Now().Format("15:04:05"), ev.ToolName)) + ansiGray + printLog(ev.ToolName, ev.ToolArgs) + ansiReset)
+
+		case agentTypes.EventToolResult:
+			if ev.ToolName == "ask_user" {
+				break
+			}
 
 		case agentTypes.EventToolSkipped:
-			writeStdoutLine(fmt.Sprintf("[~] [%s] Tool skipped: %s", time.Now().Format("15:04:05"), ev.ToolName))
+			if removeCommandConfirm() {
+				fmt.Print("\033[F\033[2K")
+			}
+			writeStdoutLine(colorize(ev, fmt.Sprintf("%s[~] [%s] Skipped: %s - ", soruce, time.Now().Format("15:04:05"), ev.ToolName)) + ansiGray + printLog(ev.ToolName, ev.ToolArgs) + ansiReset)
 
 		case agentTypes.EventText:
 			text := ev.Text
 			if text == "" {
+				break
+			}
+			if ev.Source != "" {
+				writeStdoutLine(colorize(ev, fmt.Sprintf("%s%s", soruce, oneLineReplacer.Replace(text))))
 				break
 			}
 			if strings.HasPrefix(text, "Agent:") || strings.HasPrefix(text, "Tool:") || strings.HasPrefix(text, "Result:") {
@@ -51,38 +96,16 @@ func Run(_ context.Context, cancel context.CancelFunc, fn func(chan<- agentTypes
 				writeStdoutLine("---\n" + text + "\n---")
 			}
 
-		case agentTypes.EventToolConfirm:
-			if ev.ToolName == "run_command" {
-				writeStdoutLine(fmt.Sprintf("[$] %s", printLogCommand(ev.ToolArgs)))
-			}
-			prompt := promptui.Select{
-				Label:        fmt.Sprintf("Run %s?", ev.ToolName),
-				Items:        []string{"Yes", "Skip", "Stop"},
-				Size:         3,
-				HideSelected: true,
-			}
-			idx, _, err := prompt.Run()
-			if err != nil || idx == 2 {
-				writeStdoutLine("[x] User stopped")
-				cancel()
-				ev.ReplyCh <- false
-			} else if idx == 1 {
-				writeStdoutLine(fmt.Sprintf("[x] User skipped: %s", ev.ToolName))
-				ev.ReplyCh <- false
-			} else {
-				ev.ReplyCh <- true
-			}
-
 		case agentTypes.EventExecError:
-			writeStderrLine(fmt.Sprintf("[!] [%s] Error: %s - %s", time.Now().Format("15:04:05"), ev.ToolName, ev.Text))
+			writeStderrLine(colorize(ev, fmt.Sprintf("%s[!] [%s] Error: %s - %s", soruce, time.Now().Format("15:04:05"), ev.ToolName, ev.Text)))
 
 		case agentTypes.EventError:
 			if ev.Err != nil {
-				writeStderrLine(fmt.Sprintf("[!] Error: %v", ev.Err))
+				writeStderrLine(colorize(ev, fmt.Sprintf("%s[!] Error: %v", soruce, ev.Err)))
 			}
 
 		case agentTypes.EventSummaryGenerate:
-			writeStdoutLine("[*] Generating summary…")
+			writeStdoutLine(colorize(ev, soruce+"[*] Generating summary…"))
 
 		case agentTypes.EventDone:
 			var sb strings.Builder
@@ -124,6 +147,8 @@ func printLog(name, raw string) string {
 		return ""
 	}
 	switch name {
+	case "invoke_subagent":
+		return printLogSubagent(m, pick)
 	case "activate_skill":
 		if s := pick("skill", "name"); s != "" {
 			return s
@@ -150,6 +175,10 @@ func printLog(name, raw string) string {
 		if s := pick("link", "url"); s != "" {
 			return s
 		}
+	case "calculate":
+		if s := pick("expression"); s != "" {
+			return s
+		}
 	case "remember_error":
 		if s := pick("symptom", "cause", "action"); s != "" {
 			return s
@@ -162,6 +191,21 @@ func printLog(name, raw string) string {
 		return printLogCommand(raw)
 	}
 	return raw
+}
+
+func printLogSubagent(_ map[string]any, pick func(...string) string) string {
+	label := pick("name", "session_id")
+	if label == "" {
+		label = "subagent"
+	}
+	if model := pick("model"); model != "" {
+		label = fmt.Sprintf("%s (%s)", label, model)
+	}
+	task := pick("task")
+	if task == "" {
+		return label
+	}
+	return fmt.Sprintf("%s: %s", label, oneLineReplacer.Replace(task))
 }
 
 func printLogCommand(raw string) string {
@@ -180,6 +224,17 @@ func printLogCommand(raw string) string {
 		}
 	}
 	return strings.Join(parts, " ")
+}
+
+func colorize(ev agentTypes.Event, line string) string {
+	switch ev.Type {
+	case agentTypes.EventExecError, agentTypes.EventError:
+		return ansiRed + line + ansiReset
+	}
+	if ev.Source != "" {
+		return ansiGray + line + ansiReset
+	}
+	return line
 }
 
 func writeStdout(text string) {

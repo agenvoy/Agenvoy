@@ -65,6 +65,7 @@ func (e EventType) String() string {
 
 type Event struct {
 	Type     EventType `json:"type"`
+	Source   string    `json:"source,omitempty"`
 	Text     string    `json:"text,omitempty"`
 	ToolName string    `json:"tool_name,omitempty"`
 	ToolArgs string    `json:"tool_args,omitempty"`

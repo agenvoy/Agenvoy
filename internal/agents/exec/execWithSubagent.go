@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -48,14 +49,29 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		return "", fmt.Errorf("ensureSubagentSession: %w", err)
 	}
 
-	excluded := append([]string{"invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents", "review_result", "ask_user"}, excludedTools...)
+	allowAll, ok := ctx.Value(allowAllCtxKey{}).(bool)
+	if !ok {
+		allowAll = true
+	}
+
+	workDir, ok := ctx.Value(parentWorkDirKey{}).(string)
+	if !ok || workDir == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			workDir = cwd
+		} else if home, err := os.UserHomeDir(); err == nil {
+			workDir = home
+		} else {
+			return "", fmt.Errorf("cwd and home both failed")
+		}
+	}
+	excluded := append([]string{"invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}, excludedTools...)
 	execData := ExecData{
 		Agent:             agent,
-		WorkDir:           ".",
+		WorkDir:           workDir,
 		Content:           task,
 		ExcludeTools:      excluded,
 		ExtraSystemPrompt: systemPrompt,
-		AllowAll:          true,
+		AllowAll:          allowAll,
 	}
 
 	oldHistory, maxHistory := sessionManager.GetHistory(sessionID)
@@ -90,15 +106,41 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 	subCtx, cancel := context.WithTimeout(ctx, time.Duration(SubagentTimeoutMin)*time.Minute)
 	defer cancel()
 
+	parentEvents, ok := ctx.Value(parentEventsKey{}).(chan<- agentTypes.Event)
+	if !ok {
+		parentEvents = nil
+	}
+
+	displayName, _ := sessionManager.GetBot(sessionID)
+	if displayName == "" || displayName == sessionID {
+		var short, rest string
+		switch {
+		case strings.HasPrefix(sessionID, "temp-sub-"):
+			short, rest = "temp-sub-", sessionID[len("temp-sub-"):]
+		case strings.HasPrefix(sessionID, "cli-"):
+			short, rest = "cli-", sessionID[len("cli-"):]
+		case strings.HasPrefix(sessionID, "http-"):
+			short, rest = "http-", sessionID[len("http-"):]
+		}
+		if short != "" {
+			if len(rest) > 8 {
+				rest = rest[:8]
+			}
+			displayName = short + rest
+		}
+	}
+
 	events := make(chan agentTypes.Event, 64)
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- Execute(subCtx, execData, session, events, true)
+		errCh <- Execute(subCtx, execData, session, events, allowAll)
 		close(events)
 	}()
 
 	var sb strings.Builder
 	for ev := range events {
+		passSubagentEvent(parentEvents, displayName, ev)
+
 		switch ev.Type {
 		case agentTypes.EventText:
 			if ev.Text == "" {
@@ -108,10 +150,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 				sb.WriteByte('\n')
 			}
 			sb.WriteString(ev.Text)
-		case agentTypes.EventToolConfirm:
-			if ev.ReplyCh != nil {
-				ev.ReplyCh <- true
-			}
 		case agentTypes.EventError:
 			if ev.Err != nil {
 				slog.Warn("subagent event error",
@@ -135,6 +173,29 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		return fmt.Sprintf("[subagent · %s · session=%s] 未產出文字結果", agent.Name(), sessionID), nil
 	}
 	return fmt.Sprintf("[subagent · %s · session=%s]\n%s", agent.Name(), sessionID, result), nil
+}
+
+func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentTypes.Event) {
+	if parent == nil {
+		return
+	}
+	switch ev.Type {
+	case agentTypes.EventDone,
+		agentTypes.EventAgentSelect,
+		agentTypes.EventAgentResult,
+		agentTypes.EventSummaryGenerate,
+		agentTypes.EventToolCallStart,
+		agentTypes.EventToolCallEnd,
+		agentTypes.EventToolCallText,
+		agentTypes.EventSkillResult:
+		return
+	}
+
+	out := ev
+	if out.Source == "" {
+		out.Source = name
+	}
+	parent <- out
 }
 
 func ensureSubagentSession(input string) (string, error) {

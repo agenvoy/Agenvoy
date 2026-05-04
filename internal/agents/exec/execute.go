@@ -82,7 +82,23 @@ type ExecData struct {
 	AllowAll          bool
 }
 
+type (
+	allowAllCtxKey   struct{}
+	parentEventsKey  struct{}
+	parentWorkDirKey struct{}
+)
+
 func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
+	ctx = context.WithValue(ctx, allowAllCtxKey{}, allowAll)
+
+	if events != nil {
+		ctx = context.WithValue(ctx, parentEventsKey{}, events)
+	}
+
+	if strings.TrimSpace(data.WorkDir) != "" {
+		ctx = context.WithValue(ctx, parentWorkDirKey{}, data.WorkDir)
+	}
+
 	if session != nil && session.ID != "" {
 		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)

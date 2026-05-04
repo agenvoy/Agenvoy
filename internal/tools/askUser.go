@@ -11,6 +11,7 @@ import (
 
 	"github.com/manifoldco/promptui"
 
+	"github.com/pardnchiu/agenvoy/internal/pending"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -66,6 +67,38 @@ func registAskUser() {
 			}
 			if len(params.Questions) == 0 {
 				return "", fmt.Errorf("ask_user requires at least one question in 'questions'")
+			}
+
+			if pending.Active.Load() {
+				questions := make([]pending.Question, 0, len(params.Questions))
+				for i, q := range params.Questions {
+					q.Question = strings.TrimSpace(q.Question)
+					if q.Question == "" {
+						return "", fmt.Errorf("question #%d is empty", i+1)
+					}
+					questions = append(questions, pending.Question{
+						Question:    q.Question,
+						Options:     q.Options,
+						MultiSelect: q.MultiSelect,
+					})
+				}
+				reply, err := pending.Ask(ctx, pending.Request{
+					Kind:      pending.KindAskUser,
+					SessionID: e.SessionID,
+					ToolName:  "ask_user",
+					AskUser:   &pending.UserPayload{Questions: questions},
+				})
+				if err != nil {
+					return "", fmt.Errorf("pending.Ask: %w", err)
+				}
+				if reply.Err != nil {
+					return "", reply.Err
+				}
+				out, err := json.Marshal(map[string]any{"answers": reply.Answers})
+				if err != nil {
+					return "", fmt.Errorf("json.Marshal: %w", err)
+				}
+				return string(out), nil
 			}
 
 			if !strings.HasPrefix(e.SessionID, "cli-") {

@@ -58,7 +58,7 @@ func registInvokeSubagent() {
 				"exclude_tools": map[string]any{
 					"type":        "array",
 					"items":       map[string]any{"type": "string"},
-					"description": "Extra tool names to exclude on top of the always-excluded set (invoke_subagent, invoke_external_agent, cross_review_with_external_agents, review_result, ask_user). The default set cannot be overridden.",
+					"description": "Extra tool names to exclude on top of the always-excluded set (invoke_subagent, invoke_external_agent, cross_review_with_external_agents, review_result). The default set cannot be overridden.",
 					"default":     []string{},
 				},
 			},

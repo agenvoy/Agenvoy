@@ -10,6 +10,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/errorMemory"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/errorMemory/toolError"
+	"github.com/pardnchiu/agenvoy/internal/pending"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -91,19 +92,25 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 		}
 
 		if !allowAll && !toolRegister.IsReadOnly(toolName) && !strings.HasPrefix(toolName, "api_") {
-			replyCh := make(chan bool, 1)
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventToolConfirm,
-				ToolName: toolName,
-				ToolArgs: toolArg,
-				ToolID:   toolID,
-				ReplyCh:  replyCh,
+			proceed := true
+			if pending.Active.Load() {
+				reply, err := pending.Ask(ctx, pending.Request{
+					Kind:      pending.KindToolConfirm,
+					SessionID: sessionData.ID,
+					ToolName:  toolName,
+					ToolArgs:  toolArg,
+				})
+				if err != nil {
+					proceed = false
+				} else {
+					proceed = reply.Approve
+				}
 			}
-			proceed := <-replyCh
 			if !proceed {
 				events <- agentTypes.Event{
 					Type:     agentTypes.EventToolSkipped,
 					ToolName: toolName,
+					ToolArgs: toolArg,
 					ToolID:   toolID,
 				}
 				slots[i].state = slotSkipped
