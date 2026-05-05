@@ -91,7 +91,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			continue
 		}
 
-		if !allowAll && !toolRegister.IsReadOnly(toolName) && !strings.HasPrefix(toolName, "api_") {
+		if !allowAll && !toolRegister.IsReadOnly(toolName) {
 			proceed := true
 			if pending.Active.Load() {
 				reply, err := pending.Ask(ctx, pending.Request{

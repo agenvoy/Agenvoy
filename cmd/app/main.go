@@ -35,6 +35,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/scheduler/tasks"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/skill"
+	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
 	"github.com/pardnchiu/agenvoy/internal/tui"
 )
@@ -97,6 +98,10 @@ func main() {
 			}
 			initCLI()
 			cli.Switch(os.Args[2])
+			return
+		case "mcp":
+			initCLI()
+			cli.MCP(os.Args[2:])
 			return
 		case "cli", "run":
 			if len(os.Args) < 3 {
@@ -196,6 +201,9 @@ func runAgent(allowAll bool) {
 
 	userInput := strings.TrimSpace(strings.ReplaceAll(strings.Join(os.Args[2:], " "), `\n`, "\n"))
 
+	mcpManager := initMCP(context.Background())
+	defer mcpManager.Close()
+
 	registry := buildAgentRegistry()
 	ctx, cancel := context.WithCancel(context.Background())
 	skill.SyncSkills(ctx, extensions.Skills)
@@ -267,6 +275,9 @@ func runApp() {
 		provider.SetReasoningLevel(cfg.ReasoningLevel)
 	}
 	subagent.Register()
+
+	mcpManager := initMCP(context.Background())
+	defer mcpManager.Close()
 
 	registry := buildAgentRegistry()
 	skill.SyncSkills(context.Background(), extensions.Skills)
@@ -379,6 +390,21 @@ func setSummaryCron(bot agentTypes.Agent, registry agentTypes.AgentRegistry) {
 	}
 }
 
+func initMCP(ctx context.Context) *mcp.MCP {
+	sessionID := ""
+	if cfg, err := session.Load(); err == nil {
+		sessionID = strings.TrimSpace(cfg.SessionID)
+	}
+	manager, err := mcp.New(ctx, sessionID)
+	if err != nil {
+		slog.Warn("mcp.New",
+			slog.String("error", err.Error()))
+		return nil
+	}
+	manager.RegisterAll(ctx)
+	return manager
+}
+
 func clearSession() {
 	idx, err := go_pkg_filesystem.ReadJSON[struct {
 		SessionID string `json:"session_id"`
@@ -403,6 +429,7 @@ func printUsage() {
 	fmt.Println("  agen config             Edit current CLI session bot.md in $EDITOR")
 	fmt.Println("  agen new [name]         Start a new CLI session (optional bot.md name) and switch primary pointer")
 	fmt.Println("  agen switch <name>      Switch primary pointer to the cli- session whose bot.md name matches")
+	fmt.Println("  agen mcp [list|add|remove]  Manage MCP servers")
 	fmt.Println("  agen planner            Set planner model")
 	fmt.Println("  agen reasoning          Set reasoning level")
 	fmt.Println("  agen cli <input...>     Run agent (requires tool confirmation)")

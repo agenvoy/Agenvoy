@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -31,6 +32,17 @@ var alwaysLoadSet = map[string]bool{}
 var concurrentSet = map[string]bool{}
 
 func Regist(d Def) {
+	d.Name = strings.TrimSpace(d.Name)
+	if d.Name == "" {
+		slog.Warn("toolRegister.Regist: empty name, skipped")
+		return
+	}
+
+	if _, exists := handlerMap[d.Name]; exists {
+		slog.Warn("toolRegister.Regist: name already registered, overwriting",
+			slog.String("name", d.Name))
+	}
+
 	params, _ := json.Marshal(d.Parameters)
 	tool := toolTypes.Tool{
 		Type: "function",

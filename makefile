@@ -1,4 +1,4 @@
-ifneq ($(filter cli run switch new,$(MAKECMDGOALS)),)
+ifneq ($(filter cli run switch new mcp,$(MAKECMDGOALS)),)
 
 cli:
 	@go run ./cmd/app/ cli $(filter-out $@,$(MAKECMDGOALS))
@@ -11,6 +11,9 @@ switch:
 
 new:
 	@go run ./cmd/app/ new $(filter-out $@,$(MAKECMDGOALS))
+
+mcp:
+	@go run ./cmd/app/ mcp $(filter-out $@,$(MAKECMDGOALS))
 
 %:
 	@:
@@ -29,6 +32,7 @@ help:
 	@echo "  make config             Edit current CLI session bot.md in \$$EDITOR"
 	@echo "  make new [name]         Start a new CLI session (optional bot.md name) and switch primary pointer"
 	@echo "  make switch <name>      Switch primary pointer to the cli- session whose bot.md name matches"
+	@echo "  make mcp [list|add|remove]  Manage MCP servers"
 	@echo "  make planner            Set planner model"
 	@echo "  make reasoning          Set reasoning level"
 	@echo "  make models             Get model list"

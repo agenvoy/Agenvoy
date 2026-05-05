@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 var (
@@ -16,6 +16,7 @@ var (
 	AgenvoyDir          string
 	ConfigPath          string
 	UsagePath           string
+	McpPath             string
 	StoreDir            string
 	SessionsDir         string
 	APIToolsDir         string
@@ -61,6 +62,7 @@ func Init() error {
 		AgenvoyDir = filepath.Join(homeDir, ".config", projectName)
 		ConfigPath = filepath.Join(AgenvoyDir, "config.json")
 		UsagePath = filepath.Join(AgenvoyDir, "usage.json")
+		McpPath = filepath.Join(AgenvoyDir, "mcp.json")
 
 		StoreDir = filepath.Join(AgenvoyDir, ".store")
 		SessionsDir = filepath.Join(AgenvoyDir, "sessions")
@@ -107,4 +109,8 @@ func Init() error {
 
 func HistoryPath(sessionID string) string {
 	return filepath.Join(SessionsDir, sessionID, "history.md")
+}
+
+func McpSessionPath(sessionID string) string {
+	return filepath.Join(SessionsDir, sessionID, "mcp.json")
 }
