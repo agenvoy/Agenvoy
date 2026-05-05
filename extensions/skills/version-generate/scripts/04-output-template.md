@@ -19,20 +19,72 @@ mkdir -p .doc/version-generate
 
 ## Summary 撰寫規範（強制）
 
-**長度上限**：1–3 句，英文 ≤ 80 words、中文 ≤ 120 漢字。**超過即重寫**。
+### 硬性上限（超過任一條即整段重寫，不放行）
 
-**寫主軸，不寫清單**：以「概念層」描述本次發布解決什麼問題／推進什麼方向，**不要**逐 commit 列檔名／模組名／API 名稱。讀者要的是「這版在做什麼」，細節在 `## Changes` 與 `## Scope`。
+| 維度 | 上限 |
+|---|---|
+| 句數 | **1–3 句**（用 `.` / `。` 計算） |
+| 英文字數 | **≤ 80 words** |
+| 中文漢字 | **≤ 120 漢字**（不含 ASCII 與標點） |
+| 整段「具體名稱」總數 | **≤ 2 個**（包含檔名、模組路徑、function／type／flag、CLI 指令、URL、量化規格） |
 
-**禁止**：
-- 列舉超過 2 個具體模組／API／檔案路徑
-- 用半形冒號／破折號分多段塞 commit 內容
-- 中英對照各自獨立寫長段落
+寫完後**必須**用下面的 Self-check 逐項回測；任何一項超標都不是「微調」，是**整段重寫**。
 
-**範例**（取自 `v0.20.0` 收斂後）：
-> Session lifecycle gains a friendly-name layer (per-session `bot.md` + `agen new`/`switch`/`config`) and three routing paths: `invoke_subagent name=...`, `:<name>` CLI prefix, and skill-arg pass-through. Runtime adds a UID/PID singleton plus per-session `status.json` and rotating `action.log`. go-utils upgraded to v0.9.4.
+### 必須寫什麼（主軸三句結構）
 
-**反例**（v0.20.0 第一版被退）：
-> 一次塞入 8 條主線、每條附路徑與行為描述，超過 200 字 — 應收斂為 3 句主軸，細節留給 FEAT entries。
+Summary 是「主軸層」，回答「這版在做什麼方向」，**不是**「這版改了什麼」。後者是 `## Changes` 與 `## Scope` 的工作。
+
+| 句位 | 任務 | 句型範例 |
+|---|---|---|
+| 第 1 句 | 本版核心主題（單一動詞 + 受詞 + 概念名詞） | `Plugs X into the Y ecosystem`／`Tightens permission gating across A and B` |
+| 第 2 句（選用） | **獨立**第二方向，不是第 1 句的展開 | `Closes a long-standing gap in ...` |
+| 第 3 句（選用） | 輔助／順帶（doc／chore） | `Detailed documentation moves to ...` |
+
+### 絕對禁止（NEVER — 命中即不合格）
+
+下列任一出現於 Summary 即重寫，不接受「只列一兩個應該還好」的妥協：
+
+1. **逐 commit 列檔名／模組路徑** — 例：`internal/toolAdapter/mcp/`、`tools/register`、`cmd/app/main.go`
+2. **列舉具體 API／function／type／flag** — 例：`invoke_subagent`、`AllowAll`、`MaxBytes`、`api_*`、`mcp__<server>__<tool>`
+3. **列舉 CLI 指令／URL／環境變數** — 例：`agen mcp [list|add|remove]`、`https://...`、`MAX_HISTORY_MESSAGES`
+4. **量化規格** — 例：「1 MiB」、「90 天 TTL」、「128 iterations」、「3 輪上限」
+5. **括號塞清單** — 例：`the MCP client adapter (stdio + HTTP/SSE transports, global + per-session config merge, agen mcp CLI)`
+6. **冒號／破折號／分號當小標** — 用 `... (...): X 與 Y；Z` 變相把 commit 內容串成一段
+7. **中英版各自加料** — 中文不得比英文多任何具體名詞；發現中文比英文多訊息一律以英文為準回頭刪
+8. **複述 Changes／Scope 的句子** — 同一句話只能出現一次，Summary 該抽象就抽象
+9. **「Adds／Fixes／Updates A, B, C, D, E ...」式列舉** — 三個以上同性質動作必須抽象成單一概念
+
+**為何嚴格：** Summary 一旦寫成清單，讀者必須先解析括號才能 grasp release 走向，等於把 `## Changes` 抄一遍 — 兩個區段語意重疊、`## Changes` 失去存在意義。Release note 的訊息密度應**遞減**：Summary（主軸）→ Changes（一句話／commit）→ Scope（路徑 + tag）。
+
+### Self-check（寫完逐項勾，未通過不放行）
+
+```
+[ ] 英文 ≤ 80 words（用 `wc -w` 或一個一個數）
+[ ] 中文 ≤ 120 漢字（去掉 ASCII 與標點再數）
+[ ] 句數 1–3 句（數 `.` 與 `。`）
+[ ] 「具體名稱」（檔名／模組／API／flag／指令／URL／量化規格）總數 ≤ 2
+[ ] 第 1 句是「主題綱領」而非「細節枚舉」
+[ ] 中英版主軸一致；中文不比英文多任何專名／量化
+[ ] 沒有任何 NEVER 條目命中
+```
+
+### 對照範例
+
+**❌ 反例**（命中 NEVER #1, #2, #3, #4, #5；110+ words；4 個括號塞清單）
+
+> Adds the MCP client adapter (stdio + HTTP/SSE transports, global + per-session config merge, `agen mcp [list|add|remove]` CLI) so any MCP server can plug tools straight into the runtime under the `mcp__<server>__<tool>` namespace. Tightens `tools/register` to drop empty / duplicate names at the registry boundary, removes the `api_*` prefix exemption from the confirm gate, and caps each MCP tool result at 1 MiB so a single response cannot overrun provider limits. Detailed documentation moves out of `doc/` into GitHub Wiki; README cross-links now point at `https://github.com/agenvoy/Agenvoy/wiki/...`.
+
+**為何錯：** 列了 5 個模組／API、3 個量化規格、寫死 URL、括號塞 4 段清單。讀者必須解析才能 grasp，已不是 summary 而是 changes 縮排版。
+
+**✅ 正例**（43 words；3 句；0 個檔名／API／URL；具體名稱僅「MCP」「GitHub Wiki」共 2 個概念名詞 — 屬主題不屬細節）
+
+> Plugs Agenvoy into the MCP ecosystem with a dual-transport client adapter that merges global and per-session config. Tightens the tool registry boundary and closes a confirm-gate gap that let user-defined API endpoints execute silently. Detailed documentation moves from the repo into GitHub Wiki.
+
+**為何對：** 三個獨立主軸（接入 MCP／收斂 gating／文件搬家），全部用概念詞（boundary、gap、ecosystem）取代具體名稱。細節留給 `## Changes` 與 `## Scope`。
+
+**✅ 正例**（取自 `v0.20.0` 收斂後）
+
+> Session lifecycle gains a friendly-name layer with three routing paths. Runtime adds a process-singleton lock plus per-session status and rotating action log. Internal utilities upgraded.
 
 ## Scope 撰寫規範（強制）
 

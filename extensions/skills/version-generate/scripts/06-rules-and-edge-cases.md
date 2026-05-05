@@ -12,7 +12,7 @@
 8. **描述格式**：動詞開頭（Add、Fix、Update、Remove、Refactor）
 9. **聚焦意圖**：描述變更內容及原因，而非個別檔案
 10. **追溯格式**：每條變更尾綴 `(#PR, @author) [short_hash]`，缺失欄位省略對應括號
-11. **Summary 收斂**：`## Summary` 段限制 1–3 句（英文 ≤ 80 words／中文 ≤ 120 漢字），描述本次發布的主軸，**不**逐 commit 列模組／API／檔名。生成後若超字數立刻重寫；中英對照各自獨立計算字數但維持同主軸
+11. **Summary 收斂**：完整規範見 [04-output-template.md `Summary 撰寫規範`](./04-output-template.md#summary-撰寫規範強制)，含 9 條 NEVER 與 self-check checklist。常見違規（必重寫）：括號塞清單、列具體檔名／API／量化規格、中文版偷加細節、用「Adds A, B, C, D」式列舉冒充主軸。**寫完逐項勾完 self-check 才放行**，不接受「1–3 句」單一條件交差
 12. **Scope 英文唯一**：`## Scope` 段內容**一律英文**，**不附** `<details><summary>翻譯</summary>...</details>` 區塊。格式 `- \`<path>\` — <TAG1>, <TAG2>, ...`，TAG 用大寫 commit tag
 13. **不輸出 Version Mapping 表**：模板尾端**不再**附 `### Version Mapping (SemVer)` 表格與 `***` 分隔線。SemVer 規則由 frontmatter `type` 與 commit tag 自身表達，無需再列入 release note
 
@@ -32,3 +32,43 @@
 | `BREAKING` 無 Migration 內容 | **中止**並要求補充，不產出殘缺文件 |
 | Co-author trailer 含 AI | 寫入 `co_authors`，不計入 `contributors` |
 | 僅 `NO_BUMP` 標籤（STYLE／DOC／TEST／CHORE） | 不更新 `.doc/version-generate/CHANGELOG.md` 索引 |
+| 使用者指定撤回上版並合併本次 BREAKING（pre-release supersede）| 套用下節 **Supersede 處理流程** |
+
+## Supersede 處理流程
+
+**觸發條件（全部命中）：**
+
+- 使用者透過 `ARGUMENTS` 或對話明確指定新版號（例：`v0.12.1`）並要求保留同 minor（"use same minor"／"keep minor"／"don't bump major"）
+- 區間內存在 BREAKING commit，依預設規則本應升 MAJOR
+- 使用者宣告會移除上一個版本標籤（"i will remove vX.Y.Z tag"／"withdraw vX.Y.Z"）
+
+**為何不直接套版本映射：** pre-release 階段（通常 `0.x.y`）允許 reshape 尚未公開的 API。被撤回的 tag 對外等同未發布，BREAKING 僅存在於內部 commit 序列。若仍依規則升 MAJOR，會讓使用者看到不存在過的 0.13/1.0 階躍，破壞 changelog 連續性。
+
+**處理流程：**
+
+1. **base tag 還原**：將 `LATEST_TAG` 視為被撤回標籤的**前一個**已發布標籤（例：撤回 `v0.12.0` 則 `LATEST_TAG = v0.11.3`）
+2. **commit 區間合併**：收集 `LATEST_TAG..HEAD` 全部 commit（含被撤回版本內的 commit），視為單次發布
+3. **版本欄位**：
+   - `version`: 使用者指定值
+   - `previous`: 還原後的 `LATEST_TAG`（**不是**被撤回版本）
+   - `type`: 依還原後的 base tag 與新版號計算（多半為 `minor`）
+   - `breaking`: `false`（內部重塑不對外構成 breaking）
+4. **Summary 描述定版後 API**，**不**敘述被撤回版本曾存在的中間態
+5. **首段加入 supersede note**：
+
+```markdown
+> **Note**: Supersedes the withdrawn `vX.Y.Z` tag. The intermediate API exposed in that pre-release was reshaped before publication; the surface documented below is the only public form.
+```
+
+6. **Changes 整段視為新增**：BREAKING commit 與其前置 FEAT 合併為單一 FEAT 條目（描述定版後形態），`[hash]` 欄位列出所有合併 commit 的 short hash（逗號分隔）
+7. **檔案清理**：刪除被撤回版本的 `.doc/version-generate/v<撤回版本>.md`
+8. **索引維護**：`CHANGELOG.md` 移除被撤回版本的條目，新增新版本條目
+9. **提醒使用者**：回應結尾附「記得 `git tag -d <withdrawn>` 與 `git push --delete <remote> <withdrawn>`（如已推送）」
+
+**Migration 例外：** 觸發 supersede 時，`breaking: false` → 步驟 4 不要求 Migration 區段，整段省略（一致於普通 `breaking: false` 的處理）。
+
+**反例（不適用 supersede）：**
+
+- 使用者僅說「升版號為 v0.12.1」未提撤回上版 → 仍依預設規則，BREAKING 觸發 MAJOR
+- 上一個 tag 已對外發布且有人引用 → 即使使用者要求撤回，亦應發 MAJOR 並寫 Migration（已公開的 surface 不可隱形改動）
+- 撤回的是非相鄰版本（例：撤回 `v0.10.0`、現位於 `v0.12.x`）→ 流程不適用，需個案處理
