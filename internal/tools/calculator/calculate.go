@@ -162,6 +162,11 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 		return value{}, fmt.Errorf("function %s requires arguments", ident.Name)
 	}
 
+	switch ident.Name {
+	case "min", "max":
+		return evalMinMax(ident.Name, call.Args)
+	}
+
 	a, err := eval(call.Args[0])
 	if err != nil {
 		return value{}, err
@@ -215,4 +220,39 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 	}
 
 	return value{}, fmt.Errorf("unknown function: %s", ident.Name)
+}
+
+func evalMinMax(name string, args []ast.Expr) (value, error) {
+	vals := make([]value, len(args))
+	allInt := true
+	for i, a := range args {
+		v, err := eval(a)
+		if err != nil {
+			return value{}, err
+		}
+		vals[i] = v
+		if !v.isInt {
+			allInt = false
+		}
+	}
+	if allInt {
+		best := vals[0].i
+		for _, v := range vals[1:] {
+			cmp := v.i.Cmp(best)
+			if (name == "min" && cmp < 0) || (name == "max" && cmp > 0) {
+				best = v.i
+			}
+		}
+		return intVal(new(big.Int).Set(best)), nil
+	}
+	best := vals[0].toFloat()
+	for _, v := range vals[1:] {
+		f := v.toFloat()
+		if name == "min" {
+			best = math.Min(best, f)
+		} else {
+			best = math.Max(best, f)
+		}
+	}
+	return floatVal(best), nil
 }

@@ -20,7 +20,7 @@ func Register() {
 			"properties": map[string]any{
 				"expression": map[string]any{
 					"type":        "string",
-					"description": "Mathematical expression, for example '(100 + 200) * 3', '10 % 3', '2 ^ 10', 'sqrt(2)', or 'pow(2, 10)'.",
+					"description": "Mathematical expression, for example '(100 + 200) * 3', '10 % 3', '2 ^ 10', 'sqrt(2)', 'pow(2, 10)', or 'min(1, 2, 3)' / 'max(...)' (variadic).",
 				},
 			},
 			"required": []string{"expression"},

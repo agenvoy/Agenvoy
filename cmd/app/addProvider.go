@@ -279,9 +279,17 @@ func selectModelFromList(prefix, providerName, defaultModel string) (model, desc
 		entries = append(entries, entry{name, models[name]})
 	}
 
+	const nameCol = 36
+	const fixedOverhead = nameCol + 2 + 4
+	cols, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || cols <= 0 {
+		cols = 100
+	}
+	descBudget := max(cols-fixedOverhead, 20)
+
 	items := make([]string, len(entries)+1)
 	for i, e := range entries {
-		items[i] = fmt.Sprintf("%-36s  %s", e.name, e.info.Description)
+		items[i] = fmt.Sprintf("%-*s  %s", nameCol, e.name, truncateByWidth(e.info.Description, descBudget))
 	}
 	items[len(entries)] = "exit"
 
@@ -471,4 +479,45 @@ func addOpenAICodex(prefix, defaultModel string) (string, string) {
 	}
 
 	return getModelName(prefix, defaultModel)
+}
+
+func truncateByWidth(s string, budget int) string {
+	if budget <= 0 {
+		return ""
+	}
+	used := 0
+	for i, r := range s {
+		rw := runeColumns(r)
+		if used+rw > budget-1 {
+			return s[:i] + "…"
+		}
+		used += rw
+	}
+	return s
+}
+
+func runeColumns(r rune) int {
+	if r < 0x80 {
+		if r < 0x20 || r == 0x7F {
+			return 0
+		}
+		return 1
+	}
+	switch {
+	case r >= 0x1100 && r <= 0x115F,
+		r >= 0x2E80 && r <= 0x303E,
+		r >= 0x3041 && r <= 0x33FF,
+		r >= 0x3400 && r <= 0x4DBF,
+		r >= 0x4E00 && r <= 0x9FFF,
+		r >= 0xA000 && r <= 0xA4CF,
+		r >= 0xAC00 && r <= 0xD7A3,
+		r >= 0xF900 && r <= 0xFAFF,
+		r >= 0xFE30 && r <= 0xFE4F,
+		r >= 0xFF00 && r <= 0xFF60,
+		r >= 0xFFE0 && r <= 0xFFE6,
+		r >= 0x20000 && r <= 0x2FFFD,
+		r >= 0x30000 && r <= 0x3FFFD:
+		return 2
+	}
+	return 1
 }

@@ -220,7 +220,9 @@ func runAgent(allowAll bool) {
 
 	host.Set(selectorBot, registry, scanner)
 
-	if err := cli.Run(ctx, cancel, func(ch chan<- agentTypes.Event) error {
+	go cli.NewPending(ctx)
+
+	if err := cli.Run(func(ch chan<- agentTypes.Event) error {
 		return exec.Run(ctx, selectorBot, registry, scanner, userInput, nil, nil, ch, allowAll)
 	}); err != nil && ctx.Err() == nil {
 		slog.Error("failed to execute",
