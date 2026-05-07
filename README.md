@@ -5,50 +5,58 @@
 ***
 
 <p align="center">
-<picture style="margin-down: 1rem">
-<img src="./doc/logo.svg" alt="Agenvoy" width="320">
-</picture>
+  <picture style="margin-down: 1rem">
+    <img src="./doc/logo.svg" alt="Agenvoy" width="320">
+  </picture>
 </p>
 
 <p align="center">
-<strong>BUILD YOUR OWN OPENCLAW WITH AGENVOY!</strong>
+  <strong>Run every vendor against the same task — in parallel, in-process.</strong>
 </p>
 
 <p align="center">
-<a href="https://pkg.go.dev/github.com/pardnchiu/agenvoy"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
-<a href="https://app.codecov.io/github/pardnchiu/agenvoy/tree/master"><img src="https://img.shields.io/codecov/c/github/pardnchiu/agenvoy/master?include_prereleases&style=for-the-badge" alt="Coverage"></a>
-<a href="LICENSE"><img src="https://img.shields.io/github/v/tag/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="Version"></a>
-<a href="https://github.com/pardnchiu/agenvoy/releases"><img src="https://img.shields.io/github/license/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="License"></a>
+  Go-native multi-agent runtime · Heterogeneous LLM dispatch in one fan-out · OS-level sandbox by default
 </p>
 
-<img src="./doc/en.jpg" alt="Agenvoy" >
-
-<p align="center">Logo and cover illustrations were generated with ChatGPT Image 2.0.</p>
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/pardnchiu/agenvoy"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
+  <a href="https://app.codecov.io/github/pardnchiu/agenvoy/tree/master"><img src="https://img.shields.io/codecov/c/github/pardnchiu/agenvoy/master?include_prereleases&style=for-the-badge" alt="Coverage"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/v/tag/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="Version"></a>
+  <a href="https://github.com/pardnchiu/agenvoy/releases"><img src="https://img.shields.io/github/license/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="License"></a>
+</p>
 
 ***
 
-> A Go AI agent framework with multi-provider routing, MCP client adapter, in-process subagents, and OS-native sandboxing
+## Why Agenvoy
 
-Routes tasks across multiple LLM providers automatically, talks to MCP servers over stdio or HTTP, replaces HTTP fan-out with in-process subagents, and runs everything inside an OS-native sandbox.
+- **Can one task fan out to multiple vendors at once?** Claude planning, GPT diffing, Gemini critiquing — running side by side in the same goroutine batch, no HTTP between them?
+- **What is the cost of switching providers?** A config edit, or rewriting every tool integration?
+- **Where does the sandbox boundary sit?** Around the agent's own bash tool, or around the entire framework including the external CLIs you delegate to?
 
-## Table of Contents
+Agenvoy is built around those questions:
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [License](#license)
-- [Contributor](#contributor)
-- [Star History](#star-history)
+|                              | Agenvoy                          | Claude Code                              | Codex CLI                                | Gemini CLI                               | OpenClaw                                 | Hermes Agent                             |
+| ---------------------------- | -------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- |
+| Language / runtime           | Go (single binary)               | Node.js                                  | Rust                                     | Node.js                                  | Node.js                                  | Python                                   |
+| Native model coverage        | 7 providers + planner            | 1 (Anthropic only — others via proxy)    | 1 (OpenAI only — `--oss` for Ollama)     | 1 (Google only — others via proxy)       | Multi (Anthropic / OpenAI / Gemini / DeepSeek / etc.) | 18+ providers (Nous Portal, OpenRouter, NIM, OpenAI, Anthropic, ...) |
+| Sandbox                      | Whole framework + delegated CLIs | Own bash tool only                       | Own shell exec only                      | Own shell exec only (opt-in)             | Skill / shell only (opt-in, 17% defense rate) | Own terminal backend only                |
+| Heterogeneous parallel dispatch | In-process fan-out — `invoke_subagent` picks any of 7 providers per call, all run in one goroutine batch | Single vendor                       | Single vendor                            | Single vendor                            | Sub-agents over HTTP                     | Parallel sub-agents over HTTP / RPC      |
+| Multi-model iterative verification | codex ↔ claude ↔ copilot ↔ gemini, up to 3 rounds | ✗                        | ✗                                        | ✗                                        | ✗                                        | ✗                                        |
+| Cross-session error memory   | ToriiDB + 90-day TTL + semantic search | Vendor-managed history             | Vendor-managed rollouts                  | Vendor-managed history                   | Memory wiki + active memory              | Auto-generated skills + conversation search |
+| Primary distribution         | `make build` → single binary     | npm + native installer                   | npm (Rust binary)                        | npm                                      | npm + daemon                             | curl install script                      |
+
+The row that matters most is **Heterogeneous parallel dispatch**. Other frameworks either pin you to one vendor (Claude Code, Codex, Gemini CLI) or push sub-agents through HTTP / RPC (OpenClaw, Hermes). Agenvoy fans out from one `invoke_subagent` call — any of seven providers per slot, parallel goroutines in one process, results merging through a single event stream. **Multi-model iterative verification** stacks on top: four external CLIs cross-check one result for up to three rounds. **Sandbox** is the floor — every delegated CLI sits inside one `go-pkg/sandbox` boundary, one policy.
 
 ## Features
 
 > `make build` · installs to `/usr/local/bin/agen` · [Documentation](https://github.com/agenvoy/Agenvoy/wiki)
 
-- **Multi-agent orchestration**<br>
-  Seven LLM providers (Copilot / OpenAI / Codex / Claude / Gemini / Nvidia / Compat) behind one interface with planner-based dispatch; `invoke_subagent` calls `exec.Execute` directly without HTTP, inheriting `AllowAll` / `WorkDir` from the parent ctx; `cross_review_with_external_agents` chains codex / claude / copilot / gemini through up to three rounds; a pending channel registry funnels every confirm and ask through one human interaction point.
-- **Pluggable tools and OS-native sandbox**<br>
-  Drop a JSON under `extensions/apis/` or a script under `extensions/scripts/<name>/` and it registers as a tool; the MCP client adapter speaks stdio and HTTP/SSE, merging global and per-session `mcp.json` automatically with `agen mcp` for interactive management; `run_command` / script / scheduler tools all route through `go-pkg/sandbox` (Linux bwrap, macOS sandbox-exec) with policy injected once in `init()`.
-- **Self-improving cross-session error memory**<br>
-  ToriiDB stores entries with 90-day TTL and refreshes on hit via `Expire`; `search_error_memory` and `search_conversation_history` run keyword + semantic search side by side (OpenAI text-embedding-3-small) and pad context with a 2-before / 1-after window, so the same trap is never stepped on twice.
+- **Heterogeneous parallel dispatch**<br>
+  `invoke_subagent` is `Concurrent: true` with a `model` enum across seven providers — the parent fans out Claude / GPT / Gemini in one goroutine batch, no HTTP, one event stream back. `cross_review_with_external_agents` stacks codex / claude / copilot / gemini on top for up to three review rounds.
+- **Pluggable tools, one sandbox**<br>
+  Drop `extensions/apis/*.json` or `extensions/scripts/<name>/` to register a tool; MCP (stdio + HTTP/SSE) merges global and per-session config. Every command, script, and external CLI runs inside `go-pkg/sandbox` (bwrap / sandbox-exec).
+- **Cross-session error memory**<br>
+  ToriiDB indexes tool failures and turns with a 90-day TTL that refreshes on hit; `search_error_memory` and `search_conversation_history` run keyword + semantic in parallel — the same trap isn't hit twice.
 
 ## Architecture
 
