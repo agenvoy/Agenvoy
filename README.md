@@ -11,11 +11,11 @@
 </p>
 
 <p align="center">
-  <strong>Run every vendor against the same task — in parallel, in-process.</strong>
+  <strong>One command. Multiple models. Each playing to its strength.</strong>
 </p>
 
 <p align="center">
-  Go-native multi-agent runtime · Heterogeneous LLM dispatch in one fan-out · OS-level sandbox by default
+  Go-native dispatcher · Planner routes each step to the best-fit model · Subagents collaborate in one process
 </p>
 
 <p align="center">
@@ -29,30 +29,30 @@
 
 ## Why Agenvoy
 
-- **Can one task fan out to multiple vendors at once?** Claude planning, GPT diffing, Gemini critiquing — running side by side in the same goroutine batch, no HTTP between them?
-- **What is the cost of switching providers?** A config edit, or rewriting every tool integration?
-- **Where does the sandbox boundary sit?** Around the agent's own bash tool, or around the entire framework including the external CLIs you delegate to?
+- **Why not let one model do everything?** Claude excels at planning, GPT at diff reasoning, Gemini at long-context critique — why pile every step onto a single vendor?
+- **What does "model collaboration" cost?** Sub-agents over HTTP / RPC, or goroutines living in one process?
+- **Where does the sandbox boundary sit?** Around the agent's own bash tool, or around every model and CLI you dispatch?
 
-Agenvoy is built around those questions:
+Agenvoy answers with one idea: a single command splits the work, hands each step to the model that does it best, and merges the results — all in one process.
 
-|                              | Agenvoy                          | Claude Code                              | Codex CLI                                | Gemini CLI                               | OpenClaw                                 | Hermes Agent                             |
-| ---------------------------- | -------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- |
-| Language / runtime           | Go (single binary)               | Node.js                                  | Rust                                     | Node.js                                  | Node.js                                  | Python                                   |
-| Native model coverage        | 7 providers + planner            | 1 (Anthropic only — others via proxy)    | 1 (OpenAI only — `--oss` for Ollama)     | 1 (Google only — others via proxy)       | Multi (Anthropic / OpenAI / Gemini / DeepSeek / etc.) | 18+ providers (Nous Portal, OpenRouter, NIM, OpenAI, Anthropic, ...) |
-| Sandbox                      | Whole framework + delegated CLIs | Own bash tool only                       | Own shell exec only                      | Own shell exec only (opt-in)             | Skill / shell only (opt-in, 17% defense rate) | Own terminal backend only                |
-| Heterogeneous parallel dispatch | In-process fan-out — `invoke_subagent` picks any of 7 providers per call, all run in one goroutine batch | Single vendor                       | Single vendor                            | Single vendor                            | Sub-agents over HTTP                     | Parallel sub-agents over HTTP / RPC      |
-| Multi-model iterative verification | codex ↔ claude ↔ copilot ↔ gemini, up to 3 rounds | ✗                        | ✗                                        | ✗                                        | ✗                                        | ✗                                        |
-| Cross-session error memory   | ToriiDB + 90-day TTL + semantic search | Vendor-managed history             | Vendor-managed rollouts                  | Vendor-managed history                   | Memory wiki + active memory              | Auto-generated skills + conversation search |
-| Primary distribution         | `make build` → single binary     | npm + native installer                   | npm (Rust binary)                        | npm                                      | npm + daemon                             | curl install script                      |
+|  | Agenvoy | Claude Code | Codex CLI | Gemini CLI | OpenClaw | Hermes |
+|---|---|---|---|---|---|---|
+| Runtime | Go | Node.js | Rust | Node.js | Node.js | Python |
+| Providers | 7 + planner | 1 | 1 | 1 | Multi | 18+ |
+| Sandbox scope | Framework + delegated CLIs | Own bash tool | Own shell exec | Own shell exec | Skill / shell | Terminal backend |
+| Model dispatch | Planner picks per call · goroutine fan-out | Single vendor | Single vendor | Single vendor | Sub-agents over HTTP | Sub-agents over HTTP / RPC |
+| Cross-model verify | codex / claude / copilot / gemini · ≤3 rounds | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Error memory | ToriiDB · 90d TTL · semantic | Vendor history | Vendor rollouts | Vendor history | Memory wiki | Skills + history search |
+| Distribution | Single binary | npm + native | npm (Rust) | npm | npm + daemon | curl script |
 
-The row that matters most is **Heterogeneous parallel dispatch**. Other frameworks either pin you to one vendor (Claude Code, Codex, Gemini CLI) or push sub-agents through HTTP / RPC (OpenClaw, Hermes). Agenvoy fans out from one `invoke_subagent` call — any of seven providers per slot, parallel goroutines in one process, results merging through a single event stream. **Multi-model iterative verification** stacks on top: four external CLIs cross-check one result for up to three rounds. **Sandbox** is the floor — every delegated CLI sits inside one `go-pkg/sandbox` boundary, one policy.
+The row that matters most is **Model dispatch**. Other frameworks pin you to one vendor (Claude Code, Codex, Gemini CLI) or push sub-agents through HTTP / RPC (OpenClaw, Hermes). Agenvoy keeps it all in one process: a planner picks among seven providers per call, `invoke_subagent` fans out as goroutines, results merge through a single event stream. **Cross-model verification** stacks on top — four external CLIs cross-check one result for up to three rounds. **Sandbox** is the floor — every delegated CLI sits inside one `go-pkg/sandbox` boundary, one policy.
 
 ## Features
 
-> `make build` · installs to `/usr/local/bin/agen` · [Documentation](https://github.com/agenvoy/Agenvoy/wiki)
+> `make build` · installs to `/usr/local/bin/agen` · [Documentation](https://github.com/pardnchiu/agenvoy/wiki)
 
-- **Heterogeneous parallel dispatch**<br>
-  `invoke_subagent` is `Concurrent: true` with a `model` enum across seven providers — the parent fans out Claude / GPT / Gemini in one goroutine batch, no HTTP, one event stream back. `cross_review_with_external_agents` stacks codex / claude / copilot / gemini on top for up to three review rounds.
+- **Right model for the right job**<br>
+  A planner reads each task and routes it to the best-fit provider; `invoke_subagent` enums all seven providers with `Concurrent: true`, so the parent fans out Claude / GPT / Gemini in one goroutine batch — no HTTP between them, results merge in one event stream. `cross_review_with_external_agents` stacks codex / claude / copilot / gemini on top for up to three review rounds.
 - **Pluggable tools, one sandbox**<br>
   Drop `extensions/apis/*.json` or `extensions/scripts/<name>/` to register a tool; MCP (stdio + HTTP/SSE) merges global and per-session config. Every command, script, and external CLI runs inside `go-pkg/sandbox` (bwrap / sandbox-exec).
 - **Cross-session error memory**<br>
@@ -60,7 +60,7 @@ The row that matters most is **Heterogeneous parallel dispatch**. Other framewor
 
 ## Architecture
 
-> [Full Architecture](https://github.com/agenvoy/Agenvoy/wiki/Architecture)
+> [Full Architecture](https://github.com/pardnchiu/agenvoy/wiki/Architecture)
 
 ```mermaid
 graph TB
