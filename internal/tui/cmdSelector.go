@@ -30,6 +30,7 @@ var commands = []Command{
 	{"model-remove", "remove a configured model"},
 	{"planner", "set the planner model"},
 	{"reasoning", "set planner reasoning level"},
+	{"session-model", "set current session model + reasoning"},
 	{"switch", "change current session"},
 	{"new", "create and switch to a new session"},
 	{"bot", "edit current session bot.md in $EDITOR"},

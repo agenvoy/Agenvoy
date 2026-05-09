@@ -17,6 +17,8 @@ import (
 const (
 	StatusOnline      = "online"
 	StatusIdle        = "idle"
+	StatusModel       = "auto"
+	StatusReasoning   = "medium"
 	statusInputMaxLen = 256
 )
 
@@ -27,9 +29,11 @@ type Task struct {
 }
 
 type Status struct {
-	State   string `json:"state"`
-	Active  []Task `json:"active"`
-	EndedAt string `json:"ended_at"`
+	State     string `json:"state"`
+	Model     string `json:"model"`
+	Reasoning string `json:"reasoning"`
+	Active    []Task `json:"active"`
+	EndedAt   string `json:"ended_at"`
 }
 
 var statusMu sync.Mutex
@@ -74,6 +78,27 @@ func Idle(sessionID, taskID string) {
 		s.EndedAt = nowStatusTime()
 	} else {
 		s.State = StatusOnline
+	}
+	writeStatus(sessionID, s)
+}
+
+func SetModelReasoning(sessionID, model, reasoning string) {
+	if sessionID == "" {
+		return
+	}
+	statusMu.Lock()
+	defer statusMu.Unlock()
+
+	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	if !go_pkg_filesystem_reader.Exists(dir) {
+		return
+	}
+	s := readStatus(sessionID)
+	if model != "" {
+		s.Model = model
+	}
+	if reasoning != "" {
+		s.Reasoning = reasoning
 	}
 	writeStatus(sessionID, s)
 }
@@ -136,7 +161,7 @@ func readStatus(sessionID string) Status {
 	path := filepath.Join(filesystem.SessionsDir, sessionID, "status.json")
 	s, err := go_pkg_filesystem.ReadJSON[Status](path)
 	if err != nil {
-		return Status{State: StatusIdle}
+		return Status{State: StatusIdle, Model: StatusModel, Reasoning: StatusReasoning}
 	}
 	if s.State == "" {
 		if len(s.Active) > 0 {
@@ -144,6 +169,12 @@ func readStatus(sessionID string) Status {
 		} else {
 			s.State = StatusIdle
 		}
+	}
+	if s.Model == "" {
+		s.Model = StatusModel
+	}
+	if s.Reasoning == "" {
+		s.Reasoning = StatusReasoning
 	}
 	return s
 }

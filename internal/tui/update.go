@@ -235,6 +235,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runReasoningSelect(msg.level)
 		return next, cmd
 
+	case SessionModelSelect:
+		next, cmd := t.openSessionReasoningPopup(msg.model)
+		return next, cmd
+
+	case SessionReasoningSelect:
+		next, cmd := t.runSessionReasoningChosen(msg.model, msg.reasoning)
+		return next, cmd
+
 	case LoadHistoryCheck:
 		sid := msg.id
 		t.popup = &Popup{

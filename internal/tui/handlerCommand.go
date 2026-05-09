@@ -49,6 +49,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/reasoning":
 		return t.commandReasoning()
 
+	case "/session-model":
+		return t.commandSessionModel()
+
 	case "/discord-enable":
 		return t.commandDiscord("enable")
 
