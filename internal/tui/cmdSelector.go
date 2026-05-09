@@ -26,7 +26,6 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model-list", "list configured models"},
 	{"model-add", "add a model (opens interactive flow)"},
 	{"model-remove", "remove a configured model"},
 	{"planner", "set the planner model"},

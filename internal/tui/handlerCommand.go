@@ -37,9 +37,6 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/bot":
 		return t.commandBot()
 
-	case "/model-list":
-		return t.commandModelList()
-
 	case "/model-add":
 		return t.commandModelAdd()
 
