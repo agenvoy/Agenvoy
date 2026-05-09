@@ -28,7 +28,7 @@ type Request struct {
 	SystemPrompt string   `json:"system_prompt,omitempty"`
 }
 
-func Send(bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *skill.SkillScanner) gin.HandlerFunc {
+func Send() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req Request
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,6 +57,7 @@ func Send(bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *skil
 		go func() {
 			defer close(events)
 
+			scanner := host.Scanner()
 			trimContent := strings.TrimSpace(req.Content)
 
 			externalAgent, externalEffective, externalReadOnly := external.MatchExternal(trimContent)
@@ -84,13 +85,14 @@ func Send(bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *skil
 			if externalAgent != "" {
 				agentResult = agentTypes.Event{Type: agentTypes.EventAgentResult, Text: "external:" + externalAgent}
 			} else {
+				registry := host.Registry()
 				if req.Model != "" {
 					if a, ok := registry.Registry[req.Model]; ok {
 						agent = a
 					}
 				}
 				if agent == nil {
-					agent = exec.SelectAgent(ctx, bot, registry, trimContent, false)
+					agent = exec.SelectAgent(ctx, host.Planner(), registry, trimContent, false)
 				}
 				agentResult = agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name()}
 			}

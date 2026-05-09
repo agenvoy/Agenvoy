@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/host"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/agents/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -245,7 +246,7 @@ func runStop() {
 	fmt.Println("Daemon stopped.")
 }
 
-func setSummaryCron(bot agentTypes.Agent, registry agentTypes.AgentRegistry) {
+func setSummaryCron() {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
 
@@ -264,7 +265,7 @@ func setSummaryCron(bot agentTypes.Agent, registry agentTypes.AgentRegistry) {
 				continue
 			}
 			bgCtx := context.Background()
-			summaryAgent := exec.SelectAgent(bgCtx, bot, registry, "[summary] 整理對話摘要，選擇最輕量可完成任務的模型", false)
+			summaryAgent := exec.SelectAgent(bgCtx, host.Planner(), host.Registry(), "[summary] 整理對話摘要，選擇最輕量可完成任務的模型", false)
 			summary.Generate(bgCtx, summaryAgent, sid, summaryHistories)
 			slog.Info("summary done",
 				slog.String("session", sid))

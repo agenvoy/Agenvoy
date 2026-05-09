@@ -11,7 +11,6 @@ import (
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/agents/host"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -63,18 +62,10 @@ func newTUI() {
 
 	registry := buildAgentRegistry()
 	scanner := skill.NewScanner()
-
-	var selectorBot agentTypes.Agent
-	if cfg, err := session.Load(); err == nil && cfg.PlannerModel != "" {
-		if a, ok := registry.Registry[cfg.PlannerModel]; ok {
-			selectorBot = a
-		}
-	}
-	if selectorBot == nil {
-		selectorBot = registry.Fallback
-	}
+	selectorBot := plannerSelector(registry)
 
 	host.Set(selectorBot, registry, scanner)
+	host.SetRefresher(refreshHost)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

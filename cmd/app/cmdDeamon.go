@@ -7,14 +7,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/host"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/torii"
 	"github.com/pardnchiu/agenvoy/internal/interactive/discord"
@@ -83,18 +84,13 @@ func cmdDaemon() {
 
 	registry := buildAgentRegistry()
 	scanner := skill.NewScanner()
-
-	var selectorBot agentTypes.Agent
-	if cfg, err := session.Load(); err == nil && cfg.PlannerModel != "" {
-		if a, ok := registry.Registry[cfg.PlannerModel]; ok {
-			selectorBot = a
-		}
-	}
-	if selectorBot == nil {
-		selectorBot = registry.Fallback
-	}
+	selectorBot := plannerSelector(registry)
 
 	host.Set(selectorBot, registry, scanner)
+	host.SetRefresher(refreshHost)
+
+	stopWatcher := watchConfig(context.Background())
+	defer stopWatcher()
 
 	var bot *discordTypes.DiscordBot
 	var server *http.Server
@@ -104,7 +100,7 @@ func cmdDaemon() {
 			slog.Int("entries", len(registry.Entries)),
 			slog.String("fallback", selectorBot.Name()))
 
-		b, err := discord.New(selectorBot, registry, scanner)
+		b, err := discord.New()
 		if err != nil {
 			slog.Error("discord.New",
 				slog.String("error", err.Error()))
@@ -113,7 +109,7 @@ func cmdDaemon() {
 		}
 		bot = b
 
-		route := routes.New(selectorBot, registry, scanner)
+		route := routes.New()
 		port := go_pkg_utils.GetWithDefault("PORT", "17989")
 		server = &http.Server{
 			Addr:    ":" + port,
@@ -129,7 +125,7 @@ func cmdDaemon() {
 		slog.Info("server started",
 			slog.String("port", port))
 
-		go setSummaryCron(selectorBot, registry)
+		go setSummaryCron()
 	} else {
 		slog.Warn("no agents configured, server and discord disabled")
 	}
@@ -152,4 +148,64 @@ func cmdDaemon() {
 		slog.Warn("runtime.Clear",
 			slog.String("error", err.Error()))
 	}
+}
+
+func watchConfig(ctx context.Context) func() {
+	configDir := filepath.Dir(filesystem.ConfigPath)
+	configBase := filepath.Base(filesystem.ConfigPath)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		slog.Warn("watchConfig.NewWatcher",
+			slog.String("error", err.Error()))
+		return func() {}
+	}
+	if err := w.Add(configDir); err != nil {
+		slog.Warn("watchConfig.Add",
+			slog.String("dir", configDir),
+			slog.String("error", err.Error()))
+		_ = w.Close()
+		return func() {}
+	}
+
+	stopCh := make(chan struct{})
+	go func() {
+		defer w.Close()
+		var lastReload time.Time
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-ctx.Done():
+				return
+			case ev, ok := <-w.Events:
+				if !ok {
+					return
+				}
+				if filepath.Base(ev.Name) != configBase {
+					continue
+				}
+				if !ev.Has(fsnotify.Write) && !ev.Has(fsnotify.Create) && !ev.Has(fsnotify.Rename) {
+					continue
+				}
+				if time.Since(lastReload) < 200*time.Millisecond {
+					continue
+				}
+				lastReload = time.Now()
+				if cfg, err := session.Load(); err == nil {
+					provider.SetReasoningLevel(cfg.ReasoningLevel)
+				}
+				if host.Reload() {
+					slog.Info("host reloaded from config change")
+				}
+			case err, ok := <-w.Errors:
+				if !ok {
+					return
+				}
+				slog.Warn("watchConfig",
+					slog.String("error", err.Error()))
+			}
+		}
+	}()
+	return func() { close(stopCh) }
 }
