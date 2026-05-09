@@ -62,8 +62,6 @@ configs/
 | `MAX_SESSION_TASKS` | 否 | `3`（cap `10`） | per-session 併發上限，超過排隊 |
 | `MAX_SUBAGENT_TIMEOUT_MIN` | 否 | `10`（cap `60`） | `invoke_subagent` 總上限（分鐘） |
 | `MAX_EXTERNAL_AGENT_TIMEOUT_MIN` | 否 | `10`（cap `60`） | 外部 CLI subprocess 上限（分鐘） |
-| `DISCORD_TOKEN` | 否 | — | Discord Bot token；缺值即關閉 Discord 介面 |
-| `DISCORD_GUILD_ID` | 否 | — | beta 模式立即註冊 slash command 的 guild id |
 | `EXTERNAL_COPILOT` / `EXTERNAL_CLAUDE` / `EXTERNAL_CODEX` / `EXTERNAL_GEMINI` | 否 | — | 自訂外部 CLI binary 路徑 |
 | `OPENAI_API_KEY` | 否 | — | 啟用語意搜尋（`text-embedding-3-small`） |
 

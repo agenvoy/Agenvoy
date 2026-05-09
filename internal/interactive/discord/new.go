@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,10 +13,18 @@ import (
 	discordCommand "github.com/pardnchiu/agenvoy/internal/interactive/discord/command"
 	discordTypes "github.com/pardnchiu/agenvoy/internal/interactive/discord/types"
 	"github.com/pardnchiu/agenvoy/internal/scheduler"
+	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
+const Key = "DISCORD_TOKEN"
+
 func New() (*discordTypes.DiscordBot, error) {
-	token := os.Getenv("DISCORD_TOKEN")
+	cfg, err := session.Load()
+	if err != nil || cfg == nil || !cfg.DiscordEnabled {
+		return nil, nil
+	}
+	token := keychain.Get(Key)
 	if token == "" {
 		return nil, nil
 	}

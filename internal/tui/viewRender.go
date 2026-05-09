@@ -31,7 +31,7 @@ var (
 			Padding(0, 1)
 )
 
-func headerBlock(cwd, daemon string) string {
+func headerBlock(cwd, daemon, discord string) string {
 	logo := textStyle.Bold(true).Render("✻ Agenvoy ") + hintStyle.Render(projectVersion)
 	body := strings.Join([]string{
 		logo,
@@ -40,8 +40,9 @@ func headerBlock(cwd, daemon string) string {
 		textStyle.Render("/switch   ") + hintStyle.Render("change current session"),
 		textStyle.Render("shift+tab ") + hintStyle.Render("toggle mode (cli <-> log)"),
 		"",
-		hintStyle.Render("cwd:    " + cwd),
+		hintStyle.Render("cwd:     " + cwd),
 		hintStyle.Render(daemon),
+		hintStyle.Render(discord),
 	}, "\n")
 	return headerStyle.Render(body)
 }

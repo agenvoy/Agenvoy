@@ -52,18 +52,27 @@ func main() {
 			initCLI()
 			runModel(os.Args[2:])
 			return
+
 		case "skill":
 			initCLI()
 			runSkill(os.Args[2:])
 			return
+
 		case "session":
 			initCLI()
 			cli.Session(os.Args[2:])
 			return
+
 		case "mcp":
 			initCLI()
 			cli.MCP(os.Args[2:])
 			return
+
+		case "discord":
+			initCLI()
+			runDiscord(os.Args[2:])
+			return
+
 		case "cli", "run":
 			if len(os.Args) < 3 {
 				fmt.Fprintf(os.Stderr, "Usage: agen cli <input...>\n")
@@ -73,12 +82,15 @@ func main() {
 			initCLI()
 			cmdAgent(os.Args[1] == "run")
 			return
+
 		case "stop":
 			runStop()
 			return
+
 		case "--daemon":
 			cmdDaemon()
 			return
+
 		default:
 			printUsage()
 			os.Exit(1)

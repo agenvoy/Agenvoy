@@ -15,8 +15,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/interactive/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
@@ -74,13 +76,13 @@ type TUI struct {
 
 	logCancel context.CancelFunc
 
-	tokens       int
-	width        int
-	height       int
-	cwd          string
-	daemonStatus string
-	turnCount    int
-	runTarget    string
+	tokens        int
+	width         int
+	height        int
+	cwd           string
+	daemonStatus  string
+	discordStatus string
+	runTarget     string
 
 	inputHistory    []string
 	inputHistoryIdx int
@@ -91,7 +93,7 @@ func (t TUI) Init() tea.Cmd {
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		),
 	}
 	seq = append(seq, loadSessionTail(t.currentSessionID)...)
@@ -163,6 +165,7 @@ func newModel(ctx context.Context) TUI {
 		spinner:            sp,
 		cwd:                cwd,
 		daemonStatus:       getDaemonStatus(),
+		discordStatus:      getDiscordStatus(),
 		mode:               cliMode,
 		width:              80,
 		currentSessionID:   currentSID,
@@ -172,15 +175,26 @@ func newModel(ctx context.Context) TUI {
 	}
 }
 
+func getDiscordStatus() string {
+	cfg, err := session.Load()
+	if err != nil || cfg == nil || !cfg.DiscordEnabled {
+		return "discord: disabled"
+	}
+	if keychain.Get(discord.Key) == "" {
+		return "discord: enabled (token missing)"
+	}
+	return "discord: enabled"
+}
+
 func getDaemonStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil {
-		return "daemon: not running"
+		return "daemon:  not running"
 	}
 	if !runtime.IsAlive(r.PID) {
-		return "daemon: stale (pid=" + strconv.Itoa(r.PID) + ")"
+		return "daemon:  stale (pid=" + strconv.Itoa(r.PID) + ")"
 	}
-	return "daemon: running pid=" + strconv.Itoa(r.PID)
+	return "daemon:  running pid=" + strconv.Itoa(r.PID)
 }
 
 func loadSessionTail(sid string) []tea.Cmd {

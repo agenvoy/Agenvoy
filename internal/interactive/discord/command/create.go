@@ -2,10 +2,10 @@ package discordCommand
 
 import (
 	"log/slog"
-	"os"
 
 	"github.com/bwmarrin/discordgo"
 	discordTypes "github.com/pardnchiu/agenvoy/internal/interactive/discord/types"
+	"github.com/pardnchiu/agenvoy/internal/session"
 )
 
 func Create(dcBot *discordTypes.DiscordBot, dcSession *discordgo.Session) {
@@ -59,7 +59,10 @@ func Create(dcBot *discordTypes.DiscordBot, dcSession *discordgo.Session) {
 		}
 	}
 
-	guildID := os.Getenv("DISCORD_GUILD_ID")
+	guildID := ""
+	if cfg, err := session.Load(); err == nil {
+		guildID = cfg.DiscordGuildID
+	}
 	registered, err := dcSession.ApplicationCommandBulkOverwrite(dcSession.State.User.ID, guildID, command)
 	if err != nil {
 		slog.Warn("failed to register commands",

@@ -21,12 +21,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/clear":
 		t.tokens = 0
-		t.turnCount = 0
 		t.lastIn = 0
 		t.lastOut = 0
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		), true
 
 	case "/switch":
@@ -49,6 +48,12 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/reasoning":
 		return t.commandReasoning()
+
+	case "/discord-enable":
+		return t.commandDiscord("enable")
+
+	case "/discord-disable":
+		return t.commandDiscord("disable")
 	}
 	return t, nil, false
 }

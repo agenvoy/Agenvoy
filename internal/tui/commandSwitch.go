@@ -54,7 +54,6 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	t.tokens = 0
 	t.lastIn = 0
 	t.lastOut = 0
-	t.turnCount = 0
 	t.currentModel = ""
 	t.activity = ""
 
@@ -66,7 +65,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 	}
 	seq = append(seq, loadSessionTail(id)...)
 	seq = append(seq, switchBlock)

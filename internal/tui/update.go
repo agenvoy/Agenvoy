@@ -124,7 +124,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t = t.recordInputHistory(content)
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
-			t.turnCount++
 
 			if strings.HasPrefix(content, "/") {
 				if next, cmd, handled := t.handleCommand(content); handled {
@@ -191,7 +190,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
 		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
@@ -199,6 +198,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			host.Reload()
 			seq = append(seq, tea.Println("\n"+hintStyle.Render("⎯ model added · registry reloaded")))
+		}
+		return t, tea.Sequence(seq...)
+
+	case DiscordDone:
+		t.discordStatus = getDiscordStatus()
+		seq := []tea.Cmd{
+			tea.ClearScreen,
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+		}
+		seq = append(seq, loadSessionTail(t.currentSessionID)...)
+		if msg.err != nil {
+			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))))
+		} else {
+			seq = append(seq, tea.Println("\n"+hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))))
 		}
 		return t, tea.Sequence(seq...)
 

@@ -62,8 +62,6 @@ Loaded from repo-root `.env` via `godotenv` in `cmd/app/main.go init()`.
 | `MAX_SESSION_TASKS` | No | `3` (cap `10`) | Per-session concurrency limit; excess tasks queue |
 | `MAX_SUBAGENT_TIMEOUT_MIN` | No | `10` (cap `60`) | `invoke_subagent` total timeout in minutes |
 | `MAX_EXTERNAL_AGENT_TIMEOUT_MIN` | No | `10` (cap `60`) | External CLI subprocess timeout in minutes |
-| `DISCORD_TOKEN` | No | — | Discord Bot token; missing disables Discord interface |
-| `DISCORD_GUILD_ID` | No | — | Guild ID for instant slash-command registration in beta |
 | `EXTERNAL_COPILOT` / `EXTERNAL_CLAUDE` / `EXTERNAL_CODEX` / `EXTERNAL_GEMINI` | No | — | Override paths for external CLI binaries |
 | `OPENAI_API_KEY` | No | — | Enables semantic search via `text-embedding-3-small` |
 

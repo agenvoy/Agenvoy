@@ -29,6 +29,8 @@ type Config struct {
 	Models         []ModelEntry  `json:"models,omitempty"`
 	Compats        []CompatEntry `json:"compats,omitempty"`
 	Keys           []string      `json:"keys,omitempty"`
+	DiscordGuildID string        `json:"discord_guild_id,omitempty"`
+	DiscordEnabled bool          `json:"discord_enabled,omitempty"`
 }
 
 func Load() (*Config, error) {

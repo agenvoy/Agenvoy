@@ -42,7 +42,6 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 	t.tokens = 0
 	t.lastIn = 0
 	t.lastOut = 0
-	t.turnCount = 0
 	t.currentModel = ""
 	t.activity = ""
 
@@ -57,7 +56,7 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		tea.Println("\n"+strings.Join(lines, "\n")),
 	), true
 }
