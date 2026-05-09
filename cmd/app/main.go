@@ -117,16 +117,22 @@ func modelCheck() {
 			slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	if len(cfg.Models) > 0 {
-		return
+	if len(cfg.Models) == 0 {
+		fmt.Println("[*] No model configured. Setting up first model…")
+		runAdd()
+
+		cfg, err = session.Load()
+		if err != nil || len(cfg.Models) == 0 {
+			fmt.Println("[!] No model added. Exiting.")
+			os.Exit(0)
+		}
 	}
 
-	fmt.Println("[*] No model configured. Setting up first model…")
-	runAdd()
+	checkModels()
 
 	cfg, err = session.Load()
 	if err != nil || len(cfg.Models) == 0 {
-		fmt.Println("[!] No model added. Exiting.")
+		fmt.Println("[!] No model remaining after cleanup. Exiting.")
 		os.Exit(0)
 	}
 }

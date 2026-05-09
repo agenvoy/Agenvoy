@@ -32,6 +32,7 @@ var commands = []Command{
 	{"planner", "set the planner model"},
 	{"reasoning", "set planner reasoning level"},
 	{"switch", "change current session"},
+	{"new", "create and switch to a new session"},
 	{"clear", "clear conversation"},
 	{"exit", "quit"},
 }

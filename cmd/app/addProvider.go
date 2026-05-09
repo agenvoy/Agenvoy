@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/manifoldco/promptui"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -98,8 +100,9 @@ func runAdd() {
 }
 
 func addCopilot(prefix, defaultModel string) (string, string) {
-	_, err := copilot.New()
-	if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	if err := copilot.Authenticate(ctx); err != nil {
 		slog.Error("failed to initialize Copilot",
 			slog.String("error", err.Error()))
 		os.Exit(1)
@@ -236,17 +239,13 @@ func getModelName(prefix, defaultModel string) (string, string) {
 	}
 
 	modelInput := promptui.Prompt{
-		Label:   fmt.Sprintf("Model name (prefix: %q)", prefix),
-		Default: defaultModel,
+		Label: fmt.Sprintf("Model name (prefix: %q)", prefix),
 	}
 	model, err := modelInput.Run()
 	if err != nil {
 		os.Exit(1)
 	}
 	model = strings.TrimSpace(model)
-	if model == "" {
-		model = defaultModel
-	}
 	if model == "" {
 		return "", ""
 	}
@@ -384,10 +383,8 @@ func runPlanner() {
 
 func upsertModel(name, defaultDesc string) {
 	descriptionInput := promptui.Prompt{
-		Label:   "Model description",
-		Default: defaultDesc,
+		Label: "Model description",
 	}
-
 	description, err := descriptionInput.Run()
 	if err != nil {
 		os.Exit(1)
@@ -471,14 +468,154 @@ func addOpenAICodex(prefix, defaultModel string) (string, string) {
 	fmt.Print("[?] Press Enter to confirm you understand and accept the above. (Ctrl+C to cancel)")
 	fmt.Scanln()
 
-	_, err := openaicodex.New()
-	if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	if err := openaicodex.Authenticate(ctx); err != nil {
 		slog.Error("failed to initialize OpenAI Codex",
 			slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
 	return getModelName(prefix, defaultModel)
+}
+
+type brokenModel struct {
+	Name     string
+	Provider string
+	Reason   string
+}
+
+func checkBrokenModels() []brokenModel {
+	cfg, err := session.Load()
+	if err != nil {
+		return nil
+	}
+	out := make([]brokenModel, 0)
+	for _, m := range cfg.Models {
+		head := strings.SplitN(m.Name, "@", 2)[0]
+		prov, _, _ := strings.Cut(head, "[")
+		var reason string
+		switch prov {
+		case "copilot":
+			if !copilot.HasToken() {
+				reason = "copilot token missing"
+			}
+		case "codex":
+			if !openaicodex.HasToken() {
+				reason = "codex token missing"
+			}
+		case "openai", "claude", "gemini", "nvidia":
+			envKey := strings.ToUpper(prov) + "_API_KEY"
+			if keychain.Get(envKey) == "" {
+				reason = envKey + " missing"
+			}
+		}
+		if reason != "" {
+			out = append(out, brokenModel{Name: m.Name, Provider: prov, Reason: reason})
+		}
+	}
+	return out
+}
+
+func removeModel(name string) error {
+	cfg, err := session.Load()
+	if err != nil {
+		return fmt.Errorf("session.Load: %w", err)
+	}
+	out := make([]session.ModelEntry, 0, len(cfg.Models))
+	for _, m := range cfg.Models {
+		if m.Name != name {
+			out = append(out, m)
+		}
+	}
+	cfg.Models = out
+	if cfg.PlannerModel == name {
+		cfg.PlannerModel = ""
+		if len(out) > 0 {
+			cfg.PlannerModel = out[0].Name
+		}
+	}
+	if err := session.Save(cfg); err != nil {
+		return fmt.Errorf("session.Save: %w", err)
+	}
+	return nil
+}
+
+func checkModels() {
+	broken := checkBrokenModels()
+	if len(broken) == 0 {
+		return
+	}
+
+	fmt.Printf("[!] %d model(s) with auth issue:\n", len(broken))
+	for _, b := range broken {
+		fmt.Printf("    %s — %s\n", b.Name, b.Reason)
+	}
+	fmt.Println()
+
+	for _, b := range broken {
+		action := promptui.Select{
+			Label:        fmt.Sprintf("%s — %s · action?", b.Name, b.Reason),
+			Items:        []string{"Re-authenticate", "Remove from config"},
+			HideSelected: true,
+		}
+		idx, _, err := action.Run()
+		if err != nil {
+			os.Exit(1)
+		}
+		if idx == 1 {
+			if err := removeModel(b.Name); err != nil {
+				slog.Error("removeModel",
+					slog.String("name", b.Name),
+					slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			fmt.Printf("[*] %s removed\n", b.Name)
+			continue
+		}
+
+		if err := reLogin(b); err != nil {
+			fmt.Printf("[!] %s re-auth failed: %v\n", b.Name, err)
+			os.Exit(1)
+		}
+		fmt.Printf("[*] %s re-authenticated\n", b.Name)
+	}
+}
+
+func reLogin(b brokenModel) error {
+	switch b.Provider {
+	case "copilot":
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+		return copilot.Authenticate(ctx)
+	case "codex":
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		return openaicodex.Authenticate(ctx)
+	case "openai", "claude", "gemini", "nvidia":
+		envKey := strings.ToUpper(b.Provider) + "_API_KEY"
+		fmt.Printf("%s API Key: ", strings.ToUpper(b.Provider[:1])+b.Provider[1:])
+		keyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println()
+		if err != nil {
+			return fmt.Errorf("term.ReadPassword: %w", err)
+		}
+		defer func() {
+			for i := range keyBytes {
+				keyBytes[i] = 0
+			}
+		}()
+		apiKey := strings.TrimSpace(string(keyBytes))
+		if apiKey == "" {
+			return fmt.Errorf("api key is required")
+		}
+		if err := keychain.Set(envKey, apiKey); err != nil {
+			return fmt.Errorf("keychain.Set: %w", err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown provider: %s", b.Provider)
+	}
 }
 
 func truncateByWidth(s string, budget int) string {
