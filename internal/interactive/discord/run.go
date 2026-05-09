@@ -46,7 +46,7 @@ func run(ctx context.Context, dcBot *discordTypes.DiscordBot, dcSession *discord
 
 	var agent agentTypes.Agent
 	if externalAgent == "" {
-		agent = exec.SelectAgent(ctx, host.Planner(), host.Registry(), content, matchedSkill != nil)
+		agent = exec.SelectAgent(ctx, host.Planner(), host.Registry(), content, matchedSkill != nil, "")
 	}
 
 	execData := exec.ExecData{

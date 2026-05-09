@@ -10,8 +10,10 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 )
 
 type AgentConfig struct {
@@ -40,8 +42,20 @@ func GetAgent() []agentTypes.AgentEntry {
 	return cfg.Models
 }
 
-func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool) agentTypes.Agent {
+func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, sessionID string) agentTypes.Agent {
 	trimInput := strings.TrimSpace(userInput)
+
+	if sessionID != "" {
+		s := sessionManager.ReadStatus(sessionID)
+		if s.Reasoning != "" {
+			provider.SetReasoningLevel(s.Reasoning)
+		}
+		if s.Model != "" && s.Model != sessionManager.StatusModel {
+			if a, ok := registry.Registry[s.Model]; ok {
+				return a
+			}
+		}
+	}
 
 	if len(registry.Entries) == 0 {
 		return registry.Fallback

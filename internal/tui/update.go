@@ -124,7 +124,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t = t.recordInputHistory(content)
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
-			t.turnCount++
 
 			if strings.HasPrefix(content, "/") {
 				if next, cmd, handled := t.handleCommand(content); handled {
@@ -188,10 +187,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		host.Reload()
 		return next, cmd
 
+	case BotEditDone:
+		seq := []tea.Cmd{
+			tea.ClearScreen,
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+		}
+		seq = append(seq, loadSessionTail(t.currentSessionID)...)
+		if msg.err != nil {
+			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] bot edit: %v", msg.err))))
+		}
+		return t, tea.Sequence(seq...)
+
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
 		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
@@ -199,6 +209,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			host.Reload()
 			seq = append(seq, tea.Println("\n"+hintStyle.Render("⎯ model added · registry reloaded")))
+		}
+		return t, tea.Sequence(seq...)
+
+	case DiscordDone:
+		t.discordStatus = getDiscordStatus()
+		seq := []tea.Cmd{
+			tea.ClearScreen,
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+		}
+		seq = append(seq, loadSessionTail(t.currentSessionID)...)
+		if msg.err != nil {
+			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))))
+		} else {
+			seq = append(seq, tea.Println("\n"+hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -210,6 +234,53 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ReasoningSelect:
 		next, cmd := t.runReasoningSelect(msg.level)
 		return next, cmd
+
+	case SessionModelSelect:
+		next, cmd := t.openSessionReasoningPopup(msg.model)
+		return next, cmd
+
+	case SessionReasoningSelect:
+		next, cmd := t.runSessionReasoningChosen(msg.model, msg.reasoning)
+		return next, cmd
+
+	case UpdateConfirm:
+		if !msg.ok {
+			return t, tea.Println("\n" + hintStyle.Render("⎯ update cancelled"))
+		}
+		return t, tea.Sequence(
+			tea.Println("\n"+hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")),
+			runUpdateExec(),
+		)
+
+	case UpdateDone:
+		t.quitting = true
+		if msg.err != nil {
+			return t, tea.Sequence(
+				tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))),
+				tea.Quit,
+			)
+		}
+		return t, tea.Quit
+
+	case LoadHistoryCheck:
+		sid := msg.id
+		t.popup = &Popup{
+			kind:    popupSingleSelect,
+			title:   "Load previous session history?",
+			options: []string{"Yes", "No"},
+			values:  []string{"yes", "no"},
+			cursor:  1,
+			onConfirm: func(chosen string) any {
+				return LoadHistorySelect{id: sid, load: chosen == "yes"}
+			},
+		}
+		return t, nil
+
+	case LoadHistorySelect:
+		if !msg.load {
+			return t, nil
+		}
+		return t, tea.Sequence(loadSessionTail(msg.id)...)
 
 	case logHistory:
 		if t.mode != logMode {

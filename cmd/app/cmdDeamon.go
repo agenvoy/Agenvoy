@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,8 +29,60 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/skill"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
+
+var (
+	discordMu          sync.Mutex
+	discordBot         *discordTypes.DiscordBot
+	lastDiscordEnabled bool
+	lastDiscordToken   string
+	lastDiscordGuild   string
+)
+
+func reloadDiscord() {
+	newToken := keychain.Get(discord.Key)
+	newEnabled := false
+	newGuild := ""
+	if cfg, err := session.Load(); err == nil && cfg != nil {
+		newEnabled = cfg.DiscordEnabled
+		newGuild = cfg.DiscordGuildID
+	}
+
+	discordMu.Lock()
+	defer discordMu.Unlock()
+
+	if newEnabled == lastDiscordEnabled && newToken == lastDiscordToken && newGuild == lastDiscordGuild {
+		return
+	}
+
+	if discordBot != nil {
+		_ = discord.Close(discordBot)
+		discordBot = nil
+	}
+	lastDiscordEnabled = newEnabled
+	lastDiscordToken = newToken
+	lastDiscordGuild = newGuild
+
+	if !newEnabled {
+		slog.Info("discord disabled, skipped")
+		return
+	}
+	if newToken == "" {
+		slog.Info("discord enabled but token missing, run `agen discord enable`")
+		return
+	}
+
+	bot, err := discord.New()
+	if err != nil {
+		slog.Error("discord.New",
+			slog.String("error", err.Error()))
+		return
+	}
+	discordBot = bot
+	slog.Info("discord reloaded")
+}
 
 func cmdDaemon() {
 	if err := filesystem.Init(); err != nil {
@@ -92,7 +145,6 @@ func cmdDaemon() {
 	stopWatcher := watchConfig(context.Background())
 	defer stopWatcher()
 
-	var bot *discordTypes.DiscordBot
 	var server *http.Server
 
 	if selectorBot != nil {
@@ -100,14 +152,7 @@ func cmdDaemon() {
 			slog.Int("entries", len(registry.Entries)),
 			slog.String("fallback", selectorBot.Name()))
 
-		b, err := discord.New()
-		if err != nil {
-			slog.Error("discord.New",
-				slog.String("error", err.Error()))
-		} else if b == nil {
-			slog.Warn("DISCORD_TOKEN not set, bot disabled")
-		}
-		bot = b
+		reloadDiscord()
 
 		route := routes.New()
 		port := go_pkg_utils.GetWithDefault("PORT", "17989")
@@ -136,9 +181,12 @@ func cmdDaemon() {
 	slog.Info("daemon shutting down")
 
 	scheduler.Stop()
-	if bot != nil {
-		_ = discord.Close(bot)
+	discordMu.Lock()
+	if discordBot != nil {
+		_ = discord.Close(discordBot)
+		discordBot = nil
 	}
+	discordMu.Unlock()
 	if server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_ = server.Shutdown(ctx)
@@ -198,6 +246,7 @@ func watchConfig(ctx context.Context) func() {
 				if host.Reload() {
 					slog.Info("host reloaded from config change")
 				}
+				reloadDiscord()
 			case err, ok := <-w.Errors:
 				if !ok {
 					return

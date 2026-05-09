@@ -13,11 +13,7 @@ import (
 func (a *Agent) ensureFreshToken(ctx context.Context) error {
 	if a.token == nil || a.token.expired() {
 		if err := a.refreshToken(ctx); err != nil {
-			token, loginErr := a.Login(ctx)
-			if loginErr != nil {
-				return fmt.Errorf("a.Login: %w", loginErr)
-			}
-			a.token = token
+			return fmt.Errorf("codex token refresh failed: %w; run `agen model add` to re-authenticate", err)
 		}
 	}
 	return nil

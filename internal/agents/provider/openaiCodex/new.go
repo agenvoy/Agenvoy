@@ -42,15 +42,7 @@ func New(model ...string) (*Agent, error) {
 
 	raw := keychain.Get(tokenKey)
 	if raw == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
-
-		token, err := a.Login(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("a.Login: %w", err)
-		}
-		a.token = token
-		return a, nil
+		return nil, fmt.Errorf("codex token missing; run `agen model add` to authenticate")
 	}
 
 	var stored StoredToken
@@ -63,17 +55,28 @@ func New(model ...string) (*Agent, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := a.refreshToken(ctx); err != nil {
-			ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Minute)
-			defer cancel2()
-			token, err := a.Login(ctx2)
-			if err != nil {
-				return nil, fmt.Errorf("a.Login: %w", err)
-			}
-			a.token = token
+			return nil, fmt.Errorf("codex token expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
 		}
 	}
 
 	return a, nil
+}
+
+func Authenticate(ctx context.Context) error {
+	workDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("os.Getwd: %w", err)
+	}
+	a := &Agent{
+		httpClient: &http.Client{Timeout: 10 * time.Minute},
+		workDir:    workDir,
+	}
+	token, err := a.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("a.Login: %w", err)
+	}
+	a.token = token
+	return nil
 }
 
 func (a *Agent) Name() string {

@@ -26,12 +26,17 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model-list", "list configured models"},
 	{"model-add", "add a model (opens interactive flow)"},
 	{"model-remove", "remove a configured model"},
 	{"planner", "set the planner model"},
 	{"reasoning", "set planner reasoning level"},
+	{"session-model", "set current session model + reasoning"},
 	{"switch", "change current session"},
+	{"new", "create and switch to a new session"},
+	{"bot", "edit current session bot.md in $EDITOR"},
+	{"discord-enable", "enable discord bot (token + guild)"},
+	{"discord-disable", "disable discord bot (token preserved)"},
+	{"update", "update agen to latest release (exits TUI)"},
 	{"clear", "clear conversation"},
 	{"exit", "quit"},
 }

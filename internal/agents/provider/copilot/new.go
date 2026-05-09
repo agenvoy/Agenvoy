@@ -58,15 +58,7 @@ func New(model ...string) (*Agent, error) {
 
 	raw := keychain.Get(tokenKey)
 	if raw == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-		defer cancel()
-
-		token, err := agent.Login(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("agent.Login: %w", err)
-		}
-		agent.Token = token
-		return agent, nil
+		return nil, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
 	}
 
 	var token Token
@@ -80,4 +72,29 @@ func New(model ...string) (*Agent, error) {
 
 func (a *Agent) Name() string {
 	return a.model
+}
+
+func HasToken() bool {
+	return keychain.Get(tokenKey) != ""
+}
+
+func ClearToken() error {
+	return keychain.Delete(tokenKey)
+}
+
+func Authenticate(ctx context.Context) error {
+	workDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("os.Getwd: %w", err)
+	}
+	a := &Agent{
+		httpClient: &http.Client{Timeout: 2 * time.Minute},
+		workDir:    workDir,
+	}
+	token, err := a.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("a.Login: %w", err)
+	}
+	a.Token = token
+	return nil
 }

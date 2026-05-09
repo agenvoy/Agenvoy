@@ -26,11 +26,11 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 
 	sessionOverride := sessionID
 	if name, effective := sessionManager.Match(trimInput); name != "" {
-		resolved := sessionManager.GetSessionIDByName(name)
-		if resolved == "" {
+		id := sessionManager.GetSessionIDByName(name)
+		if id == "" {
 			return fmt.Errorf("session %q not found", name)
 		}
-		sessionOverride = resolved
+		sessionOverride = id
 		trimInput = strings.TrimSpace(effective)
 	}
 
@@ -62,7 +62,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 			Text: "external:" + externalAgent,
 		}
 	} else {
-		agent = SelectAgent(ctx, bot, registry, trimInput, matchedSkill != nil)
+		agent = SelectAgent(ctx, bot, registry, trimInput, matchedSkill != nil, sessionOverride)
 		agentResult = agentTypes.Event{
 			Type: agentTypes.EventAgentResult,
 			Text: strings.TrimSpace(agent.Name()),

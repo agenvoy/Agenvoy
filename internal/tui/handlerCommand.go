@@ -21,19 +21,21 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/clear":
 		t.tokens = 0
-		t.turnCount = 0
 		t.lastIn = 0
 		t.lastOut = 0
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		), true
 
 	case "/switch":
 		return t.commandSwitch(parts)
 
-	case "/model-list":
-		return t.commandModelList()
+	case "/new":
+		return t.commandNew(parts)
+
+	case "/bot":
+		return t.commandBot()
 
 	case "/model-add":
 		return t.commandModelAdd()
@@ -46,6 +48,18 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/reasoning":
 		return t.commandReasoning()
+
+	case "/session-model":
+		return t.commandSessionModel()
+
+	case "/discord-enable":
+		return t.commandDiscord("enable")
+
+	case "/discord-disable":
+		return t.commandDiscord("disable")
+
+	case "/update":
+		return t.commandUpdate()
 	}
 	return t, nil, false
 }

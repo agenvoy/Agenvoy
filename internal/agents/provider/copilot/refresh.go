@@ -35,14 +35,7 @@ func (c *Agent) refresh(ctx context.Context) error {
 		return fmt.Errorf("http.GET: %w", err)
 	}
 	if code == http.StatusUnauthorized {
-		ctx2, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-		defer cancel()
-		token, err := c.Login(ctx2)
-		if err != nil {
-			return fmt.Errorf("c.Login: %w", err)
-		}
-		c.Token = token
-		return c.refresh(ctx)
+		return fmt.Errorf("copilot token expired; run `agen model add` to re-authenticate")
 	}
 	if code == http.StatusForbidden || code == http.StatusNotFound {
 		return fmt.Errorf("http.GET: token refresh failed")
