@@ -186,6 +186,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runCommandSwitch(msg.id)
 		return next, cmd
 
+	case SessionNew:
+		next, cmd, _ := t.commandNew(nil)
+		return next, cmd
+
 	case ModelRemove:
 		next, cmd := t.runModelRemove(msg.name)
 		host.Reload()
