@@ -21,9 +21,66 @@ const (
 	trimTargetSize   = 768 << 10
 )
 
-var actionLogMu sync.Mutex
+var (
+	actionLogMu     sync.Mutex
+	assistantBodyMu sync.Mutex
+	assistantBody   = map[string]*strings.Builder{}
+)
+
+func appendAssistantLine(sessionID, source, text string) {
+	if sessionID == "" || text == "" {
+		return
+	}
+
+	key := sessionID + "\x00" + source
+	assistantBodyMu.Lock()
+	defer assistantBodyMu.Unlock()
+
+	sb, ok := assistantBody[key]
+	if !ok {
+		sb = &strings.Builder{}
+		assistantBody[key] = sb
+	}
+	if sb.Len() > 0 {
+		sb.WriteByte('\n')
+	}
+	sb.WriteString(text)
+}
+
+func flushAssistantLine(sessionID, source string) {
+	if sessionID == "" {
+		return
+	}
+	key := sessionID + "\x00" + source
+	assistantBodyMu.Lock()
+	buf, ok := assistantBody[key]
+	if !ok || buf.Len() == 0 {
+		assistantBodyMu.Unlock()
+		return
+	}
+	full := buf.String()
+	delete(assistantBody, key)
+	assistantBodyMu.Unlock()
+
+	line := formatActionLine("assistant", flatten(full))
+	appendActionLine(sessionID, line)
+}
 
 func Record(sessionID string, event agentTypes.Event) {
+	switch event.Type {
+	case agentTypes.EventText:
+		text := strings.TrimSpace(event.Text)
+		if text == "" {
+			return
+		}
+		appendAssistantLine(sessionID, event.Source, text)
+		return
+	case agentTypes.EventTextDone:
+		flushAssistantLine(sessionID, event.Source)
+		return
+	}
+
+	flushAssistantLine(sessionID, event.Source)
 	line := formatActionEvent(event)
 	if line == "" {
 		return
