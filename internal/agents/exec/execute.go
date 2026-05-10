@@ -257,10 +257,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			if trimmedToolCalls {
 				responseText += "\n\n> 因超過模型 max input，部分工具查詢資料已被裁減，建議使用更大 context window 的模型再試一次。"
 			}
-			events <- agentTypes.Event{
-				Type: agentTypes.EventText,
-				Text: responseText,
-			}
+			sendText(events, responseText)
 
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
@@ -306,7 +303,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
-			events <- agentTypes.Event{Type: agentTypes.EventText, Text: StripModelResponse(text)}
+			sendText(events, StripModelResponse(text))
 			if err := filesystem.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
 				slog.Warn("usageManager.Update",
 					slog.String("error", err.Error()))
@@ -316,7 +313,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventText, Text: "工具無法取得資料，請稍後再試或改用其他方式查詢。"}
+	sendText(events, "no usable data, retry later, or using other tools.")
 	if err := filesystem.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
 		slog.Warn("usageManager.Update",
 			slog.String("error", err.Error()))
@@ -397,14 +394,21 @@ func buildPermissionModeSection(allowAll bool) string {
 func actionError(emptyCount *int, events chan<- agentTypes.Event) bool {
 	*emptyCount++
 	if *emptyCount >= MaxEmptyResponses {
-		events <- agentTypes.Event{
-			Type: agentTypes.EventText,
-			Text: "工具無法取得資料，請稍後再試或改用其他方式查詢。",
-		}
+		sendText(events, "no usable data, retry later, or using other tools.")
 		events <- agentTypes.Event{Type: agentTypes.EventDone}
 		return true
 	}
 	return false
+}
+
+func sendText(events chan<- agentTypes.Event, text string) {
+	text = strings.TrimRight(text, "\n")
+	if text != "" {
+		for line := range strings.SplitSeq(text, "\n") {
+			events <- agentTypes.Event{Type: agentTypes.EventText, Text: line}
+		}
+	}
+	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
 }
 
 func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {

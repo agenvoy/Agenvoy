@@ -153,6 +153,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.cancelExec = nil
 		t.activity = ""
 		t.runTarget = ""
+		t.streaming = false
 		if t.currentSessionID != "" {
 			t.currentSessionName, _ = session.GetBot(t.currentSessionID)
 		}

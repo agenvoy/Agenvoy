@@ -38,6 +38,7 @@ func Run(fn func(chan<- agentTypes.Event) error) error {
 	}()
 
 	pendingAgentSelect := false
+	var sb strings.Builder
 	for ev := range ch {
 		// store_secret drives its own stdout interaction (prompt + masked input);
 		// any renderer print would race with the prompt and shred the terminal.
@@ -96,10 +97,21 @@ func Run(fn func(chan<- agentTypes.Event) error) error {
 				writeStdoutLine(colorize(ev, fmt.Sprintf("%s%s", soruce, oneLineReplacer.Replace(text))))
 				break
 			}
-			if strings.HasPrefix(text, "Agent:") || strings.HasPrefix(text, "Tool:") || strings.HasPrefix(text, "Result:") {
-				writeStdoutLine("[*] " + text)
+			if sb.Len() > 0 {
+				sb.WriteByte('\n')
+			}
+			sb.WriteString(text)
+
+		case agentTypes.EventTextDone:
+			if ev.Source != "" || sb.Len() == 0 {
+				break
+			}
+			full := sb.String()
+			sb.Reset()
+			if strings.HasPrefix(full, "Agent:") || strings.HasPrefix(full, "Tool:") || strings.HasPrefix(full, "Result:") {
+				writeStdoutLine("[*] " + full)
 			} else {
-				writeStdoutLine("---\n" + text + "\n---")
+				writeStdoutLine("---\n" + full + "\n---")
 			}
 
 		case agentTypes.EventExecError:
