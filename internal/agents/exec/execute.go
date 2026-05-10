@@ -146,10 +146,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
 
-	exec.ActiveSkill = data.Skill
-
 	if data.Skill != nil {
-		assignSkill(session, data.Skill)
+		assignBindingSkill(session, data.Skill)
 	}
 
 	if len(data.ExcludeTools) > 0 {
@@ -355,7 +353,7 @@ func GetSystemPrompt(workDir string, extraSystemPrompt string, scanner *skill.Sk
 
 	skillsSection := ""
 	if list := toolSearcher.ListBlock(scanner); list != "" {
-		skillsSection = "## Skills\n\nThe following skill names are available via `activate_skill`. Only activate when the user explicitly references a skill by its exact name (e.g. `/commit-generate` or the bare `commit-generate` token). Do not infer skills from topic keywords, paraphrases, or partial matches. Once activated, the tool result is binding for subsequent iterations.\n\n" + list
+		skillsSection = "## Skills\n\nThe following skills can be fetched via `activate_skill`. Treat the result as reference material — consult it, integrate parts that fit the user's request, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation. Slash invocations (`/<name>`) are user-explicit and execute the skill's full procedure under binding semantics; the `activate_skill` tool path does not carry that binding.\n\n" + list
 	}
 
 	personaSection := ""
@@ -463,7 +461,7 @@ func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
 	}
 }
 
-func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
+func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	id := "skill-assign-" + utils.NewID("skill", s.Name)
 	argsJSON, _ := json.Marshal(map[string]string{"skill": s.Name})
 	call := agentTypes.ToolCall{
