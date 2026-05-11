@@ -26,7 +26,6 @@ type TUIMode int
 
 const (
 	cliMode TUIMode = iota
-	logMode
 	webMode
 
 	historyLoad = 50 // just for cli mode
@@ -36,8 +35,6 @@ func (m TUIMode) String() string {
 	switch m {
 	case cliMode:
 		return "cli"
-	case logMode:
-		return "log"
 	case webMode:
 		return "web"
 	}
@@ -48,8 +45,6 @@ func (m TUIMode) color() lipgloss.Color {
 	switch m {
 	case cliMode:
 		return colSystem
-	case logMode:
-		return colWarn
 	case webMode:
 		return colOk
 	}
@@ -79,7 +74,7 @@ type TUI struct {
 
 	mode TUIMode
 
-	logCancel context.CancelFunc
+	tailCancel context.CancelFunc
 
 	tokens        int
 	width         int
@@ -104,6 +99,7 @@ func (t TUI) Init() tea.Cmd {
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		),
 	}
+	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
 		path := filepath.Join(filesystem.SessionsDir, sid, "action.log")
 		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {

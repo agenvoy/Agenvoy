@@ -53,6 +53,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	previous := t.currentSessionID
 	t.currentSessionID = id
 	t.currentSessionName, _ = session.GetBot(id)
+	t = t.restartTailer()
 
 	t.tokens = 0
 	t.lastIn = 0

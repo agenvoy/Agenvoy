@@ -85,6 +85,8 @@ func reloadDiscord() {
 }
 
 func cmdDaemon() {
+	session.SetHash(session.Hash())
+
 	if err := filesystem.Init(); err != nil {
 		slog.Error("filesystem.Init",
 			slog.String("error", err.Error()))

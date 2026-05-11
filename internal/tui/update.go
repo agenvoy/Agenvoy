@@ -59,12 +59,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, tea.Println(hintStyle.Render("⎯ cancelling…"))
 			}
 
-		case tea.KeyShiftTab:
-			if t.running {
-				return t, tea.Println(hintStyle.Render("⎯ is running · shift+tab disabled"))
-			}
-			return t.logMode(t.mode == cliMode)
-
 		case tea.KeyUp:
 			if t.selector != nil {
 				n := len(t.selector.items)
@@ -100,10 +94,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if t.selector != nil {
 				t = t.selectCommand()
-				return t, nil
-			}
-
-			if t.mode == logMode {
 				return t, nil
 			}
 
@@ -290,23 +280,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(loadSessionTail(msg.id)...)
 
-	case logHistory:
-		if t.mode != logMode {
-			return t, nil
-		}
-
-		var cmds2 []tea.Cmd
-		for _, line := range msg.lines {
-			cmds2 = append(cmds2, tea.Println(line))
-		}
-		if len(cmds2) == 0 {
-			return t, nil
-		}
-
-		return t, tea.Sequence(cmds2...)
-
-	case logLine:
-		if t.mode != logMode {
+	case tailLine:
+		if t.mode != cliMode {
 			return t, nil
 		}
 		return t, tea.Println(msg.line)

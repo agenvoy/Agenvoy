@@ -9,18 +9,20 @@ type ModeSelect struct {
 }
 
 func (t TUI) commandMode() (TUI, tea.Cmd, bool) {
+	cursor := 0
+	if t.mode == webMode {
+		cursor = 1
+	}
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
 		title:   "Switch mode",
-		options: []string{"cli", "log", "web"},
-		values:  []string{"cli", "log", "web"},
-		cursor:  int(t.mode),
+		options: []string{"cli", "web"},
+		values:  []string{"cli", "web"},
+		cursor:  cursor,
 		onConfirm: func(chosen string) any {
 			switch chosen {
 			case "cli":
 				return ModeSelect{mode: cliMode}
-			case "log":
-				return ModeSelect{mode: logMode}
 			case "web":
 				return ModeSelect{mode: webMode}
 			}
@@ -35,17 +37,10 @@ func (t TUI) runModeSelect(mode TUIMode) (TUI, tea.Cmd) {
 		return t, nil
 	}
 
-	if t.mode == logMode && t.logCancel != nil {
-		t.logCancel()
-		t.logCancel = nil
-	}
-
 	switch mode {
 	case cliMode:
 		t.mode = cliMode
 		return t, nil
-	case logMode:
-		return t.logMode(true)
 	case webMode:
 		next, cmd, _ := t.webMode()
 		return next, cmd

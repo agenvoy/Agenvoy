@@ -13,19 +13,51 @@ import (
 
 var userWrapperRe = regexp.MustCompile(`^---\n當前時間:[^\n]*\n工作目錄:[^\n]*\n---\n`)
 
-func formatLog(raw string) string {
-	if raw == "" {
-		return ""
-	}
+type parsedAction struct {
+	hash string
+	kind string
+	body string
+}
 
-	kind, body, ok := splitLine(raw)
+func cutBracket(s string) (inside, rest string, ok bool) {
+	if !strings.HasPrefix(s, "[") {
+		return "", "", false
+	}
+	inside, rest, ok = strings.Cut(s[1:], "]")
+	return
+}
+
+func parseActionLine(raw string) (parsedAction, bool) {
+	_, rest, ok := cutBracket(raw)
 	if !ok {
-		return ""
+		return parsedAction{}, false
+	}
+	mid, rest, ok := cutBracket(rest)
+	if !ok {
+		return parsedAction{}, false
 	}
 
-	body = strings.ReplaceAll(body, session.ActionNewlineMarker, "\n")
+	var hash, kind string
+	if third, after, ok := cutBracket(rest); ok {
+		hash = mid
+		kind = third
+		rest = after
+	} else {
+		hash = session.DefaultHash
+		kind = mid
+	}
 
-	switch kind {
+	return parsedAction{
+		hash: hash,
+		kind: kind,
+		body: strings.TrimSpace(rest),
+	}, true
+}
+
+func renderActionLine(p parsedAction) string {
+	body := strings.ReplaceAll(p.body, session.ActionNewlineMarker, "\n")
+
+	switch p.kind {
 	case "user":
 		body = userWrapperRe.ReplaceAllString(body, "")
 		body = strings.TrimSpace(body)
@@ -79,35 +111,12 @@ func formatLog(raw string) string {
 	return ""
 }
 
-func splitLine(raw string) (kind, body string, ok bool) {
-	if !strings.HasPrefix(raw, "[") {
-		return "", "", false
+func formatLog(raw string) string {
+	p, ok := parseActionLine(raw)
+	if !ok {
+		return ""
 	}
-
-	kindEndIdx := 0
-	if _, after, found := strings.Cut(raw, "]"); found {
-		kindEndIdx = len(raw) - len(after) - 1
-	} else {
-		return "", "", false
-	}
-
-	i := kindEndIdx
-	if i < 0 {
-		return "", "", false
-	}
-
-	rest := raw[i+1:]
-	if !strings.HasPrefix(rest, "[") {
-		return "", "", false
-	}
-
-	j := strings.Index(rest, "]")
-	if j < 0 {
-		return "", "", false
-	}
-	kind = rest[1:j]
-	body = strings.TrimSpace(rest[j+1:])
-	return kind, body, true
+	return renderActionLine(p)
 }
 
 func renderEvent(ev agentTypes.Event) string {

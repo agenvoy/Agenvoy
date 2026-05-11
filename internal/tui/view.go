@@ -30,12 +30,8 @@ func (t TUI) viewIdle() string {
 	left := hintStyle.Render(" / commands · enter send · alt+enter newline · esc cancel")
 	right := t.sessionTag()
 
-	if t.mode == logMode {
-		left = hintStyle.Render("  shift+tab back to cli")
-		pad := width - lipgloss.Width(left) - lipgloss.Width(right)
-		pad = max(pad, 1)
-
-		return "\n" + left + strings.Repeat(" ", pad) + right
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
 	}
 
 	prefix := "\n"

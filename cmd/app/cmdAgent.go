@@ -18,6 +18,7 @@ import (
 )
 
 func cmdAgent(allowAll bool) {
+	session.SetHash(session.Hash())
 
 	defer torii.Close()
 
