@@ -38,7 +38,8 @@ func headerBlock(cwd, daemon, discord string) string {
 		"",
 		textStyle.Render("/         ") + hintStyle.Render("list commands"),
 		textStyle.Render("/switch   ") + hintStyle.Render("change current session"),
-		textStyle.Render("shift+tab ") + hintStyle.Render("toggle mode (cli <-> log)"),
+		textStyle.Render("/bot      ") + hintStyle.Render("edit bot persona"),
+		textStyle.Render("/mode     ") + hintStyle.Render("switch mode (cli / web)"),
 		"",
 		hintStyle.Render("cwd:     " + cwd),
 		hintStyle.Render(daemon),
@@ -49,7 +50,6 @@ func headerBlock(cwd, daemon, discord string) string {
 
 func messageBlock(text string) string {
 	var sb strings.Builder
-	sb.WriteString("\n")
 	for i, line := range strings.Split(text, "\n") {
 		if i > 0 {
 			sb.WriteString("\n  ")
@@ -167,7 +167,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		if len(parts) == 0 {
 			return "", false
 		}
-		return hintStyle.Render("  ⎿ " + strings.Join(parts, " · ")), true
+		return hintStyle.Render("  ⎿ "+strings.Join(parts, " · ")) + "\n", true
 	}
 
 	return "", false
@@ -212,6 +212,9 @@ func printLog(name, raw, cwd string) string {
 	if err := json.Unmarshal([]byte(raw), &m); err != nil {
 		return raw
 	}
+	if len(m) == 0 {
+		return ""
+	}
 	pick := func(keys ...string) string {
 		for _, k := range keys {
 			if v, ok := m[k]; ok {
@@ -255,6 +258,9 @@ func printLog(name, raw, cwd string) string {
 		if s := pick("path", "pattern", "save_to"); s != "" {
 			return s
 		}
+
+	case "update_page":
+		return ""
 
 	case "search_files":
 		dir := strings.TrimSpace(pick("dir"))

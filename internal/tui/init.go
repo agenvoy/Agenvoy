@@ -26,7 +26,7 @@ type TUIMode int
 
 const (
 	cliMode TUIMode = iota
-	logMode
+	webMode
 
 	historyLoad = 50 // just for cli mode
 )
@@ -35,8 +35,8 @@ func (m TUIMode) String() string {
 	switch m {
 	case cliMode:
 		return "cli"
-	case logMode:
-		return "log"
+	case webMode:
+		return "web"
 	}
 	return "unknow"
 }
@@ -45,8 +45,8 @@ func (m TUIMode) color() lipgloss.Color {
 	switch m {
 	case cliMode:
 		return colSystem
-	case logMode:
-		return colWarn
+	case webMode:
+		return colOk
 	}
 	return colError
 }
@@ -74,7 +74,7 @@ type TUI struct {
 
 	mode TUIMode
 
-	logCancel context.CancelFunc
+	tailCancel context.CancelFunc
 
 	tokens        int
 	width         int
@@ -99,6 +99,7 @@ func (t TUI) Init() tea.Cmd {
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		),
 	}
+	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
 		path := filepath.Join(filesystem.SessionsDir, sid, "action.log")
 		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {
@@ -227,7 +228,7 @@ func loadSessionTail(sid string) []tea.Cmd {
 	}
 
 	cmds := make([]tea.Cmd, 0, len(lines)+1)
-	cmds = append(cmds, tea.Println("\n"+hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")))
+	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")+"\n"))
 	for _, line := range lines {
 		cmds = append(cmds, tea.Println(line))
 	}

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/pardnchiu/agenvoy/internal/agents/host"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
@@ -15,9 +16,9 @@ type CmdSelector struct {
 }
 
 type CmdSelectorItem struct {
-	label  string
-	desc   string
-	insert string
+	label   string
+	desc    string
+	isSkill bool
 }
 
 type Command struct {
@@ -26,19 +27,17 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model-add", "add a model (opens interactive flow)"},
-	{"model-remove", "remove a configured model"},
-	{"planner", "set the planner model"},
-	{"reasoning", "set planner reasoning level"},
-	{"session-model", "set current session model + reasoning"},
-	{"switch", "change current session"},
-	{"new", "create and switch to a new session"},
-	{"bot", "edit current session bot.md in $EDITOR"},
-	{"discord-enable", "enable discord bot (token + guild)"},
-	{"discord-disable", "disable discord bot (token preserved)"},
-	{"update", "update agen to latest release (exits TUI)"},
-	{"clear", "clear conversation"},
-	{"exit", "quit"},
+	{"model", "add / remove provider · pick session model"},
+	{"planner", "pick / set planner model from registry"},
+	{"reasoning", "set reasoning depth · global (planner) / session"},
+	{"switch", "switch / change current session via picker"},
+	{"new", "create / add new session · name conflict-checked"},
+	{"bot", "edit / rename current session · name / description (persona)"},
+	{"discord", "enable / disable Discord bot · gateway validated on enable"},
+	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
+	{"mode", "switch / change rendering · TUI (cli) or browser (web)"},
+	{"clear", "clear visible transcript / history · memory untouched"},
+	{"exit", "exit / quit TUI · daemon keeps running"},
 }
 
 func (t TUI) refreshCmdSelector() TUI {
@@ -80,15 +79,18 @@ func queryCmdSelector(content string) (query string, ok bool) {
 
 func getCmdSelectorItems(query string) []CmdSelectorItem {
 	query = strings.ToLower(query)
-	var items []CmdSelectorItem
+	var cmdNameItems, cmdDescItems, skillItems []CmdSelectorItem
 
 	for _, c := range commands {
-		if query == "" || strings.Contains(c.name, query) {
-			items = append(items, CmdSelectorItem{
-				label:  "/" + c.name,
-				desc:   c.desc,
-				insert: "/" + c.name + " ",
-			})
+		item := CmdSelectorItem{
+			label: "/" + c.name,
+			desc:  c.desc,
+		}
+		switch {
+		case query == "" || strings.Contains(c.name, query):
+			cmdNameItems = append(cmdNameItems, item)
+		case strings.Contains(strings.ToLower(c.desc), query):
+			cmdDescItems = append(cmdDescItems, item)
 		}
 	}
 
@@ -101,25 +103,44 @@ func getCmdSelectorItems(query string) []CmdSelectorItem {
 				continue
 			}
 
-			desc := "skill"
+			source := ""
+			description := ""
 			if scanner.Skills != nil {
 				if sk := scanner.Skills.ByName[name]; sk != nil {
-					if src := skillSource(sk.AbsPath); src != "" {
-						desc = "skill (" + src + ")"
-					}
+					source = skillSource(sk.AbsPath)
+					description = sk.Description
 				}
 			}
-			items = append(items, CmdSelectorItem{
-				label:  "/" + name,
-				desc:   desc,
-				insert: "/" + name + " ",
+			desc := description
+			if source != "" {
+				if description != "" {
+					desc = "(" + source + ") " + description
+				} else {
+					desc = "(" + source + ")"
+				}
+			}
+			if desc == "" {
+				desc = "skill"
+			}
+			skillItems = append(skillItems, CmdSelectorItem{
+				label:   "/" + name,
+				desc:    desc,
+				isSkill: true,
 			})
 		}
 	}
 
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].label < items[j].label
-	})
+	byLabel := func(s []CmdSelectorItem) func(i, j int) bool {
+		return func(i, j int) bool { return s[i].label < s[j].label }
+	}
+	sort.SliceStable(cmdNameItems, byLabel(cmdNameItems))
+	sort.SliceStable(cmdDescItems, byLabel(cmdDescItems))
+	sort.SliceStable(skillItems, byLabel(skillItems))
+
+	items := make([]CmdSelectorItem, 0, len(cmdNameItems)+len(cmdDescItems)+len(skillItems))
+	items = append(items, cmdNameItems...)
+	items = append(items, cmdDescItems...)
+	items = append(items, skillItems...)
 	return items
 }
 
@@ -156,7 +177,7 @@ func (t TUI) selectCommand() TUI {
 		return t
 	}
 	chosen := t.selector.items[t.selector.cursor]
-	t.textarea.SetValue(chosen.insert)
+	t.textarea.SetValue(chosen.label + " ")
 	t.textarea.CursorEnd()
 	t.selector = nil
 	return t
@@ -173,7 +194,7 @@ func renderCmdSelector(p *CmdSelector) string {
 
 	maxLabel := 0
 	for _, it := range p.items[start:end] {
-		if w := len([]rune(it.label)); w > maxLabel {
+		if w := lipgloss.Width(it.label); w > maxLabel {
 			maxLabel = w
 		}
 	}
@@ -185,8 +206,11 @@ func renderCmdSelector(p *CmdSelector) string {
 		if i == p.cursor {
 			marker = systemStyle.Render("> ")
 			labelStyle = systemStyle
+			if it.isSkill {
+				labelStyle = skillStyle
+			}
 		}
-		pad := strings.Repeat(" ", maxLabel-len([]rune(it.label)))
+		pad := strings.Repeat(" ", maxLabel-lipgloss.Width(it.label))
 		line := marker + labelStyle.Render(it.label) + pad
 		if it.desc != "" {
 			line += "  " + hintStyle.Render(it.desc)

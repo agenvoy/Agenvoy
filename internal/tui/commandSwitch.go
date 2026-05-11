@@ -23,7 +23,7 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 		name := strings.Join(parts[1:], " ")
 		id := session.GetSessionIDByName(name)
 		if id == "" {
-			return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session %q not found", name))), true
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session %q not found", name)) + "\n"), true
 		}
 		next, cmd := t.runCommandSwitch(id)
 		return next, cmd, true
@@ -31,7 +31,7 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 
 	popup := popupSwitch(t.currentSessionID)
 	if popup == nil {
-		return t, tea.Println("\n" + hintStyle.Render("no sessions available")), true
+		return t, tea.Println(hintStyle.Render("no sessions available") + "\n"), true
 	}
 	popup.onConfirm = func(chosen string) any {
 		if chosen == "" {
@@ -45,14 +45,15 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if id == t.currentSessionID {
-		return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ already on: %s", utils.ShortenSessionID(id))))
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ already on: %s", utils.ShortenSessionID(id))) + "\n")
 	}
 	if err := changeSession(id); err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] switch failed: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] switch failed: %v", err)) + "\n")
 	}
 	previous := t.currentSessionID
 	t.currentSessionID = id
 	t.currentSessionName, _ = session.GetBot(id)
+	t = t.restartTailer()
 
 	t.tokens = 0
 	t.lastIn = 0
@@ -64,7 +65,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if previous != "" && previous != id {
 		switchLines = append(switchLines, hintStyle.Render(fmt.Sprintf("  previous: %s", utils.ShortenSessionID(previous))))
 	}
-	switchBlock := tea.Println("\n" + strings.Join(switchLines, "\n"))
+	switchBlock := tea.Println(strings.Join(switchLines, "\n") + "\n")
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,

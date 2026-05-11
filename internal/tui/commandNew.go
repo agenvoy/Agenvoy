@@ -18,13 +18,13 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 
 	if name != "" {
 		if existing := session.GetSessionIDByName(name); existing != "" {
-			return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] name %q already used", name))), true
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] name %q already used", name)) + "\n"), true
 		}
 	}
 
 	id, err := session.CreateSession("cli-")
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] create session failed: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] create session failed: %v", err)) + "\n"), true
 	}
 
 	if name != "" {
@@ -32,7 +32,7 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 	}
 
 	if err := changeSession(id); err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] switch failed: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] switch failed: %v", err)) + "\n"), true
 	}
 
 	previous := t.currentSessionID
@@ -57,6 +57,6 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
-		tea.Println("\n"+strings.Join(lines, "\n")),
+		tea.Println(strings.Join(lines, "\n")+"\n"),
 	), true
 }

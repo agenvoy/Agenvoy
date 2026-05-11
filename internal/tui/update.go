@@ -45,7 +45,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return t, tea.Sequence(
-				tea.Println("\n"+hintStyle.Render("⎯ exit")),
+				tea.Println(hintStyle.Render("⎯ exit")+"\n"),
 				tea.Quit,
 			)
 
@@ -58,12 +58,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.cancelExec()
 				return t, tea.Println(hintStyle.Render("⎯ cancelling…"))
 			}
-
-		case tea.KeyShiftTab:
-			if t.running {
-				return t, tea.Println(hintStyle.Render("⎯ is running · shift+tab disabled"))
-			}
-			return t.logMode(t.mode == cliMode)
 
 		case tea.KeyUp:
 			if t.selector != nil {
@@ -103,10 +97,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, nil
 			}
 
-			if t.mode == logMode {
-				return t, nil
-			}
-
 			if msg.Alt {
 				t.textarea.InsertRune('\n')
 				t.textarea.SetHeight(max(1, min(t.textarea.LineCount(), 5)))
@@ -138,7 +128,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.runStartedAt = time.Now()
 			t.runTarget = targetSession(content, t.currentSessionID)
 
-			go runExec(t.ctx, content, false, t.cwd, t.currentSessionID)
+			go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, t.mode == webMode)
 
 			cmds = append(cmds,
 				tea.Println(messageBlock(content)),
@@ -161,7 +151,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.currentSessionName, _ = session.GetBot(t.currentSessionID)
 		}
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
-			return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err)))
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err)) + "\n")
 		}
 		return t, nil
 
@@ -182,6 +172,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.popup = popup
 		return t, nil
 
+	case ModeSelect:
+		return t.runModeSelect(msg.mode)
+
 	case SessionSelect:
 		next, cmd := t.runCommandSwitch(msg.id)
 		return next, cmd
@@ -189,6 +182,39 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionNew:
 		next, cmd, _ := t.commandNew(nil)
 		return next, cmd
+
+	case ModelScopeSelect:
+		switch msg.scope {
+		case "global":
+			next, cmd := t.openModelGlobalPopup()
+			return next, cmd
+		case "session":
+			next, cmd, _ := t.commandSessionModel()
+			return next, cmd
+		}
+		return t, nil
+
+	case ModelAction:
+		switch msg.action {
+		case "add":
+			next, cmd, _ := t.commandModelAdd()
+			return next, cmd
+		case "remove":
+			next, cmd, _ := t.commandModelRemove()
+			return next, cmd
+		}
+		return t, nil
+
+	case ReasoningScopeSelect:
+		switch msg.scope {
+		case "global":
+			next, cmd := t.openReasoningGlobalPopup()
+			return next, cmd
+		case "session":
+			next, cmd := t.openReasoningSessionPopup()
+			return next, cmd
+		}
+		return t, nil
 
 	case ModelRemove:
 		next, cmd := t.runModelRemove(msg.name)
@@ -200,9 +226,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] bot edit: %v", msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] bot edit: %v", msg.err))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -211,14 +236,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))+"\n"))
 		} else {
 			host.Reload()
-			seq = append(seq, tea.Println("\n"+hintStyle.Render("⎯ model added · registry reloaded")))
+			seq = append(seq, tea.Println(hintStyle.Render("⎯ model added · registry reloaded")+"\n"))
 		}
 		return t, tea.Sequence(seq...)
+
+	case DiscordAction:
+		return t, runDiscordAction(msg.action)
 
 	case DiscordDone:
 		t.discordStatus = getDiscordStatus()
@@ -226,11 +253,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println("\n"+hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))))
+			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -244,19 +270,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 
 	case SessionModelSelect:
-		next, cmd := t.openSessionReasoningPopup(msg.model)
+		next, cmd := t.runSessionModelSelect(msg.model)
 		return next, cmd
 
 	case SessionReasoningSelect:
-		next, cmd := t.runSessionReasoningChosen(msg.model, msg.reasoning)
+		next, cmd := t.runSessionReasoningSelect(msg.reasoning)
 		return next, cmd
 
 	case UpdateConfirm:
 		if !msg.ok {
-			return t, tea.Println("\n" + hintStyle.Render("⎯ update cancelled"))
+			return t, tea.Println(hintStyle.Render("⎯ update cancelled") + "\n")
 		}
 		return t, tea.Sequence(
-			tea.Println("\n"+hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")),
+			tea.Println(hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")+"\n"),
 			runUpdateExec(),
 		)
 
@@ -264,7 +290,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.quitting = true
 		if msg.err != nil {
 			return t, tea.Sequence(
-				tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))),
+				tea.Println(errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))+"\n"),
 				tea.Quit,
 			)
 		}
@@ -290,26 +316,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(loadSessionTail(msg.id)...)
 
-	case logHistory:
-		if t.mode != logMode {
-			return t, nil
-		}
-
-		var cmds2 []tea.Cmd
-		for _, line := range msg.lines {
-			cmds2 = append(cmds2, tea.Println(line))
-		}
-		if len(cmds2) == 0 {
-			return t, nil
-		}
-
-		return t, tea.Sequence(cmds2...)
-
-	case logLine:
-		if t.mode != logMode {
+	case tailLine:
+		if t.mode != cliMode {
 			return t, nil
 		}
 		return t, tea.Println(msg.line)
+
+	case initTailer:
+		return t.restartTailer(), nil
 
 	case released:
 		if msg.tag == "" || msg.tag == projectVersion || projectVersion == "dev" {
@@ -317,7 +331,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		hint := okayStyle.Render("⏺ latest: "+msg.tag) + hintStyle.Render("  (now is ") + textStyle.Render(projectVersion) + hintStyle.Render(")")
-		return t, tea.Println("\n" + hint)
+		return t, tea.Println(hint + "\n")
 
 	case spinner.TickMsg:
 		if t.running {

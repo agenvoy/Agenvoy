@@ -215,7 +215,7 @@ func formatActionEvent(ev agentTypes.Event) string {
 
 func formatActionLine(kind, body string) string {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
-	return fmt.Sprintf("[%s][%s] %s", ts, kind, body)
+	return fmt.Sprintf("[%s][%s][%s] %s", ts, GetHash(), kind, body)
 }
 
 const ActionNewlineMarker = "\x1F"

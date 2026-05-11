@@ -3,70 +3,85 @@ package tui
 import (
 	"bufio"
 	"context"
-	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/fsnotify/fsnotify"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/utils"
+	"github.com/pardnchiu/agenvoy/internal/session"
 )
 
-type logLine struct {
-	line string
+type tailLine struct {
+	line    string
+	foreign bool
 }
 
-type logHistory struct {
-	lines []string
+type initTailer struct{}
+
+func (t TUI) restartTailer() TUI {
+	if t.tailCancel != nil {
+		t.tailCancel()
+		t.tailCancel = nil
+	}
+	if strings.TrimSpace(t.currentSessionID) == "" {
+		return t
+	}
+	ctx, cancel := context.WithCancel(t.ctx)
+	t.tailCancel = cancel
+	go newActionTailer(ctx, t.currentSessionID)
+	return t
 }
 
-func (t TUI) logMode(on bool) (TUI, tea.Cmd) {
-	if on {
-		if t.currentSessionID == "" {
-			return t, nil
+var foreignMarkStyle = lipgloss.NewStyle().Foreground(colWarn)
+
+func foreignWrap(s string) string {
+	if s == "" {
+		return s
+	}
+	prefix := foreignMarkStyle.Render("▌ ")
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		if l == "" {
+			continue
 		}
-		t.mode = logMode
-
-		ctx, cancel := context.WithCancel(t.ctx)
-		t.logCancel = cancel
-		go newLogListener(ctx, t.currentSessionID)
-		return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ log mode · sessions/%s/action.log", utils.ShortenSessionID(t.currentSessionID))))
+		lines[i] = prefix + l
 	}
-	if t.logCancel != nil {
-		t.logCancel()
-		t.logCancel = nil
-	}
-	t.mode = cliMode
-	return t, nil
+	return strings.Join(lines, "\n")
 }
 
-func newLogListener(ctx context.Context, sid string) {
+func newActionTailer(ctx context.Context, sid string) {
+	if strings.TrimSpace(sid) == "" {
+		return
+	}
 	path := filepath.Join(filesystem.SessionsDir, sid, "action.log")
-
-	existing := readAllLines(path)
-	send(logHistory{lines: existing})
+	dir := filepath.Dir(path)
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
-		send(logLine{line: errorStyle.Render("[!] watcher: " + err.Error())})
+		slog.Warn("tail watcher",
+			slog.String("error", err.Error()))
 		return
 	}
 	defer w.Close()
 
-	dir := filepath.Dir(path)
 	if err := w.Add(dir); err != nil {
-		send(logLine{line: errorStyle.Render("[!] watch dir: " + err.Error())})
+		slog.Warn("tail watch dir",
+			slog.String("error", err.Error()))
 		return
+	}
+	if err := w.Add(path); err == nil {
+		defer w.Remove(path)
 	}
 
 	lastSize := fileSize(path)
-	pollTicker := time.NewTicker(1 * time.Second)
+	pollTicker := time.NewTicker(300 * time.Millisecond)
 	defer pollTicker.Stop()
 
 	for {
@@ -80,20 +95,29 @@ func newLogListener(ctx context.Context, sid string) {
 			if filepath.Base(ev.Name) != "action.log" {
 				continue
 			}
-			lastSize = cutNew(path, lastSize)
+			if ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename) {
+				_ = w.Remove(path)
+				_ = w.Add(path)
+				lastSize = fileSize(path)
+				continue
+			}
+			if ev.Has(fsnotify.Create) {
+				_ = w.Add(path)
+			}
+			lastSize = drainNew(path, lastSize)
 		case err, ok := <-w.Errors:
 			if !ok {
 				return
 			}
-			slog.Warn("log watcher error",
+			slog.Warn("tail watcher error",
 				slog.String("error", err.Error()))
 		case <-pollTicker.C:
-			lastSize = cutNew(path, lastSize)
+			lastSize = drainNew(path, lastSize)
 		}
 	}
 }
 
-func cutNew(path string, lastSize int64) int64 {
+func drainNew(path string, lastSize int64) int64 {
 	current := fileSize(path)
 	if current <= lastSize {
 		return current
@@ -108,16 +132,36 @@ func cutNew(path string, lastSize int64) int64 {
 		return current
 	}
 
-	scanner := bufio.NewScanner(file)
+	own := session.GetHash()
+	scanner := bufio.NewScanner(io.LimitReader(file, current-lastSize))
 	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
-		line := formatLog(scanner.Text())
+		raw := scanner.Text()
+		parsed, ok := parseActionLine(raw)
+		if !ok {
+			continue
+		}
+		if parsed.hash == own {
+			continue
+		}
+		line := renderActionLine(parsed)
 		if line == "" {
 			continue
 		}
-		send(logLine{line: line})
+		send(tailLine{
+			line:    foreignWrap(line),
+			foreign: true,
+		})
 	}
 	return current
+}
+
+func fileSize(path string) int64 {
+	st, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return st.Size()
 }
 
 func readAllLines(path string) []string {
@@ -132,12 +176,4 @@ func readAllLines(path string) []string {
 		}
 	}
 	return out
-}
-
-func fileSize(path string) int64 {
-	st, err := os.Stat(path)
-	if err != nil {
-		return 0
-	}
-	return st.Size()
 }

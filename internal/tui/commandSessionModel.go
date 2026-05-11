@@ -13,22 +13,21 @@ type SessionModelSelect struct {
 }
 
 type SessionReasoningSelect struct {
-	model     string
 	reasoning string
 }
 
 func (t TUI) commandSessionModel() (TUI, tea.Cmd, bool) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session")), true
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n"), true
 	}
 
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Models) == 0 {
-		return t, tea.Println("\n" + hintStyle.Render("no models configured · use /model-add")), true
+		return t, tea.Println(hintStyle.Render("no models configured · use /model global > add") + "\n"), true
 	}
 
 	status := session.ReadStatus(sid)
@@ -62,7 +61,7 @@ func (t TUI) commandSessionModel() (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Select session model",
+		title:   "Model · session",
 		options: options,
 		values:  values,
 		cursor:  cursor,
@@ -73,46 +72,20 @@ func (t TUI) commandSessionModel() (TUI, tea.Cmd, bool) {
 	return t, nil, true
 }
 
-func (t TUI) openSessionReasoningPopup(model string) (TUI, tea.Cmd) {
+func (t TUI) runSessionModelSelect(model string) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session"))
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 	}
-
-	current := session.ReadStatus(sid).Reasoning
-	if current == "" {
-		current = session.StatusReasoning
-	}
-
-	options := make([]string, len(reasoningLevels))
-	cursor := 1
-	for i, lvl := range reasoningLevels {
-		label := lvl
-		if lvl == current {
-			label += "  " + hintStyle.Render("[current]")
-			cursor = i
-		}
-		options[i] = label
-	}
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   fmt.Sprintf("Select reasoning level (model: %s)", model),
-		options: options,
-		values:  reasoningLevels,
-		cursor:  cursor,
-		onConfirm: func(chosen string) any {
-			return SessionReasoningSelect{model: model, reasoning: chosen}
-		},
-	}
-	return t, nil
+	session.SetModelReasoning(sid, model, "")
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ session model: %s", model)) + "\n")
 }
 
-func (t TUI) runSessionReasoningChosen(model, reasoning string) (TUI, tea.Cmd) {
+func (t TUI) runSessionReasoningSelect(reasoning string) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session"))
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 	}
-	session.SetModelReasoning(sid, model, reasoning)
-	return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ session model: %s · reasoning: %s", model, reasoning)))
+	session.SetModelReasoning(sid, "", reasoning)
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ session reasoning: %s", reasoning)) + "\n")
 }

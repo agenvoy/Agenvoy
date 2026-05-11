@@ -30,12 +30,8 @@ func (t TUI) viewIdle() string {
 	left := hintStyle.Render(" / commands · enter send · alt+enter newline · esc cancel")
 	right := t.sessionTag()
 
-	if t.mode == logMode {
-		left = hintStyle.Render("  shift+tab back to cli")
-		pad := width - lipgloss.Width(left) - lipgloss.Width(right)
-		pad = max(pad, 1)
-
-		return "\n" + left + strings.Repeat(" ", pad) + right
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
 	}
 
 	prefix := "\n"
@@ -144,9 +140,9 @@ func (t TUI) sessionTag() string {
 	modeTag := lipgloss.NewStyle().Foreground(t.mode.color()).Render(t.mode.String())
 	parts := []string{modeTag}
 	if name := t.sessionName(); name != "" {
-		parts = append(parts, name)
+		parts = append(parts, hintStyle.Render(name))
 	}
-	return hintStyle.Render(strings.Join(parts, " · ") + "  ")
+	return strings.Join(parts, hintStyle.Render(" · ")) + hintStyle.Render("  ")
 }
 
 func (t TUI) sessionName() string {
