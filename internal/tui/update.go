@@ -45,7 +45,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return t, tea.Sequence(
-				tea.Println("\n"+hintStyle.Render("⎯ exit")),
+				tea.Println(hintStyle.Render("⎯ exit")+"\n"),
 				tea.Quit,
 			)
 
@@ -151,7 +151,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.currentSessionName, _ = session.GetBot(t.currentSessionID)
 		}
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
-			return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err)))
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err)) + "\n")
 		}
 		return t, nil
 
@@ -172,6 +172,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.popup = popup
 		return t, nil
 
+	case ModeSelect:
+		return t.runModeSelect(msg.mode)
+
 	case SessionSelect:
 		next, cmd := t.runCommandSwitch(msg.id)
 		return next, cmd
@@ -190,9 +193,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] bot edit: %v", msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] bot edit: %v", msg.err))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -201,14 +203,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))+"\n"))
 		} else {
 			host.Reload()
-			seq = append(seq, tea.Println("\n"+hintStyle.Render("⎯ model added · registry reloaded")))
+			seq = append(seq, tea.Println(hintStyle.Render("⎯ model added · registry reloaded")+"\n"))
 		}
 		return t, tea.Sequence(seq...)
+
+	case DiscordAction:
+		return t, runDiscordAction(msg.action)
 
 	case DiscordDone:
 		t.discordStatus = getDiscordStatus()
@@ -216,11 +220,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
 		}
-		seq = append(seq, loadSessionTail(t.currentSessionID)...)
 		if msg.err != nil {
-			seq = append(seq, tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))))
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println("\n"+hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))))
+			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -243,10 +246,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case UpdateConfirm:
 		if !msg.ok {
-			return t, tea.Println("\n" + hintStyle.Render("⎯ update cancelled"))
+			return t, tea.Println(hintStyle.Render("⎯ update cancelled") + "\n")
 		}
 		return t, tea.Sequence(
-			tea.Println("\n"+hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")),
+			tea.Println(hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")+"\n"),
 			runUpdateExec(),
 		)
 
@@ -254,7 +257,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.quitting = true
 		if msg.err != nil {
 			return t, tea.Sequence(
-				tea.Println("\n"+errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))),
+				tea.Println(errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))+"\n"),
 				tea.Quit,
 			)
 		}
@@ -286,13 +289,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Println(msg.line)
 
+	case initTailer:
+		return t.restartTailer(), nil
+
 	case released:
 		if msg.tag == "" || msg.tag == projectVersion || projectVersion == "dev" {
 			return t, nil
 		}
 
 		hint := okayStyle.Render("⏺ latest: "+msg.tag) + hintStyle.Render("  (now is ") + textStyle.Render(projectVersion) + hintStyle.Render(")")
-		return t, tea.Println("\n" + hint)
+		return t, tea.Println(hint + "\n")
 
 	case spinner.TickMsg:
 		if t.running {

@@ -17,7 +17,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	switch parts[0] {
 	case "/exit", "/quit":
 		return t, tea.Sequence(
-			tea.Println("\n"+hintStyle.Render("bye.")),
+			tea.Println(hintStyle.Render("bye.")+"\n"),
 			tea.Quit,
 		), true
 
@@ -54,11 +54,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/session-model":
 		return t.commandSessionModel()
 
-	case "/discord-enable":
-		return t.commandDiscord("enable")
-
-	case "/discord-disable":
-		return t.commandDiscord("disable")
+	case "/discord":
+		return t.commandDiscord()
 
 	case "/update":
 		return t.commandUpdate()

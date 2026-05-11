@@ -15,10 +15,10 @@ type ModelRemove struct {
 func (t TUI) commandModelRemove() (TUI, tea.Cmd, bool) {
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Models) == 0 {
-		return t, tea.Println("\n" + hintStyle.Render("no models configured")), true
+		return t, tea.Println(hintStyle.Render("no models configured") + "\n"), true
 	}
 
 	options := make([]string, len(cfg.Models))
@@ -50,7 +50,7 @@ func (t TUI) commandModelRemove() (TUI, tea.Cmd, bool) {
 func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
 	}
 
 	idx := -1
@@ -61,7 +61,7 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 		}
 	}
 	if idx < 0 {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] model %q not found", name)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] model %q not found", name)) + "\n")
 	}
 
 	cfg.Models = append(cfg.Models[:idx], cfg.Models[idx+1:]...)
@@ -72,12 +72,12 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	}
 
 	if err := session.Save(cfg); err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)))
+		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
 	}
 
 	lines := []string{hintStyle.Render(fmt.Sprintf("⎯ removed: %s", name))}
 	if clearedPlanner {
 		lines = append(lines, warnStyle.Render("planner cleared · run /model-add or set a new planner"))
 	}
-	return t, tea.Println("\n" + strings.Join(lines, "\n"))
+	return t, tea.Println(strings.Join(lines, "\n") + "\n")
 }

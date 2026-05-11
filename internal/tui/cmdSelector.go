@@ -34,10 +34,9 @@ var commands = []Command{
 	{"switch", "change current session"},
 	{"new", "create and switch to a new session"},
 	{"bot", "edit current session bot.md in $EDITOR"},
-	{"discord-enable", "enable discord bot (token + guild)"},
-	{"discord-disable", "disable discord bot (token preserved)"},
+	{"discord", "enable / disable discord bot"},
 	{"update", "update agen to latest release (exits TUI)"},
-	{"mode", "switch tui mode (cli / log / web)"},
+	{"mode", "switch tui mode (cli / web)"},
 	{"clear", "clear conversation"},
 	{"exit", "quit"},
 }

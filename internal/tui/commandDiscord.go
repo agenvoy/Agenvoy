@@ -6,23 +6,51 @@ import (
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pardnchiu/agenvoy/internal/session"
 )
+
+type DiscordAction struct {
+	action string
+}
 
 type DiscordDone struct {
 	action string
 	err    error
 }
 
-func (t TUI) commandDiscord(action string) (TUI, tea.Cmd, bool) {
+func (t TUI) commandDiscord() (TUI, tea.Cmd, bool) {
+	enabled := false
+	if cfg, err := session.Load(); err == nil && cfg != nil {
+		enabled = cfg.DiscordEnabled
+	}
+	cursor := 0
+	if enabled {
+		cursor = 1
+	}
+	t.popup = &Popup{
+		kind:    popupSingleSelect,
+		title:   "Discord",
+		options: []string{"enable", "disable"},
+		values:  []string{"enable", "disable"},
+		cursor:  cursor,
+		onConfirm: func(chosen string) any {
+			return DiscordAction{action: chosen}
+		},
+	}
+	return t, nil, true
+}
+
+func runDiscordAction(action string) tea.Cmd {
 	self, err := os.Executable()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] os.Executable: %v", err))), true
+		return tea.Println(errorStyle.Render(fmt.Sprintf("[!] os.Executable: %v", err)) + "\n")
 	}
 
 	cmd := exec.Command(self, "discord", action)
 	cmd.Env = os.Environ()
 
-	exec := tea.ExecProcess(cmd, func(err error) tea.Msg {
+	execCmd := tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return DiscordDone{action: action, err: err}
 	})
 

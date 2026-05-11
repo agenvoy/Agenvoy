@@ -43,17 +43,17 @@ func (t TUI) commandReasoning() (TUI, tea.Cmd, bool) {
 func (t TUI) runReasoningSelect(level string) (TUI, tea.Cmd) {
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
 	}
 	if cfg.ReasoningLevel == level {
-		return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ reasoning unchanged: %s", level)))
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ reasoning unchanged: %s", level)) + "\n")
 	}
 
 	cfg.ReasoningLevel = level
 	if err := session.Save(cfg); err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
 	}
 
 	provider.SetReasoningLevel(level)
-	return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ reasoning: %s", level)))
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ reasoning: %s", level)) + "\n")
 }

@@ -16,7 +16,7 @@ type ModelAddDone struct {
 func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 	self, err := os.Executable()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] os.Executable: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] os.Executable: %v", err)) + "\n"), true
 	}
 
 	cmd := exec.Command(self, "model", "add")
@@ -30,7 +30,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 	})
 
 	return t, tea.Sequence(
-		tea.Println("\n"+hintStyle.Render("⎯ launching add-model flow · ctrl+c to cancel")),
+		tea.Println(hintStyle.Render("⎯ launching add-model flow · ctrl+c to cancel")+"\n"),
 		exec,
 	), true
 }

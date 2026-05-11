@@ -19,7 +19,7 @@ type BotEditDone struct {
 func (t TUI) commandBot() (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session")), true
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n"), true
 	}
 
 	session.SaveBot(sid, sid, false)
@@ -31,7 +31,7 @@ func (t TUI) commandBot() (TUI, tea.Cmd, bool) {
 	}
 	parts := strings.Fields(editor)
 	if len(parts) == 0 {
-		return t, tea.Println("\n" + errorStyle.Render("[!] EDITOR is empty")), true
+		return t, tea.Println(errorStyle.Render("[!] EDITOR is empty") + "\n"), true
 	}
 
 	args := append(parts[1:], path)

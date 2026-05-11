@@ -38,6 +38,7 @@ func headerBlock(cwd, daemon, discord string) string {
 		"",
 		textStyle.Render("/         ") + hintStyle.Render("list commands"),
 		textStyle.Render("/switch   ") + hintStyle.Render("change current session"),
+		textStyle.Render("/bot      ") + hintStyle.Render("edit bot persona"),
 		textStyle.Render("/mode     ") + hintStyle.Render("switch mode (cli / web)"),
 		"",
 		hintStyle.Render("cwd:     " + cwd),

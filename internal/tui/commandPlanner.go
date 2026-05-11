@@ -14,10 +14,10 @@ type PlannerSelect struct {
 func (t TUI) commandPlanner() (TUI, tea.Cmd, bool) {
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Models) == 0 {
-		return t, tea.Println("\n" + hintStyle.Render("no models configured · use /model-add")), true
+		return t, tea.Println(hintStyle.Render("no models configured · use /model-add") + "\n"), true
 	}
 
 	options := make([]string, len(cfg.Models))
@@ -52,15 +52,15 @@ func (t TUI) commandPlanner() (TUI, tea.Cmd, bool) {
 func (t TUI) runPlannerSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
 	}
 	if cfg.PlannerModel == name {
-		return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ planner unchanged: %s", name)))
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ planner unchanged: %s", name)) + "\n")
 	}
 
 	cfg.PlannerModel = name
 	if err := session.Save(cfg); err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)))
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
 	}
-	return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ planner: %s", name)))
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ planner: %s", name)) + "\n")
 }

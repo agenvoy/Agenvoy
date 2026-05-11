@@ -20,15 +20,15 @@ type SessionReasoningSelect struct {
 func (t TUI) commandSessionModel() (TUI, tea.Cmd, bool) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session")), true
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n"), true
 	}
 
 	cfg, err := session.Load()
 	if err != nil {
-		return t, tea.Println("\n" + errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err))), true
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Models) == 0 {
-		return t, tea.Println("\n" + hintStyle.Render("no models configured · use /model-add")), true
+		return t, tea.Println(hintStyle.Render("no models configured · use /model-add") + "\n"), true
 	}
 
 	status := session.ReadStatus(sid)
@@ -76,7 +76,7 @@ func (t TUI) commandSessionModel() (TUI, tea.Cmd, bool) {
 func (t TUI) openSessionReasoningPopup(model string) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session"))
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 	}
 
 	current := session.ReadStatus(sid).Reasoning
@@ -111,8 +111,8 @@ func (t TUI) openSessionReasoningPopup(model string) (TUI, tea.Cmd) {
 func (t TUI) runSessionReasoningChosen(model, reasoning string) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println("\n" + errorStyle.Render("[!] no current session"))
+		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 	}
 	session.SetModelReasoning(sid, model, reasoning)
-	return t, tea.Println("\n" + hintStyle.Render(fmt.Sprintf("⎯ session model: %s · reasoning: %s", model, reasoning)))
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ session model: %s · reasoning: %s", model, reasoning)) + "\n")
 }

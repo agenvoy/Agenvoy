@@ -228,7 +228,7 @@ func loadSessionTail(sid string) []tea.Cmd {
 	}
 
 	cmds := make([]tea.Cmd, 0, len(lines)+1)
-	cmds = append(cmds, tea.Println("\n"+hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")))
+	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")+"\n"))
 	for _, line := range lines {
 		cmds = append(cmds, tea.Println(line))
 	}
