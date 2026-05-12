@@ -6,8 +6,11 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/host"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 type CmdSelector struct {
@@ -35,6 +38,7 @@ var commands = []Command{
 	{"new", "create / add new session · name conflict-checked"},
 	{"bot", "edit / rename current session · name / description (persona)"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
+	{"cron", "add / remove / edit scheduled recurring task"},
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
 	{"mode", "switch / change rendering · TUI (cli) or browser (web)"},
 	{"clear", "clear visible transcript / history · memory untouched"},
@@ -137,17 +141,50 @@ func getCmdSelectorItems(query string) []CmdSelectorItem {
 		}
 	}
 
+	var schedulerItems []CmdSelectorItem
+	cronByName := make(map[string]string)
+	if crons, err := runtime.LoadCrons(); err == nil {
+		for _, c := range crons {
+			if _, exists := cronByName[c.Skill]; !exists {
+				cronByName[c.Skill] = c.Expression
+			}
+		}
+	}
+	if dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.ScheduleSkillsDir); err == nil {
+		for _, d := range dirs {
+			name := d.Name
+			if name == "" || name[0] == '.' {
+				continue
+			}
+			label := "/sched-" + name
+			if query != "" && !strings.Contains(strings.ToLower(label), query) {
+				continue
+			}
+			desc := "scheduler skill"
+			if expr := cronByName[name]; expr != "" {
+				desc = "(" + expr + ") scheduler skill"
+			}
+			schedulerItems = append(schedulerItems, CmdSelectorItem{
+				label:   label,
+				desc:    desc,
+				isSkill: true,
+			})
+		}
+	}
+
 	byLabel := func(s []CmdSelectorItem) func(i, j int) bool {
 		return func(i, j int) bool { return s[i].label < s[j].label }
 	}
 	sort.SliceStable(cmdNameItems, byLabel(cmdNameItems))
 	sort.SliceStable(cmdDescItems, byLabel(cmdDescItems))
 	sort.SliceStable(skillItems, byLabel(skillItems))
+	sort.SliceStable(schedulerItems, byLabel(schedulerItems))
 
-	items := make([]CmdSelectorItem, 0, len(cmdNameItems)+len(cmdDescItems)+len(skillItems))
+	items := make([]CmdSelectorItem, 0, len(cmdNameItems)+len(cmdDescItems)+len(skillItems)+len(schedulerItems))
 	items = append(items, cmdNameItems...)
 	items = append(items, cmdDescItems...)
 	items = append(items, skillItems...)
+	items = append(items, schedulerItems...)
 	return items
 }
 

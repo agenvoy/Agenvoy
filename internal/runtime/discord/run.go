@@ -99,7 +99,7 @@ func run(ctx context.Context, dcBot *discordTypes.DiscordBot, dcSession *discord
 			slog.Warn("EventExecError",
 				slog.String("tool", e.ToolName),
 				slog.String("hash", e.Text))
-			execErrors = append(execErrors, fmt.Sprintf("`%s` → `%s`", e.ToolName, e.Text))
+			execErrors = append(execErrors, fmt.Sprintf("`%s`: `%s`", e.ToolName, e.Text))
 
 		case agentTypes.EventDone:
 			doneEvent = e

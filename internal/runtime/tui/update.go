@@ -357,6 +357,43 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case DiscordAction:
 		return t, runDiscordAction(msg.action)
 
+	case CronAction:
+		switch msg.action {
+		case "add":
+			next, cmd, _ := t.commandCronAdd()
+			return next, cmd
+		case "remove":
+			next, cmd, _ := t.commandCronRemove()
+			return next, cmd
+		case "edit":
+			next, cmd, _ := t.commandCronEdit()
+			return next, cmd
+		}
+		return t, nil
+
+	case CronAddSubmit:
+		next, cmd := t.runCronAddSubmit(msg.requirement)
+		return next, cmd
+
+	case CronRemoveSelect:
+		next, cmd := t.openCronRemoveConfirm(msg.skill)
+		return next, cmd
+
+	case CronRemoveConfirm:
+		if !msg.yes {
+			return t, tea.Println(hintStyle.Render("⎯ cron remove cancelled") + "\n")
+		}
+		next, cmd := t.runCronRemove(msg.skill)
+		return next, cmd
+
+	case CronEditSelect:
+		next, cmd := t.openCronEditRequirement(msg.skill, msg.expression)
+		return next, cmd
+
+	case CronEditSubmit:
+		next, cmd := t.runCronEditSubmit(msg.skill, msg.expression, msg.requirement)
+		return next, cmd
+
 	case DiscordDone:
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{

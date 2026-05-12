@@ -14,6 +14,9 @@ type SessionNew struct{}
 
 func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	parts := strings.Fields(cmd)
+	if strings.HasPrefix(parts[0], "/sched-") {
+		return t.commandSchedule(parts)
+	}
 	switch parts[0] {
 	case "/exit", "/quit":
 		return t, tea.Sequence(
@@ -53,6 +56,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/discord":
 		return t.commandDiscord(parts)
+
+	case "/cron":
+		return t.commandCron(parts)
 
 	case "/update":
 		return t.commandUpdate()
