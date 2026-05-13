@@ -19,9 +19,9 @@ type result struct {
 
 func registSearchTools() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:       "search_tools",
-		ReadOnly:   true,
-		AlwaysLoad: true,
+		Name:        "search_tools",
+		AlwaysAllow: true,
+		AlwaysLoad:  true,
 		Description: "Search available tools by keyword and inject matching tools into the current request.",
 		Parameters: map[string]any{
 			"type": "object",

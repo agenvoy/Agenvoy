@@ -31,9 +31,9 @@ const (
 func registFetchPage() {
 	toolRegister.Regist(toolRegister.Def{
 
-		Name:       "fetch_page",
-		ReadOnly:   true,
-		Concurrent: true,
+		Name:        "fetch_page",
+		AlwaysAllow: true,
+		Concurrent:  true,
 		Description: "Fetch a web page and return its content as Markdown without saving it locally.",
 		Parameters: map[string]any{
 			"type": "object",

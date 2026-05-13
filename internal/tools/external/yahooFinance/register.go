@@ -24,7 +24,7 @@ var (
 func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:       "fetch_yahoo_finance",
-		ReadOnly:   true,
+		AlwaysAllow:   true,
 		Concurrent: true,
 		Description: `
 Query Yahoo Finance quotes and K-line.
