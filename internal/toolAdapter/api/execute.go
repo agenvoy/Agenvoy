@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 const (
@@ -173,7 +174,7 @@ func (t *Translator) insetAuth(req *http.Request, auth *APIDocumentAuthData) err
 		return fmt.Errorf("auth.env is required")
 	}
 
-	value := os.Getenv(auth.Env)
+	value := keychain.Get(auth.Env)
 	if value == "" {
 		return fmt.Errorf("%q not set", auth.Env)
 	}

@@ -179,7 +179,18 @@ options:
 multiSelect: false
 ```
 
-選後告知使用者「請在 agen 內跑 `store_secret` 設定此 key，或之後 daemon 自動詢問」。**勿**詢問或儲存明文 secret 值。
+取得 key 名後**立即主動呼叫 `store_secret`** 把值落 keychain（不延後到使用者自己跑）：
+
+```
+store_secret({
+  "key": "<KEYCHAIN_KEY_NAME>",
+  "prompt": "請輸入 <tool 名稱> 用的 <secret 用途> 值"
+})
+```
+
+`store_secret` 內部走 `ask_user(secret:true)` 遮罩輸入後 `keychain.Set` 落地，**skill 全程不見明文**。完成後 Gate 6 試跑 script 即可透過 `/v1/key?key=<KEYCHAIN_KEY_NAME>` 取得真實 value。
+
+**禁止**：(a) 走 `ask_user` 取 plaintext 再轉手 `store_secret`（value 會落 LLM context／history／action.log）；(b) 在 `tool.json.parameters` 暴露 secret 欄位讓 LLM 收 plaintext；(c) script 內 hardcode key 值。schema 只記**取值方式**（`/v1/key` 端點 + key 名），不記值。
 
 ### Gate 5：實作
 
@@ -417,10 +428,9 @@ multiSelect: false
 ```
 Wrote 1 script tool to ~/.config/agenvoy/tools/script/
 重啟 agen daemon（`agen stop && agen`）即可載入。
-
-若有 secret 需求，請於 agen 內執行：
-  agen cli "幫我設定 <key_name>"
 ```
+
+Gate 4 涉及 secret 的 tool，keychain 已於該關卡透過 `store_secret` 落地，無須使用者額外動作。
 
 ---
 

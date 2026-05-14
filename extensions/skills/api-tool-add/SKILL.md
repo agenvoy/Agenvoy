@@ -102,11 +102,18 @@ multiSelect: false
 
 選擇非「不需要」→ 後續詢問：
 
-1. **環境變數名稱**（free-text）：例 `EXAMPLE_API_KEY`、`OPENAI_API_KEY`。轉換為 SCREAMING_SNAKE_CASE。runtime 透過 `os.Getenv(<env>)` 取值，**不**儲存 key 本身。
+1. **Keychain key 名稱**（free-text）：例 `EXAMPLE_API_KEY`、`OPENAI_API_KEY`。轉換為 SCREAMING_SNAKE_CASE。runtime 透過 `keychain.Get(<name>)` 取值（與 providers 同 keychain pool）。
 2. **API Key 類型額外問**：自訂 header 名稱（預設 `X-API-Key`，可直接 Enter 採預設）。
-3. 提醒使用者：「請於 `.env` 或 shell 環境中設定 `<env>=<your_token>`，daemon 啟動時讀取。」
+3. **主動呼叫 `store_secret`** 填入該 key：
+   ```
+   store_secret({
+     "key": "<KEYCHAIN_KEY_NAME>",
+     "prompt": "請輸入 <API 名稱> 的 <auth.type> 值"
+   })
+   ```
+   `store_secret` 內部走 `ask_user(secret:true)` 以遮罩輸入收 plaintext 後 `keychain.Set` 落地，**skill 全程不見明文**。
 
-**勿**詢問或儲存 token／key／secret 明文值 — schema 只記 `env` 變數名，明文必須由使用者自行設定環境變數。
+**禁止**走 `ask_user` 取 plaintext 再轉手 `store_secret`（會把 value 帶進 LLM context／history／action.log，違反 §10 SOP）；**禁止**指導使用者 `export ENV=value` shell 環境變數路徑。schema 只記 `auth.env` key 名，從不記值。
 
 ### Gate 5：試打驗證（**必跑、未通過禁止寫入**）
 
@@ -119,11 +126,10 @@ multiSelect: false
    - cURL 來源 → 沿用 cURL 內的實際值
    - 手動描述 → `AskUserQuestion` 詢問每個 required 參數的測試值（一次性問完）
    - 仍取不到 → 對該參數套 type-aware fallback：`string`→`"test"`、`integer`→`1`、`boolean`→`false`；fallback 命中時於試打結果註記「使用 fallback 值」
-2. **Auth env 檢查**（僅有 `auth` 的 endpoint）：
-   - 透過 `run_command` 跑 `printenv <ENV_NAME>` 或 `sh -c 'echo "${ENV_NAME}"'` 確認非空
-   - 未設定 → `AskUserQuestion` 二選一：
-     - 「我先設定環境變數，再繼續」→ 等使用者設好回覆 `已設定`，再次 `printenv` 確認
-     - 「先用測試值試打一次（不寫入 env）」→ free-text 取 token，僅本次試打使用、**不**寫入 schema、**不**落入 history（透過 `store_secret` tool 處理；不可走 `ask_user` 取 plaintext）
+2. **Auth keychain 檢查**（僅有 `auth` 的 endpoint）：
+   - Gate 4 已呼 `store_secret` → keychain 必有值，直接進入試打
+   - 例外：使用者在 Gate 4 拒絕 `store_secret`（罕見路徑）→ 試打時必失敗 401／403 → 觸發補救流程，再次呼 `store_secret(key=<ENV_NAME>)` 覆蓋
+   - **禁止**走 `printenv`／`os.Getenv`／shell env 檢查（adapter 不再讀 shell env，檢查無意義）；**禁止**走 `ask_user` 取 plaintext 給「臨時試打」之用
 
 #### 試打執行
 
@@ -133,7 +139,7 @@ multiSelect: false
 |---|---|
 | URL | `endpoint.url` 將 `{var}` 以樣本值代入；`GET`／`DELETE` query 動態參數附加為 query string |
 | Method | `endpoint.method` |
-| Headers | `endpoint.headers` 靜態 header 全帶；`auth.type`=`bearer` → `Authorization: Bearer <env value>`、`apikey` → `<auth.header or X-API-Key>: <env value>`、`basic` → `Authorization: Basic <base64>` |
+| Headers | `endpoint.headers` 靜態 header 全帶；`auth.type`=`bearer` → `Authorization: Bearer <keychain value>`、`apikey` → `<auth.header or X-API-Key>: <keychain value>`、`basic` → `Authorization: Basic <base64(keychain value)>` |
 | Body | `POST`／`PUT`／`PATCH` 將非 path 動態參數組為 JSON body（`content_type=form` 例外，組為 form-urlencoded） |
 | Timeout | 取 `endpoint.timeout`，缺省 30s |
 
@@ -146,7 +152,7 @@ multiSelect: false
 | `2xx` | ✅ 通過 | 進入 Gate 寫入 |
 | `3xx` | ⚠️ 重導 | 若 `Location` 指向同 host 不同 path → 詢問是否改用最終 URL；跨 host → 視同失敗 |
 | `400`／`422` | ⚠️ 參數錯但 endpoint 可達 | 印出回應 body → `AskUserQuestion`：「endpoint 連線正常但回 4xx（參數驗證錯）— 仍要寫入嗎？」（option：寫入／修改參數重試／放棄） |
-| `401`／`403` | ❌ Auth 錯 | 印出回應 → 詢問是否更換 env 值或 auth type 重試；放棄則該 endpoint 不寫入 |
+| `401`／`403` | ❌ Auth 錯 | 印出回應 → `AskUserQuestion`：「key 值錯／過期 vs auth.type 錯」。前者直接呼 `store_secret(key=<ENV_NAME>)` 覆蓋（keychain.Set overwrite）後重試；後者退回 Gate 4 改 auth type。放棄則該 endpoint 不寫入 |
 | `404` | ❌ Path 錯或 host 錯 | 顯示完整請求 URL → 詢問是否修正 URL 重試；放棄則不寫入 |
 | `5xx` | ⚠️ 伺服器側問題 | 印出回應 → `AskUserQuestion`：「endpoint 可達但伺服器 5xx — 仍要寫入嗎？」（一般選寫入，因為 schema 本身正確） |
 | `timeout`／`connection refused`／`no such host` | ❌ 不可達 | **禁止寫入**；提示使用者檢查 Gate 3 host／網路／VPN，可選回 Gate 3 修改 host 後重試 |
@@ -307,7 +313,7 @@ multiSelect: false
 | `endpoint.timeout` | optional | 秒，預設 30 |
 | `auth.type` | conditional | `bearer`／`apikey`／`basic`；無 auth 則整個 `auth` 區塊省略 |
 | `auth.header` | conditional | 僅 `apikey` 可用；省略時預設 `X-API-Key` |
-| `auth.env` | ✅（若有 auth） | 環境變數名（SCREAMING_SNAKE_CASE） |
+| `auth.env` | ✅（若有 auth） | keychain key 名（SCREAMING_SNAKE_CASE）；runtime 走 `keychain.Get`，**不**讀 shell env |
 | `parameters.<name>.type` | ✅ | `string`／`integer`／`number`／`boolean`／`array`／`object` |
 | `parameters.<name>.description` | ✅ | 用途 + 範例值 |
 | `parameters.<name>.required` | ✅ | `true`／`false`（明確標示，勿省略） |
@@ -393,14 +399,14 @@ User: `幫我把這個 swagger 轉成 api tool: /Users/me/swagger.json`
 1. **Gate 1 略過**（已給檔案路徑）
 2. **Gate 2**：`read_file` 讀 swagger → 解析 3 個 endpoint：`GET /users/{id}`、`POST /users`、`GET /health`
 3. **Gate 3**：所有 URL `http://192.168.1.50:8080/...` 為區網 → `AskUserQuestion` 確認 → 使用者選「否」並輸入 `https://api.staging.example.com` → 三 endpoint URL 同步替換
-4. **Gate 4**：swagger 含 `bearerAuth` security → 詢問 env 名稱 → 使用者答 `STAGING_API_KEY`
-5. **Gate 5**：`printenv STAGING_API_KEY` 確認已設 → 三 endpoint 試打：
+4. **Gate 4**：swagger 含 `bearerAuth` security → 詢問 keychain key 名 → 使用者答 `STAGING_API_KEY` → 呼 `store_secret({key:"STAGING_API_KEY", prompt:"請輸入 staging API 的 Bearer Token"})` → 使用者於遮罩輸入完成 → keychain 已落地
+5. **Gate 5**：keychain 已有值（Gate 4 完成） → 三 endpoint 試打：
    - `user_get` 用 swagger example `id=42` → `200 OK` ✅
    - `user_create` 用 body `{"name":"test"}` → `422` 缺 email → 使用者選「修改參數重試」追加 `email` → `201` ✅
    - `health_check` → `200 OK` ✅
 6. **Gate 6**：`AskUserQuestion`「本批策略？」→ 使用者選「全部採推薦值」→ `user_get` / `health_check` 設 `always_allow=true`（GET 純讀取），`user_create` 不寫此欄位（缺省 false）
 7. **寫入**：`user_get.json`／`user_create.json`／`health_check.json` 三檔（`health_check` 不掛 auth — swagger 對 `/health` 標 `security: []`）
-8. **回報**：列出三檔路徑 + 試打結果摘要 + 各 endpoint `always_allow` 狀態 + 提醒設 `STAGING_API_KEY` env
+8. **回報**：列出三檔路徑 + 試打結果摘要 + 各 endpoint `always_allow` 狀態（`STAGING_API_KEY` 已於 Gate 4 落入 keychain，無須使用者額外設置）
 
 ---
 
