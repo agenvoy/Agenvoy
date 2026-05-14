@@ -128,16 +128,46 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		teed := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
+		isDcPush := strings.HasPrefix(sid, "dc-") && !isDcPushSuppressed(ctx) && ResultHook != nil
+		var pushTextBuf strings.Builder
+		var pushDoneEv agentTypes.Event
 		go func() {
 			defer close(done)
 			for ev := range teed {
 				sessionManager.Record(sid, ev)
+				if isDcPush {
+					switch ev.Type {
+					case agentTypes.EventText:
+						if ev.Source == "" && ev.Text != "" {
+							if pushTextBuf.Len() > 0 {
+								pushTextBuf.WriteByte('\n')
+							}
+							pushTextBuf.WriteString(ev.Text)
+						}
+					case agentTypes.EventDone:
+						if ev.Source == "" {
+							pushDoneEv = ev
+						}
+					}
+				}
 				original <- ev
 			}
 		}()
 		defer func() {
 			close(teed)
 			<-done
+			if isDcPush {
+				text := strings.TrimSpace(pushTextBuf.String())
+				if text != "" {
+					ResultHook(ctx, DiscordPayload{
+						SessionID: sid,
+						Text:      text,
+						Model:     pushDoneEv.Model,
+						Usage:     pushDoneEv.Usage,
+						Prefix:    dcPushPrefix(ctx),
+					})
+				}
+			}
 		}()
 		events = teed
 	}

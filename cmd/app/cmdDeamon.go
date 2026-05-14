@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -268,46 +267,10 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 	}
 	session.SaveBot(sessionID, sessionID, false)
 
-	output, err := exec.ExecWithSubagent(ctx, body, sessionID, "", "", nil)
+	output, err := exec.ExecWithSubagent(exec.WithDcPushPrefix(ctx, skillName), body, sessionID, "", "", nil)
 	if err != nil {
 		return "", err
 	}
 
-	if strings.HasPrefix(sessionID, "dc-") {
-		body := stripSubagentHeader(output)
-		if body != "" {
-			message := fmt.Sprintf("%s\n-# shchedule | %s", body, skillName)
-			discordMu.Lock()
-			bot := discordBot
-			discordMu.Unlock()
-			if bot != nil && bot.Session != nil {
-				channelID, cerr := session.GetChannelID(sessionID)
-				if cerr != nil {
-					slog.Warn("scheduler.runSkill: GetChannelID",
-						slog.String("session_id", sessionID),
-						slog.String("error", cerr.Error()))
-				} else if channelID != "" {
-					if _, derr := bot.Session.ChannelMessageSend(channelID, message); derr != nil {
-						slog.Warn("scheduler.runSkill: ChannelMessageSend",
-							slog.String("channel_id", channelID),
-							slog.String("error", derr.Error()))
-					}
-				}
-			}
-		}
-	}
-
 	return output, nil
-}
-
-func stripSubagentHeader(out string) string {
-	trimmed := strings.TrimSpace(out)
-	if !strings.HasPrefix(trimmed, "[subagent") {
-		return trimmed
-	}
-	_, rest, found := strings.Cut(trimmed, "\n")
-	if !found {
-		return ""
-	}
-	return strings.TrimSpace(rest)
 }

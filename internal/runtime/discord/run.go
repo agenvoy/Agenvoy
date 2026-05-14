@@ -68,10 +68,11 @@ func run(ctx context.Context, dcBot *discordTypes.DiscordBot, dcSession *discord
 
 	go func() {
 		var execErr error
+		execCtx := exec.SuppressDcPush(ctx)
 		if externalAgent != "" {
-			execErr = exec.CallExternal(ctx, session.ID, externalAgent, content, externalReadOnly, events)
+			execErr = exec.CallExternal(execCtx, session.ID, externalAgent, content, externalReadOnly, events)
 		} else {
-			execErr = exec.Execute(ctx, execData, session, events, true)
+			execErr = exec.Execute(execCtx, execData, session, events, true)
 		}
 		if execErr != nil {
 			slog.Warn("exec",
