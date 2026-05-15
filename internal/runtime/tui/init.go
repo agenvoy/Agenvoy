@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -78,14 +79,15 @@ type TUI struct {
 
 	tailCancel context.CancelFunc
 
-	tokens        int
-	width         int
-	height        int
-	cwd           string
-	daemonStatus  string
-	discordStatus string
-	runTarget     string
-	streaming     bool
+	tokens         int
+	width          int
+	height         int
+	cwd            string
+	daemonStatus   string
+	discordStatus  string
+	telegramStatus string
+	runTarget      string
+	streaming      bool
 
 	inputHistory    []string
 	inputHistoryIdx int
@@ -98,7 +100,7 @@ func (t TUI) Init() tea.Cmd {
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
 		),
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
@@ -186,6 +188,7 @@ func newModel(ctx context.Context) TUI {
 		cwd:                cwd,
 		daemonStatus:       getDaemonStatus(),
 		discordStatus:      getDiscordStatus(),
+		telegramStatus:     getTelegramStatus(),
 		mode:               cliMode,
 		width:              80,
 		currentSessionID:   currentSID,
@@ -204,6 +207,17 @@ func getDiscordStatus() string {
 		return "discord: enabled (token missing)"
 	}
 	return "discord: enabled"
+}
+
+func getTelegramStatus() string {
+	cfg, err := session.Load()
+	if err != nil || cfg == nil || !cfg.TelegramEnabled {
+		return "telegram: disabled"
+	}
+	if keychain.Get(telegram.Key) == "" {
+		return "telegram: disabled"
+	}
+	return "telegram: enabled"
 }
 
 func getDaemonStatus() string {

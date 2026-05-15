@@ -344,7 +344,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))+"\n"))
@@ -356,6 +356,25 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DiscordAction:
 		return t, runDiscordAction(msg.action)
+
+	case TelegramAction:
+		switch msg.action {
+		case "enable":
+			next, cmd := t.openTelegramTokenPrompt()
+			return next, cmd
+		case "disable":
+			return t, tea.Sequence(
+				tea.Println(hintStyle.Render("⎯ telegram disabling")+"\n"),
+				disableTelegram(),
+			)
+		}
+		return t, nil
+
+	case TelegramTokenSubmit:
+		return t, tea.Sequence(
+			tea.Println(hintStyle.Render("⎯ telegram verifying token (≤10s)")+"\n"),
+			enableTelegram(msg.token),
+		)
 
 	case CronAction:
 		switch msg.action {
@@ -439,12 +458,25 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
 			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))+"\n"))
+		}
+		return t, tea.Sequence(seq...)
+
+	case TelegramDone:
+		t.telegramStatus = getTelegramStatus()
+		seq := []tea.Cmd{
+			tea.ClearScreen,
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
+		}
+		if msg.err != nil {
+			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] telegram %s: %v", msg.action, msg.err))+"\n"))
+		} else {
+			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ telegram %sd · daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -488,13 +520,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, tea.Sequence(
 				tea.ClearScreen,
-				tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+				tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
 				tea.Println(errorStyle.Render(fmt.Sprintf("[!] log: %v", msg.err))+"\n"),
 			)
 		}
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus)),
+			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.discordStatus, t.telegramStatus)),
 		)
 
 	case LoadHistoryCheck:

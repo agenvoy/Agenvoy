@@ -31,7 +31,7 @@ var (
 			Padding(0, 1)
 )
 
-func headerBlock(cwd, daemon, discord string) string {
+func headerBlock(cwd, daemon, discord, telegram string) string {
 	logo := textStyle.Bold(true).Render("✻ Agenvoy ") + hintStyle.Render(projectVersion)
 	body := strings.Join([]string{
 		logo,
@@ -44,6 +44,7 @@ func headerBlock(cwd, daemon, discord string) string {
 		hintStyle.Render("cwd:     " + cwd),
 		hintStyle.Render(daemon),
 		hintStyle.Render(discord),
+		hintStyle.Render(telegram),
 	}, "\n")
 	return headerStyle.Render(body)
 }
