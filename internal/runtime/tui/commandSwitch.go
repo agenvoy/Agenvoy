@@ -134,11 +134,12 @@ func popupSwitch(sid string) *Popup {
 	sids = append(sids, "")
 
 	return &Popup{
-		kind:    popupSingleSelect,
-		title:   "Switch session",
-		options: names,
-		values:  sids,
-		cursor:  cursor,
+		kind:       popupSingleSelect,
+		title:      "Switch session",
+		options:    names,
+		values:     sids,
+		cursor:     cursor,
+		maxVisible: cmdSelectorMaxVisible,
 	}
 }
 

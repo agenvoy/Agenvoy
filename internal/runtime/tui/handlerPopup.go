@@ -26,10 +26,11 @@ type Popup struct {
 	title    string
 	subtitle string
 
-	options []string
-	values  []string
-	cursor  int
-	multi   map[int]bool
+	options    []string
+	values     []string
+	cursor     int
+	multi      map[int]bool
+	maxVisible int
 
 	input          string
 	multiline      bool
