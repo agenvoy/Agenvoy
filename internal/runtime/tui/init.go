@@ -200,35 +200,26 @@ func newModel(ctx context.Context) TUI {
 
 func getDiscordStatus() string {
 	cfg, err := session.Load()
-	if err != nil || cfg == nil || !cfg.DiscordEnabled {
-		return "discord: disabled"
+	if err != nil || cfg == nil || !cfg.DiscordEnabled || keychain.Get(discord.Key) == "" {
+		return hintStyle.Render("discord:  disabled")
 	}
-	if keychain.Get(discord.Key) == "" {
-		return "discord: enabled (token missing)"
-	}
-	return "discord: enabled"
+	return textStyle.Render("discord:   ") + okayStyle.Render("enabled")
 }
 
 func getTelegramStatus() string {
 	cfg, err := session.Load()
-	if err != nil || cfg == nil || !cfg.TelegramEnabled {
-		return "telegram: disabled"
+	if err != nil || cfg == nil || !cfg.TelegramEnabled || keychain.Get(telegram.Key) == "" {
+		return hintStyle.Render("telegram: disabled")
 	}
-	if keychain.Get(telegram.Key) == "" {
-		return "telegram: disabled"
-	}
-	return "telegram: enabled"
+	return textStyle.Render("telegram: ") + okayStyle.Render("enabled")
 }
 
 func getDaemonStatus() string {
 	r, err := runtime.Read()
-	if err != nil || r == nil {
-		return "daemon:  not running"
+	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
+		return "daemon:   not running"
 	}
-	if !runtime.IsAlive(r.PID) {
-		return "daemon:  stale (pid=" + strconv.Itoa(r.PID) + ")"
-	}
-	return "daemon:  running pid=" + strconv.Itoa(r.PID)
+	return "daemon:   running pid=" + strconv.Itoa(r.PID)
 }
 
 func loadSessionTail(sid string) []tea.Cmd {

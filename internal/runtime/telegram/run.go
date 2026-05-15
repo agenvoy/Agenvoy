@@ -1,0 +1,220 @@
+package telegram
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	"github.com/pardnchiu/agenvoy/internal/agents/host"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/skill"
+	"github.com/pardnchiu/agenvoy/internal/utils"
+	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+)
+
+var (
+	fileMarkerRegex = regexp.MustCompile(`\[SEND_FILE:([^\]]+)\]`)
+	tsPrefixRegex   = regexp.MustCompile(`^ts:\d+\n`)
+	imageExts       = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
+)
+
+func truncateStatus(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	r := []rune(s)
+	if len(r) > 80 {
+		return string(r[:80]) + "…"
+	}
+	return string(r)
+}
+
+func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
+	content := strings.TrimSpace(in.Text)
+	if content == "" {
+		content = strings.TrimSpace(in.Caption)
+	}
+	if content == "" {
+		return nil
+	}
+	if content == "/start" || strings.HasPrefix(content, "/start ") || strings.HasPrefix(content, "/start@") {
+		return nil
+	}
+
+	markStatus := func(text string) {
+		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, text); err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
+				slog.String("text", text),
+				slog.Int64("chat", in.ChatID),
+				slog.Int("replyTo", in.MessageID),
+				slog.String("error", err.Error()))
+		}
+	}
+	markStatus("⏵ thinking…")
+
+	workDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("os.UserHomeDir: %w", err)
+	}
+
+	scanner := host.Scanner()
+	if scanner != nil {
+		scanner.Scan()
+	}
+
+	externalAgent, externalEffective, externalReadOnly := external.MatchExternal(content)
+	if externalAgent != "" {
+		content = strings.TrimSpace(externalEffective)
+	}
+
+	var matchedSkill *skill.Skill
+	if externalAgent == "" && scanner != nil {
+		if m, effective := scanner.MatchSkillCall(content); m != nil {
+			matchedSkill = m
+			content = strings.TrimSpace(effective)
+			slog.Info("skill", slog.String("skill", m.Name))
+		}
+	}
+
+	var agent agentTypes.Agent
+	if externalAgent == "" {
+		agent = exec.SelectAgent(ctx, host.Planner(), host.Registry(), content, matchedSkill != nil, "")
+	}
+
+	execData := exec.ExecData{
+		Agent:    agent,
+		WorkDir:  workDir,
+		Skill:    matchedSkill,
+		Content:  content,
+		AllowAll: true,
+	}
+
+	sess, err := getSession(in.ChatID, in.Username, content, execData)
+	if err != nil {
+		return fmt.Errorf("getSession: %w", err)
+	}
+	utils.EventLog("[Telegram]", agentTypes.Event{}, sess.ID, content)
+
+	events := make(chan agentTypes.Event, 128)
+	go func() {
+		var execErr error
+		execCtx := exec.SuppressDcPush(ctx)
+		if externalAgent != "" {
+			execErr = exec.CallExternal(execCtx, sess.ID, externalAgent, content, externalReadOnly, events)
+		} else {
+			execErr = exec.Execute(execCtx, execData, sess, events, true)
+		}
+		if execErr != nil {
+			slog.Warn("exec",
+				slog.String("error", execErr.Error()))
+		}
+		close(events)
+	}()
+
+	var replyText string
+	var execErrors []string
+	var doneEvent agentTypes.Event
+	for e := range events {
+		utils.EventLog("[Telegram]", e, sess.ID, "")
+		switch e.Type {
+		case agentTypes.EventAgentSelect:
+			markStatus("⏵ selecting agent…")
+
+		case agentTypes.EventAgentResult:
+			if t := strings.TrimSpace(e.Text); t != "" {
+				markStatus("⏵ (agent) " + truncateStatus(t))
+			}
+
+		case agentTypes.EventSkillResult:
+			if t := strings.TrimSpace(e.Text); t != "" {
+				markStatus("⏵ (skill)  " + truncateStatus(t))
+			}
+
+		case agentTypes.EventToolCall:
+			if e.ToolName != "" {
+				markStatus("⏵ (tool) " + e.ToolName)
+			}
+
+		case agentTypes.EventToolSkipped:
+			if e.ToolName != "" {
+				markStatus("⏵ (tool skipped) " + e.ToolName)
+			}
+
+		case agentTypes.EventSummaryGenerate:
+			markStatus("⏵ summarizing…")
+
+		case agentTypes.EventText:
+			if replyText != "" {
+				replyText += "\n"
+			}
+			replyText += e.Text
+
+		case agentTypes.EventExecError:
+			execErrors = append(execErrors, fmt.Sprintf("<code>%s</code>: <code>%s</code>", e.ToolName, e.Text))
+
+		case agentTypes.EventDone:
+			doneEvent = e
+		}
+	}
+
+	if err := b.client.FinishStatus(ctx, in.ChatID); err != nil {
+		slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
+			slog.Int64("chat", in.ChatID),
+			slog.String("error", err.Error()))
+	}
+
+	replyText = strings.TrimSpace(tsPrefixRegex.ReplaceAllString(replyText, ""))
+	if replyText == "" {
+		return fmt.Errorf("no reply")
+	}
+
+	var filePaths []string
+	for _, match := range fileMarkerRegex.FindAllStringSubmatch(replyText, -1) {
+		filePaths = append(filePaths, strings.TrimSpace(match[1]))
+	}
+	replyText = strings.TrimSpace(fileMarkerRegex.ReplaceAllString(replyText, ""))
+
+	model := doneEvent.Model
+	if model == "" && agent != nil {
+		model = agent.Name()
+	}
+	if _, after, ok := strings.Cut(model, "@"); ok {
+		model = after
+	}
+	footer := model
+	if doneEvent.Usage != nil {
+		footer = fmt.Sprintf("\n%s | in:%dk out:%dk", footer, doneEvent.Usage.Input/1000, doneEvent.Usage.Output/1000)
+	}
+	replyText = fmt.Sprintf("%s\n<blockquote expandable>%s</blockquote>", replyText, footer)
+	if len(execErrors) > 0 {
+		replyText = fmt.Sprintf("%s\n<blockquote expandable>⚠️ %s</blockquote>", replyText, strings.Join(execErrors, ", "))
+	}
+
+	if _, err := b.client.Send(ctx, in.ChatID, in.MessageID, replyText, go_bot_telegram.TypeHTML); err != nil {
+		slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
+			slog.String("error", err.Error()))
+	}
+
+	for _, path := range filePaths {
+		ext := strings.ToLower(filepath.Ext(path))
+		if imageExts[ext] {
+			if _, err := b.client.SendPhoto(ctx, in.ChatID, []string{path}); err != nil {
+				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendPhoto",
+					slog.String("path", path),
+					slog.String("error", err.Error()))
+			}
+			continue
+		}
+		if _, err := b.client.SendFile(ctx, in.ChatID, go_bot_telegram.TypeDocument, path); err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendFile",
+				slog.String("path", path),
+				slog.String("error", err.Error()))
+		}
+	}
+
+	return nil
+}

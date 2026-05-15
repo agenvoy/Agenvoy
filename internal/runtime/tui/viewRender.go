@@ -41,10 +41,10 @@ func headerBlock(cwd, daemon, discord, telegram string) string {
 		textStyle.Render("/bot      ") + hintStyle.Render("edit bot persona"),
 		textStyle.Render("/mode     ") + hintStyle.Render("switch mode (cli / web)"),
 		"",
-		hintStyle.Render("cwd:     " + cwd),
+		hintStyle.Render("cwd:      " + cwd),
 		hintStyle.Render(daemon),
-		hintStyle.Render(discord),
-		hintStyle.Render(telegram),
+		discord,
+		telegram,
 	}, "\n")
 	return headerStyle.Render(body)
 }

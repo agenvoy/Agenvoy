@@ -85,7 +85,7 @@ func listSessions() []Session {
 	results := make([]Session, 0, len(dirs))
 	for _, dir := range dirs {
 		sid := dir.Name
-		if !strings.HasPrefix(sid, "cli-") && !strings.HasPrefix(sid, "http-") && !strings.HasPrefix(sid, "dc-") {
+		if strings.HasPrefix(sid, "temp-") {
 			continue
 		}
 		name, _ := session.GetBot(sid)
@@ -145,13 +145,13 @@ func popupSwitch(sid string) *Popup {
 func changeSession(target string) error {
 	cfg, err := session.Load()
 	if err != nil {
-		return fmt.Errorf("session.Load: %w", err)
+		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session Load: %w", err)
 	}
 
 	cfg.SessionID = target
 
 	if err := session.Save(cfg); err != nil {
-		return fmt.Errorf("session.Save: %w", err)
+		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session Save: %w", err)
 	}
 	return nil
 }

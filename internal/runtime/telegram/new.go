@@ -29,27 +29,35 @@ func New() (*Bot, error) {
 
 	client, err := telegram.New(token)
 	if err != nil {
-		return nil, fmt.Errorf("telegram.New: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/telegram New: %w", err)
 	}
+
+	bot := &Bot{client: client}
 
 	client.Reply(func(ctx context.Context, in telegram.Input) string {
 		slog.Info("telegram message",
 			slog.Int64("chat", in.ChatID),
 			slog.String("from", in.Username),
 			slog.String("text", in.Text))
+		if err := run(ctx, bot, in); err != nil {
+			slog.Warn("telegram run",
+				slog.Int64("chat", in.ChatID),
+				slog.String("error", err.Error()))
+		}
 		return ""
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("telegram.Start: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/telegram Start: %w", err)
 	}
+	bot.cancel = cancel
 
 	slog.Info("telegram bot is running",
 		slog.String("user", client.Status().Username))
 
-	return &Bot{client: client, cancel: cancel}, nil
+	return bot, nil
 }
 
 func Close(b *Bot) error {

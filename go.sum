@@ -122,6 +122,8 @@ github.com/pardnchiu/go-bot v0.1.0 h1:gY0XpFofK9GwREN1+2VMdYfsLgj9UV14p04Lp/wV+u
 github.com/pardnchiu/go-bot v0.1.0/go.mod h1:dIglg2REtPMc8ls6G4OsoT0TIzlyMecVOE8PX0FKSSs=
 github.com/pardnchiu/go-bot v0.1.1 h1:OxzuhAnSn/9e9CrLLWvTjRqKIpzSCDZzblA1y/i5Tqs=
 github.com/pardnchiu/go-bot v0.1.1/go.mod h1:dIglg2REtPMc8ls6G4OsoT0TIzlyMecVOE8PX0FKSSs=
+github.com/pardnchiu/go-bot v0.1.2 h1:meMQyPcPquVElF+SVg/KpcexR2WagkZdcwmAQzEVYUk=
+github.com/pardnchiu/go-bot v0.1.2/go.mod h1:dIglg2REtPMc8ls6G4OsoT0TIzlyMecVOE8PX0FKSSs=
 github.com/pardnchiu/go-pkg v0.12.2 h1:7I4O2ihjW5GU1OGZnj9JOW192owf71r/yK+q2IS2E9s=
 github.com/pardnchiu/go-pkg v0.12.2/go.mod h1:GvipswsQHxvDNaVI34pANoS+/VCD8ApUSEbadVpHSJg=
 github.com/pardnchiu/go-scheduler v1.2.0 h1:DBmFWOPjGUzQEKYHZNeLS9v9PmJrKk/VwxQeVO754Ns=
