@@ -90,8 +90,23 @@ func renderLogLine(e Log) string {
 		body += " " + a.Key + "=" + fmt.Sprintf("%v", a.Value.Any())
 	}
 	body = strings.TrimSpace(body)
+	if strings.HasPrefix(e.Msg, "Telegram Verification Code") {
+		code := extractField(body, "code=")
+		username := extractField(body, "username=")
+		line := fmt.Sprintf("$ Telegram Verification Code: %s (%s)", code, username)
+		return systemStyle.Render(line) + "\n"
+	}
 	line := "$ [" + e.Source + "] " + body + " - " + e.Time.Format("15:04:05")
 	return levelLineStyle(e.Level).Render(line) + "\n"
+}
+
+func extractField(s, key string) string {
+	_, rest, ok := strings.Cut(s, key)
+	if !ok {
+		return ""
+	}
+	val, _, _ := strings.Cut(rest, " ")
+	return val
 }
 
 func installSlogTUI(ctx context.Context) func() {

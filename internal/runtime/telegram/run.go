@@ -45,6 +45,56 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		return nil
 	}
 
+	if !isAuthorized(in.ChatID) {
+		deleteMsg := func(msgID int, label string) {
+			if msgID == 0 {
+				return
+			}
+			if err := b.client.Delete(ctx, in.ChatID, msgID); err != nil {
+				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Delete",
+					slog.String("label", label),
+					slog.Int64("chat", in.ChatID),
+					slog.Int("msg", msgID),
+					slog.String("error", err.Error()))
+			}
+		}
+
+		if p, pending := getPending(in.ChatID); pending {
+			if strings.TrimSpace(in.Text) == p.code {
+				if err := authorizeChat(in.ChatID); err != nil {
+					return fmt.Errorf("authorizeChat: %w", err)
+				}
+				clearPending(in.ChatID)
+				deleteMsg(p.promptMsgID, "prompt")
+				deleteMsg(in.MessageID, "code")
+				return nil
+			}
+			deleteMsg(p.promptMsgID, "prompt")
+		}
+		deleteMsg(in.MessageID, "unverified")
+		code, err := generateCode()
+		if err != nil {
+			return fmt.Errorf("generateCode: %w", err)
+		}
+		slog.Info("Telegram Verification Code",
+			slog.Int64("chat", in.ChatID),
+			slog.String("username", in.Username),
+			slog.String("code", code))
+		prompt, err := b.client.SendInput(ctx, in.ChatID, 0, "Enter the 6-digit verification code printed in the daemon log.")
+		if err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendInput",
+				slog.Int64("chat", in.ChatID),
+				slog.String("error", err.Error()))
+			return nil
+		}
+		promptID := 0
+		if prompt != nil {
+			promptID = prompt.ID
+		}
+		setPending(in.ChatID, code, promptID)
+		return nil
+	}
+
 	markStatus := func(text string) {
 		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, text); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
