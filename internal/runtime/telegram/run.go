@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"html"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -36,15 +37,30 @@ func truncateStatus(s string) string {
 	return string(r)
 }
 
+func fmtUsage(n int) string {
+	if n > 1000 {
+		return fmt.Sprintf("%dk", n/1000)
+	}
+	return fmt.Sprintf("%d", n)
+}
+
 func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
+	isCallback := in.CallbackData != "" || len(in.CallbackPicks) > 0
 	content := strings.TrimSpace(in.Text)
 	if content == "" {
 		content = strings.TrimSpace(in.Caption)
 	}
-	if content == "" {
+	if !isCallback && content == "" {
 		return nil
 	}
 	if content == "/start" || strings.HasPrefix(content, "/start ") || strings.HasPrefix(content, "/start@") {
+		return nil
+	}
+
+	if isCallback {
+		if b.listener != nil && b.listener.onCallback(ctx, in.ChatID, in.MessageID, in.CallbackData, in.CallbackPicks) {
+			return nil
+		}
 		return nil
 	}
 
@@ -98,8 +114,13 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		return nil
 	}
 
+	if b.listener != nil && b.listener.onText(ctx, in.ChatID, in.MessageID, in.Text) {
+		return nil
+	}
+
 	markStatus := func(text string) {
-		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, text); err != nil {
+		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(text))
+		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
 				slog.String("text", text),
 				slog.Int64("chat", in.ChatID),
@@ -107,7 +128,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 				slog.String("error", err.Error()))
 		}
 	}
-	markStatus("⏵ thinking…")
+	markStatus("thinking…")
 
 	workDir, err := os.UserHomeDir()
 	if err != nil {
@@ -153,7 +174,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		WorkDir:  workDir,
 		Skill:    matchedSkill,
 		Content:  content,
-		AllowAll: true,
+		AllowAll: false,
 	}
 
 	sess, err := getSession(in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
@@ -169,7 +190,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		if externalAgent != "" {
 			execErr = exec.CallExternal(execCtx, sess.ID, externalAgent, content, externalReadOnly, events)
 		} else {
-			execErr = exec.Execute(execCtx, execData, sess, events, true)
+			execErr = exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
 		}
 		if execErr != nil {
 			slog.Warn("exec",
@@ -185,30 +206,30 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		utils.EventLog("[Telegram]", e, sess.ID, "")
 		switch e.Type {
 		case agentTypes.EventAgentSelect:
-			markStatus("⏵ selecting agent…")
+			markStatus("selecting agent…")
 
 		case agentTypes.EventAgentResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("⏵ (agent) " + truncateStatus(t))
+				markStatus("(agent) " + truncateStatus(t))
 			}
 
 		case agentTypes.EventSkillResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("⏵ (skill)  " + truncateStatus(t))
+				markStatus("(skill)  " + truncateStatus(t))
 			}
 
 		case agentTypes.EventToolCall:
 			if e.ToolName != "" {
-				markStatus("⏵ (tool) " + e.ToolName)
+				markStatus("(tool) " + e.ToolName)
 			}
 
 		case agentTypes.EventToolSkipped:
 			if e.ToolName != "" {
-				markStatus("⏵ (tool skipped) " + e.ToolName)
+				markStatus("(tool skipped) " + e.ToolName)
 			}
 
 		case agentTypes.EventSummaryGenerate:
-			markStatus("⏵ summarizing…")
+			markStatus("summarizing…")
 
 		case agentTypes.EventText:
 			if replyText != "" {
@@ -258,7 +279,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 	}
 	footer := model
 	if doneEvent.Usage != nil {
-		footer = fmt.Sprintf("%s | in:%dk out:%dk", footer, doneEvent.Usage.Input/1000, doneEvent.Usage.Output/1000)
+		footer = fmt.Sprintf("%s | in:%s out:%s", footer, fmtUsage(doneEvent.Usage.Input), fmtUsage(doneEvent.Usage.Output))
 	}
 	replyText = fmt.Sprintf("%s\n\n<blockquote expandable>%s</blockquote>", replyText, footer)
 	if len(execErrors) > 0 {
@@ -268,7 +289,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 	if in.MessageID != 0 {
 		replyText = "​\n" + replyText
 	}
-	replyMsg, sendErr := b.client.Send(ctx, in.ChatID, in.MessageID, replyText, go_bot_telegram.TypeHTML)
+	replyMsg, sendErr := b.client.Send(ctx, in.ChatID, in.MessageID, replyText, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 	if sendErr != nil {
 		slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
 			slog.String("error", sendErr.Error()))
@@ -293,7 +314,11 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		replyToID = replyMsg.ID
 	}
 	sendStatus := func(text string) {
-		if err := b.client.SendStatus(ctx, in.ChatID, replyToID, text); err != nil {
+		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(text))
+		if err := b.client.SendStatus(ctx, in.ChatID, replyToID, wrapped,
+			go_bot_telegram.WithStatusEmoji("⚡"),
+			go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML),
+		); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
 				slog.String("text", text),
 				slog.Int64("chat", in.ChatID),
@@ -301,7 +326,19 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 				slog.String("error", err.Error()))
 		}
 	}
-	sendStatus("⏵ sending…")
+	sendFailure := func(label, detail, errMsg string) {
+		body := fmt.Sprintf("<code>%s</code>", html.EscapeString(errMsg))
+		if detail != "" {
+			body = fmt.Sprintf("<code>%s</code>: %s", html.EscapeString(detail), body)
+		}
+		text := fmt.Sprintf("⚠️ %s failed\n%s", label, body)
+		if _, err := b.client.Send(ctx, in.ChatID, replyToID, text, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send (notify)",
+				slog.String("label", label),
+				slog.String("error", err.Error()))
+		}
+	}
+	sendStatus("sending…")
 
 	for start := 0; start < len(photoPaths); start += 10 {
 		end := start + 10
@@ -310,6 +347,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendPhoto",
 				slog.Int("count", end-start),
 				slog.String("error", err.Error()))
+			sendFailure("SendPhoto", strings.Join(photoPaths[start:end], ", "), err.Error())
 		}
 	}
 	for _, path := range docPaths {
@@ -317,6 +355,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendFile",
 				slog.String("path", path),
 				slog.String("error", err.Error()))
+			sendFailure("SendFile", path, err.Error())
 		}
 	}
 
@@ -325,11 +364,13 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		if apiKey == "" {
 			slog.Warn("keychain.Get GEMINI_API_KEY missing",
 				slog.Int64("chat", in.ChatID))
+			sendFailure("SendVoice", "", "GEMINI_API_KEY missing")
 		} else {
 			for _, text := range voiceTexts {
 				if _, err := b.client.SendVoice(ctx, in.ChatID, text, apiKey); err != nil {
 					slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendVoice",
 						slog.String("error", err.Error()))
+					sendFailure("SendVoice", "", err.Error())
 				}
 			}
 		}

@@ -16,8 +16,9 @@ import (
 const Key = "TELEGRAM_TOKEN"
 
 type Bot struct {
-	client *telegram.Bot
-	cancel context.CancelFunc
+	client   *telegram.Bot
+	cancel   context.CancelFunc
+	listener *pendingListener
 }
 
 var current atomic.Pointer[Bot]
@@ -67,6 +68,7 @@ func New() (*Bot, error) {
 		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/telegram Start: %w", err)
 	}
 	bot.cancel = cancel
+	bot.listener = newPendingListener(bot)
 	current.Store(bot)
 
 	username := client.Status().Username
@@ -86,6 +88,10 @@ func Close(b *Bot) error {
 		return nil
 	}
 	current.CompareAndSwap(b, nil)
+	if b.listener != nil {
+		b.listener.stop()
+		b.listener = nil
+	}
 	if b.cancel != nil {
 		b.cancel()
 	}
