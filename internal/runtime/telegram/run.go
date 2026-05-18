@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-telegram/bot/models"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	"github.com/pardnchiu/agenvoy/internal/agents/host"
@@ -32,22 +33,6 @@ func chatName(in go_bot_telegram.Input) string {
 		return in.ChatName
 	}
 	return in.Username
-}
-
-func truncateStatus(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	r := []rune(s)
-	if len(r) > 80 {
-		return string(r[:80]) + "…"
-	}
-	return string(r)
-}
-
-func fmtUsage(n int) string {
-	if n > 1000 {
-		return fmt.Sprintf("%dk", n/1000)
-	}
-	return fmt.Sprintf("%d", n)
 }
 
 func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
@@ -73,6 +58,24 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 			return nil
 		}
 		return nil
+	}
+
+	isPrivate := in.Raw == nil || in.Raw.Message == nil || in.Raw.Message.Chat.Type == models.ChatTypePrivate
+	_, hasVerifyPending := pending.Get(in.ChatID)
+	hasListenerAwait := b.listener != nil && b.listener.isAwaiting(in.ChatID)
+	if !isPrivate && !hasVerifyPending && !hasListenerAwait {
+		botUsername := strings.TrimSpace(b.client.Status().Username)
+		if botUsername == "" {
+			return nil
+		}
+		target := "@" + botUsername
+		if !strings.Contains(content, target) {
+			return nil
+		}
+		content = strings.TrimSpace(strings.ReplaceAll(content, target, ""))
+		if content == "" && !hasAttachment {
+			return nil
+		}
 	}
 
 	if !utils.IsAuthorized(filesystem.TelegramAuthPath, strconv.FormatInt(in.ChatID, 10)) {
@@ -228,51 +231,12 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 		close(events)
 	}()
 
-	var replyText string
-	var execErrors []string
-	var doneEvent agentTypes.Event
-	for e := range events {
-		utils.EventLog("[Telegram]", e, sess.ID, "")
-		switch e.Type {
-		case agentTypes.EventAgentSelect:
-			markStatus("selecting agent…")
-
-		case agentTypes.EventAgentResult:
-			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("(agent) " + truncateStatus(t))
-			}
-
-		case agentTypes.EventSkillResult:
-			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("(skill)  " + truncateStatus(t))
-			}
-
-		case agentTypes.EventToolCall:
-			if e.ToolName != "" {
-				markStatus("(tool) " + e.ToolName)
-			}
-
-		case agentTypes.EventToolSkipped:
-			if e.ToolName != "" {
-				markStatus("(tool skipped) " + e.ToolName)
-			}
-
-		case agentTypes.EventSummaryGenerate:
-			markStatus("summarizing…")
-
-		case agentTypes.EventText:
-			if replyText != "" {
-				replyText += "\n"
-			}
-			replyText += e.Text
-
-		case agentTypes.EventExecError:
-			execErrors = append(execErrors, fmt.Sprintf("<code>%s</code>: <code>%s</code>", e.ToolName, e.Text))
-
-		case agentTypes.EventDone:
-			doneEvent = e
-		}
-	}
+	result := utils.FormatAgentEventMessage(events, "[Telegram]", sess.ID, markStatus, func(toolName, text string) string {
+		return fmt.Sprintf("<code>%s</code>: <code>%s</code>", toolName, text)
+	})
+	replyText := result.ReplyText
+	execErrors := result.ExecErrors
+	doneEvent := result.Done
 
 	if err := b.client.FinishStatus(ctx, in.ChatID); err != nil {
 		slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
@@ -305,7 +269,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input) error {
 	}
 	footer := model
 	if doneEvent.Usage != nil {
-		footer = fmt.Sprintf("%s | in:%s out:%s", footer, fmtUsage(doneEvent.Usage.Input), fmtUsage(doneEvent.Usage.Output))
+		footer = fmt.Sprintf("%s | in:%s out:%s", footer, utils.FormatUsage(doneEvent.Usage.Input), utils.FormatUsage(doneEvent.Usage.Output))
 	}
 	replyText = fmt.Sprintf("%s\n\n<blockquote expandable>%s</blockquote>", replyText, footer)
 	if len(execErrors) > 0 {

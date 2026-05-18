@@ -86,9 +86,9 @@ func buildPushFooter(model string, usage *agentTypes.Usage) string {
 	footer := model
 	if usage != nil {
 		if footer != "" {
-			footer = fmt.Sprintf("%s | in:%s out:%s", footer, fmtUsage(usage.Input), fmtUsage(usage.Output))
+			footer = fmt.Sprintf("%s | in:%s out:%s", footer, utils.FormatUsage(usage.Input), utils.FormatUsage(usage.Output))
 		} else {
-			footer = fmt.Sprintf("in:%s out:%s", fmtUsage(usage.Input), fmtUsage(usage.Output))
+			footer = fmt.Sprintf("in:%s out:%s", utils.FormatUsage(usage.Input), utils.FormatUsage(usage.Output))
 		}
 	}
 	return "\n\n<blockquote expandable>" + footer + "</blockquote>"

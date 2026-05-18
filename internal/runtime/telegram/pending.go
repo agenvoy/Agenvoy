@@ -67,6 +67,15 @@ func (l *pendingListener) stop() {
 	l.cancelFn()
 }
 
+func (l *pendingListener) isAwaiting(chatID int64) bool {
+	if l == nil {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.cur != nil && l.cur.chatID == chatID
+}
+
 func (l *pendingListener) run(ctx context.Context) {
 	unregister := runtime.RegisterListener(tgPrefix)
 	defer unregister()
