@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
@@ -17,6 +19,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/skill"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
+
+var voiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
 
 func channelName(in go_bot_discord.Input) string {
 	if in.ChannelName != "" {
@@ -204,6 +208,17 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		return fmt.Errorf("no reply")
 	}
 
+	cleanText, attachmentPaths := extractFileMarkers(replyText)
+	replyText = cleanText
+
+	var voiceTexts []string
+	for _, match := range voiceMarkerRegex.FindAllStringSubmatch(replyText, -1) {
+		if t := strings.TrimSpace(match[1]); t != "" {
+			voiceTexts = append(voiceTexts, t)
+		}
+	}
+	replyText = strings.TrimSpace(voiceMarkerRegex.ReplaceAllString(replyText, ""))
+
 	model := doneEvent.Model
 	if model == "" && agent != nil {
 		model = agent.Name()
@@ -220,8 +235,64 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		replyText = fmt.Sprintf("%s\n-# ⎿ ⚠️ %s", replyText, strings.Join(execErrors, ", "))
 	}
 
-	if _, err := b.client.Send(ctx, in.ChannelID, in.MessageID, replyText); err != nil {
+	replyMsg, sendErr := b.client.Send(ctx, in.ChannelID, in.MessageID, replyText)
+	if sendErr != nil {
 		slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send",
+			slog.String("channel", channelName(in)),
+			slog.String("error", sendErr.Error()))
+	}
+
+	if len(voiceTexts) == 0 && len(attachmentPaths) == 0 {
+		return nil
+	}
+
+	replyToID := ""
+	if replyMsg != nil {
+		replyToID = replyMsg.ID
+	}
+	sendFailure := func(label, detail, errMsg string) {
+		text := fmt.Sprintf("-# ⎿ ⚠️ %s failed", label)
+		if detail != "" {
+			text = fmt.Sprintf("%s: `%s`", text, detail)
+		}
+		text = fmt.Sprintf("%s\n-# ⎿ `%s`", text, errMsg)
+		if _, err := b.client.Send(ctx, in.ChannelID, replyToID, text); err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send (notify)",
+				slog.String("label", label),
+				slog.String("error", err.Error()))
+		}
+	}
+
+	if err := b.client.SendStatus(ctx, in.ChannelID, replyToID, "sending…",
+		go_bot_discord.WithStatusEmoji("⚡")); err != nil {
+		slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.SendStatus",
+			slog.String("channel", channelName(in)),
+			slog.String("error", err.Error()))
+	}
+
+	if len(attachmentPaths) > 0 {
+		sendAttachments(ctx, b.client, in.ChannelID, channelName(in), replyToID, attachmentPaths)
+	}
+
+	if len(voiceTexts) > 0 {
+		apiKey := strings.TrimSpace(keychain.Get("GEMINI_API_KEY"))
+		if apiKey == "" {
+			slog.Warn("keychain.Get GEMINI_API_KEY missing",
+				slog.String("channel", channelName(in)))
+			sendFailure("SendVoice", "", "GEMINI_API_KEY missing")
+		} else {
+			for _, text := range voiceTexts {
+				if _, err := b.client.SendVoice(ctx, in.ChannelID, replyToID, text, apiKey); err != nil {
+					slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.SendVoice",
+						slog.String("error", err.Error()))
+					sendFailure("SendVoice", "", err.Error())
+				}
+			}
+		}
+	}
+
+	if err := b.client.FinishStatus(ctx, in.ChannelID); err != nil {
+		slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.FinishStatus",
 			slog.String("channel", channelName(in)),
 			slog.String("error", err.Error()))
 	}

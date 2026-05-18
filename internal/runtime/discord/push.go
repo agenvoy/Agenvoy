@@ -49,18 +49,22 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 	}
 
 	chanName := utils.LookupChatName(filesystem.DiscordAuthPath, channelID)
+	cleanText, attachmentPaths := extractFileMarkers(text)
 
-	message := text + buildPushFooter(payload.Model, payload.Usage)
-	if prefix := strings.TrimSpace(payload.Prefix); prefix != "" {
-		quoted := strings.ReplaceAll(prefix, "\n", "\n> ")
-		message = fmt.Sprintf("> %s\n%s", quoted, message)
+	if strings.TrimSpace(cleanText) != "" {
+		message := cleanText + buildPushFooter(payload.Model, payload.Usage)
+		if prefix := strings.TrimSpace(payload.Prefix); prefix != "" {
+			quoted := strings.ReplaceAll(prefix, "\n", "\n> ")
+			message = fmt.Sprintf("> %s\n%s", quoted, message)
+		}
+		if _, err := client.Send(ctx, channelID, "", message); err != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.Send",
+				slog.String("channel", chanName),
+				slog.String("error", err.Error()))
+		}
 	}
 
-	if _, err := client.Send(ctx, channelID, "", message); err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/discord Bot.Send",
-			slog.String("channel", chanName),
-			slog.String("error", err.Error()))
-	}
+	sendAttachments(ctx, client, channelID, chanName, "", attachmentPaths)
 }
 
 func buildPushFooter(model string, usage *agentTypes.Usage) string {
