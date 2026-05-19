@@ -53,8 +53,6 @@ func newTUI() {
 			slog.Warn("daemon launch failed; running TUI without server",
 				slog.String("error", err.Error()))
 		}
-	} else {
-		slog.Info("daemon already running, attaching TUI")
 	}
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {

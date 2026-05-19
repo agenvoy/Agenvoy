@@ -161,7 +161,6 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		if m, effective := scanner.MatchSkillCall(content); m != nil {
 			matchedSkill = m
 			content = strings.TrimSpace(effective)
-			slog.Info("skill", slog.String("skill", m.Name))
 		}
 	}
 

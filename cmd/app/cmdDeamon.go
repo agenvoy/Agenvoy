@@ -76,7 +76,7 @@ func reloadDiscord() {
 		return
 	}
 	if newToken == "" {
-		slog.Info("discord enabled but token missing")
+		slog.Info("discord enabled but token missing, run `/discord enable` in TUI")
 		return
 	}
 
@@ -196,10 +196,6 @@ func cmdDaemon() {
 	var server *http.Server
 
 	if selectorBot != nil {
-		slog.Info("agent registry built",
-			slog.Int("entries", len(registry.Entries)),
-			slog.String("fallback", selectorBot.Name()))
-
 		reloadDiscord()
 		reloadTelegram()
 

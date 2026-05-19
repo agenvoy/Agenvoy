@@ -239,8 +239,6 @@ func setSummaryCron() {
 		if len(sessions) == 0 {
 			continue
 		}
-		slog.Info("summary cron",
-			slog.Int("sessions", len(sessions)))
 
 		for _, sid := range sessions {
 			histories, _ := session.GetHistory(sid)
@@ -251,8 +249,6 @@ func setSummaryCron() {
 			bgCtx := context.Background()
 			summaryAgent := exec.SelectAgent(bgCtx, host.Planner(), host.Registry(), "[summary] background summary cron", false, sid)
 			summary.Generate(bgCtx, summaryAgent, sid, summaryHistories)
-			slog.Info("summary done",
-				slog.String("session", sid))
 		}
 	}
 }

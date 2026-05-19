@@ -168,14 +168,11 @@ func (s *SkillScanner) LoadFS(fsys fs.FS, dir string) {
 
 		// * embedded skills is lower than user-defined
 		if _, exists := s.Skills.ByName[skill.Name]; exists {
-			slog.Info("user-defined exists",
-				slog.String("name", skill.Name))
 			continue
 		}
 
 		s.Skills.ByName[skill.Name] = skill
 		s.Skills.ByPath[skill.AbsPath] = skill
-		slog.Info("embedded skill loaded", slog.String("name", skill.Name))
 	}
 }
 
