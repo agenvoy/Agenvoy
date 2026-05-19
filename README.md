@@ -110,6 +110,7 @@ Running the daemon on a MacBook? Run `sudo pmset -c sleep 0` to keep the system 
 | `fetch_google_rss` | Search Google News RSS and return article titles, summaries, links. |
 | `fetch_yahoo_finance` | Query Yahoo Finance quotes and K-line (OHLCV). |
 | `fetch_youtube_transcript` | Transcribe a YouTube video with timestamps. *(gemini needed)* |
+| `transcribe_media` | Transcribe a local audio / video file (ogg, mp3, wav, m4a, flac, aac, mp4, mov, webm, mpeg, 3gp, …) up to 20 MiB. *(gemini needed)* |
 | `send_http_request` | Send an HTTP request to a specified URL. |
 | **Shell** |  |
 | `run_command` | Run a binary with argv; returns combined stdout/stderr. |

@@ -110,6 +110,7 @@ curl -fsSL https://cloud.agenvoy.com/install.sh | bash
 | `fetch_google_rss` | 搜尋 Google News RSS，回標題／摘要／連結。 |
 | `fetch_yahoo_finance` | 查 Yahoo Finance 報價與 K 線（OHLCV）。 |
 | `fetch_youtube_transcript` | 抓 YouTube 影片逐字稿含時間戳。*(gemini needed)* |
+| `transcribe_media` | 將本地音訊／影片檔（ogg、mp3、wav、m4a、flac、aac、mp4、mov、webm、mpeg、3gp 等）轉成逐字稿，單檔上限 20 MiB。*(gemini needed)* |
 | `send_http_request` | 對指定 URL 發 HTTP 請求。 |
 | **Shell** |  |
 | `run_command` | 以 argv 執行 binary，回 stdout/stderr 合併輸出。 |
