@@ -20,7 +20,7 @@ session:
 
 else
 
-.PHONY: help build app stop update
+.PHONY: help build app stop update test
 
 help:
 	@echo "How to use:"
@@ -28,6 +28,7 @@ help:
 	@echo "  make app                Attach TUI; spawn server daemon (HTTP + Discord + Telegram) if not running"
 	@echo "  make stop               Stop the running server daemon"
 	@echo "  make update             Update agen to the latest release (always overwrite)"
+	@echo "  make test               Run provider integration tests (skips when API keys missing)"
 	@echo "  make mcp [list|add|remove]                       Manage MCP servers"
 	@echo "  make model [add|remove|list|planner|reasoning]   Manage providers/models, planner, reasoning"
 	@echo "  make session [new|switch|config] [name]          Manage CLI sessions (interactive picker if no name)"
@@ -53,5 +54,8 @@ stop:
 
 update:
 	@go run ./cmd/app/ update
+
+test:
+	@go test -v ./test/...
 
 endif
