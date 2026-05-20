@@ -303,7 +303,7 @@ multiSelect: false
 | 欄位 | 必填 | 規則 |
 |---|---|---|
 | `name` | ✅ | snake_case，動詞+名詞，直白具體（`fetch_user_profile` ≻ `user_get`），不加 `api_` 前綴（runtime 自動補） |
-| `description` | ✅ | 英文。動詞開頭描述用途 **+ 觸發信號**（何時用、適用場景、使用者意圖對應）+ 與同類 tool 的取捨（若相關）。lazy-schema 模式下 LLM 看 description 決定是否呼叫（schema 按需注入），純「執行什麼」一句話 trigger coverage 不足必失敗。長度建議 ≥ 60 chars |
+| `description` | ✅ | 英文。**只描述使用情境**（何時呼叫／與相似 tool 的取捨），**極致精簡精準**：一兩句寫清觸發信號即停。lazy-schema 下這是 LLM 召喚 tool 的唯一依據，但冗詞稀釋訊號；禁填充語、禁實作八卦、禁呼叫合約細節（型別／enum／邊界丟 `parameters`）。純「執行什麼」一句話 trigger coverage 不足必失敗；超過兩三句通常代表夾雜了該住 schema 的內容。長度建議 60-200 chars |
 | `always_allow` | optional | `true` = `agen cli` 跳過 confirm；缺省／`false` = 每次 confirm。僅讀取／無副作用 endpoint 可設 `true`，由 Gate 6 決定 |
 | `endpoint.url` | ✅ | 完整 URL，path 變數用 `{var_name}` |
 | `endpoint.method` | ✅ | `GET`／`POST`／`PUT`／`PATCH`／`DELETE` |
@@ -389,7 +389,7 @@ Wrote N tool(s) to ~/.config/agenvoy/tools/api/
 6. **Host 已確認**：intranet／localhost host 已通過 Gate 3 確認或替換。
 7. **試打通過**：Gate 5 對該 endpoint 取得 2xx（或使用者明確允許的 4xx／5xx）。未試打或 unreachable → **拒絕寫入**。
 8. **always_allow 確認**：Gate 6 已決定；`always_allow=true` 的 endpoint 必須為純讀取／無外部副作用（寫入類、刪除類、發送類即使使用者批量選 true 也須個別二次確認）。
-9. **Description trigger coverage**：`description` 含觸發信號（何時用／適用場景／使用者意圖），不只「執行什麼」一句話。長度 < 60 chars 必失敗。
+9. **Description 極致精簡精準**：只描述使用情境（何時用／與相似 tool 的取捨），一兩句寫清觸發信號即停。純「執行什麼」一句話必失敗（trigger coverage 不足）；夾雜實作細節／呼叫合約／填充語也必失敗（冗詞稀釋訊號）。長度 60-200 chars。
 10. **Parameter description 完整**：每個 `parameters.<name>.description` 含型別／單位／接受值／範例／互動關係。非平凡型別（`object`／`array`／含 `enum`）短於 20 chars 必失敗。
 
 ---

@@ -20,16 +20,17 @@ Audits all Agenvoy tool definitions against the four design rules in project `CL
 **Lazy-schema context**: every tool's `name` + `description` is always in LLM context; the `parameters` JSON schema is replaced with a stub `{"type":"object","properties":{}}` unless `AlwaysLoad=true`. The LLM decides whether to invoke a tool (or call `search_tools` to load its schema) using `name` + `description` alone. Schema is the call contract, loaded on demand.
 
 1. **Name is self-explanatory** — verb + noun, direct, distinguishable from siblings (e.g. `search_conversation_history` ≻ `search_history`). Name is the anchor; description elaborates the trigger.
-2. **Description writes WHEN to invoke** — trigger signals, use cases, scenarios, and trade-offs against similar tools. This is the LLM's only signal before the schema loads. Required content:
+2. **Description describes WHEN to invoke — maximally concise and precise** — one or two sentences covering trigger signals + trade-offs against similar tools, then stop. This is the LLM's only signal before the schema loads, but bloat dilutes the trigger. Required content (kept tight):
    - Trigger conditions (when the tool applies; what user intents map to it)
-   - Use-case examples (concrete situations where this tool wins)
-   - Contrast with similar tools (`prefer over X when Y` is welcome — helps selection)
-   - Constraints / preconditions the LLM needs before deciding to call
-   What to still avoid:
+   - Contrast with similar tools when one exists (`prefer over X when Y`)
+   What to avoid (filler dilutes selection signal):
+   - Padding phrases ("This tool allows you to...", "Use this when needed...")
    - `**bold**` / markdown emphasis (token waste; structure ≠ semantics)
    - Output schema dumps (belongs in `parameters` / response examples, not selection text)
    - Implementation gossip (`uses readability under the hood`) unrelated to selection
    - Call-contract details (type/unit/enum/default) — those belong in `parameters[*].description`
+   - Per-use-case bullet lists when a single sentence covers them
+   Target length 60–200 chars. Going past three sentences usually means schema content leaked in.
 3. **Schema fields are complete call contracts** — every entry in `parameters.properties` must carry a `description` covering: type, unit, accepted values (enum/regex), edge cases, interaction with other params, and at least one concrete example when the type is non-trivial (e.g. cron expression, file path with placeholders, JSON body shape).
 4. **English only** — `description`, `parameters[*].description`, `enum` text must be English. CJK / mixed-language is a violation. (User-facing handler return strings may stay in Chinese.)
 5. **Optional fields require explicit `default`** — every parameter not in `required[]` must declare `"default": <value>` so the LLM knows the omission semantics. Required fields must NOT carry `default`.
@@ -130,10 +131,14 @@ For **every** tool the script returns — no skipping — apply these checks. Co
   - Verb redundancy (`patch_edit`, `delete_remove_*`)
   - Name buries the discriminator in description (`verify` whose description reveals it actually means `cross_review_with_external_agents`)
   - Inconsistent suffix vocabulary across same-domain tools (`read_tool_error` / `remember_error` / `search_error_memory` — pick one shape)
-- **Description trigger coverage (R2)**: re-read each description and ask "could another LLM, seeing only this description, know WHEN to call this tool?" If the description is action-only ("Fetches X", "Returns Y") with no trigger signals or use cases, flag as R2 violation and propose an expanded version. Look for:
-  - Action-only descriptions ("Lists files", "Sends HTTP request") with no trigger context
-  - Missing contrast when sibling tools exist (`search_tools` vs `list_tools` — when to use which)
-  - Missing scenario hints for tools whose name alone doesn't carry the use case
+- **Description trigger coverage AND concision (R2)**: re-read each description and ask two questions: "could another LLM, seeing only this, know WHEN to call this tool?" AND "is anything here filler that doesn't aid selection?" Flag as R2 violation when EITHER fails. Look for:
+  - Action-only descriptions ("Lists files", "Sends HTTP request") with no trigger context — under-spec
+  - Missing contrast when sibling tools exist (`search_tools` vs `list_tools` — when to use which) — under-spec
+  - Missing scenario hints for tools whose name alone doesn't carry the use case — under-spec
+  - Over three sentences, paragraph-form prose, bullet enumerations — over-spec (bloat dilutes trigger; usually call-contract content leaked in from `parameters`)
+  - Filler ("This tool allows you to...", "Useful for various tasks") that adds no selection signal — over-spec
+  - Output format dumps, response shape descriptions — belongs in `parameters` / response example, not selection text
+  Propose a tightened rewrite (60-200 chars, one or two sentences) for every fail.
 - **Parameter schema completeness (R3)**: walk every `properties` entry. Flag as R3 violation when:
   - `description` missing or single-word
   - Non-trivial type (`object`, `array`, cron expression, file path with placeholders, JSON body shape) without a concrete example

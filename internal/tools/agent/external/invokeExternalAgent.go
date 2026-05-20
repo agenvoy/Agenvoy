@@ -16,7 +16,7 @@ func registInvokeExternalAgent() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "invoke_external_agent",
 		AlwaysAllow: true,
-		Description: `Invoke one external CLI agent (codex / copilot / claude / gemini) for an independent second opinion.`,
+		Description: "Invoke one external CLI agent (codex / copilot / claude / gemini) and return its response. Use when the user names an agent or wants a non-Anthropic perspective.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

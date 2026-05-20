@@ -14,7 +14,7 @@ func registListTools() {
 		Name:        "list_tools",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "List all currently available built-in and dynamically loaded tools.",
+		Description: "List all currently available tools by name + one-line description. Read-only; does not load schemas. Use search_tools to also activate matching schemas.",
 		Parameters: map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},

@@ -20,10 +20,7 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:     "search_web",
 		AlwaysAllow: true,
-		Description: `[system-default]
-Search the web via DuckDuckGo Lite; returns top 10 results (Taiwan locale).
-General queries, docs, product research.
-Call fetch_page on each link for full article content.`,
+		Description: "[system-default] Search the web via DuckDuckGo Lite (top 10 results, Taiwan locale). Use only when the user describes intent without a URL. If any URL is provided, use fetch_page instead — never wrap a known URL in a `site:` query here.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

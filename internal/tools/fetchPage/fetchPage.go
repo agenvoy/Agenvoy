@@ -80,7 +80,7 @@ func registFetchPage() {
 		Name:        "fetch_page",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "[system-default] Fetch a web page and return its content without saving it locally.",
+		Description: "[system-default] Fetch a live web page and return its content (markdown / html / json). Use whenever the user provides any URL or named page (any domain — including social profiles like threads / x / linkedin / instagram, docs, paywalled news). URL given → always fetch_page, never search_web. Set same_session=true for login-required sites and paywalls.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

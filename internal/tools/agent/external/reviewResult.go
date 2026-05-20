@@ -39,7 +39,7 @@ func registReviewResult() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "review_result",
 		AlwaysAllow: true,
-		Description: "Review a result against the original task input and return concrete issues and improvement suggestions.",
+		Description: "Critique a result against its original task via an internal review model (no external CLI spawned). Use as a cheap self-check before delivering.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

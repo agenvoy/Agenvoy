@@ -484,52 +484,74 @@ def parse_properties(params_block: str) -> dict[str, dict[str, Any]]:
     return out
 
 
+BUILTIN_SCAN_ROOTS = [
+    ("internal", "tools"),
+    ("internal", "runtime"),
+    ("internal", "agents", "provider"),
+]
+
+
+def _is_go_active(path: Path) -> bool:
+    """Mirror Go build behavior: skip dirs/files starting with '_' or '.' and skip *_test.go."""
+    for part in path.parts:
+        if part.startswith("_") or part.startswith("."):
+            return False
+    if path.name.endswith("_test.go"):
+        return False
+    return True
+
+
 def load_builtin_tools(repo: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    tools_dir = repo / "internal" / "tools"
-    if not tools_dir.is_dir():
-        return out
-    for path in sorted(tools_dir.rglob("*.go")):
-        try:
-            text = path.read_text(encoding="utf-8")
-        except Exception:
+    seen: set[Path] = set()
+    for root_parts in BUILTIN_SCAN_ROOTS:
+        scan_dir = repo.joinpath(*root_parts)
+        if not scan_dir.is_dir():
             continue
-        # Same-file constant table — resolves the `Name: ToolName` pattern that
-        # would otherwise surface as `<ident:ToolName>` and silently bypass R1.
-        consts = {m.group(1): m.group(2) for m in RE_CONST_STRING.finditer(text)}
-        for m in RE_REGIST_OPEN.finditer(text):
-            open_brace = text.find("{", m.start())
-            close_brace = find_balanced(text, open_brace)
-            if close_brace == -1:
+        for path in sorted(scan_dir.rglob("*.go")):
+            if path in seen or not _is_go_active(path.relative_to(repo)):
                 continue
-            body = text[open_brace : close_brace + 1]
-            name = ""
-            nm = RE_NAME.search(body)
-            if nm:
-                name = nm.group(1)
-            else:
-                ident = RE_NAME_IDENT.search(body)
-                if ident:
-                    ref = ident.group(1)
-                    name = consts.get(ref, f"<ident:{ref}>")
-            description = extract_go_string(body, "Description")
-            params_block = extract_params_block(body)
-            required = parse_required(params_block) if params_block else []
-            properties = parse_properties(params_block) if params_block else {}
-            line = text.count("\n", 0, m.start()) + 1
-            out.append({
-                "source": "builtin",
-                "name": name,
-                "raw_name": name,
-                "description": description,
-                "raw_parameters": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-                "file": str(path.relative_to(repo)),
-                "line": line,
-            })
+            seen.add(path)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            # Same-file constant table — resolves the `Name: ToolName` pattern that
+            # would otherwise surface as `<ident:ToolName>` and silently bypass R1.
+            consts = {m.group(1): m.group(2) for m in RE_CONST_STRING.finditer(text)}
+            for m in RE_REGIST_OPEN.finditer(text):
+                open_brace = text.find("{", m.start())
+                close_brace = find_balanced(text, open_brace)
+                if close_brace == -1:
+                    continue
+                body = text[open_brace : close_brace + 1]
+                name = ""
+                nm = RE_NAME.search(body)
+                if nm:
+                    name = nm.group(1)
+                else:
+                    ident = RE_NAME_IDENT.search(body)
+                    if ident:
+                        ref = ident.group(1)
+                        name = consts.get(ref, f"<ident:{ref}>")
+                description = extract_go_string(body, "Description")
+                params_block = extract_params_block(body)
+                required = parse_required(params_block) if params_block else []
+                properties = parse_properties(params_block) if params_block else {}
+                line = text.count("\n", 0, m.start()) + 1
+                out.append({
+                    "source": "builtin",
+                    "name": name,
+                    "raw_name": name,
+                    "description": description,
+                    "raw_parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                    },
+                    "file": str(path.relative_to(repo)),
+                    "line": line,
+                })
     return out
 
 

@@ -15,8 +15,7 @@ func registCrossReviewWithExternalAgents() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "cross_review_with_external_agents",
 		AlwaysAllow: true,
-		Description: `
-Run a concrete completed result through all available external agents (codex / copilot / claude / gemini) in parallel for cross-review.`,
+		Description: "Fan out a deliverable to all installed external CLIs (codex / copilot / claude / gemini) in parallel for cross-review. Use for multi-model sanity check on non-trivial results.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

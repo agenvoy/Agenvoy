@@ -1,6 +1,6 @@
 {
   "name": "themealdb_search",
-  "description": "[system-default] Search recipes from TheMealDB by name.",
+  "description": "[system-default] Search TheMealDB recipes by meal name. Returns ingredients, instructions, image, YouTube link. Use when the user names a specific recipe.",
   "always_allow": true,
   "endpoint": {
     "url": "https://www.themealdb.com/api/json/v1/1/search.php",
