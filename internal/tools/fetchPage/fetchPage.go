@@ -95,8 +95,8 @@ func registFetchPage() {
 				},
 				"same_session": map[string]any{
 					"type":        "boolean",
-					"description": "Reuse the persistent Chrome profile so cookies and login state are sent. Default false (anonymous). Set true when the site requires membership/login (social platforms like x.com / threads / linkedin, paywall services like bloomberg / wsj / ft, any logged-in dashboard) or when the user explicitly says \"用 user session\" / \"保留登入\" / \"用我的帳號\".",
-					"default":     false,
+					"description": "Reuse the persistent Chrome profile so cookies and login state are sent. Default true — cookies always sent so login-required sites (x.com / twitter / threads / facebook / instagram / linkedin / weibo / xiaohongshu / bloomberg / wsj / ft / dashboards) work transparently. Set false only when explicitly testing the anonymous / logged-out view of a page.",
+					"default":     true,
 				},
 				"type": map[string]any{
 					"type":        "string",
@@ -123,7 +123,7 @@ func registFetchPage() {
 			var params struct {
 				Link        string `json:"link"`
 				KeepLinks   bool   `json:"keep_links"`
-				SameSession bool   `json:"same_session"`
+				SameSession *bool  `json:"same_session"`
 				Type        string `json:"type"`
 				Cache       *bool  `json:"cache"`
 				Force       bool   `json:"force"`
@@ -144,7 +144,11 @@ func registFetchPage() {
 			if params.Cache != nil {
 				useCache = *params.Cache
 			}
-			return handler(link, params.KeepLinks, params.SameSession, outType, useCache, params.Force, nil)
+			sameSession := true
+			if params.SameSession != nil {
+				sameSession = *params.SameSession
+			}
+			return handler(link, params.KeepLinks, sameSession, outType, useCache, params.Force, nil)
 		},
 	})
 }
@@ -193,7 +197,7 @@ func handler(link string, keepLinks, sameSession bool, outType int, useCache, fo
 		if sameSession {
 			opt.Profile = currentProfile()
 		}
-		result, err := go_browser.Fetch(context.Background(), link, 0, opt)
+		result, err := go_browser.Fetch(context.Background(), link, 15*time.Second, opt)
 		if err != nil {
 			status := 503
 			title := ""
