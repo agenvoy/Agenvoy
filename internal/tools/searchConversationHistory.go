@@ -41,7 +41,7 @@ func registSearchConversationHistory() {
 		Name:        "search_conversation_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Search this session's past messages by keyword and semantic similarity.",
+		Description: "Search this session's past messages by keyword + semantic similarity, returning hits with surrounding context. Use when the user references something earlier that scrolled out of view.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

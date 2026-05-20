@@ -42,14 +42,15 @@
 ### `<tool_name>` · `<file>:<line>`
 
 - **Severity**: High / Medium / Low
-- **Rules failed**: R1, R2, R4
+- **Rules failed**: R1, R2, R3, R5
 - **Findings**:
   - R1 — Name clarity: <description of issue, citing sibling cluster if relevant>. **Suggested name**: `<new_name>`.
-  - R2 — Description scope: <which content should be removed>. **Suggested description**:
+  - R2 — Description trigger coverage: <what trigger context is missing>. **Suggested description**:
     ```
-    <one-line trimmed version>
+    <expanded version with trigger signals + use cases>
     ```
-  - R4 — Optional `<param>` has no default. **Suggested**: add `"default": <value>`.
+  - R3 — Schema field `<param>` missing example/unit/interaction. **Suggested description**: `<expanded version>`.
+  - R5 — Optional `<param>` has no default. **Suggested**: add `"default": <value>`.
 
 (repeat per tool with violations; omit clean tools — they are already covered by Name Audit)
 
@@ -78,8 +79,8 @@ One-line list of tools that passed all four rules:
 5. **Quote source where useful** — for description scope violations, paste the original (truncated to 200 chars) and the proposed rewrite side-by-side so the reader can diff at a glance.
 6. **Group multiple findings on the same tool** — one tool block lists all its rule failures together, not one block per rule.
 7. **Severity rules** (from `review_rules.md`):
-   - High: R1 fail, R2 fail, or 2+ Medium stacked on one tool
-   - Medium: R3 fail, R4 fail (single)
+   - High: R1 fail (name), R2 fail (description trigger coverage), or 2+ Medium stacked on one tool
+   - Medium: R3 fail (schema completeness), R4 fail (English), R5 fail (optional default) — single instance
    - Low: cosmetic only (e.g. lone `**bold**` with otherwise clean description)
 8. **No-Op message** (when total violations = 0 and `OUTPUT_FILE` not explicitly given):
    ```

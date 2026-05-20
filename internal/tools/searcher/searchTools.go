@@ -29,7 +29,7 @@ func registSearchTools() {
 		Name:        "search_tools",
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
-		Description: "Search available tools by keyword and inject matching tools into the current request.",
+		Description: "Search the tool registry by keyword (or 'select:<name>' for exact activation) and inject matching tool schemas into the current turn. Use when a needed capability seems available but isn't loaded — Agenvoy ships lazy-schema.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

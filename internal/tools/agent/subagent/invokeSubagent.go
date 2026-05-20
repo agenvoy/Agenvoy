@@ -24,9 +24,9 @@ func registInvokeSubagent() {
 
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "invoke_subagent",
-		AlwaysAllow:    true,
+		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Run a subtask in an internal subagent session and return its final text.",
+		Description: "Spawn an internal subagent in its own session and return its reply. Use to delegate a self-contained subtask. Pass `name` / `session_id` for multi-turn persona threading.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

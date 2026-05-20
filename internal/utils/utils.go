@@ -102,34 +102,31 @@ func FormatAgentEventMessage(
 	execErrFmt func(toolName, text string) string,
 ) AgentEventResult {
 	var r AgentEventResult
+	var toolCount int
 	for e := range events {
 		EventLog(tag, e, sessionID, "")
 		switch e.Type {
-		case agentTypes.EventAgentSelect:
-			markStatus("selecting agent…")
-
 		case agentTypes.EventAgentResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("(agent) " + TruncateStatus(t))
+				markStatus("[agent] " + TruncateStatus(t))
 			}
 
 		case agentTypes.EventSkillResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				markStatus("(skill) " + TruncateStatus(t))
+				markStatus("[skill] " + TruncateStatus(t))
 			}
 
 		case agentTypes.EventToolCall:
 			if e.ToolName != "" {
-				markStatus("(tool) " + e.ToolName)
+				toolCount++
+				markStatus(formatToolEvent(toolCount, e))
 			}
 
 		case agentTypes.EventToolSkipped:
 			if e.ToolName != "" {
-				markStatus("(tool skipped) " + e.ToolName)
+				toolCount++
+				markStatus(fmt.Sprintf("[skipped #%d] %s", toolCount, e.ToolName))
 			}
-
-		case agentTypes.EventSummaryGenerate:
-			markStatus("summarizing…")
 
 		case agentTypes.EventText:
 			if r.ReplyText != "" {

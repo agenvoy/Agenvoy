@@ -246,8 +246,8 @@ multiSelect: false
 
 ```json
 {
-  "name": "get_user",
-  "description": "Retrieve user profile by ID.",
+  "name": "fetch_user_profile",
+  "description": "Retrieve a user's full profile (name, email, role, audit timestamps) from the example.com user directory. Use when the user mentions a user ID or asks 'who is X', 'what's user 42's role', or before any operation that needs to verify a user exists. Prefer over list_users when you already know the exact user_id — list_users is paginated and slower for single-record lookups.",
   "endpoint": {
     "url": "https://api.example.com/users/{user_id}",
     "method": "GET",
@@ -267,12 +267,12 @@ multiSelect: false
   "parameters": {
     "user_id": {
       "type": "string",
-      "description": "User identifier, matches {user_id} in URL path.",
+      "description": "Numeric user identifier as a string (e.g. \"42\", \"10293\"). Matches {user_id} placeholder in the URL path. Must be the canonical ID, not username or email — use search_users first if you only have name/email.",
       "required": true
     },
     "include_deleted": {
       "type": "boolean",
-      "description": "Include soft-deleted users when true.",
+      "description": "When true, includes users with deleted_at != null (soft-deleted). Default false returns 404 for soft-deleted users. Set true only for audit / compliance use cases where deletion history matters.",
       "required": false,
       "default": false
     }
@@ -302,8 +302,8 @@ multiSelect: false
 
 | 欄位 | 必填 | 規則 |
 |---|---|---|
-| `name` | ✅ | snake_case，不加 `api_` 前綴（runtime 自動補） |
-| `description` | ✅ | 一句動詞開頭，描述用途；英文優先 |
+| `name` | ✅ | snake_case，動詞+名詞，直白具體（`fetch_user_profile` ≻ `user_get`），不加 `api_` 前綴（runtime 自動補） |
+| `description` | ✅ | 英文。**只描述使用情境**（何時呼叫／與相似 tool 的取捨），**極致精簡精準**：一兩句寫清觸發信號即停。lazy-schema 下這是 LLM 召喚 tool 的唯一依據，但冗詞稀釋訊號；禁填充語、禁實作八卦、禁呼叫合約細節（型別／enum／邊界丟 `parameters`）。純「執行什麼」一句話 trigger coverage 不足必失敗；超過兩三句通常代表夾雜了該住 schema 的內容。長度建議 60-200 chars |
 | `always_allow` | optional | `true` = `agen cli` 跳過 confirm；缺省／`false` = 每次 confirm。僅讀取／無副作用 endpoint 可設 `true`，由 Gate 6 決定 |
 | `endpoint.url` | ✅ | 完整 URL，path 變數用 `{var_name}` |
 | `endpoint.method` | ✅ | `GET`／`POST`／`PUT`／`PATCH`／`DELETE` |
@@ -315,10 +315,10 @@ multiSelect: false
 | `auth.header` | conditional | 僅 `apikey` 可用；省略時預設 `X-API-Key` |
 | `auth.env` | ✅（若有 auth） | keychain key 名（SCREAMING_SNAKE_CASE）；runtime 走 `keychain.Get`，**不**讀 shell env |
 | `parameters.<name>.type` | ✅ | `string`／`integer`／`number`／`boolean`／`array`／`object` |
-| `parameters.<name>.description` | ✅ | 用途 + 範例值 |
+| `parameters.<name>.description` | ✅ | 英文。完整呼叫合約：用途 + 型別與單位（秒／毫秒、bytes／MiB）+ 接受值（enum 含每值意涵、regex、值域）+ 至少一個範例值（非平凡型別必給）+ 與其他參數互動（`required when X=Y`）+ 邊界／失敗模式。非平凡型別（`object`／`array`／含 `enum`）短於 20 chars 視為不完整 |
 | `parameters.<name>.required` | ✅ | `true`／`false`（明確標示，勿省略） |
-| `parameters.<name>.default` | optional | 非必填參數建議給；型別需匹配 `type` |
-| `parameters.<name>.enum` | optional | 限制可選值 |
+| `parameters.<name>.default` | optional | 非必填參數**必給**；型別需匹配 `type`；缺 default LLM 不知道省略此參數的語意 |
+| `parameters.<name>.enum` | optional | 限制可選值；每個 enum value 在 description 內解釋其意涵（不只列字串） |
 | `response.format` | ✅ | 一律填 `json`（目前 adapter 僅支援 JSON 回應） |
 
 ### Path 變數與 parameters 對應
@@ -389,6 +389,8 @@ Wrote N tool(s) to ~/.config/agenvoy/tools/api/
 6. **Host 已確認**：intranet／localhost host 已通過 Gate 3 確認或替換。
 7. **試打通過**：Gate 5 對該 endpoint 取得 2xx（或使用者明確允許的 4xx／5xx）。未試打或 unreachable → **拒絕寫入**。
 8. **always_allow 確認**：Gate 6 已決定；`always_allow=true` 的 endpoint 必須為純讀取／無外部副作用（寫入類、刪除類、發送類即使使用者批量選 true 也須個別二次確認）。
+9. **Description 極致精簡精準**：只描述使用情境（何時用／與相似 tool 的取捨），一兩句寫清觸發信號即停。純「執行什麼」一句話必失敗（trigger coverage 不足）；夾雜實作細節／呼叫合約／填充語也必失敗（冗詞稀釋訊號）。長度 60-200 chars。
+10. **Parameter description 完整**：每個 `parameters.<name>.description` 含型別／單位／接受值／範例／互動關係。非平凡型別（`object`／`array`／含 `enum`）短於 20 chars 必失敗。
 
 ---
 

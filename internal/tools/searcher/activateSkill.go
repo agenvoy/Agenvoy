@@ -19,7 +19,7 @@ import (
 const (
 	ToolName          = "activate_skill"
 	maxDescLen        = 200
-	staticDescription = "Fetch a skill's reference material by exact name; treat the result like any other tool output — consult, integrate what fits, ignore what doesn't."
+	staticDescription = "Load a named skill's reference material into the current turn. Use when the system prompt's '## Skills' lists a skill that fits, or when the user names a skill. Result is advisory — integrate what fits."
 )
 
 type params struct {
@@ -30,7 +30,7 @@ func registSelectSkill() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        ToolName,
 		Description: staticDescription,
-		AlwaysAllow:    true,
+		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  false,
 		Parameters: map[string]any{

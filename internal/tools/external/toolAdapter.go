@@ -21,7 +21,7 @@ func Register() {
 		Name:        "send_http_request",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Send an HTTP request to the specified URL.",
+		Description: "Send an HTTP request (GET/POST/PUT/PATCH/DELETE) to any URL. Use when no dedicated api_* tool covers the endpoint; prefer fetch_page for human-readable HTML.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

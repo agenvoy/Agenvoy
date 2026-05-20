@@ -1,6 +1,6 @@
 ---
 name: tool-reviewer
-description: Audit Agenvoy tool definitions (built-in Go tools, extensions/apis/*.json, extensions/scripts/*/tool.json) against the project's tool design rules — name clarity, description scope, English-only text, and explicit defaults on optional fields. Use when the user wants to review tool quality, check tool design compliance, or audit api_/script_ extensions.
+description: Audit Agenvoy tool definitions (built-in Go tools, extensions/apis/*.json, extensions/scripts/*/tool.json) against the project's tool design rules under the lazy-schema model — name clarity, description trigger coverage, schema field completeness, English-only text, and explicit defaults on optional fields. Use when the user wants to review tool quality, check tool design compliance, or audit api_/script_ extensions.
 ---
 
 # Tool Reviewer
@@ -15,17 +15,25 @@ Audits all Agenvoy tool definitions against the four design rules in project `CL
 | API extensions | `extensions/apis/*.json` | `api_*` |
 | Script extensions | `extensions/scripts/*/tool.json` | `script_*` |
 
-## Rules (mirrors `CLAUDE.md` "Tool 設計檢查清單")
+## Rules (mirrors `CLAUDE.md` "Tool 註冊" contract — lazy-schema model)
 
-1. **Name is the only semantic carrier** — LLM filters tools by name first (stub short-circuit hides description / parameters until the second turn). Name must be self-explanatory and unambiguous against sibling tools (e.g. `search_conversation_history` ≻ `search_history`).
-2. **Description only ensures correct invocation** — not a manual, not a trigger checklist, not a tool-vs-tool comparison. Strip:
-   - Numbered trigger conditions (`(1) ... (2) ...`)
-   - `**bold**` emphasis / markdown decoration
-   - Output schema dumps (`{"name", "path", ...}`)
-   - Tie-breakers vs other tools (`vs invoke_subagent: ...`)
-   - Implementation details (`auto-skip .gitignore`, `uses readability`)
-3. **English only** — both tool description and parameter descriptions must be English. CJK / mixed-language is a violation. (User-facing handler return messages may stay in Chinese.)
-4. **Optional fields require explicit `default`** — every parameter not in `required[]` must declare `"default": <value>` so the LLM knows the omission semantics. Required fields must NOT carry `default`.
+**Lazy-schema context**: every tool's `name` + `description` is always in LLM context; the `parameters` JSON schema is replaced with a stub `{"type":"object","properties":{}}` unless `AlwaysLoad=true`. The LLM decides whether to invoke a tool (or call `search_tools` to load its schema) using `name` + `description` alone. Schema is the call contract, loaded on demand.
+
+1. **Name is self-explanatory** — verb + noun, direct, distinguishable from siblings (e.g. `search_conversation_history` ≻ `search_history`). Name is the anchor; description elaborates the trigger.
+2. **Description describes WHEN to invoke — maximally concise and precise** — one or two sentences covering trigger signals + trade-offs against similar tools, then stop. This is the LLM's only signal before the schema loads, but bloat dilutes the trigger. Required content (kept tight):
+   - Trigger conditions (when the tool applies; what user intents map to it)
+   - Contrast with similar tools when one exists (`prefer over X when Y`)
+   What to avoid (filler dilutes selection signal):
+   - Padding phrases ("This tool allows you to...", "Use this when needed...")
+   - `**bold**` / markdown emphasis (token waste; structure ≠ semantics)
+   - Output schema dumps (belongs in `parameters` / response examples, not selection text)
+   - Implementation gossip (`uses readability under the hood`) unrelated to selection
+   - Call-contract details (type/unit/enum/default) — those belong in `parameters[*].description`
+   - Per-use-case bullet lists when a single sentence covers them
+   Target length 60–200 chars. Going past three sentences usually means schema content leaked in.
+3. **Schema fields are complete call contracts** — every entry in `parameters.properties` must carry a `description` covering: type, unit, accepted values (enum/regex), edge cases, interaction with other params, and at least one concrete example when the type is non-trivial (e.g. cron expression, file path with placeholders, JSON body shape).
+4. **English only** — `description`, `parameters[*].description`, `enum` text must be English. CJK / mixed-language is a violation. (User-facing handler return strings may stay in Chinese.)
+5. **Optional fields require explicit `default`** — every parameter not in `required[]` must declare `"default": <value>` so the LLM knows the omission semantics. Required fields must NOT carry `default`.
 
 ## Command Syntax
 
@@ -72,10 +80,16 @@ Audits all Agenvoy tool definitions against the four design rules in project `CL
                      — same domain, three different shapes)
                  Verdicts are emitted in the report's `## Name Audit` section (see output_format.md).
 
-2.B R2 sweep  →  Same enumeration discipline for description scope. Re-read each description
-                 and ask "is this content needed *to fill the parameters correctly*?" If
-                 the answer is "no, it's there to *decide whether to call the tool*", flag
-                 it as a Rule 2 violation and suggest the trimmed version.
+2.B R2 sweep  →  Same enumeration discipline for description trigger coverage. Re-read each
+                 description and ask "could another LLM, seeing only this description, know
+                 WHEN to call this tool?" If the description only states what the tool
+                 executes ("Fetches RSS feed") without trigger signals or use cases, flag
+                 as R2 violation and suggest the expanded version with trigger context.
+
+2.C R3 sweep  →  For each tool, walk every `parameters.properties` entry. Missing
+                 `description`, single-word descriptions, or non-trivial types (cron
+                 expression / file path with placeholders / JSON body shape) without a
+                 concrete example → flag as R3 violation.
 
 3. Gate       →  if zero deterministic + zero heuristic violations across all tools, skip Save
                  and print a one-line "no issues" message. Honor explicit OUTPUT_FILE override.
@@ -94,14 +108,16 @@ The script flags these without LLM judgment — the LLM only needs to confirm an
 | `R1_DYNAMIC_NAME` | `Name:` field is a Go identifier the parser could not resolve to a same-file `const` literal |
 | `R1_MIXED_SEPARATOR` | Tool name contains both `_` and `-` (Agenvoy convention is snake_case) |
 | `R1_GENERIC_VERB` | Name's first token is a generic verb (`do`, `process`, `handle`, `manage`, `execute`, `perform`, `dispatch`, `run`); see `GENERIC_VERB_WHITELIST` for justified exceptions |
-| `R3_NON_ENGLISH_DESCRIPTION` | Tool description contains any CJK / Hangul / Hiragana / Katakana codepoint |
-| `R3_NON_ENGLISH_PARAM` | Parameter description contains any CJK codepoint |
-| `R4_OPTIONAL_NO_DEFAULT` | Parameter is not in `required[]` AND has no `default` key |
-| `R4_REQUIRED_HAS_DEFAULT` | Parameter is in `required[]` AND has a `default` key (semantically wrong) |
-| `R2_BOLD_MARKDOWN` | Description contains `**...**` or `__...__` |
-| `R2_NUMBERED_TRIGGER` | Description contains `(1)`, `1.`, `2.` style enumerations |
-| `R2_MULTI_PARAGRAPH` | Description has > 2 blank-line-separated paragraphs |
-| `R2_TOOL_COMPARISON` | Description contains `vs `, ` vs.`, `prefer over `, `instead of <other_tool>` |
+| `R2_SHORT_DESC` | Description shorter than 60 characters — too thin to convey trigger signals under the lazy-schema model |
+| `R2_BOLD_MARKDOWN` | Description contains `**...**` or `__...__` (token waste; structure ≠ semantics) |
+| `R3_PARAM_NO_DESC` | A `properties` entry has no `description` field (or empty/whitespace-only) |
+| `R3_PARAM_SHORT_DESC` | Parameter description shorter than 20 characters AND type is non-trivial (`object`, `array`, or has `enum`) — likely missing examples/constraints |
+| `R4_NON_ENGLISH_DESCRIPTION` | Tool description contains any CJK / Hangul / Hiragana / Katakana codepoint |
+| `R4_NON_ENGLISH_PARAM` | Parameter description contains any CJK codepoint |
+| `R5_OPTIONAL_NO_DEFAULT` | Parameter is not in `required[]` AND has no `default` key |
+| `R5_REQUIRED_HAS_DEFAULT` | Parameter is in `required[]` AND has a `default` key (semantically wrong) |
+
+Note: rules `R2_NUMBERED_TRIGGER`, `R2_MULTI_PARAGRAPH`, `R2_TOOL_COMPARISON` from earlier versions have been removed — trigger enumeration, multi-paragraph trigger context, and tool comparisons are now expected description content, not violations.
 
 The scanner also emits `name_clusters` (tools grouped by first token after stripping `api_` / `script_` prefix) so the LLM-side R1 sweep has a concrete sibling list per cluster.
 
@@ -115,8 +131,20 @@ For **every** tool the script returns — no skipping — apply these checks. Co
   - Verb redundancy (`patch_edit`, `delete_remove_*`)
   - Name buries the discriminator in description (`verify` whose description reveals it actually means `cross_review_with_external_agents`)
   - Inconsistent suffix vocabulary across same-domain tools (`read_tool_error` / `remember_error` / `search_error_memory` — pick one shape)
-- **Description scope drift (R2)**: re-read each description and ask "is this content needed *to fill the parameters correctly*?" If the answer is "no, it's there to *decide whether to call the tool*", flag it as a Rule 2 violation and suggest the trimmed version.
-- **Parameter description bloat**: parameter descriptions repeating the tool description, explaining philosophy (e.g. path resolution rules), or listing edge cases — flag as Rule 2 violation.
+- **Description trigger coverage AND concision (R2)**: re-read each description and ask two questions: "could another LLM, seeing only this, know WHEN to call this tool?" AND "is anything here filler that doesn't aid selection?" Flag as R2 violation when EITHER fails. Look for:
+  - Action-only descriptions ("Lists files", "Sends HTTP request") with no trigger context — under-spec
+  - Missing contrast when sibling tools exist (`search_tools` vs `list_tools` — when to use which) — under-spec
+  - Missing scenario hints for tools whose name alone doesn't carry the use case — under-spec
+  - Over three sentences, paragraph-form prose, bullet enumerations — over-spec (bloat dilutes trigger; usually call-contract content leaked in from `parameters`)
+  - Filler ("This tool allows you to...", "Useful for various tasks") that adds no selection signal — over-spec
+  - Output format dumps, response shape descriptions — belongs in `parameters` / response example, not selection text
+  Propose a tightened rewrite (60-200 chars, one or two sentences) for every fail.
+- **Parameter schema completeness (R3)**: walk every `properties` entry. Flag as R3 violation when:
+  - `description` missing or single-word
+  - Non-trivial type (`object`, `array`, cron expression, file path with placeholders, JSON body shape) without a concrete example
+  - `enum` listed without explaining what each value means
+  - Interaction with other parameters not documented (e.g. "required when `mode=advanced`")
+  - Unit not specified for numeric values (seconds vs milliseconds, bytes vs MiB)
 
 ## Reference Files
 
@@ -130,7 +158,7 @@ For **every** tool the script returns — no skipping — apply these checks. Co
 - [ ] All three sources scanned (built-in / api_ / script_)
 - [ ] Every deterministic violation in the JSON appears in the report
 - [ ] **Name Audit section present and lists EVERY tool** (count must equal `summary.tool_count`); each row has an explicit `pass` / `fail+suggestion` verdict — no tool may be silently omitted
-- [ ] Every tool also received a description scope review (R2) — failures land in the per-source detail sections, passes are implied by absence
+- [ ] Every tool also received a description trigger-coverage review (R2) and a parameter schema completeness review (R3) — failures land in the per-source detail sections, passes are implied by absence
 - [ ] `name_clusters` from the scan output were consulted (cite at least one cluster comparison in any R1 fail entry)
 - [ ] Suggestions are concrete (proposed new name, proposed trimmed description), not abstract advice
 - [ ] No-Op gate respected — if zero violations and no explicit `OUTPUT_FILE`, skip the file (the gate covers detail sections; if a report IS written, the Name Audit section is mandatory)

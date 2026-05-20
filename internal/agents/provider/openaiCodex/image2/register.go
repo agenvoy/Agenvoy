@@ -11,10 +11,8 @@ func Register() {
 	}
 
 	toolRegister.Regist(toolRegister.Def{
-		Name: "generate_image",
-		Description: `Generate an image via gpt-image-2 on the current codex@ subscription quota.
-Required parameters: prompt, size, quality. If the user has not explicitly specified size or quality, you must first call ask_user to confirm both (do not guess defaults — quality=high costs ~5x more quota).
-Output is written to ~/.config/agenvoy/download/ and the file path appears on the last line as "FILE: <path>".`,
+		Name:        "generate_image",
+		Description: "Generate an image via gpt-image-2 on the codex@ subscription quota. Use when the user asks to create / draw / render an image. Confirm size and quality via ask_user first (no defaults; high ≈ 5× quota). Output path appears on the last line as `FILE: <path>`.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

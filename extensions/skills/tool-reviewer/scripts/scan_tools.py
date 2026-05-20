@@ -22,7 +22,7 @@ Output: JSON to stdout
       }
     ],
     "deterministic_violations": [
-      { "tool": "<name>", "source": "...", "rule": "R3_NON_ENGLISH_DESCRIPTION", "detail": "...", "file": "...", "line": <int|null> }
+      { "tool": "<name>", "source": "...", "rule": "R4_NON_ENGLISH_DESCRIPTION", "detail": "...", "file": "...", "line": <int|null> }
     ]
   }
 """
@@ -152,11 +152,12 @@ def name_clusters(tools: list[dict[str, Any]]) -> dict[str, list[str]]:
 # ---------- Description heuristics ----------
 
 RE_BOLD = re.compile(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
-RE_NUMBERED = re.compile(r"(?:^|\n)\s*(?:\(\d+\)|\d+\.)\s")
-RE_TOOL_COMPARISON = re.compile(
-    r"\bvs\.?\s|\bprefer\s+over\s|\binstead\s+of\s+\w+_\w+",
-    re.IGNORECASE,
-)
+
+# Lazy-schema model: description is the only signal the LLM has before deciding
+# to call. A short, action-only description ("Lists files") cannot carry trigger
+# context. 60 chars is a soft floor — long enough for a verb-phrase + one
+# trigger hint; below that, R2 review is almost guaranteed to fail.
+DESC_MIN_CHARS = 60
 
 
 def desc_violations(desc: str) -> list[tuple[str, str]]:
@@ -165,13 +166,11 @@ def desc_violations(desc: str) -> list[tuple[str, str]]:
         return out
     if RE_BOLD.search(desc):
         out.append(("R2_BOLD_MARKDOWN", "Description contains **bold** / __bold__ markdown"))
-    if RE_NUMBERED.search(desc):
-        out.append(("R2_NUMBERED_TRIGGER", "Description contains numbered trigger conditions"))
-    paragraphs = [p for p in desc.strip().split("\n\n") if p.strip()]
-    if len(paragraphs) > 2:
-        out.append(("R2_MULTI_PARAGRAPH", f"Description has {len(paragraphs)} paragraphs (> 2)"))
-    if RE_TOOL_COMPARISON.search(desc):
-        out.append(("R2_TOOL_COMPARISON", "Description compares against another tool"))
+    if len(desc.strip()) < DESC_MIN_CHARS:
+        out.append((
+            "R2_SHORT_DESC",
+            f"Description is {len(desc.strip())} chars (< {DESC_MIN_CHARS}); too thin to carry trigger signals",
+        ))
     return out
 
 
@@ -204,21 +203,38 @@ def normalize_params(raw_params: Any) -> tuple[dict[str, dict[str, Any]], list[s
     return props, required
 
 
+PARAM_DESC_MIN_CHARS = 20
+NON_TRIVIAL_TYPES = {"object", "array"}
+
+
 def param_violations(name: str, props: dict[str, dict[str, Any]], required: list[str]) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     req_set = set(required)
     for pname, meta in props.items():
         if not isinstance(meta, dict):
             continue
-        desc = meta.get("description", "")
+        desc = (meta.get("description", "") or "").strip()
+        ptype = meta.get("type", "")
+        has_enum = isinstance(meta.get("enum"), list) and len(meta["enum"]) > 0
+        non_trivial = ptype in NON_TRIVIAL_TYPES or has_enum
+
+        if not desc:
+            out.append(("R3_PARAM_NO_DESC", f"Parameter '{pname}' has no description"))
+        elif non_trivial and len(desc) < PARAM_DESC_MIN_CHARS:
+            out.append((
+                "R3_PARAM_SHORT_DESC",
+                f"Parameter '{pname}' ({ptype}{', enum' if has_enum else ''}) description is {len(desc)} chars; missing examples/constraints",
+            ))
+
         if has_cjk(desc):
-            out.append(("R3_NON_ENGLISH_PARAM", f"Parameter '{pname}' description is non-English"))
+            out.append(("R4_NON_ENGLISH_PARAM", f"Parameter '{pname}' description is non-English"))
+
         is_required = pname in req_set
         has_default = "default" in meta
         if not is_required and not has_default:
-            out.append(("R4_OPTIONAL_NO_DEFAULT", f"Optional parameter '{pname}' has no default"))
+            out.append(("R5_OPTIONAL_NO_DEFAULT", f"Optional parameter '{pname}' has no default"))
         if is_required and has_default:
-            out.append(("R4_REQUIRED_HAS_DEFAULT", f"Required parameter '{pname}' carries a default"))
+            out.append(("R5_REQUIRED_HAS_DEFAULT", f"Required parameter '{pname}' carries a default"))
     return out
 
 
@@ -468,52 +484,74 @@ def parse_properties(params_block: str) -> dict[str, dict[str, Any]]:
     return out
 
 
+BUILTIN_SCAN_ROOTS = [
+    ("internal", "tools"),
+    ("internal", "runtime"),
+    ("internal", "agents", "provider"),
+]
+
+
+def _is_go_active(path: Path) -> bool:
+    """Mirror Go build behavior: skip dirs/files starting with '_' or '.' and skip *_test.go."""
+    for part in path.parts:
+        if part.startswith("_") or part.startswith("."):
+            return False
+    if path.name.endswith("_test.go"):
+        return False
+    return True
+
+
 def load_builtin_tools(repo: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    tools_dir = repo / "internal" / "tools"
-    if not tools_dir.is_dir():
-        return out
-    for path in sorted(tools_dir.rglob("*.go")):
-        try:
-            text = path.read_text(encoding="utf-8")
-        except Exception:
+    seen: set[Path] = set()
+    for root_parts in BUILTIN_SCAN_ROOTS:
+        scan_dir = repo.joinpath(*root_parts)
+        if not scan_dir.is_dir():
             continue
-        # Same-file constant table — resolves the `Name: ToolName` pattern that
-        # would otherwise surface as `<ident:ToolName>` and silently bypass R1.
-        consts = {m.group(1): m.group(2) for m in RE_CONST_STRING.finditer(text)}
-        for m in RE_REGIST_OPEN.finditer(text):
-            open_brace = text.find("{", m.start())
-            close_brace = find_balanced(text, open_brace)
-            if close_brace == -1:
+        for path in sorted(scan_dir.rglob("*.go")):
+            if path in seen or not _is_go_active(path.relative_to(repo)):
                 continue
-            body = text[open_brace : close_brace + 1]
-            name = ""
-            nm = RE_NAME.search(body)
-            if nm:
-                name = nm.group(1)
-            else:
-                ident = RE_NAME_IDENT.search(body)
-                if ident:
-                    ref = ident.group(1)
-                    name = consts.get(ref, f"<ident:{ref}>")
-            description = extract_go_string(body, "Description")
-            params_block = extract_params_block(body)
-            required = parse_required(params_block) if params_block else []
-            properties = parse_properties(params_block) if params_block else {}
-            line = text.count("\n", 0, m.start()) + 1
-            out.append({
-                "source": "builtin",
-                "name": name,
-                "raw_name": name,
-                "description": description,
-                "raw_parameters": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-                "file": str(path.relative_to(repo)),
-                "line": line,
-            })
+            seen.add(path)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            # Same-file constant table — resolves the `Name: ToolName` pattern that
+            # would otherwise surface as `<ident:ToolName>` and silently bypass R1.
+            consts = {m.group(1): m.group(2) for m in RE_CONST_STRING.finditer(text)}
+            for m in RE_REGIST_OPEN.finditer(text):
+                open_brace = text.find("{", m.start())
+                close_brace = find_balanced(text, open_brace)
+                if close_brace == -1:
+                    continue
+                body = text[open_brace : close_brace + 1]
+                name = ""
+                nm = RE_NAME.search(body)
+                if nm:
+                    name = nm.group(1)
+                else:
+                    ident = RE_NAME_IDENT.search(body)
+                    if ident:
+                        ref = ident.group(1)
+                        name = consts.get(ref, f"<ident:{ref}>")
+                description = extract_go_string(body, "Description")
+                params_block = extract_params_block(body)
+                required = parse_required(params_block) if params_block else []
+                properties = parse_properties(params_block) if params_block else {}
+                line = text.count("\n", 0, m.start()) + 1
+                out.append({
+                    "source": "builtin",
+                    "name": name,
+                    "raw_name": name,
+                    "description": description,
+                    "raw_parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                    },
+                    "file": str(path.relative_to(repo)),
+                    "line": line,
+                })
     return out
 
 
@@ -553,7 +591,7 @@ def main() -> int:
             violations.append({
                 "tool": name,
                 "source": t["source"],
-                "rule": "R3_NON_ENGLISH_DESCRIPTION",
+                "rule": "R4_NON_ENGLISH_DESCRIPTION",
                 "detail": "Tool description contains CJK characters",
                 "file": t["file"],
                 "line": t["line"],
