@@ -22,7 +22,7 @@ Output: JSON to stdout
       }
     ],
     "deterministic_violations": [
-      { "tool": "<name>", "source": "...", "rule": "R3_NON_ENGLISH_DESCRIPTION", "detail": "...", "file": "...", "line": <int|null> }
+      { "tool": "<name>", "source": "...", "rule": "R4_NON_ENGLISH_DESCRIPTION", "detail": "...", "file": "...", "line": <int|null> }
     ]
   }
 """
@@ -152,11 +152,12 @@ def name_clusters(tools: list[dict[str, Any]]) -> dict[str, list[str]]:
 # ---------- Description heuristics ----------
 
 RE_BOLD = re.compile(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
-RE_NUMBERED = re.compile(r"(?:^|\n)\s*(?:\(\d+\)|\d+\.)\s")
-RE_TOOL_COMPARISON = re.compile(
-    r"\bvs\.?\s|\bprefer\s+over\s|\binstead\s+of\s+\w+_\w+",
-    re.IGNORECASE,
-)
+
+# Lazy-schema model: description is the only signal the LLM has before deciding
+# to call. A short, action-only description ("Lists files") cannot carry trigger
+# context. 60 chars is a soft floor — long enough for a verb-phrase + one
+# trigger hint; below that, R2 review is almost guaranteed to fail.
+DESC_MIN_CHARS = 60
 
 
 def desc_violations(desc: str) -> list[tuple[str, str]]:
@@ -165,13 +166,11 @@ def desc_violations(desc: str) -> list[tuple[str, str]]:
         return out
     if RE_BOLD.search(desc):
         out.append(("R2_BOLD_MARKDOWN", "Description contains **bold** / __bold__ markdown"))
-    if RE_NUMBERED.search(desc):
-        out.append(("R2_NUMBERED_TRIGGER", "Description contains numbered trigger conditions"))
-    paragraphs = [p for p in desc.strip().split("\n\n") if p.strip()]
-    if len(paragraphs) > 2:
-        out.append(("R2_MULTI_PARAGRAPH", f"Description has {len(paragraphs)} paragraphs (> 2)"))
-    if RE_TOOL_COMPARISON.search(desc):
-        out.append(("R2_TOOL_COMPARISON", "Description compares against another tool"))
+    if len(desc.strip()) < DESC_MIN_CHARS:
+        out.append((
+            "R2_SHORT_DESC",
+            f"Description is {len(desc.strip())} chars (< {DESC_MIN_CHARS}); too thin to carry trigger signals",
+        ))
     return out
 
 
@@ -204,21 +203,38 @@ def normalize_params(raw_params: Any) -> tuple[dict[str, dict[str, Any]], list[s
     return props, required
 
 
+PARAM_DESC_MIN_CHARS = 20
+NON_TRIVIAL_TYPES = {"object", "array"}
+
+
 def param_violations(name: str, props: dict[str, dict[str, Any]], required: list[str]) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     req_set = set(required)
     for pname, meta in props.items():
         if not isinstance(meta, dict):
             continue
-        desc = meta.get("description", "")
+        desc = (meta.get("description", "") or "").strip()
+        ptype = meta.get("type", "")
+        has_enum = isinstance(meta.get("enum"), list) and len(meta["enum"]) > 0
+        non_trivial = ptype in NON_TRIVIAL_TYPES or has_enum
+
+        if not desc:
+            out.append(("R3_PARAM_NO_DESC", f"Parameter '{pname}' has no description"))
+        elif non_trivial and len(desc) < PARAM_DESC_MIN_CHARS:
+            out.append((
+                "R3_PARAM_SHORT_DESC",
+                f"Parameter '{pname}' ({ptype}{', enum' if has_enum else ''}) description is {len(desc)} chars; missing examples/constraints",
+            ))
+
         if has_cjk(desc):
-            out.append(("R3_NON_ENGLISH_PARAM", f"Parameter '{pname}' description is non-English"))
+            out.append(("R4_NON_ENGLISH_PARAM", f"Parameter '{pname}' description is non-English"))
+
         is_required = pname in req_set
         has_default = "default" in meta
         if not is_required and not has_default:
-            out.append(("R4_OPTIONAL_NO_DEFAULT", f"Optional parameter '{pname}' has no default"))
+            out.append(("R5_OPTIONAL_NO_DEFAULT", f"Optional parameter '{pname}' has no default"))
         if is_required and has_default:
-            out.append(("R4_REQUIRED_HAS_DEFAULT", f"Required parameter '{pname}' carries a default"))
+            out.append(("R5_REQUIRED_HAS_DEFAULT", f"Required parameter '{pname}' carries a default"))
     return out
 
 
@@ -553,7 +569,7 @@ def main() -> int:
             violations.append({
                 "tool": name,
                 "source": t["source"],
-                "rule": "R3_NON_ENGLISH_DESCRIPTION",
+                "rule": "R4_NON_ENGLISH_DESCRIPTION",
                 "detail": "Tool description contains CJK characters",
                 "file": t["file"],
                 "line": t["line"],

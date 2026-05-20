@@ -1,12 +1,14 @@
 # Tool Design Review Rules
 
-Mirrors the "Tool 設計檢查清單" in project `CLAUDE.md`. Use as the sole rubric — do not invent extra criteria.
+Mirrors the "Tool 註冊" contract in project `CLAUDE.md` under the lazy-schema model. Use as the sole rubric — do not invent extra criteria.
+
+**Lazy-schema context**: every tool's `name` + `description` is always in LLM context; the `parameters` JSON schema is replaced with a stub `{"type":"object","properties":{}}` unless `AlwaysLoad=true`. The LLM decides whether to invoke a tool (or call `search_tools` to load its schema) using `name` + `description` alone. Schema is the call contract, loaded on demand.
 
 ---
 
-## Rule 1 — Name is the only semantic carrier
+## Rule 1 — Name is self-explanatory
 
-**Why**: stub tool short-circuit hides description / parameters until the LLM's second turn. The first selection pass sees only the tool name.
+**Why**: name is the anchor for LLM selection; the description elaborates the trigger. A vague name forces the LLM to compare descriptions across many tools, wasting attention.
 
 **Pass**: name is unambiguous, distinguishable from siblings, conveys both *what* and *which* (e.g. which kind of search, which kind of edit), and uses the same verb / suffix shape as its same-domain siblings.
 
@@ -31,33 +33,66 @@ When flagging, propose the better name. Cite the relevant sibling cluster from t
 
 ---
 
-## Rule 2 — Description only ensures correct invocation
+## Rule 2 — Description writes WHEN to invoke
 
-**Why**: description is read on the second turn, after the tool has already been selected. Its job is to make the LLM fill parameters correctly — not to re-pitch the tool, not to gate selection (Rule 1's job), not to teach.
+**Why**: under the lazy-schema model, `description` is the only signal the LLM has before deciding to call (or to call `search_tools` to load the schema first). An action-only description ("Fetches RSS feed") tells the LLM what the tool does after invocation — too late. The description must front-load *when* and *why* to invoke.
 
-**Pass**: a single sentence (or two) describing what the tool does, written so the LLM knows what to put in each parameter slot.
+**Pass**: description carries enough trigger signal that another LLM, seeing only the name + description, can decide whether this tool matches the user intent. Required content:
+- Trigger conditions / user-intent patterns that map to this tool
+- Use-case examples (concrete scenarios where this tool wins)
+- Contrast with similar tools when the cluster is ambiguous (`prefer over X when Y`)
+- Constraints / preconditions the LLM should check before calling
 
 **Fail patterns**:
-- Numbered trigger conditions (`(1) ... (2) ... (3) ...`) — if invocation gating is needed, push it to the system prompt or rely on the name
-- `**bold**` / markdown emphasis — adds tokens without changing meaning
-- Multiple paragraphs (> 2)
-- Output schema dumps (`Returns {"name", "path", ...}`)
-- Tie-breakers vs other tools (`vs invoke_subagent: ...`, `prefer this over X`)
-- Implementation details (`auto-skips .gitignore`, `uses readability under the hood`)
-- Manual-style prose ("This tool will help you ...", "When you need to ...")
+- **Action-only description** — single sentence describing what the tool executes with no trigger context (`R2_SHORT_DESC` deterministic flag fires when length < 60 chars; LLM heuristic catches longer-but-still-action-only cases)
+- Missing contrast when sibling tools exist (e.g. `search_tools` vs `list_tools` — when to use which)
+- `**bold**` / markdown emphasis — adds tokens without changing meaning (`R2_BOLD_MARKDOWN`)
+- Output schema dumps (`Returns {"name", "path", ...}`) — belongs in `parameters` documentation, not selection text
+- Call-contract details (type/unit/enum/default) inside description — those belong in `parameters[*].description` (Rule 3)
+- Implementation gossip (`uses readability under the hood`, `auto-skips .gitignore`) unrelated to selection
+- Manual-style filler ("This tool will help you ...", "When you need to ...") — write declarative, not conversational
 
-When flagging, propose the trimmed one-sentence version.
+**What is now welcome (previously forbidden)**:
+- Numbered / bulleted trigger conditions
+- Multiple paragraphs when trigger context genuinely needs them
+- Tool-vs-tool comparisons that aid selection (`prefer over invoke_subagent when ...`)
+
+When flagging, propose the expanded version with trigger signals filled in.
 
 ---
 
-## Rule 3 — English only
+## Rule 3 — Schema fields are complete call contracts
+
+**Why**: schema loads on demand. When it loads, it must give the LLM everything needed to fill parameters correctly without trial-and-error. Missing examples or unit specifications cause runtime errors that waste tokens and confuse users.
+
+**Pass**: every entry in `parameters.properties` has a `description` covering:
+- Type and unit (seconds vs milliseconds, bytes vs MiB, ISO timestamp vs Unix epoch)
+- Accepted values (`enum` with per-value meaning, regex pattern, value range)
+- At least one concrete example when the type is non-trivial (cron expression, file path with placeholders, JSON body shape)
+- Interaction with other parameters (`required when mode=advanced`, `ignored when X is set`)
+- Edge cases / failure modes the LLM should anticipate
+
+**Fail patterns** (deterministic checks marked with → rule code):
+- `properties` entry missing `description` or empty/whitespace-only → `R3_PARAM_NO_DESC`
+- Non-trivial type (`object`, `array`, or has `enum`) with description shorter than 20 chars → `R3_PARAM_SHORT_DESC`
+- Description repeats the field name ("user_id: the user id")
+- Numeric field without unit specified
+- `enum` listed without per-value meaning
+- Cron / regex / template syntax without a concrete example
+- Parameter description re-pitching the whole tool (that's Rule 2's job)
+
+When flagging, propose the expanded description with the missing dimensions filled in.
+
+---
+
+## Rule 4 — English only
 
 **Why**: mixed-language descriptions create token noise and hurt smaller / multilingual provider models (Gemini, NVIDIA, etc.). Internal user-facing handler return strings may stay in their original language; the *tool definition* (description, parameter descriptions, enums) must be English.
 
 **Pass**: all of `description`, `parameters[*].description`, `parameters[*].enum` text are ASCII / English.
 
 **Fail patterns**:
-- Any CJK / Hangul / Hiragana / Katakana codepoint in tool or parameter description
+- Any CJK / Hangul / Hiragana / Katakana codepoint in tool or parameter description → `R4_NON_ENGLISH_DESCRIPTION` / `R4_NON_ENGLISH_PARAM`
 - Mixed bilingual descriptions (`Inspect a file 檢查檔案`)
 - Full-width punctuation (`，` `。` `「」`) — even if surrounding text is English
 
@@ -65,13 +100,13 @@ When flagging, propose the English rewrite.
 
 ---
 
-## Rule 4 — Optional fields require explicit `default`
+## Rule 5 — Optional fields require explicit `default`
 
 **Why**: without `default`, the LLM has to guess what omission means. With `default`, the schema *itself* tells the model what happens when the field is dropped.
 
 **Pass**:
-- Every parameter NOT in `required[]` declares `"default": <value>`
-- Every parameter IN `required[]` does NOT declare `default`
+- Every parameter NOT in `required[]` declares `"default": <value>` → `R5_OPTIONAL_NO_DEFAULT` flags absence
+- Every parameter IN `required[]` does NOT declare `default` → `R5_REQUIRED_HAS_DEFAULT` flags presence
 
 **Fail patterns**:
 - Optional field with no `default`
@@ -86,8 +121,8 @@ Handler still owns nil / missing defense — never trust schema default to mater
 
 | Severity | Rules | Reason |
 |---|---|---|
-| **High** | R1 (name clarity), R2 (description scope) | Wrong tool gets selected or wrong parameters get filled |
-| **Medium** | R3 (English), R4 (optional default) | Token waste / ambiguity but tool still callable |
-| **Low** | Cosmetic — bold markdown alone, single numbered list | Stylistic; flag but don't escalate |
+| **High** | R1 (name clarity), R2 (description trigger coverage) | Wrong tool gets selected or never gets selected at all |
+| **Medium** | R3 (schema completeness), R4 (English), R5 (optional default) | Tool callable but parameter filling unreliable / token waste |
+| **Low** | Cosmetic — bold markdown alone | Stylistic; flag but don't escalate |
 
 Promote Medium → High when multiple Medium violations stack on the same tool.
