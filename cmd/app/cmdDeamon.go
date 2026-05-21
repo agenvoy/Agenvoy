@@ -31,6 +31,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/tools/agent/plan"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -168,6 +169,7 @@ func cmdDaemon() {
 		provider.SetReasoningLevel(cfg.ReasoningLevel)
 	}
 	subagent.Register()
+	plan.Register()
 
 	mcpManager := initMCP(context.Background(), "")
 	defer mcpManager.Close()

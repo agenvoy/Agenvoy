@@ -33,6 +33,7 @@ import (
 	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	"github.com/pardnchiu/agenvoy/internal/tools/agent/plan"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
 )
 
@@ -123,6 +124,7 @@ func initCLI() {
 		provider.SetReasoningLevel(cfg.ReasoningLevel)
 	}
 	subagent.Register()
+	plan.Register()
 	codexImage2.Register()
 	geminiYoutube.Register()
 	geminiStt.Register()
