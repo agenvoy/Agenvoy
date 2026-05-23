@@ -317,6 +317,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				default:
 					userMsg = fmt.Sprintf("upstream %s failed %d times in a row: %s", modelName, sendFailCount, err.Error())
 				}
+				slog.Error("data.Agent.Send exhausted",
+					slog.String("session", session.ID),
+					slog.String("error", err.Error()),
+					slog.Int("attempts", sendFailCount))
 				sendText(events, userMsg)
 				events <- agentTypes.Event{
 					Type:     agentTypes.EventDone,
