@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
@@ -111,6 +112,7 @@ func hashPayload(parts ...any) string {
 
 type ExecData struct {
 	Agent             agentTypes.Agent
+	FallbackAgents    []agentTypes.Agent
 	WorkDir           string
 	Skill             *filesystem.Skill
 	SkillScanner      *runtime.SkillScanner
@@ -243,6 +245,22 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		data.ExcludeTools = append(data.ExcludeTools,
 			"rag_list_db", "rag_search_keyword", "rag_search_semantic")
 	}
+	if go_pkg_keychain.Get("agenvoy.codex.token") == "" {
+		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
+	}
+	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
+		data.ExcludeTools = append(data.ExcludeTools,
+			"fetch_youtube_transcript", "transcribe_media")
+	}
+	cfg, _ := sessionManager.Load()
+	if cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "" {
+		data.ExcludeTools = append(data.ExcludeTools,
+			"telegram_format", "list_telegram_chat", "send_to_telegram_chat")
+	}
+	if cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "" {
+		data.ExcludeTools = append(data.ExcludeTools,
+			"discord_format", "list_discord_channel", "send_to_discord_channel")
+	}
 
 	if len(data.ExcludeTools) > 0 {
 		excluded := make(map[string]bool, len(data.ExcludeTools))
@@ -314,10 +332,46 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 			modelName := data.Agent.Name()
 			if sendFailCount >= MaxRetry {
+				var nextAgent agentTypes.Agent
+				var nextName string
+				if !isContextLengthError(err) {
+					for len(data.FallbackAgents) > 0 {
+						cand := data.FallbackAgents[0]
+						data.FallbackAgents = data.FallbackAgents[1:]
+						if cand == nil {
+							continue
+						}
+						if !ProbeAgent(ctx, cand, ProbeTimeout) {
+							slog.Warn("fallback probe failed",
+								slog.String("session", session.ID),
+								slog.String("name", cand.Name()))
+							continue
+						}
+						nextAgent = cand
+						nextName = cand.Name()
+						break
+					}
+				}
+				if nextAgent != nil {
+					slog.Warn("data.Agent.Send exhausted, switching model",
+						slog.String("session", session.ID),
+						slog.String("from", modelName),
+						slog.String("to", nextName),
+						slog.Int("attempts", sendFailCount))
+					events <- agentTypes.Event{
+						Type:  agentTypes.EventAgentResult,
+						Text:  nextName,
+						Model: nextName,
+					}
+					data.Agent = nextAgent
+					sendFailCount = 0
+					lastSendSig = ""
+					continue
+				}
 				var userMsg string
 				switch {
 				case isTimeout:
-					userMsg = fmt.Sprintf("upstream %s timed out %d times in a row (last attempt bailed at %s). Try again later or switch model.", modelName, sendFailCount, sendElapsed)
+					userMsg = fmt.Sprintf("upstream %s timed out %d times in a row (last attempt bailed at %s). No fallback model available.", modelName, sendFailCount, sendElapsed)
 				case isContextLengthError(err):
 					userMsg = fmt.Sprintf("upstream %s context exceeded after %d trim attempts. Start a new session or switch to a larger-context model.", modelName, sendFailCount)
 				default:
