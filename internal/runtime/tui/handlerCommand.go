@@ -45,6 +45,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/reset":
 		return t.commandReset()
 
+	case "/summary":
+		return t.commandSummary()
+
 	case "/bot":
 		return t.commandBot(parts)
 

@@ -40,6 +40,7 @@ var commands = []Command{
 	{"new", "create / add new session · name conflict-checked"},
 	{"remove-session", "delete / purge current session · double-confirm · torii + sessions/ wiped"},
 	{"reset", "reset / refresh current session · double-confirm · summary regen first then drop history + tool_calls + action.log"},
+	{"summary", "force / regenerate summary now · no confirm · runs the hourly cron pass on demand"},
 	{"bot", "edit / rename current session · name / description (persona)"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
