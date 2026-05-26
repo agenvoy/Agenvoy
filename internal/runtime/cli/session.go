@@ -45,8 +45,6 @@ func pickSession(label string) string {
 
 	labels := make([]string, 0, len(sessions)+2)
 	values := make([]string, 0, len(sessions)+2)
-	labels = append(labels, "+ new session")
-	values = append(values, pickSessionNew)
 
 	for _, s := range sessions {
 		short := utils.ShortenSessionID(s.id)
@@ -57,6 +55,8 @@ func pickSession(label string) string {
 		labels = append(labels, entry)
 		values = append(values, s.id)
 	}
+	labels = append(labels, "(new session)")
+	values = append(values, pickSessionNew)
 	labels = append(labels, "exit")
 	values = append(values, "")
 

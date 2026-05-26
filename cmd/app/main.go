@@ -23,7 +23,6 @@ import (
 	codexImage2 "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex/image2"
 	"github.com/pardnchiu/agenvoy/internal/agents/summary"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/cli"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
@@ -31,6 +30,7 @@ import (
 	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/plan"
@@ -135,22 +135,16 @@ func modelCheck() {
 		os.Exit(1)
 	}
 	if len(cfg.Models) == 0 {
-		fmt.Println("[*] No model configured. Setting up first model…")
-		runAdd()
-
-		cfg, err = session.Load()
-		if err != nil || len(cfg.Models) == 0 {
-			fmt.Println("[!] No model added. Exiting.")
-			os.Exit(0)
-		}
+		fmt.Println("[!] no model configured · /model global add")
+		os.Exit(1)
 	}
 
 	checkModels()
 
 	cfg, err = session.Load()
 	if err != nil || len(cfg.Models) == 0 {
-		fmt.Println("[!] No model remaining after cleanup. Exiting.")
-		os.Exit(0)
+		fmt.Println("[!] no model configured · /model global add")
+		os.Exit(1)
 	}
 }
 
@@ -245,6 +239,9 @@ func setSummaryCron() {
 			}
 			bgCtx := context.Background()
 			summaryAgent := exec.SelectAgent(bgCtx, agents.Dispatcher(), agents.Registry(), "[summary] background summary cron", false, sid)
+			if summaryAgent == nil {
+				continue
+			}
 			summary.Generate(bgCtx, summaryAgent, sid, summaryHistories)
 		}
 	}

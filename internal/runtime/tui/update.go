@@ -122,6 +122,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+			if len(agents.Registry().Entries) == 0 {
+				return t, tea.Println(warnStyle.Render("⎯ no model configured · /model global add") + "\n")
+			}
+
 			t.running = true
 			t.runStartedAt = time.Now()
 			t.runTarget = targetSession(content, t.currentSessionID)
