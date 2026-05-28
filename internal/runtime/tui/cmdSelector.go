@@ -24,6 +24,7 @@ type CmdSelectorItem struct {
 	descStyled  string
 	isSkill     bool
 	isScheduler bool
+	isAllow     bool
 }
 
 type Command struct {
@@ -113,6 +114,7 @@ func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {
 			desc:  c.desc,
 		}
 		if c.name == "allow-skill" || c.name == "allow-cmd" {
+			item.isAllow = true
 			item.descStyled = errorStyle.Render("!(dangerously)") + hintStyle.Render(strings.TrimPrefix(c.desc, "!(dangerously)"))
 		}
 		switch {
@@ -207,7 +209,12 @@ func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {
 	byLabel := func(s []CmdSelectorItem) func(i, j int) bool {
 		return func(i, j int) bool { return s[i].label < s[j].label }
 	}
-	sort.SliceStable(cmdNameItems, byLabel(cmdNameItems))
+	sort.SliceStable(cmdNameItems, func(i, j int) bool {
+		if cmdNameItems[i].isAllow != cmdNameItems[j].isAllow {
+			return !cmdNameItems[i].isAllow
+		}
+		return cmdNameItems[i].label < cmdNameItems[j].label
+	})
 	sort.SliceStable(cmdDescItems, byLabel(cmdDescItems))
 	sort.SliceStable(skillItems, byLabel(skillItems))
 	sort.SliceStable(schedulerItems, byLabel(schedulerItems))
@@ -279,6 +286,9 @@ func renderCmdSelector(p *CmdSelector) string {
 		it := p.items[i]
 		marker := "  "
 		labelStyle := textStyle
+		if it.isAllow {
+			labelStyle = errorStyle
+		}
 		if i == p.cursor {
 			marker = systemStyle.Render("> ")
 			labelStyle = systemStyle
@@ -287,6 +297,8 @@ func renderCmdSelector(p *CmdSelector) string {
 				labelStyle = warnStyle
 			case it.isSkill:
 				labelStyle = skillStyle
+			case it.isAllow:
+				labelStyle = errorStyle
 			}
 		}
 		pad := strings.Repeat(" ", maxLabel-lipgloss.Width(it.label))

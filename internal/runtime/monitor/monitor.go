@@ -1,12 +1,18 @@
 package monitor
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"net"
+	"os/exec"
+	"path/filepath"
 	goruntime "runtime"
 	"runtime/metrics"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,6 +22,8 @@ const (
 	ramWarnBytes    = uint64(2) << 30
 	netProbeTarget  = "1.1.1.1:443"
 	netProbeTimeout = 5 * time.Second
+	topProcessCount = 3
+	psTimeout       = 3 * time.Second
 )
 
 func Start(ctx context.Context) {
@@ -42,9 +50,14 @@ func run(ctx context.Context) {
 					if elapsed > 0 {
 						pct := (cur - lastCPU) / elapsed / float64(goruntime.NumCPU()) * 100
 						if pct >= cpuWarnPercent {
-							slog.Warn("monitor: high CPU",
+							attrs := []any{
 								slog.Float64("percent", pct),
-								slog.Int("cpus", goruntime.NumCPU()))
+								slog.Int("cpus", goruntime.NumCPU()),
+							}
+							if top := topCPU(ctx, topProcessCount); top != "" {
+								attrs = append(attrs, slog.String("top", top))
+							}
+							slog.Warn("monitor: high CPU", attrs...)
 							cpuOver = true
 						} else if cpuOver {
 							slog.Info("monitor: CPU recovered",
@@ -92,6 +105,50 @@ func sampleCPUSeconds() (float64, bool) {
 		return 0, false
 	}
 	return samples[0].Value.Float64(), true
+}
+
+func topCPU(ctx context.Context, n int) string {
+	cmdCtx, cancel := context.WithTimeout(ctx, psTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(cmdCtx, "ps", "-Ao", "pid,pcpu,comm").Output()
+	if err != nil {
+		return ""
+	}
+
+	type proc struct {
+		pid  string
+		pcpu float64
+		name string
+	}
+	var procs []proc
+	first := true
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if first {
+			first = false
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		pcpu, err := strconv.ParseFloat(fields[1], 64)
+		if err != nil {
+			continue
+		}
+		procs = append(procs, proc{
+			pid:  fields[0],
+			pcpu: pcpu,
+			name: filepath.Base(strings.Join(fields[2:], " ")),
+		})
+	}
+
+	slices.SortFunc(procs, func(a, b proc) int { return cmp.Compare(b.pcpu, a.pcpu) })
+	procs = procs[:min(n, len(procs))]
+	parts := make([]string, 0, len(procs))
+	for _, p := range procs {
+		parts = append(parts, fmt.Sprintf("%s[%s] %.1f%%", p.name, p.pid, p.pcpu))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func probeNetwork(ctx context.Context) error {
