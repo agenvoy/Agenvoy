@@ -36,6 +36,7 @@ func init() {
 	registAskUser()
 	registStoreSecret()
 	registUpdatePage()
+	registRegistryEmail()
 	registInstallDependence()
 	registDownloadFile()
 
