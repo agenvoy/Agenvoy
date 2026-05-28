@@ -57,8 +57,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/mcp":
 		return t.commandMcp(parts)
 
-	case "/dispatcher":
+	case "/dispatcher-model":
 		return t.commandDispatcher()
+
+	case "/summary-model":
+		return t.commandSummaryModel()
 
 	case "/reasoning":
 		return t.commandReasoning(parts)

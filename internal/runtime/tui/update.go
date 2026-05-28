@@ -719,6 +719,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		agents.Reload()
 		return next, cmd
 
+	case SummaryModelSelect:
+		next, cmd := t.runSummaryModelSelect(msg.name)
+		agents.Reload()
+		return next, cmd
+
 	case ReasoningSelect:
 		next, cmd := t.runReasoningSelect(msg.level)
 		return next, cmd

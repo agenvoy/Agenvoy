@@ -34,7 +34,8 @@ type Command struct {
 var commands = []Command{
 	{"model", "add / remove provider · pick session model"},
 	{"mcp", "add / remove MCP server · global or session scope"},
-	{"dispatcher", "pick / set dispatcher model from registry"},
+	{"dispatcher-model", "pick / set dispatcher model from registry"},
+	{"summary-model", "pick / set summary model · falls back to dispatcher if unset"},
 	{"reasoning", "set reasoning depth · global (dispatcher) / session"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
