@@ -37,6 +37,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	} {
 		apiToolbox.Load(dir)
 	}
+	apiToolbox.LoadDirs(filesystem.ExtensionAPIToolsDir)
 
 	for _, tool := range apiToolbox.GetTools() {
 		data, err := json.Marshal(tool)
@@ -61,6 +62,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		filesystem.LegacyWorkScriptToolsDir,
 		filesystem.ScriptToolsDir,
 		filesystem.WorkScriptToolsDir,
+		filesystem.ExtensionScriptToolsDir,
 	} {
 		scriptToolbox.Scan(dir)
 	}

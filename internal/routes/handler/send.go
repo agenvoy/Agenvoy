@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 type Request struct {
@@ -76,7 +77,7 @@ func Send() gin.HandlerFunc {
 			var matchedSkill *filesystem.Skill
 			var skillResult agentTypes.Event
 			if externalAgent == "" && scanner != nil {
-				if m, effective := runtime.MatchSkill(scanner, trimContent); m != nil {
+				if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
 					matchedSkill = m
 					trimContent = strings.TrimSpace(effective)
 					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(m.Name)}
@@ -123,7 +124,8 @@ func Send() gin.HandlerFunc {
 				WorkDir:           workDir,
 				Skill:             matchedSkill,
 				Content:           trimContent,
-				ExcludeTools:      req.ExcludeTools,
+				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
+				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
 				AllowAll:          true,
 			}
@@ -168,7 +170,7 @@ func newSession(data exec.ExecData, sessionID string) (*agentTypes.AgentSession,
 	if scanner == nil {
 		scanner = agents.Scanner()
 	}
-	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, false)
+	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, false, data.ExcludeSkills)
 
 	oldHistory, maxHistory := sessionManager.GetHistory(sessionID)
 	session.Histories = oldHistory

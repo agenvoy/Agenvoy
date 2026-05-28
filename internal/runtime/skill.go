@@ -163,7 +163,7 @@ func (s *SkillScanner) Lookup(name string) *filesystem.Skill {
 	return s.Skills.ByName[name]
 }
 
-func MatchSkill(scanner *SkillScanner, input string) (*filesystem.Skill, string) {
+func MatchSkill(scanner *SkillScanner, input string, excludeSkills ...string) (*filesystem.Skill, string) {
 	if scanner == nil {
 		return nil, input
 	}
@@ -180,6 +180,11 @@ func MatchSkill(scanner *SkillScanner, input string) (*filesystem.Skill, string)
 	}
 	if token == "" {
 		return nil, input
+	}
+	for _, ex := range excludeSkills {
+		if strings.TrimSpace(ex) == token {
+			return nil, input
+		}
 	}
 	s := scanner.Lookup(token)
 	if s == nil {

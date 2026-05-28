@@ -107,6 +107,7 @@ type ExecData struct {
 	ImageInputs       []string
 	FileInputs        []string
 	ExcludeTools      []string
+	ExcludeSkills     []string
 	ExtraSystemPrompt string
 	AllowAll          bool
 	WebMode           bool
@@ -498,7 +499,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	return nil
 }
 
-func GetSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, webMode bool) string {
+func GetSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, webMode bool, excludeSkills []string) string {
 	systemOS := goRuntime.GOOS
 	// var skillPath string
 	// var skillExt string
@@ -530,7 +531,7 @@ func GetSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	}
 
 	skillsSection := ""
-	if list := toolSearcher.ListBlock(scanner); list != "" {
+	if list := toolSearcher.ListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
 			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
 			"The `activate_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
@@ -566,7 +567,7 @@ func GetSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	).Replace(template)
 }
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll, webMode bool) []agentTypes.Message {
+func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll, webMode bool, excludeSkills []string) []agentTypes.Message {
 	var prompts []agentTypes.Message
 	switch {
 	case strings.HasPrefix(sessionID, "tg-"):
@@ -574,13 +575,13 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 	case strings.HasPrefix(sessionID, "dc-"):
 		prompts = append(prompts, agentTypes.Message{Role: "system", Content: configs.DiscordSystemPrompt})
 	}
-	prompts = append(prompts, agentTypes.Message{Role: "system", Content: GetSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, webMode)})
+	prompts = append(prompts, agentTypes.Message{Role: "system", Content: GetSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, webMode, excludeSkills)})
 	return prompts
 }
 
-func GetChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner) string {
+func GetChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) string {
 	skillsSection := ""
-	if list := toolSearcher.ListBlock(scanner); list != "" {
+	if list := toolSearcher.ListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
 			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
 			"The `activate_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
@@ -594,8 +595,8 @@ func GetChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner) []agentTypes.Message {
-	return []agentTypes.Message{{Role: "system", Content: GetChatCompletionsSystemPrompt(workDir, scanner)}}
+func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []agentTypes.Message {
+	return []agentTypes.Message{{Role: "system", Content: GetChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
 }
 
 func buildPermissionModeSection(allowAll bool) string {
