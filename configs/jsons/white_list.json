@@ -36,5 +36,12 @@
   "docker",
   "podman",
   "sh",
-  "bash"
+  "bash",
+  "tar",
+  "uname",
+  "brew",
+  "apt-get",
+  "apt",
+  "dnf",
+  "yum"
 ]

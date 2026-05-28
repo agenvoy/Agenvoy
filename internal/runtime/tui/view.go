@@ -77,6 +77,24 @@ func (t TUI) viewThinking() string {
 		hintStyle.Render("("+strings.Join(detail, " · ")+")")
 }
 
+func splitOptStyle(s string) (head, tail string) {
+	if idx := strings.Index(s, " · "); idx >= 0 {
+		return s[:idx], s[idx:]
+	}
+	return s, ""
+}
+
+func truncateRune(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes < 1 {
+		return ""
+	}
+	return string(runes[:maxRunes-1]) + "…"
+}
+
 func (t TUI) viewPopup() string {
 	width := t.width
 	if width < 20 {
@@ -87,9 +105,9 @@ func (t TUI) viewPopup() string {
 		return ""
 	}
 
-	body := []string{systemStyle.Bold(true).Render("⏺ " + p.title)}
+	body := []string{whiteStyle.Render("⏺ " + p.title)}
 	if p.subtitle != "" {
-		body = append(body, hintStyle.Render(p.subtitle))
+		body = append(body, textStyle.Render(p.subtitle))
 		body = append(body, "")
 	} else {
 		body = append(body, "")
@@ -107,13 +125,20 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
+		maxLine := max(width-10, 20)
 		for i := start; i < end; i++ {
-			opt := p.options[i]
+			opt := truncateRune(p.options[i], maxLine)
 			marker := "  "
-			line := opt
+			var line string
 			if i == p.cursor {
 				marker = systemStyle.Render("> ")
-				line = systemStyle.Render(opt)
+				head, tail := splitOptStyle(opt)
+				line = systemStyle.Render(head)
+				if tail != "" {
+					line += hintStyle.Render(tail)
+				}
+			} else {
+				line = hintStyle.Render(opt)
 			}
 			body = append(body, marker+line)
 		}
@@ -134,17 +159,26 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
+		maxLine := max(width-14, 20)
 		for i := start; i < end; i++ {
-			opt := p.options[i]
+			opt := truncateRune(p.options[i], maxLine)
 			cursor := "  "
+			var line string
 			if i == p.cursor {
 				cursor = systemStyle.Render("> ")
+				head, tail := splitOptStyle(opt)
+				line = systemStyle.Render(head)
+				if tail != "" {
+					line += hintStyle.Render(tail)
+				}
+			} else {
+				line = hintStyle.Render(opt)
 			}
 			check := "[ ]"
 			if p.multi[i] {
 				check = systemStyle.Render("[x]")
 			}
-			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, opt))
+			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
 		}
 		if windowed {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))

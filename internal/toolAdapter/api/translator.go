@@ -59,6 +59,39 @@ func (t *Translator) Load(path string) error {
 	return nil
 }
 
+func (t *Translator) LoadDirs(rootPath string) error {
+	entries, err := os.ReadDir(rootPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("os.ReadDir: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(entry.Name(), "_") || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		toolPath := filepath.Join(rootPath, entry.Name(), "tool.json")
+		doc, err := t.load(toolPath)
+		if err != nil {
+			slog.Warn("failed to load extension API",
+				slog.String("path", toolPath),
+				slog.String("error", err.Error()))
+			continue
+		}
+		if doc == nil {
+			continue
+		}
+
+		t.apis[doc.Name] = doc
+	}
+	return nil
+}
+
 func (t *Translator) load(path string) (*APIDocumentData, error) {
 	if !go_pkg_filesystem_reader.Exists(path) {
 		return nil, nil

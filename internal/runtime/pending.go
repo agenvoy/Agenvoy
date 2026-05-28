@@ -15,10 +15,12 @@ type Kind string
 const (
 	KindToolConfirm Kind = "tool_confirm"
 	KindAskUser     Kind = "ask_user"
+	KindExecProcess Kind = "exec_process"
 )
 
 type Question struct {
 	Question    string   `json:"question"`
+	Detail      string   `json:"detail,omitempty"`
 	Options     []string `json:"options,omitempty"`
 	MultiSelect bool     `json:"multi_select,omitempty"`
 	Secret      bool     `json:"secret,omitempty"`
@@ -28,15 +30,21 @@ type UserPayload struct {
 	Questions []Question `json:"questions"`
 }
 
+type ExecPayload struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+}
+
 type Request struct {
-	ID        string
-	Kind      Kind
-	SessionID string
-	ToolName  string
-	ToolArgs  string
-	AskUser   *UserPayload
-	Ctx       context.Context
-	EnqueueAt time.Time
+	ID          string
+	Kind        Kind
+	SessionID   string
+	ToolName    string
+	ToolArgs    string
+	AskUser     *UserPayload
+	ExecProcess *ExecPayload
+	Ctx         context.Context
+	EnqueueAt   time.Time
 }
 
 type Reply struct {
@@ -45,6 +53,7 @@ type Reply struct {
 	Remember bool
 	Reason   string
 	Answers  []any
+	ExitCode int
 	Error    error
 }
 

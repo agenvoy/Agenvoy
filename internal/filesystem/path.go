@@ -20,10 +20,12 @@ var (
 	McpPath               string
 	StoreDir              string
 	SessionsDir           string
-	ToolsDir              string
-	APIToolsDir           string
-	ScriptToolsDir        string
-	SystemToolsDir        string
+	ToolsDir                string
+	APIToolsDir             string
+	ScriptToolsDir          string
+	SystemToolsDir          string
+	ExtensionAPIToolsDir    string
+	ExtensionScriptToolsDir string
 	ErrorsDir             string
 	TasksPath             string
 	CronsPath             string
@@ -79,6 +81,8 @@ func Init() error {
 		APIToolsDir = filepath.Join(ToolsDir, "api")
 		ScriptToolsDir = filepath.Join(ToolsDir, "script")
 		SystemToolsDir = filepath.Join(ToolsDir, ".system")
+		ExtensionAPIToolsDir = filepath.Join(ToolsDir, ".extension", "api")
+		ExtensionScriptToolsDir = filepath.Join(ToolsDir, ".extension", "script")
 		ErrorsDir = filepath.Join(AgenvoyDir, "errors")
 		TasksPath = filepath.Join(AgenvoyDir, "tasks.json")
 		CronsPath = filepath.Join(AgenvoyDir, "crons.json")
@@ -115,7 +119,12 @@ func Init() error {
 		LegacyWorkScriptToolsDir = filepath.Join(WorkAgenvoyDir, "script_tools")
 	})
 
-	for _, dir := range []string{AgenvoyDir, DownloadDir} {
+	for _, dir := range []string{
+		AgenvoyDir,
+		DownloadDir,
+		ExtensionAPIToolsDir,
+		ExtensionScriptToolsDir,
+	} {
 		if err = go_pkg_filesystem.CheckDir(dir, true); err != nil {
 			return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
 		}

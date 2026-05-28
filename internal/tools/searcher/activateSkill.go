@@ -47,7 +47,7 @@ func registSelectSkill() {
 	})
 }
 
-func ListBlock(scanner *runtime.SkillScanner) string {
+func ListBlock(scanner *runtime.SkillScanner, excludeSkills []string) string {
 	if scanner == nil {
 		return ""
 	}
@@ -56,8 +56,16 @@ func ListBlock(scanner *runtime.SkillScanner) string {
 		return ""
 	}
 
+	excluded := make(map[string]bool, len(excludeSkills))
+	for _, n := range excludeSkills {
+		excluded[strings.TrimSpace(n)] = true
+	}
+
 	var b strings.Builder
 	for _, n := range names {
+		if excluded[n] {
+			continue
+		}
 		desc := strings.TrimSpace(scanner.Skills.ByName[n].Description)
 		if len([]rune(desc)) > maxDescLen {
 			desc = string([]rune(desc)[:maxDescLen-1]) + "…"

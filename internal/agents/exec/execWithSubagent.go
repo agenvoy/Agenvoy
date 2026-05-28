@@ -15,6 +15,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPrompt string, excludedTools []string) (string, error) {
@@ -54,12 +55,14 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 			return "", fmt.Errorf("cwd and home both failed")
 		}
 	}
-	excluded := append([]string{"invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}, excludedTools...)
+	subagentExcludeBase := []string{"invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}
+	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
 	execData := ExecData{
 		Agent:             agent,
 		WorkDir:           workDir,
 		Content:           task,
 		ExcludeTools:      excluded,
+		ExcludeSkills:     tools.TUIOnlySkills,
 		ExtraSystemPrompt: systemPrompt,
 		AllowAll:          allowAll,
 	}
@@ -80,7 +83,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
-		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, false),
+		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, false, execData.ExcludeSkills),
 		OldHistories:  maxHistory,
 		ToolHistories: []agentTypes.Message{},
 		Tools:         []agentTypes.Message{},

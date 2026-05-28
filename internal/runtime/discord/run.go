@@ -19,6 +19,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -160,7 +161,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 	var matchedSkill *filesystem.Skill
 	if externalAgent == "" && scanner != nil {
-		if m, effective := runtime.MatchSkill(scanner, content); m != nil {
+		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
 			matchedSkill = m
 			content = strings.TrimSpace(effective)
 		}
@@ -193,6 +194,8 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
+		ExcludeTools:   tools.TUIOnlyTools,
+		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 	}
 

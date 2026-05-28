@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 func run(ctx context.Context, req Request, userContent string, events chan<- agentTypes.Event) {
@@ -58,18 +59,20 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        trimContent,
+		ExcludeTools:   tools.TUIOnlyTools,
+		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       true,
 	}
 
-	session := buildStatelessSession(req, trimContent, workDir, scanner)
+	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills)
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 	}
 }
 
-func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner) *agentTypes.AgentSession {
-	systemPrompts := exec.BuildChatCompletionsSystemPrompts(workDir, scanner)
+func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner, excludeSkills []string) *agentTypes.AgentSession {
+	systemPrompts := exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills)
 	systemPrompts = append(systemPrompts, req.systemPrompts...)
 
 	lastUserIdx := -1
