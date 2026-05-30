@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	sessionBot "github.com/pardnchiu/agenvoy/internal/session/bot"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
@@ -202,7 +203,7 @@ func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TU
 		currentSID = sessions[0].id
 	}
 	if currentSID != "" {
-		currentName, _ = session.GetBot(currentSID)
+		currentName, _ = sessionBot.Get(currentSID)
 	}
 
 	return TUI{

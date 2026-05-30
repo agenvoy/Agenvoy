@@ -14,6 +14,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	sessionBot "github.com/pardnchiu/agenvoy/internal/session/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
@@ -104,7 +105,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		parentEvents = nil
 	}
 
-	displayName, _ := sessionManager.GetBot(sessionID)
+	displayName, _ := sessionBot.Get(sessionID)
 	if displayName == "" || displayName == sessionID {
 		var short, rest string
 		switch {

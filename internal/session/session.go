@@ -19,6 +19,7 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	sessionBot "github.com/pardnchiu/agenvoy/internal/session/bot"
 )
 
 var (
@@ -86,7 +87,11 @@ func CreateSession(prefix string) (string, error) {
 	if err := go_pkg_filesystem.CheckDir(filesystem.SessionDir(sessionID), true); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
 	}
-	SaveBot(sessionID, sessionID, false)
+	if err := sessionBot.Save(sessionID, "", "", false); err != nil {
+		slog.Warn("sessionBot Save",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+	}
 	return sessionID, nil
 }
 
@@ -110,7 +115,11 @@ func GetTelegramSession(chatID int64) (string, error) {
 		}
 	}
 
-	SaveBot(sessionID, sessionID, false)
+	if err := sessionBot.Save(sessionID, "", "", false); err != nil {
+		slog.Warn("sessionBot Save",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+	}
 	return sessionID, nil
 }
 
@@ -151,7 +160,11 @@ func GetDiscordSession(guildID, channelID, userID string) (string, error) {
 		}
 	}
 
-	SaveBot(sessionID, sessionID, false)
+	if err := sessionBot.Save(sessionID, "", "", false); err != nil {
+		slog.Warn("sessionBot Save",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+	}
 	return sessionID, nil
 }
 
@@ -239,3 +252,29 @@ func latestModTime(dir string) time.Time {
 	return latest
 }
 
+func GetSessionID(name string) string {
+	if name == "" {
+		return ""
+	}
+
+	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
+	if err != nil {
+		return ""
+	}
+
+	for _, dir := range dirs {
+		sid := dir.Name
+		if strings.HasPrefix(sid, "temp-") {
+			continue
+		}
+
+		botName, _ := sessionBot.Get(sid)
+		if botName == "" {
+			continue
+		}
+		if botName == name {
+			return sid
+		}
+	}
+	return ""
+}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -17,7 +18,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
-	"github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionBot "github.com/pardnchiu/agenvoy/internal/session/bot"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -85,7 +87,7 @@ func Send() gin.HandlerFunc {
 					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(m.Name)}
 					wrapped <- skillResult
 					if sessionID != "" {
-						log.Record(sessionID, skillResult)
+						sessionLog.Record(sessionID, skillResult)
 					}
 				}
 			}
@@ -116,7 +118,7 @@ func Send() gin.HandlerFunc {
 			}
 			wrapped <- agentResult
 			if sessionID != "" {
-				log.Record(sessionID, agentResult)
+				sessionLog.Record(sessionID, agentResult)
 			}
 
 			workDir, _ := os.UserHomeDir()
@@ -132,7 +134,11 @@ func Send() gin.HandlerFunc {
 				AllowAll:          true,
 			}
 
-			sessionManager.SaveBot(sessionID, sessionID, false)
+			if err := sessionBot.Save(sessionID, "", "", false); err != nil {
+				slog.Warn("sessionBot Save",
+					slog.String("session", sessionID),
+					slog.String("error", err.Error()))
+			}
 
 			session, err := newSession(data, sessionID)
 			if err != nil {

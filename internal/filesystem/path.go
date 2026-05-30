@@ -139,6 +139,14 @@ func SessionDir(sessionID string) string {
 	return filepath.Join(SessionsDir, sessionID)
 }
 
+func StatusPath(sessionID string) string {
+	return filepath.Join(SessionDir(sessionID), "status.json")
+}
+
+func BotPath(sessionID string) string {
+	return filepath.Join(SessionDir(sessionID), "bot.md")
+}
+
 func ActionLogPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "action.log")
 }
