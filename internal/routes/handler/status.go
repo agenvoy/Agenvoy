@@ -3,7 +3,6 @@ package handler
 import (
 	"math"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +28,7 @@ func GetSessionStatus() gin.HandlerFunc {
 			return
 		}
 
-		dir := filepath.Join(filesystem.SessionsDir, sessionID)
+		dir := filesystem.SessionDir(sessionID)
 		if !go_pkg_filesystem_reader.Exists(dir) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 			return

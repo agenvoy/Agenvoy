@@ -369,7 +369,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("scheduler skill %q unreadable: %w", skillName, err)
 	}
-	sessionDir := filepath.Join(filesystem.SessionsDir, sessionID)
+	sessionDir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(sessionDir, true); err != nil {
 		return "", err
 	}

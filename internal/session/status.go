@@ -89,7 +89,7 @@ func SetModelReasoning(sessionID, model, reasoning string) {
 	statusMu.Lock()
 	defer statusMu.Unlock()
 
-	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	dir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.Exists(dir) {
 		return
 	}
@@ -119,7 +119,7 @@ func ClearTask(sessionID string) {
 	statusMu.Lock()
 	defer statusMu.Unlock()
 
-	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	dir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.Exists(dir) {
 		return
 	}
@@ -158,7 +158,7 @@ func truncateStatusInput(s string) string {
 }
 
 func readStatus(sessionID string) Status {
-	path := filepath.Join(filesystem.SessionsDir, sessionID, "status.json")
+	path := filepath.Join(filesystem.SessionDir(sessionID), "status.json")
 	s, err := go_pkg_filesystem.ReadJSON[Status](path)
 	if err != nil {
 		return Status{State: StatusIdle, Model: StatusModel, Reasoning: StatusReasoning}
@@ -180,7 +180,7 @@ func readStatus(sessionID string) Status {
 }
 
 func writeStatus(sessionID string, s Status) {
-	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	dir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.Exists(dir) {
 		return
 	}

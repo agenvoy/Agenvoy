@@ -17,6 +17,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/log"
+	"github.com/pardnchiu/agenvoy/internal/session/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
@@ -55,7 +57,7 @@ func Send() gin.HandlerFunc {
 
 		events := make(chan agentTypes.Event, 64)
 		ctx := c.Request.Context()
-		wrapped := sessionManager.Wrap(ctx, sessionID, events, 64)
+		wrapped := pubsub.Wrap(ctx, sessionID, events, 64)
 
 		go func() {
 			defer close(wrapped)
@@ -83,7 +85,7 @@ func Send() gin.HandlerFunc {
 					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(m.Name)}
 					wrapped <- skillResult
 					if sessionID != "" {
-						sessionManager.Record(sessionID, skillResult)
+						log.Record(sessionID, skillResult)
 					}
 				}
 			}
@@ -114,7 +116,7 @@ func Send() gin.HandlerFunc {
 			}
 			wrapped <- agentResult
 			if sessionID != "" {
-				sessionManager.Record(sessionID, agentResult)
+				log.Record(sessionID, agentResult)
 			}
 
 			workDir, _ := os.UserHomeDir()

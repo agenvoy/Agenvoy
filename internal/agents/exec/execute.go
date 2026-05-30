@@ -25,6 +25,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	toolSearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -155,7 +156,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			defer close(done)
 			for ev := range teed {
 				if !stateless {
-					sessionManager.Record(sid, ev)
+					log.Record(sid, ev)
 				}
 				if isDcPush {
 					switch ev.Type {
@@ -576,7 +577,7 @@ func SaveUserInputHistory(sessionID, userText string) {
 		Role:    "user",
 		Content: userText,
 	})
-	sessionManager.AppendActionUserInput(sessionID, userText)
+	log.Append(sessionID, userText)
 }
 
 func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {

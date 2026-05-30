@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -131,7 +130,7 @@ func (t TUI) Init() tea.Cmd {
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-		path := filepath.Join(filesystem.SessionsDir, sid, "action.log")
+		path := filesystem.ActionLogPath(sid)
 		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {
 			seq = append(seq, func() tea.Msg { return LoadHistoryCheck{id: sid} })
 		}
@@ -271,7 +270,7 @@ func loadSessionTail(sid string) []tea.Cmd {
 	if strings.TrimSpace(sid) == "" {
 		return nil
 	}
-	lines := readAllLines(filepath.Join(filesystem.SessionsDir, sid, "action.log"))
+	lines := readAllLines(filesystem.ActionLogPath(sid))
 	if len(lines) == 0 {
 		return nil
 	}

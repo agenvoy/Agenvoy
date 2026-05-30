@@ -35,7 +35,7 @@ func AppendHistory(sessionID string, delta []agentTypes.Message) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	sessionDir := filepath.Join(filesystem.SessionsDir, sessionID)
+	sessionDir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(sessionDir, true); err != nil {
 		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
 	}
@@ -60,7 +60,7 @@ func AppendHistory(sessionID string, delta []agentTypes.Message) error {
 func SaveToToolCall(sessionID, content string) {
 	now := time.Now()
 	date := now.Format("2006-01-02")
-	toolCallsDir := filepath.Join(filesystem.SessionsDir, sessionID, "tool_calls", date)
+	toolCallsDir := filepath.Join(filesystem.SessionDir(sessionID), "tool_calls", date)
 	if err := go_pkg_filesystem.CheckDir(toolCallsDir, true); err == nil {
 		filename := fmt.Sprintf("%s.json", now.Format("2006-01-02-15-04-05"))
 		toolActionsPath := filepath.Join(toolCallsDir, filename)
@@ -83,7 +83,7 @@ func CreateSession(prefix string) (string, error) {
 
 	uuid := h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:]
 	sessionID := prefix + uuid
-	if err := go_pkg_filesystem.CheckDir(filepath.Join(filesystem.SessionsDir, sessionID), true); err != nil {
+	if err := go_pkg_filesystem.CheckDir(filesystem.SessionDir(sessionID), true); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
 	}
 	SaveBot(sessionID, sessionID, false)
@@ -98,7 +98,7 @@ func GetTelegramSession(chatID int64) (string, error) {
 	sum := sha256.Sum256([]byte(key))
 
 	sessionID := "tg-" + hex.EncodeToString(sum[:])
-	sessionDir := filepath.Join(filesystem.SessionsDir, sessionID)
+	sessionDir := filesystem.SessionDir(sessionID)
 	configPath := filepath.Join(sessionDir, "config.json")
 
 	if !go_pkg_filesystem_reader.Exists(configPath) {
@@ -139,7 +139,7 @@ func GetDiscordSession(guildID, channelID, userID string) (string, error) {
 	sum := sha256.Sum256([]byte(key))
 
 	sessionID := "dc-" + hex.EncodeToString(sum[:])
-	sessionDir := filepath.Join(filesystem.SessionsDir, sessionID)
+	sessionDir := filesystem.SessionDir(sessionID)
 	configPath := filepath.Join(sessionDir, "config.json")
 
 	if !go_pkg_filesystem_reader.Exists(configPath) {
@@ -160,7 +160,7 @@ func GetChannelID(sessionID string) (string, error) {
 		return "", fmt.Errorf("sessionID is required")
 	}
 
-	configPath := filepath.Join(filesystem.SessionsDir, sessionID, "config.json")
+	configPath := filepath.Join(filesystem.SessionDir(sessionID), "config.json")
 	config, err := go_pkg_filesystem.ReadJSON[map[string]string](configPath)
 	if err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON: %w", err)
@@ -173,7 +173,7 @@ func GetChatID(sessionID string) (string, error) {
 		return "", fmt.Errorf("sessionID is required")
 	}
 
-	configPath := filepath.Join(filesystem.SessionsDir, sessionID, "config.json")
+	configPath := filepath.Join(filesystem.SessionDir(sessionID), "config.json")
 	config, err := go_pkg_filesystem.ReadJSON[map[string]string](configPath)
 	if err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON: %w", err)
@@ -182,7 +182,7 @@ func GetChatID(sessionID string) (string, error) {
 }
 
 func GetHistory(sessionID string) (old, max []agentTypes.Message) {
-	historyPath := filepath.Join(filesystem.SessionsDir, sessionID, "history.json")
+	historyPath := filepath.Join(filesystem.SessionDir(sessionID), "history.json")
 	oldHistory, err := go_pkg_filesystem.ReadJSON[[]agentTypes.Message](historyPath)
 	if err != nil {
 		return nil, nil
@@ -209,7 +209,7 @@ func Clean() {
 		if !strings.HasPrefix(name, "temp-") {
 			continue
 		}
-		sessionDir := filepath.Join(filesystem.SessionsDir, entry.Name())
+		sessionDir := filesystem.SessionDir(entry.Name())
 		if now.Sub(latestModTime(sessionDir)) > time.Hour {
 			if err := os.RemoveAll(sessionDir); err != nil {
 				slog.Warn("Clean",

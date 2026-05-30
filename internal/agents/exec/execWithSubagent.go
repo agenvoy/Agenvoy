@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -202,7 +201,7 @@ func ensureSubagentSession(input string) (string, error) {
 		return id, nil
 	}
 
-	sessionDir := filepath.Join(filesystem.SessionsDir, trimmed)
+	sessionDir := filesystem.SessionDir(trimmed)
 	if !go_pkg_filesystem_reader.Exists(sessionDir) {
 		return "", fmt.Errorf("session %q does not exist", trimmed)
 	}

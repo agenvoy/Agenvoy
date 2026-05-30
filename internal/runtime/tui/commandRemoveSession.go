@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -66,7 +65,7 @@ func (t TUI) openRemoveSessionConfirm2(sid string) (TUI, tea.Cmd) {
 func (t TUI) runRemoveSession(sid string) (TUI, tea.Cmd) {
 	deletedKeys := deleteSessionHistKeys(sid)
 
-	sessionDir := filepath.Join(filesystem.SessionsDir, sid)
+	sessionDir := filesystem.SessionDir(sid)
 	if err := os.RemoveAll(sessionDir); err != nil {
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] remove session dir: %v", err)) + "\n")
 	}

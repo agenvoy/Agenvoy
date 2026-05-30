@@ -28,7 +28,7 @@ func SaveBot(sessionID, name string, force bool) {
 		name = sessionID
 	}
 
-	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	dir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
 		slog.Warn("go_pkg_filesystem.CheckDir",
 			slog.String("session", sessionID),
@@ -57,7 +57,7 @@ func SaveBotFull(sessionID, name, body string) error {
 		return fmt.Errorf("name is empty")
 	}
 
-	dir := filepath.Join(filesystem.SessionsDir, sessionID)
+	dir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
 		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
 	}
@@ -101,7 +101,7 @@ func GetBot(sessionID string) (name, body string) {
 	if sessionID == "" {
 		return "", ""
 	}
-	path := filepath.Join(filesystem.SessionsDir, sessionID, "bot.md")
+	path := filepath.Join(filesystem.SessionDir(sessionID), "bot.md")
 	data, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
 		return "", ""

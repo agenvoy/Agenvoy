@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *runtime.SkillScanner, userInput string, imageInputs []string, fileInputs []string, events chan<- agentTypes.Event, allowAll bool, workDir, sessionID string, webMode bool) error {
@@ -100,9 +101,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 
 	if session != nil && session.ID != "" {
 		if matchedSkill != nil {
-			sessionManager.Record(session.ID, skillResult)
+			log.Record(session.ID, skillResult)
 		}
-		sessionManager.Record(session.ID, agentResult)
+		log.Record(session.ID, agentResult)
 	}
 
 	if externalAgent != "" {
