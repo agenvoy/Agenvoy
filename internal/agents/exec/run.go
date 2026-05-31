@@ -8,7 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -45,7 +45,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		trimInput = strings.TrimSpace(externalEffective)
 	}
 
-	var matchedSkill *filesystem.Skill
+	var matchedSkill *skill.Skill
 	var skillResult agentTypes.Event
 	if externalAgent == "" && scanner != nil {
 		if m, effective := runtime.MatchSkill(scanner, trimInput); m != nil {

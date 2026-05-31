@@ -15,13 +15,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	"github.com/pardnchiu/agenvoy/internal/session/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -80,7 +80,7 @@ func Send() gin.HandlerFunc {
 				trimContent = strings.TrimSpace(externalEffective)
 			}
 
-			var matchedSkill *filesystem.Skill
+			var matchedSkill *skill.Skill
 			var skillResult agentTypes.Event
 			if externalAgent == "" && scanner != nil {
 				if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
@@ -108,7 +108,7 @@ func Send() gin.HandlerFunc {
 					}
 				}
 				if agent == nil {
-					primary, rest, err := exec.ResolveAgent(ctx, agents.Dispatcher(), registry, trimContent, false, sessionID)
+					primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
 					if err != nil {
 						wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 						return

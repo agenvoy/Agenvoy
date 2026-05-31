@@ -23,13 +23,14 @@ import (
 	geminiYoutube "github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/youtube"
 	codexImage2 "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex/image2"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/routes"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	discordTool "github.com/pardnchiu/agenvoy/internal/runtime/discord/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
+	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -369,7 +370,7 @@ func watchConfig(ctx context.Context) func() {
 }
 
 func runSkill(ctx context.Context, sessionID, skillName string) (string, error) {
-	body, err := filesystem.GetScheduleSkillBody(skillName)
+	body, err := skill.GetSchedule(skillName)
 	if err != nil {
 		return "", fmt.Errorf("scheduler skill %q unreadable: %w", skillName, err)
 	}

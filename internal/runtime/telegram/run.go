@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
@@ -164,11 +165,11 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		return nil
 	}
 
-	markStatus := func(text string) {
-		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(text))
+	markStatus := func(str string) {
+		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
 		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
-				slog.String("text", text),
+				slog.String("text", str),
 				slog.String("chat", chatName(in)),
 				slog.Int("replyTo", in.MessageID),
 				slog.String("error", err.Error()))
@@ -201,7 +202,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		content = strings.TrimSpace(externalEffective)
 	}
 
-	var matchedSkill *filesystem.Skill
+	var matchedSkill *skill.Skill
 	if externalAgent == "" && scanner != nil {
 		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
 			matchedSkill = m
@@ -221,7 +222,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	var agent agentTypes.Agent
 	var fallbacks []agentTypes.Agent
 	if externalAgent == "" {
-		primary, rest, err := exec.ResolveAgent(ctx, agents.Dispatcher(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
+		primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
 		if err != nil {
 			if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
 				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
