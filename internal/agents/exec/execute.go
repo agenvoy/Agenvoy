@@ -23,6 +23,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
@@ -93,7 +94,7 @@ type ExecData struct {
 	Agent             agentTypes.Agent
 	FallbackAgents    []agentTypes.Agent
 	WorkDir           string
-	Skill             *filesystem.Skill
+	Skill             *skill.Skill
 	SkillScanner      *runtime.SkillScanner
 	Content           string
 	SessionID         string
@@ -602,7 +603,7 @@ func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
 	}
 }
 
-func assignBindingSkill(session *agentTypes.AgentSession, s *filesystem.Skill) {
+func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	id := "skill-assign-" + newID("skill", s.Name)
 	argsJSON, _ := json.Marshal(map[string]string{"skill": s.Name})
 	call := agentTypes.ToolCall{
