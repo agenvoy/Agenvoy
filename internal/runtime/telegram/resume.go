@@ -73,6 +73,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		Content:        content,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
+		PendingTask:    taskHash,
 	}
 
 	sess, err := getSession(chatID, "user", content, execData, sessionID, "")

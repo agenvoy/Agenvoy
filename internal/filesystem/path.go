@@ -193,10 +193,6 @@ func PendingDir(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "pending")
 }
 
-func PendingPath(sessionID, taskHash string) string {
-	return filepath.Join(PendingDir(sessionID), taskHash+".md")
-}
-
 func PendingMetaPath(sessionID, taskHash string) string {
 	return filepath.Join(PendingDir(sessionID), taskHash+".json")
 }

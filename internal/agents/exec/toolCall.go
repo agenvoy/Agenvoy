@@ -20,7 +20,7 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func askUserInBackground(sessionID, rawArgs string, toolResults []interactive.ToolResult) {
+func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
 	var params struct {
 		Questions []runtime.Question `json:"questions"`
 		State     struct {
@@ -39,7 +39,7 @@ func askUserInBackground(sessionID, rawArgs string, toolResults []interactive.To
 		return
 	}
 
-	interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults)
+	interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
 }
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
@@ -112,6 +112,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			hash:  hash,
 			state: slotReady,
 		}
+
+		interactive.RecordToolAttempt(exec.SessionID, exec.PendingTask, interactive.ToolAttempt{
+			Name: toolName,
+			ID:   toolID,
+			Args: toolArg,
+		})
 
 		if toolName != "read_file" {
 			if cached, ok := alreadyCall[hash]; ok && cached != "" {
@@ -242,7 +248,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 
 			toolResults := toolResults(sessionData)
 
-			go askUserInBackground(sessionData.ID, slot.args, toolResults)
+			go askUserInBackground(sessionData.ID, exec.PendingTask, slot.args, toolResults)
 			if exec.CancelExecution != nil {
 				exec.CancelExecution()
 			}
@@ -392,6 +398,11 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 			Text:     err.Error(),
 		}
 		s.execErr = err.Error()
+		go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
+			Name:   s.name,
+			ID:     s.id,
+			Result: "error: " + err.Error(),
+		})
 		events <- agentTypes.Event{
 			Type:     agentTypes.EventToolCallEnd,
 			ToolName: s.name,
@@ -408,12 +419,17 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 			Text:     result,
 		}
 	}
+	s.result = result
+	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
+		Name:   s.name,
+		ID:     s.id,
+		Result: result,
+	})
 	events <- agentTypes.Event{
 		Type:     agentTypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
-	s.result = result
 }
 
 func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {

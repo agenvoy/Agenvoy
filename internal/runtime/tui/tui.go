@@ -40,8 +40,9 @@ type WorkDir struct {
 }
 
 type ResumeExec struct {
-	SessionID string
-	Content   string
+	SessionID   string
+	Content     string
+	PendingTask string
 }
 
 func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
@@ -69,7 +70,7 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 				slog.String("task_hash", taskHash))
 			return
 		}
-		send(ResumeExec{SessionID: sessionID, Content: content})
+		send(ResumeExec{SessionID: sessionID, Content: content, PendingTask: taskHash})
 	})
 
 	go newPendingChannel(ctx)

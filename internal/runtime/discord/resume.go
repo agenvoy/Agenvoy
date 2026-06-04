@@ -72,6 +72,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		Content:        content,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
+		PendingTask:    taskHash,
 	}
 
 	syntheticIn := go_bot_discord.Input{

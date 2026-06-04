@@ -28,6 +28,7 @@ type Executor struct {
 
 	SkillScanner    *runtime.SkillScanner
 	CancelExecution context.CancelFunc
+	PendingTask     string
 }
 
 type Tool struct {

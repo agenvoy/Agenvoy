@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
@@ -30,6 +32,12 @@ type askState struct {
 	NextSteps []string `json:"next_steps"`
 }
 
+type ToolAttempt struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
+	Args string `json:"args"`
+}
+
 type ToolResult struct {
 	Name   string `json:"name"`
 	ID     string `json:"id"`
@@ -37,11 +45,17 @@ type ToolResult struct {
 }
 
 type pendingMeta struct {
-	TaskHash    string             `json:"task_hash"`
-	SessionID   string             `json:"session_id"`
-	Questions   []runtime.Question `json:"questions"`
-	ToolResults []ToolResult       `json:"tool_results,omitempty"`
+	TaskHash     string             `json:"task_hash"`
+	SessionID    string             `json:"session_id"`
+	Objective    string             `json:"objective,omitempty"`
+	Completed    []string           `json:"completed,omitempty"`
+	NextSteps    []string           `json:"next_steps,omitempty"`
+	Questions    []runtime.Question `json:"questions,omitempty"`
+	ToolAttempts []ToolAttempt      `json:"tool_attempts,omitempty"`
+	ToolResults  []ToolResult       `json:"tool_results,omitempty"`
 }
+
+var pendingMu sync.Mutex
 
 func registAskUser() {
 	toolRegister.Regist(toolRegister.Def{
@@ -149,152 +163,256 @@ func registAskUser() {
 	})
 }
 
-func savePendingState(sessionID, taskHash string, state askState, questions []runtime.Question, toolResults []ToolResult) error {
+func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	dir := filesystem.PendingDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
 		return fmt.Errorf("CheckDir: %w", err)
 	}
 
-	var md strings.Builder
-	md.WriteString("## Objective\n")
-	md.WriteString(state.Objective)
-	md.WriteString("\n\n## Completed\n")
-	for _, s := range state.Completed {
-		md.WriteString("- ")
-		md.WriteString(s)
-		md.WriteString("\n")
-	}
-	if len(toolResults) > 0 {
-		md.WriteString("\n## Tool Results (this turn)\n")
-		for _, tr := range toolResults {
-			md.WriteString(fmt.Sprintf("- **%s**: %s\n", tr.Name, truncate(tr.Result, 200)))
-		}
-	}
-	md.WriteString("\n## Next Steps\n")
-	for _, s := range state.NextSteps {
-		md.WriteString("- ")
-		md.WriteString(s)
-		md.WriteString("\n")
-	}
+	meta.TaskHash = taskHash
+	meta.SessionID = sessionID
 
-	if err := go_pkg_filesystem.WriteFile(filesystem.PendingPath(sessionID, taskHash), md.String(), 0644); err != nil {
-		return fmt.Errorf("WriteFile md: %w", err)
-	}
-
-	meta := pendingMeta{
-		TaskHash:    taskHash,
-		SessionID:   sessionID,
-		Questions:   questions,
-		ToolResults: toolResults,
-	}
 	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, true); err != nil {
 		return fmt.Errorf("WriteFile json: %w", err)
 	}
 	return nil
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "…"
-}
 
 
 
 func CleanupPending(sessionID, taskHash string) {
-	os.Remove(filesystem.PendingPath(sessionID, taskHash))
+	if taskHash == "" {
+		return
+	}
 	os.Remove(filesystem.PendingMetaPath(sessionID, taskHash))
 }
 
+func CreateExecPending(sessionID, objective string) string {
+	taskHash := go_pkg_utils.UUID()
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+
+	cleanStaleProgress(sessionID)
+
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective}); err != nil {
+		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
+	}
+	return taskHash
+}
+
+func cleanStaleProgress(sessionID string) {
+	for _, hash := range ListPendingTasks(sessionID) {
+		meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, hash))
+		if err != nil {
+			continue
+		}
+		if len(meta.Questions) == 0 {
+			os.Remove(filesystem.PendingMetaPath(sessionID, hash))
+		}
+	}
+}
+
+func RecordToolAttempt(sessionID, taskHash string, attempt ToolAttempt) {
+	if taskHash == "" {
+		return
+	}
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return
+	}
+	meta.ToolAttempts = []ToolAttempt{attempt}
+	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+		slog.Warn("RecordToolAttempt", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+	}
+}
+
+func AppendToolResult(sessionID, taskHash string, result ToolResult) {
+	if taskHash == "" {
+		return
+	}
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return
+	}
+	for _, existing := range meta.ToolResults {
+		if existing.ID == result.ID {
+			return
+		}
+	}
+	meta.ToolResults = append(meta.ToolResults, result)
+	meta.ToolAttempts = nil
+	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+		slog.Warn("AppendToolResult", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+	}
+}
+
 func ListPendingTasks(sessionID string) []string {
-	dir := filesystem.PendingDir(sessionID)
-	entries, err := os.ReadDir(dir)
+	files, err := go_pkg_filesystem_reader.ListFiles(filesystem.PendingDir(sessionID))
 	if err != nil {
 		return nil
 	}
 	var hashes []string
-	seen := make(map[string]bool)
-	for _, e := range entries {
-		if e.IsDir() {
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name, ".json") {
 			continue
 		}
-		name := e.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		hash := strings.TrimSuffix(strings.TrimSuffix(name, ".md"), ".json")
-		if !seen[hash] {
-			seen[hash] = true
-			hashes = append(hashes, hash)
-		}
+		hashes = append(hashes, strings.TrimSuffix(f.Name, ".json"))
 	}
 	return hashes
 }
 
+type PendingInfo struct {
+	TaskHash     string
+	Objective    string
+	HasQuestions bool
+}
+
+func LoadPendingInfo(sessionID, taskHash string) (PendingInfo, bool) {
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return PendingInfo{}, false
+	}
+	return PendingInfo{
+		TaskHash:     taskHash,
+		Objective:    meta.Objective,
+		HasQuestions: len(meta.Questions) > 0,
+	}, true
+}
+
+func LoadPendingQuestions(sessionID, taskHash string) ([]runtime.Question, error) {
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return nil, err
+	}
+	return meta.Questions, nil
+}
 
 func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error) {
-	mdPath := filesystem.PendingPath(sessionID, taskHash)
-	metaPath := filesystem.PendingMetaPath(sessionID, taskHash)
-
-	stateContent, err := go_pkg_filesystem.ReadText(mdPath)
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
-		return "", fmt.Errorf("ReadText %s: %w", mdPath, err)
-	}
-
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](metaPath)
-	if err != nil {
-		return "", fmt.Errorf("ReadJSON %s: %w", metaPath, err)
+		return "", fmt.Errorf("ReadJSON: %w", err)
 	}
 
 	var msg strings.Builder
-	msg.WriteString("[Resumed Task — ask_user response received]\n\n")
-	msg.WriteString("## Previous Context\n")
-	msg.WriteString(stateContent)
 
+	if len(meta.Questions) > 0 {
+		msg.WriteString("[Resumed Task — ask_user response received]\n\n")
+	} else {
+		msg.WriteString("[Resumed Task — interrupted execution recovered]\n\n")
+	}
+
+	msg.WriteString("## Objective\n")
+	msg.WriteString(meta.Objective)
+	msg.WriteString("\n")
+
+	if len(meta.Completed) > 0 {
+		msg.WriteString("\n## Completed Steps\n")
+		for _, s := range meta.Completed {
+			msg.WriteString(fmt.Sprintf("- %s\n", s))
+		}
+	}
+
+	completedIDs := make(map[string]bool, len(meta.ToolResults))
 	if len(meta.ToolResults) > 0 {
-		msg.WriteString("\n## Prior Tool Results\n")
+		msg.WriteString("\n## Completed Tool Results\n")
+		msg.WriteString("These tools have already been executed. Results are final — do not re-execute.\n")
 		for _, tr := range meta.ToolResults {
+			completedIDs[tr.ID] = true
 			msg.WriteString(fmt.Sprintf("- **%s** (id=%s): %s\n", tr.Name, tr.ID, tr.Result))
 		}
 	}
 
-	msg.WriteString("\n## User Answers\n")
-	for i, q := range meta.Questions {
-		msg.WriteString(fmt.Sprintf("%d. Q: %s\n", i+1, q.Question))
-		if i < len(answers) {
-			switch v := answers[i].(type) {
-			case string:
-				msg.WriteString(fmt.Sprintf("   A: %s\n", v))
-			case []any:
-				parts := make([]string, 0, len(v))
-				for _, item := range v {
-					if s, ok := item.(string); ok {
-						parts = append(parts, s)
+	var interrupted []ToolAttempt
+	for _, ta := range meta.ToolAttempts {
+		if !completedIDs[ta.ID] {
+			interrupted = append(interrupted, ta)
+		}
+	}
+	if len(interrupted) > 0 {
+		msg.WriteString("\n## Interrupted Tool Calls\n")
+		msg.WriteString("These tools were started but did not complete. Decide whether to retry based on the objective.\n")
+		for _, ta := range interrupted {
+			msg.WriteString(fmt.Sprintf("- **%s** (id=%s): args=%s\n", ta.Name, ta.ID, ta.Args))
+		}
+	}
+
+	if len(meta.Questions) > 0 {
+		msg.WriteString("\n## User Answers\n")
+		for i, q := range meta.Questions {
+			msg.WriteString(fmt.Sprintf("%d. Q: %s\n", i+1, q.Question))
+			if i < len(answers) {
+				switch v := answers[i].(type) {
+				case string:
+					msg.WriteString(fmt.Sprintf("   A: %s\n", v))
+				case []any:
+					parts := make([]string, 0, len(v))
+					for _, item := range v {
+						if s, ok := item.(string); ok {
+							parts = append(parts, s)
+						}
 					}
+					msg.WriteString(fmt.Sprintf("   A: %s\n", strings.Join(parts, ", ")))
+				default:
+					raw, _ := json.Marshal(v)
+					msg.WriteString(fmt.Sprintf("   A: %s\n", string(raw)))
 				}
-				msg.WriteString(fmt.Sprintf("   A: %s\n", strings.Join(parts, ", ")))
-			default:
-				raw, _ := json.Marshal(v)
-				msg.WriteString(fmt.Sprintf("   A: %s\n", string(raw)))
 			}
 		}
 	}
-	msg.WriteString("\nContinue executing the remaining steps based on the context above.")
 
-	os.Remove(mdPath)
-	os.Remove(metaPath)
+	if len(meta.NextSteps) > 0 {
+		msg.WriteString("\n## Remaining Steps\n")
+		for _, s := range meta.NextSteps {
+			msg.WriteString(fmt.Sprintf("- %s\n", s))
+		}
+	}
+
+	msg.WriteString("\nContinue from where this task was interrupted. Use the completed tool results as ground truth.")
 
 	return msg.String(), nil
 }
 
-func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult) string {
-	taskHash := go_pkg_utils.UUID()
-
-	state := askState{Objective: objective, Completed: completed, NextSteps: nextSteps}
-	if err := savePendingState(sessionID, taskHash, state, questions, toolResults); err != nil {
-		slog.Warn("SaveAndEnqueueAskUser: savePendingState", slog.String("error", err.Error()))
+func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string) string {
+	taskHash := existingTaskHash
+	if taskHash == "" {
+		taskHash = go_pkg_utils.UUID()
 	}
+
+	pendingMu.Lock()
+	var allResults []ToolResult
+	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+		seen := make(map[string]bool, len(toolResults))
+		for _, r := range toolResults {
+			if r.ID != "" {
+				seen[r.ID] = true
+			}
+		}
+		allResults = append(allResults, toolResults...)
+		for _, r := range existing.ToolResults {
+			if r.ID != "" && !seen[r.ID] {
+				allResults = append(allResults, r)
+			}
+		}
+	} else {
+		allResults = toolResults
+	}
+	if err := writePending(sessionID, taskHash, &pendingMeta{
+		Objective:   objective,
+		Completed:   completed,
+		NextSteps:   nextSteps,
+		Questions:   questions,
+		ToolResults: allResults,
+	}); err != nil {
+		slog.Warn("SaveAndEnqueueAskUser: writePending", slog.String("error", err.Error()))
+	}
+	pendingMu.Unlock()
 
 	onResolve := func(reply runtime.Reply) {
 		if reply.Error != nil {

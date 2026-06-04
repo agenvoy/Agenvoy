@@ -175,15 +175,7 @@ type LoadHistorySelect struct {
 	load bool
 }
 
-type PendingCheck struct {
-	id string
-}
 
-type PendingResume struct {
-	id       string
-	taskHash string
-	resume   bool
-}
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
