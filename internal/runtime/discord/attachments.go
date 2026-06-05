@@ -7,16 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/stt"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 )
-
-type savedAttachment struct {
-	path       string
-	transcribe bool
-}
 
 func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID, channelName, replyTo string, paths []string) {
 	if client == nil || len(paths) == 0 {
@@ -50,7 +45,7 @@ func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID,
 	}
 }
 
-func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []savedAttachment {
+func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []chatbot.SavedAttachment {
 	if b == nil || b.client == nil || len(in.Attachments) == 0 {
 		return nil
 	}
@@ -63,7 +58,7 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []sav
 		return nil
 	}
 
-	var saved []savedAttachment
+	var saved []chatbot.SavedAttachment
 	for _, att := range in.Attachments {
 		if att == nil {
 			continue
@@ -76,7 +71,7 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []sav
 				slog.String("error", err.Error()))
 			continue
 		}
-		saved = append(saved, savedAttachment{path: path, transcribe: shouldTranscribeAttachment(att.ContentType, att.Filename)})
+		saved = append(saved, chatbot.SavedAttachment{Path: path, Transcribe: shouldTranscribeAttachment(att.ContentType, att.Filename)})
 	}
 	return saved
 }
@@ -104,26 +99,4 @@ func hasVoiceAttachment(in go_bot_discord.Input) bool {
 		}
 	}
 	return false
-}
-
-func transcribeSavedAttachments(ctx context.Context, attachments []savedAttachment) ([]string, []string, error) {
-	var transcripts []string
-	var paths []string
-	for _, attachment := range attachments {
-		if attachment.path == "" {
-			continue
-		}
-		if !attachment.transcribe {
-			paths = append(paths, attachment.path)
-			continue
-		}
-		text, err := stt.Transcribe(ctx, attachment.path, "")
-		if err != nil {
-			return nil, nil, fmt.Errorf("transcribe %s: %w", attachment.path, err)
-		}
-		if text = strings.TrimSpace(text); text != "" {
-			transcripts = append(transcripts, text)
-		}
-	}
-	return transcripts, paths, nil
 }

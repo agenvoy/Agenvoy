@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -117,15 +118,10 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		model = primary.Name()
 	}
 	footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Usage)
-	if len(attachmentPaths) > 0 {
-		footer = "🔗 " + footer
-	}
-	replyText = fmt.Sprintf("%s\n-# ⎿ %s", replyText, footer)
-	if len(result.ExecErrors) > 0 {
-		replyText = fmt.Sprintf("%s\n-# ⎿ ⚠️ %s", replyText, strings.Join(result.ExecErrors, ", "))
-	}
+	hasMedia := len(attachmentPaths) > 0
+	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, result.ExecErrors)
 
-	for _, part := range chunk(replyText) {
+	for _, part := range chatbot.Chunk(chatbot.Discord, replyText) {
 		if _, err := b.client.Send(ctx, channelID, "", part); err != nil {
 			slog.Warn("Send (resume)", slog.String("session", sessionID), slog.String("error", err.Error()))
 			break

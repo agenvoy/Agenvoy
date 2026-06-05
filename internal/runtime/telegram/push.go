@@ -8,14 +8,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -71,11 +70,11 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 	cleanText, photoPaths, docPaths := extractFileMarkers(str)
 
 	if strings.TrimSpace(cleanText) != "" {
-		message := cleanText + buildPushFooter(payload.Duration, payload.Model, payload.Usage)
+		message := cleanText + chatbot.BuildPushFooter(chatbot.Telegram, payload.Duration, payload.Model, payload.Usage)
 		if prefix := strings.TrimSpace(payload.Prefix); prefix != "" {
 			message = fmt.Sprintf("<blockquote>%s</blockquote>\n\n%s", html.EscapeString(prefix), message)
 		}
-		for _, chunk := range chunk(message) {
+		for _, chunk := range chatbot.Chunk(chatbot.Telegram, message) {
 			if _, err := client.Send(ctx, chatID, 0, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
 				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.Send",
 					slog.String("session", id),
@@ -87,12 +86,4 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 	}
 
 	sendAttachments(ctx, chatID, chatName, photoPaths, docPaths)
-}
-
-func buildPushFooter(duration time.Duration, model string, usage *agentTypes.Usage) string {
-	footer := utils.FormatEventFooter(duration, model, usage)
-	if footer == "" {
-		return ""
-	}
-	return "\n\n<blockquote expandable>" + footer + "</blockquote>"
 }

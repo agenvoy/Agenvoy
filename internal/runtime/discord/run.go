@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -20,21 +19,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
-
-var voiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
-
-func runtimeExcludeTools(autoTranscribed bool) []string {
-	excluded := append([]string{}, tools.TUIOnlyTools...)
-	if autoTranscribed {
-		excluded = append(excluded, "transcribe_media")
-	}
-	return excluded
-}
 
 func channelName(in go_bot_discord.Input) string {
 	if in.ChannelName != "" {
@@ -144,7 +134,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 			return nil
 		}
 		attachments := saveAttachments(ctx, b, in)
-		transcripts, paths, err := transcribeSavedAttachments(ctx, attachments)
+		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
 		if err != nil {
 			slog.Warn("transcribeSavedAttachments",
 				slog.String("channel", channelName(in)),
@@ -223,7 +213,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
-		ExcludeTools:   runtimeExcludeTools(autoTranscribed),
+		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 	}
@@ -284,35 +274,20 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	cleanText, attachmentPaths := utils.ExtractFileMarkers(replyText)
 	replyText = cleanText
 
-	var voiceTexts []string
-	for _, match := range voiceMarkerRegex.FindAllStringSubmatch(replyText, -1) {
-		if t := strings.TrimSpace(match[1]); t != "" {
-			voiceTexts = append(voiceTexts, t)
-		}
-	}
-	replyText = strings.TrimSpace(voiceMarkerRegex.ReplaceAllString(replyText, ""))
-	autoVoiceReply := false
-	if autoTranscribed && len(voiceTexts) == 0 {
-		if t := utils.CleanVoiceReplyText(replyText); t != "" {
-			voiceTexts = append(voiceTexts, t)
-			autoVoiceReply = true
-		}
-	}
+	voiceResult := chatbot.ExtractVoiceMarkers(replyText, autoTranscribed)
+	replyText = voiceResult.CleanText
+	voiceTexts := voiceResult.Texts
+	autoVoiceReply := voiceResult.AutoReply
 
 	model := doneEvent.Model
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
 	footer := utils.FormatEventFooter(doneEvent.Duration, model, doneEvent.Usage)
-	if len(attachmentPaths) > 0 || len(voiceTexts) > 0 {
-		footer = "🔗 " + footer
-	}
-	replyText = fmt.Sprintf("%s\n-# ⎿ %s", replyText, footer)
-	if len(execErrors) > 0 {
-		replyText = fmt.Sprintf("%s\n-# ⎿ ⚠️ %s", replyText, strings.Join(execErrors, ", "))
-	}
+	hasMedia := len(attachmentPaths) > 0 || len(voiceTexts) > 0
+	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, execErrors)
 
-	chunks := chunk(replyText)
+	chunks := chatbot.Chunk(chatbot.Discord, replyText)
 	replyTo := in.MessageID
 	var replyMsg *discordgo.Message
 	for _, part := range chunks {

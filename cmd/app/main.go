@@ -16,6 +16,7 @@ import (
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -26,8 +27,12 @@ import (
 func init() {
 	exec.RegisterPushHook("dc-", discord.PushDiscordResult)
 	exec.RegisterPushHook("tg-", telegram.PushTelegramResult)
-	exec.RegisterAdminSender("tg", telegram.SendAdminCode)
-	exec.RegisterAdminSender("dc", discord.SendAdminCode)
+	exec.RegisterAdminSender("tg", func(ctx context.Context, id, str string) error {
+		return chatbot.SendAdminCode(ctx, chatbot.Telegram, id, str)
+	})
+	exec.RegisterAdminSender("dc", func(ctx context.Context, id, str string) error {
+		return chatbot.SendAdminCode(ctx, chatbot.Discord, id, str)
+	})
 }
 
 func main() {
@@ -119,7 +124,6 @@ func setSummaryCron() {
 		}
 	}
 }
-
 
 func initMCP(ctx context.Context, sessionID string) *mcp.MCP {
 	manager, err := mcp.New(ctx, strings.TrimSpace(sessionID))

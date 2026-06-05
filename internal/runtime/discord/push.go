@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -54,12 +53,12 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 	cleanText, attachmentPaths := utils.ExtractFileMarkers(str)
 
 	if strings.TrimSpace(cleanText) != "" {
-		message := cleanText + buildPushFooter(payload.Duration, payload.Model, payload.Usage)
+		message := cleanText + chatbot.BuildPushFooter(chatbot.Discord, payload.Duration, payload.Model, payload.Usage)
 		if prefix := strings.TrimSpace(payload.Prefix); prefix != "" {
 			quoted := strings.ReplaceAll(prefix, "\n", "\n> ")
 			message = fmt.Sprintf("> %s\n%s", quoted, message)
 		}
-		for _, part := range chunk(message) {
+		for _, part := range chatbot.Chunk(chatbot.Discord, message) {
 			if _, err := client.Send(ctx, channelID, "", part); err != nil {
 				slog.Warn("github.com/pardnchiu/go-bot/discord Bot.Send",
 					slog.String("session", id),
@@ -71,12 +70,4 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 	}
 
 	sendAttachments(ctx, client, channelID, chanName, "", attachmentPaths)
-}
-
-func buildPushFooter(duration time.Duration, model string, usage *agentTypes.Usage) string {
-	footer := utils.FormatEventFooter(duration, model, usage)
-	if footer == "" {
-		return ""
-	}
-	return "\n-# ⎿ " + footer
 }
