@@ -104,7 +104,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventText:
 		if ev.Source == "" {
-			line := ev.Text
+			line := toPureText(ev.Text)
 			var rendered string
 			if !t.streaming {
 				t.streaming = true

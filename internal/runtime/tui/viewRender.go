@@ -3,7 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,6 +12,17 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
+
+var (
+	mdBoldRe  = regexp.MustCompile(`\*\*(.+?)\*\*`)
+	htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+)
+
+func toPureText(s string) string {
+	s = mdBoldRe.ReplaceAllString(s, "$1")
+	s = htmlTagRe.ReplaceAllString(s, "")
+	return s
+}
 
 var projectVersion = "dev"
 
@@ -32,32 +43,26 @@ var (
 			Padding(0, 1)
 )
 
-func headerBlock(cwd, daemon, http, discord, telegram string) string {
-	logo := textStyle.Bold(true).Render("✻ Agenvoy ") + hintStyle.Render(projectVersion)
-	cwdStyle := textStyle
-	displayCwd := cwd
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		switch {
-		case cwd == home:
-			cwdStyle = hintStyle
-			displayCwd = "~"
-		case strings.HasPrefix(cwd, home+"/"):
-			displayCwd = "~" + cwd[len(home):]
+func headerBlock(daemon, http, discord, telegram string) string {
+	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(projectVersion)
+
+	const leftCol = 14
+	const gap = "   "
+	padLeft := func(s string) string {
+		w := lipgloss.Width(s)
+		if w >= leftCol {
+			return s
 		}
+		return s + strings.Repeat(" ", leftCol-w)
 	}
+
 	body := strings.Join([]string{
 		logo,
+		hintStyle.Render("Make AI actually work for you"),
+		hintStyle.Render("Your productivity infrastructure"),
 		"",
-		textStyle.Render("/         ") + hintStyle.Render("list commands"),
-		textStyle.Render("/switch   ") + hintStyle.Render("change current session"),
-		textStyle.Render("/bot      ") + hintStyle.Render("edit bot persona"),
-		textStyle.Render("/mode     ") + hintStyle.Render("switch mode (cli / web)"),
-		"",
-		cwdStyle.Render("cwd:      " + displayCwd),
-		daemon,
-		http,
-		discord,
-		telegram,
+		padLeft(daemon) + gap + discord,
+		padLeft(http) + gap + telegram,
 	}, "\n")
 	return headerStyle.Render(body)
 }
@@ -144,7 +149,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		return hintStyle.Render(line), true
 
 	case agentTypes.EventText:
-		str := ev.Text
+		str := toPureText(ev.Text)
 		if str == "" {
 			return "", false
 		}

@@ -132,7 +132,7 @@ func (t TUI) Init() tea.Cmd {
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		),
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
@@ -182,11 +182,9 @@ type LoadHistorySelect struct {
 	load bool
 }
 
-
-
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `Ask anything — research, planning, daily — or type / for commands`
+	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -272,17 +270,17 @@ func getTelegramStatus() string {
 func getDaemonStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("daemon:   ") + errorStyle.Render("failed")
+		return textStyle.Render("uid:  ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("daemon:   ") + okayStyle.Render(strconv.Itoa(r.PID))
+	return textStyle.Render("uid:  ") + okayStyle.Render(strconv.Itoa(r.PID))
 }
 
 func getHttpStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("http:     ") + errorStyle.Render("failed")
+		return textStyle.Render("http: ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("http:     ") + okayStyle.Render(filesystem.Port)
+	return textStyle.Render("http: ") + okayStyle.Render(filesystem.Port)
 }
 
 func refreshBotNames() {

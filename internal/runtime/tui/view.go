@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -37,8 +38,36 @@ func (t TUI) viewIdle() string {
 		return ""
 	}
 
-	left := hintStyle.Render(" / commands · enter send · alt+enter newline · esc cancel")
+	left := hintStyle.Render(" " + t.shortCwd())
 	right := t.sessionTag()
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
+
+	if t.mode == webMode {
+		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	}
 
 	if t.mode == webMode {
 		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
@@ -75,6 +104,19 @@ func (t TUI) viewThinking() string {
 	return systemStyle.Render(t.spinner.View()) + " " +
 		systemStyle.Render(verb+"…") + " " +
 		hintStyle.Render("("+strings.Join(detail, " · ")+")")
+}
+
+func (t TUI) shortCwd() string {
+	cwd := t.cwd
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		switch {
+		case cwd == home:
+			return "~"
+		case strings.HasPrefix(cwd, home+"/"):
+			return "~" + cwd[len(home):]
+		}
+	}
+	return cwd
 }
 
 func splitOptStyle(s string) (head, tail string) {
