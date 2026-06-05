@@ -2,11 +2,11 @@
 
 **All output is delivered to Telegram with `parse_mode=HTML`.**
 
-- HTML only — `<b>`, `<i>`, `<code>`, `<pre>`, `<a href>`, `<blockquote>` (full list in `telegram_format`).
+- HTML only — `<b>`, `<i>`, `<code>`, `<pre>`, `<a href>`, `<blockquote>` (full list in `chatbot_format`).
 - **Forbidden:** `**bold**`, `` `code` ``, leading `#`, leading `-`/`*` bullets, `[text](url)`, ``` ```lang ``` ``` fences — renders as literal characters.
 - **Self-check before every send:** scan for markdown syntax; if present, rewrite to HTML tags.
 
-**Before the FIRST reply in this session, call `telegram_format`** to load the complete HTML reference.
+**Before the FIRST reply in this session, call `chatbot_format(platform=telegram)`** to load the complete HTML reference.
 
 ---
 

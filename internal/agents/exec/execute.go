@@ -259,13 +259,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
 	}
-	if cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "" {
+	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
+		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"telegram_format", "list_telegram_chat", "send_to_telegram_chat")
-	}
-	if cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "" {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"discord_format", "list_discord_channel", "send_to_discord_channel")
+			"chatbot_format", "list_chatbot", "send_to_chatbot")
 	}
 
 	if len(data.ExcludeTools) > 0 {
@@ -692,14 +689,14 @@ func buildCrossChannelPrompt() string {
 	}
 	var sb strings.Builder
 	sb.WriteString("## Cross-channel Sending\n\n")
-	sb.WriteString("When sending via `send_to_telegram_chat` / `send_to_discord_channel` from any session (including TUI / CLI / cron):\n\n")
+	sb.WriteString("When sending via `send_to_chatbot` from any session (including TUI / CLI / cron):\n\n")
 	if cfg.TelegramEnabled {
-		sb.WriteString("- **Telegram** — if the user did not name a specific chat, `list_telegram_chat` → `ask_user(options=[names])` → map chosen name → chat_id → send. Never fabricate chat_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
-		sb.WriteString("- Before composing the message argument, call `telegram_format` (HTML mode only — markdown leaks render literally).\n")
+		sb.WriteString("- **Telegram** (`platform=telegram`) — if the user did not name a specific chat, `list_chatbot(platform=telegram)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
+		sb.WriteString("- Before composing the message argument, call `chatbot_format(platform=telegram)` (HTML mode only — markdown leaks render literally).\n")
 	}
 	if cfg.DiscordEnabled {
-		sb.WriteString("- **Discord** — if the user did not name a specific channel, `list_discord_channel` → `ask_user(options=[names])` → map chosen name → channel_id → send. Never fabricate channel_id.\n")
-		sb.WriteString("- Before composing the message argument, call `discord_format` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
+		sb.WriteString("- **Discord** (`platform=discord`) — if the user did not name a specific channel, `list_chatbot(platform=discord)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id.\n")
+		sb.WriteString("- Before composing the message argument, call `chatbot_format(platform=discord)` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }
