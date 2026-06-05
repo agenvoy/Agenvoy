@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -138,6 +139,10 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 	autoTranscribed := false
 	if hasAttachment {
+		if hasVoiceAttachment(in) && !config.VoiceEnabled() {
+			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, "Please enable it with `/voice enable` first.")
+			return nil
+		}
 		attachments := saveAttachments(ctx, b, in)
 		transcripts, paths, err := transcribeSavedAttachments(ctx, attachments)
 		if err != nil {

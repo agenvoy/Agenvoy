@@ -94,6 +94,18 @@ func shouldTranscribeAttachment(contentType, filename string) bool {
 	}
 }
 
+func hasVoiceAttachment(in go_bot_discord.Input) bool {
+	for _, att := range in.Attachments {
+		if att == nil {
+			continue
+		}
+		if shouldTranscribeAttachment(att.ContentType, att.Filename) {
+			return true
+		}
+	}
+	return false
+}
+
 func transcribeSavedAttachments(ctx context.Context, attachments []savedAttachment) ([]string, []string, error) {
 	var transcripts []string
 	var paths []string

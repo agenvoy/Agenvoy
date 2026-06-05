@@ -676,6 +676,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(seq...)
 
+	case VoiceAction:
+		if msg.action == "enable" && voiceNeedsGeminiKey() {
+			next, cmd := t.openVoiceKeyPrompt()
+			return next, cmd
+		}
+		return t, setVoice(msg.action)
+
+	case VoiceKeySubmit:
+		token := strings.TrimSpace(msg.token)
+		if token == "" {
+			return t, tea.Println(errorStyle.Render("[!] voice enable: GEMINI_API_KEY is required") + "\n")
+		}
+		if err := keychain.Set("GEMINI_API_KEY", token); err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice keychain.Set: %v", err)) + "\n")
+		}
+		if err := config.SaveKey("GEMINI_API_KEY"); err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice session.SaveKey: %v", err)) + "\n")
+		}
+		return t, setVoice("enable")
+
+	case VoiceDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice %s: %v", msg.action, msg.err)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
+
 	case KuradbAction:
 		switch msg.action {
 		case "enable":

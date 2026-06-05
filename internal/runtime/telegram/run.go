@@ -21,6 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -57,6 +58,14 @@ func inputHasAttachment(in go_bot_telegram.Input) bool {
 		return m.Voice != nil || m.Audio != nil || m.Video != nil || m.VideoNote != nil
 	}
 	return false
+}
+
+func inputHasVoice(in go_bot_telegram.Input) bool {
+	if in.Raw == nil || in.Raw.Message == nil {
+		return false
+	}
+	m := in.Raw.Message
+	return m.Voice != nil || m.Audio != nil || m.Video != nil || m.VideoNote != nil
 }
 
 func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []go_bot_telegram.Input) error {
@@ -154,6 +163,10 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 
 	autoTranscribed := false
 	if hasAttachment {
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !config.VoiceEnabled() {
+			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "Please enable it with <code>/voice enable</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
+			return nil
+		}
 		var attachments []savedAttachment
 		for _, ai := range attachInputs {
 			attachments = append(attachments, saveAttachments(ctx, b, ai)...)
