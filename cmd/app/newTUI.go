@@ -16,9 +16,8 @@ import (
 	codexImage2 "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex/image2"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	discordTool "github.com/pardnchiu/agenvoy/internal/runtime/discord/tool"
+	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
-	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -62,8 +61,7 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 
 	codexImage2.Register()
 	geminiStt.Register()
-	telegramTool.Register()
-	discordTool.Register()
+	chatbotTool.Register()
 	kuradbTool.Register()
 
 	if !runtime.IsCurrent() {

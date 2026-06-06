@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -76,7 +77,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		PendingTask:    taskHash,
 	}
 
-	sess, err := getSession(chatID, "user", content, execData, sessionID, "")
+	sess, err := getSession(ctx, chatID, "user", content, execData, sessionID, "")
 	if err != nil {
 		slog.Error("ask_user resume: getSession",
 			slog.String("session", sessionID),
@@ -115,15 +116,10 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		model = primary.Name()
 	}
 	footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Usage)
-	if len(photoPaths) > 0 || len(docPaths) > 0 {
-		footer = "🔗 " + footer
-	}
-	replyText = fmt.Sprintf("%s\n\n<blockquote expandable>%s</blockquote>", replyText, footer)
-	if len(result.ExecErrors) > 0 {
-		replyText = fmt.Sprintf("%s\n\n<blockquote expandable>⚠️ %s</blockquote>", replyText, strings.Join(result.ExecErrors, ", "))
-	}
+	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0
+	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, result.ExecErrors)
 
-	for _, c := range chunk(replyText) {
+	for _, c := range chatbot.Chunk(chatbot.Telegram, replyText) {
 		if _, err := b.client.Send(ctx, chatID, 0, c, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
 			slog.Warn("Send (resume)", slog.String("session", sessionID), slog.String("error", err.Error()))
 			break

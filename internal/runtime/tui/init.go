@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -130,7 +132,7 @@ func (t TUI) Init() tea.Cmd {
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		),
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
@@ -138,6 +140,10 @@ func (t TUI) Init() tea.Cmd {
 		path := filesystem.ActionLogPath(sid)
 		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {
 			seq = append(seq, func() tea.Msg { return LoadHistoryCheck{id: sid} })
+		}
+		if n := len(interactive.ListPendingTasks(sid)); n > 0 {
+			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
+			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
 		}
 	} else {
 		seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
@@ -176,11 +182,9 @@ type LoadHistorySelect struct {
 	load bool
 }
 
-
-
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `Ask anything — research, planning, daily — or type / for commands`
+	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -266,17 +270,17 @@ func getTelegramStatus() string {
 func getDaemonStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("daemon:   ") + errorStyle.Render("failed")
+		return textStyle.Render("uid:  ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("daemon:   ") + okayStyle.Render(strconv.Itoa(r.PID))
+	return textStyle.Render("uid:  ") + okayStyle.Render(strconv.Itoa(r.PID))
 }
 
 func getHttpStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("http:     ") + errorStyle.Render("failed")
+		return textStyle.Render("http: ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("http:     ") + okayStyle.Render(filesystem.Port)
+	return textStyle.Render("http: ") + okayStyle.Render(filesystem.Port)
 }
 
 func refreshBotNames() {

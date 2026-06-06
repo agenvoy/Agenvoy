@@ -6,7 +6,7 @@ All output delivered to Discord uses **Discord-flavored markdown** (CommonMark s
 - Scheduling confirmations / acknowledgments
 - Skill / tool result reports
 - Background push results from cron-triggered or task-triggered skill runs
-- Output from `send_to_discord_channel` (cross-session sends from non-dc sessions)
+- Output from `send_to_chatbot(platform=discord)` (cross-session sends from non-dc sessions)
 - Script `echo` / `print` stdout — forwarded verbatim
 
 Discord does **not** support HTML, LaTeX, or tables — emitting any of these results in literal characters appearing in the channel.

@@ -1,4 +1,4 @@
-package telegram
+package chatbot
 
 import (
 	"regexp"
@@ -6,28 +6,52 @@ import (
 	"unicode/utf8"
 )
 
-const telegramChunkBytes = 3200
+const (
+	telegramChunkBytes = 3200
+	discordChunkBytes  = 1600
+)
 
-var tagRegex = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
+var (
+	tagRegex   = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
+	fenceRegex = regexp.MustCompile("```([a-zA-Z0-9_+-]*)")
+)
 
 type openTag struct {
 	name  string
 	attrs string
 }
 
-func chunk(str string) []string {
-	if len(str) <= telegramChunkBytes {
+func Chunk(ch Channel, str string) []string {
+	limit := telegramChunkBytes
+	if ch == Discord {
+		limit = discordChunkBytes
+	}
+	if len(str) <= limit {
 		return []string{str}
 	}
+
 	var chunks []string
-	var carry []openTag
+	var tagStack []openTag
+	var fenceLang string
+	var fenceOpen bool
 	pos := 0
+
 	for pos < len(str) {
 		remaining := str[pos:]
-		prefix := openTags(carry)
-		budget := telegramChunkBytes - len(prefix)
+
+		var prefix string
+		switch ch {
+		case Telegram:
+			prefix = renderOpenTags(tagStack)
+		case Discord:
+			if fenceOpen {
+				prefix = "```" + fenceLang + "\n"
+			}
+		}
+
+		budget := limit - len(prefix)
 		if budget <= 0 {
-			budget = telegramChunkBytes / 2
+			budget = limit / 2
 		}
 		if len(remaining) <= budget {
 			chunks = append(chunks, prefix+remaining)
@@ -51,10 +75,20 @@ func chunk(str string) []string {
 
 		body := strings.TrimRight(remaining[:idx], " \n")
 		full := prefix + body
-		stack := scanOpenTags(full)
-		chunks = append(chunks, full+closeTags(stack))
-		carry = stack
 
+		var suffix string
+		switch ch {
+		case Telegram:
+			tagStack = scanOpenTags(full)
+			suffix = renderCloseTags(tagStack)
+		case Discord:
+			fenceLang, fenceOpen = scanFenceState(full)
+			if fenceOpen {
+				suffix = "\n```"
+			}
+		}
+
+		chunks = append(chunks, full+suffix)
 		pos += idx
 		for pos < len(str) && (str[pos] == '\n' || str[pos] == ' ') {
 			pos++
@@ -65,8 +99,7 @@ func chunk(str string) []string {
 
 func scanOpenTags(s string) []openTag {
 	var stack []openTag
-	matches := tagRegex.FindAllStringSubmatch(s, -1)
-	for _, m := range matches {
+	for _, m := range tagRegex.FindAllStringSubmatch(s, -1) {
 		closing := m[1] == "/"
 		name := strings.ToLower(m[2])
 		attrs := m[3]
@@ -87,7 +120,7 @@ func scanOpenTags(s string) []openTag {
 	return stack
 }
 
-func openTags(stack []openTag) string {
+func renderOpenTags(stack []openTag) string {
 	var sb strings.Builder
 	for _, t := range stack {
 		sb.WriteString("<")
@@ -98,7 +131,7 @@ func openTags(stack []openTag) string {
 	return sb.String()
 }
 
-func closeTags(stack []openTag) string {
+func renderCloseTags(stack []openTag) string {
 	var sb strings.Builder
 	for i := len(stack) - 1; i >= 0; i-- {
 		sb.WriteString("</")
@@ -114,4 +147,12 @@ func isVoidTag(name string) bool {
 		return true
 	}
 	return false
+}
+
+func scanFenceState(s string) (string, bool) {
+	matches := fenceRegex.FindAllStringSubmatch(s, -1)
+	if len(matches)%2 == 0 {
+		return "", false
+	}
+	return matches[len(matches)-1][1], true
 }

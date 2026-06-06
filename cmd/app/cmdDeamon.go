@@ -25,14 +25,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
-	discordTool "github.com/pardnchiu/agenvoy/internal/runtime/discord/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
-	telegramTool "github.com/pardnchiu/agenvoy/internal/runtime/telegram/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -215,8 +214,7 @@ func cmdDaemon() {
 
 	codexImage2.Register()
 	geminiStt.Register()
-	telegramTool.Register()
-	discordTool.Register()
+	chatbotTool.Register()
 	kuradbTool.Register()
 
 	if _, err := runtime.Init(); err != nil {

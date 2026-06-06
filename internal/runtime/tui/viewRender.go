@@ -3,7 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,6 +12,17 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
+
+var (
+	mdBoldRe  = regexp.MustCompile(`\*\*(.+?)\*\*`)
+	htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+)
+
+func toPureText(s string) string {
+	s = mdBoldRe.ReplaceAllString(s, "$1")
+	s = htmlTagRe.ReplaceAllString(s, "")
+	return s
+}
 
 var projectVersion = "dev"
 
@@ -32,32 +43,26 @@ var (
 			Padding(0, 1)
 )
 
-func headerBlock(cwd, daemon, http, discord, telegram string) string {
-	logo := textStyle.Bold(true).Render("✻ Agenvoy ") + hintStyle.Render(projectVersion)
-	cwdStyle := textStyle
-	displayCwd := cwd
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		switch {
-		case cwd == home:
-			cwdStyle = hintStyle
-			displayCwd = "~"
-		case strings.HasPrefix(cwd, home+"/"):
-			displayCwd = "~" + cwd[len(home):]
+func headerBlock(daemon, http, discord, telegram string) string {
+	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(projectVersion)
+
+	const leftCol = 14
+	const gap = "   "
+	padLeft := func(s string) string {
+		w := lipgloss.Width(s)
+		if w >= leftCol {
+			return s
 		}
+		return s + strings.Repeat(" ", leftCol-w)
 	}
+
 	body := strings.Join([]string{
 		logo,
+		hintStyle.Render("Make AI actually work for you"),
+		hintStyle.Render("Your productivity infrastructure"),
 		"",
-		textStyle.Render("/         ") + hintStyle.Render("list commands"),
-		textStyle.Render("/switch   ") + hintStyle.Render("change current session"),
-		textStyle.Render("/bot      ") + hintStyle.Render("edit bot persona"),
-		textStyle.Render("/mode     ") + hintStyle.Render("switch mode (cli / web)"),
-		"",
-		cwdStyle.Render("cwd:      " + displayCwd),
-		daemon,
-		http,
-		discord,
-		telegram,
+		padLeft(daemon) + gap + discord,
+		padLeft(http) + gap + telegram,
 	}, "\n")
 	return headerStyle.Render(body)
 }
@@ -144,7 +149,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		return hintStyle.Render(line), true
 
 	case agentTypes.EventText:
-		str := ev.Text
+		str := toPureText(ev.Text)
 		if str == "" {
 			return "", false
 		}
@@ -249,7 +254,7 @@ func printLog(name, raw, cwd string) string {
 		}
 		return label
 
-	case "activate_skill":
+	case "run_skill":
 		if s := pick("skill", "name"); s != "" {
 			return s
 		}
@@ -264,12 +269,12 @@ func printLog(name, raw, cwd string) string {
 		}
 		return dir
 
-	case "read_file", "write_file", "patch_file", "glob_files", "save_page_to_file":
-		if s := pick("path", "pattern", "save_to"); s != "" {
+	case "read_file", "write_file", "patch_file", "glob_files":
+		if s := pick("path", "pattern"); s != "" {
 			return s
 		}
 
-	case "update_page":
+	case "render_page":
 		return ""
 
 	case "search_files":
@@ -289,7 +294,7 @@ func printLog(name, raw, cwd string) string {
 		}
 		return loc
 
-	case "search_web", "fetch_google_rss":
+	case "search_web", "search_google_news":
 		if q := pick("query", "keyword"); q != "" {
 			if tr := pick("time_range", "time"); tr != "" {
 				return fmt.Sprintf("%s (%s)", q, tr)
@@ -320,12 +325,12 @@ func printLog(name, raw, cwd string) string {
 			return s
 		}
 
-	case "search_error_memory", "search_conversation_history":
+	case "search_error_history", "search_chat_history":
 		if s := pick("keyword", "query"); s != "" {
 			return s
 		}
 
-	case "add_task", "add_cron", "patch_task", "patch_cron":
+	case "add_schedule", "patch_schedule":
 		skill := pick("skill_name")
 		t := pick("time")
 		if skill != "" && t != "" {
@@ -335,7 +340,7 @@ func printLog(name, raw, cwd string) string {
 			return skill
 		}
 
-	case "remove_task", "remove_cron":
+	case "remove_schedule":
 		if skill := pick("skill_name"); skill != "" {
 			return skill
 		}

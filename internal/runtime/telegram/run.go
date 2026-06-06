@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
@@ -29,18 +30,7 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
-var (
-	voiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
-	tsPrefixRegex    = regexp.MustCompile(`^ts:\d+\n`)
-)
-
-func runtimeExcludeTools(autoTranscribed bool) []string {
-	excluded := append([]string{}, tools.TUIOnlyTools...)
-	if autoTranscribed {
-		excluded = append(excluded, "transcribe_media")
-	}
-	return excluded
-}
+var tsPrefixRegex = regexp.MustCompile(`^ts:\d+\n`)
 
 func chatName(in go_bot_telegram.Input) string {
 	if in.ChatName != "" {
@@ -167,11 +157,11 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "Please enable it with <code>/enable-voice enable</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 			return nil
 		}
-		var attachments []savedAttachment
+		var attachments []chatbot.SavedAttachment
 		for _, ai := range attachInputs {
 			attachments = append(attachments, saveAttachments(ctx, b, ai)...)
 		}
-		transcripts, paths, err := transcribeSavedAttachments(ctx, attachments)
+		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
 		if err != nil {
 			slog.Warn("transcribeSavedAttachments",
 				slog.String("chat", chatName(in)),
@@ -282,12 +272,12 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
-		ExcludeTools:   runtimeExcludeTools(autoTranscribed),
+		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 	}
 
-	sess, err := getSession(in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
+	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
 	if err != nil {
 		return fmt.Errorf("getSession: %w", err)
 	}
@@ -333,38 +323,23 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	cleanText, photoPaths, docPaths := extractFileMarkers(replyText)
 	replyText = cleanText
 
-	var voiceTexts []string
-	for _, match := range voiceMarkerRegex.FindAllStringSubmatch(replyText, -1) {
-		if t := strings.TrimSpace(match[1]); t != "" {
-			voiceTexts = append(voiceTexts, t)
-		}
-	}
-	replyText = strings.TrimSpace(voiceMarkerRegex.ReplaceAllString(replyText, ""))
-	autoVoiceReply := false
-	if autoTranscribed && len(voiceTexts) == 0 {
-		if t := utils.CleanVoiceReplyText(replyText); t != "" {
-			voiceTexts = append(voiceTexts, t)
-			autoVoiceReply = true
-		}
-	}
+	voiceResult := chatbot.ExtractVoiceMarkers(replyText, autoTranscribed)
+	replyText = voiceResult.CleanText
+	voiceTexts := voiceResult.Texts
+	autoVoiceReply := voiceResult.AutoReply
 
 	model := doneEvent.Model
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
 	footer := utils.FormatEventFooter(doneEvent.Duration, model, doneEvent.Usage)
-	if len(photoPaths) > 0 || len(docPaths) > 0 || len(voiceTexts) > 0 {
-		footer = "🔗 " + footer
-	}
-	replyText = fmt.Sprintf("%s\n\n<blockquote expandable>%s</blockquote>", replyText, footer)
-	if len(execErrors) > 0 {
-		replyText = fmt.Sprintf("%s\n\n<blockquote expandable>⚠️ %s</blockquote>", replyText, strings.Join(execErrors, ", "))
-	}
+	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0 || len(voiceTexts) > 0
+	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
 
 	if in.MessageID != 0 {
 		replyText = "​\n" + replyText
 	}
-	chunks := chunk(replyText)
+	chunks := chatbot.Chunk(chatbot.Telegram, replyText)
 	replyTo := in.MessageID
 	for _, chunk := range chunks {
 		_, sendErr := b.client.Send(ctx, in.ChatID, replyTo, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))

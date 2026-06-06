@@ -51,7 +51,7 @@ func FormatToolEvent(name, raw string) string {
 		}
 		return fmt.Sprintf("%s: %s", val, strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(task))
 
-	case "activate_skill":
+	case "run_skill":
 		if s := arg("skill", "name"); s != "" {
 			return s
 		}
@@ -66,15 +66,15 @@ func FormatToolEvent(name, raw string) string {
 		}
 		return val
 
-	case "read_file", "write_file", "patch_file", "glob_files", "save_page_to_file":
-		if val := arg("path", "pattern", "save_to"); val != "" {
+	case "read_file", "write_file", "patch_file", "glob_files":
+		if val := arg("path", "pattern"); val != "" {
 			return val
 		}
 
-	case "update_page":
+	case "render_page":
 		return ""
 
-	case "search_web", "fetch_google_rss":
+	case "search_web", "search_google_news":
 		if val := arg("query", "keyword"); val != "" {
 			if timeRange := arg("time_range", "time"); timeRange != "" {
 				return fmt.Sprintf("%s (%s)", val, timeRange)
@@ -105,12 +105,12 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "search_error_memory", "search_conversation_history":
+	case "search_error_history", "search_chat_history":
 		if val := arg("keyword", "query"); val != "" {
 			return val
 		}
 
-	case "add_task", "add_cron", "patch_task", "patch_cron":
+	case "add_schedule", "patch_schedule":
 		skill := arg("skill_name")
 		t := arg("time")
 		if skill != "" && t != "" {
@@ -120,7 +120,7 @@ func FormatToolEvent(name, raw string) string {
 			return skill
 		}
 
-	case "remove_task", "remove_cron":
+	case "remove_schedule":
 		if skill := arg("skill_name"); skill != "" {
 			return skill
 		}

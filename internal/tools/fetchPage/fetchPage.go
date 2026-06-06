@@ -18,6 +18,7 @@ import (
 	go_browser "github.com/pardnchiu/go-browser"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -80,7 +81,7 @@ func registFetchPage() {
 		Name:        "fetch_page",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete.",
+		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -114,12 +115,21 @@ func registFetchPage() {
 					"description": "Ignore any existing cache entry and refetch live. Default false. Set true when the user explicitly asks for the latest version (\"重新抓\" / \"最新\" / \"refresh\") or when the previously cached content is known stale.",
 					"default":     false,
 				},
+				"save": map[string]any{
+					"type":        "boolean",
+					"description": "Save fetched content to a local file instead of returning it. Default false. Set true when user wants to download/export a page.",
+					"default":     false,
+				},
+				"save_to": map[string]any{
+					"type":        "string",
+					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against ~/Downloads (preferred if exists) or ~/.config/agenvoy/download/. Omit for auto-generated filename.",
+				},
 			},
 			"required": []string{
 				"link",
 			},
 		},
-		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Link        string `json:"link"`
 				KeepLinks   bool   `json:"keep_links"`
@@ -127,6 +137,8 @@ func registFetchPage() {
 				Type        string `json:"type"`
 				Cache       *bool  `json:"cache"`
 				Force       bool   `json:"force"`
+				Save        bool   `json:"save"`
+				SaveTo      string `json:"save_to"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
@@ -148,12 +160,27 @@ func registFetchPage() {
 			if params.SameSession != nil {
 				sameSession = *params.SameSession
 			}
-			return handler(link, params.KeepLinks, sameSession, outType, useCache, params.Force, nil)
+
+			var saveTo *string
+			if params.Save {
+				p := strings.TrimSpace(params.SaveTo)
+				if p == "" {
+					p = defaultDownloadPath(link)
+				} else {
+					abs, absErr := go_pkg_filesystem.AbsPath(filesystem.DownloadDir, p, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+					if absErr != nil {
+						return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", absErr)
+					}
+					p = abs
+				}
+				saveTo = &p
+			}
+			return handler(ctx, link, params.KeepLinks, sameSession, outType, useCache, params.Force, saveTo)
 		},
 	})
 }
 
-func handler(link string, keepLinks, sameSession bool, outType int, useCache, force bool, saveTo *string) (string, error) {
+func handler(ctx context.Context, link string, keepLinks, sameSession bool, outType int, useCache, force bool, saveTo *string) (string, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {
 		return "", fmt.Errorf("url.Parse: %w", err)
@@ -197,7 +224,7 @@ func handler(link string, keepLinks, sameSession bool, outType int, useCache, fo
 		if sameSession {
 			opt.Profile = currentProfile()
 		}
-		result, err := go_browser.Fetch(context.Background(), link, 15*time.Second, opt)
+		result, err := go_browser.Fetch(ctx, link, 15*time.Second, opt)
 		if err != nil {
 			status := 503
 			title := ""
@@ -259,6 +286,22 @@ func handler(link string, keepLinks, sameSession bool, outType int, useCache, fo
 		return fmt.Sprintf("Downloaded %d chars to %s", len(full), *saveTo), nil
 	}
 	return truncateResult(full), nil
+}
+
+func defaultDownloadPath(href string) string {
+	name := "page"
+	if u, err := url.Parse(href); err == nil {
+		seg := strings.TrimSuffix(filepath.Base(u.Path), "/")
+		if seg != "" && seg != "." {
+			name = seg
+		} else if u.Host != "" {
+			name = u.Host
+		}
+	}
+	if !strings.HasSuffix(name, ".md") {
+		name += ".md"
+	}
+	return filepath.Join(filesystem.DownloadDir, name)
 }
 
 func validateURL(href string) error {

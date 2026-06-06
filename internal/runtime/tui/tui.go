@@ -18,7 +18,7 @@ var (
 	program atomic.Pointer[tea.Program]
 
 	colSystem = lipgloss.Color("75")  // sky blue
-	colHint   = lipgloss.Color("240") // gray
+	colHint   = lipgloss.Color("243") // gray
 	colWarn   = lipgloss.Color("141") // purple
 	colOk     = lipgloss.Color("114") // green
 	colSkill  = lipgloss.Color("208") // orange

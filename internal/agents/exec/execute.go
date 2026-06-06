@@ -250,7 +250,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 	if !go_pkg_filesystem_reader.Exists(filesystem.KuradbEndpointPath) {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"rag_list_db", "rag_search_keyword", "rag_search_semantic")
+			"list_rag", "search_rag")
 	}
 	cfg, _ := config.Load()
 	if go_pkg_keychain.Get("agenvoy.codex.token") == "" || cfg == nil || !cfg.EnableImage2 {
@@ -259,13 +259,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
 	}
-	if cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "" {
+	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
+		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"telegram_format", "list_telegram_chat", "send_to_telegram_chat")
-	}
-	if cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "" {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"discord_format", "list_discord_channel", "send_to_discord_channel")
+			"format_chatbot", "list_chatbot", "send_to_chatbot")
 	}
 
 	if len(data.ExcludeTools) > 0 {
@@ -504,7 +501,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
 
-			if err := saveNewHistory(choice, session); err != nil {
+			if err := saveNewHistory(ctx, choice, session); err != nil {
 				slog.Warn("writeHistory",
 					slog.String("session", session.ID),
 					slog.String("error", err.Error()))
@@ -590,7 +587,7 @@ func sendText(events chan<- agentTypes.Event, str string) {
 	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
 }
 
-func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {
+func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {
 	session.Histories = append(session.Histories, choice.Message)
 
 	if session.Stateless {
@@ -612,22 +609,22 @@ func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSe
 		return fmt.Errorf("sessionHistory.Append: %w", err)
 	}
 
-	writeSessionHistEntry(session.ID, choice.Message)
+	writeSessionHistEntry(ctx, session.ID, choice.Message)
 	return nil
 }
 
-func SaveUserInputHistory(sessionID, userText string) {
+func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 	if sessionID == "" || strings.TrimSpace(userText) == "" {
 		return
 	}
-	writeSessionHistEntry(sessionID, agentTypes.Message{
+	writeSessionHistEntry(ctx, sessionID, agentTypes.Message{
 		Role:    "user",
 		Content: userText,
 	})
 	sessionLog.Append(sessionID, userText)
 }
 
-func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
+func writeSessionHistEntry(ctx context.Context, sessionID string, msg agentTypes.Message) {
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return
@@ -636,7 +633,7 @@ func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
 	db := torii.DB(torii.DBSessionHist)
 	value := string(msgBytes)
 
-	if setErr := db.SetVector(context.Background(), key, value, torii.SetDefault, nil); setErr != nil {
+	if setErr := db.SetVector(ctx, key, value, torii.SetDefault, nil); setErr != nil {
 		if setErr = db.Set(key, value, torii.SetDefault, nil); setErr != nil {
 			slog.Warn("store.DB.Set",
 				slog.String("session", sessionID),
@@ -692,14 +689,14 @@ func buildCrossChannelPrompt() string {
 	}
 	var sb strings.Builder
 	sb.WriteString("## Cross-channel Sending\n\n")
-	sb.WriteString("When sending via `send_to_telegram_chat` / `send_to_discord_channel` from any session (including TUI / CLI / cron):\n\n")
+	sb.WriteString("When sending via `send_to_chatbot` from any session (including TUI / CLI / cron):\n\n")
 	if cfg.TelegramEnabled {
-		sb.WriteString("- **Telegram** — if the user did not name a specific chat, `list_telegram_chat` → `ask_user(options=[names])` → map chosen name → chat_id → send. Never fabricate chat_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
-		sb.WriteString("- Before composing the message argument, call `telegram_format` (HTML mode only — markdown leaks render literally).\n")
+		sb.WriteString("- **Telegram** (`platform=telegram`) — if the user did not name a specific chat, `list_chatbot(platform=telegram)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
+		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=telegram)` (HTML mode only — markdown leaks render literally).\n")
 	}
 	if cfg.DiscordEnabled {
-		sb.WriteString("- **Discord** — if the user did not name a specific channel, `list_discord_channel` → `ask_user(options=[names])` → map chosen name → channel_id → send. Never fabricate channel_id.\n")
-		sb.WriteString("- Before composing the message argument, call `discord_format` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
+		sb.WriteString("- **Discord** (`platform=discord`) — if the user did not name a specific channel, `list_chatbot(platform=discord)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id.\n")
+		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=discord)` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }
