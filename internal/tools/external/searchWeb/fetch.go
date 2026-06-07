@@ -210,7 +210,7 @@ func fetchCDP(ctx context.Context, query, timeRange string) (string, error) {
 	}
 	link := ddgPath + "?" + params.Encode()
 
-	result, err := go_browser.Fetch(ctx, link, 15*time.Second, &go_browser.Option{
+	result, err := go_browser.Fetch(ctx, link, 30*time.Second, &go_browser.Option{
 		MaxLength: 200 << 10,
 		Type:      go_browser.TypeHTML,
 	})
