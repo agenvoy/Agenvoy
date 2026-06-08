@@ -81,6 +81,7 @@ Scope with file_pattern glob (e.g. '**/*.go', 'configs/**').`,
 			matches, err := go_pkg_filesystem_reader.SearchFiles(absPath, pattern, filePatterns, 0,
 				go_pkg_filesystem_reader.ListOption{
 					SkipExcluded:    true,
+					SkipDenied:      true,
 					IgnoreWalkError: true,
 				})
 			if err != nil {

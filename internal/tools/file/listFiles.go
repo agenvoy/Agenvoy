@@ -72,6 +72,7 @@ func registListFiles() {
 			if params.Recursive {
 				files, err = go_pkg_filesystem_reader.WalkFiles(absPath, go_pkg_filesystem_reader.ListOption{
 					SkipExcluded:      true,
+					SkipDenied:        true,
 					IgnoreWalkError:   true,
 					IncludeNonRegular: true,
 				})
