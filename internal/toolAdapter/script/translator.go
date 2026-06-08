@@ -13,6 +13,7 @@ import (
 )
 
 type Translator struct {
+	prefix  string
 	scripts map[string]*Script
 }
 
@@ -36,8 +37,9 @@ var runtimeMap = map[string]string{
 	"python":     "python3",
 }
 
-func New() *Translator {
+func New(prefix string) *Translator {
 	return &Translator{
+		prefix:  prefix,
 		scripts: make(map[string]*Script),
 	}
 }
@@ -75,7 +77,7 @@ func (t *Translator) Scan(dir string) error {
 }
 
 func (t *Translator) IsExist(name string) bool {
-	key := strings.TrimPrefix(name, "script_")
+	key := strings.TrimPrefix(name, t.prefix)
 	_, ok := t.scripts[key]
 	return ok
 }
@@ -90,7 +92,7 @@ func (t *Translator) GetTools() []map[string]any {
 		tools = append(tools, map[string]any{
 			"type": "function",
 			"function": map[string]any{
-				"name":        "script_" + script.Doc.Name,
+				"name":        t.prefix + script.Doc.Name,
 				"description": script.Doc.Description,
 				"parameters":  params,
 			},

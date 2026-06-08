@@ -7,4 +7,6 @@ func Register() {
 	registSearchFiles()
 	registWriteFile()
 	registPatchFile()
+	registGenerateTool()
+	registPatchTool()
 }

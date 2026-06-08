@@ -128,6 +128,8 @@ github.com/pardnchiu/go-browser v0.1.5 h1:FQQzPAhNCShKMR8i/rSUGOD8X2uLH7A4KnhdBl
 github.com/pardnchiu/go-browser v0.1.5/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
 github.com/pardnchiu/go-pkg v0.13.2 h1:VLgY8wiASxRrnF83WrU/YcrluNLnHH8W8dxWkdggNWs=
 github.com/pardnchiu/go-pkg v0.13.2/go.mod h1:DUCX9mbGQ2YCULGvoMOgagVJBMjSyiTzuwt29fw1qfQ=
+github.com/pardnchiu/go-pkg v0.13.3 h1:6ROu+sQgIpl+gtRiDuJIibRwnUJzPv6QIdk+TOVFHi0=
+github.com/pardnchiu/go-pkg v0.13.3/go.mod h1:DUCX9mbGQ2YCULGvoMOgagVJBMjSyiTzuwt29fw1qfQ=
 github.com/pardnchiu/go-scheduler v1.2.0 h1:DBmFWOPjGUzQEKYHZNeLS9v9PmJrKk/VwxQeVO754Ns=
 github.com/pardnchiu/go-scheduler v1.2.0/go.mod h1:JtHqK0I/ha8E9Eo86rVaw+cvLgREcL5LfT8p9DmY3Lg=
 github.com/pardnchiu/go-sqlite v1.1.0 h1:qA7xnb2JXJk9J8OG9ekzYGLEhQ8bOO6a+6uLzKkQ7LY=
