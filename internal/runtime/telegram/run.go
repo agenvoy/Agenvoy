@@ -344,9 +344,10 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	for _, chunk := range chunks {
 		_, sendErr := b.client.Send(ctx, in.ChatID, replyTo, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 		if sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
+			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
 				slog.String("session", sess.ID),
 				slog.String("error", sendErr.Error()))
+			b.client.Send(ctx, in.ChatID, in.MessageID, fmt.Sprintf("<blockquote>⚠️ send failed: %s</blockquote>", sendErr.Error()), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 			break
 		}
 		replyTo = 0

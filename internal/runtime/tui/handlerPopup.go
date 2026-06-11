@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -344,7 +346,7 @@ func newPopup(id string, req runtime.Request) *Popup {
 			pendingId: id,
 			kind:      popupConfirm,
 			title:     fmt.Sprintf("Run %s?", req.ToolName),
-			subtitle:  truncate(display, 200),
+			subtitle:  go_pkg_utils.TruncateString(display, 256),
 			options: []string{
 				"Yes",
 				"Yes, don't ask again",
@@ -405,17 +407,4 @@ func (p *Popup) advanceOrResolve(answer any) (resolved bool, reply runtime.Reply
 	}
 	p.loadCurrentQuestion()
 	return false, runtime.Reply{}
-}
-
-func truncate(s string, max int) string {
-	out := []rune(s)
-	for i, r := range out {
-		if r == '\n' || r == '\r' {
-			out[i] = ' '
-		}
-	}
-	if len(out) > max {
-		return string(out[:max]) + "…"
-	}
-	return string(out)
 }
