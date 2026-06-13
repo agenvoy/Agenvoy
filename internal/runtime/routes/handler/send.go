@@ -35,6 +35,7 @@ type Request struct {
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 	Persist      bool     `json:"persist,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
+	WebMode      bool     `json:"web_mode,omitempty"`
 }
 
 func Send() gin.HandlerFunc {
@@ -52,7 +53,9 @@ func Send() gin.HandlerFunc {
 		go sessionManager.Clean()
 
 		sessionID := req.SessionID
-		if sessionID == "" {
+		if req.WebMode {
+			sessionID = jarvisSessionID
+		} else if sessionID == "" {
 			prefix := "temp-"
 			if req.Persist {
 				prefix = "http-"
@@ -103,13 +106,20 @@ func Send() gin.HandlerFunc {
 				agentResult = agentTypes.Event{Type: agentTypes.EventAgentResult, Text: "external:" + externalAgent}
 			} else {
 				registry := agents.Registry()
+				if req.WebMode {
+					registry = filterWebModeRegistry(registry)
+				}
 				if req.Model != "" {
 					if a, ok := registry.Registry[req.Model]; ok {
 						agent = a
 					}
 				}
 				if agent == nil {
-					primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
+					resolveInput := trimContent
+					if req.WebMode {
+						resolveInput = "[web-page-render] " + trimContent
+					}
+					primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), registry, resolveInput, false, sessionID)
 					if err != nil {
 						wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 						return
@@ -135,6 +145,7 @@ func Send() gin.HandlerFunc {
 				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
 				AllowAll:          true,
+				WebMode:           req.WebMode,
 			}
 
 			if err := configBot.Save(sessionID, "", "", false); err != nil {
@@ -181,7 +192,7 @@ func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*age
 	if scanner == nil {
 		scanner = agents.Scanner()
 	}
-	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.ExcludeSkills)
+	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.WebMode, data.ExcludeSkills)
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
 	session.Histories = oldHistory
@@ -203,4 +214,34 @@ func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*age
 	exec.SaveUserInputHistory(ctx, sessionID, userText)
 
 	return session, nil
+}
+
+var webModeExcludeMarkers = []string{"-mini", "-nano", "haiku", "flash", "-lite"}
+
+func filterWebModeRegistry(reg agentTypes.AgentRegistry) agentTypes.AgentRegistry {
+	filtered := agentTypes.AgentRegistry{
+		Registry: make(map[string]agentTypes.Agent, len(reg.Registry)),
+		Fallback: reg.Fallback,
+	}
+	for _, e := range reg.Entries {
+		lower := strings.ToLower(e.Name)
+		skip := false
+		for _, marker := range webModeExcludeMarkers {
+			if strings.Contains(lower, marker) {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+		filtered.Entries = append(filtered.Entries, e)
+		if a, ok := reg.Registry[e.Name]; ok {
+			filtered.Registry[e.Name] = a
+		}
+	}
+	if len(filtered.Entries) == 0 {
+		return reg
+	}
+	return filtered
 }

@@ -24,6 +24,10 @@ func New() *gin.Engine {
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
 	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
 	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
+	r.GET("/jarvis", handler.Jarvis())
+	r.GET("/jarvis/page/*filepath", handler.JarvisPage())
+	r.GET("/jarvis/listener", handler.JarvisListener())
+	r.POST("/jarvis/reset", handler.JarvisReset())
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 
 	return r

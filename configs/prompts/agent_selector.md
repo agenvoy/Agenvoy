@@ -63,6 +63,10 @@ Request begins with `[summary]` prefix → pure JSON output task, no dense syste
 Request begins with `[plan]` prefix → text-only execution plan generation, no tool calls (toolDefs=nil).
 → Apply Pattern H directly.
 
+### P0.7: Web page render routing
+Request begins with `[web-page-render]` prefix → full HTML page generation via `render_page`, requires strong reasoning and HTML output quality regardless of input complexity (even greetings produce a styled page).
+→ Apply the "Code generation" chain directly: `claude-opus > codex-pro > codex > claude-sonnet > openai-pro > openai > gemini-pro`.
+
 ### P1: Task-type chain matching
 
 Identify which task scenario the request belongs to, then apply the corresponding pattern. Scan from left to right; return the first `name` in the available list that matches a node. Within a node, prefer the highest-version variant.

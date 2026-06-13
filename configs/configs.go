@@ -24,6 +24,9 @@ var SummaryContext string
 //go:embed prompts/system_prompt.md
 var SystemPrompt string
 
+//go:embed prompts/jarvis_system_prompt.md
+var JarvisSystemPrompt string
+
 //go:embed prompts/chatcompletions_system_prompt.md
 var ChatCompletionsSystemPrompt string
 

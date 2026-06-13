@@ -114,6 +114,7 @@ type ExecData struct {
 	ExcludeSkills     []string
 	ExtraSystemPrompt string
 	AllowAll          bool
+	WebMode           bool
 	PendingTask       string
 }
 
