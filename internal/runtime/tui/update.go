@@ -12,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -152,6 +153,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if next, cmd, handled := t.handleCommand(content); handled {
 					return next, cmd
 				}
+				if !noMatches(content) {
+					return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
+				}
 			}
 
 			if len(agents.Registry().Entries) == 0 {
@@ -211,6 +215,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if strings.HasPrefix(content, "/") {
 			if next, cmd, handled := t.handleCommand(content); handled {
 				return next, cmd
+			}
+			if !noMatches(content) {
+				return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
 			}
 		}
 		if len(agents.Registry().Entries) == 0 {
@@ -478,6 +485,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
 
+	case GrokMethodPick:
+		if t.modelAdd == nil {
+			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		}
+		switch msg.method {
+		case "grok-oauth":
+			t.modelAdd.provider = "grok-oauth"
+			return t.modelAddViaOAuth()
+		default:
+			t.modelAdd.provider = "grok"
+			return t.openModelAddAPIKey()
+		}
+
+	case OpenAIMethodPick:
+		if t.modelAdd == nil {
+			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		}
+		switch msg.method {
+		case "codex":
+			t.modelAdd.provider = "codex"
+			return t.modelAddViaOAuth()
+		default:
+			t.modelAdd.provider = "openai"
+			return t.openModelAddAPIKey()
+		}
+
 	case ModelAddAPIKeyReplace:
 		return t.runModelAddAPIKeyReplace(msg.replace)
 
@@ -495,6 +528,18 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ModelAddModelMultiPick:
 		return t.runModelAddModelMultiPick(msg.chosen)
+
+	case CompatModelsResult:
+		return t.runCompatModelsResult(msg)
+
+	case NvidiaModelsResult:
+		return t.runNvidiaModelsResult(msg)
+
+	case ModelScanLocalResult:
+		return t.runModelScanLocalResult(msg)
+
+	case ModelScanLocalPick:
+		return t.runModelScanLocalPick(msg.chosen)
 
 	case OAuthInfo:
 		return t.runOAuthInfo(msg)
@@ -1010,4 +1055,16 @@ func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
 	t.runTarget = ""
 	go runExec(t.ctx, msg.Content, false, t.cwd, sid, msg.PendingTask)
 	return t, t.spinner.Tick
+}
+
+func noMatches(input string) bool {
+	if scanner := agents.Scanner(); scanner != nil {
+		if m, _ := runtime.MatchSkill(scanner, input); m != nil {
+			return true
+		}
+	}
+	if agent, _, _ := external.MatchExternal(input); agent != "" {
+		return true
+	}
+	return false
 }
