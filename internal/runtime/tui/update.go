@@ -309,7 +309,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ModelScopeSelect:
 		switch msg.scope {
-		case "global":
+		case "add/remove":
 			next, cmd := t.openModelGlobalPopup()
 			return next, cmd
 		case "session":
@@ -551,8 +551,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CompatModelsResult:
 		return t.runCompatModelsResult(msg)
 
-	case NvidiaModelsResult:
-		return t.runNvidiaModelsResult(msg)
+	case RemoteModelsResult:
+		return t.runRemoteModelsResult(msg)
 
 	case ModelScanLocalResult:
 		return t.runModelScanLocalResult(msg)

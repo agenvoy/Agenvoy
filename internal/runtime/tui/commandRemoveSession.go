@@ -55,7 +55,7 @@ func (t TUI) openRemoveSessionConfirm2(sid string) (TUI, tea.Cmd) {
 		kind:     popupSingleSelect,
 		title:    "Are you sure? This cannot be undone.",
 		subtitle: fmt.Sprintf("History and tool data for %s will be permanently deleted.", utils.ShortenSessionID(sid)),
-		options:  []string{"No", "Yes, delete it"},
+		options:  []string{"No", "Yes  delete it"},
 		values:   []string{"no", "yes"},
 		cursor:   0,
 		onConfirm: func(chosen string) any {
