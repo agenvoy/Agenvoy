@@ -284,21 +284,30 @@ func FormatPatchDiff(raw string) (oldLines, newLines []string) {
 	if json.Unmarshal([]byte(raw), &p) != nil {
 		return nil, nil
 	}
-	split := func(s string) []string {
-		if s == "" {
-			return nil
-		}
-		return strings.Split(s, "\n")
-	}
-	oldLines = split(p.Old)
-	newLines = split(p.New)
-	if len(oldLines) > maxDiffLines {
-		oldLines = append(oldLines[:maxDiffLines], fmt.Sprintf("… +%d lines", len(oldLines)-maxDiffLines))
-	}
-	if len(newLines) > maxDiffLines {
-		newLines = append(newLines[:maxDiffLines], fmt.Sprintf("… +%d lines", len(newLines)-maxDiffLines))
-	}
+	oldLines = splitTruncate(p.Old)
+	newLines = splitTruncate(p.New)
 	return
+}
+
+func FormatWriteDiff(raw string) []string {
+	var p struct {
+		Content string `json:"content"`
+	}
+	if json.Unmarshal([]byte(raw), &p) != nil {
+		return nil
+	}
+	return splitTruncate(p.Content)
+}
+
+func splitTruncate(s string) []string {
+	if s == "" {
+		return nil
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > maxDiffLines {
+		lines = append(lines[:maxDiffLines], fmt.Sprintf("… +%d lines", len(lines)-maxDiffLines))
+	}
+	return lines
 }
 
 var fileMarkerRegex = regexp.MustCompile(`\[SEND_FILE:([^\]]+)\]`)

@@ -382,6 +382,10 @@ func newPopup(id string, req runtime.Request) *Popup {
 			for _, l := range newLines {
 				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
 			}
+		case "write_file":
+			for _, l := range utils.FormatWriteDiff(req.ToolArgs) {
+				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
+			}
 		}
 		return p
 	case runtime.KindAskUser:

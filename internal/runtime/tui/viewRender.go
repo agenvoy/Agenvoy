@@ -225,6 +225,19 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 			sb.WriteString(diffNewStyle.Render("  + " + go_pkg_utils.TruncateString(l, 120)))
 		}
 		return sb.String()
+
+	case "write_file":
+		lines := utils.FormatWriteDiff(args)
+		if len(lines) == 0 {
+			return header
+		}
+		var sb strings.Builder
+		sb.WriteString(header)
+		for _, l := range lines {
+			sb.WriteByte('\n')
+			sb.WriteString(diffNewStyle.Render("  + " + go_pkg_utils.TruncateString(l, 120)))
+		}
+		return sb.String()
 	}
 
 	return header
