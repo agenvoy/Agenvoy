@@ -15,11 +15,14 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	geminiSummary "github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -27,10 +30,7 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
-var (
-	voiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
-	tsPrefixRegex    = regexp.MustCompile(`^ts:\d+\n`)
-)
+var tsPrefixRegex = regexp.MustCompile(`^ts:\d+\n`)
 
 func chatName(in go_bot_telegram.Input) string {
 	if in.ChatName != "" {
@@ -48,6 +48,14 @@ func inputHasAttachment(in go_bot_telegram.Input) bool {
 		return m.Voice != nil || m.Audio != nil || m.Video != nil || m.VideoNote != nil
 	}
 	return false
+}
+
+func inputHasVoice(in go_bot_telegram.Input) bool {
+	if in.Raw == nil || in.Raw.Message == nil {
+		return false
+	}
+	m := in.Raw.Message
+	return m.Voice != nil || m.Audio != nil || m.Video != nil || m.VideoNote != nil
 }
 
 func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []go_bot_telegram.Input) error {
@@ -143,19 +151,36 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		return nil
 	}
 
+	autoTranscribed := false
 	if hasAttachment {
-		var paths []string
-		for _, ai := range attachInputs {
-			paths = append(paths, saveAttachments(ctx, b, ai)...)
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !config.VoiceEnabled() {
+			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "Please enable it with <code>/enable-voice enable</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
+			return nil
 		}
-		if len(paths) > 0 {
+		var attachments []chatbot.SavedAttachment
+		for _, ai := range attachInputs {
+			attachments = append(attachments, saveAttachments(ctx, b, ai)...)
+		}
+		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
+		if err != nil {
+			slog.Warn("transcribeSavedAttachments",
+				slog.String("chat", chatName(in)),
+				slog.String("error", err.Error()))
+			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, fmt.Sprintf("⚠️ Voice transcription failed\n<code>%s</code>", html.EscapeString(err.Error())), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
+			return nil
+		}
+		if len(transcripts) > 0 || len(paths) > 0 {
 			var lines []string
 			if content != "" {
 				lines = append(lines, content)
 			}
-			lines = append(lines, "[Telegram attachments]")
-			for _, p := range paths {
-				lines = append(lines, "- "+p)
+			lines = append(lines, transcripts...)
+			autoTranscribed = len(transcripts) > 0
+			if len(paths) > 0 {
+				lines = append(lines, "[Telegram attachments]")
+				for _, p := range paths {
+					lines = append(lines, "- "+p)
+				}
 			}
 			content = strings.Join(lines, "\n")
 		}
@@ -247,12 +272,12 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
-		ExcludeTools:   tools.TUIOnlyTools,
+		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 	}
 
-	sess, err := getSession(in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
+	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
 	if err != nil {
 		return fmt.Errorf("getSession: %w", err)
 	}
@@ -298,38 +323,31 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	cleanText, photoPaths, docPaths := extractFileMarkers(replyText)
 	replyText = cleanText
 
-	var voiceTexts []string
-	for _, match := range voiceMarkerRegex.FindAllStringSubmatch(replyText, -1) {
-		if t := strings.TrimSpace(match[1]); t != "" {
-			voiceTexts = append(voiceTexts, t)
-		}
-	}
-	replyText = strings.TrimSpace(voiceMarkerRegex.ReplaceAllString(replyText, ""))
+	voiceResult := chatbot.ExtractVoiceMarkers(replyText, autoTranscribed)
+	replyText = voiceResult.CleanText
+	voiceTexts := voiceResult.Texts
+	autoVoiceReply := voiceResult.AutoReply
 
 	model := doneEvent.Model
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
 	footer := utils.FormatEventFooter(doneEvent.Duration, model, doneEvent.Usage)
-	if len(photoPaths) > 0 || len(docPaths) > 0 || len(voiceTexts) > 0 {
-		footer = "🔗 " + footer
-	}
-	replyText = fmt.Sprintf("%s\n\n<blockquote expandable>%s</blockquote>", replyText, footer)
-	if len(execErrors) > 0 {
-		replyText = fmt.Sprintf("%s\n\n<blockquote expandable>⚠️ %s</blockquote>", replyText, strings.Join(execErrors, ", "))
-	}
+	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0 || len(voiceTexts) > 0
+	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
 
 	if in.MessageID != 0 {
 		replyText = "​\n" + replyText
 	}
-	chunks := chunk(replyText)
+	chunks := chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(replyText))
 	replyTo := in.MessageID
 	for _, chunk := range chunks {
 		_, sendErr := b.client.Send(ctx, in.ChatID, replyTo, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 		if sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
+			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
 				slog.String("session", sess.ID),
 				slog.String("error", sendErr.Error()))
+			b.client.Send(ctx, in.ChatID, in.MessageID, fmt.Sprintf("<blockquote>⚠️ send failed: %s</blockquote>", sendErr.Error()), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 			break
 		}
 		replyTo = 0
@@ -351,6 +369,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		chatID := in.ChatID
 		client := b.client
 		texts := voiceTexts
+		summarizeTexts := autoVoiceReply
 		sessID := sess.ID
 		go func() {
 			notifyFailure := func(errMsg string) {
@@ -371,6 +390,23 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 				return
 			}
 			for _, text := range texts {
+				if summarizeTexts {
+					summary, err := geminiSummary.VoiceReply(bgCtx, text)
+					if err != nil {
+						slog.Warn("gemini summary VoiceReply",
+							slog.String("session", sessID),
+							slog.String("chat", chat),
+							slog.String("error", err.Error()))
+						summary = utils.VoiceReplyText(text)
+					}
+					if strings.TrimSpace(summary) == "" {
+						summary = utils.VoiceReplyText(text)
+					}
+					text = summary
+				}
+				if strings.TrimSpace(text) == "" {
+					continue
+				}
 				if _, err := client.SendVoice(bgCtx, chatID, text, apiKey); err != nil {
 					slog.Error("github.com/pardnchiu/go-bot/telegram Bot.client.SendVoice",
 						slog.String("session", sessID),

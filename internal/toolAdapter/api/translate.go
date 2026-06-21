@@ -33,7 +33,7 @@ type APIDocumentAuthData struct {
 	Env    string `json:"env"`
 }
 
-func (d *APIDocumentData) translate() map[string]any {
+func (d *APIDocumentData) translate(prefix string) map[string]any {
 	props := make(map[string]any, len(d.Parameters))
 	required := []string{}
 
@@ -71,7 +71,7 @@ func (d *APIDocumentData) translate() map[string]any {
 	return map[string]any{
 		"type": "function",
 		"function": map[string]any{
-			"name":        "api_" + d.Name,
+			"name":        prefix + d.Name,
 			"description": d.Description,
 			"parameters":  json.RawMessage(rawParams),
 		},

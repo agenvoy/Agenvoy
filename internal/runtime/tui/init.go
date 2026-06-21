@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -19,55 +19,33 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
-type TUIMode int
-
 const (
-	cliMode TUIMode = iota
-	webMode
-
 	historyLoad = 100
 )
-
-func (m TUIMode) String() string {
-	switch m {
-	case cliMode:
-		return "cli"
-	case webMode:
-		return "web"
-	}
-	return "unknow"
-}
-
-func (m TUIMode) color() lipgloss.Color {
-	switch m {
-	case cliMode:
-		return colSystem
-	case webMode:
-		return colOk
-	}
-	return colError
-}
 
 type TUI struct {
 	ctx      context.Context
 	textarea textarea.Model
 	spinner  spinner.Model
 
-	running      bool
-	cancelExec   context.CancelFunc
-	runStartedAt time.Time
+	running       bool
+	cancelExec    context.CancelFunc
+	runStartedAt  time.Time
+	pendingResume *ResumeExec
 
-	popup        *Popup
-	popupQueue   []Pending
-	botBodyDraft string
-	mcpAdd       *mcpAddDraft
-	modelAdd     *modelAddItem
+	popup                  *Popup
+	popupQueue             []Pending
+	botBodyDraft           string
+	mcpAdd                 *mcpAddDraft
+	modelAdd               *modelAddItem
+	enableImage2AfterOAuth bool
 
 	selector *CmdSelector
 
@@ -77,8 +55,6 @@ type TUI struct {
 	activity           string
 	lastIn             int
 	lastOut            int
-
-	mode TUIMode
 
 	tailCancel context.CancelFunc
 
@@ -93,6 +69,7 @@ type TUI struct {
 	lineStatus     string
 	runTarget      string
 	streaming      bool
+	tableBuf       []string
 
 	inputHistory    []string
 	inputHistoryIdx int
@@ -108,15 +85,6 @@ type TUI struct {
 func (t TUI) Init() tea.Cmd {
 	var seq []tea.Cmd
 	if t.onceCall {
-		// agen cli/run: keep the user's terminal scrollback intact, skip the
-		// header block (daemon/http/discord/telegram status), skip the
-		// action.log tailer, and skip the textarea.Blink (no visible
-		// textarea). Session selection mirrors `agen`: if currentSID is
-		// already set (1 existing session), auto-submit straight away; else
-		// fire StartupSelectSession popup and let the SessionSelect /
-		// SessionNewSubmit handlers chain the autoSubmit after the user
-		// picks. Skip LoadHistoryCheck (we don't render history tail in
-		// single-shot output).
 		if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
 			if input := strings.TrimSpace(t.userInput); input != "" {
 				seq = append(seq, func() tea.Msg { return autoSubmit{input: input} })
@@ -130,14 +98,15 @@ func (t TUI) Init() tea.Cmd {
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		),
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-		path := filesystem.ActionLogPath(sid)
-		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {
-			seq = append(seq, func() tea.Msg { return LoadHistoryCheck{id: sid} })
+		seq = append(seq, loadSessionTail(sid)...)
+		if n := len(interactive.ListPendingTasks(sid)); n > 0 {
+			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
+			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
 		}
 	} else {
 		seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
@@ -167,18 +136,9 @@ type StartupSessionSelect struct {
 	id string
 }
 
-type LoadHistoryCheck struct {
-	id string
-}
-
-type LoadHistorySelect struct {
-	id   string
-	load bool
-}
-
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `Ask anything — research, planning, daily — or type / for commands`
+	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -226,7 +186,6 @@ func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TU
 		discordStatus:      getDiscordStatus(),
 		telegramStatus:     getTelegramStatus(),
 		lineStatus:         getLineStatus(),
-		mode:               cliMode,
 		width:              80,
 		currentSessionID:   currentSID,
 		currentSessionName: currentName,
@@ -277,17 +236,17 @@ func getLineStatus() string {
 func getDaemonStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("daemon:   ") + errorStyle.Render("failed")
+		return textStyle.Render("uid:  ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("daemon:   ") + okayStyle.Render(strconv.Itoa(r.PID))
+	return textStyle.Render("uid:  ") + okayStyle.Render(strconv.Itoa(r.PID))
 }
 
 func getHttpStatus() string {
 	r, err := runtime.Read()
 	if err != nil || r == nil || !runtime.IsAlive(r.PID) {
-		return textStyle.Render("http:     ") + errorStyle.Render("failed")
+		return textStyle.Render("http: ") + errorStyle.Render("failed")
 	}
-	return textStyle.Render("http:     ") + okayStyle.Render(filesystem.Port)
+	return textStyle.Render("http: ") + okayStyle.Render(filesystem.Port)
 }
 
 func refreshBotNames() {

@@ -30,7 +30,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		t.lastOut = 0
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		), true
 
 	case "/switch":
@@ -39,8 +39,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/new":
 		return t.commandNew(parts)
 
-	case "/remove-session":
-		return t.commandRemoveSession()
+	case "/dangerous":
+		return t.commandDangerous(parts)
 
 	case "/reset":
 		return t.commandReset()
@@ -57,15 +57,6 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/mcp":
 		return t.commandMcp(parts)
 
-	case "/dispatcher-model":
-		return t.commandDispatcher()
-
-	case "/summary-model":
-		return t.commandSummaryModel()
-
-	case "/reasoning":
-		return t.commandReasoning(parts)
-
 	case "/discord":
 		return t.commandDiscord(parts)
 
@@ -75,8 +66,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/line":
 		return t.commandLine(parts)
 
-	case "/kuradb":
-		return t.commandKuradb(parts)
+	case "/feature":
+		return t.commandFeature(parts)
 
 	case "/admin-channel":
 		return t.commandAdminChannel(parts)
@@ -90,9 +81,6 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/update":
 		return t.commandUpdate()
 
-	case "/mode":
-		return t.commandMode(parts)
-
 	case "/history":
 		return t.commandHistory()
 
@@ -102,17 +90,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/cmd":
 		return t.commandCmd(cmd)
 
-	case "/allow-skill":
-		return t.commandAllowSkill(parts)
-
-	case "/allow-cmd":
-		return t.commandAllowCmd(parts)
-
-	case "/allow-report":
-		return t.commandAllowReport(parts)
-
 	case "/key":
 		return t.commandKey(parts)
+
+	case "/pending":
+		return t.commandPending()
 	}
 	return t, nil, false
 }
@@ -124,7 +106,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	}
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 	}
 	tail := loadSessionTail(sid)
 	if len(tail) == 0 {

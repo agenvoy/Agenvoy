@@ -78,7 +78,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 	}
 	seq = append(seq, loadSessionTail(id)...)
 	seq = append(seq, switchBlock)
@@ -123,17 +123,29 @@ func popupSwitch(sid string) *Popup {
 		return sessions[i].id < sessions[j].id
 	})
 
+	shorts := make([]string, len(sessions))
+	sidMax := 0
+	for i, e := range sessions {
+		shorts[i] = utils.ShortenSessionID(e.id)
+		if n := len(shorts[i]); n > sidMax {
+			sidMax = n
+		}
+	}
+
 	names := make([]string, 0, len(sessions)+1)
 	sids := make([]string, 0, len(sessions)+1)
 	cursor := 0
 	for i, e := range sessions {
-		short := utils.ShortenSessionID(e.id)
-		label := short
+		padded := shorts[i]
+		if len(padded) < sidMax {
+			padded += strings.Repeat(" ", sidMax-len(padded))
+		}
+		label := padded
 		if e.name != "" && e.name != e.id {
-			label = fmt.Sprintf("%s (%s)", e.name, short)
+			label += "  (" + e.name + ")"
 		}
 		if e.id == sid {
-			label += "  [current]"
+			label += " " + systemStyle.Render("[current]")
 			cursor = i
 		}
 		names = append(names, label)

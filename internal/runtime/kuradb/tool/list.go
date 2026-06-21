@@ -11,11 +11,11 @@ import (
 
 func registRagListDB() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "rag_list_db",
+		Name:        "list_rag",
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     15 * time.Second,
-		Description: `[system-default] List user's RAG knowledge base databases (each db = a group of ingested files). Call this first before any RAG search to discover available db names and decide which to query.`,
+		Description: "List RAG knowledge base databases. Call when the target database name is unknown; skip if the database name is already known (e.g. 'agenvoy').",
 		Parameters: map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 )
@@ -44,7 +45,7 @@ func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID,
 	}
 }
 
-func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []string {
+func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []chatbot.SavedAttachment {
 	if b == nil || b.client == nil || len(in.Attachments) == 0 {
 		return nil
 	}
@@ -57,7 +58,7 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []str
 		return nil
 	}
 
-	var paths []string
+	var saved []chatbot.SavedAttachment
 	for _, att := range in.Attachments {
 		if att == nil {
 			continue
@@ -70,7 +71,32 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []str
 				slog.String("error", err.Error()))
 			continue
 		}
-		paths = append(paths, path)
+		saved = append(saved, chatbot.SavedAttachment{Path: path, Transcribe: shouldTranscribeAttachment(att.ContentType, att.Filename)})
 	}
-	return paths
+	return saved
+}
+
+func shouldTranscribeAttachment(contentType, filename string) bool {
+	contentType = strings.ToLower(strings.TrimSpace(contentType))
+	if strings.HasPrefix(contentType, "audio/") || strings.HasPrefix(contentType, "video/") {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".ogg", ".oga", ".opus", ".mp3", ".wav", ".m4a", ".flac", ".aac", ".aiff", ".mp4", ".mov", ".webm", ".mpg", ".mpeg", ".3gp":
+		return true
+	default:
+		return false
+	}
+}
+
+func hasVoiceAttachment(in go_bot_discord.Input) bool {
+	for _, att := range in.Attachments {
+		if att == nil {
+			continue
+		}
+		if shouldTranscribeAttachment(att.ContentType, att.Filename) {
+			return true
+		}
+	}
+	return false
 }

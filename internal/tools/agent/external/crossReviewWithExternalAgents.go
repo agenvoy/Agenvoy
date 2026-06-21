@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -17,7 +19,7 @@ func registCrossReviewWithExternalAgents() {
 		Name:        "cross_review_with_external_agents",
 		AlwaysAllow: true,
 		Timeout:     15 * time.Minute,
-		Description: "Fan out a deliverable to all installed external CLIs (codex / copilot / claude / gemini) in parallel for cross-review. Use for multi-model sanity check on non-trivial results.",
+		Description: "Fan out a deliverable to all installed external CLIs in parallel for cross-review. Use when user explicitly requests cross-check or multi-model verification. Requires ExternalAgents; if none configured, use review_result instead.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -92,10 +94,7 @@ func formatFeedback(results []external.Result) string {
 		if r.Err != nil {
 			sb.WriteString(fmt.Sprintf("[%s] ❌ %s\n\n", r.Agent, r.Err.Error()))
 		} else {
-			preview := r.Output
-			if len(preview) > 600 {
-				preview = preview[:600] + "…"
-			}
+			preview := go_pkg_utils.TruncateString(r.Output, 512)
 			sb.WriteString(fmt.Sprintf("[%s]\n%s\n\n", r.Agent, preview))
 		}
 	}

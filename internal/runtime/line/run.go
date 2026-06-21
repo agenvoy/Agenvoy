@@ -175,7 +175,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		AllowAll:       true,
 	}
 
-	sess, err := getSession(in, content, execData)
+	sess, err := getSession(ctx, in, content, execData)
 	if err != nil {
 		return fmt.Errorf("getSession: %w", err)
 	}

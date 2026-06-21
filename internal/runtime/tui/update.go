@@ -12,13 +12,13 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -84,6 +84,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, tea.Println(hintStyle.Render("⎯ cancelling…") + "\n")
 			}
 
+		case tea.KeyRunes:
+			if !t.running && t.selector == nil && strings.TrimSpace(t.textarea.Value()) == "" {
+				switch string(msg.Runes) {
+				case "W":
+					return t.cycleDispatcher(false)
+				case "S":
+					return t.cycleDispatcher(true)
+				case "A":
+					return t.cycleReasoning(false)
+				case "D":
+					return t.cycleReasoning(true)
+				}
+			}
+
 		case tea.KeyUp:
 			if t.selector != nil {
 				n := len(t.selector.items)
@@ -109,6 +123,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return next, nil
 				}
 			}
+
+		case tea.KeyShiftTab:
+			if t.selector != nil || t.running {
+				return t, nil
+			}
+			t.allowAll = !t.allowAll
+			return t, nil
 
 		case tea.KeyTab:
 			if t.selector != nil {
@@ -151,6 +172,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if next, cmd, handled := t.handleCommand(content); handled {
 					return next, cmd
 				}
+				if !noMatches(content) {
+					return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
+				}
 			}
 
 			if len(agents.Registry().Entries) == 0 {
@@ -161,7 +185,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.runStartedAt = time.Now()
 			t.runTarget = targetSession(content, t.currentSessionID)
 
-			go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, t.mode == webMode)
+			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "")
 
 			cmds = append(cmds,
 				tea.Println(messageBlock(content)),
@@ -182,6 +206,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.streaming = false
 		if t.currentSessionID != "" {
 			t.currentSessionName, _ = configBot.Get(t.currentSessionID)
+		}
+		if t.pendingResume != nil {
+			resume := *t.pendingResume
+			t.pendingResume = nil
+			return t.startResume(resume)
 		}
 		var doneCmds []tea.Cmd
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
@@ -206,6 +235,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if next, cmd, handled := t.handleCommand(content); handled {
 				return next, cmd
 			}
+			if !noMatches(content) {
+				return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
+			}
 		}
 		if len(agents.Registry().Entries) == 0 {
 			t.awaitingExit = true
@@ -217,11 +249,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.running = true
 		t.runStartedAt = time.Now()
 		t.runTarget = targetSession(content, t.currentSessionID)
-		go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, t.mode == webMode)
+		go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "")
 		return t, tea.Batch(
 			tea.Println(messageBlock(content)),
 			t.spinner.Tick,
 		)
+
+	case ResumeExec:
+		if t.running {
+			t.pendingResume = &msg
+			return t, nil
+		}
+		return t.startResume(msg)
+
+	case PendingSelect:
+		return t.resumePending(msg)
 
 	case WorkDir:
 		t.cwd = msg.dir
@@ -240,14 +282,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 
+		if msg.request.Kind == runtime.KindAskUser {
+			if t.cancelExec != nil {
+				t.cancelExec()
+				t.cancelExec = nil
+			}
+			t.running = false
+			t.activity = ""
+			t.runTarget = ""
+			t.streaming = false
+		}
 		t.popup = popup
 		return t, nil
 
 	case ExecProcessDone:
 		return t, nil
-
-	case ModeSelect:
-		return t.runModeSelect(msg.mode)
 
 	case SessionSelect:
 		next, cmd := t.runCommandSwitch(msg.id)
@@ -269,22 +318,23 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ModelScopeSelect:
 		switch msg.scope {
-		case "global":
-			next, cmd := t.openModelGlobalPopup()
-			return next, cmd
-		case "session":
-			next, cmd, _ := t.commandSessionModel()
-			return next, cmd
-		}
-		return t, nil
-
-	case ModelAction:
-		switch msg.action {
 		case "add":
 			next, cmd, _ := t.commandModelAdd()
 			return next, cmd
 		case "remove":
 			next, cmd, _ := t.commandModelRemove()
+			return next, cmd
+		case "session":
+			next, cmd, _ := t.commandSessionModel()
+			return next, cmd
+		case "dispatch":
+			next, cmd, _ := t.commandDispatcher()
+			return next, cmd
+		case "summary":
+			next, cmd, _ := t.commandSummaryModel()
+			return next, cmd
+		case "reasoning":
+			next, cmd, _ := t.commandReasoning(nil)
 			return next, cmd
 		}
 		return t, nil
@@ -297,8 +347,24 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "remove":
 			next, cmd, _ := t.commandMcpRemove()
 			return next, cmd
+		case "install":
+			next, cmd, _ := t.commandMcpInstall()
+			return next, cmd
 		}
 		return t, nil
+
+	case McpInstallPick:
+		if msg.index < 0 || msg.index >= len(mcpInstallClients) {
+			return t, tea.Println(errorStyle.Render("[!] invalid selection") + "\n")
+		}
+		c := mcpInstallClients[msg.index]
+		return t, func() tea.Msg { return runMcpInstall(c) }
+
+	case McpInstallDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s: %v", msg.client, msg.err)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("✓ added agenvoy to %s (%s)", msg.client, msg.path)) + "\n")
 
 	case McpRemove:
 		return t.runMcpRemove(msg)
@@ -404,8 +470,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 
 	case ModelRemove:
-		next, cmd := t.runModelRemove(msg.name)
-		agents.Reload()
+		next, cmd := t.runModelRemove(msg.chosen)
 		return next, cmd
 
 	case BotNameSubmit:
@@ -440,6 +505,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
 
+	case GrokMethodPick:
+		if t.modelAdd == nil {
+			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		}
+		switch msg.method {
+		case "grok-oauth":
+			t.modelAdd.provider = "grok-oauth"
+			return t.modelAddViaOAuth()
+		default:
+			t.modelAdd.provider = "grok"
+			return t.openModelAddAPIKey()
+		}
+
+	case OpenAIMethodPick:
+		if t.modelAdd == nil {
+			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		}
+		switch msg.method {
+		case "codex":
+			t.modelAdd.provider = "codex"
+			return t.modelAddViaOAuth()
+		default:
+			t.modelAdd.provider = "openai"
+			return t.openModelAddAPIKey()
+		}
+
 	case ModelAddAPIKeyReplace:
 		return t.runModelAddAPIKeyReplace(msg.replace)
 
@@ -455,8 +546,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddCompatKeySubmit:
 		return t.runModelAddCompatKeySubmit(msg.key)
 
-	case ModelAddModelPick:
-		return t.runModelAddModelPick(msg.name, msg.description)
+	case ModelAddModelMultiPick:
+		return t.runModelAddModelMultiPick(msg.chosen)
+
+	case CompatModelsResult:
+		return t.runCompatModelsResult(msg)
+
+	case RemoteModelsResult:
+		return t.runRemoteModelsResult(msg)
+
+	case ModelScanLocalResult:
+		return t.runModelScanLocalResult(msg)
+
+	case ModelScanLocalPick:
+		return t.runModelScanLocalPick(msg.chosen)
 
 	case OAuthInfo:
 		return t.runOAuthInfo(msg)
@@ -473,7 +576,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))+"\n"))
@@ -563,14 +666,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 
 	case CronRemoveSelect:
-		next, cmd := t.openCronRemoveConfirm(msg.skill)
-		return next, cmd
-
-	case CronRemoveConfirm:
-		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ cron remove cancelled") + "\n")
+		if len(msg.skills) == 0 {
+			return t, tea.Println(hintStyle.Render("⎯ no crons selected") + "\n")
 		}
-		next, cmd := t.runCronRemove(msg.skill)
+		next, cmd := t.runCronRemove(msg.skills)
 		return next, cmd
 
 	case CronEditSelect:
@@ -614,19 +713,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runTaskRemove(msg.skill)
 		return next, cmd
 
-	case RemoveSessionConfirm1:
-		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ remove-session cancelled") + "\n")
-		}
-		next, cmd := t.openRemoveSessionConfirm2(msg.id)
-		return next, cmd
+	case RemoveSessionPick:
+		return t.runRemoveSessionPick(msg.chosen)
 
-	case RemoveSessionConfirm2:
-		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ remove-session cancelled") + "\n")
-		}
-		next, cmd := t.runRemoveSession(msg.id)
-		return next, cmd
+	case RemoveSessionConfirm:
+		return t.runRemoveSessionConfirm(msg)
 
 	case ResetSessionConfirm1:
 		if !msg.yes {
@@ -662,7 +753,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))+"\n"))
@@ -675,7 +766,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.telegramStatus = getTelegramStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] telegram %s: %v", msg.action, msg.err))+"\n"))
@@ -688,7 +779,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.lineStatus = getLineStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] line %s: %v", msg.action, msg.err))+"\n"))
@@ -696,6 +787,76 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ line %sd · daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
+
+	case DangerousSelect:
+		switch msg.action {
+		case "remove-session":
+			next, cmd, _ := t.commandRemoveSession()
+			return next, cmd
+		case "allow-skill":
+			next, cmd, _ := t.commandAllowSkill(nil)
+			return next, cmd
+		case "allow-cmd":
+			next, cmd, _ := t.commandAllowCmd(nil)
+			return next, cmd
+		case "allow-report":
+			next, cmd, _ := t.commandAllowReport(nil)
+			return next, cmd
+		}
+		return t, nil
+
+	case FeatureSelect:
+		switch msg.feature {
+		case "voice":
+			next, cmd, _ := t.commandVoice(nil)
+			return next, cmd
+		case "image2":
+			next, cmd, _ := t.commandImage2(nil)
+			return next, cmd
+		case "kuradb":
+			next, cmd, _ := t.commandKuradb(nil)
+			return next, cmd
+		}
+		return t, nil
+
+	case VoiceAction:
+		if msg.action == "enable" && voiceNeedsGeminiKey() {
+			next, cmd := t.openVoiceKeyPrompt()
+			return next, cmd
+		}
+		return t, setVoice(msg.action)
+
+	case VoiceKeySubmit:
+		token := strings.TrimSpace(msg.token)
+		if token == "" {
+			return t, tea.Println(errorStyle.Render("[!] voice enable: GEMINI_API_KEY is required") + "\n")
+		}
+		if err := keychain.Set("GEMINI_API_KEY", token); err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice keychain.Set: %v", err)) + "\n")
+		}
+		if err := config.SaveKey("GEMINI_API_KEY"); err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice session.SaveKey: %v", err)) + "\n")
+		}
+		return t, setVoice("enable")
+
+	case VoiceDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice %s: %v", msg.action, msg.err)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
+
+	case Image2Action:
+		if msg.action == "enable" && !openaicodex.HasToken() {
+			next, cmd := t.startImage2CodexOAuth()
+			return next, cmd
+		}
+		return t, setImage2(msg.action)
+
+	case Image2Done:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] image2 %s: %v", msg.action, msg.err)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ image2 %sd", msg.action)) + "\n")
 
 	case KuradbAction:
 		switch msg.action {
@@ -848,13 +1009,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, tea.Sequence(
 				tea.ClearScreen,
-				tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 				tea.Println(errorStyle.Render(fmt.Sprintf("[!] log: %v", msg.err))+"\n"),
 			)
 		}
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		)
 
 	case StartupSelectSession:
@@ -886,42 +1047,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		}
-		path := filesystem.ActionLogPath(msg.id)
-		if go_pkg_filesystem_reader.Exists(path) && fileSize(path) > 0 {
-			seq = append(seq, func() tea.Msg { return LoadHistoryCheck{id: msg.id} })
-		}
+		seq = append(seq, loadSessionTail(msg.id)...)
 		return t, tea.Sequence(seq...)
 
-	case LoadHistoryCheck:
-		sid := msg.id
-		t.popup = &Popup{
-			kind:    popupSingleSelect,
-			title:   "Load previous session history?",
-			options: []string{"Yes", "No"},
-			values:  []string{"yes", "no"},
-			cursor:  1,
-			onConfirm: func(chosen string) any {
-				return LoadHistorySelect{id: sid, load: chosen == "yes"}
-			},
-		}
-		return t, nil
-
-	case LoadHistorySelect:
-		if !msg.load {
-			return t, nil
-		}
-		return t, tea.Sequence(loadSessionTail(msg.id)...)
-
 	case tailLine:
-		if t.mode != cliMode || t.onceCall {
+		if t.onceCall {
 			return t, nil
 		}
 		return t, tea.Println(msg.line)
 
 	case Log:
-		if t.mode != cliMode || t.onceCall {
+		if t.onceCall {
 			return t, nil
 		}
 		return t, tea.Println(renderLogLine(msg))
@@ -957,4 +1095,28 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return t, tea.Batch(cmds...)
+}
+
+func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
+	sid := msg.SessionID
+	if sid == "" {
+		sid = t.currentSessionID
+	}
+	t.running = true
+	t.runStartedAt = time.Now()
+	t.runTarget = ""
+	go runExec(t.ctx, msg.Content, t.allowAll, t.cwd, sid, msg.PendingTask)
+	return t, t.spinner.Tick
+}
+
+func noMatches(input string) bool {
+	if scanner := agents.Scanner(); scanner != nil {
+		if m, _ := runtime.MatchSkill(scanner, input); m != nil {
+			return true
+		}
+	}
+	if agent, _, _ := external.MatchExternal(input); agent != "" {
+		return true
+	}
+	return false
 }

@@ -35,7 +35,7 @@ Branch by candidate count:
 
 | Count | Action |
 |---|---|
-| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — run `script-tool-add` first to create a script tool" |
+| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `write_tool`" |
 | 1 | Use that directory as `extension_dir` directly; report "auto-selected `<basename>`" |
 | ≥ 2 | `ask_user` singleSelect listing all candidates; user picks one as `extension_dir` |
 
@@ -191,14 +191,12 @@ Reply handling:
 
 ### 5. Get registry email (from config; ask if missing)
 
-#### 5.1 Read config
+`read_file("~/.config/agenvoy/config.json")` → parse JSON → check `email` field:
 
-Call `get_user_email`:
+- Non-empty string → use directly, **do not re-prompt**, jump to §6
+- Missing / empty → fall through to §5.1 first-time setup
 
-- Returns `{"email": "<stored value>"}` → use directly, **do not re-prompt**, jump to §6
-- Returns `{"email": ""}` → fall through to §5.2 first-time setup
-
-#### 5.2 First-time setup
+#### 5.1 First-time setup
 
 `ask_user` (single free-text):
 
@@ -208,7 +206,7 @@ First publish needs a marketplace registry email (stored in ~/.config/agenvoy/co
 
 Validate against `^[^@\s]+@[^@\s]+\.[^@\s]+$`:
 
-- Pass → **lowercase first**, then call `set_user_email(email=<lowercased>)` to persist (worker normalizes to lowercase, client must match)
+- Pass → **lowercase first**, then `read_file` → `patch_file` to persist `"email": "<lowercased>"` into config.json (worker normalizes to lowercase, client must match)
 - Fail → re-prompt; abort after 3 attempts with "email format invalid"
 - Blank / cancel → abort with "no email provided, cannot upload"
 
@@ -411,7 +409,7 @@ Upload-stage failure (§8.1 / §8.2 / §8.3) → show `✅ packaged` plus `❌ p
 
 ## Forbidden
 
-- Never hardcode `email`; it must come from `get_user_email` (and §5.2 ask_user + `set_user_email` if missing)
+- Never hardcode `email`; it must come from `config.json` (and §5.1 `ask_user` + `patch_file` if missing)
 - Never touch `git config user.name` / `git config user.email`; marketplace identity uses only the config registry email
 - Never use an `author` field in the manifest; the worker expects `email` (a pure email string, not `<name> (<email>)`)
 - Never skip the §5.2 lowercase normalize; the worker normalizes email to lowercase — mismatched case breaks both KV verification lookup and D1 lookup

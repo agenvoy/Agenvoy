@@ -14,7 +14,7 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
-func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *runtime.SkillScanner, userInput string, imageInputs []string, fileInputs []string, events chan<- agentTypes.Event, allowAll bool, workDir, sessionID string, webMode bool) error {
+func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, scanner *runtime.SkillScanner, userInput string, imageInputs []string, fileInputs []string, events chan<- agentTypes.Event, allowAll bool, workDir, sessionID, pendingTask string) error {
 	if strings.TrimSpace(workDir) == "" {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -56,6 +56,12 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		}
 	}
 
+	routingInput := trimInput
+	if hint, effective := parseModelHint(trimInput); hint != "" {
+		trimInput = strings.TrimSpace(effective)
+		routingInput = "use " + hint + " " + trimInput
+	}
+
 	events <- agentTypes.Event{
 		Type: agentTypes.EventAgentSelect,
 	}
@@ -69,7 +75,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 			Text: "external:" + externalAgent,
 		}
 	} else {
-		primary, rest, err := ResolveAgent(ctx, bot, registry, trimInput, matchedSkill != nil, sessionOverride)
+		primary, rest, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, sessionOverride)
 		if err != nil {
 			return fmt.Errorf("ResolveAgent: %w", err)
 		}
@@ -92,9 +98,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		ImageInputs:    imageInputs,
 		FileInputs:     fileInputs,
 		AllowAll:       allowAll,
-		WebMode:        webMode,
+		PendingTask:    pendingTask,
 	}
-	session, err := GetSession(execData)
+	session, err := GetSession(ctx, execData)
 	if err != nil {
 		return fmt.Errorf("GetSession: %w", err)
 	}
@@ -146,4 +152,15 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		events <- *finalDone
 	}
 	return nil
+}
+
+func parseModelHint(input string) (hint, remaining string) {
+	if !strings.HasPrefix(input, "model:") {
+		return "", input
+	}
+	rest := input[len("model:"):]
+	if hint, remainder, ok := strings.Cut(rest, " "); ok {
+		return hint, remainder
+	}
+	return rest, ""
 }

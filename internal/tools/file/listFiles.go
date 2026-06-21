@@ -20,9 +20,7 @@ func registListFiles() {
 		Name:        "list_files",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `
-List directory entries.
-Inspect immediate children; recursive=true walks subtree files.`,
+		Description: "List directory entries. Use to inspect immediate children of a directory; recursive=true walks subtree files. For finding files by name or pattern, prefer glob_files instead.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -38,7 +36,10 @@ Inspect immediate children; recursive=true walks subtree files.`,
 				},
 			},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+			if err := ctx.Err(); err != nil {
+				return "", err
+			}
 			var params struct {
 				Dir       string `json:"dir"`
 				Recursive bool   `json:"recursive"`
@@ -71,6 +72,7 @@ Inspect immediate children; recursive=true walks subtree files.`,
 			if params.Recursive {
 				files, err = go_pkg_filesystem_reader.WalkFiles(absPath, go_pkg_filesystem_reader.ListOption{
 					SkipExcluded:      true,
+					SkipDenied:        true,
 					IgnoreWalkError:   true,
 					IncludeNonRegular: true,
 				})
@@ -82,6 +84,9 @@ Inspect immediate children; recursive=true walks subtree files.`,
 				if err != nil {
 					return "", fmt.Errorf("go_pkg_filesystem_reader.ListAll: %w", err)
 				}
+			}
+			if err := ctx.Err(); err != nil {
+				return "", err
 			}
 
 			raw, err := json.Marshal(files)

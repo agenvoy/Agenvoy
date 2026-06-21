@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -37,12 +39,13 @@ func (t TUI) viewIdle() string {
 		return ""
 	}
 
-	left := hintStyle.Render(" / commands · enter send · alt+enter newline · esc cancel")
-	right := t.sessionTag()
-
-	if t.mode == webMode {
-		left = hintStyle.Render(" / commands · enter send · alt+enter newline · /mode to switch")
+	var confirmMode string
+	if t.allowAll {
+		confirmMode = errorStyle.Render(" [auto]") + hintStyle.Render(" "+t.shortCwd())
+	} else {
+		confirmMode = okayStyle.Render(" [safe]") + hintStyle.Render(" "+t.shortCwd())
 	}
+	right := t.sessionTag()
 
 	prefix := "\n"
 	var top string
@@ -57,9 +60,9 @@ func (t TUI) viewIdle() string {
 
 	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
 
-	pad := width - lipgloss.Width(left) - lipgloss.Width(right)
+	pad := width - lipgloss.Width(confirmMode) - lipgloss.Width(right)
 	pad = max(pad, 1)
-	return prefix + top + box + "\n" + left + strings.Repeat(" ", pad) + right
+	return prefix + top + box + "\n" + confirmMode + strings.Repeat(" ", pad) + right
 }
 
 func (t TUI) viewThinking() string {
@@ -77,22 +80,24 @@ func (t TUI) viewThinking() string {
 		hintStyle.Render("("+strings.Join(detail, " · ")+")")
 }
 
+func (t TUI) shortCwd() string {
+	cwd := t.cwd
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		switch {
+		case cwd == home:
+			return "~"
+		case strings.HasPrefix(cwd, home+"/"):
+			return "~" + cwd[len(home):]
+		}
+	}
+	return cwd
+}
+
 func splitOptStyle(s string) (head, tail string) {
 	if idx := strings.Index(s, " · "); idx >= 0 {
 		return s[:idx], s[idx:]
 	}
 	return s, ""
-}
-
-func truncateRune(s string, maxRunes int) string {
-	runes := []rune(s)
-	if len(runes) <= maxRunes {
-		return s
-	}
-	if maxRunes < 1 {
-		return ""
-	}
-	return string(runes[:maxRunes-1]) + "…"
 }
 
 func (t TUI) viewPopup() string {
@@ -108,10 +113,15 @@ func (t TUI) viewPopup() string {
 	body := []string{whiteStyle.Render("⏺ " + p.title)}
 	if p.subtitle != "" {
 		body = append(body, textStyle.Render(p.subtitle))
-		body = append(body, "")
-	} else {
-		body = append(body, "")
 	}
+	for _, dl := range p.diffLines {
+		if strings.HasPrefix(dl, "- ") {
+			body = append(body, diffOldStyle.Render("  "+dl))
+		} else {
+			body = append(body, diffNewStyle.Render("  "+dl))
+		}
+	}
+	body = append(body, "")
 
 	switch p.kind {
 	case popupConfirm, popupSingleSelect:
@@ -127,7 +137,7 @@ func (t TUI) viewPopup() string {
 		}
 		maxLine := max(width-10, 20)
 		for i := start; i < end; i++ {
-			opt := truncateRune(p.options[i], maxLine)
+			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
 			var line string
 			if i == p.cursor {
@@ -161,18 +171,18 @@ func (t TUI) viewPopup() string {
 		}
 		maxLine := max(width-14, 20)
 		for i := start; i < end; i++ {
-			opt := truncateRune(p.options[i], maxLine)
+			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			cursor := "  "
+			head, tail := splitOptStyle(opt)
 			var line string
 			if i == p.cursor {
 				cursor = systemStyle.Render("> ")
-				head, tail := splitOptStyle(opt)
 				line = systemStyle.Render(head)
-				if tail != "" {
-					line += hintStyle.Render(tail)
-				}
 			} else {
-				line = hintStyle.Render(opt)
+				line = whiteStyle.Render(head)
+			}
+			if tail != "" {
+				line += hintStyle.Render(tail)
 			}
 			check := "[ ]"
 			if p.multi[i] {
@@ -238,8 +248,7 @@ func (t TUI) viewPopup() string {
 }
 
 func (t TUI) sessionTag() string {
-	modeTag := lipgloss.NewStyle().Foreground(t.mode.color()).Render(t.mode.String())
-	parts := []string{modeTag}
+	var parts []string
 	if name := t.sessionName(); name != "" {
 		parts = append(parts, hintStyle.Render(name))
 	}
@@ -260,5 +269,18 @@ func (t TUI) sessionName() string {
 	}
 
 	model, reasoning := configBot.GetModel(sid)
-	return fmt.Sprintf("%s (%s/%s)", base, model, reasoning)
+	modelPart := hintStyle.Render(model)
+	if model != configBot.DefaultModel {
+		modelPart = warnStyle.Render(model)
+	}
+	var reasonPart string
+	switch reasoning {
+	case "low":
+		reasonPart = okayStyle.Render(reasoning)
+	case "high":
+		reasonPart = errorStyle.Render(reasoning)
+	default:
+		reasonPart = hintStyle.Render(reasoning)
+	}
+	return base + hintStyle.Render(" (") + modelPart + hintStyle.Render("/") + reasonPart + hintStyle.Render(")")
 }

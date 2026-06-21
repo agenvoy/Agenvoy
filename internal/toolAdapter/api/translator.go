@@ -15,12 +15,14 @@ import (
 )
 
 type Translator struct {
+	prefix string
 	apis   map[string]*APIDocumentData
 	client *http.Client
 }
 
-func New() *Translator {
+func New(prefix string) *Translator {
 	return &Translator{
+		prefix: prefix,
 		apis:   make(map[string]*APIDocumentData),
 		client: &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone()},
 	}
@@ -180,7 +182,7 @@ func (t *Translator) LoadFS(fsys fs.FS, dir string) error {
 }
 
 func (t *Translator) IsExist(name string) bool {
-	key := strings.TrimPrefix(name, "api_")
+	key := strings.TrimPrefix(name, t.prefix)
 	_, ok := t.apis[key]
 	return ok
 }
@@ -188,7 +190,7 @@ func (t *Translator) IsExist(name string) bool {
 func (t *Translator) GetTools() []map[string]any {
 	tools := make([]map[string]any, 0, len(t.apis))
 	for _, api := range t.apis {
-		tools = append(tools, api.translate())
+		tools = append(tools, api.translate(t.prefix))
 	}
 	return tools
 }
@@ -197,8 +199,16 @@ func (t *Translator) AlwaysAllowNames() []string {
 	names := make([]string, 0, len(t.apis))
 	for _, api := range t.apis {
 		if api.AlwaysAllow {
-			names = append(names, "api_"+api.Name)
+			names = append(names, t.prefix+api.Name)
 		}
+	}
+	return names
+}
+
+func (t *Translator) ConcurrentNames() []string {
+	names := make([]string, 0, len(t.apis))
+	for _, api := range t.apis {
+		names = append(names, t.prefix+api.Name)
 	}
 	return names
 }

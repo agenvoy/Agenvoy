@@ -85,7 +85,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
-		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, false, execData.ExcludeSkills),
+		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills),
 		OldHistories:  maxHistory,
 		ToolHistories: []agentTypes.Message{},
 		Tools:         []agentTypes.Message{},
@@ -97,7 +97,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		session.SummaryMessage = agentTypes.Message{Role: "assistant", Content: summary}
 	}
 
-	SaveUserInputHistory(sessionID, userText)
+	SaveUserInputHistory(ctx, sessionID, userText)
 
 	subCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
 	defer cancel()

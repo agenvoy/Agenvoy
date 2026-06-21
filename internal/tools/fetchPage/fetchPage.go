@@ -2,12 +2,9 @@ package fetchPage
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,14 +15,14 @@ import (
 	go_browser "github.com/pardnchiu/go-browser"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const (
-	cacheExpired      = 1 * time.Hour
 	skippedExpired    = 12 * time.Hour
+	emptySkipExpired  = 72 * time.Hour
 	maxMarkdownLength = 100 << 10
 	defaultScroll     = 3
 )
@@ -80,7 +77,7 @@ func registFetchPage() {
 		Name:        "fetch_page",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "[system-default] Fetch a live web page and return its content (markdown / html / json). Use whenever the user provides any URL or named page (any domain — including social profiles like threads / x / linkedin / instagram, docs, paywalled news). URL given → always fetch_page, never search_web. Set same_session=true for login-required sites and paywalls.",
+		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -104,29 +101,28 @@ func registFetchPage() {
 					"description": "Output format. Default \"markdown\" (best for natural reading and summarisation). Switch to \"json\" when the user asks for structured analysis, data extraction, comparison across multiple items, or when feeding the output to another tool. Switch to \"html\" only when raw DOM is needed for downstream parsing.",
 					"default":     "markdown",
 				},
-				"cache": map[string]any{
+				"save": map[string]any{
 					"type":        "boolean",
-					"description": "Whether to write the fetched result into the local cache. Default true. Set false for one-off pages that won't be revisited (search result URLs, throwaway tokens in querystring) so the cache stays useful.",
-					"default":     true,
-				},
-				"force": map[string]any{
-					"type":        "boolean",
-					"description": "Ignore any existing cache entry and refetch live. Default false. Set true when the user explicitly asks for the latest version (\"重新抓\" / \"最新\" / \"refresh\") or when the previously cached content is known stale.",
+					"description": "Save fetched content to a local file instead of returning it. Default false. Set true when user wants to download/export a page.",
 					"default":     false,
+				},
+				"save_to": map[string]any{
+					"type":        "string",
+					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against ~/Downloads (preferred if exists) or ~/.config/agenvoy/download/. Omit for auto-generated filename.",
 				},
 			},
 			"required": []string{
 				"link",
 			},
 		},
-		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Link        string `json:"link"`
 				KeepLinks   bool   `json:"keep_links"`
 				SameSession *bool  `json:"same_session"`
 				Type        string `json:"type"`
-				Cache       *bool  `json:"cache"`
-				Force       bool   `json:"force"`
+				Save        bool   `json:"save"`
+				SaveTo      string `json:"save_to"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
@@ -140,20 +136,31 @@ func registFetchPage() {
 			if err != nil {
 				return "", err
 			}
-			useCache := true
-			if params.Cache != nil {
-				useCache = *params.Cache
-			}
 			sameSession := true
 			if params.SameSession != nil {
 				sameSession = *params.SameSession
 			}
-			return handler(link, params.KeepLinks, sameSession, outType, useCache, params.Force, nil)
+
+			var saveTo *string
+			if params.Save {
+				p := strings.TrimSpace(params.SaveTo)
+				if p == "" {
+					p = defaultDownloadPath(link)
+				} else {
+					abs, absErr := go_pkg_filesystem.AbsPath(filesystem.DownloadDir, p, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+					if absErr != nil {
+						return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", absErr)
+					}
+					p = abs
+				}
+				saveTo = &p
+			}
+			return handler(ctx, link, params.KeepLinks, sameSession, outType, saveTo)
 		},
 	})
 }
 
-func handler(link string, keepLinks, sameSession bool, outType int, useCache, force bool, saveTo *string) (string, error) {
+func handler(ctx context.Context, link string, keepLinks, sameSession bool, outType int, saveTo *string) (string, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {
 		return "", fmt.Errorf("url.Parse: %w", err)
@@ -163,90 +170,71 @@ func handler(link string, keepLinks, sameSession bool, outType int, useCache, fo
 	}
 	if parsed.Scheme == "http" {
 		parsed.Scheme = "https"
-		link = parsed.String()
+	}
+	if parsed.Path == "" {
+		parsed.Path = "/"
+	}
+	parsed.Fragment = ""
+	link = parsed.String()
+
+	if hit, _, _ := isSkipped(link); hit {
+		return "", fmt.Errorf("%s blocked", link)
 	}
 
-	if hit, status, title := isSkipped(link); hit {
-		return skippedMessage(link, status, title), nil
+	opt := &go_browser.Option{
+		MaxLength:   maxMarkdownLength,
+		KeepLinks:   keepLinks,
+		SameSession: sameSession,
+		Type:        outType,
+		ScrollCount: defaultScroll,
+	}
+	if sameSession {
+		opt.Profile = currentProfile()
+	}
+	result, err := go_browser.Fetch(ctx, link, 30*time.Second, opt)
+	if err != nil {
+		status := 503
+		title := ""
+		var fe *go_browser.Error
+		if errors.As(err, &fe) {
+			status = fe.Status
+		}
+		if result != nil {
+			title = result.Title
+		}
+		addToSkippedMap(link, status, title)
+		return "", fmt.Errorf("%s fetch failed [%d]", link, status)
 	}
 
-	cacheVariant := fmt.Sprintf("|type=%d|links=%t|session=%t", outType, keepLinks, sameSession)
-	hash := sha256.Sum256([]byte(link + cacheVariant))
-	cacheKey := "page:" + hex.EncodeToString(hash[:])
-	db := torii.DB(torii.DBToolCache)
+	if isPage4xx(result.Title, result.FinalURL) {
+		addToSkippedMap(link, 404, result.Title)
+		return "", fmt.Errorf("%s fetch failed [404]", link)
+	}
+
 	var full string
-	cacheHit := false
-	if !force {
-		if entry, ok := db.Get(cacheKey); ok {
-			full = entry.Value()
-			cacheHit = true
+	switch outType {
+	case go_browser.TypeMarkdown:
+		if strings.TrimSpace(result.Content) == "" {
+			addToSkippedMap(link, 0, result.Title)
+			return "", fmt.Errorf("%s empty content", link)
 		}
-	}
-	if cacheHit {
-		if saveTo == nil {
-			return truncateResult(full), nil
+		full = buildFrontmatter(result)
+	case go_browser.TypeJSON:
+		if len(result.Tree) == 0 {
+			addToSkippedMap(link, 0, result.Title)
+			return "", fmt.Errorf("%s empty content", link)
 		}
-	} else {
-		opt := &go_browser.Option{
-			MaxLength:   maxMarkdownLength,
-			KeepLinks:   keepLinks,
-			SameSession: sameSession,
-			Type:        outType,
-			ScrollCount: defaultScroll,
-		}
-		if sameSession {
-			opt.Profile = currentProfile()
-		}
-		result, err := go_browser.Fetch(context.Background(), link, 15*time.Second, opt)
+		raw, err := json.Marshal(result.Tree)
 		if err != nil {
-			status := 503
-			title := ""
-			var fe *go_browser.Error
-			if errors.As(err, &fe) {
-				status = fe.Status
-			}
-			if result != nil {
-				title = result.Title
-			}
-			addToSkippedMap(link, status, title)
-			return skippedMessage(link, status, title), nil
+			return "", fmt.Errorf("json.Marshal tree: %w", err)
 		}
-
-		if isPage4xx(result.Title, result.FinalURL) {
-			addToSkippedMap(link, 404, result.Title)
-			return skippedMessage(link, 404, result.Title), nil
+		full = string(raw)
+	default:
+		if strings.TrimSpace(result.Content) == "" {
+			addToSkippedMap(link, 0, result.Title)
+			return "", fmt.Errorf("%s empty content", link)
 		}
-
-		switch outType {
-		case go_browser.TypeMarkdown:
-			if strings.TrimSpace(result.Content) == "" {
-				addToSkippedMap(link, 0, result.Title)
-				return skippedMessage(link, 0, result.Title), nil
-			}
-			full = buildFrontmatter(result)
-		case go_browser.TypeJSON:
-			if len(result.Tree) == 0 {
-				addToSkippedMap(link, 0, result.Title)
-				return skippedMessage(link, 0, result.Title), nil
-			}
-			raw, err := json.Marshal(result.Tree)
-			if err != nil {
-				return "", fmt.Errorf("json.Marshal tree: %w", err)
-			}
-			full = string(raw)
-		default:
-			if strings.TrimSpace(result.Content) == "" {
-				addToSkippedMap(link, 0, result.Title)
-				return skippedMessage(link, 0, result.Title), nil
-			}
-			full = result.Content
-		}
-		if useCache {
-			if err = db.Set(cacheKey, full, torii.SetDefault, torii.TTL(int64(cacheExpired.Seconds()))); err != nil {
-				slog.Warn("db.Set",
-					slog.String("error", err.Error()))
-			}
-		}
+		full = result.Content
 	}
 
 	if saveTo != nil {
@@ -259,6 +247,22 @@ func handler(link string, keepLinks, sameSession bool, outType int, useCache, fo
 		return fmt.Sprintf("Downloaded %d chars to %s", len(full), *saveTo), nil
 	}
 	return truncateResult(full), nil
+}
+
+func defaultDownloadPath(href string) string {
+	name := "page"
+	if u, err := url.Parse(href); err == nil {
+		seg := strings.TrimSuffix(filepath.Base(u.Path), "/")
+		if seg != "" && seg != "." {
+			name = seg
+		} else if u.Host != "" {
+			name = u.Host
+		}
+	}
+	if !strings.HasSuffix(name, ".md") {
+		name += ".md"
+	}
+	return filepath.Join(filesystem.DownloadDir, name)
 }
 
 func validateURL(href string) error {

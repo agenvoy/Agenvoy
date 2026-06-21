@@ -33,32 +33,26 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model", "add / remove provider · pick session model"},
+	{"model", "add / remove provider · pick session / dispatch / summary model"},
 	{"mcp", "add / remove MCP server · global or session scope"},
-	{"dispatcher-model", "pick / set dispatcher model from registry"},
-	{"summary-model", "pick / set summary model · falls back to dispatcher if unset"},
-	{"reasoning", "set reasoning depth · global (dispatcher) / session"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
-	{"remove-session", "delete / purge current session · double-confirm · torii + sessions/ wiped"},
-	{"reset", "reset / refresh current session · double-confirm · summary regen first then drop history + tool_calls + action.log"},
+	{"dangerous", "remove-session / allow-skill / allow-cmd / allow-report"},
+	{"reset", "reset / refresh current session · double-confirm · summary regen first then drop history + task history + action.log"},
 	{"summary", "force / regenerate summary now · no confirm · runs the hourly cron pass on demand"},
 	{"bot", "edit / rename current session · name / description (persona)"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"line", "enable / disable LINE bot · Q&A only · channel secret + access token on enable"},
-	{"kuradb", "enable / disable / update KuraDB RAG · install.sh + OPENAI_API_KEY on enable"},
+	{"feature", "toggle voice / image2 / kuradb"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
-	{"mode", "switch / change rendering · TUI (cli) or browser (web)"},
 	{"history", "reload visible transcript · last 100 entries from action.log"},
 	{"log", "open / view raw action.log via $PAGER (less)"},
 	{"cmd", "run / exec shell command directly in cwd · sh -c"},
-	{"allow-skill", "!(dangerously) skip permission · always-allow skill"},
-	{"allow-cmd", "!(dangerously) append binary to config.white_list · daemon restart required"},
-	{"allow-report", "!(exposes logs) enable / disable daily upload of daemon WARN/ERROR to developer"},
+	{"pending", "list / resume interrupted tasks · error recovery · ask_user resume"},
 	{"key", "update / rotate keychain value · pick from recorded keys"},
 	{"clear", "clear visible transcript / history · memory untouched"},
 	{"exit", "exit / quit TUI · daemon keeps running"},
@@ -314,7 +308,8 @@ func (t TUI) selectCommand() TUI {
 	return t
 }
 
-const cmdSelectorMaxVisible = 8
+
+const cmdSelectorMaxVisible = 12
 
 func renderCmdSelector(p *CmdSelector) string {
 	if p == nil || len(p.items) == 0 {
@@ -323,7 +318,8 @@ func renderCmdSelector(p *CmdSelector) string {
 	total := len(p.items)
 	start, end := windowRange(p.cursor, total, cmdSelectorMaxVisible)
 
-	maxLabel := 0
+	const minLabelWidth = 16
+	maxLabel := minLabelWidth
 	for _, it := range p.items[start:end] {
 		if w := lipgloss.Width(it.label); w > maxLabel {
 			maxLabel = w

@@ -12,6 +12,9 @@ var AgentSelector string
 //go:embed prompts/skill_execution.md
 var SkillExecution string
 
+//go:embed prompts/compact_exec_prompt.md
+var CompactExecPrompt string
+
 //go:embed prompts/summary_prompt.md
 var SummaryPrompt string
 
@@ -20,9 +23,6 @@ var SummaryContext string
 
 //go:embed prompts/system_prompt.md
 var SystemPrompt string
-
-//go:embed prompts/webmode_system_prompt.md
-var WebModeSystemPrompt string
 
 //go:embed prompts/chatcompletions_system_prompt.md
 var ChatCompletionsSystemPrompt string
@@ -51,6 +51,9 @@ var PermissionAlwaysAllow string
 //go:embed prompts/single_confirm.md
 var PermissionSingleConfirm string
 
+//go:embed prompts/script_tool_guide.md
+var ScriptToolGuide string
+
 // * Configs
 
 //go:embed jsons/denied_map.json
@@ -62,31 +65,9 @@ var ExcludeList []byte
 //go:embed jsons/white_list.json
 var WhiteList []byte
 
-// * Providers
+//go:embed jsons/net_white_list.json
+var NetWhiteList []byte
 
-//go:embed jsons/providors/claude.json
-var ClaudeModels []byte
+//go:embed jsons/tui_tools.json
+var TUITools []byte
 
-//go:embed jsons/providors/openai.json
-var OpenaiModels []byte
-
-//go:embed jsons/providors/codex.json
-var CodexModels []byte
-
-//go:embed jsons/providors/gemini.json
-var GeminiModels []byte
-
-//go:embed jsons/providors/grok.json
-var GrokModels []byte
-
-//go:embed jsons/providors/copilot.json
-var CopilotModels []byte
-
-//go:embed jsons/providors/nvidia.json
-var NvidiaModels []byte
-
-//go:embed jsons/providors/deepseek.json
-var DeepseekModels []byte
-
-//go:embed webmode.html
-var WebmodeHTML string

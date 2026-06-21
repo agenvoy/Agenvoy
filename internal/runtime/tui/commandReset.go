@@ -48,7 +48,7 @@ func (t TUI) openResetConfirm2(sid string) (TUI, tea.Cmd) {
 		kind:     popupSingleSelect,
 		title:    "Are you sure? Raw history will be permanently dropped.",
 		subtitle: fmt.Sprintf("%s — summary refresh runs first; abort if refresh fails.", utils.ShortenSessionID(sid)),
-		options:  []string{"No", "Yes, reset it"},
+		options:  []string{"No", "Yes  reset it"},
 		values:   []string{"no", "yes"},
 		cursor:   0,
 		onConfirm: func(chosen string) any {
@@ -71,7 +71,7 @@ func (t TUI) runResetSession(sid string) (TUI, tea.Cmd) {
 	t.activity = "resetting (summary refresh first)…"
 
 	return t, tea.Batch(
-		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s, then clearing history…", utils.ShortenSessionID(sid))) + "\n"),
+		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s, then clearing history…", utils.ShortenSessionID(sid)))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
@@ -96,7 +96,7 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.cwd, t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ reset: %s (summary kept, %d torii keys purged)", utils.ShortenSessionID(msg.id), msg.keys)) + "\n"),
 	}
 	return t, tea.Sequence(seq...)

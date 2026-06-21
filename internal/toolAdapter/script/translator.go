@@ -13,6 +13,7 @@ import (
 )
 
 type Translator struct {
+	prefix  string
 	scripts map[string]*Script
 }
 
@@ -26,6 +27,7 @@ type ScriptDoc struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	AlwaysAllow bool            `json:"always_allow,omitempty"`
+	Concurrent  bool            `json:"concurrent,omitempty"`
 	Timeout     int             `json:"timeout,omitempty"`
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
@@ -35,8 +37,9 @@ var runtimeMap = map[string]string{
 	"python":     "python3",
 }
 
-func New() *Translator {
+func New(prefix string) *Translator {
 	return &Translator{
+		prefix:  prefix,
 		scripts: make(map[string]*Script),
 	}
 }
@@ -74,7 +77,7 @@ func (t *Translator) Scan(dir string) error {
 }
 
 func (t *Translator) IsExist(name string) bool {
-	key := strings.TrimPrefix(name, "script_")
+	key := strings.TrimPrefix(name, t.prefix)
 	_, ok := t.scripts[key]
 	return ok
 }
@@ -89,7 +92,7 @@ func (t *Translator) GetTools() []map[string]any {
 		tools = append(tools, map[string]any{
 			"type": "function",
 			"function": map[string]any{
-				"name":        "script_" + script.Doc.Name,
+				"name":        t.prefix + script.Doc.Name,
 				"description": script.Doc.Description,
 				"parameters":  params,
 			},
@@ -102,10 +105,28 @@ func (t *Translator) AlwaysAllowNames() []string {
 	names := make([]string, 0, len(t.scripts))
 	for _, script := range t.scripts {
 		if script.Doc.AlwaysAllow {
-			names = append(names, "script_"+script.Doc.Name)
+			names = append(names, t.prefix+script.Doc.Name)
 		}
 	}
 	return names
+}
+
+func (t *Translator) ConcurrentNames() []string {
+	names := make([]string, 0, len(t.scripts))
+	for _, script := range t.scripts {
+		names = append(names, t.prefix+script.Doc.Name)
+	}
+	return names
+}
+
+func (t *Translator) Timeouts() map[string]int {
+	out := make(map[string]int, len(t.scripts))
+	for _, script := range t.scripts {
+		if script.Doc.Timeout > 0 {
+			out[t.prefix+script.Doc.Name] = script.Doc.Timeout
+		}
+	}
+	return out
 }
 
 func loadDir(dir string) (*ScriptDoc, string, string, error) {

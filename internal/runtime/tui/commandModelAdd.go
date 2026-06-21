@@ -2,8 +2,10 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -11,12 +13,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider/copilot"
+	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
 	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 type modelAddItem struct {
@@ -31,8 +34,12 @@ type ModelAddAPIKeySubmit struct{ key string }
 type ModelAddCompatNameSubmit struct{ name string }
 type ModelAddCompatURLSubmit struct{ url string }
 type ModelAddCompatKeySubmit struct{ key string }
-type ModelAddModelPick struct{ name, description string }
+type ModelAddModelMultiPick struct{ chosen string }
 type ModelAddDone struct{ err error }
+type CompatModelsResult struct{ ids []string }
+type RemoteModelsResult struct{ ids []string }
+type OpenAIMethodPick struct{ method string }
+type GrokMethodPick struct{ method string }
 
 type OAuthInfo struct {
 	url      string
@@ -46,15 +53,15 @@ var modelAddProviders = []struct {
 	name  string
 	label string
 }{
-	{"copilot", "Github Copilot"},
-	{"openai", "OpenAI"},
-	{"codex", "Codex (OpenAI Subscription)"},
-	{"claude", "Claude"},
-	{"gemini", "Gemini"},
-	{"grok", "Grok"},
-	{"deepseek", "DeepSeek"},
-	{"nvidia", "NVIDIA NIM"},
-	{"compat", "Compatibility (custom endpoint)"},
+	{"openai", "OpenAI          API key or Codex subscription"},
+	{"claude", "Claude          API key"},
+	{"gemini", "Gemini          API key"},
+	{"grok", "Grok            API key or xAI subscription"},
+	{"copilot", "Github Copilot  GitHub subscription"},
+	{"deepseek", "DeepSeek        API key"},
+	{"nvidia", "NVIDIA NIM      API key"},
+	{"openrouter", "OpenRouter      API key"},
+	{"compat", "Local/Custom    Ollama, LM Studio, or custom URL"},
 }
 
 func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
@@ -83,10 +90,32 @@ func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
 	}
 	t.modelAdd.provider = name
 	switch name {
-	case "copilot", "codex":
+	case "openai":
+		t.popup = &Popup{
+			kind:    popupSingleSelect,
+			title:   "OpenAI · method",
+			options: []string{"API Key  pay per token", "Codex    subscription"},
+			values:  []string{"api-key", "codex"},
+			onConfirm: func(chosen string) any {
+				return OpenAIMethodPick{method: chosen}
+			},
+		}
+		return t, nil
+	case "grok":
+		t.popup = &Popup{
+			kind:    popupSingleSelect,
+			title:   "Grok · method",
+			options: []string{"API Key  pay per token", "xAI      subscription"},
+			values:  []string{"api-key", "grok-oauth"},
+			onConfirm: func(chosen string) any {
+				return GrokMethodPick{method: chosen}
+			},
+		}
+		return t, nil
+	case "copilot", "codex", "grok-oauth":
 		return t.modelAddViaOAuth()
 	case "compat":
-		return t.openModelAddCompatName()
+		return t.openModelAddCompatURL()
 	default:
 		return t.openModelAddAPIKey()
 	}
@@ -100,13 +129,15 @@ func (t TUI) modelAddViaOAuth() (TUI, tea.Cmd) {
 		hasToken = copilot.HasToken()
 	case "codex":
 		hasToken = openaicodex.HasToken()
+	case "grok-oauth":
+		hasToken = grokoauth.HasToken()
 	}
 	if hasToken {
 		label := strings.ToUpper(prov[:1]) + prov[1:]
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
 			title:   fmt.Sprintf("%s token exists · re-login?", label),
-			options: []string{"No (keep existing)", "Yes (re-authenticate)"},
+			options: []string{"No   keep existing", "Yes  re-authenticate"},
 			values:  []string{"no", "yes"},
 			onConfirm: func(chosen string) any {
 				return OAuthReLoginPick{replace: chosen}
@@ -160,7 +191,6 @@ func runOAuthFlow(ctx context.Context, prov string) {
 				url:      code.VerificationURI,
 				userCode: code.UserCode,
 			})
-			_ = openBrowser(code.VerificationURI)
 		})
 	case "codex":
 		if openaicodex.HasToken() {
@@ -171,7 +201,16 @@ func runOAuthFlow(ctx context.Context, prov string) {
 		}
 		err = openaicodex.AuthWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
-			_ = openBrowser(url)
+		})
+	case "grok-oauth":
+		if grokoauth.HasToken() {
+			if cerr := grokoauth.ClearToken(); cerr != nil {
+				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
+				return
+			}
+		}
+		err = grokoauth.AuthWithCallback(ctx, func(url string) {
+			send(OAuthInfo{url: url})
 		})
 	default:
 		err = fmt.Errorf("unsupported oauth provider: %s", prov)
@@ -196,10 +235,19 @@ func (t TUI) runOAuthInfo(msg OAuthInfo) (TUI, tea.Cmd) {
 	}
 	t.popup.title = title
 	t.popup.subtitle = ""
+	if msg.url != "" && msg.userCode == "" {
+		openBrowser(msg.url)
+	}
 	return t, nil
 }
 
 func (t TUI) runOAuthSuccess(msg OAuthSuccess) (TUI, tea.Cmd) {
+	if t.enableImage2AfterOAuth && msg.provider == "codex" {
+		t.enableImage2AfterOAuth = false
+		t.modelAdd = nil
+		t.popup = nil
+		return t, setImage2("enable")
+	}
 	if t.modelAdd == nil {
 		t.modelAdd = &modelAddItem{provider: msg.provider}
 	}
@@ -209,6 +257,7 @@ func (t TUI) runOAuthSuccess(msg OAuthSuccess) (TUI, tea.Cmd) {
 
 func (t TUI) runOAuthFailed(msg OAuthFailed) (TUI, tea.Cmd) {
 	t.modelAdd = nil
+	t.enableImage2AfterOAuth = false
 	t.popup = nil
 	switch {
 	case errors.Is(msg.err, context.Canceled):
@@ -226,7 +275,7 @@ func (t TUI) openModelAddAPIKey() (TUI, tea.Cmd) {
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
 			title:   fmt.Sprintf("%s API key exists · replace?", label),
-			options: []string{"No (keep existing)", "Yes (overwrite)"},
+			options: []string{"No   keep existing", "Yes  overwrite"},
 			values:  []string{"no", "yes"},
 			onConfirm: func(chosen string) any {
 				return ModelAddAPIKeyReplace{replace: chosen}
@@ -309,13 +358,14 @@ func (t TUI) runModelAddCompatNameSubmit(name string) (TUI, tea.Cmd) {
 		return t, tea.Println(errorStyle.Render("[!] invalid provider name (no spaces, brackets, or @)") + "\n")
 	}
 	t.modelAdd.compatProvider = strings.ToUpper(name)
-	return t.openModelAddCompatURL()
+	return t.openModelAddCompatKey()
 }
 
 func (t TUI) openModelAddCompatURL() (TUI, tea.Cmd) {
 	t.popup = &Popup{
-		kind:  popupText,
-		title: "URL (blank = http://localhost:11434/v1)",
+		kind:     popupText,
+		title:    "URL (blank = scan local)",
+		subtitle: "enter up to /v1 — e.g. http://localhost:11434/v1",
 		onConfirm: func(value string) any {
 			return ModelAddCompatURLSubmit{url: strings.TrimSpace(value)}
 		},
@@ -328,15 +378,15 @@ func (t TUI) runModelAddCompatURLSubmit(url string) (TUI, tea.Cmd) {
 		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
 	}
 	if url == "" {
-		url = "http://localhost:11434/v1"
+		go scanLocalModels(t.ctx, "")
+		return t, nil
 	}
 	url = strings.TrimRight(url, "/")
-	if err := config.UpsertCompat(t.modelAdd.compatProvider, url); err != nil {
-		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] UpsertCompat: %v", err)) + "\n")
+	if !strings.Contains(url, "://") {
+		url = "http://" + url
 	}
 	t.modelAdd.compatURL = url
-	return t.openModelAddCompatKey()
+	return t.openModelAddCompatName()
 }
 
 func (t TUI) openModelAddCompatKey() (TUI, tea.Cmd) {
@@ -365,6 +415,10 @@ func (t TUI) runModelAddCompatKeySubmit(key string) (TUI, tea.Cmd) {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.SaveKey: %v", err)) + "\n")
 		}
 	}
+	if err := config.UpsertCompat(t.modelAdd.compatProvider, t.modelAdd.compatURL); err != nil {
+		t.modelAdd = nil
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] UpsertCompat: %v", err)) + "\n")
+	}
 	return t.openModelAddModelPick()
 }
 
@@ -374,104 +428,372 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 		prefix = fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
 	}
 
-	var models map[string]provider.ModelItem
-	if t.modelAdd.provider != "compat" {
-		models = provider.Models(t.modelAdd.provider)
+	cfg, err := config.Load()
+	if err != nil {
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+	}
+	existing := make(map[string]bool, len(cfg.Models))
+	for _, m := range cfg.Models {
+		existing[m.Name] = true
 	}
 
-	if len(models) == 0 {
-		t.popup = &Popup{
-			kind:  popupText,
-			title: fmt.Sprintf("Model name (prefix: %s)", prefix),
-			onConfirm: func(value string) any {
-				return ModelAddModelPick{name: strings.TrimSpace(value)}
-			},
-		}
-		return t, nil
+	if t.modelAdd.provider == "compat" {
+		url := t.modelAdd.compatURL
+		prov := t.modelAdd.compatProvider
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			ids := fetchModelIDs(ctx, url, prov)
+			send(CompatModelsResult{ids: ids})
+		}()
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", prov)) + "\n")
 	}
 
-	names := make([]string, 0, len(models))
-	for n := range models {
-		names = append(names, n)
-	}
-	sort.SliceStable(names, func(i, j int) bool {
-		pi := strings.Contains(names[i], "-preview") || strings.Contains(names[i], "-experimental")
-		pj := strings.Contains(names[j], "-preview") || strings.Contains(names[j], "-experimental")
-		if pi != pj {
-			return !pi
-		}
-		return names[i] < names[j]
-	})
-
-	options := make([]string, len(names))
-	values := make([]string, len(names))
-	for i, n := range names {
-		desc := models[n].Description
-		if desc != "" {
-			options[i] = fmt.Sprintf("%s  %s", n, hintStyle.Render(desc))
-		} else {
-			options[i] = n
-		}
-		values[i] = n + "\x00" + desc
+	if endpoint, headers := remoteModelsEndpoint(t.modelAdd.provider); endpoint != "" {
+		prov := t.modelAdd.provider
+		label := strings.ToUpper(prov[:1]) + prov[1:]
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			ids := fetchRemoteModelIDs(ctx, endpoint, headers, prov)
+			send(RemoteModelsResult{ids: ids})
+		}()
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", label)) + "\n")
 	}
 
 	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   fmt.Sprintf("Select %s model", t.modelAdd.provider),
-		options: options,
-		values:  values,
-		onConfirm: func(chosen string) any {
-			parts := strings.SplitN(chosen, "\x00", 2)
-			name := parts[0]
-			desc := ""
-			if len(parts) > 1 {
-				desc = parts[1]
+		kind:  popupText,
+		title: fmt.Sprintf("Model name (prefix: %s)", prefix),
+		onConfirm: func(value string) any {
+			name := strings.TrimSpace(value)
+			if name == "" {
+				return ModelAddModelMultiPick{chosen: ""}
 			}
-			return ModelAddModelPick{name: name, description: desc}
+			return ModelAddModelMultiPick{chosen: name + "\x00"}
 		},
 	}
 	return t, nil
 }
 
-func (t TUI) runModelAddModelPick(name, description string) (TUI, tea.Cmd) {
+func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
 		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
 	}
-	name = strings.TrimSpace(name)
-	if name == "" {
-		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] model name required") + "\n")
-	}
+
 	prefix := t.modelAdd.provider + "@"
 	if t.modelAdd.provider == "compat" {
 		prefix = fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
 	}
-	fullName := prefix + name
-	t.modelAdd = nil
+
+	selected := make(map[string]string)
+	if chosen != "" {
+		for _, entry := range strings.Split(chosen, "\x1F") {
+			parts := strings.SplitN(entry, "\x00", 2)
+			name := parts[0]
+			desc := ""
+			if len(parts) > 1 {
+				desc = parts[1]
+			}
+			selected[prefix+name] = desc
+		}
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
+		t.modelAdd = nil
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
 	}
 
-	found := false
-	for i, m := range cfg.Models {
-		if m.Name == fullName {
-			cfg.Models[i].Description = description
-			found = true
-			break
+	var kept []config.ModelEntry
+	var removed []string
+	for _, m := range cfg.Models {
+		if strings.HasPrefix(m.Name, prefix) {
+			if desc, ok := selected[m.Name]; ok {
+				kept = append(kept, config.ModelEntry{Name: m.Name, Description: desc})
+				delete(selected, m.Name)
+			} else {
+				removed = append(removed, m.Name)
+			}
+		} else {
+			kept = append(kept, m)
 		}
 	}
-	if !found {
-		cfg.Models = append(cfg.Models, config.ModelEntry{Name: fullName, Description: description})
+
+	var added []string
+	for fullName, desc := range selected {
+		kept = append(kept, config.ModelEntry{Name: fullName, Description: desc})
+		added = append(added, fullName)
 	}
-	if cfg.DispatcherModel == "" {
-		cfg.DispatcherModel = fullName
+	sort.Slice(added, func(i, j int) bool { return added[i] < added[j] })
+
+	cfg.Models = kept
+	if cfg.DispatcherModel != "" && strings.HasPrefix(cfg.DispatcherModel, prefix) {
+		found := false
+		for _, m := range kept {
+			if m.Name == cfg.DispatcherModel {
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.DispatcherModel = ""
+		}
 	}
+	if cfg.DispatcherModel == "" && len(kept) > 0 {
+		cfg.DispatcherModel = kept[0].Name
+	}
+
 	if err := config.Save(cfg); err != nil {
+		t.modelAdd = nil
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
 	}
 
 	agents.Reload()
-	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ added: %s · registry reloaded", fullName)) + "\n")
+
+	var summary []string
+	if len(added) > 0 {
+		summary = append(summary, fmt.Sprintf("added: %s", strings.Join(added, ", ")))
+	}
+	if len(removed) > 0 {
+		summary = append(summary, fmt.Sprintf("removed: %s", strings.Join(removed, ", ")))
+	}
+
+	providerName := t.modelAdd.provider
+	t.modelAdd = nil
+	if len(summary) == 0 {
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s models unchanged", providerName)) + "\n")
+	}
+	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · registry reloaded", strings.Join(summary, " · "))) + "\n")
+}
+
+func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
+	if t.modelAdd == nil {
+		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+	}
+
+	prefix := fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
+
+	if len(msg.ids) == 0 {
+		t.modelAdd = nil
+		return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ %s · no models found at endpoint", prefix)) + "\n")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] config.Load: %v", err)) + "\n")
+	}
+	existing := make(map[string]bool, len(cfg.Models))
+	for _, m := range cfg.Models {
+		existing[m.Name] = true
+	}
+
+	sort.Strings(msg.ids)
+
+	options := make([]string, len(msg.ids))
+	values := make([]string, len(msg.ids))
+	preSelected := make(map[int]bool)
+
+	for i, id := range msg.ids {
+		fullName := prefix + id
+		label := id
+		if existing[fullName] {
+			label += " · (added)"
+			preSelected[i] = true
+		}
+		options[i] = label
+		values[i] = id + "\x00"
+	}
+
+	t.popup = &Popup{
+		kind:    popupMultiSelect,
+		title:   fmt.Sprintf("Select %s models (space toggle · enter confirm)", t.modelAdd.compatProvider),
+		options: options,
+		values:  values,
+		multi:   preSelected,
+		onConfirm: func(chosen string) any {
+			return ModelAddModelMultiPick{chosen: chosen}
+		},
+	}
+	return t, nil
+}
+
+var remoteModelsProviders = map[string]struct {
+	endpoint   string
+	keychainKey string
+}{
+	"codex":      {"https://agenvoy-codex.pardn.workers.dev/models", ""},
+	"openai":     {"https://api.openai.com/v1/models", "OPENAI_API_KEY"},
+	"claude":     {"https://api.anthropic.com/v1/models", "CLAUDE_API_KEY"},
+	"gemini":     {"https://generativelanguage.googleapis.com/v1beta/models", "GEMINI_API_KEY"},
+	"grok":       {"https://api.x.ai/v1/models", "GROK_API_KEY"},
+	"deepseek":   {"https://api.deepseek.com/v1/models", "DEEPSEEK_API_KEY"},
+	"nvidia":     {"https://integrate.api.nvidia.com/v1/models", "NVIDIA_API_KEY"},
+	"openrouter": {"https://openrouter.ai/api/v1/models", "OPENROUTER_API_KEY"},
+}
+
+func remoteModelsEndpoint(prov string) (string, map[string]string) {
+	if prov == "grok-oauth" {
+		raw := keychain.Get("agenvoy.grok-oauth.token")
+		if raw == "" {
+			return "", nil
+		}
+		var token struct {
+			AccessToken string `json:"access_token"`
+		}
+		if json.Unmarshal([]byte(raw), &token) != nil || token.AccessToken == "" {
+			return "", nil
+		}
+		return "https://api.x.ai/v1/models", map[string]string{
+			"Authorization": "Bearer " + token.AccessToken,
+		}
+	}
+
+	if prov == "copilot" {
+		raw := keychain.Get("agenvoy.copilot.token")
+		if raw == "" {
+			return "", nil
+		}
+		var ghToken struct {
+			AccessToken string `json:"access_token"`
+		}
+		if json.Unmarshal([]byte(raw), &ghToken) != nil || ghToken.AccessToken == "" {
+			return "", nil
+		}
+		client := &http.Client{Timeout: 10 * time.Second}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		type refreshResp struct {
+			Token string `json:"token"`
+		}
+		refresh, status, err := go_pkg_http.GET[refreshResp](ctx, client, "https://api.github.com/copilot_internal/v2/token", map[string]string{
+			"Authorization":  "token " + ghToken.AccessToken,
+			"Accept":         "application/json",
+			"Editor-Version": "vscode/1.95.0",
+		})
+		if err != nil || status != http.StatusOK || refresh.Token == "" {
+			return "", nil
+		}
+		return "https://api.githubcopilot.com/models", map[string]string{
+			"Authorization":  "Bearer " + refresh.Token,
+			"Editor-Version": "vscode/1.95.0",
+		}
+	}
+
+	info, ok := remoteModelsProviders[prov]
+	if !ok {
+		return "", nil
+	}
+	if info.keychainKey == "" {
+		return info.endpoint, nil
+	}
+	apiKey := keychain.Get(info.keychainKey)
+	if apiKey == "" {
+		return "", nil
+	}
+	if prov == "claude" {
+		return info.endpoint, map[string]string{
+			"x-api-key":         apiKey,
+			"anthropic-version": "2023-06-01",
+		}
+	}
+	if prov == "gemini" {
+		return info.endpoint + "?key=" + apiKey, nil
+	}
+	return info.endpoint, map[string]string{
+		"Authorization": "Bearer " + apiKey,
+	}
+}
+
+type geminiModelsResponse struct {
+	Models []struct {
+		Name string `json:"name"`
+	} `json:"models"`
+}
+
+func fetchRemoteModelIDs(ctx context.Context, endpoint string, headers map[string]string, prov string) []string {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	if prov == "gemini" {
+		data, status, err := go_pkg_http.GET[geminiModelsResponse](ctx, client, endpoint, headers)
+		if err != nil || status != http.StatusOK {
+			return nil
+		}
+		ids := make([]string, 0, len(data.Models))
+		for _, m := range data.Models {
+			name := strings.TrimPrefix(m.Name, "models/")
+			if name != "" {
+				ids = append(ids, name)
+			}
+		}
+		return ids
+	}
+
+	data, status, err := go_pkg_http.GET[modelsResponse](ctx, client, endpoint, headers)
+	if err != nil || status != http.StatusOK {
+		return nil
+	}
+	ids := make([]string, 0, len(data.Data))
+	for _, m := range data.Data {
+		id := strings.TrimSpace(m.ID)
+		if id == "" {
+			continue
+		}
+		if prov == "copilot" && (!m.ModelPickerEnabled || m.Policy.State == "disabled") {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
+	if t.modelAdd == nil {
+		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+	}
+
+	prefix := t.modelAdd.provider + "@"
+
+	if len(msg.ids) == 0 {
+		prov := t.modelAdd.provider
+		t.modelAdd = nil
+		return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ %s · no models found at endpoint", prov)) + "\n")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] config.Load: %v", err)) + "\n")
+	}
+	existing := make(map[string]bool, len(cfg.Models))
+	for _, m := range cfg.Models {
+		existing[m.Name] = true
+	}
+
+	sort.Strings(msg.ids)
+
+	options := make([]string, len(msg.ids))
+	values := make([]string, len(msg.ids))
+	preSelected := make(map[int]bool)
+
+	for i, id := range msg.ids {
+		fullName := prefix + id
+		label := id
+		if existing[fullName] {
+			label += " · (added)"
+			preSelected[i] = true
+		}
+		options[i] = label
+		values[i] = id + "\x00"
+	}
+
+	t.popup = &Popup{
+		kind:    popupMultiSelect,
+		title:   fmt.Sprintf("Select %s models (space toggle · enter confirm)", t.modelAdd.provider),
+		options: options,
+		values:  values,
+		multi:   preSelected,
+		onConfirm: func(chosen string) any {
+			return ModelAddModelMultiPick{chosen: chosen}
+		},
+	}
+	return t, nil
 }

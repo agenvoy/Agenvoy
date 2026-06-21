@@ -3,17 +3,23 @@ package exec
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	goRuntime "runtime"
 	"strings"
 
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolSearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll, webMode bool, excludeSkills []string) []agentTypes.Message {
+func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []agentTypes.Message {
 	var prompts []agentTypes.Message
 	switch {
 	case strings.HasPrefix(sessionID, "tg-"):
@@ -23,11 +29,11 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 	case strings.HasPrefix(sessionID, "ln-"):
 		prompts = append(prompts, agentTypes.Message{Role: "system", Content: configs.LineSystemPrompt})
 	}
-	prompts = append(prompts, agentTypes.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, webMode, excludeSkills)})
+	prompts = append(prompts, agentTypes.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
 	return prompts
 }
 
-func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, webMode bool, excludeSkills []string) string {
+func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) string {
 	systemOS := goRuntime.GOOS
 	var extraSection string
 	if extra := strings.TrimSpace(extraSystemPrompt); extra != "" {
@@ -35,15 +41,12 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	}
 
 	template := configs.SystemPrompt
-	if webMode {
-		template = configs.WebModeSystemPrompt
-	}
 
 	skillsSection := ""
-	if list := toolSearcher.ListBlock(scanner, excludeSkills); list != "" {
+	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
 			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
-			"The `activate_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
+			"The `run_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
 			list
 	}
 
@@ -74,10 +77,30 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
+		"{{.ScriptToolGuide}}", configs.ScriptToolGuide,
 		"{{.ExternalAgents}}", buildExternalAgentsPrompt(),
 		"{{.CrossChannelSending}}", buildCrossChannelPrompt(),
+		"{{.ProjectInstructions}}", loadProjectInstructions(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
+}
+
+func loadProjectInstructions(workDir string) string {
+	if workDir == "" {
+		return ""
+	}
+	for _, name := range []string{"CLAUDE.md", "agent.md"} {
+		p := filepath.Join(workDir, name)
+		if !go_pkg_filesystem_reader.IsFile(p) {
+			continue
+		}
+		content, err := go_pkg_filesystem.ReadText(p)
+		if err != nil || strings.TrimSpace(content) == "" {
+			continue
+		}
+		return fmt.Sprintf("## Project Instructions (from %s)\n\n%s\n\n---\n\n", name, strings.TrimSpace(content))
+	}
+	return ""
 }
 
 func buildPermissionModeSection(allowAll bool) string {
@@ -89,10 +112,10 @@ func buildPermissionModeSection(allowAll bool) string {
 
 func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) string {
 	skillsSection := ""
-	if list := toolSearcher.ListBlock(scanner, excludeSkills); list != "" {
+	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
 			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
-			"The `activate_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
+			"The `run_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
 			list
 	}
 
@@ -105,4 +128,55 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 
 func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []agentTypes.Message {
 	return []agentTypes.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+}
+
+func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) string {
+	if scanner == nil {
+		return ""
+	}
+	names := scanner.List()
+	if len(names) == 0 {
+		return ""
+	}
+
+	excluded := make(map[string]bool, len(excludeSkills))
+	for _, n := range excludeSkills {
+		excluded[strings.TrimSpace(n)] = true
+	}
+
+	var b strings.Builder
+	for _, n := range names {
+		if excluded[n] {
+			continue
+		}
+		desc := go_pkg_utils.TruncateString(scanner.Skills.ByName[n].Description, 512)
+		b.WriteString("- ")
+		b.WriteString(n)
+		if desc != "" {
+			b.WriteString(": ")
+			b.WriteString(desc)
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func renderActivation(s *skill.Skill) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "active skill: %s\nskill directory: %s\n\n---\n\n", s.Name, s.Path)
+	if ext := strings.TrimSpace(configs.SkillExecution); ext != "" {
+		b.WriteString(ext)
+		b.WriteString("\n\n---\n\n")
+	}
+	if names := toolRegister.BuiltinNames(); len(names) > 0 {
+		b.WriteString("### Built-in Tools\n\n")
+		for _, name := range names {
+			b.WriteString("- `")
+			b.WriteString(name)
+			b.WriteString("`\n")
+		}
+		b.WriteString("\n---\n\n")
+	}
+	b.WriteString(s.ResolvedContent())
+	return b.String()
 }

@@ -26,7 +26,7 @@ var (
 )
 
 func (t *Translator) Execute(ctx context.Context, name string, params map[string]any) (string, error) {
-	key := strings.TrimPrefix(name, "api_")
+	key := strings.TrimPrefix(name, t.prefix)
 	doc, ok := t.apis[key]
 	if !ok {
 		return "", fmt.Errorf("api tool not found: %s", name)
@@ -145,7 +145,7 @@ func (t *Translator) send(ctx context.Context, key string, doc *APIDocumentData,
 	defer cancel()
 	req = req.WithContext(reqCtx)
 
-	resp, err := t.doWithProgress(reqCtx, "api_"+key, req, timeoutSec)
+	resp, err := t.doWithProgress(reqCtx, t.prefix+key, req, timeoutSec)
 	if err != nil {
 		return "", fmt.Errorf("client.Do: %w", err)
 	}

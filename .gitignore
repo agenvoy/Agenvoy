@@ -16,4 +16,5 @@ _tui_archived
 _scheduler
 _script_tools
 _discord
-scripts/
+dist/
+extensions/scripts/

@@ -13,13 +13,10 @@ import (
 
 func registSearchErrorMemory() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:       "search_error_memory",
-		AlwaysAllow:   true,
-		Concurrent: true,
-		Description: `
-Semantically search past tool-error records for root cause and prior resolution.
-Matching hits have their retention refreshed to 3 months.
-Call first when a tool behaves unexpectedly.`,
+		Name:        "search_error_history",
+		AlwaysAllow: true,
+		Concurrent:  true,
+		Description: "Search past tool-error records for root cause and resolution. Call before 2nd retry when no error hints were injected. Results are authoritative: resolved → apply, failed/abandoned → avoid.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -11,13 +12,57 @@ import (
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/session/toolError"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
+
+func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
+	var params struct {
+		Questions []runtime.Question `json:"questions"`
+		State     struct {
+			Objective string   `json:"objective"`
+			Completed []string `json:"completed"`
+			NextSteps []string `json:"next_steps"`
+		} `json:"state"`
+	}
+	if err := json.Unmarshal([]byte(rawArgs), &params); err != nil {
+		slog.Warn("json Unmarshal",
+			slog.String("error", err.Error()))
+		return
+	}
+	if len(params.Questions) == 0 {
+		slog.Warn("ask user no questions")
+		return
+	}
+
+	interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+}
+
+var ErrAskUserInterrupted = errors.New("ask user interrupted")
+
+func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
+	nameByID := make(map[string]string)
+	for _, msg := range session.ToolHistories {
+		for _, tc := range msg.ToolCalls {
+			nameByID[tc.ID] = tc.Function.Name
+		}
+	}
+
+	var results []interactive.ToolResult
+	for _, msg := range session.Tools {
+		content, _ := msg.Content.(string)
+		results = append(results, interactive.ToolResult{
+			Name:   nameByID[msg.ToolCallID],
+			ID:     msg.ToolCallID,
+			Result: content,
+		})
+	}
+	return results
+}
 
 const (
 	slotReady          = 0
@@ -25,6 +70,7 @@ const (
 	slotSkipped        = 2
 	slotStubActivated  = 3
 	slotValidateFailed = 4
+	slotDispatched     = 5
 )
 
 type toolSlot struct {
@@ -39,11 +85,32 @@ type toolSlot struct {
 	isImage  bool
 	imageURL string
 
-	result  string
-	execErr string
+	result     string
+	execErr    string
+	execErrVal error
 }
 
-func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, toolFailCount map[string]int) (*agentTypes.AgentSession, map[string]string, error) {
+func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, turnAllowAll bool) bool {
+	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
+		return false
+	}
+	if toolName == "send_http_request" && isGet(toolArgs) {
+		return false
+	}
+	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+}
+
+func isGet(argsJSON string) bool {
+	var p struct {
+		Method string `json:"method"`
+	}
+	if json.Unmarshal([]byte(argsJSON), &p) != nil {
+		return false
+	}
+	return p.Method == "" || strings.EqualFold(p.Method, "GET")
+}
+
+func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agentTypes.AgentSession, map[string]string, error) {
 	sessionData.ToolHistories = append(sessionData.ToolHistories, choice.Message)
 
 	calls := choice.Message.ToolCalls
@@ -57,7 +124,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 		if idx := strings.Index(toolName, "<|"); idx != -1 {
 			toolName = toolName[:idx]
 		}
-		hash := fmt.Sprintf("%v|%v", toolName, toolArg)
+		hashArg := toolArg
+		var argMap map[string]any
+		if json.Unmarshal([]byte(toolArg), &argMap) == nil {
+			if normalized, err := json.Marshal(argMap); err == nil {
+				hashArg = string(normalized)
+			}
+		}
+		hash := fmt.Sprintf("%v|%v", toolName, hashArg)
 
 		slots[i] = toolSlot{
 			idx:   i,
@@ -67,6 +141,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			hash:  hash,
 			state: slotReady,
 		}
+
+		interactive.RecordToolAttempt(exec.SessionID, exec.PendingTask, interactive.ToolAttempt{
+			Name: toolName,
+			ID:   toolID,
+			Args: toolArg,
+		})
 
 		if toolName != "read_file" {
 			if cached, ok := alreadyCall[hash]; ok && cached != "" {
@@ -98,10 +178,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			continue
 		}
 
-		if !allowAll && !toolRegister.IsReadOnly(toolName) {
+		if !allowAll && toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll) {
 			proceed := true
 			reason := ""
-			if runtime.HasListener(sessionData.ID) && !allowTool.Match(getAllowList(ctx), toolName, toolArg) {
+			if runtime.HasListener(sessionData.ID) {
 				reply, err := runtime.Ask(ctx, runtime.Request{
 					Kind:      runtime.KindToolConfirm,
 					SessionID: sessionData.ID,
@@ -119,6 +199,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 								slog.String("session", sessionData.ID),
 								slog.String("error", err.Error()))
 						}
+					}
+					if reply.Approve && reply.AllowTurn {
+						*turnAllowAll = true
 					}
 				}
 			}
@@ -147,22 +230,46 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 				ToolArgs: toolArg,
 				ToolID:   toolID,
 			}
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventExecError,
-				ToolName: toolName,
-				ToolID:   toolID,
-				Text:     earlyErr,
-			}
-			toolFailCount[hash]++
-			var content string
-			if toolFailCount[hash] >= filesystem.MaxRetry {
-				content = fmt.Sprintf("[ABORT] tool=%s 連續 %d 次以相同參數觸發 validator 錯誤: %s\n請改用其他工具或顯著調整參數，不要使用相同工具 %s。", toolName, toolFailCount[hash], earlyErr, toolName)
-			} else {
-				content = fmt.Sprintf("tool=%s dropped (incomplete args: %s). Do NOT re-issue the same call; if still needed, pivot to a different tool or provide the missing fields from context in a differently-shaped call.", toolName, earlyErr)
-			}
+			content := fmt.Sprintf("tool=%s failed: %s", toolName, earlyErr)
 			slots[i].state = slotValidateFailed
 			slots[i].preMsg = content
 			continue
+		}
+	}
+
+	for i := range slots {
+		slot := &slots[i]
+		if slot.state == slotReady && slot.name == "ask_user" {
+			for j := range slots {
+				cs := &slots[j]
+				if cs.state == slotReady || cs.name == "ask_user" {
+					continue
+				}
+				content := cs.preMsg
+				msg := agentTypes.Message{
+					Role:       "tool",
+					Content:    content,
+					ToolCallID: cs.id,
+				}
+				switch cs.state {
+				case slotCached:
+					if cs.isImage {
+						injectImageToUserInput(sessionData, cs.imageURL)
+					}
+					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
+				default:
+					sessionData.Tools = append(sessionData.Tools, msg)
+					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
+				}
+			}
+
+			toolResults := toolResults(sessionData)
+
+			go askUserInBackground(sessionData.ID, exec.PendingTask, slot.args, toolResults)
+			if exec.CancelExecution != nil {
+				exec.CancelExecution()
+			}
+			return sessionData, alreadyCall, ErrAskUserInterrupted
 		}
 	}
 
@@ -172,12 +279,25 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 		if s.state != slotReady {
 			continue
 		}
+		if toolRegister.IsFireAndForget(s.name) {
+			go runToolExec(ctx, exec, s, events)
+			s.result = "ok"
+			s.state = slotDispatched
+			continue
+		}
 		if toolRegister.IsConcurrent(s.name) {
 			wg.Add(1)
 			go func(s *toolSlot) {
 				defer wg.Done()
 				runToolExec(ctx, exec, s, events)
 			}(s)
+			s.state = slotDispatched
+			continue
+		}
+	}
+	for i := range slots {
+		s := &slots[i]
+		if s.state != slotReady {
 			continue
 		}
 		runToolExec(ctx, exec, s, events)
@@ -217,20 +337,13 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 		}
 
 		result := s.result
+		historyResult := ""
 		if s.execErr != "" {
-			if !sessionData.Stateless {
-				toolError.Save(sessionData.ID, s.name, s.args, s.execErr)
-			}
-			toolFailCount[s.hash]++
-			if toolFailCount[s.hash] >= filesystem.MaxRetry {
-				result = fmt.Sprintf("[ABORT] tool=%s 連續 %d 次失敗: %s\n請改用其他工具或顯著調整參數，不要使用相同工具 %s。", s.name, toolFailCount[s.hash], s.execErr, s.name)
+			hint := memory.Search(ctx, s.name, s.execErr, 3)
+			if hint != "" {
+				result = fmt.Sprintf("tool=%s failed: %s\nrelated_errors: %s", s.name, s.execErr, hint)
 			} else {
-				if hint := memory.Search(ctx, s.name, s.execErr, 3); hint != "" {
-					result = fmt.Sprintf("[RETRY_REQUIRED] tool=%s failed: %s\nrelated_errors: %s\nFix the arguments and call %s again immediately. Do NOT output this message as your response.", s.name, s.execErr, hint, s.name)
-				} else {
-					result = fmt.Sprintf("[RETRY_REQUIRED] tool=%s failed: %s\nFix the arguments and call %s again immediately. Do NOT output this message as your response.", s.name, s.execErr, s.name)
-				}
-				delete(alreadyCall, s.hash)
+				result = fmt.Sprintf("tool=%s failed: %s", s.name, s.execErr)
 			}
 		} else if result == "" || result == "no data" {
 			if hint := memory.Search(ctx, s.name, "no data", 3); hint != "" {
@@ -242,6 +355,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 
 		if s.name != "read_file" {
 			alreadyCall[s.hash] = result
+		}
+		if s.execErr == "" && !strings.HasPrefix(result, "data:image/") && toolcache.IsCacheable(s.name) {
+			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
 
 		events <- agentTypes.Event{
@@ -262,7 +378,15 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			ToolCallID: s.id,
 		}
 		sessionData.Tools = append(sessionData.Tools, toolMsg)
-		sessionData.ToolHistories = append(sessionData.ToolHistories, toolMsg)
+		if historyResult != "" {
+			sessionData.ToolHistories = append(sessionData.ToolHistories, agentTypes.Message{
+				Role:       "tool",
+				Content:    historyResult,
+				ToolCallID: s.id,
+			})
+		} else {
+			sessionData.ToolHistories = append(sessionData.ToolHistories, toolMsg)
+		}
 
 		switch s.name {
 		case "cross_review_with_external_agents":
@@ -304,13 +428,13 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}
 	result, err := tools.Execute(ctx, exec, s.name, json.RawMessage(s.args))
 	if err != nil {
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventExecError,
-			ToolName: s.name,
-			ToolID:   s.id,
-			Text:     err.Error(),
-		}
 		s.execErr = err.Error()
+		s.execErrVal = err
+		go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
+			Name:   s.name,
+			ID:     s.id,
+			Result: "error: " + err.Error(),
+		})
 		events <- agentTypes.Event{
 			Type:     agentTypes.EventToolCallEnd,
 			ToolName: s.name,
@@ -327,12 +451,17 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 			Text:     result,
 		}
 	}
+	s.result = result
+	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
+		Name:   s.name,
+		ID:     s.id,
+		Result: result,
+	})
 	events <- agentTypes.Event{
 		Type:     agentTypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
-	s.result = result
 }
 
 func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {

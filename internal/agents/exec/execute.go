@@ -32,13 +32,23 @@ import (
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	toolSearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-var timestampHeaderRegex = regexp.MustCompile(`(?m)^-{3,}\n.*\n-{3,}\n`)
+const (
+	poisonRefusal     = "無法執行此操作"
+	guardrailSentinel = "[KARAPPO]"
+)
 
-var summaryLeakMarkerRegex = regexp.MustCompile(`(?mi)^\s*(?:[#*>\-]+\s*)?(?:Prior Conversation Context|Prior summary \(reference only\)|background summary of prior discussion|Strict rules:)`)
+var (
+	timestampHeaderRegex   = regexp.MustCompile(`(?m)^-{3,}\n.*\n-{3,}\n`)
+	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
+)
+
+func isGuardrailRefusal(content string) bool {
+	return strings.Contains(content, guardrailSentinel)
+}
 
 func StripModelResponse(str string) string {
 	str = timestampHeaderRegex.ReplaceAllString(str, "")
@@ -48,7 +58,7 @@ func StripModelResponse(str string) string {
 		if len(head) > 120 {
 			head = head[:120]
 		}
-		str = str[:loc[0]]
+		str = strings.TrimRight(str[:loc[0]], " \t\n\r#")
 		slog.Warn("StripModelResponse summary leak stripped",
 			slog.Int("dropped_chars", len(dropped)),
 			slog.String("dropped_head", head))
@@ -104,7 +114,7 @@ type ExecData struct {
 	ExcludeSkills     []string
 	ExtraSystemPrompt string
 	AllowAll          bool
-	WebMode           bool
+	PendingTask       string
 }
 
 type (
@@ -117,8 +127,36 @@ type (
 func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
 	executeStart := time.Now()
 
-	if !allowAll && data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowSkill.Match(data.WorkDir, data.Skill.Name) {
-		allowAll = true
+	usedSkills := make(map[string]*skill.Skill)
+	var execTrace []execStep
+	if data.Skill != nil {
+		usedSkills[data.Skill.Name] = data.Skill
+	}
+	defer func() {
+		if len(usedSkills) == 0 {
+			return
+		}
+		hasError := false
+		for _, step := range execTrace {
+			if step.Error != "" {
+				hasError = true
+				break
+			}
+		}
+		if !hasError {
+			return
+		}
+		trace := make([]execStep, len(execTrace))
+		copy(trace, execTrace)
+		for _, s := range usedSkills {
+			postSkillImprove(s, trace)
+		}
+	}()
+
+	if !allowAll {
+		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowSkill.Match(data.WorkDir, data.Skill.Name) {
+			allowAll = true
+		}
 	}
 
 	ctx = context.WithValue(ctx, allowAllCtxKey{}, allowAll)
@@ -153,7 +191,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
-		isDcPush := hasPush && !isDcPushSuppressed(ctx)
+		pushCtx := ctx
+		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
 		stateless := session.Stateless
@@ -187,13 +226,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			if isDcPush {
 				text := strings.TrimSpace(pushTextBuf.String())
 				if text != "" {
-					pushHook(ctx, PushPayload{
+					pushHook(pushCtx, PushPayload{
 						SessionID: sid,
 						Text:      text,
 						Model:     pushDoneEv.Model,
 						Usage:     pushDoneEv.Usage,
 						Duration:  pushDoneEv.Duration,
-						Prefix:    dcPushPrefix(ctx),
+						Prefix:    dcPushPrefix(pushCtx),
 					})
 				}
 			}
@@ -216,29 +255,50 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
 
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
+	ctx = execCtx
+	exec.CancelExecution = execCancel
+
+	keepPending := true
+	if !session.Stateless && session.ID != "" {
+		if data.PendingTask != "" {
+			exec.PendingTask = data.PendingTask
+		} else {
+			objective := data.Content
+			if objective == "" {
+				if s, ok := session.UserInput.Content.(string); ok {
+					objective = s
+				}
+			}
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective)
+		}
+		defer func() {
+			if !keepPending {
+				interactive.CleanupPending(session.ID, exec.PendingTask)
+			}
+		}()
+	}
+
 	if data.Skill != nil {
 		assignBindingSkill(session, data.Skill)
 	}
 
 	if !go_pkg_filesystem_reader.Exists(filesystem.KuradbEndpointPath) {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"rag_list_db", "rag_search_keyword", "rag_search_semantic")
+			"list_rag", "search_rag")
 	}
-	if go_pkg_keychain.Get("agenvoy.codex.token") == "" {
+	cfg, _ := config.Load()
+	if go_pkg_keychain.Get("agenvoy.codex.token") == "" || cfg == nil || !cfg.EnableImage2 {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
 	}
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"fetch_youtube_transcript", "transcribe_media")
+		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
 	}
-	cfg, _ := config.Load()
-	if cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "" {
+	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
+		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"telegram_format", "list_telegram_chat", "send_to_telegram_chat")
-	}
-	if cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "" {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"discord_format", "list_discord_channel", "send_to_discord_channel")
+			"format_chatbot", "list_chatbot", "send_to_chatbot")
 	}
 
 	if len(data.ExcludeTools) > 0 {
@@ -263,11 +323,19 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 	limit := filesystem.MaxSkillIterations
 
+	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
+	allAgents = append(allAgents, data.Agent)
+	allAgents = append(allAgents, data.FallbackAgents...)
+	fallbackRound := 0
+
 	var usage agentTypes.Usage
 	alreadyCall := make(map[string]string)
-	toolFailCount := make(map[string]int)
+	turnAllowAll := false
 	emptyCount := 0
 	trimmedToolCalls := false
+	compactedToolCalls := false
+	compactFailed := false
+	lastInputTokens := 0
 	type sendOutcome struct {
 		resp *agentTypes.Output
 		err  error
@@ -275,7 +343,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	sendFailCount := 0
 	for range limit {
 		if ctx.Err() != nil {
+			keepPending = false
 			return ctx.Err()
+		}
+		if !compactFailed && lastInputTokens >= execCompactTokenThreshold {
+			if compactExec(ctx, data.Agent, session, &usage) {
+				compactedToolCalls = true
+				lastInputTokens = 0
+			} else {
+				compactFailed = true
+			}
 		}
 		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories)
 		sendStart := time.Now()
@@ -297,6 +374,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			case <-ctx.Done():
 				watchdog.Stop()
 				cancelSend()
+				keepPending = false
 				return ctx.Err()
 			case out := <-resultCh:
 				resp, err = out.resp, out.err
@@ -305,7 +383,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
 					continue
 				}
-				next, nextName := pickHealthyFallback(ctx, &data.FallbackAgents)
+				next, nextName := nextAgent(ctx, &data.FallbackAgents, allAgents, &fallbackRound)
 				if next == nil {
 					watchdog.Stop()
 					cancelSend()
@@ -347,6 +425,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		cancelSend()
 		if err != nil {
 			if ctx.Err() != nil {
+				keepPending = false
 				return ctx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
@@ -379,7 +458,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
-			next, nextName := pickHealthyFallback(ctx, &data.FallbackAgents)
+			next, nextName := nextAgent(ctx, &data.FallbackAgents, allAgents, &fallbackRound)
 			if next != nil {
 				slog.Warn("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
@@ -418,6 +497,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
 
 		if len(resp.Choices) == 0 {
 			if actionError(&emptyCount, events) {
@@ -429,9 +509,49 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 		choice := resp.Choices[0]
 		if len(choice.Message.ToolCalls) > 0 {
-			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, toolFailCount)
+			toolsBefore := len(session.Tools)
+			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
+				if errors.Is(err, ErrAskUserInterrupted) {
+					return nil
+				}
+				keepPending = false
 				return err
+			}
+			for _, msg := range session.Tools[toolsBefore:] {
+				content, _ := msg.Content.(string)
+				step := execStep{Tool: extractToolName(content)}
+				if strings.Contains(content, " failed: ") {
+					if _, after, ok := strings.Cut(content, " failed: "); ok {
+						step.Error = after
+					}
+				}
+				if step.Tool != "" {
+					execTrace = append(execTrace, step)
+				}
+			}
+			if scanner != nil && scanner.Skills != nil {
+				for _, tc := range choice.Message.ToolCalls {
+					if strings.TrimSpace(tc.Function.Name) != "run_skill" {
+						continue
+					}
+					var p struct {
+						Skill string `json:"skill"`
+					}
+					if json.Unmarshal([]byte(tc.Function.Arguments), &p) != nil {
+						continue
+					}
+					name := strings.TrimSpace(p.Skill)
+					if name == "" {
+						continue
+					}
+					if _, ok := usedSkills[name]; ok {
+						continue
+					}
+					if s, ok := scanner.Skills.ByName[name]; ok && s != nil {
+						usedSkills[name] = s
+					}
+				}
 			}
 			continue
 		}
@@ -455,20 +575,33 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 			emptyCount = 0
 
+			if isGuardrailRefusal(stripped) {
+				sendText(events, poisonRefusal)
+				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+				interactive.FinalizePending(session.ID, exec.PendingTask, poisonRefusal)
+				keepPending = false
+				return nil
+			}
+
 			responseText := stripped
 			if trimmedToolCalls {
 				responseText += "\n\n> 因超過模型 max input，部分工具查詢資料已被裁減，建議使用更大 context window 的模型再試一次。"
+			}
+			if compactedToolCalls {
+				responseText += "\n\n> 已自動整合壓縮工具查詢資料以維持回應品質。"
 			}
 			sendText(events, responseText)
 
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
 
-			if err := saveNewHistory(choice, session); err != nil {
+			if err := saveNewHistory(ctx, choice, session); err != nil {
 				slog.Warn("writeHistory",
 					slog.String("session", session.ID),
 					slog.String("error", err.Error()))
 			}
+
+			interactive.FinalizePending(session.ID, exec.PendingTask, responseText)
 
 		case nil:
 			if actionError(&emptyCount, events) {
@@ -487,11 +620,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
 
-		if !session.Stateless && len(session.Tools) > 0 {
-			if raw, err := json.Marshal(session.Tools); err == nil {
-				sessionManager.SaveToToolCall(session.ID, string(raw))
-			}
-		}
+		keepPending = false
 		return nil
 	}
 
@@ -507,13 +636,23 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
-			sendText(events, StripModelResponse(text))
+			summaryStripped := StripModelResponse(text)
+			if isGuardrailRefusal(summaryStripped) {
+				sendText(events, poisonRefusal)
+				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+				interactive.FinalizePending(session.ID, exec.PendingTask, poisonRefusal)
+				keepPending = false
+				return nil
+			}
+			sendText(events, summaryStripped)
 			if err := record.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
 				slog.Warn("usageManager.Update",
 					slog.String("session", session.ID),
 					slog.String("error", err.Error()))
 			}
 			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
+			keepPending = false
 			return nil
 		}
 	}
@@ -526,6 +665,17 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
 	return nil
+}
+
+func extractToolName(content string) string {
+	if len(content) < 3 || content[0] != '[' {
+		return ""
+	}
+	end := strings.Index(content, "]")
+	if end < 0 {
+		return ""
+	}
+	return content[1:end]
 }
 
 func actionError(emptyCount *int, events chan<- agentTypes.Event) bool {
@@ -548,7 +698,7 @@ func sendText(events chan<- agentTypes.Event, str string) {
 	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
 }
 
-func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {
+func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {
 	session.Histories = append(session.Histories, choice.Message)
 
 	if session.Stateless {
@@ -563,6 +713,9 @@ func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSe
 			(message.Role == "assistant" && len(message.ToolCalls) > 0) {
 			continue
 		}
+		if content, ok := message.Content.(string); ok && (strings.Contains(content, poisonRefusal) || strings.Contains(content, guardrailSentinel)) {
+			continue
+		}
 		delta = append(delta, message)
 	}
 
@@ -570,22 +723,22 @@ func saveNewHistory(choice agentTypes.OutputChoices, session *agentTypes.AgentSe
 		return fmt.Errorf("sessionHistory.Append: %w", err)
 	}
 
-	writeSessionHistEntry(session.ID, choice.Message)
+	writeSessionHistEntry(ctx, session.ID, choice.Message)
 	return nil
 }
 
-func SaveUserInputHistory(sessionID, userText string) {
+func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 	if sessionID == "" || strings.TrimSpace(userText) == "" {
 		return
 	}
-	writeSessionHistEntry(sessionID, agentTypes.Message{
+	writeSessionHistEntry(ctx, sessionID, agentTypes.Message{
 		Role:    "user",
 		Content: userText,
 	})
 	sessionLog.Append(sessionID, userText)
 }
 
-func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
+func writeSessionHistEntry(ctx context.Context, sessionID string, msg agentTypes.Message) {
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return
@@ -594,7 +747,7 @@ func writeSessionHistEntry(sessionID string, msg agentTypes.Message) {
 	db := torii.DB(torii.DBSessionHist)
 	value := string(msgBytes)
 
-	if setErr := db.SetVector(context.Background(), key, value, torii.SetDefault, nil); setErr != nil {
+	if setErr := db.SetVector(ctx, key, value, torii.SetDefault, nil); setErr != nil {
 		if setErr = db.Set(key, value, torii.SetDefault, nil); setErr != nil {
 			slog.Warn("store.DB.Set",
 				slog.String("session", sessionID),
@@ -610,7 +763,7 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 		ID:   id,
 		Type: "function",
 	}
-	call.Function.Name = toolSearcher.ToolName
+	call.Function.Name = "run_skill"
 	call.Function.Arguments = string(argsJSON)
 
 	session.ToolHistories = append(session.ToolHistories,
@@ -620,7 +773,7 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 		},
 		agentTypes.Message{
 			Role:       "tool",
-			Content:    toolSearcher.RenderActivation(s),
+			Content:    renderActivation(s),
 			ToolCallID: id,
 		},
 	)
@@ -631,7 +784,7 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	)
 	session.SystemPrompts = append(session.SystemPrompts, agentTypes.Message{
 		Role:    "system",
-		Content: bindingHeader + toolSearcher.RenderActivation(s),
+		Content: bindingHeader + renderActivation(s),
 	})
 }
 
@@ -650,14 +803,14 @@ func buildCrossChannelPrompt() string {
 	}
 	var sb strings.Builder
 	sb.WriteString("## Cross-channel Sending\n\n")
-	sb.WriteString("When sending via `send_to_telegram_chat` / `send_to_discord_channel` from any session (including TUI / CLI / cron):\n\n")
+	sb.WriteString("When sending via `send_to_chatbot` from any session (including TUI / CLI / cron):\n\n")
 	if cfg.TelegramEnabled {
-		sb.WriteString("- **Telegram** — if the user did not name a specific chat, `list_telegram_chat` → `ask_user(options=[names])` → map chosen name → chat_id → send. Never fabricate chat_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
-		sb.WriteString("- Before composing the message argument, call `telegram_format` (HTML mode only — markdown leaks render literally).\n")
+		sb.WriteString("- **Telegram** (`platform=telegram`) — if the user did not name a specific chat, `list_chatbot(platform=telegram)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
+		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=telegram)` (HTML mode only — markdown leaks render literally).\n")
 	}
 	if cfg.DiscordEnabled {
-		sb.WriteString("- **Discord** — if the user did not name a specific channel, `list_discord_channel` → `ask_user(options=[names])` → map chosen name → channel_id → send. Never fabricate channel_id.\n")
-		sb.WriteString("- Before composing the message argument, call `discord_format` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
+		sb.WriteString("- **Discord** (`platform=discord`) — if the user did not name a specific channel, `list_chatbot(platform=discord)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id.\n")
+		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=discord)` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }

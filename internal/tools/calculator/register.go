@@ -12,9 +12,9 @@ import (
 func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "calculate",
-		AlwaysAllow:    true,
+		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Evaluate a mathematical expression and return the exact result.",
+		Description: "Evaluate a mathematical expression. Covers calculations, unit conversions, currency arithmetic. Fetch variable data via appropriate tool before passing in. Do not persist results to summary.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

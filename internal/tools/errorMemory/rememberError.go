@@ -13,9 +13,11 @@ import (
 
 func registRememberError() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "remember_error",
-		AlwaysAllow: true,
-		Description: "Persist a tool-error record to cross-session error memory for retrieval via search_tool_errors. Call after an error is resolved or abandoned so the next session skips the same diagnosis.",
+		Name:          "remember_error",
+		AlwaysAllow:   true,
+		FireAndForget: true,
+		Concurrent:    true,
+		Description:   "Persist tool-error record to cross-session memory. Auto-call when: resolved via non-trivial fallback → resolved; strategy confirmed non-working → failed; 3 approaches exhausted → abandoned. Skip trivial typos, 1st-retry fixes, transient errors. Always batch with other tool calls in the same turn; only call alone when no other tool call remains.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -57,7 +59,7 @@ func registRememberError() {
 				"outcome",
 			},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				ToolName string   `json:"tool_name"`
 				Keywords []string `json:"keywords"`
@@ -96,7 +98,7 @@ func registRememberError() {
 			if outcome == "" {
 				return "", fmt.Errorf("outcome is required")
 			}
-			return memory.Save(e.SessionID, memory.Record{
+			return memory.Save(ctx, e.SessionID, memory.Record{
 				ToolName: toolName,
 				Keywords: keywords,
 				Symptom:  symptom,

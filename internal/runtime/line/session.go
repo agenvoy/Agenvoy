@@ -1,6 +1,7 @@
 package line
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 )
 
-func getSession(in go_bot_line.Input, content string, data exec.ExecData) (*agentTypes.AgentSession, error) {
+func getSession(ctx context.Context, in go_bot_line.Input, content string, data exec.ExecData) (*agentTypes.AgentSession, error) {
 	sessionID, err := sessionManager.GetLineSession(in.SourceType, in.UserID, in.GroupID, in.RoomID)
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetLineSession: %w", err)
@@ -31,7 +32,7 @@ func getSession(in go_bot_line.Input, content string, data exec.ExecData) (*agen
 	sess.Histories = oldHistory
 	sess.BaseLen = len(oldHistory)
 
-	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, false, data.ExcludeSkills)
+	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
 		sess.SummaryMessage = agentTypes.Message{Role: "assistant", Content: summary}
 	}
@@ -55,7 +56,7 @@ func getSession(in go_bot_line.Input, content string, data exec.ExecData) (*agen
 		Role:    "user",
 		Content: userText,
 	}
-	exec.SaveUserInputHistory(sessionID, userText)
+	exec.SaveUserInputHistory(ctx, sessionID, userText)
 
 	return sess, nil
 }

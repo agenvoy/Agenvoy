@@ -16,12 +16,10 @@ import (
 
 func registGlobFiles() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:       "glob_files",
-		AlwaysAllow:   true,
-		Concurrent: true,
-		Description: `
-Find files matching a glob pattern within a directory.
-Locate specific file types (e.g. '**/*.go' for Go files).`,
+		Name:        "glob_files",
+		AlwaysAllow: true,
+		Concurrent:  true,
+		Description: "Find files matching a glob pattern within a directory (e.g. '**/*.go'). Use when only a filename or partial path is known — never guess full paths. Call read_file on each match before editing to confirm the correct file.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -39,7 +37,10 @@ Locate specific file types (e.g. '**/*.go' for Go files).`,
 				"pattern",
 			},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+			if err := ctx.Err(); err != nil {
+				return "", err
+			}
 			var params struct {
 				Dir     string `json:"dir"`
 				Pattern string `json:"pattern"`
@@ -70,6 +71,9 @@ Locate specific file types (e.g. '**/*.go' for Go files).`,
 					return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
 				}
 				return "", fmt.Errorf("go_pkg_filesystem_reader.GlobFiles: %w", err)
+			}
+			if err := ctx.Err(); err != nil {
+				return "", err
 			}
 			raw, err := json.Marshal(matches)
 			if err != nil {

@@ -10,7 +10,6 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -18,10 +17,8 @@ import (
 
 func registWriteFile() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "write_file",
-		Description: `
-Write content to a file, overwriting if it exists.
-Accepts absolute paths and '~' (e.g. '/abs/path/foo.go', '~/notes.md').`,
+		Name:        "write_file",
+		Description: "Create a new file or fully rewrite. For targeted edits use patch_file. Call read_file after to verify. One write per change; trust success strings. Default export path: ~/Downloads or ~/.config/agenvoy/download/.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -93,7 +90,7 @@ Accepts absolute paths and '~' (e.g. '/abs/path/foo.go', '~/notes.md').`,
 				return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
 			}
 
-			skill.AutoCommitByPath(ctx, absPath, isNew)
+			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)
 
 			if isNew {
 				return fmt.Sprintf("successfully created: %s", absPath), nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -27,7 +28,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		allowedCommand[cmd] = true
 	}
 
-	apiToolbox := apiAdapter.New()
+	apiToolbox := apiAdapter.New("api_")
 	apiToolbox.LoadFS(extensions.APIs, "apis")
 
 	for _, dir := range []string{
@@ -38,50 +39,65 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	} {
 		apiToolbox.Load(dir)
 	}
-	apiToolbox.LoadDirs(filesystem.ExtensionAPIToolsDir)
 
-	for _, tool := range apiToolbox.GetTools() {
-		raw, err := json.Marshal(tool)
-		if err != nil {
-			continue
+	extAPIToolbox := apiAdapter.New("ext_")
+	extAPIToolbox.LoadDirs(filesystem.ExtensionAPIToolsDir)
+
+	for _, tb := range []*apiAdapter.Translator{apiToolbox, extAPIToolbox} {
+		for _, tool := range tb.GetTools() {
+			raw, err := json.Marshal(tool)
+			if err != nil {
+				continue
+			}
+			var t toolTypes.Tool
+			if err := json.Unmarshal(raw, &t); err != nil {
+				continue
+			}
+			tools = append(tools, t)
 		}
-		var t toolTypes.Tool
-		if err := json.Unmarshal(raw, &t); err != nil {
-			continue
+		for _, name := range tb.AlwaysAllowNames() {
+			toolRegister.MarkAlwaysAllow(name)
 		}
-		tools = append(tools, t)
+		for _, name := range tb.ConcurrentNames() {
+			toolRegister.MarkConcurrent(name)
+		}
 	}
 
-	for _, name := range apiToolbox.AlwaysAllowNames() {
-		toolRegister.MarkAlwaysAllow(name)
-	}
-
-	scriptToolbox := scriptAdapter.New()
+	scriptToolbox := scriptAdapter.New("script_")
 	for _, dir := range []string{
 		filesystem.SystemToolsDir,
 		filesystem.LegacyScriptToolsDir,
 		filesystem.LegacyWorkScriptToolsDir,
 		filesystem.ScriptToolsDir,
 		filesystem.WorkScriptToolsDir,
-		filesystem.ExtensionScriptToolsDir,
 	} {
 		scriptToolbox.Scan(dir)
 	}
 
-	for _, tool := range scriptToolbox.GetTools() {
-		raw, err := json.Marshal(tool)
-		if err != nil {
-			continue
-		}
-		var t toolTypes.Tool
-		if err := json.Unmarshal(raw, &t); err != nil {
-			continue
-		}
-		tools = append(tools, t)
-	}
+	extScriptToolbox := scriptAdapter.New("ext_")
+	extScriptToolbox.Scan(filesystem.ExtensionScriptToolsDir)
 
-	for _, name := range scriptToolbox.AlwaysAllowNames() {
-		toolRegister.MarkAlwaysAllow(name)
+	for _, tb := range []*scriptAdapter.Translator{scriptToolbox, extScriptToolbox} {
+		for _, tool := range tb.GetTools() {
+			raw, err := json.Marshal(tool)
+			if err != nil {
+				continue
+			}
+			var t toolTypes.Tool
+			if err := json.Unmarshal(raw, &t); err != nil {
+				continue
+			}
+			tools = append(tools, t)
+		}
+		for _, name := range tb.AlwaysAllowNames() {
+			toolRegister.MarkAlwaysAllow(name)
+		}
+		for _, name := range tb.ConcurrentNames() {
+			toolRegister.MarkConcurrent(name)
+		}
+		for name, timeoutSec := range tb.Timeouts() {
+			toolRegister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
+		}
 	}
 
 	// * order fixed, for cache hit
@@ -110,15 +126,17 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	}
 
 	return &toolTypes.Executor{
-		WorkDir:        workPath,
-		SessionID:      sessionID,
-		AllowedCommand: allowedCommand,
-		Tools:          initial,
-		AllTools:       tools,
-		StubTools:      stubTools,
-		APIToolbox:     apiToolbox,
-		ScriptToolbox:  scriptToolbox,
-		SkillScanner:   scanner,
+		WorkDir:          workPath,
+		SessionID:        sessionID,
+		AllowedCommand:   allowedCommand,
+		Tools:            initial,
+		AllTools:         tools,
+		StubTools:        stubTools,
+		APIToolbox:       apiToolbox,
+		ScriptToolbox:    scriptToolbox,
+		ExtAPIToolbox:    extAPIToolbox,
+		ExtScriptToolbox: extScriptToolbox,
+		SkillScanner:     scanner,
 	}, nil
 }
 

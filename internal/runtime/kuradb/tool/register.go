@@ -19,8 +19,8 @@ func Register() {
 		return
 	}
 	registRagListDB()
-	registRagSearchKeyword()
-	registRagSearchSemantic()
+	registRagListDB()
+	registSearchRag()
 }
 
 var (

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -76,34 +77,55 @@ func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPa
 	}
 }
 
-func saveAttachments(ctx context.Context, b *Bot, in go_bot_telegram.Input) []string {
+func saveAttachments(ctx context.Context, b *Bot, in go_bot_telegram.Input) []chatbot.SavedAttachment {
 	if b == nil || b.client == nil {
 		return nil
 	}
 
-	var fileIDs []string
+	var items []struct {
+		fileID     string
+		transcribe bool
+	}
 	if len(in.Photo) > 0 {
-		fileIDs = append(fileIDs, in.Photo[len(in.Photo)-1].FileID)
+		items = append(items, struct {
+			fileID     string
+			transcribe bool
+		}{fileID: in.Photo[len(in.Photo)-1].FileID})
 	}
 	if in.Document != nil {
-		fileIDs = append(fileIDs, in.Document.FileID)
+		items = append(items, struct {
+			fileID     string
+			transcribe bool
+		}{fileID: in.Document.FileID})
 	}
 	if in.Raw != nil && in.Raw.Message != nil {
 		m := in.Raw.Message
 		if m.Voice != nil {
-			fileIDs = append(fileIDs, m.Voice.FileID)
+			items = append(items, struct {
+				fileID     string
+				transcribe bool
+			}{fileID: m.Voice.FileID, transcribe: true})
 		}
 		if m.Audio != nil {
-			fileIDs = append(fileIDs, m.Audio.FileID)
+			items = append(items, struct {
+				fileID     string
+				transcribe bool
+			}{fileID: m.Audio.FileID, transcribe: true})
 		}
 		if m.Video != nil {
-			fileIDs = append(fileIDs, m.Video.FileID)
+			items = append(items, struct {
+				fileID     string
+				transcribe bool
+			}{fileID: m.Video.FileID, transcribe: true})
 		}
 		if m.VideoNote != nil {
-			fileIDs = append(fileIDs, m.VideoNote.FileID)
+			items = append(items, struct {
+				fileID     string
+				transcribe bool
+			}{fileID: m.VideoNote.FileID, transcribe: true})
 		}
 	}
-	if len(fileIDs) == 0 {
+	if len(items) == 0 {
 		return nil
 	}
 
@@ -115,17 +137,17 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_telegram.Input) []st
 		return nil
 	}
 
-	var paths []string
-	for _, id := range fileIDs {
-		path, err := b.client.Save(ctx, id, dir)
+	var saved []chatbot.SavedAttachment
+	for _, item := range items {
+		path, err := b.client.Save(ctx, item.fileID, dir)
 		if err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.Save",
 				slog.String("chat", chatName(in)),
-				slog.String("fileID", id),
+				slog.String("fileID", item.fileID),
 				slog.String("error", err.Error()))
 			continue
 		}
-		paths = append(paths, path)
+		saved = append(saved, chatbot.SavedAttachment{Path: path, Transcribe: item.transcribe})
 	}
-	return paths
+	return saved
 }

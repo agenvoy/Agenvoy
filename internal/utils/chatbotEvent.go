@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -24,12 +23,12 @@ func FormatChatbotEvent(events <-chan agentTypes.Event, tag, sessionID string, s
 		switch e.Type {
 		case agentTypes.EventAgentResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				status("[agent] " + go_pkg_utils.TruncateString(t, 160))
+				status("[agent] " + go_pkg_utils.TruncateString(t, 256))
 			}
 
 		case agentTypes.EventSkillResult:
 			if t := strings.TrimSpace(e.Text); t != "" {
-				status("[skill] " + go_pkg_utils.TruncateString(t, 160))
+				status("[skill] " + go_pkg_utils.TruncateString(t, 256))
 			}
 
 		case agentTypes.EventToolCall:
@@ -61,17 +60,14 @@ func FormatChatbotEvent(events <-chan agentTypes.Event, tag, sessionID string, s
 }
 
 func formatChatbotToolEvent(count int, event agentTypes.Event) string {
-	body := event.ToolName + "(" + go_pkg_utils.TruncateString(event.ToolArgs, 160) + ")"
-	switch event.ToolName {
-	case "fetch_page":
-		var p struct {
-			Link string `json:"link"`
-			Type string `json:"type"`
-		}
-		if err := json.Unmarshal([]byte(event.ToolArgs), &p); err != nil {
-			return "Fetch(" + go_pkg_utils.TruncateString(event.ToolArgs, 160) + ")"
-		}
-		body = "Fetch(" + p.Link + " " + p.Type + ")"
+	name := ToolName(event.ToolName)
+	arg := FormatToolArgs(event.ToolName, event.ToolArgs, "")
+	if arg == "" || arg == event.ToolArgs {
+		arg = go_pkg_utils.TruncateString(event.ToolArgs, 256)
+	}
+	body := name
+	if arg != "" {
+		body += "(" + arg + ")"
 	}
 	return fmt.Sprintf("[tool #%d] %s", count, body)
 }
@@ -87,10 +83,7 @@ func EventLog(tag string, event agentTypes.Event, sessionID string, _ string) {
 	if errText == "" {
 		errText = "unknown error"
 	}
-	sessionLog := sessionID
-	if len(sessionLog) > 16 {
-		sessionLog = sessionLog[:13] + "…"
-	}
+	sessionLog := go_pkg_utils.TruncateString(sessionID, 16)
 	slog.Error(tag,
 		slog.String("session", sessionLog),
 		slog.String("event", event.Type.String()),

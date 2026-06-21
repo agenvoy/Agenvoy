@@ -8,7 +8,6 @@ import (
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
 	"github.com/pardnchiu/agenvoy/internal/tools/external/googleRSS"
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
-	"github.com/pardnchiu/agenvoy/internal/tools/external/yahooFinance"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -16,10 +15,9 @@ import (
 func Register() {
 	googleRSS.Register()
 	searchWeb.Register()
-	yahooFinance.Register()
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "send_http_request",
-		AlwaysAllow: true,
+		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: "Send an HTTP request (GET/POST/PUT/PATCH/DELETE) to any URL with optional multipart upload. Use when no dedicated api_* tool covers the endpoint; prefer fetch_page for human-readable HTML.",
 		Parameters: map[string]any{

@@ -16,6 +16,7 @@ import (
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/line"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
@@ -28,8 +29,12 @@ func init() {
 	exec.RegisterPushHook("dc-", discord.PushDiscordResult)
 	exec.RegisterPushHook("tg-", telegram.PushTelegramResult)
 	exec.RegisterPushHook("ln-", line.PushLineResult)
-	exec.RegisterAdminSender("tg", telegram.SendAdminCode)
-	exec.RegisterAdminSender("dc", discord.SendAdminCode)
+	exec.RegisterAdminSender("tg", func(ctx context.Context, id, str string) error {
+		return chatbot.SendAdminCode(ctx, chatbot.Telegram, id, str)
+	})
+	exec.RegisterAdminSender("dc", func(ctx context.Context, id, str string) error {
+		return chatbot.SendAdminCode(ctx, chatbot.Discord, id, str)
+	})
 }
 
 func main() {
@@ -61,6 +66,11 @@ func main() {
 			printUsage()
 			os.Exit(1)
 		}
+	}
+
+	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
+		cmdMCPServer()
+		return
 	}
 
 	newTUI("", false, false)
@@ -122,7 +132,6 @@ func setSummaryCron() {
 	}
 }
 
-
 func initMCP(ctx context.Context, sessionID string) *mcp.MCP {
 	manager, err := mcp.New(ctx, strings.TrimSpace(sessionID))
 	if err != nil {
@@ -144,7 +153,7 @@ func printUsage() {
 }
 
 func runUpdate() {
-	const remoteURL = "https://cloud.agenvoy.com/update.sh"
+	const remoteURL = "https://agenvoy.com/static/scripts/update.sh"
 
 	f, err := os.CreateTemp("", "agenvoy-update-*.sh")
 	if err != nil {

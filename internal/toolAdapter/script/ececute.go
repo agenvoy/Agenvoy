@@ -16,7 +16,7 @@ import (
 const defaultScriptTimeoutSec = 300
 
 func (t *Translator) Execute(ctx context.Context, name string, args json.RawMessage, workDir string) (string, error) {
-	key := strings.TrimPrefix(name, "script_")
+	key := strings.TrimPrefix(name, t.prefix)
 	data, ok := t.scripts[key]
 	if !ok {
 		return "", fmt.Errorf("script tool not found: %s", key)

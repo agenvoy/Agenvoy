@@ -26,7 +26,7 @@ func (t TUI) commandCronEdit() (TUI, tea.Cmd, bool) {
 		return t, tea.Println(hintStyle.Render("no crons scheduled") + "\n"), true
 	}
 
-	labels, _ := cronOptions(crons)
+	labels, _ := t.cronOptions(crons)
 	entries := make([]runtime.CronEntry, len(crons))
 	copy(entries, crons)
 
@@ -74,7 +74,7 @@ func (t TUI) runCronEditSubmit(skill, expression, requirement string) (TUI, tea.
 	if requirement == "" {
 		return t, tea.Println(errorStyle.Render("[!] cron edit requirement required") + "\n")
 	}
-	prompt := fmt.Sprintf("修改排程「%s」（當前 cron: %s）：%s\n（只改時間使用 patch_cron；改行為則編輯 ~/.config/agenvoy/skills/scheduler/%s/SKILL.md）",
+	prompt := fmt.Sprintf("修改排程「%s」（當前 cron: %s）：%s\n（只改時間使用 patch_schedule(target=cron)；改行為則編輯 ~/.config/agenvoy/skills/scheduler/%s/SKILL.md）",
 		skill, expression, requirement, skill)
 	return t.dispatchAgent(prompt)
 }

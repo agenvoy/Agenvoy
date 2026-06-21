@@ -3,9 +3,14 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os/exec"
+	goruntime "runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -24,9 +29,10 @@ const (
 type Popup struct {
 	pendingId string
 
-	kind     popupType
-	title    string
-	subtitle string
+	kind      popupType
+	title     string
+	subtitle  string
+	diffLines []string
 
 	options    []string
 	values     []string
@@ -102,10 +108,27 @@ func (t TUI) updateOAuthPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyEnter:
 		if p.oauth.url != "" {
-			_ = openBrowser(p.oauth.url)
+			openBrowser(p.oauth.url)
 		}
 	}
 	return t, nil
+}
+
+func openBrowser(link string) {
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", link)
+	case "linux":
+		cmd = exec.Command("xdg-open", link)
+	default:
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		slog.Warn("openOAuthBrowser cmd.Start",
+			slog.String("url", link),
+			slog.String("error", err.Error()))
+	}
 }
 
 func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -128,7 +151,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.cursor == 3 {
 			p.kind = popupText
 			p.skipWithReason = true
-			p.title = "Reason (Enter to skip without reason):"
+			p.title = "Reason (enter to skip):"
 			p.input = ""
 			return t, nil
 		}
@@ -147,8 +170,8 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		case 2:
 			reply = runtime.Reply{
-				Approve: false,
-				Skip:    true,
+				Approve:   true,
+				AllowTurn: true,
 			}
 
 		case 4:
@@ -222,17 +245,34 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		p.multi[p.cursor] = !p.multi[p.cursor]
 
 	case tea.KeyEsc:
-		runtime.Resolve(p.pendingId, runtime.Reply{
-			Error: fmt.Errorf("user cancelled"),
-		})
-		t = t.closePopup()
+		if p.pendingId == "" {
+			t = t.closePopup()
+		} else {
+			runtime.Resolve(p.pendingId, runtime.Reply{
+				Error: fmt.Errorf("user cancelled"),
+			})
+			t = t.closePopup()
+		}
 
 	case tea.KeyEnter:
 		selected := make([]string, 0, len(p.multi))
-		for i, opt := range p.options {
+		for i := range p.options {
 			if p.multi[i] {
-				selected = append(selected, opt)
+				v := p.options[i]
+				if p.values != nil && i < len(p.values) {
+					v = p.values[i]
+				}
+				selected = append(selected, v)
 			}
+		}
+
+		if p.pendingId == "" {
+			cb := p.onConfirm
+			t = t.closePopup()
+			if cb == nil {
+				return t, nil
+			}
+			return t, func() tea.Msg { return cb(strings.Join(selected, "\x1F")) }
 		}
 
 		resolved, reply := p.advanceOrResolve(selected)
@@ -320,19 +360,34 @@ func newPopup(id string, req runtime.Request) *Popup {
 		if display == "" {
 			display = req.ToolArgs
 		}
-		return &Popup{
+		p := &Popup{
 			pendingId: id,
 			kind:      popupConfirm,
-			title:     fmt.Sprintf("Run %s?", req.ToolName),
-			subtitle:  truncate(display, 200),
+			title:     fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
+			subtitle:  go_pkg_utils.TruncateString(display, 256),
 			options: []string{
 				"Yes",
-				"Yes, don't ask again",
+				"Yes  don't ask again",
+				"Yes  allow this turn",
 				"No",
-				"No, with reason",
-				"Stop",
+				"Abort task",
 			},
 		}
+		switch req.ToolName {
+		case "patch_file", "patch_tool", "patch_skill":
+			oldLines, newLines := utils.FormatPatchDiff(req.ToolArgs)
+			for _, l := range oldLines {
+				p.diffLines = append(p.diffLines, "- "+go_pkg_utils.TruncateString(l, 120))
+			}
+			for _, l := range newLines {
+				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
+			}
+		case "write_file":
+			for _, l := range utils.FormatWriteDiff(req.ToolArgs) {
+				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
+			}
+		}
+		return p
 	case runtime.KindAskUser:
 		if req.AskUser == nil || len(req.AskUser.Questions) == 0 {
 			return nil
@@ -384,17 +439,4 @@ func (p *Popup) advanceOrResolve(answer any) (resolved bool, reply runtime.Reply
 	}
 	p.loadCurrentQuestion()
 	return false, runtime.Reply{}
-}
-
-func truncate(s string, max int) string {
-	out := []rune(s)
-	for i, r := range out {
-		if r == '\n' || r == '\r' {
-			out[i] = ' '
-		}
-	}
-	if len(out) > max {
-		return string(out[:max]) + "…"
-	}
-	return string(out)
 }

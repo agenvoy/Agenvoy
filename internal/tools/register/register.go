@@ -18,22 +18,25 @@ type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, 
 const DefaultToolTimeout = time.Minute
 
 type Def struct {
-	Name        string
-	Description string
-	Parameters  map[string]any
-	Handler     Handler
-	AlwaysAllow bool
-	AlwaysLoad  bool
-	Concurrent  bool
-	Timeout     time.Duration
+	Name          string
+	Description   string
+	Parameters    map[string]any
+	Handler       Handler
+	AlwaysAllow   bool
+	AlwaysLoad    bool
+	Concurrent    bool
+	FireAndForget bool
+	Timeout       time.Duration
 }
 
 var handlerMap = map[string]Handler{}
 var groupHandlerMap = map[string]GroupHandler{}
 var defList []toolTypes.Tool
+var builtinNames []string
 var readOnlySet = map[string]bool{}
 var alwaysLoadSet = map[string]bool{}
 var concurrentSet = map[string]bool{}
+var fireAndForgetSet = map[string]bool{}
 var timeoutMap = map[string]time.Duration{}
 
 func Regist(d Def) {
@@ -59,6 +62,7 @@ func Regist(d Def) {
 	}
 	handlerMap[d.Name] = d.Handler
 	defList = append(defList, tool)
+	builtinNames = append(builtinNames, d.Name)
 	if d.AlwaysAllow {
 		readOnlySet[d.Name] = true
 	}
@@ -67,6 +71,9 @@ func Regist(d Def) {
 	}
 	if d.Concurrent {
 		concurrentSet[d.Name] = true
+	}
+	if d.FireAndForget {
+		fireAndForgetSet[d.Name] = true
 	}
 	if d.Timeout > 0 {
 		timeoutMap[d.Name] = d.Timeout
@@ -96,8 +103,43 @@ func MarkAlwaysAllow(name string) {
 	readOnlySet[name] = true
 }
 
+func MarkConcurrent(name string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	concurrentSet[name] = true
+}
+
+func MarkTimeout(name string, timeout time.Duration) {
+	name = strings.TrimSpace(name)
+	if name == "" || timeout <= 0 {
+		return
+	}
+	timeoutMap[name] = timeout
+}
+
 func IsConcurrent(name string) bool {
 	return concurrentSet[name]
+}
+
+func IsFireAndForget(name string) bool {
+	return fireAndForgetSet[name]
+}
+
+func GetTool(name string) *toolTypes.Tool {
+	for i := range defList {
+		if defList[i].Function.Name == name {
+			return &defList[i]
+		}
+	}
+	return nil
+}
+
+func BuiltinNames() []string {
+	dst := make([]string, len(builtinNames))
+	copy(dst, builtinNames)
+	return dst
 }
 
 func JSON() []byte {

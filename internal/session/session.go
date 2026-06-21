@@ -1,14 +1,12 @@
 package session
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
-	"time"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -59,36 +57,6 @@ func GetSessionID(name string) string {
 		}
 	}
 	return ""
-}
-
-func SaveToToolCall(sessionID, content string) {
-	now := time.Now()
-	date := now.Format("2006-01-02")
-	filename := fmt.Sprintf("%s.json", now.Format("2006-01-02-15-04-05"))
-	toolActionsPath := filepath.Join(filesystem.SessionDir(sessionID), "tool_calls", date, filename)
-	if err := go_pkg_filesystem.WriteFile(toolActionsPath, content, 0644); err != nil {
-		slog.Warn("WriteFile",
-			slog.String("session", sessionID),
-			slog.String("error", err.Error()))
-	}
-}
-
-func CreateSession(prefix string) (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("rand.Read: %w", err)
-	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	h := hex.EncodeToString(b)
-
-	uuid := h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:]
-	sessionID := prefix + uuid
-	if err := go_pkg_filesystem.CheckDir(filepath.Join(filesystem.SessionsDir, sessionID), true); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
-	}
-	configBot.Save(sessionID, sessionID, "", false)
-	return sessionID, nil
 }
 
 func GetLineSession(sourceType, userID, groupID, roomID string) (string, error) {
