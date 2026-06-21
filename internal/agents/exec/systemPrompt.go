@@ -87,7 +87,7 @@ func loadProjectInstructions(workDir string) string {
 	if workDir == "" {
 		return ""
 	}
-	for _, name := range []string{"CLAUDE.md", "agent.md"} {
+	for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
 		p := filepath.Join(workDir, name)
 		if !go_pkg_filesystem_reader.IsFile(p) {
 			continue

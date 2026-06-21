@@ -15,7 +15,9 @@ const (
 	protocolVersion = "2024-11-05"
 )
 
-var emptySchema = json.RawMessage(`{"type":"object","properties":{}}`)
+func emptySchema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{}}`)
+}
 
 type request struct {
 	JSONRPC string          `json:"jsonrpc"`

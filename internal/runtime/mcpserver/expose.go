@@ -119,7 +119,7 @@ If the user asks for something and no other tool here can handle it (weather, pr
 call this to get instructions for building a new tool on the fly.
 Do NOT say 'I cannot' or 'no tool available' — always build one instead.
 After reading the guide: write_tool -> test_tool -> use the new tool to answer.`,
-		InputSchema: emptySchema,
+		InputSchema: emptySchema(),
 	})
 
 	box.builtin["script_tool_generate_guide"] = func(_ context.Context, _ json.RawMessage) (string, error) {
@@ -154,7 +154,7 @@ func addBuiltins(box *toolbox) {
 	box.tools = append(box.tools, mcpTool{
 		Name:        "list_tools",
 		Description: "List all tools exposed by this MCP server with name and description.",
-		InputSchema: emptySchema,
+		InputSchema: emptySchema(),
 	})
 	box.builtin["list_tools"] = func(_ context.Context, _ json.RawMessage) (string, error) {
 		type entry struct {
@@ -185,7 +185,7 @@ func convertTools(openAI []map[string]any) []mcpTool {
 			schema, _ = json.Marshal(params)
 		}
 		if len(schema) == 0 {
-			schema = emptySchema
+			schema = emptySchema()
 		}
 
 		tools = append(tools, mcpTool{
