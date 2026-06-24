@@ -97,37 +97,58 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
-			routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
-			resp, sendErr := bot.Send(routingCtx, messages, nil)
-			cancel()
-			if sendErr != nil {
+			for range len(registry.Entries) {
+				if ctx.Err() != nil {
+					break
+				}
+				routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
+				resp, sendErr := bot.Send(routingCtx, messages, nil)
+				cancel()
+				if sendErr == nil {
+					if resp != nil && len(resp.Choices) > 0 {
+						if content, ok := resp.Choices[0].Message.Content.(string); ok {
+							raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
+							if raw != "" && raw != "NONE" {
+								for n := range strings.SplitSeq(raw, ",") {
+									n = strings.Trim(strings.TrimSpace(n), "\"'`")
+									if n == "" || seen[n] {
+										continue
+									}
+									if _, ok := known[n]; !ok {
+										continue
+									}
+									if isCoolingDown(n) {
+										dead[n] = true
+										continue
+									}
+									picked = append(picked, n)
+									seen[n] = true
+								}
+							}
+						}
+					}
+					break
+				}
 				dead[bot.Name()] = true
-				if ctx.Err() == nil {
-					slog.Warn("dispatcher routing failed, falling back to registry order",
+				rl := isRateLimit(sendErr)
+				if rl != nil {
+					cooldownMap.Store(bot.Name(), rl.ResetsAt)
+				}
+				next := checkCooldown(nil, registry)
+				hasNext := next != nil && !dead[next.Name()]
+				if ctx.Err() == nil && rl == nil {
+					slog.Warn("dispatcher routing failed",
 						slog.String("name", bot.Name()),
 						slog.String("error", sendErr.Error()))
 				}
-			} else if resp != nil && len(resp.Choices) > 0 {
-				if content, ok := resp.Choices[0].Message.Content.(string); ok {
-					raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
-					if raw != "" && raw != "NONE" {
-						for n := range strings.SplitSeq(raw, ",") {
-							n = strings.Trim(strings.TrimSpace(n), "\"'`")
-							if n == "" || seen[n] {
-								continue
-							}
-							if _, ok := known[n]; !ok {
-								continue
-							}
-							if isCoolingDown(n) {
-								dead[n] = true
-								continue
-							}
-							picked = append(picked, n)
-							seen[n] = true
-						}
-					}
+				if !hasNext {
+					break
 				}
+				if ctx.Err() == nil && rl == nil {
+					slog.Warn("dispatcher retrying with fallback",
+						slog.String("name", next.Name()))
+				}
+				bot = next
 			}
 		}
 	}

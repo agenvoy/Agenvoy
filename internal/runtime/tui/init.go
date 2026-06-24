@@ -70,6 +70,7 @@ type TUI struct {
 	streaming      bool
 	tableBuf       []string
 
+	toolBuf         []string
 	inputHistory    []string
 	inputHistoryIdx int
 
