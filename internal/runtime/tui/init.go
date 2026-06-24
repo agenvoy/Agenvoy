@@ -38,6 +38,7 @@ type TUI struct {
 	cancelExec    context.CancelFunc
 	runStartedAt  time.Time
 	pendingResume *ResumeExec
+	lastInput     string
 
 	popup                  *Popup
 	popupQueue             []Pending

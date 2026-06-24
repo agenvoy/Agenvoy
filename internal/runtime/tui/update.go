@@ -81,7 +81,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if t.running && t.cancelExec != nil {
 				t.cancelExec()
-				return t, tea.Println(hintStyle.Render("⎯ cancelling…") + "\n")
+				return t, tea.Println(warnStyle.Render("⎯ cancelled") + "\n")
 			}
 
 		case tea.KeyRunes:
@@ -165,6 +165,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, nil
 			}
 			t = t.recordInputHistory(content)
+			t.lastInput = content
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
 
@@ -204,6 +205,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.activity = ""
 		t.runTarget = ""
 		t.streaming = false
+		if errors.Is(msg.err, context.Canceled) && t.lastInput != "" {
+			t.textarea.SetValue(t.lastInput)
+			t.textarea.SetHeight(max(1, min(t.textarea.LineCount(), 5)))
+			t.lastInput = ""
+		}
 		if t.currentSessionID != "" {
 			t.currentSessionName, _ = configBot.Get(t.currentSessionID)
 		}

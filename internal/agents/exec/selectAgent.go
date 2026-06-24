@@ -84,6 +84,8 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	picked := []string{}
 	seen := map[string]bool{}
 
+	bot = checkCooldown(bot, registry)
+
 	if bot != nil {
 		agentJson, err := json.Marshal(registry.Entries)
 		if err == nil {
@@ -115,6 +117,10 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 								continue
 							}
 							if _, ok := known[n]; !ok {
+								continue
+							}
+							if isCoolingDown(n) {
+								dead[n] = true
 								continue
 							}
 							picked = append(picked, n)
