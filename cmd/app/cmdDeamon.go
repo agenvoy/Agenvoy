@@ -269,7 +269,6 @@ func cmdDaemon() {
 		slog.Warn("runtime.Init",
 			slog.String("error", err.Error()))
 	}
-	session.Clean()
 	configStatus.Clear()
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
@@ -301,6 +300,11 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 	defer runtime.StopScheduler()
+
+	if err := runtime.AddSystemCron("0 0 * * *", session.Clean); err != nil {
+		slog.Warn("cron sessionClean",
+			slog.String("error", err.Error()))
+	}
 
 	stopSchedulerWatcher := runtime.SchedulerWatcher(context.Background())
 	defer stopSchedulerWatcher()

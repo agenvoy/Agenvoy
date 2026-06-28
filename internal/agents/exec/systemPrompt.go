@@ -177,6 +177,6 @@ func renderActivation(s *skill.Skill) string {
 		}
 		b.WriteString("\n---\n\n")
 	}
-	b.WriteString(s.ResolvedContent())
+	b.WriteString(s.Resolved())
 	return b.String()
 }
