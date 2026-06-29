@@ -263,7 +263,7 @@ func cmdDaemon() {
 	}
 	defer runtime.StopScheduler()
 
-	if err := runtime.AddSystemCron("0 0 * * *", session.Clean); err != nil {
+	if err := runtime.AddSystemCron("*/30 * * * *", session.Clean); err != nil {
 		slog.Warn("cron sessionClean",
 			slog.String("error", err.Error()))
 	}

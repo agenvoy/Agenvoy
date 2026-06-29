@@ -17,6 +17,7 @@
   - Decompose the task into independent subtasks that can run in parallel (e.g., stock data, news, web research, industry analysis).
   - Data-gathering subtasks must be dispatched as **parallel** `invoke_subagent` calls in a single response — never sequential.
   - Each subagent gets a focused, self-contained task description with clear output format.
+  - **Multi-source mandate**: each subagent's task must instruct it to use all available search/data tools (search_web, search_google_news, fetch_page, search_rag, script_*/api_* data tools) — never rely on a single source. The task description must explicitly say "use all available tools to cross-verify from multiple sources".
   - After all subagents return, the planner synthesizes results into a unified answer — never echo raw subagent output.
   - One `invoke_subagent` call per subtask. Never duplicate the same task to multiple subagents.
 
