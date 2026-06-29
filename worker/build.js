@@ -148,8 +148,9 @@ function renderPage(slug, title, description, sidebar, content, toc) {
       a{color:var(--brand-light);text-decoration:none}a:hover{text-decoration:underline}
       code,.mono{font-family:"JetBrains Mono",monospace}
       .header{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h);background:rgba(255,255,255,0.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px}
-      .header-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;color:var(--text);flex-shrink:0}
-      .header-logo img{height:24px}
+      .header-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;color:var(--text);flex-shrink:0}.header-logo picture{display:flex;align-items:center}
+      .header-logo img{height:30px}
+      @media(max-width:480px){.header-logo img{height:24px}}
       .header-sep{width:1px;height:24px;background:var(--border);flex-shrink:0}
       .header-title{font-size:14px;font-weight:500;color:var(--muted)}
       .header-links{margin-left:auto;display:flex;gap:12px}
@@ -196,7 +197,7 @@ function renderPage(slug, title, description, sidebar, content, toc) {
   <body>
     <header class="header">
       <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-      <a href="/" class="header-logo"><img src="/logo-min.svg" alt="Agenvoy" />Agenvoy</a>
+      <a href="/" class="header-logo"><picture><source media="(max-width: 480px)" srcset="/logo-min.svg" /><img src="/logo-text.svg" alt="Agenvoy" /></picture></a>
       <span class="header-sep"></span>
       <span class="header-title">Documentation</span>
       <div class="header-links">

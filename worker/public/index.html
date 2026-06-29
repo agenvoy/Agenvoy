@@ -103,14 +103,16 @@
       }
       .nav-inner {
         max-width: 1140px; margin: 0 auto; padding: 0 24px;
-        height: 60px; display: flex; align-items: center; gap: 28px;
+        height: 56px; display: flex; align-items: center; gap: 28px;
       }
       .nav-logo {
         display: flex; align-items: center; gap: 10px;
         font-weight: 700; font-size: 17px; color: var(--text); flex-shrink: 0;
         letter-spacing: -0.02em;
       }
-      .nav-logo img { height: 26px; }
+      .nav-logo picture { display: flex; align-items: center; }
+      .nav-logo img { height: 30px; }
+      @media (max-width: 480px) { .nav-logo img { height: 24px; } }
       .nav-links { display: flex; gap: 4px; margin-left: auto; }
       .nav-links a {
         padding: 6px 12px; border-radius: 6px;
@@ -135,7 +137,7 @@
         .nav-toggle { display: block; }
         .nav-links {
           display: none; position: absolute;
-          top: 60px; left: 0; right: 0;
+          top: 56px; left: 0; right: 0;
           flex-direction: column; background: var(--bg);
           border-bottom: 1px solid var(--border);
           padding: 8px 24px 12px;
@@ -510,8 +512,10 @@
     <nav class="nav">
       <div class="nav-inner">
         <a href="#" class="nav-logo">
-          <img src="/logo-min.svg" alt="Agenvoy" />
-          Agenvoy
+          <picture>
+            <source media="(max-width: 480px)" srcset="/logo-min.svg" />
+            <img src="/logo-text.svg" alt="Agenvoy" />
+          </picture>
         </a>
         <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
         <div class="nav-links">
