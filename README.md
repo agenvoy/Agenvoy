@@ -29,7 +29,7 @@
 > On MacBook, also run `sudo pmset -c sleep 0` to prevent sleep from interrupting schedules.
 
 ```bash
-curl -fsSL https://cloud.agenvoy.com/install.sh | bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 ```
 
 ***

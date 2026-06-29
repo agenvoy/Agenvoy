@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# Agenvoy installer
-# Usage:  curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+# KuraDB installer
+# Usage:  curl -fsSL https://raw.githubusercontent.com/agenvoy/kuradb/main/install.sh | bash
 #
 set -euo pipefail
 
-REPO_URL="https://github.com/agenvoy/agenvoy.git"
-REPO_API="https://api.github.com/repos/agenvoy/agenvoy/releases/latest"
+REPO_URL="https://github.com/agenvoy/kuradb.git"
+REPO_API="https://api.github.com/repos/agenvoy/kuradb/releases/latest"
+INSTALL_DIR="/usr/local/bin"
 GO_INSTALL_DIR="${HOME}/.local/go"
 REQUIRED_GO_MAJOR=1
 REQUIRED_GO_MINOR=26
@@ -58,24 +59,6 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1${2:+ ($2)}"
 }
 
-ensure_homebrew_darwin() {
-  [ "$(uname -s)" = "Darwin" ] || return 0
-  command -v brew >/dev/null 2>&1 && { ok "Homebrew already installed"; return 0; }
-
-  warn "Homebrew not found, installing"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-  local brew_bin=""
-  if   [ -x /opt/homebrew/bin/brew ]; then brew_bin=/opt/homebrew/bin/brew
-  elif [ -x /usr/local/bin/brew ];   then brew_bin=/usr/local/bin/brew
-  else die "Homebrew install completed but brew binary not found in /opt/homebrew/bin or /usr/local/bin"
-  fi
-
-  eval "$("$brew_bin" shellenv)"
-  command -v brew >/dev/null 2>&1 || die "brew still not on PATH after eval shellenv"
-  ok "Homebrew installed: $(brew --version | head -n 1)"
-}
-
 detect_pkg_mgr() {
   if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
     SUDO="sudo"
@@ -95,11 +78,6 @@ resolve_pkg() {
   case "$1:$PKG_MGR" in
     poppler:pacman|poppler:brew) printf "poppler" ;;
     poppler:*)                   printf "poppler-utils" ;;
-    python3:pacman)              printf "python" ;;
-    python3:*)                   printf "python3" ;;
-    nodejs:brew)                 printf "node" ;;
-    nodejs:*)                    printf "nodejs" ;;
-    bubblewrap:*)                printf "bubblewrap" ;;
     *)                           printf "%s" "$1" ;;
   esac
 }
@@ -117,37 +95,30 @@ pkg_install() {
     yum)    $SUDO yum install -y "${pkgs[@]}" ;;
     pacman) $SUDO pacman -Sy --noconfirm "${pkgs[@]}" ;;
     apk)    $SUDO apk add --no-cache "${pkgs[@]}" ;;
-    brew)
-      local prefix; prefix="$(brew --prefix)"
-      if [ ! -w "$prefix" ]; then
-        warn "$prefix not writable, fixing ownership (sudo prompt expected)"
-        sudo chown -R "$(whoami)" "$prefix"
-      fi
-      brew install "${pkgs[@]}"
-      ;;
+    brew)   brew install "${pkgs[@]}" ;;
     *) return 1 ;;
   esac
 }
 
-confirm_overwrite_agen() {
-  command -v agen >/dev/null 2>&1 || return 0
+confirm_overwrite_kura() {
+  command -v kura >/dev/null 2>&1 || return 0
 
   local existing
-  existing="$(command -v agen)"
-  log "agen already installed at: $existing"
+  existing="$(command -v kura)"
+  log "kura already installed at: $existing"
 
   if [ ! -e /dev/tty ] || [ ! -r /dev/tty ]; then
-    log "Non-interactive shell; keeping existing agen"
+    log "Non-interactive shell; keeping existing kura"
     exit 0
   fi
 
-  printf "Overwrite existing agen? [y/N] " >/dev/tty
+  printf "Overwrite existing kura? [y/N] " >/dev/tty
   local ans=""
   IFS= read -r ans </dev/tty || ans=""
   case "$ans" in
     y|Y|yes|YES|Yes) ok "Proceeding with reinstall" ;;
     *)
-      ok "Keeping existing agen"
+      ok "Keeping existing kura"
       exit 0
       ;;
   esac
@@ -189,34 +160,6 @@ current_go_version() {
   go version 2>/dev/null | awk '{print $3}' | sed 's/^go//'
 }
 
-persist_go_path() {
-  local rc="" os
-  os="$(uname -s)"
-  case "${SHELL##*/}" in
-    zsh)  rc="${HOME}/.zshrc" ;;
-    bash) [ "$os" = "Darwin" ] && rc="${HOME}/.bash_profile" || rc="${HOME}/.bashrc" ;;
-    *)    rc="${HOME}/.profile" ;;
-  esac
-
-  local marker_begin="# >>> agenvoy go path >>>"
-  local marker_end="# <<< agenvoy go path <<<"
-  local export_line="export PATH=\"${GO_INSTALL_DIR}/bin:\$PATH\""
-
-  if [ -f "$rc" ] && grep -Fq "$marker_begin" "$rc"; then
-    ok "Go PATH already persisted in $rc"
-    return 0
-  fi
-
-  mkdir -p "$(dirname "$rc")"
-  {
-    printf '\n%s\n' "$marker_begin"
-    printf '%s\n' "$export_line"
-    printf '%s\n' "$marker_end"
-  } >> "$rc"
-  ok "Persisted Go PATH to $rc"
-  warn "Open a new shell or run: source $rc"
-}
-
 install_go() {
   local platform="$1"
   local version url tarball
@@ -226,7 +169,7 @@ install_go() {
 
   tarball="${version}.${platform}.tar.gz"
   url="https://go.dev/dl/${tarball}"
-  GO_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agenvoy-go.XXXXXX")"
+  GO_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kuradb-go.XXXXXX")"
 
   log "Downloading $url"
   curl -fSL --progress-bar "$url" -o "${GO_TMP_DIR}/${tarball}"
@@ -238,27 +181,16 @@ install_go() {
 
   export PATH="${GO_INSTALL_DIR}/bin:${PATH}"
   ok "Installed $(go version 2>/dev/null || echo "$version")"
-  persist_go_path
+  warn "Add this to your shell rc to keep Go on PATH:"
+  printf '       export PATH="%s/bin:$PATH"\n' "$GO_INSTALL_DIR"
 }
 
 ensure_go() {
   local platform="$1"
   local current
-
-  # Prefer existing go on PATH; otherwise probe the canonical install dir
-  # so subsequent invocations (and `agen update` subprocesses) can find it
-  # even when the user's shell rc was never updated.
-  if ! command -v go >/dev/null 2>&1 && [ -x "${GO_INSTALL_DIR}/bin/go" ]; then
-    export PATH="${GO_INSTALL_DIR}/bin:${PATH}"
-  fi
-
   if current="$(current_go_version)" && [ -n "$current" ]; then
     if go_version_ok "$current"; then
       ok "Go $current already meets >= ${REQUIRED_GO_MAJOR}.${REQUIRED_GO_MINOR}"
-      # Still persist PATH if go was found via probe but rc isn't wired
-      if [ "$(command -v go)" = "${GO_INSTALL_DIR}/bin/go" ]; then
-        persist_go_path
-      fi
       return 0
     fi
     warn "Go $current < ${REQUIRED_GO_MAJOR}.${REQUIRED_GO_MINOR}, upgrading"
@@ -277,36 +209,42 @@ latest_tag() {
 
 clone_repo() {
   local tag
-  log "Resolving latest Agenvoy release tag..."
+  log "Resolving latest KuraDB release tag..."
   tag="$(latest_tag)"
   [ -n "$tag" ] || die "Failed to resolve latest release tag from $REPO_API"
 
-  SRC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agenvoy-install.XXXXXX")"
-  log "Cloning agenvoy@${tag} -> ${SRC_DIR}"
+  SRC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kuradb-install.XXXXXX")"
+  log "Cloning kuradb@${tag} -> ${SRC_DIR}"
   git clone --depth 1 --branch "$tag" "$REPO_URL" "$SRC_DIR"
   INSTALLED_TAG="$tag"
   ok "Cloned $tag"
 }
 
 build_and_install() {
-  log "Building (sudo prompt expected for /usr/local/bin install)"
+  log "Building kura binary"
   ( cd "$SRC_DIR" && make build )
-  command -v agen >/dev/null 2>&1 \
-    || die "agen not found on PATH after build (expected /usr/local/bin/agen)"
-  ok "agen installed at $(command -v agen)"
-}
+  local src="${SRC_DIR}/bin/kura"
+  [ -x "$src" ] || die "build failed: $src not found"
 
-stop_daemon() {
-  log "Stopping existing daemon (if any) so the new binary takes effect"
-  agen stop || true
+  log "Installing to ${INSTALL_DIR}/kura (sudo prompt may appear)"
+  $SUDO install -m 0755 "$src" "${INSTALL_DIR}/kura"
+
+  command -v kura >/dev/null 2>&1 \
+    || die "kura not found on PATH after install (expected ${INSTALL_DIR}/kura)"
+  ok "kura installed at $(command -v kura)"
 }
 
 print_done() {
   local tag="${1:-installed}"
   local lines=(
-    "Agenvoy ${tag} installed"
+    "KuraDB ${tag} installed"
     ""
-    "Next: run 'agen' to attach the new build"
+    "Next:"
+    "  1. Set OPENAI_API_KEY in your env or ~/.env"
+    "  2. Register a database:  kura add <name>"
+    "  3. Start the server:     kura"
+    ""
+    "If a kura server is already running, restart it to pick up the new binary."
   )
 
   local max=0 line len
@@ -339,33 +277,24 @@ print_done() {
 }
 
 main() {
-  log "Agenvoy installer"
+  log "KuraDB installer"
   local platform; platform="$(detect_platform)"
   log "Platform: $platform"
 
-  confirm_overwrite_agen
+  confirm_overwrite_kura
 
   require_cmd curl
   require_cmd uname
   require_cmd tar
 
-  ensure_homebrew_darwin
   detect_pkg_mgr
   ensure_cmd git
   ensure_cmd make
   ensure_cmd pdftotext poppler
-  ensure_cmd python3
-  ensure_cmd node nodejs
-
-  # Linux sandbox requires bubblewrap; macOS uses built-in sandbox-exec
-  if [ "$(uname -s)" = "Linux" ]; then
-    ensure_cmd bwrap bubblewrap
-  fi
 
   ensure_go "$platform"
   clone_repo
   build_and_install
-  stop_daemon
   print_done "$INSTALLED_TAG"
 }
 

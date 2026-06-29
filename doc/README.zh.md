@@ -29,7 +29,7 @@
 > MacBook 建議額外執行 `sudo pmset -c sleep 0`，避免休眠影響排程。
 
 ```bash
-curl -fsSL https://cloud.agenvoy.com/install.sh | bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 ```
 
 ***
