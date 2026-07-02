@@ -34,6 +34,22 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 ***
 
+## Web Dashboard
+
+Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the dashboard once the daemon is running on your machine.
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">
+    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">▶ Watch the Web Dashboard walkthrough</a>
+</p>
+
+***
+
 ## What you can do with it
 
 <table>
