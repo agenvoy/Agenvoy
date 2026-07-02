@@ -34,6 +34,22 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 ***
 
+## Web 儀表板
+
+在瀏覽器開啟 **[web.agenvoy.com](https://web.agenvoy.com)**，當 daemon 在你的機器上運行後即可連上儀表板。
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">
+    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web 儀表板示範" width="640">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">▶ 觀看 Web 儀表板操作影片</a>
+</p>
+
+***
+
 ## 你可以這樣用它
 
 <table>

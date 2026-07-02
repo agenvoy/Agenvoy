@@ -261,6 +261,22 @@
         font-weight: 700; letter-spacing: -0.02em; margin-bottom: 10px;
       }
       .s-head p { color: var(--text-2); font-size: 15.5px; max-width: 540px; margin: 0 auto; }
+      .s-head p a { color: var(--brand-light); }
+      .s-head p a:hover { text-decoration: underline; }
+
+      /* Web Dashboard */
+      .dash-video {
+        position: relative; width: 100%; max-width: 860px; margin: 0 auto;
+        aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden;
+        border: 1px solid var(--border); background: var(--bg-alt);
+      }
+      .dash-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+      .dash-cta { text-align: center; margin-top: 28px; }
+      .dash-cta a {
+        display: inline-block; padding: 11px 22px; border-radius: 8px;
+        background: var(--brand); color: #fff; font-weight: 600; font-size: 15px;
+      }
+      .dash-cta a:hover { background: #1a6fef; }
 
       /* Feature Grid */
       .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -525,6 +541,7 @@
           <a href="#providers">Providers</a>
           <a href="#tools">Tools</a>
           <a href="#start">Get Started</a>
+          <a href="#dashboard">Dashboard</a>
           <a href="/docs/">Docs</a>
         </div>
         <a href="https://github.com/pardnchiu/agenvoy" target="_blank" rel="noopener" class="nav-gh">
@@ -548,6 +565,7 @@
           <button onclick="copyCmd()">Copy</button>
         </div>
         <div class="hero-links">
+          <a href="https://web.agenvoy.com" target="_blank" rel="noopener">Web Dashboard</a>
           <a href="/docs/released/">Released</a>
           <a href="https://pkg.go.dev/github.com/pardnchiu/agenvoy" target="_blank" rel="noopener">Go Reference</a>
         </div>
@@ -581,6 +599,23 @@
             <div><span class="t-result">&#9210; Done. Scheduled daily at 08:00 &mdash; results push to Telegram.</span></div>
             <div><span class="t-dim">&nbsp;&nbsp;&#9180; 5.8s &middot; claude-sonnet-4-6 &middot; &#8593;3.4K &middot; &#8595;520</span></div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Web Dashboard -->
+    <section class="s" id="dashboard">
+      <div class="wrap">
+        <div class="s-head">
+          <span class="s-tag">Web Dashboard</span>
+          <h2>Drive Your Agent From the Browser</h2>
+          <p>Manage sessions, tools, schedules, and memory from a browser. Open <a href="https://web.agenvoy.com" target="_blank" rel="noopener">web.agenvoy.com</a> once the daemon is running on your machine &mdash; it connects to your local agent, nothing leaves your device.</p>
+        </div>
+        <div class="dash-video">
+          <iframe src="https://www.youtube-nocookie.com/embed/n8tHHSCwOjE" title="Agenvoy Web Dashboard walkthrough" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="dash-cta">
+          <a href="https://web.agenvoy.com" target="_blank" rel="noopener">Open Web Dashboard &rarr;</a>
         </div>
       </div>
     </section>
