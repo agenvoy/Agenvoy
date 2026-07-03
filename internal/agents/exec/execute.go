@@ -323,7 +323,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
-	limit := filesystem.MaxSkillIterations
+	limit := filesystem.MaxToolIterations
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)
@@ -449,25 +449,25 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 			if isContextLengthError(err) {
-				sendFailCount++
-				trimmedToolCalls = trimmedToolCalls || trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
-				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
-					slog.String("session", session.ID),
-					slog.Int("attempts", sendFailCount))
-				if sendFailCount >= filesystem.MaxRetry {
-					slog.Error("data.Agent.Send exhausted",
+				if len(session.OldHistories) == 0 && len(session.ToolHistories) == 0 {
+					slog.Error("data.Agent.Send context length exceeded, nothing left to trim",
 						slog.String("session", session.ID),
 						slog.String("error", err.Error()),
 						slog.Int("attempts", sendFailCount))
-					sendText(events, fmt.Sprintf("upstream %s context exceeded after %d trim attempts. Start a new session or switch to a larger-context model.", modelName, sendFailCount))
+					sendText(events, fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName))
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
-					return fmt.Errorf("data.Agent.Send context exceeded after %d trims: %w", sendFailCount, err)
+					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
+				sendFailCount++
+				trimmedToolCalls = trimmedToolCalls || trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
+				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
+					slog.String("session", session.ID),
+					slog.Int("attempts", sendFailCount))
 				continue
 			}
 
@@ -525,15 +525,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
 
 		if len(resp.Choices) == 0 {
-			if actionError(&emptyCount, events) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
 		}
-		emptyCount = 0
 
 		choice := resp.Choices[0]
 		if len(choice.Message.ToolCalls) > 0 {
+			emptyCount = 0
 			toolsBefore := len(session.Tools)
 			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
@@ -585,7 +586,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		case string:
 			str := value
 			if str == "" {
-				if actionError(&emptyCount, events) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -593,7 +595,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 			stripped := StripModelResponse(str)
 			if stripped == "" {
-				if actionError(&emptyCount, events) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -629,7 +632,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			interactive.FinalizePending(session.ID, exec.PendingTask, responseText)
 
 		case nil:
-			if actionError(&emptyCount, events) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
@@ -682,14 +686,30 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
+	sendEmptyData(events, session.ID, data.Agent.Name(), &usage, executeStart)
+	keepPending = false
+	return nil
+}
+
+const maxEmptyRetry = 3
+
+func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) bool {
+	*emptyCount++
+	if *emptyCount >= maxEmptyRetry {
+		sendEmptyData(events, sessionID, model, usage, start)
+		return true
+	}
+	return false
+}
+
+func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) {
 	sendText(events, "no usable data, retry later, or using other tools.")
-	if err := record.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
+	if err := record.UpdateUsage(model, usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
 		slog.Warn("usageManager.Update",
-			slog.String("session", session.ID),
+			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
-	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
-	return nil
+	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
 }
 
 func extractToolName(content string) string {
@@ -701,16 +721,6 @@ func extractToolName(content string) string {
 		return ""
 	}
 	return content[1:end]
-}
-
-func actionError(emptyCount *int, events chan<- agentTypes.Event) bool {
-	*emptyCount++
-	if *emptyCount >= filesystem.MaxEmptyResponses {
-		sendText(events, "no usable data, retry later, or using other tools.")
-		events <- agentTypes.Event{Type: agentTypes.EventDone}
-		return true
-	}
-	return false
 }
 
 func sendText(events chan<- agentTypes.Event, str string) {

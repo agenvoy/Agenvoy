@@ -11,6 +11,6 @@
     "marked": "^12.0.2"
   },
   "devDependencies": {
-    "wrangler": "^3.99.0"
+    "wrangler": "^4.107.0"
   }
 }
