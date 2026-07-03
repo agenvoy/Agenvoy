@@ -74,13 +74,15 @@ func renderActionLine(p parsedAction) string {
 		}
 		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str})
 
+	case "thinking":
+		str := strings.TrimSpace(body)
+		if str == "" {
+			return ""
+		}
+		return renderEvent(agentTypes.Event{Type: agentTypes.EventReasoning, Text: str})
+
 	case "tool_call":
-		name, args, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventToolCall,
-			ToolName: name,
-			ToolArgs: args,
-		})
+		return ""
 
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")

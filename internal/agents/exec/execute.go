@@ -45,7 +45,30 @@ var (
 	timestampHeaderRegex   = regexp.MustCompile(`(?m)^-{3,}\n.*\n-{3,}\n`)
 	summaryBlockRegex      = regexp.MustCompile(`(?s)<summary>\s*[\s\S]*?\s*</summary>|\[summary\]\s*[\s\S]*?\s*\[/summary\]`)
 	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
+	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
+	thinkOpenRegex         = regexp.MustCompile(`(?i)<think>`)
 )
+
+func splitThinkTag(s string) (think, rest string) {
+	var parts []string
+	for _, m := range thinkTagRegex.FindAllStringSubmatch(s, -1) {
+		if t := strings.TrimSpace(m[1]); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	rest = thinkTagRegex.ReplaceAllString(s, "")
+	if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
+		if t := strings.TrimSpace(rest[loc[1]:]); t != "" {
+			parts = append(parts, t)
+		}
+		rest = rest[:loc[0]]
+	}
+	rest = strings.TrimSpace(rest)
+	if len(parts) == 0 {
+		return "", rest
+	}
+	return strings.Join(parts, "\n"), rest
+}
 
 func isGuardrailRefusal(content string) bool {
 	return strings.Contains(content, guardrailSentinel)
@@ -338,6 +361,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	compactedToolCalls := false
 	compactFailed := false
 	lastInputTokens := 0
+	var shownReasoning []string
 	type sendOutcome struct {
 		resp *agentTypes.Output
 		err  error
@@ -533,6 +557,18 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 
 		choice := resp.Choices[0]
+		if choice.Message.ReasoningContent == "" {
+			if s, ok := choice.Message.Content.(string); ok {
+				if think, rest := splitThinkTag(s); think != "" {
+					choice.Message.ReasoningContent = think
+					choice.Message.Content = rest
+				}
+			}
+		}
+
+		emitReasoning(events, choice.Message.ReasoningContent, &shownReasoning)
+		choice.Message.ReasoningContent = ""
+
 		if len(choice.Message.ToolCalls) > 0 {
 			emptyCount = 0
 			toolsBefore := len(session.Tools)
@@ -664,6 +700,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
@@ -731,6 +768,24 @@ func sendText(events chan<- agentTypes.Event, str string) {
 		}
 	}
 	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+}
+
+func emitReasoning(events chan<- agentTypes.Event, str string, shown *[]string) {
+	cur := normalizeReasoning(str)
+	if cur == "" {
+		return
+	}
+	for _, prev := range *shown {
+		if strings.Contains(prev, cur) {
+			return
+		}
+	}
+	events <- agentTypes.Event{Type: agentTypes.EventReasoning, Text: strings.TrimSpace(str)}
+	*shown = append(*shown, cur)
+}
+
+func normalizeReasoning(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {

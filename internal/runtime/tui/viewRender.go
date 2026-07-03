@@ -331,6 +331,23 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		}
 		return messageRow(str, sessionLabel), true
 
+	case agentTypes.EventReasoning:
+		var kept []string
+		for line := range strings.SplitSeq(toPureText(ev.Text), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			kept = append(kept, strings.TrimRight(line, " \t"))
+		}
+		if len(kept) == 0 {
+			return "", false
+		}
+		text := strings.Join(kept, "\n")
+		if srcPrefix != "" {
+			text = srcPrefix + text
+		}
+		return whiteStyle.Render("✻ " + text), true
+
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
 

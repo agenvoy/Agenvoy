@@ -115,6 +115,7 @@ type pendingCall struct {
 func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	var (
 		textBuf   strings.Builder
+		reasonBuf strings.Builder
 		toolCalls []agentTypes.ToolCall
 		usage     agentTypes.Usage
 		argsBuf   = map[string]*strings.Builder{}
@@ -152,6 +153,9 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 		switch ev.Type {
 		case "response.output_text.delta":
 			textBuf.WriteString(ev.Delta)
+
+		case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
+			reasonBuf.WriteString(ev.Delta)
 
 		case "response.function_call_arguments.delta":
 			if b := getBuf(ev.ItemID); b != nil {
@@ -254,6 +258,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	if str := textBuf.String(); str != "" {
 		msg.Content = str
 	}
+	msg.ReasoningContent = reasonBuf.String()
 	msg.ToolCalls = toolCalls
 
 	finishReason := "stop"

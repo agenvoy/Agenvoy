@@ -65,6 +65,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			"tools":        copilotResponse.ConvertTools(tools),
 			"instructions": instructions,
 			"store":        false,
+			"reasoning":    map[string]any{"effort": provider.GetReasoningLevel(), "summary": "auto"},
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")

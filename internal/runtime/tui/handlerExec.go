@@ -92,12 +92,22 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
 			if ok {
 				t.toolBuf = append(t.toolBuf, line)
-				if len(t.toolBuf) > 5 {
-					t.toolBuf = t.toolBuf[len(t.toolBuf)-5:]
+				if len(t.toolBuf) > 12 {
+					t.toolBuf = t.toolBuf[len(t.toolBuf)-12:]
 				}
 			}
 			return t, nil
 		}
+
+	case agentTypes.EventReasoning:
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
+		if ok {
+			t.toolBuf = append(t.toolBuf, line)
+			if len(t.toolBuf) > 12 {
+				t.toolBuf = t.toolBuf[len(t.toolBuf)-12:]
+			}
+		}
+		return t, nil
 
 	case agentTypes.EventSummaryGenerate:
 		t.activity = "summarizing…"

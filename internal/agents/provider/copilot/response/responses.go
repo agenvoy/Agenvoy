@@ -16,6 +16,10 @@ type Output struct {
 			Type string `json:"type"`
 			Text string `json:"text,omitempty"`
 		} `json:"content,omitempty"`
+		Summary []struct {
+			Type string `json:"type"`
+			Text string `json:"text,omitempty"`
+		} `json:"summary,omitempty"`
 		ID        string `json:"id,omitempty"`
 		CallID    string `json:"call_id,omitempty"`
 		Name      string `json:"name,omitempty"`
@@ -144,6 +148,10 @@ func ConvertOutput(r Output) agentTypes.Output {
 				if c.Type == "output_text" {
 					msg.Content = c.Text
 				}
+			}
+		case "reasoning":
+			for _, s := range item.Summary {
+				msg.ReasoningContent += s.Text
 			}
 		case "function_call":
 			msg.ToolCalls = append(msg.ToolCalls, agentTypes.ToolCall{
