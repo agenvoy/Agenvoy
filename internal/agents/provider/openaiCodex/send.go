@@ -150,12 +150,13 @@ type pendingCall struct {
 
 func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	var (
-		textBuf   strings.Builder
-		reasonBuf strings.Builder
-		toolCalls []agentTypes.ToolCall
-		usage     agentTypes.Usage
-		argsBuf   = map[string]*strings.Builder{}
-		pending   []pendingCall
+		textBuf        strings.Builder
+		reasonDeltaBuf strings.Builder
+		reasonItemBuf  strings.Builder
+		toolCalls      []agentTypes.ToolCall
+		usage          agentTypes.Usage
+		argsBuf        = map[string]*strings.Builder{}
+		pending        []pendingCall
 	)
 	getBuf := func(key string) *strings.Builder {
 		if key == "" {
@@ -187,7 +188,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 		}
 		if ev.Type == "response.output_item.done" && ev.Item != nil && ev.Item.Type == "reasoning" {
 			for _, s := range ev.Item.Summary {
-				reasonBuf.WriteString(s.Text)
+				reasonItemBuf.WriteString(s.Text)
 			}
 		}
 
@@ -196,7 +197,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 			textBuf.WriteString(ev.Delta)
 
 		case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
-			reasonBuf.WriteString(ev.Delta)
+			reasonDeltaBuf.WriteString(ev.Delta)
 
 		case "response.function_call_arguments.delta":
 			if b := getBuf(ev.ItemID); b != nil {
@@ -299,7 +300,10 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	if str := textBuf.String(); str != "" {
 		msg.Content = str
 	}
-	msg.ReasoningContent = reasonBuf.String()
+	msg.ReasoningContent = reasonDeltaBuf.String()
+	if reasonItemBuf.Len() > len(msg.ReasoningContent) {
+		msg.ReasoningContent = reasonItemBuf.String()
+	}
 	msg.ToolCalls = toolCalls
 
 	finishReason := "stop"
