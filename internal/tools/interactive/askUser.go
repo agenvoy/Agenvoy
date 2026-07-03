@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -52,10 +53,11 @@ type pendingMeta struct {
 	Objective    string             `json:"objective,omitempty"`
 	Completed    []string           `json:"completed,omitempty"`
 	NextSteps    []string           `json:"next_steps,omitempty"`
-	Questions    []runtime.Question `json:"questions,omitempty"`
-	ToolAttempts []ToolAttempt      `json:"tool_attempts,omitempty"`
-	ToolResults  []ToolResult       `json:"tool_results,omitempty"`
-	Reply        string             `json:"reply,omitempty"`
+	Questions    []runtime.Question    `json:"questions,omitempty"`
+	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
+	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
+	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
+	Reply        string                `json:"reply,omitempty"`
 }
 
 var pendingMu sync.Mutex
@@ -359,6 +361,21 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 	msg.WriteString("## Objective\n")
 	msg.WriteString(meta.Objective)
 	msg.WriteString("\n")
+
+	if len(meta.Todos) > 0 {
+		msg.WriteString("\n## Task Checklist\n")
+		msg.WriteString("Your last recorded plan state. Keep it current via `write_todo` as you resume.\n")
+		for _, td := range meta.Todos {
+			mark := "[ ]"
+			switch td.Status {
+			case agentTypes.TodoCompleted:
+				mark = "[x]"
+			case agentTypes.TodoInProgress:
+				mark = "[~]"
+			}
+			msg.WriteString(fmt.Sprintf("- %s %s\n", mark, td.Content))
+		}
+	}
 
 	if len(meta.Completed) > 0 {
 		msg.WriteString("\n## Completed Steps\n")

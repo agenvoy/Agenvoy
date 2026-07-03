@@ -29,7 +29,7 @@ func registInvokeSubagent() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
-		Description: "Spawn a subagent in its own session. Named delegation (呼叫/請/找/call/ask/let X do Y) → pass name verbatim to resolve existing session; anonymous → leave name empty. One call per distinct subtask — never duplicate the same task. Never pre-judge existence, never fallback to self, never ask_user for a name.",
+		Description: "Spawn a subagent in its own session. Set `name` ONLY when the user explicitly delegates to an existing named session (呼叫/請/找/call/ask/let X do Y — X is that session's name) → pass X verbatim to resolve it. For every fresh or anonymous subtask leave `name` EMPTY — do NOT invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless, so a made-up name only misleads. One call per distinct subtask — never duplicate the same task. Never pre-judge existence, never fallback to self, never ask_user for a name.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -39,7 +39,7 @@ func registInvokeSubagent() {
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "Friendly identifier matching bot.md frontmatter `name` of an existing cli- session. Resolves to its session_id; takes precedence over session_id when both are set.",
+					"description": "Name of ANY existing (non-temp) session to reuse, matching its bot.md frontmatter `name`. Leave EMPTY for a fresh/anonymous subtask — never invent a descriptive label here; a non-matching name is ignored and the subtask runs as an unlabeled temp session. Resolves to its session_id; takes precedence over session_id when both are set.",
 					"default":     "",
 				},
 				"session_id": map[string]any{

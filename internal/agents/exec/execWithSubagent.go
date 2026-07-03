@@ -188,7 +188,8 @@ func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentType
 		agentTypes.EventToolCallStart,
 		agentTypes.EventToolCallEnd,
 		agentTypes.EventToolCallText,
-		agentTypes.EventSkillResult:
+		agentTypes.EventSkillResult,
+		agentTypes.EventTodoUpdate:
 		return
 	}
 

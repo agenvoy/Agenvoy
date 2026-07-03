@@ -67,7 +67,7 @@ var toolDisplayName = map[string]string{
 	"run_skill":             "Skill",
 	"calculate":             "Calc",
 	"download_file":         "Download",
-	"generate_plan":         "Plan",
+	"write_todo":            "Plan",
 	"generate_image":        "Image",
 	"invoke_subagent":       "Subagent",
 	"git_log":               "Git Log",

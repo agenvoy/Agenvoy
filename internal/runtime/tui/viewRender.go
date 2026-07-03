@@ -301,7 +301,8 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 
 	case agentTypes.EventToolCall:
 		if ev.ToolName == "ask_user" || ev.ToolName == "store_secret" ||
-			ev.ToolName == "list_recent_tool_call" || ev.ToolName == "read_tool_call" {
+			ev.ToolName == "list_recent_tool_call" || ev.ToolName == "read_tool_call" ||
+			ev.ToolName == "write_todo" {
 			return "", false
 		}
 		bullet := "⏵"
@@ -342,11 +343,10 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		if len(kept) == 0 {
 			return "", false
 		}
-		text := strings.Join(kept, "\n")
 		if srcPrefix != "" {
-			text = srcPrefix + text
+			kept[0] = srcPrefix + kept[0]
 		}
-		return whiteStyle.Render("✻ " + text), true
+		return whiteStyle.Render("✻ " + strings.Join(kept, "\n  ")), true
 
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
