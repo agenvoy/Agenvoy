@@ -118,35 +118,86 @@ const PRIORITIES = {
   "comparison": 0.7,
 };
 
+const NAV_ZH_SECTION = {
+  "Overview": "總覽", "Concepts": "概念", "User Guide": "使用指南",
+  "Tools": "工具", "Features": "功能", "Security": "安全", "Reference": "參考",
+};
+
+const NAV_ZH_LABEL = {
+  "home": "首頁", "getting-started": "快速開始", "sessions": "Session 與 Agent",
+  "execution-engine": "執行引擎", "providers": "供應商", "cli-commands": "CLI 指令",
+  "tui-guide": "TUI 指南", "rest-api": "REST API", "config-files": "設定檔",
+  "config-integrations": "整合設定", "built-in-tools": "內建工具", "tool-extension": "工具擴充",
+  "tool-rules": "工具設計與規範", "memory-system": "記憶系統", "skill-basics": "Skill 系統",
+  "scheduler-skills": "排程與自我修正", "mcp-server": "MCP 伺服器", "mcp-client": "MCP 客戶端",
+  "kuradb-rag": "KuraDB 與 RAG", "sandbox": "沙箱", "security": "安全模型",
+  "architecture": "架構", "comparison": "比較",
+};
+
+const DESCRIPTIONS_ZH = {
+  "home": "Agenvoy 文件 —— 跑在你機器上的專屬 AI agent。涵蓋安裝、工具、MCP、記憶、排程與安全的指南。",
+  "getting-started": "60 秒內安裝 Agenvoy 並啟動第一個 AI agent session。macOS 與 Linux 一行指令完成設定。",
+  "sessions": "在 Agenvoy 管理 session、agent 人格、路由規則與每個 session 的並行度。",
+  "execution-engine": "深入了解 Agenvoy 的迭代迴圈、三段式工具調度與斷路器如何運作。",
+  "providers": "設定 10 家 LLM 供應商 —— Claude、OpenAI、Gemini、Codex、Copilot、xAI Grok、DeepSeek、Nvidia NIM、OpenRouter 與 Compat。",
+  "cli-commands": "Agenvoy CLI 指令、make 捷徑、輸入前綴與環境變數參考。",
+  "tui-guide": "Agenvoy TUI 鍵盤快捷鍵、斜線指令與互動式 session 管理。",
+  "rest-api": "相容 OpenAI 的 REST API 端點：chat completions、session 與 log replay。",
+  "config-files": "Agenvoy 設定檔結構 —— config.json、bot.md、權限模式與 runtime 限制。",
+  "config-integrations": "設定 MCP 伺服器、LLM 供應商、KuraDB、Telegram 與 Discord 機器人整合。",
+  "built-in-tools": "60+ 內建 AI agent 工具 —— 檔案操作、網頁搜尋、編排、記憶、RAG 與媒體。",
+  "tool-extension": "用自然語言自動生成自訂工具。新增 script、API 或 MCP 工具來擴充 Agenvoy。",
+  "tool-rules": "工具設計準則 —— 並行標記、逾時、憑證自動修復與命名慣例。",
+  "memory-system": "三層對話記憶 —— 滾動 context window、語意向量搜尋與 FTS5 SQLite 封存。",
+  "skill-basics": "建立可載入的 markdown skill 包，搭配 YAML frontmatter、斜線指令與自然語言觸發。",
+  "scheduler-skills": "Cron 與一次性任務排程，可綁定 skill、熱重載並在失敗時自動修復。",
+  "mcp-server": "把 Agenvoy 當成 MCP 伺服器 —— 將沙箱工具開放給 Claude Code、Codex、Cursor 與 OpenCode。",
+  "mcp-client": "透過 stdio 或 HTTP/SSE 將 Agenvoy 連接到外部 MCP 伺服器，支援自動探索與熱重載。",
+  "kuradb-rag": "啟用 KuraDB，在你的個人知識庫上進行關鍵字與語意文件搜尋（RAG）。",
+  "sandbox": "OS 原生指令沙箱 —— Linux 用 bubblewrap、macOS 用 sandbox-exec。可限制 CPU、記憶體與網路。",
+  "security": "Agenvoy 安全模型 —— 權限模式、macOS Keychain、system prompt 保護與 MCP 隔離。",
+  "architecture": "Agenvoy 架構 —— 系統分層、daemon 生命週期、跨領域原則與 TUI 設計。",
+  "comparison": "比較 Agenvoy 與 Claude Code、Codex CLI、Cursor、Aider 等 AI agent 平台。",
+};
+
 function slugify(text) {
-  return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
+  // keep CJK ranges so Chinese headings produce usable anchor ids (empty ids break the TOC)
+  return text.toLowerCase()
+    .replace(/[^\w\s一-鿿㐀-䶿豈-﫿-]/g, "")
+    .replace(/\s+/g, "-").replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-function buildSidebar(activeSlug) {
+function buildSidebar(activeSlug, lang = "en") {
+  const isZh = lang === "zh";
+  const base = isZh ? "/zh/docs" : "/docs";
   let html = "";
   for (const group of NAV) {
+    const section = isZh ? (NAV_ZH_SECTION[group.section] || group.section) : group.section;
     html += `<div class="nav-divider"></div>\n`;
-    html += `<div class="nav-section">${group.section}</div>\n`;
+    html += `<div class="nav-section">${section}</div>\n`;
     for (const item of group.items) {
       const cls = item.slug === activeSlug ? " active" : "";
-      const href = item.slug === "home" ? "/docs/" : `/docs/${item.slug}`;
-      html += `<a class="nav-item${cls}" href="${href}">${item.label}</a>\n`;
+      const href = item.slug === "home" ? `${base}/` : `${base}/${item.slug}`;
+      const label = isZh ? (NAV_ZH_LABEL[item.slug] || item.label) : item.label;
+      html += `<a class="nav-item${cls}" href="${href}">${label}</a>\n`;
     }
   }
   html += `<div class="nav-divider"></div>\n`;
-  html += `<a class="nav-item" href="/docs/released/">Released</a>\n`;
+  html += `<a class="nav-item" href="/docs/released/">${isZh ? "版本紀錄" : "Released"}</a>\n`;
   return html.replace(/^<div class="nav-divider"><\/div>\n/, "");
 }
 
-function buildTOC(html) {
+function buildTOC(html, lang = "en") {
+  const tocTitle = lang === "zh" ? "本頁內容" : "On this page";
   const headings = [];
   const regex = /<h([23])[^>]*id="([^"]*)"[^>]*>(.*?)<\/h\1>/g;
   let m;
   while ((m = regex.exec(html)) !== null) {
     headings.push({ depth: parseInt(m[1]), id: m[2], text: m[3].replace(/<[^>]+>/g, "") });
   }
-  if (!headings.length) return '<div class="toc-title">On this page</div>';
-  let toc = '<div class="toc-title">On this page</div>\n';
+  if (!headings.length) return `<div class="toc-title">${tocTitle}</div>`;
+  let toc = `<div class="toc-title">${tocTitle}</div>\n`;
   for (const h of headings) {
     const cls = h.depth === 3 ? " depth-3" : "";
     toc += `<a class="toc-link${cls}" href="#${h.id}">${h.text}</a>\n`;
@@ -161,23 +212,48 @@ function addHeadingIds(html) {
   });
 }
 
-function renderPage(slug, title, description, keywords, sidebar, content, toc) {
-  const canonical = slug === "home" ? "https://agenvoy.com/docs/" : `https://agenvoy.com/docs/${slug}`;
-  const fullTitle = `${title} - Agenvoy Docs`;
+// wrap every table so it scrolls horizontally instead of overflowing the viewport
+function wrapTables(html) {
+  return html
+    .replace(/<table>/g, '<div class="table-scroll"><table>')
+    .replace(/<\/table>/g, "</table></div>");
+}
+
+function renderPage(slug, title, description, keywords, sidebar, content, toc, lang = "en") {
+  const isZh = lang === "zh";
+  const isReleased = slug === "released" || slug.startsWith("released/");
+  const base = isZh ? "https://agenvoy.com/zh" : "https://agenvoy.com";
+  const canonical = slug === "home" ? `${base}/docs/` : `${base}/docs/${slug}`;
+  const fullTitle = isZh ? `${title} - Agenvoy 文件` : `${title} - Agenvoy Docs`;
+
+  // language toggle target (counterpart page); released has no zh copy → fall back to zh docs home
+  let altHref;
+  if (isZh) altHref = slug === "home" ? "/docs/" : `/docs/${slug}`;
+  else if (isReleased) altHref = "/zh/docs/";
+  else altHref = slug === "home" ? "/zh/docs/" : `/zh/docs/${slug}`;
+
+  const enUrl = slug === "home" ? "https://agenvoy.com/docs/" : `https://agenvoy.com/docs/${slug}`;
+  const zhUrl = slug === "home" ? "https://agenvoy.com/zh/docs/" : `https://agenvoy.com/zh/docs/${slug}`;
+  const altLinks = isReleased ? "" :
+    `<link rel="alternate" hreflang="en" href="${enUrl}" />
+    <link rel="alternate" hreflang="zh-Hant" href="${zhUrl}" />
+    <link rel="alternate" hreflang="x-default" href="${enUrl}" />
+    `;
+
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "TechArticle",
     "headline": fullTitle,
     "description": description,
     "url": canonical,
-    "inLanguage": "en",
+    "inLanguage": isZh ? "zh-Hant" : "en",
     "isPartOf": { "@type": "WebSite", "name": "Agenvoy", "url": "https://agenvoy.com/" },
     "publisher": { "@type": "Person", "name": "Pardn Chiu", "url": "https://pardn.io/" },
     "image": "https://agenvoy.com/logo-min.svg",
     "dateModified": new Date().toISOString().split("T")[0],
   });
   return `<!doctype html>
-<html lang="en">
+<html lang="${isZh ? "zh-Hant" : "en"}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -190,13 +266,13 @@ function renderPage(slug, title, description, keywords, sidebar, content, toc) {
     <link rel="author" href="https://pardn.io/" />
     <link rel="icon" href="/logo-min.svg" type="image/svg+xml" />
     <link rel="canonical" href="${canonical}" />
-    <meta property="og:title" content="${fullTitle}" />
+    ${altLinks}<meta property="og:title" content="${fullTitle}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:image" content="https://agenvoy.com/logo-min.svg" />
     <meta property="og:url" content="${canonical}" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Agenvoy" />
-    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale" content="${isZh ? "zh_TW" : "en_US"}" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="${fullTitle}" />
     <meta name="twitter:description" content="${description}" />
@@ -207,17 +283,18 @@ function renderPage(slug, title, description, keywords, sidebar, content, toc) {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="/docs.css" />
   </head>
   <body>
     <header class="header">
-      <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-      <a href="/" class="header-logo"><picture><source media="(max-width: 480px)" srcset="/logo-min.svg" /><img src="/logo-text.svg" alt="Agenvoy" /></picture></a>
+      <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+      <a href="${isZh ? "/zh/" : "/"}" class="header-logo"><picture><source media="(max-width: 480px)" srcset="/logo-min.svg" /><img src="/logo-text.svg" alt="Agenvoy" /></picture></a>
       <span class="header-sep"></span>
-      <span class="header-title">Documentation</span>
+      <span class="header-title">${isZh ? "文件" : "Documentation"}</span>
       ${LATEST_VERSION ? `<a class="header-version" href="https://github.com/pardnchiu/agenvoy/releases/tag/${LATEST_VERSION}" target="_blank" rel="noopener">${LATEST_VERSION}</a>` : ""}
       <div class="header-links">
-        <a href="/">Home</a>
+        <a href="${isZh ? "/zh/" : "/"}">${isZh ? "首頁" : "Home"}</a>
         <a href="https://github.com/pardnchiu/agenvoy" target="_blank" rel="noopener">GitHub</a>
       </div>
     </header>
@@ -241,14 +318,18 @@ function renderPage(slug, title, description, keywords, sidebar, content, toc) {
       },{rootMargin:'-80px 0px -70% 0px'});
       document.querySelectorAll('.content h2,.content h3').forEach(function(h){tocObs.observe(h)});
     </script>
+    <a href="${altHref}" class="lang-fab" aria-label="${isZh ? "Switch to English" : "Switch to Chinese"}" hreflang="${isZh ? "en" : "zh-Hant"}"><i class="fa-solid fa-language"></i><span>${isZh ? "EN" : "中文"}</span></a>
   </body>
 </html>`;
 }
 
 marked.setOptions({ gfm: true, breaks: false });
 
+const ZH_DOCS_DIR = path.join(__dirname, "public/zh/docs");
 const allSlugs = NAV.flatMap(g => g.items.map(i => i.slug));
 let built = 0;
+let builtZh = 0;
+const zhSlugs = [];
 
 for (const slug of allSlugs) {
   const mdPath = path.join(PAGES_DIR, `${slug}.md`);
@@ -259,14 +340,14 @@ for (const slug of allSlugs) {
 
   const md = fs.readFileSync(mdPath, "utf-8");
   let html = marked.parse(md);
-  html = addHeadingIds(html);
+  html = wrapTables(addHeadingIds(html));
 
   const label = NAV.flatMap(g => g.items).find(i => i.slug === slug)?.label || slug;
   const desc = DESCRIPTIONS[slug] || `${label} — Agenvoy documentation.`;
   const kw = KEYWORDS[slug] || "agenvoy, ai agent, documentation";
-  const sidebar = buildSidebar(slug);
+  const sidebar = buildSidebar(slug, "en");
   const toc = buildTOC(html);
-  const page = renderPage(slug, label, desc, kw, sidebar, html, toc);
+  const page = renderPage(slug, label, desc, kw, sidebar, html, toc, "en");
 
   const outPath = slug === "home"
     ? path.join(OUT_DIR, "index.html")
@@ -275,6 +356,25 @@ for (const slug of allSlugs) {
   fs.writeFileSync(outPath, page);
   built++;
   console.log(`OK: ${outPath}`);
+
+  // zh variant — generated only when a translated source exists
+  const zhMdPath = path.join(PAGES_DIR, `${slug}.zh.md`);
+  if (fs.existsSync(zhMdPath)) {
+    let zhHtml = wrapTables(addHeadingIds(marked.parse(fs.readFileSync(zhMdPath, "utf-8"))));
+    const zhLabel = NAV_ZH_LABEL[slug] || label;
+    const zhDesc = DESCRIPTIONS_ZH[slug] || desc;
+    const zhSidebar = buildSidebar(slug, "zh");
+    const zhToc = buildTOC(zhHtml, "zh");
+    const zhPage = renderPage(slug, zhLabel, zhDesc, kw, zhSidebar, zhHtml, zhToc, "zh");
+    const zhOut = slug === "home"
+      ? path.join(ZH_DOCS_DIR, "index.html")
+      : path.join(ZH_DOCS_DIR, `${slug}.html`);
+    fs.mkdirSync(path.dirname(zhOut), { recursive: true });
+    fs.writeFileSync(zhOut, zhPage);
+    builtZh++;
+    zhSlugs.push(slug);
+    console.log(`OK: ${zhOut}`);
+  }
 }
 
 // === Release pages ===
@@ -324,7 +424,7 @@ if (fs.existsSync(TAGS_SRC)) {
     for (const tag of tags) {
       const md = fs.readFileSync(path.join(TAGS_SRC, `${tag}.md`), "utf-8");
       let html = marked.parse(md);
-      html = addHeadingIds(html);
+      html = wrapTables(addHeadingIds(html));
       const sidebar = buildVersionSidebar(tag, tags, dates);
       const toc = buildTOC(html);
       const desc = `Agenvoy ${tag} release notes — changelog, new features, and fixes.`;
@@ -373,6 +473,16 @@ for (const slug of allSlugs) {
   const pri = PRIORITIES[slug] || 0.6;
   sitemap += `  <url><loc>https://agenvoy.com/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri}</priority><lastmod>${today}</lastmod></url>\n`;
 }
+// zh mirror
+sitemap += `  <url><loc>https://agenvoy.com/zh/</loc><changefreq>weekly</changefreq><priority>0.9</priority><lastmod>${today}</lastmod></url>\n`;
+if (zhSlugs.length) {
+  sitemap += `  <url><loc>https://agenvoy.com/zh/docs/</loc><changefreq>weekly</changefreq><priority>0.8</priority><lastmod>${today}</lastmod></url>\n`;
+  for (const slug of zhSlugs) {
+    if (slug === "home") continue;
+    const pri = (PRIORITIES[slug] || 0.6) - 0.1;
+    sitemap += `  <url><loc>https://agenvoy.com/zh/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri.toFixed(2)}</priority><lastmod>${today}</lastmod></url>\n`;
+  }
+}
 if (releaseTags.length) {
   sitemap += `  <url><loc>https://agenvoy.com/docs/released/</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>${today}</lastmod></url>\n`;
   for (let i = 0; i < releaseTags.length; i++) {
@@ -381,7 +491,9 @@ if (releaseTags.length) {
   }
 }
 sitemap += `</urlset>\n`;
-const sitemapCount = allSlugs.length + 1 + (releaseTags.length ? releaseTags.length + 1 : 0);
+const zhDocUrls = zhSlugs.filter(s => s !== "home").length;
+const zhCount = 1 + (zhSlugs.length ? 1 + zhDocUrls : 0);
+const sitemapCount = allSlugs.length + 1 + (releaseTags.length ? releaseTags.length + 1 : 0) + zhCount;
 fs.writeFileSync(path.join(__dirname, "public/sitemap.xml"), sitemap);
 console.log(`OK: sitemap.xml (${sitemapCount} URLs)`);
 
@@ -394,4 +506,4 @@ Sitemap: https://agenvoy.com/sitemap.xml
 fs.writeFileSync(path.join(__dirname, "public/robots.txt"), robots);
 console.log("OK: robots.txt");
 
-console.log(`\nBuilt ${built} doc pages, ${releaseTags.length} release pages.`);
+console.log(`\nBuilt ${built} doc pages (${builtZh} zh), ${releaseTags.length} release pages.`);

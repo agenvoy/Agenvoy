@@ -24,3 +24,4 @@ node_modules
 worker/public/docs/*.html
 worker/public/docs/tags/
 worker/public/docs/released/
+worker/public/zh/docs/
