@@ -140,6 +140,7 @@ type ExecData struct {
 	ExtraSystemPrompt string
 	AllowAll          bool
 	PendingTask       string
+	ReplyMessageID    string
 }
 
 type (
@@ -296,7 +297,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID)
 		}
 		defer func() {
 			if !keepPending {

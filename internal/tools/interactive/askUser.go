@@ -50,6 +50,7 @@ type ToolResult struct {
 type pendingMeta struct {
 	TaskHash     string             `json:"task_hash"`
 	SessionID    string             `json:"session_id"`
+	MessageID    string             `json:"message_id,omitempty"`
 	Objective    string             `json:"objective,omitempty"`
 	Completed    []string           `json:"completed,omitempty"`
 	NextSteps    []string           `json:"next_steps,omitempty"`
@@ -238,17 +239,28 @@ func CleanupPending(sessionID, taskHash string) {
 	}
 }
 
-func CreateExecPending(sessionID, objective string) string {
+func CreateExecPending(sessionID, objective, messageID string) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
 	cleanStaleProgress(sessionID)
 
-	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective}); err != nil {
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
 	return taskHash
+}
+
+func LoadPendingMessageID(sessionID, taskHash string) string {
+	if taskHash == "" {
+		return ""
+	}
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return ""
+	}
+	return meta.MessageID
 }
 
 func cleanStaleProgress(sessionID string) {
@@ -452,7 +464,11 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 
 	pendingMu.Lock()
 	var allResults []ToolResult
+	var messageID string
+	var todos []agentTypes.TodoItem
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+		messageID = existing.MessageID
+		todos = existing.Todos
 		seen := make(map[string]bool, len(toolResults))
 		for _, r := range toolResults {
 			if r.ID != "" {
@@ -469,11 +485,13 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		allResults = toolResults
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
+		MessageID:   messageID,
 		Objective:   objective,
 		Completed:   completed,
 		NextSteps:   nextSteps,
 		Questions:   questions,
 		ToolResults: allResults,
+		Todos:       todos,
 	}); err != nil {
 		slog.Warn("SaveAndEnqueueAskUser: writePending", slog.String("error", err.Error()))
 	}
