@@ -29,7 +29,7 @@ func registInvokeSubagent() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
-		Description: "Spawn a subagent in its own session. Set `name` ONLY when the user explicitly delegates to an existing named session (呼叫/請/找/call/ask/let X do Y — X is that session's name) → pass X verbatim to resolve it. For every fresh or anonymous subtask leave `name` EMPTY — do NOT invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless, so a made-up name only misleads. One call per distinct subtask — never duplicate the same task. Never pre-judge existence, never fallback to self, never ask_user for a name.",
+		Description: "Spawn a subagent in its own session. For a SINGLE delegated subtask, first `list_subagent_sessions` — if a listed role fits the task, `ask_user` whether to route there; on yes set `name` to that session's name, on no leave `name` EMPTY (temp). Set `name` verbatim also when the user explicitly delegates to a session (呼叫/請/找/call/ask/let X do Y — X is that name). Otherwise leave `name` EMPTY — never invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless. Broad PARALLEL fan-out skips this check and stays anonymous (name empty). One call per distinct subtask — never duplicate the same task.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

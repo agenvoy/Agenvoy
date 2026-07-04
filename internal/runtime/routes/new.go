@@ -23,6 +23,8 @@ func New() *gin.Engine {
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
 	r.GET("/v1/sessions", handler.ListSessions())
+	r.GET("/v1/models", handler.ListModels())
+	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
 	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
 	r.GET("/v1/log", handler.StreamMultiLog())
