@@ -5,13 +5,12 @@
 </p>
 
 <p align="center">
-  <strong>A personal AI Agent that runs on your machine</strong>
+  <strong>A local AI agent that can build, test, and reuse its own tools</strong>
 </p>
 
 <p align="center">
-  Build tools, test it, and call it.<br>
-  Give the Agent you already use the power to build its own tools.<br>
-  You say one sentence. The agent does the rest.
+  Agenvoy runs on your machine, handles multi-step work, searches local files, schedules recurring tasks,<br>
+  and exposes its tool library to other agents through MCP.
 </p>
 
 <p align="center">
@@ -24,31 +23,12 @@
   <strong>English</strong> · <a href="./doc/README.zh.md">繁體中文</a>
 </p>
 
-## One-line install
+## Why Agenvoy
 
-> On MacBook, also run `sudo pmset -c sleep 0` to prevent sleep from interrupting schedules.
-
-```bash
-curl -fsSL https://agenvoy.com/scripts/install.sh | bash
-```
-
-***
-
-## Web Dashboard
-
-Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the dashboard once the daemon is running on your machine.
-
-<p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">
-    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">▶ Watch the Web Dashboard walkthrough</a>
-</p>
-
-***
+- **Build missing tools instead of stopping**
+- **Share one sandboxed tool library across Agenvoy, Claude Code, Codex, and more**
+- **Run local workflows with scheduling, memory, and file search**
+- **Use it as both an agent app and an MCP server**
 
 ## What you can do with it
 
@@ -56,18 +36,18 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 <tr>
 <td width="50%" valign="top">
 
-### Look things up
+### Ask for live answers
 
 > What's the weather in Taipei?
 >
-> The agent finds data, calls tools, and gives you the answer.
+> The agent finds current data, calls tools, and gives you the answer.
 >
 > If a tool doesn't exist, it builds one.
 
 </td>
 <td width="50%" valign="top">
 
-### Set up automation
+### Turn one sentence into automation
 
 > Report TSMC stock price every morning at 8am
 >
@@ -95,7 +75,7 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 <tr>
 <td width="50%" valign="top">
 
-### Search your files
+### Ask your local files questions
 
 > Find all invoices from last year
 >
@@ -106,9 +86,9 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 </td>
 <td width="50%" valign="top">
 
-### Handle multi-step work
+### Finish multi-step work
 
-> Summarize today's GitHub Commit and generate a progress report
+> Summarize today's GitHub commits and generate a progress report
 >
 > The agent breaks down the task, calls tools, combines results, and replies.
 
@@ -128,11 +108,11 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 </tr>
 </table>
 
-### Give the Agent you already use the power to build its own tools
+### Works with the agents you already use
 
 > Agenvoy is also an MCP server.
 >
-> Claude Code, Codex, OpenCode and other AI agents can connect and:
+> Claude Code, Codex, OpenCode, and other AI agents can connect and:
 > - Use all your sandboxed tools
 > - Auto-build new tools when none exist
 > - Share every tool across all agents
@@ -177,6 +157,14 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 </tr>
 </table>
 
+## Who it's for
+
+Agenvoy is for developers, technical operators, and AI-heavy workflows that need more than chat:
+
+- People who want local execution with guardrails
+- Teams that want reusable tools across agents
+- Users who need automation, file search, and scheduled reporting in one place
+
 ***
 
 ## Core capabilities
@@ -196,6 +184,30 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 
 ***
 
+## Web Dashboard
+
+Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the dashboard once the daemon is running on your machine.
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">
+    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">▶ Watch the Web Dashboard walkthrough</a>
+</p>
+
+## One-line install
+
+> On MacBook, also run `sudo pmset -c sleep 0` to prevent sleep from interrupting schedules.
+
+```bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+```
+
+***
+
 ## How it compares
 
 | | **Agenvoy** | OpenClaw | Hermes-agent |
@@ -203,10 +215,13 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 | Install | One command, single binary | pnpm monorepo | pip + docker |
 | Multi-model | Auto-picks | Manual switch | Manual switch |
 | Chat UI | Buttons / menus / modals | Text only | Text only |
-| Builds its own tools | ✅ | ❌ | ⚠️ Skill only |
+| Builds missing tools | ✅ | ❌ | ⚠️ Skill only |
+| Shares tools across agents | ✅ | ❌ | ❌ |
+| Works as MCP server | ✅ | ❌ | ❌ |
 | Chat verification | 6-digit code | Manual approval | Manual approval |
 | Cross-session push | ✅ | ❌ | ⚠️ Limited |
 | File search | Semantic + keyword | Chat memory only | Chat memory only |
+| Scheduled local workflows | ✅ | ❌ | ⚠️ Limited |
 
 ***
 

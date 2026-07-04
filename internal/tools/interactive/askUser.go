@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -49,13 +50,15 @@ type ToolResult struct {
 type pendingMeta struct {
 	TaskHash     string             `json:"task_hash"`
 	SessionID    string             `json:"session_id"`
+	MessageID    string             `json:"message_id,omitempty"`
 	Objective    string             `json:"objective,omitempty"`
 	Completed    []string           `json:"completed,omitempty"`
 	NextSteps    []string           `json:"next_steps,omitempty"`
-	Questions    []runtime.Question `json:"questions,omitempty"`
-	ToolAttempts []ToolAttempt      `json:"tool_attempts,omitempty"`
-	ToolResults  []ToolResult       `json:"tool_results,omitempty"`
-	Reply        string             `json:"reply,omitempty"`
+	Questions    []runtime.Question    `json:"questions,omitempty"`
+	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
+	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
+	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
+	Reply        string                `json:"reply,omitempty"`
 }
 
 var pendingMu sync.Mutex
@@ -236,17 +239,28 @@ func CleanupPending(sessionID, taskHash string) {
 	}
 }
 
-func CreateExecPending(sessionID, objective string) string {
+func CreateExecPending(sessionID, objective, messageID string) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
 	cleanStaleProgress(sessionID)
 
-	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective}); err != nil {
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
 	return taskHash
+}
+
+func LoadPendingMessageID(sessionID, taskHash string) string {
+	if taskHash == "" {
+		return ""
+	}
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return ""
+	}
+	return meta.MessageID
 }
 
 func cleanStaleProgress(sessionID string) {
@@ -360,6 +374,21 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 	msg.WriteString(meta.Objective)
 	msg.WriteString("\n")
 
+	if len(meta.Todos) > 0 {
+		msg.WriteString("\n## Task Checklist\n")
+		msg.WriteString("Your last recorded plan state. Keep it current via `write_todo` as you resume.\n")
+		for _, td := range meta.Todos {
+			mark := "[ ]"
+			switch td.Status {
+			case agentTypes.TodoCompleted:
+				mark = "[x]"
+			case agentTypes.TodoInProgress:
+				mark = "[~]"
+			}
+			msg.WriteString(fmt.Sprintf("- %s %s\n", mark, td.Content))
+		}
+	}
+
 	if len(meta.Completed) > 0 {
 		msg.WriteString("\n## Completed Steps\n")
 		for _, s := range meta.Completed {
@@ -435,7 +464,11 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 
 	pendingMu.Lock()
 	var allResults []ToolResult
+	var messageID string
+	var todos []agentTypes.TodoItem
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+		messageID = existing.MessageID
+		todos = existing.Todos
 		seen := make(map[string]bool, len(toolResults))
 		for _, r := range toolResults {
 			if r.ID != "" {
@@ -452,11 +485,13 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		allResults = toolResults
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
+		MessageID:   messageID,
 		Objective:   objective,
 		Completed:   completed,
 		NextSteps:   nextSteps,
 		Questions:   questions,
 		ToolResults: allResults,
+		Todos:       todos,
 	}); err != nil {
 		slog.Warn("SaveAndEnqueueAskUser: writePending", slog.String("error", err.Error()))
 	}

@@ -85,19 +85,30 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.activity = str
 		}
 
+	case agentTypes.EventTodoUpdate:
+		if ev.Source == "" {
+			t.todos = ev.Todos
+		}
+		return t, nil
+
 	case agentTypes.EventToolCall:
 		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
-			ev.ToolName != "list_recent_tool_call" && ev.ToolName != "read_tool_call" {
+			ev.ToolName != "list_recent_tool_call" && ev.ToolName != "read_tool_call" &&
+			ev.ToolName != "write_todo" {
 			t.activity = "tool: " + ev.ToolName
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
 			if ok {
 				t.toolBuf = append(t.toolBuf, line)
-				if len(t.toolBuf) > 5 {
-					t.toolBuf = t.toolBuf[len(t.toolBuf)-5:]
-				}
 			}
 			return t, nil
 		}
+
+	case agentTypes.EventReasoning:
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
+		if ok {
+			t.toolBuf = append(t.toolBuf, line)
+		}
+		return t, nil
 
 	case agentTypes.EventSummaryGenerate:
 		t.activity = "summarizing…"
@@ -138,6 +149,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventDone:
 		t.toolBuf = nil
+		t.todos = nil
 		if ev.Usage != nil {
 			t.tokens = ev.Usage.Input + ev.Usage.Output
 			t.lastIn = ev.Usage.Input

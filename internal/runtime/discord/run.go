@@ -216,6 +216,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
+		ReplyMessageID: in.MessageID,
 	}
 
 	sess, err := getSession(ctx, in, content, execData)

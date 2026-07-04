@@ -275,6 +275,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
+		ReplyMessageID: strconv.Itoa(in.MessageID),
 	}
 
 	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)

@@ -74,14 +74,6 @@ func renderActionLine(p parsedAction) string {
 		}
 		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str})
 
-	case "tool_call":
-		name, args, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventToolCall,
-			ToolName: name,
-			ToolArgs: args,
-		})
-
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
 		return renderEvent(agentTypes.Event{

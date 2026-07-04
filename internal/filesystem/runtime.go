@@ -16,12 +16,9 @@ import (
 // * Defaults below are the only fallback; env vars are no longer read.
 var (
 	Port                       = "17989"
-	MaxToolIterations          = 16
-	MaxSkillIterations         = 128
-	MaxEmptyResponses          = 8
-	MaxRetry                   = 3
+	MaxToolIterations          = 128
 	AgentSendTimeoutSec        = 600
-	MaxHistoryMessages         = 16
+	MaxHistoryMessages         = 8
 	MaxHistoryBytes            = 5 * 1024 * 1024
 	MaxSessionTasks            = 3
 	MaxSubagentTimeoutMin      = 10
@@ -51,9 +48,6 @@ const (
 type RuntimeLimits struct {
 	Port                       string `json:"port,omitempty"`
 	MaxToolIterations          int    `json:"max_tool_iterations,omitempty"`
-	MaxSkillIterations         int    `json:"max_skill_iterations,omitempty"`
-	MaxEmptyResponses          int    `json:"max_empty_responses,omitempty"`
-	MaxRetry                   int    `json:"max_same_payload_retry,omitempty"`
 	AgentSendTimeoutSec        int    `json:"agent_send_timeout_seconds,omitempty"`
 	MaxHistoryMessages         int    `json:"max_history_messages,omitempty"`
 	MaxHistoryBytes            int    `json:"max_history_bytes,omitempty"`
@@ -90,29 +84,22 @@ func LoadRuntime() error {
 	}
 	Port = limits.Port
 
+	// * legacy parameter keep for now
+	var legacy struct {
+		MaxSkillIterations int `json:"max_skill_iterations"`
+	}
+	if data, ok := raw["limits"]; ok && len(data) > 0 {
+		_ = json.Unmarshal(data, &legacy)
+	}
+	if legacy.MaxSkillIterations > 0 {
+		limits.MaxToolIterations = legacy.MaxSkillIterations
+		changed = true
+	}
 	if limits.MaxToolIterations <= 0 {
 		limits.MaxToolIterations = MaxToolIterations
 		changed = true
 	}
 	MaxToolIterations = limits.MaxToolIterations
-
-	if limits.MaxSkillIterations <= 0 {
-		limits.MaxSkillIterations = MaxSkillIterations
-		changed = true
-	}
-	MaxSkillIterations = limits.MaxSkillIterations
-
-	if limits.MaxEmptyResponses <= 0 {
-		limits.MaxEmptyResponses = MaxEmptyResponses
-		changed = true
-	}
-	MaxEmptyResponses = limits.MaxEmptyResponses
-
-	if limits.MaxRetry <= 0 {
-		limits.MaxRetry = MaxRetry
-		changed = true
-	}
-	MaxRetry = limits.MaxRetry
 
 	if limits.AgentSendTimeoutSec <= 0 {
 		limits.AgentSendTimeoutSec = AgentSendTimeoutSec

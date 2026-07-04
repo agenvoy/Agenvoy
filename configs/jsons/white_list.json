@@ -92,6 +92,7 @@
   "gunzip",
   "uname",
   "hostname",
+  "uptime",
   "ps",
   "kill",
   "lsof",

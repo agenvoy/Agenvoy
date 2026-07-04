@@ -76,6 +76,12 @@ func (t TUI) viewThinking() string {
 		sb.WriteByte('\n')
 	}
 
+	if block := renderTodoList(t.todos); block != "" {
+		sb.WriteString("\n")
+		sb.WriteString(block)
+		sb.WriteString("\n\n")
+	}
+
 	verb := activityVerb(t.activity)
 	elapsed := formatTime(int(time.Since(t.runStartedAt).Seconds()))
 

@@ -47,6 +47,12 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		merged = append([]agentTypes.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
+	for i := range merged {
+		if merged[i].Role == "assistant" && merged[i].ReasoningContent == "" {
+			merged[i].ReasoningContent = "(reasoning omitted)"
+		}
+	}
+
 	body := map[string]any{
 		"model":    a.model,
 		"messages": merged,

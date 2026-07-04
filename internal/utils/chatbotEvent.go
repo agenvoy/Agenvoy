@@ -31,6 +31,11 @@ func FormatChatbotEvent(events <-chan agentTypes.Event, tag, sessionID string, s
 				status("[skill] " + go_pkg_utils.TruncateString(t, 256))
 			}
 
+		case agentTypes.EventReasoning:
+			if t := strings.TrimSpace(e.Text); t != "" {
+				status("[think] " + go_pkg_utils.TruncateString(t, 256))
+			}
+
 		case agentTypes.EventToolCall:
 			if e.ToolName != "" {
 				toolCount++

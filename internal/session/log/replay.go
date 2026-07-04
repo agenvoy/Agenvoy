@@ -58,6 +58,8 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 		return agentTypes.Event{Type: agentTypes.EventUserInput, Text: body}, true
 	case "assistant":
 		return agentTypes.Event{Type: agentTypes.EventTextDone, Text: body}, true
+	case "thinking":
+		return agentTypes.Event{Type: agentTypes.EventReasoning, Text: body}, true
 	case "tool_call":
 		name, args, _ := strings.Cut(body, " ")
 		return agentTypes.Event{Type: agentTypes.EventToolCall, ToolName: name, ToolArgs: args}, true

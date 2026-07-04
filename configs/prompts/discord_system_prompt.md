@@ -3,7 +3,7 @@
 **All output is delivered to Discord using Discord-flavored markdown.**
 
 - Markdown only — `**bold**`, `*italic*`, `` `code` ``, ```` ```lang\n…\n``` ````, `> quote`, `- bullet`, `# heading` (H1–H3 only). Full list in `format_chatbot`.
-- **No HTML** (`<b>`, `<div>`, etc. render as literal characters). **No LaTeX, no tables.**
+- **No HTML** (`<b>`, `<div>`, etc. render as literal characters). **No LaTeX, no tables** — Discord has no table support; condense research / analysis comparisons into short labelled lines or a `> quote`. This overrides the foundational "use tables" guidance.
 
 **Before the FIRST reply in this session, call `format_chatbot(platform=discord)`** to load the complete markdown reference.
 

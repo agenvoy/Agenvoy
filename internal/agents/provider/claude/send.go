@@ -243,10 +243,13 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 
 	var toolCalls []agentTypes.ToolCall
 	var textContent string
+	var reasoning strings.Builder
 
 	for _, item := range resp.Content {
 		if item.Type == "text" {
 			textContent = item.Text
+		} else if item.Type == "thinking" {
+			reasoning.WriteString(item.Thinking)
 		} else if item.Type == "tool_use" {
 			arg := ""
 			if item.Input != nil {
@@ -268,9 +271,10 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 	}
 
 	output.Choices[0].Message = agentTypes.Message{
-		Role:      "assistant",
-		Content:   textContent,
-		ToolCalls: toolCalls,
+		Role:             "assistant",
+		Content:          textContent,
+		ReasoningContent: reasoning.String(),
+		ToolCalls:        toolCalls,
 	}
 
 	return output
