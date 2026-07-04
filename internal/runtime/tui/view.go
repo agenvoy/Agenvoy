@@ -77,6 +77,7 @@ func (t TUI) viewThinking() string {
 	}
 
 	if block := renderTodoList(t.todos); block != "" {
+		sb.WriteString("\n")
 		sb.WriteString(block)
 		sb.WriteString("\n\n")
 	}

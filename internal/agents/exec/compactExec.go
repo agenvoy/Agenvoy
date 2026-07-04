@@ -14,7 +14,7 @@ import (
 
 const execCompactTokenThreshold = 64000
 
-func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage) bool {
+func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string) bool {
 	userQuestion := extractUserText(session.UserInput)
 	if userQuestion == "" {
 		return false
@@ -34,8 +34,19 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 		return false
 	}
 
+	tail := session.ToolHistories[lastGroupIdx:]
+
+	prefix := session.ToolHistories[:lastGroupIdx]
+	var planPair []agentTypes.Message
+	if taskHash != "" {
+		if !containsWriteTodo(tail) {
+			planPair = lastWriteTodoPair(prefix)
+		}
+		prefix = stripWriteTodo(prefix, false)
+	}
+
 	var sb strings.Builder
-	for _, msg := range session.ToolHistories[:lastGroupIdx] {
+	for _, msg := range prefix {
 		switch {
 		case msg.Role == "assistant" && len(msg.ToolCalls) > 0:
 			for _, tc := range msg.ToolCalls {
@@ -59,7 +70,6 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 	if sb.Len() == 0 {
 		return false
 	}
-	tail := session.ToolHistories[lastGroupIdx:]
 
 	prompt := strings.NewReplacer(
 		"{{.UserQuestion}}", userQuestion,
@@ -98,13 +108,12 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 
 	session.OldHistories = nil
 	session.SummaryMessage = agentTypes.Message{}
-	session.ToolHistories = append(
-		[]agentTypes.Message{
-			{Role: "user", Content: "以下是先前工具查詢的整合結果，請基於此資料繼續回答原始問題。"},
-			{Role: "assistant", Content: strings.TrimSpace(result)},
-		},
-		tail...,
-	)
+	head := []agentTypes.Message{
+		{Role: "user", Content: "以下是先前工具查詢的整合結果，請基於此資料繼續回答原始問題。"},
+		{Role: "assistant", Content: strings.TrimSpace(result)},
+	}
+	head = append(head, planPair...)
+	session.ToolHistories = append(head, tail...)
 
 	slog.Info("compactExec completed",
 		slog.Int("input_tokens", resp.Usage.Input),

@@ -25,13 +25,13 @@ func registWriteTodo() {
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  false,
-		Description: "Maintain a live task checklist that the user watches update in real time. Call it at the START of any task with 3+ distinct steps, or when the user gives a multi-part / plan-then-execute request — write the full plan as todos, then call again after each step to flip its status. Pass the ENTIRE list every time (state is replaced, not merged). Exactly one item may be `in_progress`; mark a step `completed` only once it is truly done, then set the next one `in_progress` in the same call. Skip for single-step tasks, smalltalk, or anything one tool call resolves. This tool only records progress; it never executes the steps.",
+		Description: "Maintain a live task checklist the user watches in real time. Call it the moment work becomes multi-step (3+ steps), at the start or mid-task — no need to decide up front. Parallel counts too: N fanned-out searches/subagents = N steps; multi-source research and broad analysis (分析/研究/調查/比較/彙整/週報/盤前) MUST get a plan. Resend the ENTIRE ordered list every call (state is replaced, not merged); keep exactly one `in_progress`, and when a step is truly done flip it `completed` and set the next `in_progress` in the same call. While executing, keep the step set FIXED — change only `status`, never reword/reorder/split/merge/add/drop; if a step is wrong or missing, tell the user what changes and why before sending the revised list. Once all steps are `completed` and a new multi-step need arises, start a FRESH list for it (expected, not a revision). Skip single-step tasks, smalltalk, or anything one tool call resolves. Records progress only; never executes steps.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"todos": map[string]any{
 					"type":        "array",
-					"description": "The complete ordered checklist, replacing any prior list. First item(s) done, exactly one in progress, the rest pending.",
+					"description": "The complete ordered checklist, replacing any prior list. First item(s) done, exactly one in progress, the rest pending. While executing a plan keep each step's `content`, order, and count identical across calls — only `status` advances; change the step set only after telling the user why. Starting a fresh list for a new objective once the previous plan is fully completed is expected, not a change.",
 					"minItems":    1,
 					"items": map[string]any{
 						"type": "object",

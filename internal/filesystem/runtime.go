@@ -18,7 +18,7 @@ var (
 	Port                       = "17989"
 	MaxToolIterations          = 128
 	AgentSendTimeoutSec        = 600
-	MaxHistoryMessages         = 16
+	MaxHistoryMessages         = 8
 	MaxHistoryBytes            = 5 * 1024 * 1024
 	MaxSessionTasks            = 3
 	MaxSubagentTimeoutMin      = 10

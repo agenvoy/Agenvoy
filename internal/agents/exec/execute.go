@@ -374,14 +374,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return ctx.Err()
 		}
 		if !compactFailed && lastInputTokens >= execCompactTokenThreshold {
-			if compactExec(ctx, data.Agent, session, &usage) {
+			if compactExec(ctx, data.Agent, session, &usage, exec.PendingTask) {
 				compactedToolCalls = true
 				lastInputTokens = 0
 			} else {
 				compactFailed = true
 			}
 		}
-		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories)
+		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
 		sendStart := time.Now()
 		sendCtx, cancelSend := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
@@ -690,7 +690,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return nil
 	}
 
-	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories)
+	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
 	summaryMessages := append(assembled, agentTypes.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",

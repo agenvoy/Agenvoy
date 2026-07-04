@@ -333,6 +333,13 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		return messageRow(str, sessionLabel), true
 
 	case agentTypes.EventReasoning:
+		if src != "" {
+			str := oneLine(toPureText(ev.Text))
+			if str == "" {
+				return "", false
+			}
+			return hintStyle.Render("  ⎿ " + srcPrefix + "✻ " + str), true
+		}
 		var kept []string
 		for line := range strings.SplitSeq(toPureText(ev.Text), "\n") {
 			if strings.TrimSpace(line) == "" {
@@ -342,9 +349,6 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		}
 		if len(kept) == 0 {
 			return "", false
-		}
-		if srcPrefix != "" {
-			kept[0] = srcPrefix + kept[0]
 		}
 		return whiteStyle.Render("✻ " + strings.Join(kept, "\n  ")), true
 

@@ -181,7 +181,6 @@ func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentType
 	case agentTypes.EventDone,
 		agentTypes.EventText,
 		agentTypes.EventTextDone,
-		agentTypes.EventReasoning,
 		agentTypes.EventAgentSelect,
 		agentTypes.EventAgentResult,
 		agentTypes.EventSummaryGenerate,
