@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const TAGS_DIR = path.join(__dirname, "public/docs/tags");
-const REPO = "pardnchiu/Agenvoy";
+const REPO = "agenvoy/Agenvoy";
 
 function fetch(url) {
   return new Promise((resolve, reject) => {

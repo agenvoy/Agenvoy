@@ -318,7 +318,7 @@ function renderPage(slug, title, description, keywords, sidebar, content, toc, l
       },{rootMargin:'-80px 0px -70% 0px'});
       document.querySelectorAll('.content h2,.content h3').forEach(function(h){tocObs.observe(h)});
     </script>
-    <a href="${altHref}" class="lang-fab" aria-label="${isZh ? "Switch to English" : "Switch to Chinese"}" hreflang="${isZh ? "en" : "zh-Hant"}"><i class="fa-solid fa-language"></i><span>${isZh ? "EN" : "中文"}</span></a>
+    ${isReleased ? "" : `<a href="${altHref}" class="lang-fab" aria-label="${isZh ? "Switch to English" : "Switch to Chinese"}" hreflang="${isZh ? "en" : "zh-Hant"}"><i class="fa-solid fa-language"></i><span>${isZh ? "EN" : "中文"}</span></a>`}
   </body>
 </html>`;
 }
