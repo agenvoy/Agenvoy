@@ -15,9 +15,9 @@
 
 <p align="center">
 <a href="https://pkg.go.dev/github.com/{owner}/{repo}"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
+<a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Release"></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
 <a href="https://app.codecov.io/github/{owner}/{repo}/tree/master"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/master?include_prereleases&style=for-the-badge" alt="Coverage"></a>
-<a href="LICENSE"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Version"></a>
-<a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
 </p>
 
 ***
@@ -27,7 +27,6 @@
 ## 目錄
 
 - [功能特點](#功能特點)
-- [技術堆疊](#技術堆疊)
 - [架構](#架構)
 - [授權](#授權)
 - [Author](#author)
@@ -42,12 +41,6 @@
 - **特色 3 標題** — 一句話簡述。
 - **特色 4 標題** — 一句話簡述。（可選）
 - **特色 5 標題** — 一句話簡述。（可選）
-
-## 技術堆疊
-
-<a href="https://skillicons.dev">
-  <img src="https://skillicons.dev/icons?i=go,docker,postgres,redis,githubactions&theme=light" />
-</a>
 
 ## 架構
 
