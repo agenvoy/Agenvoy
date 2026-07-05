@@ -40,7 +40,7 @@ agen session new my-assistant
 make app
 ```
 
-Once the TUI is up, press **`i`** to open the Message input and submit with **Enter** (`Shift+Enter` inserts a newline on terminals that forward modifiers). Press **`c`** to open the Command (`$`) input. **`Tab`** toggles between Content and Logs in the main view; **`Ctrl+P`** opens the co-work dashboard (Sessions / Log / Pending three-panel).
+Once the TUI is up, the input box is always focused — type your message directly and press **Enter** to send (**Alt+Enter** inserts a newline). Type **`/`** to open the fuzzy command palette (matches command name or description); **Tab**/**Enter** confirms the highlighted entry, **Esc** dismisses it. **Shift+Tab** toggles auto-approve for tool calls. With the input empty, **Shift+W**/**Shift+S** cycles the dispatcher model and **Shift+A**/**Shift+D** cycles the reasoning level.
 
 For one-shot CLI usage:
 

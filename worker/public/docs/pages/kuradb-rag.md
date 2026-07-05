@@ -1,6 +1,6 @@
 # KuraDB RAG
 
-KuraDB is the in-process RAG (Retrieval-Augmented Generation) provider for Agenvoy. It runs as a daemon-managed child process and exposes two search tools (`list_rag`, `search_rag`) to the agent.
+KuraDB is an independent RAG (Retrieval-Augmented Generation) daemon that Agenvoy talks to over local HTTP. It is a separate long-running process (`kura`), started/stopped by the user — Agenvoy never spawns or owns its lifecycle. Agenvoy exposes two tools to the agent (`list_rag`, `search_rag`) that call KuraDB's API.
 
 ## What it is
 
@@ -9,92 +9,88 @@ KuraDB ([pardnchiu/KuraDB](https://github.com/pardnchiu/KuraDB)) is a self-devel
 - Indexes user files (notes, inbox, code, …) into multiple named databases
 - Provides keyword search via `gse` tokenization (Chinese-aware)
 - Provides semantic search via OpenAI embeddings (`text-embedding-3-small`)
-- Runs entirely on the user's machine — no external service
+- Runs entirely on the user's machine, self-daemonizing on `kura` — no external service
 
-Agenvoy talks to KuraDB over a local HTTP API (random port written to `~/.config/kuradb/endpoint` at startup).
+Agenvoy talks to KuraDB over a local HTTP API. The endpoint URL is written by `kura` to `~/.config/kuradb/endpoint` on start; its PID and start time are written to `~/.config/kuradb/runtime.uid`.
 
-## Lifecycle
+## Agenvoy-side surface (`internal/runtime/kuradb/kuradb.go`)
 
-KuraDB lives in `internal/runtime/kuradb/`:
+Agenvoy does not manage the KuraDB process — it only observes it:
 
-| File | Responsibility |
+| Function | Purpose |
 |---|---|
-| `kuradb.go` | Public surface: `BinaryPath`, `EndpointExists()`, `ReadEndpoint()`, `BinaryInstalled()`, `HasOpenAIKey()`, `SetOpenAIKey()` |
-| `run.go` | `RunChild(ctx)` — `exec.Cmd` start + `StdoutPipe`/`StderrPipe` → slog; 5-second crash backoff; health check goroutine polls `<endpoint>/api/health` every minute (5s timeout), 3 consecutive failures → auto-disable |
+| `IsInstalled()` | `/usr/local/bin/kura` exists and is executable |
+| `IsRunning()` | Reads `~/.config/kuradb/runtime.uid`, checks the recorded PID is still alive (`os.FindProcess` + signal 0) |
+| `Version()` | Reads the module version Go stamped into the binary at build time (`debug/buildinfo`) — the release tag, since `install.sh` builds from a clean tag checkout |
+| `Health(ctx, onFail)` | Ticks every minute; a strike requires **both** `IsRunning()` and a live `GET <endpoint>/api/health` — 3 consecutive strikes calls `onFail` |
+| `SyncOpenAIKey(value)` | Writes the OpenAI key into a *separate* OS keychain entry under service `kuradb` (`security`/`secret-tool`, not go-pkg keychain) — `kura` runs as its own process and can't read Agenvoy's keychain namespace |
+| `Remove()` | Deletes the endpoint file (used to force tool calls to fail fast once KuraDB is considered down) |
 
-### Daemon orchestration (`cmd/app/cmdDeamon.go::reloadKuradb`)
+### Health gating (`cmd/app/cmdDeamon.go::reloadKuradb`)
 
-The daemon controls KuraDB via fsnotify on `~/.config/agenvoy/config.json`:
-
-1. On config change with `kuradb_enabled=true`, three gates check **before** spawning:
-   - `kuradb.BinaryInstalled()` — `/usr/local/bin/kura` must exist
-   - `kuradb.HasOpenAIKey()` — `OPENAI_API_KEY` must be in keychain (`agenvoy` service)
-2. Any gate failure → **silent return** (don't log, don't auto-disable, don't write config)
-3. Pass → spawn child via `RunChild`; KuraDB writes endpoint URL to `~/.config/kuradb/endpoint`
-4. Healthcheck goroutine starts; 3 consecutive failures → write `kuradb_enabled=false` + remove endpoint file + **explicit** `reloadKuradb()` call (not via fsnotify async, to avoid 200ms race window)
-
-### Crash recovery
-
-`RunChild` wraps the child in a 5-second backoff loop. Stdout/stderr are piped through `bufio.Scanner` into `slog` so KuraDB errors land in `daemon.log` instead of being dropped.
+On config change (fsnotify on `~/.config/agenvoy/config.json`), if `kuradb_enabled=true` and `kuradb.IsInstalled()` and an `OPENAI_API_KEY` is in Agenvoy's keychain: sync the key into KuraDB's keychain entry and start a `Health` goroutine. Any gate failure is a silent no-op — no logging, no auto-disable, no config write. 3 consecutive health strikes → `disableKuradb()`: write `kuradb_enabled=false`, remove the endpoint file, call `reloadKuradb()` again (explicit, not via the fsnotify watcher, to avoid a race window).
 
 ## Tool registration
 
-The two RAG tools live in `internal/runtime/kuradb/tool/` and register at all three entry points (`cmd/app/{main,cmdDeamon,newTUI}.go`) via explicit `kuradbTool.Register()` calls (not `init()` — `init()` fires before `filesystem.Init()`, gate check would always fail).
+The two RAG tools live in `internal/runtime/kuradb/tool/` and register once at daemon boot (`cmd/app/cmdDeamon.go::kuradbTool.Register()`, not `init()` — `init()` fires before `filesystem.Init()`, so the gate check would always fail).
 
 | Tool | Description |
 |---|---|
 | `list_rag` | List available KuraDB databases (e.g. `notes`, `inbox`, `code`) |
-| `search_rag` | Search a database by keyword (`mode=keyword`, `gse` tokenization) or semantic (`mode=semantic`, OpenAI embeddings) |
+| `search_rag` | Search a database via KuraDB's unified `/api/search` — keyword (`gse` tokenization) and semantic (OpenAI embeddings) run together by default; `?target=keyword`/`?target=semantic` narrows to a single mode |
 
-Tool gate is single-condition `cfg.KuradbEnabled` — the per-handler `ReadEndpoint()` call is the second-line defense if the endpoint disappears mid-turn.
+Registration gate is single-condition `cfg.KuradbEnabled`, checked once at boot — re-enabling after the binary becomes available requires restarting `agen`. `kuradbGet()` (the shared HTTP helper in `tool/register.go`) is the per-call second-line defense: it resolves the endpoint file fresh on every call and returns a clear error if KuraDB isn't running.
 
 ## Per-turn dynamic exclusion
 
-`exec.Execute()` checks `kuradb.EndpointExists()` after `NewExecutor`. When false, the two RAG tools are appended to `data.ExcludeTools`, and the existing filter mechanism strips them from `exec.Tools` for that turn.
+`exec.Execute()` checks whether `~/.config/kuradb/endpoint` exists (`go_pkg_filesystem_reader.Exists`) after building the executor. When absent, `list_rag` and `search_rag` are appended to `data.ExcludeTools`, and the existing filter mechanism strips them from the tool list for that turn.
 
-The result: the LLM **never sees** `list_rag` / `search_rag` tools when the endpoint is down — not even the stub names. The conditional "when `list_rag` / `search_rag` tools are present" guidance in the system prompt then naturally inactivates.
+The result: the LLM **never sees** `list_rag` / `search_rag` when the endpoint file is gone — not even the stub names.
 
-**Why this matters:** without dynamic exclusion, the LLM would see RAG tool stubs at startup race (before KuraDB child spawns), call them, and get errors — confusing both LLM and user.
+**Why this matters:** without dynamic exclusion, the LLM would see RAG tool stubs whenever KuraDB is stopped, call them, and get errors — confusing both LLM and user.
 
 ## `/feature kuradb` TUI wizard
 
-Enable / disable is exposed only through the TUI (no CLI subcommand by design — install.sh + sudo prompts need a real TTY):
+Exposed only through the TUI (no CLI subcommand by design — install.sh + sudo prompts need a real TTY). The option list reflects current state:
 
 ```
-/feature kuradb   → popup: enable | disable
+/feature kuradb
+  not installed → enable
+  installed     → update, disable, and start (if stopped) or stop (if running)
 ```
 
-### Enable flow
+The popup header shows `kura <version>  ● running (<endpoint>)` or `○ stopped`.
 
-1. Wizard checks `HasOpenAIKey()`; if missing, opens a `popupText` to collect the key → `keychain.Set("OPENAI_API_KEY", value)` (service: `agenvoy`)
-2. `tea.ExecProcess` runs the install script:
-   ```
-   curl -fsSL https://agenvoy.com/scripts/kuradb/install.sh | bash
-   ```
-   The TTY is handed to the child so `sudo` prompts and package manager output work
-3. Verifies `kura` binary at `/usr/local/bin/kura`; writes `kuradb_enabled=true` to config.json
-4. Daemon picks up via fsnotify → `reloadKuradb()` spawns the child → endpoint file appears → tools become callable
+### Enable / update flow
+
+1. If `OPENAI_API_KEY` isn't in Agenvoy's keychain yet, a `popupText` collects it → `keychain.Set` (Agenvoy's own keychain) + `kuradb.SyncOpenAIKey` (KuraDB's separate keychain entry)
+2. `tea.ExecProcess` runs `curl -fsSL https://kuradb.agenvoy.com/scripts/install.sh | bash` with the TTY handed to the child so `sudo` prompts and package manager output work, then `kura add agenvoy`
+3. Verifies the `kura` binary landed at `/usr/local/bin/kura`; writes `kuradb_enabled=true` to config.json
+
+### Start / stop flow
+
+`start` runs bare `kura` (which forks into the background itself and returns once ready); `stop` runs `kura stop` (SIGTERM, falls back to SIGKILL after a grace window). Neither touches `kuradb_enabled` — they only affect whether the already-configured daemon is up.
 
 ### Disable flow
 
-1. `tea.ExecProcess` runs `sudo rm /usr/local/bin/kura`
-2. Writes `kuradb_enabled=false` to config.json
-3. Daemon `reloadKuradb()` signals the running child to shut down
+`tea.ExecProcess` runs `sudo rm -f /usr/local/bin/kura`, then writes `kuradb_enabled=false` to config.json.
 
-## RAG-first prompting
+## RAG + live-web pairing
 
-When `list_rag` / `search_rag` tools are loaded, the base system prompt requires that **the first wave of tool calls for any information query** be `list_rag` + `search_rag` — external web/search tools are **secondary** (used to fill gaps), not fallback or substitute.
-
-This is enforced in `configs/prompts/system_prompt.md`; the rule self-deactivates when KuraDB is off (because `list_rag` / `search_rag` won't be in the tool list).
+`configs/prompts/system_prompt.md` requires that any non-smalltalk information query ground in **both** `search_rag` (when available) and a live-web lookup (`search_web` / `search_google_news`) — RAG is baseline context, live web is mandatory whenever the answer depends on real-world entities or recency. Neither is a fallback for the other; skip both only for smalltalk or pure local-project operations.
 
 ## Files & paths
 
 | Path | Purpose |
 |---|---|
 | `/usr/local/bin/kura` | KuraDB binary (installed by `install.sh`) |
-| `~/.config/kuradb/endpoint` | Plaintext URL, written by KuraDB on startup, removed on disable |
+| `~/.config/kuradb/endpoint` | Plaintext URL, written by KuraDB on startup, removed by Agenvoy once health-checks fail |
+| `~/.config/kuradb/runtime.uid` | JSON `{uid, pid, started_at}`, read by Agenvoy's `IsRunning()` |
 | `~/.config/kuradb/` | KuraDB-side config / data dir (managed by KuraDB itself) |
-| Keychain `agenvoy/OPENAI_API_KEY` | Shared with Agenvoy's other OpenAI-using features |
+| Keychain `agenvoy/OPENAI_API_KEY` | Agenvoy's own copy, entered via the `/feature kuradb` wizard |
+| Keychain `kuradb/OPENAI_API_KEY` | KuraDB's own copy, kept in sync by `SyncOpenAIKey` since `kura` is a separate process |
+
+Agenvoy's own updater (`static/scripts/update.sh`) also updates `kura` when it's already installed, right before it finishes.
 
 ***
 

@@ -2,6 +2,7 @@ package kuradb
 
 import (
 	"context"
+	"debug/buildinfo"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,7 +11,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
+
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
@@ -22,6 +27,12 @@ const (
 	healthRequestTime = 5 * time.Second
 	healthMaxStrikes  = 3
 )
+
+type Runtime struct {
+	UID       string `json:"uid"`
+	PID       int    `json:"pid"`
+	StartedAt string `json:"started_at"`
+}
 
 func Remove() error {
 	if err := os.Remove(filesystem.KuradbEndpointPath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -106,6 +117,10 @@ func Health(ctx context.Context, onFail func()) {
 }
 
 func probeHealth(ctx context.Context) error {
+	if !IsRunning() {
+		return fmt.Errorf("runtime.uid: process not alive")
+	}
+
 	base, err := filesystem.GetKuradbEndpoint()
 	if err != nil {
 		return fmt.Errorf("filesystem.GetKuradbEndpoint: %w", err)
@@ -127,4 +142,34 @@ func probeHealth(ctx context.Context) error {
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func Version() (string, error) {
+	info, err := buildinfo.ReadFile(BinaryPath)
+	if err != nil {
+		return "", fmt.Errorf("buildinfo.ReadFile: %w", err)
+	}
+	return info.Main.Version, nil
+}
+
+func IsRunning() bool {
+	if !go_pkg_filesystem_reader.Exists(filesystem.KuradbDir) {
+		return false
+	}
+	r, err := go_pkg_filesystem.ReadJSON[Runtime](filesystem.KuradbUIDPath)
+	if err != nil {
+		return false
+	}
+	return isAlive(r.PID)
+}
+
+func isAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	return proc.Signal(syscall.Signal(0)) == nil
 }

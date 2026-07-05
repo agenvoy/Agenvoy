@@ -914,6 +914,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				tea.Println(hintStyle.Render("⎯ kuradb updating")+"\n"),
 				runKuradbUpdateExec(),
 			)
+		case "start":
+			return t, tea.Sequence(
+				tea.Println(hintStyle.Render("⎯ kuradb starting")+"\n"),
+				startKuradb(),
+			)
+		case "stop":
+			return t, tea.Sequence(
+				tea.Println(hintStyle.Render("⎯ kuradb stopping")+"\n"),
+				stopKuradb(),
+			)
 		}
 		return t, nil
 
@@ -992,6 +1002,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case KuradbDone:
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb %s: %v", msg.action, msg.err)) + "\n")
+		}
+		switch msg.action {
+		case "start":
+			return t, tea.Println(hintStyle.Render("⎯ kuradb started") + "\n")
+		case "stop":
+			return t, tea.Println(hintStyle.Render("⎯ kuradb stopped") + "\n")
 		}
 		hint := fmt.Sprintf("⎯ kuradb %sd · daemon reloading", msg.action)
 		if msg.action == "enable" {
