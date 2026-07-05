@@ -40,7 +40,7 @@ agen session new my-assistant
 make app
 ```
 
-TUI 啟動後，按 **`i`** 開啟 Message 輸入並以 **Enter** 送出（在會轉發 modifier 的終端機上，`Shift+Enter` 可插入換行）。按 **`c`** 開啟 Command（`$`）輸入。**`Tab`** 於主畫面中切換 Content 與 Logs；**`Ctrl+P`** 開啟 co-work dashboard（Sessions / Log / Pending 三面板）。
+TUI 啟動後輸入框始終保持 focus——直接輸入訊息，按 **Enter** 送出（**Alt+Enter** 插入換行）。輸入 **`/`** 開啟模糊比對的指令面板（比對指令名稱或說明）；**Tab**/**Enter** 確認選中項，**Esc** 關閉面板。**Shift+Tab** 切換工具呼叫的自動核准。輸入框為空時，**Shift+W**/**Shift+S** 可切換 dispatcher model，**Shift+A**/**Shift+D** 可切換 reasoning level。
 
 一次性 CLI 用法：
 
