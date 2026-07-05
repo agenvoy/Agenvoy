@@ -160,7 +160,6 @@ func reloadKuradb() {
 	ctx, cancel := context.WithCancel(context.Background())
 	kuradbCancel = cancel
 
-	go kuradb.Run(ctx, disableKuradb)
 	go kuradb.Health(ctx, disableKuradb)
 }
 

@@ -80,7 +80,7 @@ External-document RAG via the KuraDB child process. Tools are **per-turn dynamic
 | Tool | Description |
 |---|---|
 | `list_rag` | List available KuraDB databases (e.g. `notes`, `inbox`, `code`) |
-| `search_rag` | Search a database by keyword (`mode=keyword`, `gse` tokenization, Chinese-aware) or semantic (`mode=semantic`, OpenAI `text-embedding-3-small`) |
+| `search_rag` | Search a database via KuraDB's unified `/api/search` (keyword `gse` tokenization, Chinese-aware + semantic OpenAI `text-embedding-3-small` together by default); `?target=keyword`/`?target=semantic` narrows to one |
 
 When `list_rag` / `search_rag` tools are loaded, the system prompt forces the **first wave** of tool calls for any information query to be `list_rag` + `search_rag`. External web/search tools become secondary (gap-filling), not fallback or substitute.
 

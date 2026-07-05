@@ -44,7 +44,7 @@ The two RAG tools live in `internal/runtime/kuradb/tool/` and register at all th
 | Tool | Description |
 |---|---|
 | `list_rag` | List available KuraDB databases (e.g. `notes`, `inbox`, `code`) |
-| `search_rag` | Search a database by keyword (`mode=keyword`, `gse` tokenization) or semantic (`mode=semantic`, OpenAI embeddings) |
+| `search_rag` | Search a database via KuraDB's unified `/api/search` (keyword `gse` tokenization + semantic OpenAI embeddings run together by default); `?target=keyword`/`?target=semantic` narrows to a single mode |
 
 Tool gate is single-condition `cfg.KuradbEnabled` — the per-handler `ReadEndpoint()` call is the second-line defense if the endpoint disappears mid-turn.
 

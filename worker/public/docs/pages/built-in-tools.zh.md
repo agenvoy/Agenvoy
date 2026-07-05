@@ -80,7 +80,7 @@
 | 工具 | 說明 |
 |---|---|
 | `list_rag` | 列出可用的 KuraDB 資料庫（例如 `notes`、`inbox`、`code`） |
-| `search_rag` | 依關鍵字（`mode=keyword`、`gse` 斷詞、支援中文）或語意（`mode=semantic`、OpenAI `text-embedding-3-small`）搜尋資料庫 |
+| `search_rag` | 透過 KuraDB 統一的 `/api/search` 搜尋資料庫（預設關鍵字 `gse` 斷詞、支援中文 + 語意 OpenAI `text-embedding-3-small` 同時執行）；帶 `?target=keyword`/`?target=semantic` 可收斂成單一模式 |
 
 當 `list_rag` / `search_rag` 工具載入後，system prompt 會強制任何資訊查詢的**第一波**工具呼叫為 `list_rag` + `search_rag`。外部 web/search 工具退為次要（補缺口），而非 fallback 或替代。
 

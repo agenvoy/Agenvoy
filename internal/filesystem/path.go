@@ -50,6 +50,7 @@ var (
 	PromptsDir              string
 	KuradbDir               string
 	KuradbEndpointPath      string
+	KuradbUIDPath           string
 
 	WorkAgenvoyDir     string
 	WorkAPIToolsDir    string
@@ -121,6 +122,7 @@ func Init() error {
 
 		KuradbDir = filepath.Join(homeDir, ".config", "kuradb")
 		KuradbEndpointPath = filepath.Join(KuradbDir, "endpoint")
+		KuradbUIDPath = filepath.Join(KuradbDir, "runtime.uid")
 
 		WorkAgenvoyDir = filepath.Join(workDir, ".config", projectName)
 		WorkAPIToolsDir = filepath.Join(WorkAgenvoyDir, "tools", "api")
