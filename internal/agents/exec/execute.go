@@ -358,8 +358,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	alreadyCall := make(map[string]string)
 	turnAllowAll := false
 	emptyCount := 0
-	trimmedToolCalls := false
-	compactedToolCalls := false
 	compactFailed := false
 	lastInputTokens := 0
 	var shownReasoning []string
@@ -368,14 +366,23 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		err  error
 	}
 	sendFailCount := 0
+	oldHistoriesCompacted := extractOldHistories(ctx, data.Agent, session, &usage, events)
 	for range limit {
 		if ctx.Err() != nil {
 			keepPending = false
 			return ctx.Err()
 		}
 		if !compactFailed && lastInputTokens >= execCompactTokenThreshold {
-			if compactExec(ctx, data.Agent, session, &usage, exec.PendingTask) {
-				compactedToolCalls = true
+			compacted := false
+			if !oldHistoriesCompacted {
+				compacted = extractOldHistories(ctx, data.Agent, session, &usage, events)
+				oldHistoriesCompacted = true
+			}
+			if !compacted {
+				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+				compacted = compactExec(ctx, data.Agent, session, &usage, exec.PendingTask)
+			}
+			if compacted {
 				lastInputTokens = 0
 			} else {
 				compactFailed = true
@@ -444,12 +451,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		watchdog.Stop()
 		if switched {
 			cancelSend()
-			session.ToolHistories = nil
+			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+			if !rawToolDumpFallback(session, exec.PendingTask) {
+				session.ToolHistories = nil
+			}
 			alreadyCall = make(map[string]string)
 			sendFailCount = 0
 			emptyCount = 0
-			trimmedToolCalls = false
-			compactedToolCalls = false
 			compactFailed = false
 			lastInputTokens = 0
 			continue
@@ -489,7 +497,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
-				trimmedToolCalls = trimmedToolCalls || trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
+				trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
 				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
 					slog.String("session", session.ID),
 					slog.Int("attempts", sendFailCount))
@@ -512,12 +520,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					Model: nextName,
 				}
 				data.Agent = next
-				session.ToolHistories = nil
+				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+				if !rawToolDumpFallback(session, exec.PendingTask) {
+					session.ToolHistories = nil
+				}
 				alreadyCall = make(map[string]string)
 				sendFailCount = 0
 				emptyCount = 0
-				trimmedToolCalls = false
-				compactedToolCalls = false
 				compactFailed = false
 				lastInputTokens = 0
 				continue
@@ -649,12 +658,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 			responseText := stripped
-			if trimmedToolCalls {
-				responseText += "\n\n> 因超過模型 max input，部分工具查詢資料已被裁減，建議使用更大 context window 的模型再試一次。"
-			}
-			if compactedToolCalls {
-				responseText += "\n\n> 已自動整合壓縮工具查詢資料以維持回應品質。"
-			}
 			sendText(events, responseText)
 
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)

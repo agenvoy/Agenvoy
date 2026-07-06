@@ -95,7 +95,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		UserInput:     agentTypes.Message{Role: "user", Content: userText},
 	}
 	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = agentTypes.Message{Role: "assistant", Content: summary}
+		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
 	}
 
 	SaveUserInputHistory(ctx, sessionID, userText)
@@ -203,6 +203,11 @@ func ensureSubagentSession(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		if idle := sessionManager.FindIdleTemp(); idle != "" {
+			if _, err := sessionManager.Reset(idle); err != nil {
+				slog.Warn("ensureSubagentSession Reset",
+					slog.String("session", idle),
+					slog.String("error", err.Error()))
+			}
 			return idle, nil
 		}
 		id, err := sessionManager.New("temp-")
