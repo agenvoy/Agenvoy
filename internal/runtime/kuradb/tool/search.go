@@ -20,14 +20,14 @@ func registSearchRag() {
 		AlwaysLoad:  true,
 		Concurrent:  true,
 		Timeout:     15 * time.Second,
-		Description: "[system-default] Search RAG knowledge base by keyword or semantic mode. Use mode=keyword for precise strings (filenames, terms, names, symbols); use mode=semantic for natural-language queries. If results are sufficient, answer directly without external tools.",
+		Description: "[system-default] Search RAG knowledge base (keyword + semantic by default). mode=keyword for exact strings; mode=semantic for natural-language queries. Answer directly if results suffice.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"keyword", "semantic"},
-					"description": "Search mode: 'keyword' for exact token match, 'semantic' for embedding similarity.",
+					"description": "Narrow to a single search mode. Omit to run both keyword and semantic search together.",
 				},
 				"db": map[string]any{
 					"type":        "string",
@@ -44,7 +44,7 @@ func registSearchRag() {
 					"default":     10,
 				},
 			},
-			"required": []string{"mode", "db", "q"},
+			"required": []string{"db", "q"},
 		},
 		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
@@ -69,12 +69,9 @@ func registSearchRag() {
 				limit = 10
 			}
 
-			var apiPath string
-			switch strings.ToLower(strings.TrimSpace(params.Mode)) {
-			case "keyword":
-				apiPath = "/api/keyword"
-			case "semantic":
-				apiPath = "/api/semantic"
+			target := strings.ToLower(strings.TrimSpace(params.Mode))
+			switch target {
+			case "", "keyword", "semantic":
 			default:
 				return "", fmt.Errorf("mode must be 'keyword' or 'semantic' (got %q)", params.Mode)
 			}
@@ -83,7 +80,10 @@ func registSearchRag() {
 			query.Set("db", db)
 			query.Set("q", q)
 			query.Set("limit", strconv.Itoa(limit))
-			return kuradbGet(ctx, apiPath, query)
+			if target == "keyword" || target == "semantic" {
+				query.Set("target", target)
+			}
+			return kuradbGet(ctx, "/api/search", query)
 		},
 	})
 }

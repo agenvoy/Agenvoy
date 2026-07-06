@@ -24,6 +24,13 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp("assistant", flatten(str))
 
+	case agentTypes.EventReasoning:
+		str := strings.TrimSpace(event.Text)
+		if str == "" {
+			return ""
+		}
+		return withTimestamp("thinking", flatten(str))
+
 	case agentTypes.EventToolCall:
 		body := event.ToolName
 		if display := utils.FormatToolEvent(event.ToolName, event.ToolArgs); display != "" {

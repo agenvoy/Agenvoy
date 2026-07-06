@@ -8,11 +8,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-const kuradbInstallURL = "https://agenvoy.com/scripts/kuradb/install.sh"
+const kuradbInstallURL = "https://kuradb.agenvoy.com/scripts/install.sh"
 
 type KuradbAction struct {
 	action string
@@ -30,33 +31,55 @@ type KuradbDone struct {
 func (t TUI) commandKuradb(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
 		switch parts[1] {
-		case "enable", "disable", "update":
+		case "enable", "disable", "update", "start", "stop":
 			action := parts[1]
 			return t, func() tea.Msg { return KuradbAction{action: action} }, true
 		}
 	}
 
-	enabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		enabled = cfg.KuradbEnabled
-	}
-	options := []string{"enable", "disable"}
-	cursor := 0
-	if enabled {
-		options = append(options, "update")
-		cursor = 1
+	installed := kuradb.IsInstalled()
+
+	var options []string
+	if !installed {
+		options = []string{"enable"}
+	} else {
+		options = []string{"update", "disable"}
+		if kuradb.IsRunning() {
+			options = append(options, "stop")
+		} else {
+			options = append(options, "start")
+		}
 	}
 	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "KuraDB",
-		options: options,
-		values:  options,
-		cursor:  cursor,
+		kind:        popupSingleSelect,
+		title:       "KuraDB",
+		styledLines: kuradbStatus(installed),
+		options:     options,
+		values:      options,
 		onConfirm: func(chosen string) any {
 			return KuradbAction{action: chosen}
 		},
 	}
 	return t, nil, true
+}
+
+func kuradbStatus(installed bool) []string {
+	if !installed {
+		return nil
+	}
+	version := "unknown"
+	if v, err := kuradb.Version(); err == nil && v != "" {
+		version = v
+	}
+	prefix := hintStyle.Render(fmt.Sprintf("  kura %s  ", version))
+	if kuradb.IsRunning() {
+		status := "● running"
+		if endpoint, err := filesystem.GetKuradbEndpoint(); err == nil && endpoint != "" {
+			status += " (" + endpoint + ")"
+		}
+		return []string{prefix + okayStyle.Render(status)}
+	}
+	return []string{prefix + errorStyle.Render("○ stopped")}
 }
 
 func (t TUI) openKuradbKeyPrompt() (TUI, tea.Cmd) {
@@ -137,6 +160,28 @@ kura add agenvoy 2>/dev/null || true
 			return KuradbDone{action: "update", err: fmt.Errorf("session.Save: %w", err)}
 		}
 		return KuradbDone{action: "update"}
+	})
+}
+
+func startKuradb() tea.Cmd {
+	cmd := exec.Command(kuradb.BinaryPath)
+	cmd.Env = os.Environ()
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		if err != nil {
+			return KuradbDone{action: "start", err: fmt.Errorf("kura: %w", err)}
+		}
+		return KuradbDone{action: "start"}
+	})
+}
+
+func stopKuradb() tea.Cmd {
+	cmd := exec.Command(kuradb.BinaryPath, "stop")
+	cmd.Env = os.Environ()
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		if err != nil {
+			return KuradbDone{action: "stop", err: fmt.Errorf("kura stop: %w", err)}
+		}
+		return KuradbDone{action: "stop"}
 	})
 }
 

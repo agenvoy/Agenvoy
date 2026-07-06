@@ -25,7 +25,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/agenvoy/internal/tools/agent/plan"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
@@ -86,7 +85,6 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 		provider.SetReasoningLevel(cfg.ReasoningLevel)
 	}
 	subagent.Register()
-	plan.Register()
 
 	mcpManager := initMCP(context.Background(), "")
 	defer mcpManager.Close()

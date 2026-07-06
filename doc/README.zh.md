@@ -5,13 +5,12 @@
 </p>
 
 <p align="center">
-  <strong>跑在你電腦上的個人 AI Agent</strong>
+  <strong>可自行建立、測試並重用工具的本機 AI Agent</strong>
 </p>
 
 <p align="center">
-  一句話建工具，自動測試，直接呼叫。<br>
-  讓你現有的 Agent 也能自己造工具。<br>
-  你說一句話，剩下 Agent 幫你完成。
+  Agenvoy 跑在你的電腦上，能處理多步驟工作、搜尋本機檔案、排程重複任務，<br>
+  並透過 MCP 把工具庫提供給其他 Agent 使用。
 </p>
 
 <p align="center">
@@ -24,43 +23,40 @@
   <a href="../README.md">English</a> · <strong>繁體中文</strong>
 </p>
 
-## 一鍵安裝
+## 為什麼是 Agenvoy
 
-> MacBook 建議額外執行 `sudo pmset -c sleep 0`，避免休眠影響排程。
+- **缺工具時，不會停在原地，而是直接建立**
+- **同一套沙箱工具庫可在 Agenvoy、Claude Code、Codex 等 Agent 間共用**
+- **支援排程、記憶與檔案搜尋，可執行本機工作流**
+- **既可當 Agent 應用，也可作為 MCP server**
 
-```bash
-curl -fsSL https://agenvoy.com/scripts/install.sh | bash
-```
-
-***
-
-## 你可以這樣用它
+## 你可以用它做什麼
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 查資料
+### 問即時問題，拿到即時答案
 
-> 台北天氣如何？
-> 
-> Agent 找資料、呼叫工具、整理結果後回答你。
-> 
-> 如果沒有工具，它會自己建立。
+> 台北現在天氣如何？
+>
+> Agent 會找即時資料、呼叫工具，再整理成答案回覆你。
+>
+> 如果缺工具，它會自己建立。
 
 </td>
 <td width="50%" valign="top">
 
-### 建立自動化
+### 一句話變成自動化流程
 
-> 每天早上 8 點報台積電股價
+> 每天早上 8 點回報台積電股價
 >
 > Agent 會確認：
 > - 要推送到哪裡
-> - 要什麼格式
-> - 什麼時間執行
-> 
-> 確認後自動建立排程。
+> - 你想要什麼格式
+> - 何時執行
+>
+> 然後自動建立排程。
 
 </td>
 </tr>
@@ -79,22 +75,22 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 <tr>
 <td width="50%" valign="top">
 
-### 搜尋你的文件
+### 直接詢問你的本機檔案
 
-> 找出去年所有報價單
+> 找出去年所有發票
 >
-> 哪份文件提到 Prompt 指南？
+> 哪份文件提到 Prompt guide？
 >
-> Agent 直接從你的文件搜尋答案。
+> Agent 會搜尋你的本機檔案並直接回答。
 
 </td>
 <td width="50%" valign="top">
 
-### 完成長流程工作
+### 完成多步驟工作
 
-> 幫我整理今天 GitHub Commit 並產生進度摘要
+> 幫我整理今天的 GitHub commits，並生成進度報告
 >
-> Agent 可以拆解任務、呼叫工具、整合結果，再回覆給你。
+> Agent 會拆解任務、呼叫工具、整合結果，再回覆給你。
 
 </td>
 </tr>
@@ -112,17 +108,17 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 </tr>
 </table>
 
-### 讓你正在用的 AI Agent 擁有自建工具的能力
+### 能跟你已經在用的 Agent 一起工作
 
-> Agenvoy 同時是 MCP server。
-> 
-> Claude Code、Codex、OpenCode 等 AI Agent 直接連上，就能：
+> Agenvoy 也是一個 MCP server。
+>
+> Claude Code、Codex、OpenCode 與其他 AI Agent 連上後，可以：
 > - 使用你所有的沙箱工具
-> - 找不到工具時自動建立新的
-> - 建好的工具所有 Agent 共用
-> 
-> 一行設定，工具庫即時共享。
-> 影片中建立的範例：[`fetch_weather`](demo/fetch_weather/)、[`fetch_crypto_price`](demo/fetch_crypto_price/)
+> - 在缺工具時自動建立新工具
+> - 讓所有 Agent 共用同一套工具
+>
+> 一行設定，即時共享工具庫。
+> 影片中建立的工具：[`fetch_weather`](demo/fetch_weather/) · [`fetch_crypto_price`](demo/fetch_crypto_price/)
 
 <table>
 <tr>
@@ -133,7 +129,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 </td>
 <td width="33%" valign="top">
 
-#### Codex 複用天氣工具，再建加密貨幣工具 (2)
+#### Codex 重用它並建立加密貨幣工具 (2)
 
 </td>
 <td width="33%" valign="top">
@@ -161,6 +157,14 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 </tr>
 </table>
 
+## 適合誰使用
+
+Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI 工作流：
+
+- 想要在本機執行、同時保有安全邊界的人
+- 想在多個 Agent 間重用工具的團隊
+- 需要把自動化、檔案搜尋與定期報告整合在一起的使用者
+
 ***
 
 ## 核心能力
@@ -170,27 +174,54 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 | 自動工具生成 | 缺工具時自行建立並保存 |
 | 自我排程 | 一句話建立定時任務 |
 | 長期記憶 | 保留重要資訊與上下文 |
-| 文件搜尋 | 從本機文件回答問題 |
+| 檔案搜尋 | 從本機檔案回答問題 |
 | Sub-Agent | 多 Agent 協作 |
 | MCP client | 連接外部 MCP 服務 |
-| MCP server | 讓任何 AI Agent 使用你的沙箱工具 |
+| MCP server | 讓任何 MCP 相容 Agent 使用你的沙箱工具 |
 | Tool Market | 分享與安裝工具 |
 | 語音轉錄 | 音訊與影片轉文字 |
 | 自我改進 | 執行失敗後自動修正 |
 
 ***
 
-## 跟其他工具比
+## Web 儀表板
+
+當你的機器上已啟動 daemon，直接在瀏覽器開啟 **[web.agenvoy.com](https://web.agenvoy.com)** 即可連上儀表板。
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">
+    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web 儀表板示範" width="640">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/n8tHHSCwOjE">▶ 觀看 Web 儀表板操作影片</a>
+</p>
+
+## 一鍵安裝
+
+> MacBook 建議額外執行 `sudo pmset -c sleep 0`，避免休眠中斷排程。
+
+```bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+```
+
+***
+
+## 與其他工具相比
 
 | | **Agenvoy** | OpenClaw | Hermes-agent |
 |---|---|---|---|
-| 安裝方式 | 一行指令，單一檔案 | pnpm monorepo | pip + docker |
-| 多模型同時用 | 自動選 | 手動切 | 手動切 |
-| 對話 UI | 按鈕／選單／modal | 純文字 | 純文字 |
-| 自己生成工具 | ✅ | ❌ | ⚠️ 僅 skill |
+| 安裝方式 | 一行指令，單一 binary | pnpm monorepo | pip + docker |
+| 多模型 | 自動選擇 | 手動切換 | 手動切換 |
+| 對話 UI | 按鈕 / 選單 / modal | 純文字 | 純文字 |
+| 會自行建立缺失工具 | ✅ | ❌ | ⚠️ 僅 skill |
+| 可跨 Agent 共用工具 | ✅ | ❌ | ❌ |
+| 可作為 MCP server | ✅ | ❌ | ❌ |
 | 聊天驗證 | 6 碼驗證碼 | 人工核准 | 人工核准 |
 | 跨 session 推送 | ✅ | ❌ | ⚠️ 有限 |
-| 文件搜尋 | 語意＋關鍵字 | 僅對話記憶 | 僅對話記憶 |
+| 檔案搜尋 | 語意 + 關鍵字 | 僅聊天記憶 | 僅聊天記憶 |
+| 本機排程工作流 | ✅ | ❌ | ⚠️ 有限 |
 
 ***
 
@@ -241,7 +272,3 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 </a>
 
 曲線往上走，就是我們想要的訊號。按 ★ 推一把。
-
-***
-
-©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)

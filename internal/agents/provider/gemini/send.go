@@ -290,10 +290,15 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 	candidate := resp.Candidates[0]
 	var toolCalls []agentTypes.ToolCall
 	var textContent string
+	var reasoning strings.Builder
 
 	for _, part := range candidate.Content.Parts {
 		if part.Text != "" {
-			textContent = part.Text
+			if part.Thought {
+				reasoning.WriteString(part.Text)
+			} else {
+				textContent = part.Text
+			}
 		} else if part.FunctionCall != nil {
 			args := "{}"
 			if part.FunctionCall.Args != nil {
@@ -316,9 +321,10 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 	}
 
 	output.Choices[0].Message = agentTypes.Message{
-		Role:      "assistant",
-		Content:   textContent,
-		ToolCalls: toolCalls,
+		Role:             "assistant",
+		Content:          textContent,
+		ReasoningContent: reasoning.String(),
+		ToolCalls:        toolCalls,
 	}
 	output.Choices[0].FinishReason = candidate.FinishReason
 

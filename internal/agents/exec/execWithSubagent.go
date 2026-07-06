@@ -58,7 +58,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 			return "", fmt.Errorf("cwd and home both failed")
 		}
 	}
-	subagentExcludeBase := []string{"invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}
+	subagentExcludeBase := []string{"invoke_subagent", "list_subagent_sessions", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
 	execData := ExecData{
 		Agent:             agent,
@@ -187,7 +187,8 @@ func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentType
 		agentTypes.EventToolCallStart,
 		agentTypes.EventToolCallEnd,
 		agentTypes.EventToolCallText,
-		agentTypes.EventSkillResult:
+		agentTypes.EventSkillResult,
+		agentTypes.EventTodoUpdate:
 		return
 	}
 

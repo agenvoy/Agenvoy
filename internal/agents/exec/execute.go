@@ -45,7 +45,30 @@ var (
 	timestampHeaderRegex   = regexp.MustCompile(`(?m)^-{3,}\n.*\n-{3,}\n`)
 	summaryBlockRegex      = regexp.MustCompile(`(?s)<summary>\s*[\s\S]*?\s*</summary>|\[summary\]\s*[\s\S]*?\s*\[/summary\]`)
 	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
+	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
+	thinkOpenRegex         = regexp.MustCompile(`(?i)<think>`)
 )
+
+func splitThinkTag(s string) (think, rest string) {
+	var parts []string
+	for _, m := range thinkTagRegex.FindAllStringSubmatch(s, -1) {
+		if t := strings.TrimSpace(m[1]); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	rest = thinkTagRegex.ReplaceAllString(s, "")
+	if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
+		if t := strings.TrimSpace(rest[loc[1]:]); t != "" {
+			parts = append(parts, t)
+		}
+		rest = rest[:loc[0]]
+	}
+	rest = strings.TrimSpace(rest)
+	if len(parts) == 0 {
+		return "", rest
+	}
+	return strings.Join(parts, "\n"), rest
+}
 
 func isGuardrailRefusal(content string) bool {
 	return strings.Contains(content, guardrailSentinel)
@@ -117,6 +140,7 @@ type ExecData struct {
 	ExtraSystemPrompt string
 	AllowAll          bool
 	PendingTask       string
+	ReplyMessageID    string
 }
 
 type (
@@ -273,7 +297,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID)
 		}
 		defer func() {
 			if !keepPending {
@@ -327,7 +351,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
-	limit := filesystem.MaxSkillIterations
+	limit := filesystem.MaxToolIterations
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)
@@ -342,6 +366,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	compactedToolCalls := false
 	compactFailed := false
 	lastInputTokens := 0
+	var shownReasoning []string
 	type sendOutcome struct {
 		resp *agentTypes.Output
 		err  error
@@ -353,14 +378,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return ctx.Err()
 		}
 		if !compactFailed && lastInputTokens >= execCompactTokenThreshold {
-			if compactExec(ctx, data.Agent, session, &usage) {
+			if compactExec(ctx, data.Agent, session, &usage, exec.PendingTask) {
 				compactedToolCalls = true
 				lastInputTokens = 0
 			} else {
 				compactFailed = true
 			}
 		}
-		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories)
+		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
 		sendStart := time.Now()
 		sendCtx, cancelSend := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
@@ -453,25 +478,25 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 			if isContextLengthError(err) {
-				sendFailCount++
-				trimmedToolCalls = trimmedToolCalls || trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
-				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
-					slog.String("session", session.ID),
-					slog.Int("attempts", sendFailCount))
-				if sendFailCount >= filesystem.MaxRetry {
-					slog.Error("data.Agent.Send exhausted",
+				if len(session.OldHistories) == 0 && len(session.ToolHistories) == 0 {
+					slog.Error("data.Agent.Send context length exceeded, nothing left to trim",
 						slog.String("session", session.ID),
 						slog.String("error", err.Error()),
 						slog.Int("attempts", sendFailCount))
-					sendText(events, fmt.Sprintf("upstream %s context exceeded after %d trim attempts. Start a new session or switch to a larger-context model.", modelName, sendFailCount))
+					sendText(events, fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName))
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
-					return fmt.Errorf("data.Agent.Send context exceeded after %d trims: %w", sendFailCount, err)
+					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
+				sendFailCount++
+				trimmedToolCalls = trimmedToolCalls || trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
+				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
+					slog.String("session", session.ID),
+					slog.Int("attempts", sendFailCount))
 				continue
 			}
 
@@ -529,15 +554,28 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
 
 		if len(resp.Choices) == 0 {
-			if actionError(&emptyCount, events) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
 		}
-		emptyCount = 0
 
 		choice := resp.Choices[0]
+		if choice.Message.ReasoningContent == "" {
+			if s, ok := choice.Message.Content.(string); ok {
+				if think, rest := splitThinkTag(s); think != "" {
+					choice.Message.ReasoningContent = think
+					choice.Message.Content = rest
+				}
+			}
+		}
+
+		emitReasoning(events, choice.Message.ReasoningContent, &shownReasoning)
+		choice.Message.ReasoningContent = ""
+
 		if len(choice.Message.ToolCalls) > 0 {
+			emptyCount = 0
 			toolsBefore := len(session.Tools)
 			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
@@ -589,7 +627,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		case string:
 			str := value
 			if str == "" {
-				if actionError(&emptyCount, events) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -597,7 +636,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 			stripped := StripModelResponse(str)
 			if stripped == "" {
-				if actionError(&emptyCount, events) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -633,7 +673,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			interactive.FinalizePending(session.ID, exec.PendingTask, responseText)
 
 		case nil:
-			if actionError(&emptyCount, events) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
@@ -653,7 +694,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return nil
 	}
 
-	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories)
+	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
 	summaryMessages := append(assembled, agentTypes.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
@@ -664,6 +705,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
@@ -686,14 +728,30 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
+	sendEmptyData(events, session.ID, data.Agent.Name(), &usage, executeStart)
+	keepPending = false
+	return nil
+}
+
+const maxEmptyRetry = 3
+
+func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) bool {
+	*emptyCount++
+	if *emptyCount >= maxEmptyRetry {
+		sendEmptyData(events, sessionID, model, usage, start)
+		return true
+	}
+	return false
+}
+
+func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) {
 	sendText(events, "no usable data, retry later, or using other tools.")
-	if err := record.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
+	if err := record.UpdateUsage(model, usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
 		slog.Warn("usageManager.Update",
-			slog.String("session", session.ID),
+			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
-	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
-	return nil
+	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
 }
 
 func extractToolName(content string) string {
@@ -707,16 +765,6 @@ func extractToolName(content string) string {
 	return content[1:end]
 }
 
-func actionError(emptyCount *int, events chan<- agentTypes.Event) bool {
-	*emptyCount++
-	if *emptyCount >= filesystem.MaxEmptyResponses {
-		sendText(events, "no usable data, retry later, or using other tools.")
-		events <- agentTypes.Event{Type: agentTypes.EventDone}
-		return true
-	}
-	return false
-}
-
 func sendText(events chan<- agentTypes.Event, str string) {
 	str = strings.TrimRight(str, "\n")
 	if str != "" {
@@ -725,6 +773,24 @@ func sendText(events chan<- agentTypes.Event, str string) {
 		}
 	}
 	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+}
+
+func emitReasoning(events chan<- agentTypes.Event, str string, shown *[]string) {
+	cur := normalizeReasoning(str)
+	if cur == "" {
+		return
+	}
+	for _, prev := range *shown {
+		if strings.Contains(prev, cur) {
+			return
+		}
+	}
+	events <- agentTypes.Event{Type: agentTypes.EventReasoning, Text: strings.TrimSpace(str)}
+	*shown = append(*shown, cur)
+}
+
+func normalizeReasoning(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {

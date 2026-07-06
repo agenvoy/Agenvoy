@@ -733,7 +733,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 }
 
 var remoteModelsProviders = map[string]struct {
-	endpoint   string
+	endpoint    string
 	keychainKey string
 }{
 	"codex":      {"https://agenvoy-codex.pardn.workers.dev/models", ""},

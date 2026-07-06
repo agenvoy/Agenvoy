@@ -31,6 +31,8 @@ var eventTypeByName = map[string]EventType{
 	"EventUserInput":       EventUserInput,
 	"EventDaemonLog":       EventDaemonLog,
 	"EventConnected":       EventConnected,
+	"EventReasoning":       EventReasoning,
+	"EventTodoUpdate":      EventTodoUpdate,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -65,6 +67,8 @@ const (
 	EventUserInput
 	EventDaemonLog
 	EventConnected
+	EventReasoning
+	EventTodoUpdate
 )
 
 func (e EventType) String() string {
@@ -107,6 +111,10 @@ func (e EventType) String() string {
 		return "EventDaemonLog"
 	case EventConnected:
 		return "EventConnected"
+	case EventReasoning:
+		return "EventReasoning"
+	case EventTodoUpdate:
+		return "EventTodoUpdate"
 	default:
 		return "EventUnknown"
 	}
@@ -123,6 +131,19 @@ type Event struct {
 	Model    string        `json:"model,omitempty"`
 	Usage    *Usage        `json:"usage,omitempty"`
 	Duration time.Duration `json:"duration,omitempty"`
+	Todos    []TodoItem    `json:"todos,omitempty"`
 	Err      error         `json:"-"`
 	ReplyCh  chan bool     `json:"-"`
 }
+
+type TodoItem struct {
+	Content    string `json:"content"`
+	Status     string `json:"status"`
+	ActiveForm string `json:"active_form,omitempty"`
+}
+
+const (
+	TodoPending    = "pending"
+	TodoInProgress = "in_progress"
+	TodoCompleted  = "completed"
+)

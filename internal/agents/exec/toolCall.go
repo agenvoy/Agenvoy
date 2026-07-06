@@ -467,6 +467,14 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		ID:     s.id,
 		Result: result,
 	})
+	if s.name == "write_todo" {
+		if todos := interactive.LoadTodos(exec.SessionID, exec.PendingTask); len(todos) > 0 {
+			events <- agentTypes.Event{
+				Type:  agentTypes.EventTodoUpdate,
+				Todos: todos,
+			}
+		}
+	}
 	events <- agentTypes.Event{
 		Type:     agentTypes.EventToolCallEnd,
 		ToolName: s.name,

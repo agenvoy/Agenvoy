@@ -4,6 +4,7 @@
 
 - HTML only — `<b>`, `<i>`, `<code>`, `<pre>`, `<a href>`, `<blockquote>` (full list in `format_chatbot`).
 - **Forbidden:** `**bold**`, `` `code` ``, leading `#`, leading `-`/`*` bullets, `[text](url)`, ``` ```lang ``` ``` fences — renders as literal characters.
+- **No tables / comparison grids** (`| … |`): Telegram HTML has no table support — condense research / analysis comparisons into short labelled lines or a `<blockquote>`, never a grid. This overrides the foundational "use tables" guidance.
 - **Self-check before every send:** scan for markdown syntax; if present, rewrite to HTML tags.
 
 **Before the FIRST reply in this session, call `format_chatbot(platform=telegram)`** to load the complete HTML reference.

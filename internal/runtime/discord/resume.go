@@ -122,11 +122,13 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	hasMedia := len(attachmentPaths) > 0
 	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, result.ExecErrors)
 
+	replyTo := interactive.LoadPendingMessageID(sessionID, taskHash)
 	for _, part := range chatbot.Chunk(chatbot.Discord, replyText) {
-		if _, err := b.client.Send(ctx, channelID, "", part); err != nil {
+		if _, err := b.client.Send(ctx, channelID, replyTo, part); err != nil {
 			slog.Warn("Send (resume)", slog.String("session", sessionID), slog.String("error", err.Error()))
 			break
 		}
+		replyTo = ""
 	}
 
 	if len(attachmentPaths) > 0 {

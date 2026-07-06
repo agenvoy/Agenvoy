@@ -49,6 +49,36 @@ func FindIdleTemp() string {
 	return ""
 }
 
+type NamedSession struct {
+	SessionID string
+	Name      string
+	Role      string
+}
+
+func ListNamedSessions() []NamedSession {
+	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
+	if err != nil {
+		return nil
+	}
+	var list []NamedSession
+	for _, dir := range dirs {
+		sid := dir.Name
+		if strings.HasPrefix(sid, "temp-") {
+			continue
+		}
+		name, body := configBot.Get(sid)
+		if name == "" {
+			continue
+		}
+		list = append(list, NamedSession{
+			SessionID: sid,
+			Name:      name,
+			Role:      strings.TrimSpace(body),
+		})
+	}
+	return list
+}
+
 func GetSessionID(name string) string {
 	if name == "" {
 		return ""

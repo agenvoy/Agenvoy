@@ -59,10 +59,6 @@ Request contains "no Chinese model", "不用中國模型", "排除中國", "excl
 Request begins with `[summary]` prefix → pure JSON output task, no dense system prompt.
 → Apply Pattern L directly.
 
-### P0.6: Planning task routing
-Request begins with `[plan]` prefix → text-only execution plan generation, no tool calls (toolDefs=nil).
-→ Apply Pattern H directly.
-
 ### P1: Task-type chain matching
 
 Identify which task scenario the request belongs to, then apply the corresponding pattern. Scan from left to right; return the first `name` in the available list that matches a node. Within a node, prefer the highest-version variant.

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -67,6 +68,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"instructions": instructions,
 		"store":        false,
 		"stream":       true,
+		"reasoning":    map[string]any{"effort": provider.GetReasoningLevel(), "summary": "auto"},
 	}
 	if key := promptCacheKey(instructions); key != "" {
 		body["prompt_cache_key"] = key
@@ -131,6 +133,10 @@ type sseEvent struct {
 		CallID    string `json:"call_id"`
 		Name      string `json:"name"`
 		Arguments string `json:"arguments"`
+		Summary   []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"summary"`
 	} `json:"item"`
 	Response *copilotResponse.Output `json:"response"`
 }
@@ -144,11 +150,13 @@ type pendingCall struct {
 
 func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	var (
-		textBuf   strings.Builder
-		toolCalls []agentTypes.ToolCall
-		usage     agentTypes.Usage
-		argsBuf   = map[string]*strings.Builder{}
-		pending   []pendingCall
+		textBuf        strings.Builder
+		reasonDeltaBuf strings.Builder
+		reasonItemBuf  strings.Builder
+		toolCalls      []agentTypes.ToolCall
+		usage          agentTypes.Usage
+		argsBuf        = map[string]*strings.Builder{}
+		pending        []pendingCall
 	)
 	getBuf := func(key string) *strings.Builder {
 		if key == "" {
@@ -178,10 +186,18 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 		if err := json.Unmarshal([]byte(data), &ev); err != nil {
 			continue
 		}
+		if ev.Type == "response.output_item.done" && ev.Item != nil && ev.Item.Type == "reasoning" {
+			for _, s := range ev.Item.Summary {
+				reasonItemBuf.WriteString(s.Text)
+			}
+		}
 
 		switch ev.Type {
 		case "response.output_text.delta":
 			textBuf.WriteString(ev.Delta)
+
+		case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
+			reasonDeltaBuf.WriteString(ev.Delta)
 
 		case "response.function_call_arguments.delta":
 			if b := getBuf(ev.ItemID); b != nil {
@@ -283,6 +299,10 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 	msg := agentTypes.Message{Role: "assistant"}
 	if str := textBuf.String(); str != "" {
 		msg.Content = str
+	}
+	msg.ReasoningContent = reasonDeltaBuf.String()
+	if reasonItemBuf.Len() > len(msg.ReasoningContent) {
+		msg.ReasoningContent = reasonItemBuf.String()
 	}
 	msg.ToolCalls = toolCalls
 

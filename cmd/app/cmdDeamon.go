@@ -42,7 +42,6 @@ import (
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/agenvoy/internal/tools/agent/plan"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -204,7 +203,6 @@ func reloadKuradb() {
 	ctx, cancel := context.WithCancel(context.Background())
 	kuradbCancel = cancel
 
-	go kuradb.Run(ctx, disableKuradb)
 	go kuradb.Health(ctx, disableKuradb)
 }
 
@@ -285,7 +283,6 @@ func cmdDaemon() {
 		provider.SetReasoningLevel(cfg.ReasoningLevel)
 	}
 	subagent.Register()
-	plan.Register()
 
 	mcpManager := initMCP(context.Background(), "")
 	defer mcpManager.Close()

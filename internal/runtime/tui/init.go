@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
@@ -73,6 +74,7 @@ type TUI struct {
 	tableBuf       []string
 
 	toolBuf         []string
+	todos           []agentTypes.TodoItem
 	inputHistory    []string
 	inputHistoryIdx int
 

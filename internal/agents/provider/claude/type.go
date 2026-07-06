@@ -20,9 +20,10 @@ type Output struct {
 }
 
 type Content struct {
-	Type  string         `json:"type"`
-	Text  string         `json:"text,omitempty"`
-	ID    string         `json:"id,omitempty"`
-	Name  string         `json:"name,omitempty"`
-	Input map[string]any `json:"input,omitempty"`
+	Type     string         `json:"type"`
+	Text     string         `json:"text,omitempty"`
+	Thinking string         `json:"thinking,omitempty"`
+	ID       string         `json:"id,omitempty"`
+	Name     string         `json:"name,omitempty"`
+	Input    map[string]any `json:"input,omitempty"`
 }
