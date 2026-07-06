@@ -51,7 +51,9 @@ func Get(sessionID string) ([]byte, map[string]any) {
 		slog.Warn("json Unmarshal",
 			slog.String("path", filesystem.SummaryPath(sessionID)),
 			slog.String("error", err.Error()))
-		return raw, nil
+		dic = map[string]any{}
+		Save(sessionID, dic)
+		return []byte("{}"), dic
 	}
 	return raw, dic
 }

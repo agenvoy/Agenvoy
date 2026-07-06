@@ -62,16 +62,16 @@ ensure_homebrew_darwin() {
   [ "$(uname -s)" = "Darwin" ] || return 0
   command -v brew >/dev/null 2>&1 && { ok "Homebrew already installed"; return 0; }
 
+  case "$(uname -m)" in
+    arm64|aarch64) ;;
+    *) die "Homebrew not found. Install it from https://brew.sh, then re-run this installer." ;;
+  esac
+
   warn "Homebrew not found, installing"
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-  local brew_bin=""
-  if   [ -x /opt/homebrew/bin/brew ]; then brew_bin=/opt/homebrew/bin/brew
-  elif [ -x /usr/local/bin/brew ];   then brew_bin=/usr/local/bin/brew
-  else die "Homebrew install completed but brew binary not found in /opt/homebrew/bin or /usr/local/bin"
-  fi
-
-  eval "$("$brew_bin" shellenv)"
+  [ -x /opt/homebrew/bin/brew ] || die "Homebrew install completed but brew binary not found in /opt/homebrew/bin"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
   command -v brew >/dev/null 2>&1 || die "brew still not on PATH after eval shellenv"
   ok "Homebrew installed: $(brew --version | head -n 1)"
 }

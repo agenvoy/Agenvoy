@@ -1,14 +1,15 @@
-Consolidate the tool execution history below into a single reference document.
+Extract everything needed to answer the user's question from the tool execution history below.
 
 ## Rules
 
-- **Integrate**: merge results from multiple tool calls that return overlapping or related data
+- **Extract, don't transcribe**: raw tool output (HTML, page boilerplate, navigation/ad text, unrelated markup, empty/failed calls) is mostly noise — pull out only the facts, figures, quotes, and data points that bear on the user's question and drop the rest
+- **Structured payloads (JSON/API responses)**: never keep the raw blob — pull out only the fields/values relevant to the question and drop unused keys, metadata, pagination wrappers, and unrelated array entries
+- **Integrate**: merge results from multiple tool calls that return overlapping or related data into one coherent set of facts
 - **Deduplicate**: remove exact or near-duplicate information across tool results
-- **Preserve verbatim**: keep all file paths, line numbers, code snippets, error messages, command outputs, and data values relevant to the user's question
-- **Discard**: remove only data clearly irrelevant to the question (failed/empty tool calls, cache-hit duplicates, unrelated file listings)
-- **Structure**: organize by topic or file, not by chronological tool-call order
+- **Preserve verbatim what matters**: exact numbers, quotes, file paths, line numbers, code snippets, error messages, and command outputs relevant to the question must stay exact — never paraphrase, round, or approximate these
+- **Structure**: organize by topic or source, not by chronological tool-call order
 
-This is a data consolidation, not a summary. Do not generalize, paraphrase, or abbreviate retained data.
+Completeness on the relevant facts, not brevity: keep every fact/figure/quote that bears on the question, however many there are — do not compress or drop retained facts to save space. This is answer-focused extraction of the source material, not the final reply itself — the next step still composes the actual answer from this.
 
 ## User's Question
 
@@ -16,4 +17,4 @@ This is a data consolidation, not a summary. Do not generalize, paraphrase, or a
 
 ## Output
 
-Return the consolidated data as plain text with headings. No wrapping fences, no meta-commentary, no answers to the question.
+Return the extracted material as plain text with headings. No wrapping fences, no meta-commentary.

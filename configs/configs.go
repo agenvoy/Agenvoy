@@ -15,6 +15,9 @@ var SkillExecution string
 //go:embed prompts/compact_exec_prompt.md
 var CompactExecPrompt string
 
+//go:embed prompts/old_history_extract_prompt.md
+var OldHistoryExtractPrompt string
+
 //go:embed prompts/compact_history_prompt.md
 var CompactHistoryPrompt string
 

@@ -186,7 +186,7 @@ func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*age
 	session.OldHistories = maxHistory
 
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = agentTypes.Message{Role: "assistant", Content: summary}
+		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
 	}
 	session.ToolHistories = []agentTypes.Message{}
 

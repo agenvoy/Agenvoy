@@ -113,6 +113,18 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	case agentTypes.EventSummaryGenerate:
 		t.activity = "summarizing…"
 
+	case agentTypes.EventCompact:
+		if ev.Text == "history" {
+			t.activity = "compacting history…"
+		} else {
+			t.activity = "compacting tool history…"
+		}
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
+		if ok {
+			t.toolBuf = append(t.toolBuf, line)
+		}
+		return t, nil
+
 	case agentTypes.EventText:
 		if ev.Source == "" {
 			t.toolBuf = nil

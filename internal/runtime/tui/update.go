@@ -82,6 +82,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if t.running && t.cancelExec != nil {
 				t.cancelExec()
+				t.toolBuf = nil
+				t.todos = nil
 				return t, tea.Println(warnStyle.Render("⎯ cancelled") + "\n")
 			}
 

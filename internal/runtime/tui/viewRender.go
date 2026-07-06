@@ -364,6 +364,13 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 	case agentTypes.EventSummaryGenerate:
 		return hintStyle.Render("⏵ " + srcPrefix + "summarizing…"), true
 
+	case agentTypes.EventCompact:
+		label := "compacting tool history…"
+		if ev.Text == "history" {
+			label = "compacting conversation history…"
+		}
+		return hintStyle.Render("⏵ " + srcPrefix + label), true
+
 	case agentTypes.EventDone:
 		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)
 		if sessionLabel != "" {
