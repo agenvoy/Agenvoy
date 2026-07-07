@@ -394,7 +394,6 @@ A [tech] [what it is] with [key feature 1], [key feature 2], and [key feature 3]
 - [架構](#架構)
 - [授權](#授權)
 - [Author](#author)
-- [Stars](#stars)
 ```
 
 **英文（README.md）：**
@@ -405,7 +404,6 @@ A [tech] [what it is] with [key feature 1], [key feature 2], and [key feature 3]
 - [Architecture](#architecture)
 - [License](#license)
 - [Author](#author)
-- [Stars](#stars)
 ```
 
 **目錄生成規則：**
@@ -415,8 +413,8 @@ A [tech] [what it is] with [key feature 1], [key feature 2], and [key feature 3]
 | 動態生成 | 根據文件中實際存在的區段生成目錄 |
 | 錨點格式（EN） | 小寫，將空格替換為 `-`，移除特殊字元 |
 | 錨點格式（ZH） | 保留原始中文字元作為錨點 |
-| 跳過區段 | 不要在目錄中包含順序 0（LLM 通知）、順序 1（封面）、順序 10（頁尾） |
-| 私有模式 | 因順序 7（授權）、8（作者）、9（Stars）本身跳過，目錄中不會出現 `授權`／`Author`／`Stars` 項目 |
+| 跳過區段 | 不要在目錄中包含順序 0（LLM 通知）、順序 1（封面）、順序 9（頁尾） |
+| 私有模式 | 因順序 7（授權）、8（作者）本身跳過，目錄中不會出現 `授權`／`Author` 項目 |
 
 ### 順序 5：功能特點（3–5 個精妙特色 — 核心區段）
 
@@ -514,7 +512,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 
 ### 順序 8：作者區段（從 `~/.skill-readme-generate.json` 套用，僅公開模式）
 
-**在私有模式中完全跳過（順序 10 版權頁尾在私有模式中也不含 `{author_name}`／`{author_url}`，僅顯示 `©️ {year}`）。**
+**在私有模式中完全跳過（順序 9 版權頁尾在私有模式中也不含 `{author_name}`／`{author_url}`，僅顯示 `©️ {year}`）。**
 
 **在兩個檔案中使用此格式，並以 `~/.skill-readme-generate.json` 的值替換 placeholder：**
 ```markdown
@@ -534,17 +532,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 - 兩行之間以 `<br>` 換行，避免 markdown list 或段落間距
 - ZH 與 EN 版本使用相同區段（`## Author` 不翻譯，與業界慣例一致）
 
-### 順序 9：星標歷史區段（僅公開模式）
-
-**在私有模式中完全跳過。**
-
-```markdown
-## Stars
-
-[![Star](https://api.star-history.com/svg?repos={owner}/{repo}&type=Date)](https://www.star-history.com/#{owner}/{repo}&Date)
-```
-
-### 順序 10：版權頁尾
+### 順序 9：版權頁尾
 
 **公開模式：**
 ```markdown
@@ -885,7 +873,7 @@ Creates a skill scanner that concurrently scans all configured paths.
 
 ### 順序 6：版權頁尾
 
-**與 README 順序 10 相同規則：公開模式含作者連結，私有模式僅 `©️ {year}`。**
+**與 README 順序 9 相同規則：公開模式含作者連結，私有模式僅 `©️ {year}`。**
 
 **公開模式：**
 ```markdown
@@ -1149,7 +1137,6 @@ For licensing inquiries, contact: {author_email}
 - [ ] **順序 5**：安裝指令 + doc 連結以 blockquote 形式嵌入
 - [ ] **順序 7**：授權區段存在（僅公開模式；私有模式跳過）
 - [ ] **順序 8**：作者區段使用文字格式（姓名下方以 `<br>` 分隔的兩行純文字超連結）（僅公開模式；私有模式跳過）
-- [ ] **順序 9**：星標歷史包含（公開）或省略（私有）
 - [ ] **無獨立的 Installation、Usage、API Reference 區段**
 
 ### doc（doc.md + doc.zh.md）
@@ -1189,8 +1176,8 @@ For licensing inquiries, contact: {author_email}
 
 | 檔案 | 用途 |
 |------|------|
-| [`scripts/examples/readme-public.md`](./scripts/examples/readme-public.md) | 公開模式 README.zh.md 完整範例（Go 專案為例，含徽章、Stars、完整作者區） |
-| [`scripts/examples/readme-private.md`](./scripts/examples/readme-private.md) | 私有模式 README.zh.md 完整範例（跳過封面、標語、徽章、授權、Author、Stars） |
+| [`scripts/examples/readme-public.md`](./scripts/examples/readme-public.md) | 公開模式 README.zh.md 完整範例（Go 專案為例，含徽章、完整作者區） |
+| [`scripts/examples/readme-private.md`](./scripts/examples/readme-private.md) | 私有模式 README.zh.md 完整範例（跳過封面、標語、徽章、授權、Author） |
 | [`scripts/examples/doc-cli.md`](./scripts/examples/doc-cli.md) | doc.zh.md 完整範例（以 CLI 工具為例，含前置需求、安裝、設定、使用、命令列參考） |
 
 **使用流程**：

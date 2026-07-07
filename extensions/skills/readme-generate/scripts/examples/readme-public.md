@@ -30,7 +30,6 @@
 - [架構](#架構)
 - [授權](#授權)
 - [Author](#author)
-- [Stars](#stars)
 
 ## 功能特點
 
@@ -64,10 +63,6 @@ graph TB
 
 <a href="mailto:{author_email}">{author_email}</a><br>
 <a href="{author_url}">{author_url}</a>
-
-## Stars
-
-[![Star](https://api.star-history.com/svg?repos={owner}/{repo}&type=Date)](https://www.star-history.com/#{owner}/{repo}&Date)
 
 ***
 
