@@ -45,7 +45,7 @@ AST 驅動的專案原始碼分析，產生優化建議報告（Go / Python / Ja
 |----------|----------|--------------|
 | Go | `go/ast`（via `go run` helper）+ 字串掃描 | `go` ≥ 1.21 |
 | Python | 內建 `ast` 模組 | Python ≥ 3.10 |
-| JavaScript / TypeScript | 專案本地 `eslint` + 字串掃描 | `node_modules/.bin/eslint`（可選） |
+| JavaScript / TypeScript | 內建輕量結構掃描（brace-based 函式邊界／巢狀深度）+ 專案本地 `eslint`（可選）+ 字串掃描 | `node_modules/.bin/eslint`（可選） |
 
 > 對應工具鏈不可用時，自動降級為字串掃描並在報告中標示。
 
