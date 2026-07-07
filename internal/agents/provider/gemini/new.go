@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
@@ -16,6 +17,8 @@ type Agent struct {
 	model      string
 	apiKey     string
 	workDir    string
+	cacheMu    sync.Mutex
+	cacheStore map[string]*geminiCacheEntry
 }
 
 const (
@@ -40,6 +43,7 @@ func New(model ...string) (*Agent, error) {
 		model:      usedModel,
 		apiKey:     apiKey,
 		workDir:    workDir,
+		cacheStore: make(map[string]*geminiCacheEntry),
 	}, nil
 }
 

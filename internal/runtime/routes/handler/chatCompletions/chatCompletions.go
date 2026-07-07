@@ -204,9 +204,12 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 			"finish_reason": "stop",
 		}},
 		"usage": gin.H{
-			"prompt_tokens":     usage.Input,
+			"prompt_tokens":     usage.Input + usage.CacheRead,
 			"completion_tokens": usage.Output,
-			"total_tokens":      usage.Input + usage.Output,
+			"total_tokens":      usage.Input + usage.CacheRead + usage.Output,
+			"prompt_tokens_details": gin.H{
+				"cached_tokens": usage.CacheRead,
+			},
 		},
 	})
 }

@@ -71,7 +71,7 @@ func formatActionEvent(event agentTypes.Event) string {
 			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
 		}
 		if event.Usage != nil {
-			parts = append(parts, fmt.Sprintf("in=%d", event.Usage.Input), fmt.Sprintf("out=%d", event.Usage.Output))
+			parts = append(parts, fmt.Sprintf("in=%d", event.Usage.Input+event.Usage.CacheRead), fmt.Sprintf("out=%d", event.Usage.Output))
 		}
 		return withTimestamp("done", strings.Join(parts, " "))
 

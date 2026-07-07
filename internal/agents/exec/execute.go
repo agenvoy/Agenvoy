@@ -558,6 +558,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.CacheRead += resp.Usage.CacheRead
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
 
+		usageSnapshot := usage
+		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
+
 		if len(resp.Choices) == 0 {
 			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
 				keepPending = false

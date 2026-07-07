@@ -93,6 +93,7 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 	t.tokens = 0
 	t.lastIn = 0
 	t.lastOut = 0
+	t.lastCacheRead = 0
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,

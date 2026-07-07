@@ -166,7 +166,16 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.tokens = ev.Usage.Input + ev.Usage.Output
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output
+			t.lastCacheRead = ev.Usage.CacheRead
 		}
+
+	case agentTypes.EventUsageUpdate:
+		if ev.Source == "" && ev.Usage != nil {
+			t.lastIn = ev.Usage.Input
+			t.lastOut = ev.Usage.Output
+			t.lastCacheRead = ev.Usage.CacheRead
+		}
+		return t, nil
 
 	}
 
