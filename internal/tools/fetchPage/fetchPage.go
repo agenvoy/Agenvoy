@@ -116,6 +116,11 @@ func registFetchPage() {
 					"type":        "string",
 					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against ~/Downloads (preferred if exists) or ~/.config/agenvoy/download/. Omit for auto-generated filename.",
 				},
+				"force": map[string]any{
+					"type":        "boolean",
+					"description": "Skip the cached-result lookup and re-fetch even if an identical call was made recently. Set true when the user explicitly asks to re-check/refresh a page.",
+					"default":     false,
+				},
 			},
 			"required": []string{
 				"link",
@@ -130,12 +135,13 @@ func registFetchPage() {
 				Type        string `json:"type"`
 				Save        bool   `json:"save"`
 				SaveTo      string `json:"save_to"`
+				Force       bool   `json:"force"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
 
-			if !params.Save {
+			if !params.Save && !params.Force {
 				if cached, ok := toolcache.FindRecent(e.SessionID, "fetch_page", string(args)); ok {
 					return cached, nil
 				}

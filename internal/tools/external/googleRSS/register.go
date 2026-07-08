@@ -41,26 +41,34 @@ func Register() {
 					"description": "Edition ID (e.g. 'TW:zh-Hant', 'US:en').",
 					"default":     "TW:zh-Hant",
 				},
+				"force": map[string]any{
+					"type":        "boolean",
+					"description": "Skip the cached-result lookup and re-search even if an identical call was made recently. Set true when the user explicitly asks to re-check/refresh results.",
+					"default":     false,
+				},
 			},
 			"required": []string{
 				"keyword",
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
-			if cached, ok := toolcache.FindRecent(e.SessionID, "search_google_news", string(args)); ok {
-				return cached, nil
-			}
-
 			var params struct {
 				Keyword   string `json:"keyword"`
 				TimeRange string `json:"time_range"`
 				CEID      string `json:"ceid"`
+				Force     bool   `json:"force"`
 				// avoid small agent like 4.1 be stupid to call with different parameter name
 				Query string `json:"query"`
 				Q     string `json:"q"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if !params.Force {
+				if cached, ok := toolcache.FindRecent(e.SessionID, "search_google_news", string(args)); ok {
+					return cached, nil
+				}
 			}
 
 			keyword := strings.TrimSpace(params.Keyword)

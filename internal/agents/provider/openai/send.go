@@ -3,7 +3,6 @@ package openai
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -39,7 +38,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"Content-Type":  "application/json",
 	}
 
-	if strings.Contains(a.model, "codex") || strings.HasSuffix(a.model, "-pro") {
+	if provider.ResponsesAPI("openai", a.model) {
 		var instructions string
 		nonSystem := make([]agentTypes.Message, 0, len(messages))
 		for _, m := range messages {

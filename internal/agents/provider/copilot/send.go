@@ -3,7 +3,6 @@ package copilot
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -43,7 +42,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"Editor-Version": "vscode/1.95.0",
 	}
 
-	if strings.HasPrefix(a.model, "gpt-5.4") || strings.Contains(a.model, "-codex") {
+	if provider.ResponsesAPI("copilot", a.model) {
 		var instructions string
 		nonSystem := make([]agentTypes.Message, 0, len(messages))
 		for _, m := range messages {
