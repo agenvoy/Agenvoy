@@ -105,6 +105,103 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
 }
 
+func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string) {
+	var p struct {
+		Path string `json:"path"`
+	}
+	if json.Unmarshal([]byte(writeArgsJSON), &p) != nil || p.Path == "" {
+		return
+	}
+	for key := range alreadyCall {
+		if strings.HasPrefix(key, "read_file|") && strings.Contains(key, p.Path) {
+			delete(alreadyCall, key)
+		}
+	}
+}
+
+var isWriteLikeTool = map[string]bool{
+	"write_file":  true,
+	"patch_file":  true,
+	"write_skill": true,
+	"patch_skill": true,
+	"write_tool":  true,
+	"patch_tool":  true,
+}
+
+func truncateWriteArgs(argsJSON string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(argsJSON), &m) != nil {
+		return argsJSON
+	}
+	const omitted = "[omitted after successful write — already applied on disk; read_file to inspect]"
+	for _, field := range []string{"content", "old_string", "new_string"} {
+		if _, ok := m[field]; ok {
+			m[field] = omitted
+		}
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		return argsJSON
+	}
+	return string(out)
+}
+
+var checkpointClearableTool = map[string]bool{
+	"list_files":   true,
+	"glob_files":   true,
+	"search_files": true,
+	"run_command":  true,
+}
+
+func hasCompletedTodo(argsJSON string) bool {
+	var p struct {
+		Todos []struct {
+			Status string `json:"status"`
+		} `json:"todos"`
+	}
+	if json.Unmarshal([]byte(argsJSON), &p) != nil {
+		return false
+	}
+	for _, t := range p.Todos {
+		if t.Status == agentTypes.TodoCompleted {
+			return true
+		}
+	}
+	return false
+}
+
+func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
+	start := sessionData.ToolCheckpoint
+	if start < 0 || start >= len(sessionData.ToolHistories) {
+		sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
+		return
+	}
+
+	segment := sessionData.ToolHistories[start:]
+	nameByID := make(map[string]string, len(segment))
+	for _, msg := range segment {
+		for _, tc := range msg.ToolCalls {
+			nameByID[tc.ID] = tc.Function.Name
+		}
+	}
+
+	const cleared = "[cleared after step completed — already acted on]"
+	for i := range segment {
+		msg := &segment[i]
+		if msg.Role != "tool" || msg.ToolCallID == "" {
+			continue
+		}
+		if !checkpointClearableTool[nameByID[msg.ToolCallID]] {
+			continue
+		}
+		if content, ok := msg.Content.(string); ok && content != cleared {
+			msg.Content = cleared
+		}
+	}
+
+	sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
+}
+
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
 		Path string `json:"path"`
@@ -163,18 +260,16 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			Args: toolArg,
 		})
 
-		if toolName != "read_file" {
-			if cached, ok := alreadyCall[hash]; ok && cached != "" {
-				cachedContent := strings.TrimSpace(cached)
-				if strings.HasPrefix(cached, "data:image/") {
-					cachedContent = fmt.Sprintf("[%s] image loaded", toolName)
-					slots[i].isImage = true
-					slots[i].imageURL = cached
-				}
-				slots[i].state = slotCached
-				slots[i].preMsg = cachedContent
-				continue
+		if cached, ok := alreadyCall[hash]; ok && cached != "" {
+			cachedContent := strings.TrimSpace(cached)
+			if strings.HasPrefix(cached, "data:image/") {
+				cachedContent = fmt.Sprintf("[%s] image loaded", toolName)
+				slots[i].isImage = true
+				slots[i].imageURL = cached
 			}
+			slots[i].state = slotCached
+			slots[i].preMsg = cachedContent
+			continue
 		}
 
 		if exec.StubTools[toolName] || activatedInBatch[toolName] {
@@ -325,6 +420,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 
 	hasExternalAgent := false
 	hasReviewResult := false
+	todoCheckpointHit := false
 
 	for i := range slots {
 		s := &slots[i]
@@ -368,9 +464,16 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			}
 		}
 
-		if s.name != "read_file" {
-			alreadyCall[s.hash] = result
+		if (s.name == "write_file" || s.name == "patch_file") && s.execErr == "" {
+			invalidateReadFileCache(alreadyCall, s.args)
 		}
+		if s.name == "write_todo" && s.execErr == "" && hasCompletedTodo(s.args) {
+			todoCheckpointHit = true
+		}
+		if isWriteLikeTool[s.name] && s.execErr == "" {
+			calls[i].Function.Arguments = truncateWriteArgs(calls[i].Function.Arguments)
+		}
+		alreadyCall[s.hash] = result
 		if s.execErr == "" && !strings.HasPrefix(result, "data:image/") && toolcache.IsCacheable(s.name) {
 			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
@@ -411,6 +514,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 		case "review_result":
 			hasReviewResult = true
 		}
+	}
+
+	if todoCheckpointHit {
+		clearCheckpointedToolResults(sessionData)
 	}
 
 	if hasExternalAgent || hasReviewResult {

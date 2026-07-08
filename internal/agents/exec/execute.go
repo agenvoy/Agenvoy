@@ -372,7 +372,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			keepPending = false
 			return ctx.Err()
 		}
-		if !compactFailed && lastInputTokens >= execCompactTokenThreshold {
+		if !compactFailed && lastInputTokens >= compactThreshold(data.Agent.Name()) {
 			compacted := false
 			if !oldHistoriesCompacted {
 				compacted = extractOldHistories(ctx, data.Agent, session, &usage, events)
@@ -417,7 +417,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
 					continue
 				}
-				next, nextName := nextAgent(ctx, &data.FallbackAgents, allAgents, &fallbackRound)
+				next, nextName := nextAgent(ctx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound)
 				if next == nil {
 					watchdog.Stop()
 					cancelSend()
@@ -508,7 +508,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
-			next, nextName := nextAgent(ctx, &data.FallbackAgents, allAgents, &fallbackRound)
+			next, nextName := nextAgent(ctx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound)
 			if next != nil {
 				slog.Warn("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),

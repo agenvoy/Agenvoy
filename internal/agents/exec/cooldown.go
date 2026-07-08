@@ -61,9 +61,20 @@ func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agen
 	if bot != nil && !isCoolingDown(bot.Name()) {
 		return bot
 	}
+
+	var excludePrefix string
+	if bot != nil {
+		if p, _, ok := strings.Cut(bot.Name(), "@"); ok {
+			excludePrefix = p + "@"
+		}
+	}
+
 	var best agentTypes.Agent
 	bestPri := len(providerPriority) + 1
 	for _, e := range registry.Entries {
+		if excludePrefix != "" && strings.HasPrefix(e.Name, excludePrefix) {
+			continue
+		}
 		if isCoolingDown(e.Name) {
 			continue
 		}
