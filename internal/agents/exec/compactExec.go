@@ -14,7 +14,22 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-const execCompactTokenThreshold = 64000
+func compactThreshold(modelName string) int {
+	switch {
+	case strings.Contains(modelName, "gemini"):
+		return int(1_000_000 * 0.8)
+	case strings.Contains(modelName, "gpt"):
+		return int(400_000 * 0.8)
+	case strings.Contains(modelName, "claude"):
+		return int(200_000 * 0.8)
+	case strings.Contains(modelName, "grok"):
+		return int(256_000 * 0.8)
+	case strings.Contains(modelName, "deepseek"):
+		return int(128_000 * 0.8)
+	default:
+		return int(128_000 * 0.8)
+	}
+}
 
 func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string) bool {
 	if len(session.ToolHistories) == 0 {
@@ -52,7 +67,7 @@ func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 			fmt.Fprintf(&sb, "[assistant] %s\n\n", content)
 		}
 	}
-	if utf8.RuneCountInString(sb.String()) < execCompactTokenThreshold/3 {
+	if utf8.RuneCountInString(sb.String()) < compactThreshold(agent.Name())/3 {
 		return false
 	}
 

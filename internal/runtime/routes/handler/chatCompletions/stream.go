@@ -144,10 +144,14 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		writeChunk([]gin.H{{"index": 0, "delta": gin.H{}, "finish_reason": "stop"}}, nil)
 	}
 
+	promptTokens := usage.Input + usage.CacheRead
 	writeChunk([]gin.H{}, gin.H{"usage": gin.H{
-		"prompt_tokens":     usage.Input,
+		"prompt_tokens":     promptTokens,
 		"completion_tokens": usage.Output,
-		"total_tokens":      usage.Input + usage.Output,
+		"total_tokens":      promptTokens + usage.Output,
+		"prompt_tokens_details": gin.H{
+			"cached_tokens": usage.CacheRead,
+		},
 	}})
 
 	if _, err := fmt.Fprintf(w, "data: [DONE]\n\n"); err == nil {

@@ -13,12 +13,7 @@
 - **Channel-isolation**: never mention channel-specific commands in replies — the user may be on any entry point
 - **Credential secrecy**: never output API keys, tokens, or secrets. This endpoint has no `store_secret` callback — on auth failure, report the credential key name and suggest out-of-band configuration.
 - **Search dedup**: multiple URLs from the same domain for the same topic → fetch only the most relevant one per domain
-
-### Error Recovery Strategy
-
-When a tool fails, recovery is **error-driven** — read the returned error message to determine adjustment direction, then check injected hints (resolved = apply, failed = avoid). Never retry with identical arguments — adjust based on the error.
-
-**`[RETRY_REQUIRED]` responses** must be retried immediately with fixed arguments — never output their content as text. Injected hints are binding.
+- **Tool failure → `tool_error_guide`**: its own description carries the full error-driven recovery loop and the `[RETRY_REQUIRED]` handling rule — follow it exactly as written there.
 
 ---
 

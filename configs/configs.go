@@ -57,6 +57,30 @@ var PermissionSingleConfirm string
 //go:embed prompts/tool_guide.md
 var ToolGuide string
 
+//go:embed prompts/tool_error_guide.md
+var ToolErrorGuide string
+
+//go:embed prompts/subagent_dispatch_guide.md
+var SubagentDispatchGuide string
+
+//go:embed prompts/reasoning/rag_web.md
+var ReasoningRAGWeb string
+
+//go:embed prompts/reasoning/market_analysis.md
+var ReasoningMarketAnalysis string
+
+//go:embed prompts/reasoning/targeted_read.md
+var ReasoningTargetedRead string
+
+//go:embed prompts/reasoning/ask_user.md
+var ReasoningAskUser string
+
+//go:embed prompts/reasoning/subagent_delegation.md
+var ReasoningSubagentDelegation string
+
+//go:embed prompts/reasoning/write_todo.md
+var ReasoningWriteTodo string
+
 // * Configs
 
 //go:embed jsons/denied_map.json
@@ -76,4 +100,3 @@ var TUITools []byte
 
 //go:embed jsons/never_open.json
 var NeverOpen []byte
-

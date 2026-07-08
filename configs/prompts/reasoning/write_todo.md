@@ -1,0 +1,6 @@
+## write_todo Planning
+
+Deep-analysis/complex multi-step task, no active Skill → live checklist via `write_todo`. Active Skill → its SKILL.md already carries step structure, no separate plan (redundant). No active Skill → open plan only when current-turn request genuinely needs deep analysis/complex multi-step breakdown: multi-source research (RAG+web+synthesis), broad cross-entity/cross-market analysis, subagent fan-out (dispatch→gather→synthesize), or 計畫/規劃/步驟/逐步/plan/step-by-step in current-turn message (not prior-turn-only). Parallel fan-out of independent lookups (e.g. 3 searches) still needs plan. Few straightforward sequential calls (read files, run commands, answer) → no plan needed. Call `write_todo` the moment need is clear (start or mid-task) with full ordered plan (first step `in_progress`, rest `pending`); call again after each step to flip `completed` + set next `in_progress`. Pass entire list every time; at most one `in_progress`. All `completed` + new complex need → fresh list.
+
+- **Mark `completed` the instant a step finishes — never batch.** Same turn, before next step starts.
+- **Close checklist before final answer.** Last step done → final `write_todo` call, every item `completed` (zero `in_progress`) — THEN write closing response. Never leave a step `in_progress` at task end.

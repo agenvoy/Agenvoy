@@ -110,7 +110,11 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
 	}
 
-	return parseSSEStream(resp)
+	out, err := parseSSEStream(resp)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func promptCacheKey(instructions string) string {

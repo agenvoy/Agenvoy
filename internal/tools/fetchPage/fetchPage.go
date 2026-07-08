@@ -12,11 +12,12 @@ import (
 	"strings"
 	"time"
 
-	go_browser "github.com/pardnchiu/go-browser"
+	go_browser "github.com/pardnchiu/go-browser/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -77,7 +78,7 @@ func registFetchPage() {
 		Name:        "fetch_page",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads.",
+		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads. Request in the form \"open:[url]\" → always set headless=false.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -95,6 +96,11 @@ func registFetchPage() {
 					"description": "Reuse the persistent Chrome profile so cookies and login state are sent. Default true — cookies always sent so login-required sites (x.com / twitter / threads / facebook / instagram / linkedin / weibo / xiaohongshu / bloomberg / wsj / ft / dashboards) work transparently. Set false only when explicitly testing the anonymous / logged-out view of a page.",
 					"default":     true,
 				},
+				"headless": map[string]any{
+					"type":        "boolean",
+					"description": "Default true — attempt headless fetch first, retrying non-headless only on failure. Set false to force a visible non-headless browser window immediately, skipping the headless attempt (bot checks, JS challenges, sites requiring visible interaction). Request in the form \"open:[url]\" → always set false.",
+					"default":     true,
+				},
 				"type": map[string]any{
 					"type":        "string",
 					"enum":        []string{"markdown", "html", "json"},
@@ -110,22 +116,35 @@ func registFetchPage() {
 					"type":        "string",
 					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against ~/Downloads (preferred if exists) or ~/.config/agenvoy/download/. Omit for auto-generated filename.",
 				},
+				"force": map[string]any{
+					"type":        "boolean",
+					"description": "Skip the cached-result lookup and re-fetch even if an identical call was made recently. Set true when the user explicitly asks to re-check/refresh a page.",
+					"default":     false,
+				},
 			},
 			"required": []string{
 				"link",
 			},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Link        string `json:"link"`
 				KeepLinks   bool   `json:"keep_links"`
 				SameSession *bool  `json:"same_session"`
+				Headless    *bool  `json:"headless"`
 				Type        string `json:"type"`
 				Save        bool   `json:"save"`
 				SaveTo      string `json:"save_to"`
+				Force       bool   `json:"force"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if !params.Save && !params.Force {
+				if cached, ok := toolcache.FindRecent(e.SessionID, "fetch_page", string(args)); ok {
+					return cached, nil
+				}
 			}
 
 			link := strings.TrimSpace(params.Link)
@@ -139,6 +158,10 @@ func registFetchPage() {
 			sameSession := true
 			if params.SameSession != nil {
 				sameSession = *params.SameSession
+			}
+			headless := true
+			if params.Headless != nil {
+				headless = *params.Headless
 			}
 
 			var saveTo *string
@@ -155,12 +178,12 @@ func registFetchPage() {
 				}
 				saveTo = &p
 			}
-			return handler(ctx, link, params.KeepLinks, sameSession, outType, saveTo)
+			return handler(ctx, link, params.KeepLinks, sameSession, headless, outType, saveTo)
 		},
 	})
 }
 
-func handler(ctx context.Context, link string, keepLinks, sameSession bool, outType int, saveTo *string) (string, error) {
+func handler(ctx context.Context, link string, keepLinks, sameSession, headless bool, outType int, saveTo *string) (string, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {
 		return "", fmt.Errorf("url.Parse: %w", err)
@@ -185,10 +208,11 @@ func handler(ctx context.Context, link string, keepLinks, sameSession bool, outT
 		MaxLength:   maxMarkdownLength,
 		KeepLinks:   keepLinks,
 		SameSession: sameSession,
+		Headless:    !headless,
 		Type:        outType,
 		ScrollCount: defaultScroll,
 	}
-	if sameSession {
+	if sameSession || !headless {
 		opt.Profile = currentProfile()
 	}
 	result, err := go_browser.Fetch(ctx, link, 30*time.Second, opt)

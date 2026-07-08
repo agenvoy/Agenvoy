@@ -43,8 +43,8 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
-			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
-			"The `run_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
+			"**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n" +
+			"`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n" +
 			list
 	}
 
@@ -75,9 +75,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.ToolGuide}}", configs.ToolGuide,
-		"{{.ExternalAgents}}", buildExternalAgentsPrompt(),
-		"{{.CrossChannelSending}}", buildCrossChannelPrompt(),
+		"{{.ExternalAgents}}", externalAgentsList(),
 		"{{.ProjectInstructions}}", loadProjectInstructions(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
@@ -112,8 +110,8 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = "## Skills\n\n" +
-			"**Slash invocations (`/<name>`) are STRICT EXECUTION.** The user has explicitly authorized the skill's full procedure; every step in SKILL.md is binding and must complete via tool calls in order. The FIRST step (often `ask_user` for requirement gathering) must run before any other tool call — no exceptions, no \"the user input looks complete so I'll skip ahead\".\n\n" +
-			"The `run_skill` tool path is advisory — consult, integrate parts that fit, ignore parts that don't. Consider activating a skill when its description matches the user's intent on each turn, even without an explicit `/<name>` invocation.\n\n" +
+			"**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n" +
+			"`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n" +
 			list
 	}
 

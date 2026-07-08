@@ -34,6 +34,7 @@ var eventTypeByName = map[string]EventType{
 	"EventReasoning":       EventReasoning,
 	"EventTodoUpdate":      EventTodoUpdate,
 	"EventCompact":         EventCompact,
+	"EventUsageUpdate":     EventUsageUpdate,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -71,6 +72,7 @@ const (
 	EventReasoning
 	EventTodoUpdate
 	EventCompact
+	EventUsageUpdate
 )
 
 func (e EventType) String() string {
@@ -119,6 +121,8 @@ func (e EventType) String() string {
 		return "EventTodoUpdate"
 	case EventCompact:
 		return "EventCompact"
+	case EventUsageUpdate:
+		return "EventUsageUpdate"
 	default:
 		return "EventUnknown"
 	}

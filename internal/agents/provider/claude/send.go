@@ -54,6 +54,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	if len(systemPrompts) > 0 {
 		systemPrompts[len(systemPrompts)-1]["cache_control"] = map[string]any{"type": "ephemeral"}
 	}
+	if len(newMessages) > 0 {
+		markCacheControl(newMessages[len(newMessages)-1])
+	}
 
 	newTools := a.convertToTools(tools)
 
@@ -200,6 +203,22 @@ func (a *Agent) convertToMessage(message agentTypes.Message) map[string]any {
 		"role":    message.Role,
 		"content": message.Content,
 	}
+}
+
+func markCacheControl(message map[string]any) {
+	content, ok := message["content"].([]map[string]any)
+	if !ok {
+		text, isStr := message["content"].(string)
+		if !isStr {
+			return
+		}
+		content = []map[string]any{{"type": "text", "text": text}}
+		message["content"] = content
+	}
+	if len(content) == 0 {
+		return
+	}
+	content[len(content)-1]["cache_control"] = map[string]any{"type": "ephemeral"}
 }
 
 func parseDataURL(url string) (mediaType, data string, ok bool) {

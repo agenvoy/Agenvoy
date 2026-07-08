@@ -159,6 +159,9 @@ SQL_PATTERNS = (
         re.IGNORECASE), "f-string"),
     (re.compile(
         r'(?:query|exec|execute|raw)\s*\([^)]*%\s*[^)]+["\']', re.IGNORECASE), "% 格式化"),
+    (re.compile(
+        r'`(?=[^`]*\$\{)(?=[^`]*(?:SELECT|INSERT|UPDATE|DELETE|DROP))[^`]*`',
+        re.IGNORECASE), "template literal"),
 )
 
 
@@ -191,6 +194,9 @@ CMD_PATTERNS = (
     re.compile(
         r'(?:os\.system|subprocess\.(?:call|run)|child_process\.exec)\s*\(\s*f["\']',
         re.IGNORECASE),
+    re.compile(
+        r'(?:os\.system|subprocess\.(?:call|run|Popen)|exec\.Command|child_process\.exec)'
+        r'\s*\(\s*`[^`]*\$\{', re.IGNORECASE),
 )
 
 
