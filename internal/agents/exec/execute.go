@@ -890,41 +890,10 @@ func newID(parts ...string) string {
 	return hex.EncodeToString(h[:])[:8]
 }
 
-func buildCrossChannelPrompt() string {
-	cfg, err := config.Load()
-	if err != nil || cfg == nil {
-		return ""
-	}
-	if !cfg.TelegramEnabled && !cfg.DiscordEnabled {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString("## Cross-channel Sending\n\n")
-	sb.WriteString("When sending via `send_to_chatbot` from any session (including TUI / CLI / cron):\n\n")
-	if cfg.TelegramEnabled {
-		sb.WriteString("- **Telegram** (`platform=telegram`) — if the user did not name a specific chat, `list_chatbot(platform=telegram)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id; group ids carrying `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
-		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=telegram)` (HTML mode only — markdown leaks render literally).\n")
-	}
-	if cfg.DiscordEnabled {
-		sb.WriteString("- **Discord** (`platform=discord`) — if the user did not name a specific channel, `list_chatbot(platform=discord)` → `ask_user(options=[names])` → map chosen name → target_id → send. Never fabricate target_id.\n")
-		sb.WriteString("- Before composing the message argument, call `format_chatbot(platform=discord)` (Discord markdown only — HTML / LaTeX / tables render literally).\n")
-	}
-	return strings.TrimRight(sb.String(), "\n")
-}
-
-func buildExternalAgentsPrompt() string {
+func externalAgentsList() string {
 	agents := external.Agents()
 	if len(agents) == 0 {
-		return `## 外部 Agent
-PATH 未偵測到任何外部 CLI binary，禁止呼叫 cross_review_with_external_agents 與 invoke_external_agent。`
+		return "none detected"
 	}
-	return fmt.Sprintf(
-		`## 外部 Agent
-已偵測安裝（呼叫時仍即時驗證版本與登入）：%s
-- cross_review_with_external_agents：對已產出的結果，送所有可用 agent 並行交叉審查，回傳獨立回饋供修正
-- invoke_external_agent：指定單一 agent 直接生成結果
-
-未列出的 agent 禁止使用。`,
-		strings.Join(agents, "、"),
-	)
+	return strings.Join(agents, ", ")
 }

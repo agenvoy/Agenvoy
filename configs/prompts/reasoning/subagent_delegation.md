@@ -1,0 +1,7 @@
+## Subagent Delegation Triggers
+
+- **Named delegation shortcut**: user says "call X"/"呼叫 X"/"找 X"/"請 X"/"let X"/"ask X" → resolve X as existing (non-temp) session name. Found → `invoke_subagent(name=X, task=...)`. No name confirmation — resolve silently.
+- **Reuse-check before single delegated subagent**: one self-contained subtask (not fan-out) → `list_subagent_sessions` first. Fitting session → `ask_user` route? **yes** → `invoke_subagent(name=<name>, ...)`; **no**/none fitting → temp (`name` empty). One confirmation only for single delegation; fan-out skips entirely, stays anonymous.
+- **High data-collection/broad analysis → dispatch subagents whenever need arises.** Current-turn request needs wide data gathering (multi-source research, cross-market/cross-entity analysis, comparing many items, aggregation across time/sources), deep multi-part analysis, or offloadable self-contained subtask → decompose, fan out parallel `invoke_subagent` — linear pass under-covers, floods context. No upfront decision needed — reach for it at start OR mid-task on fresh sub-need (gap revealed, new branch, broadened scope). Triggers: 分析/研究/調查/比較/彙整/週報/盤前 in current-turn message, or multi-source/multi-entity scope actually asked now — not Skill step name, tool description keyword, or prior-turn-only keyword. Skip: single-fact lookups, smalltalk, one-tool-call resolves.
+
+Fan-out → `subagent_dispatch_guide` for full planner-mode protocol (decomposition, parallel dispatch, multi-source mandate, synthesis rules).

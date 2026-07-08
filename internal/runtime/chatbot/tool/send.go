@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ import (
 func registSendToChatbot() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "send_to_chatbot",
-		Description: `[system-default] Send a formatted message to an authorized chat. Use format_chatbot to get the correct formatting reference before composing.`,
+		Description: sendToChatbotDescription(),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -71,6 +72,20 @@ func registSendToChatbot() {
 			return "", fmt.Errorf("unreachable platform %q", platform)
 		},
 	})
+}
+
+func sendToChatbotDescription() string {
+	var sb strings.Builder
+	sb.WriteString("[system-default] Send a formatted message to an authorized chat/channel, from any session (including TUI / CLI / cron). Never fabricate target_id — call list_chatbot for the platform first.\n")
+	if slices.Contains(platformEnum, platformTelegram) {
+		sb.WriteString("- Telegram (platform=telegram): if the user did not name a specific chat, list_chatbot(platform=telegram) → ask_user(options=[names]) → map chosen name → target_id → send. Group ids carrying a `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
+		sb.WriteString("- Before composing the message argument, call format_chatbot(platform=telegram) (HTML mode only — markdown leaks render literally).\n")
+	}
+	if slices.Contains(platformEnum, platformDiscord) {
+		sb.WriteString("- Discord (platform=discord): if the user did not name a specific channel, list_chatbot(platform=discord) → ask_user(options=[names]) → map chosen name → target_id → send.\n")
+		sb.WriteString("- Before composing the message argument, call format_chatbot(platform=discord) (Discord markdown only — HTML / LaTeX / tables render literally).\n")
+	}
+	return strings.TrimRight(sb.String(), "\n")
 }
 
 func sendTelegram(ctx context.Context, chatIDStr, message string) (string, error) {
