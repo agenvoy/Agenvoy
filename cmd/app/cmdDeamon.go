@@ -303,6 +303,11 @@ func cmdDaemon() {
 	}
 	defer runtime.StopScheduler()
 
+	if err := runtime.AddSystemCron("*/15 * * * *", runSummaryCron); err != nil {
+		slog.Warn("cron summaryGenerate",
+			slog.String("error", err.Error()))
+	}
+
 	if err := runtime.AddSystemCron("*/30 * * * *", session.Clean); err != nil {
 		slog.Warn("cron sessionClean",
 			slog.String("error", err.Error()))
@@ -332,8 +337,6 @@ func cmdDaemon() {
 				slog.String("error", err.Error()))
 		}
 	}()
-
-	go setSummaryCron()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

@@ -37,4 +37,5 @@ type AgentSession struct {
 	Stateless       bool
 	VerifyRounds    int
 	VerifyFeedbacks []string
+	ToolCheckpoint  int
 }

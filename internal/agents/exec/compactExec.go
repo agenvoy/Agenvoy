@@ -4,39 +4,178 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-const execCompactTokenThreshold = 64000
+func compactThreshold(modelName string) int {
+	switch {
+	case strings.Contains(modelName, "gemini"):
+		return int(1_000_000 * 0.8)
+	case strings.Contains(modelName, "gpt"):
+		return int(400_000 * 0.8)
+	case strings.Contains(modelName, "claude"):
+		return int(200_000 * 0.8)
+	case strings.Contains(modelName, "grok"):
+		return int(256_000 * 0.8)
+	case strings.Contains(modelName, "deepseek"):
+		return int(128_000 * 0.8)
+	default:
+		return int(128_000 * 0.8)
+	}
+}
 
 func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string) bool {
-	userQuestion := extractUserText(session.UserInput)
-	if userQuestion == "" {
-		return false
-	}
 	if len(session.ToolHistories) == 0 {
 		return false
 	}
 
-	lastGroupIdx := -1
-	for i := len(session.ToolHistories) - 1; i >= 0; i-- {
-		if session.ToolHistories[i].Role == "assistant" && len(session.ToolHistories[i].ToolCalls) > 0 {
-			lastGroupIdx = i
-			break
-		}
+	groupStarts := groupStartIndices(session.ToolHistories)
+	total := len(groupStarts)
+	if total < 3 {
+		return false
 	}
-	if lastGroupIdx <= 0 {
+	batchSize := min(max(int(math.Round(float64(total)*0.2)), 2), total-1)
+	return compactRange(ctx, agent, session, usage, taskHash, groupStarts[batchSize])
+}
+
+func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, events chan<- agentTypes.Event) bool {
+	if len(session.OldHistories) == 0 {
+		return false
+	}
+	userQuestion := extractUserText(session.UserInput)
+	if userQuestion == "" {
 		return false
 	}
 
-	tail := session.ToolHistories[lastGroupIdx:]
+	var sb strings.Builder
+	for _, msg := range session.OldHistories {
+		content, _ := msg.Content.(string)
+		if content == "" {
+			continue
+		}
+		switch msg.Role {
+		case "user":
+			fmt.Fprintf(&sb, "[user] %s\n\n", content)
+		case "assistant":
+			fmt.Fprintf(&sb, "[assistant] %s\n\n", content)
+		}
+	}
+	if utf8.RuneCountInString(sb.String()) < compactThreshold(agent.Name())/3 {
+		return false
+	}
 
-	prefix := session.ToolHistories[:lastGroupIdx]
+	events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "history"}
+
+	prompt := strings.NewReplacer(
+		"{{.UserQuestion}}", userQuestion,
+	).Replace(strings.TrimSpace(configs.OldHistoryExtractPrompt))
+
+	messages := []agentTypes.Message{
+		{Role: "system", Content: prompt},
+		{Role: "user", Content: sb.String()},
+	}
+
+	compactCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+	defer cancel()
+
+	resp, err := agent.Send(compactCtx, messages, nil)
+	if err != nil {
+		slog.Warn("extractOldHistories agent.Send",
+			slog.String("session", session.ID),
+			slog.String("error", err.Error()))
+		return false
+	}
+	if len(resp.Choices) == 0 {
+		return false
+	}
+
+	if usage != nil {
+		usage.Input += resp.Usage.Input
+		usage.Output += resp.Usage.Output
+		usage.CacheCreate += resp.Usage.CacheCreate
+		usage.CacheRead += resp.Usage.CacheRead
+	}
+
+	result, ok := resp.Choices[0].Message.Content.(string)
+	if !ok || strings.TrimSpace(result) == "" {
+		return false
+	}
+
+	session.OldHistories = []agentTypes.Message{
+		{Role: "user", Content: "以下是先前對話的整併摘要（僅為背景參考，不代表本次問題所需的完整資料——若需要最新資訊仍須查找或呼叫工具，尚未回覆使用者）：\n\n" + strings.TrimSpace(result)},
+	}
+	return true
+}
+
+func rawToolDumpFallback(session *agentTypes.AgentSession, taskHash string) bool {
+	if len(session.ToolHistories) == 0 {
+		return false
+	}
+
+	messages := session.ToolHistories
+	var planPair []agentTypes.Message
+	if taskHash != "" {
+		planPair = lastWriteTodoPair(messages)
+		messages = stripWriteTodo(messages, false)
+	}
+
+	raw := rawToolDump(messages)
+	if raw == "" {
+		return false
+	}
+
+	session.OldHistories = nil
+	session.SummaryMessage = agentTypes.Message{}
+	head := []agentTypes.Message{
+		{Role: "user", Content: "以下是先前工具查詢的原始結果（摘要失敗，未經萃取，回答原始問題所需的需求資料，尚未回覆使用者）：\n\n" + raw},
+	}
+	head = append(head, planPair...)
+	session.ToolHistories = head
+	return true
+}
+
+func rawToolDump(messages []agentTypes.Message) string {
+	nameByID := make(map[string]string)
+	for _, msg := range messages {
+		for _, tc := range msg.ToolCalls {
+			nameByID[tc.ID] = tc.Function.Name
+		}
+	}
+
+	var sb strings.Builder
+	for _, msg := range messages {
+		if msg.Role != "tool" {
+			continue
+		}
+		content, _ := msg.Content.(string)
+		if strings.TrimSpace(content) == "" {
+			continue
+		}
+		name := nameByID[msg.ToolCallID]
+		if name == "" {
+			name = "tool"
+		}
+		fmt.Fprintf(&sb, "%s:\n%s\n\n", name, content)
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string, boundaryIdx int) bool {
+	userQuestion := extractUserText(session.UserInput)
+	if userQuestion == "" {
+		return false
+	}
+
+	tail := session.ToolHistories[boundaryIdx:]
+
+	prefix := session.ToolHistories[:boundaryIdx]
 	var planPair []agentTypes.Message
 	if taskHash != "" {
 		if !containsWriteTodo(tail) {
@@ -85,7 +224,7 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 
 	resp, err := agent.Send(compactCtx, messages, nil)
 	if err != nil {
-		slog.Warn("compactExec agent.Send",
+		slog.Warn("compactRange agent.Send",
 			slog.String("session", session.ID),
 			slog.String("error", err.Error()))
 		return false
@@ -109,16 +248,22 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 	session.OldHistories = nil
 	session.SummaryMessage = agentTypes.Message{}
 	head := []agentTypes.Message{
-		{Role: "user", Content: "以下是先前工具查詢的整合結果，請基於此資料繼續回答原始問題。"},
-		{Role: "assistant", Content: strings.TrimSpace(result)},
+		{Role: "user", Content: "以下是先前工具查詢結果的整併資料（回答原始問題所需的需求資料，尚未回覆使用者）：\n\n" + strings.TrimSpace(result)},
 	}
 	head = append(head, planPair...)
 	session.ToolHistories = append(head, tail...)
 
-	slog.Info("compactExec completed",
-		slog.Int("input_tokens", resp.Usage.Input),
-		slog.Int("output_tokens", resp.Usage.Output))
 	return true
+}
+
+func groupStartIndices(msgs []agentTypes.Message) []int {
+	var idx []int
+	for i, m := range msgs {
+		if m.Role == "assistant" && len(m.ToolCalls) > 0 {
+			idx = append(idx, i)
+		}
+	}
+	return idx
 }
 
 func extractUserText(input agentTypes.Message) string {

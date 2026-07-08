@@ -38,7 +38,7 @@ func Get(path string) (*Skill, error) {
 
 	raw := []byte(content)
 	skill := &Skill{
-		Name:    filepath.Base(path),
+		Name:    filepath.Base(filepath.Dir(path)),
 		AbsPath: absPath,
 		Path:    path,
 		Content: content,

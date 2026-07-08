@@ -1,11 +1,8 @@
 package toolcache
 
 import (
-	"cmp"
 	"encoding/json"
 	"log/slog"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -54,20 +51,13 @@ func Store(sessionID, callID, toolName, args, result string) {
 	}
 }
 
-type ListItem struct {
-	ID       string
-	ToolName string
-	Args     string
-	Age      time.Duration
-}
-
-func List(sessionID string) []ListItem {
+func FindRecent(sessionID, toolName, args string) (string, bool) {
 	db := torii.DB(torii.DBToolCache)
 	prefix := keyPrefix(sessionID)
 	keys := db.Keys(prefix + "*")
 
-	now := time.Now()
-	var list []ListItem
+	var best toolHistory
+	found := false
 	for _, k := range keys {
 		entry, ok := db.Get(k)
 		if !ok {
@@ -77,28 +67,13 @@ func List(sessionID string) []ListItem {
 		if err := json.Unmarshal([]byte(entry.Value()), &e); err != nil {
 			continue
 		}
-		list = append(list, ListItem{
-			ID:       strings.TrimPrefix(k, prefix),
-			ToolName: e.ToolName,
-			Args:     e.Args,
-			Age:      now.Sub(time.Unix(e.CreatedAt, 0)),
-		})
+		if e.ToolName != toolName || e.Args != args {
+			continue
+		}
+		if !found || e.CreatedAt > best.CreatedAt {
+			best = e
+			found = true
+		}
 	}
-	slices.SortFunc(list, func(a, b ListItem) int {
-		return cmp.Compare(a.Age, b.Age)
-	})
-	return list
-}
-
-func Get(sessionID, callID string) (string, bool) {
-	db := torii.DB(torii.DBToolCache)
-	entry, ok := db.Get(keyPrefix(sessionID) + callID)
-	if !ok {
-		return "", false
-	}
-	var e toolHistory
-	if err := json.Unmarshal([]byte(entry.Value()), &e); err != nil {
-		return "", false
-	}
-	return e.Result, true
+	return best.Result, found
 }

@@ -302,7 +302,6 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 
 	case agentTypes.EventToolCall:
 		if ev.ToolName == "ask_user" || ev.ToolName == "store_secret" ||
-			ev.ToolName == "list_recent_tool_call" || ev.ToolName == "read_tool_call" ||
 			ev.ToolName == "write_todo" {
 			return "", false
 		}
@@ -364,6 +363,13 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 
 	case agentTypes.EventSummaryGenerate:
 		return hintStyle.Render("⏵ " + srcPrefix + "summarizing…"), true
+
+	case agentTypes.EventCompact:
+		label := "compacting tool history…"
+		if ev.Text == "history" {
+			label = "compacting conversation history…"
+		}
+		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
 	case agentTypes.EventDone:
 		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)

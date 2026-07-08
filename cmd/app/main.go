@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -103,32 +102,27 @@ func runStop() {
 	fmt.Println("Daemon stopped.")
 }
 
-func setSummaryCron() {
-	ticker := time.NewTicker(1 * time.Hour)
-	defer ticker.Stop()
+func runSummaryCron() {
+	sessions := sessionSummary.Pending()
+	if len(sessions) == 0 {
+		return
+	}
 
-	for range ticker.C {
-		sessions := sessionSummary.Pending()
-		if len(sessions) == 0 {
+	for _, sid := range sessions {
+		_, histories := sessionHistory.Get(sid)
+		if len(histories) == 0 {
 			continue
 		}
-
-		for _, sid := range sessions {
-			_, histories := sessionHistory.Get(sid)
-			if len(histories) == 0 {
-				continue
-			}
-			bgCtx := context.Background()
-			router := agents.SummaryBot()
-			if router == nil {
-				router = agents.DispatcherBot()
-			}
-			summaryAgent := exec.SelectAgent(bgCtx, router, agents.Registry(), "[summary] background summary cron", false, sid)
-			if summaryAgent == nil {
-				continue
-			}
-			agentSummary.Generate(bgCtx, summaryAgent, sid, histories)
+		bgCtx := context.Background()
+		router := agents.SummaryBot()
+		if router == nil {
+			router = agents.DispatcherBot()
 		}
+		summaryAgent := exec.SelectAgent(bgCtx, router, agents.Registry(), "[summary] background summary cron", false, sid)
+		if summaryAgent == nil {
+			continue
+		}
+		agentSummary.Generate(bgCtx, summaryAgent, sid, histories)
 	}
 }
 

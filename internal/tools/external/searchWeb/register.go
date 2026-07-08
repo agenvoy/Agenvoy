@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -40,21 +41,33 @@ func Register() {
 					"description": "Force browser-based fetch via Chrome DevTools Protocol instead of HTTP POST. Slower but bypasses HTTP rate-limiting. Automatically enabled on HTTP 202.",
 					"default":     false,
 				},
+				"force": map[string]any{
+					"type":        "boolean",
+					"description": "Skip the cached-result lookup and re-search even if an identical call was made recently. Set true when the user explicitly asks to re-check/refresh results.",
+					"default":     false,
+				},
 			},
 			"required": []string{
 				"query",
 			},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Query     string `json:"query"`
 				TimeRange string `json:"time_range"`
 				CDP       bool   `json:"cdp"`
+				Force     bool   `json:"force"`
 				// avoid small agent like 4.1 be stupid to call with different parameter name
 				Q string `json:"q"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if !params.Force {
+				if cached, ok := toolcache.FindRecent(e.SessionID, "search_web", string(args)); ok {
+					return cached, nil
+				}
 			}
 
 			query := strings.TrimSpace(params.Query)

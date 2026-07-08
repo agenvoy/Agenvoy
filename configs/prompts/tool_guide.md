@@ -13,7 +13,27 @@
 ## Naming
 snake_case, no prefix (runtime adds `script_` or `api_` automatically).
 Verb + noun pattern: calculate_rsi, fetch_weather, deduplicate_csv.
-Avoid vague verbs: process_*, handle_*.
+Avoid generic verbs: process_*, handle_*, manage_*, execute_*, perform_*, dispatch_*, do_*, run_* (unless the verb IS the literal action, e.g. run_command).
+If a same-domain tool already exists, match its verb and suffix shape — don't mix analyze_* into a fetch_* cluster, don't invent a new suffix vocabulary for the same concept (read_error / remember_error / search_error_memory is three shapes for one idea — pick one).
+
+## Description
+Exactly 3 lines, 60-200 chars total. No filler ("This tool allows you to…", "Use this when needed…"), no **bold**, no output-schema dump, no implementation detail (call-contract stuff belongs in parameter descriptions, not here).
+1. What — core action, one sentence.
+2. When — trigger vs alternatives (`use for X; Y for Z`).
+3. Precondition — key constraint/prerequisite the caller must satisfy (omit line if none).
+Example:
+```
+Fetch the current spot price for a crypto symbol from a public exchange API.
+Use when the user asks for a live crypto price; use fetch_ohlc for historical candles.
+Symbol must be a valid exchange ticker (e.g. BTCUSDT).
+```
+
+## Parameter description
+Every `parameters.properties.<name>.description` must cover:
+- How — type, unit, accepted values/enum meanings.
+- When — interaction with other params (omit if the param stands alone).
+- Example — at least one concrete value for non-trivial types (object, array, enum, path, cron, regex).
+A non-trivial type with a description under 20 chars is treated as incomplete. Don't repeat the field name as the description ("user_id: the user id" is not a description).
 
 ## Secret / API key access
 Never hardcode secrets. Key naming: {BRAND}_API_KEY in SCREAMING_SNAKE_CASE.
@@ -60,7 +80,7 @@ def get_key(name):
 ```json
 {
   "name": "<tool_name>",
-  "description": "<when to call this tool — trigger signals and use-case differentiation only, 60-200 chars, no filler>",
+  "description": "<3-line What/When/Precondition per the Description section above>",
   "always_allow": false,
   "concurrent": false,
   "parameters": {
@@ -68,7 +88,7 @@ def get_key(name):
     "properties": {
       "<param_name>": {
         "type": "string|integer|number|boolean|array|object",
-        "description": "<purpose + unit + accepted values/enum meanings + example + interactions with other params>",
+        "description": "<How/When/Example per the Parameter description section above>",
         "default": "<value, required for optional params>"
       }
     },
@@ -77,8 +97,6 @@ def get_key(name):
 }
 ```
 
-- description: trigger signals only (when to call, vs similar tools). No implementation details, no filler.
-- parameter descriptions: complete contracts. Non-trivial types (object/array/enum) shorter than 20 chars = incomplete.
 - always_allow: true for read-only/computation; false for writes/sends/payments.
 - concurrent: true when the API is read-only data retrieval with a relaxed rate limit; false (default) for write operations or strict rate-limited endpoints.
 
@@ -151,7 +169,7 @@ if __name__ == "__main__":
 ```json
 {
   "name": "<tool_name>",
-  "description": "<when to call this tool — trigger signals and use-case, 60-200 chars, no filler>",
+  "description": "<3-line What/When/Precondition per the Description section above>",
   "always_allow": false,
   "concurrent": false,
   "endpoint": {
@@ -174,7 +192,7 @@ if __name__ == "__main__":
   "parameters": {
     "<param_name>": {
       "type": "string|integer|number|boolean",
-      "description": "<purpose + accepted values + example>",
+      "description": "<How/When/Example per the Parameter description section above>",
       "required": true,
       "default": ""
     }

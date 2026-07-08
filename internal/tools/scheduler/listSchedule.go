@@ -27,7 +27,7 @@ func registListSchedule() {
 			},
 		},
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
+		AlwaysLoad:  false,
 		Concurrent:  true,
 		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {

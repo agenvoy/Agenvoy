@@ -1,0 +1,14 @@
+# ToriiDB is primarily a Go codebase
+*.go linguist-language=Go
+
+# Exclude worker site assets from primary language stats
+worker/** linguist-vendored
+
+# Generated or non-source assets should not affect language stats
+*.md linguist-documentation
+*.json linguist-documentation
+*.html linguist-vendored
+*.css linguist-vendored
+*.js linguist-vendored
+*.py linguist-vendored
+*.sh linguist-vendored

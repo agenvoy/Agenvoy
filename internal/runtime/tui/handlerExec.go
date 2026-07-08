@@ -93,7 +93,6 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventToolCall:
 		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
-			ev.ToolName != "list_recent_tool_call" && ev.ToolName != "read_tool_call" &&
 			ev.ToolName != "write_todo" {
 			t.activity = "tool: " + ev.ToolName
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
@@ -110,8 +109,24 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case agentTypes.EventToolResult:
+		t.activity = ""
+		return t, nil
+
 	case agentTypes.EventSummaryGenerate:
 		t.activity = "summarizing…"
+
+	case agentTypes.EventCompact:
+		if ev.Text == "history" {
+			t.activity = "compacting history…"
+		} else {
+			t.activity = "compacting tool history…"
+		}
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
+		if ok {
+			t.toolBuf = append(t.toolBuf, line)
+		}
+		return t, nil
 
 	case agentTypes.EventText:
 		if ev.Source == "" {
@@ -154,7 +169,16 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.tokens = ev.Usage.Input + ev.Usage.Output
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output
+			t.lastCacheRead = ev.Usage.CacheRead
 		}
+
+	case agentTypes.EventUsageUpdate:
+		if ev.Source == "" && ev.Usage != nil {
+			t.lastIn = ev.Usage.Input
+			t.lastOut = ev.Usage.Output
+			t.lastCacheRead = ev.Usage.CacheRead
+		}
+		return t, nil
 
 	}
 

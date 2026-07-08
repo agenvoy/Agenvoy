@@ -156,8 +156,14 @@ func FormatEventFooter(duration time.Duration, model string, usage *agentTypes.U
 		parts = append(parts, model)
 	}
 
-	if usage != nil && (usage.Input > 0 || usage.Output > 0) {
-		parts = append(parts, fmt.Sprintf("↑%s ↓%s", go_pkg_utils.CompactNumber(usage.Input), go_pkg_utils.CompactNumber(usage.Output)))
+	if usage != nil && (usage.Input > 0 || usage.CacheRead > 0 || usage.Output > 0) {
+		totalInput := usage.Input + usage.CacheRead
+		if usage.CacheRead > 0 && totalInput > 0 {
+			hitPct := int(float64(usage.CacheRead) / float64(totalInput) * 100)
+			parts = append(parts, fmt.Sprintf("↑ %s(%d%%) ↓ %s", go_pkg_utils.CompactNumber(totalInput), hitPct, go_pkg_utils.CompactNumber(usage.Output)))
+		} else {
+			parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", go_pkg_utils.CompactNumber(totalInput), go_pkg_utils.CompactNumber(usage.Output)))
+		}
 	}
 	return strings.Join(parts, " · ")
 }

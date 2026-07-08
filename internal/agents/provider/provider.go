@@ -41,6 +41,16 @@ func SupportTemperature(providerName, model string) bool {
 	return true
 }
 
+func ResponsesAPI(providerName, model string) bool {
+	switch providerName {
+	case "openai":
+		return strings.Contains(model, "codex") || strings.HasPrefix(model, "gpt-5.4") || strings.HasSuffix(model, "-pro")
+	case "copilot":
+		return strings.Contains(model, "-codex") || strings.HasPrefix(model, "gpt-5.4")
+	}
+	return false
+}
+
 func SupportReasoningEffort(providerName, model string) bool {
 	switch providerName {
 	case "openai", "copilot":

@@ -28,6 +28,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		t.tokens = 0
 		t.lastIn = 0
 		t.lastOut = 0
+		t.lastCacheRead = 0
 		return t, tea.Sequence(
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),

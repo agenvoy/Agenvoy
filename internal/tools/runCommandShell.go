@@ -43,6 +43,10 @@ func validateShellScript(script string, allowed map[string]bool) error {
 			return false
 		}
 		base := filepath.Base(bin)
+		if base == "rm" {
+			bad = fmt.Errorf("rm is not allowed inside sh -c")
+			return false
+		}
 		if shellAllow[base] {
 			return true
 		}
@@ -94,6 +98,10 @@ func validateShellScriptFloor(script string) error {
 		}
 		if bin, ok := staticWord(call.Args[0]); ok {
 			base := filepath.Base(bin)
+			if base == "rm" {
+				bad = fmt.Errorf("rm is not allowed inside sh -c")
+				return false
+			}
 			if (base == "sh" || base == "bash") && len(call.Args) >= 3 {
 				flag, ok := staticWord(call.Args[1])
 				if !ok || flag != "-c" {

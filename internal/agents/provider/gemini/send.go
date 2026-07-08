@@ -52,7 +52,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 
 	newTools := a.convertToTools(tools)
 	apiURL := fmt.Sprintf("%s%s:generateContent", baseAPI, a.model)
-	requestBody := a.generateRequestBody(newMessages, systemPrompt, newTools)
+
+	cachedName, sendMessages := a.applyCache(ctx, systemPrompt, newMessages)
+	requestBody := a.generateRequestBody(sendMessages, systemPrompt, newTools, cachedName)
 
 	result, _, err := go_pkg_http.POST[Output](ctx, a.httpClient, apiURL, map[string]string{
 		"Content-Type":   "application/json",
@@ -229,7 +231,7 @@ func sanitizeSchema(m map[string]any) {
 	}
 }
 
-func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools []map[string]any) map[string]any {
+func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools []map[string]any, cachedContent string) map[string]any {
 	thinkingConfig := provider.GetThinkingConfig("gemini", a.model)
 	level := provider.GetReasoningLevel()
 
@@ -254,7 +256,9 @@ func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools 
 		"generationConfig": generationConfig,
 	}
 
-	if prompt != "" {
+	if cachedContent != "" {
+		body["cachedContent"] = cachedContent
+	} else if prompt != "" {
 		body["systemInstruction"] = map[string]any{
 			"parts": []map[string]any{
 				{"text": prompt},

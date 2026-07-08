@@ -181,7 +181,23 @@ func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.
 
 const maxFallbackRounds = 3
 
-func nextAgent(ctx context.Context, fallbacks *[]agentTypes.Agent, allAgents []agentTypes.Agent, round *int) (agentTypes.Agent, string) {
+func nextAgent(ctx context.Context, sessionID, currentModel string, fallbacks *[]agentTypes.Agent, allAgents []agentTypes.Agent, round *int) (agentTypes.Agent, string) {
+	if model, _ := configBot.GetModel(sessionID); model != "" && model != configBot.DefaultModel {
+		return nil, ""
+	}
+
+	prefix, _, ok := strings.Cut(currentModel, "@")
+	if !ok {
+		return nil, ""
+	}
+	prefix += "@"
+
+	others := filterOutPrefix(allAgents, prefix)
+	if len(others) == 0 {
+		return nil, ""
+	}
+	*fallbacks = filterOutPrefix(*fallbacks, prefix)
+
 	for {
 		agent, name := pickHealthyFallback(ctx, fallbacks)
 		if agent != nil {
@@ -197,10 +213,21 @@ func nextAgent(ctx context.Context, fallbacks *[]agentTypes.Agent, allAgents []a
 		slog.Warn("all agents failed, starting retry round",
 			slog.Int("round", *round+1),
 			slog.Int("max", maxFallbackRounds))
-		rebuilt := make([]agentTypes.Agent, len(allAgents))
-		copy(rebuilt, allAgents)
+		rebuilt := make([]agentTypes.Agent, len(others))
+		copy(rebuilt, others)
 		*fallbacks = rebuilt
 	}
+}
+
+func filterOutPrefix(agents []agentTypes.Agent, prefix string) []agentTypes.Agent {
+	out := make([]agentTypes.Agent, 0, len(agents))
+	for _, a := range agents {
+		if a == nil || strings.HasPrefix(a.Name(), prefix) {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (agentTypes.Agent, string) {

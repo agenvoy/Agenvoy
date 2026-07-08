@@ -44,7 +44,7 @@ img { max-width: 100%; height: auto; }
   border-bottom: 1px solid var(--border);
 }
 .nav-inner {
-  max-width: 1140px; margin: 0 auto; padding: 0 24px;
+  max-width: 1140px; margin: 0 auto; padding: 0 20px;
   height: 56px; display: flex; align-items: center; gap: 28px;
 }
 .nav-logo {

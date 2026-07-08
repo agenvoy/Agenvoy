@@ -57,6 +57,7 @@ type TUI struct {
 	activity           string
 	lastIn             int
 	lastOut            int
+	lastCacheRead      int
 
 	tailCancel context.CancelFunc
 

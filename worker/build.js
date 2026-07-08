@@ -1,15 +1,25 @@
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
 const { marked } = require("marked");
 
 const PAGES_DIR = path.join(__dirname, "public/docs/pages");
 const OUT_DIR = path.join(__dirname, "public/docs");
+const TAGS_MANIFEST = path.join(__dirname, "public/docs/tags/manifest.json");
+
+function semverSort(a, b) {
+  const pa = a.replace(/^v/, "").split(".").map(Number);
+  const pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pb[i] || 0) - (pa[i] || 0);
+  }
+  return 0;
+}
 
 let LATEST_VERSION = "";
-try {
-  LATEST_VERSION = execSync("git tag --sort=-v:refname | head -1", { encoding: "utf-8", cwd: path.join(__dirname, ".."), shell: true }).trim();
-} catch {}
+if (fs.existsSync(TAGS_MANIFEST)) {
+  const tags = Object.keys(JSON.parse(fs.readFileSync(TAGS_MANIFEST, "utf-8"))).sort(semverSort);
+  LATEST_VERSION = tags[0] || "";
+}
 
 const NAV = [
   { section: "Overview", items: [
@@ -381,15 +391,6 @@ for (const slug of allSlugs) {
 const TAGS_SRC = path.join(__dirname, "public/docs/tags");
 const RELEASED_DIR = path.join(OUT_DIR, "released");
 const releaseTags = [];
-
-function semverSort(a, b) {
-  const pa = a.replace(/^v/, "").split(".").map(Number);
-  const pb = b.replace(/^v/, "").split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) !== (pb[i] || 0)) return (pb[i] || 0) - (pa[i] || 0);
-  }
-  return 0;
-}
 
 function buildVersionSidebar(activeTag, tags, dates) {
   let html = '<a class="nav-item" href="/docs/">Documentation</a>\n';

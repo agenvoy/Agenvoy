@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	go_browser "github.com/pardnchiu/go-browser"
+	go_browser "github.com/pardnchiu/go-browser/core"
 
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
