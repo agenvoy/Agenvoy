@@ -51,8 +51,6 @@ var toolDisplayName = map[string]string{
 	"search_rag":            "Search RAG",
 	"search_files":          "Search Files",
 	"search_tools":          "Search Tools",
-	"list_recent_tool_call": "Recent Calls",
-	"read_tool_call":        "Read Cache",
 	"list_rag":              "List RAG",
 	"list_files":            "List Files",
 	"list_tools":            "List Tools",
@@ -234,11 +232,6 @@ func FormatToolArgs(name, raw, cwd string) string {
 
 	case "remember_error":
 		if s := pick("symptom", "cause", "action"); s != "" {
-			return s
-		}
-
-	case "read_tool_call":
-		if s := pick("id"); s != "" {
 			return s
 		}
 

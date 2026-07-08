@@ -301,7 +301,6 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 
 	case agentTypes.EventToolCall:
 		if ev.ToolName == "ask_user" || ev.ToolName == "store_secret" ||
-			ev.ToolName == "list_recent_tool_call" || ev.ToolName == "read_tool_call" ||
 			ev.ToolName == "write_todo" {
 			return "", false
 		}
