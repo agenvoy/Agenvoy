@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -46,6 +47,10 @@ func Register() {
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+			if cached, ok := toolcache.FindRecent(e.SessionID, "search_google_news", string(args)); ok {
+				return cached, nil
+			}
+
 			var params struct {
 				Keyword   string `json:"keyword"`
 				TimeRange string `json:"time_range"`

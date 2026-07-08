@@ -17,6 +17,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -120,7 +121,7 @@ func registFetchPage() {
 				"link",
 			},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Link        string `json:"link"`
 				KeepLinks   bool   `json:"keep_links"`
@@ -132,6 +133,12 @@ func registFetchPage() {
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if !params.Save {
+				if cached, ok := toolcache.FindRecent(e.SessionID, "fetch_page", string(args)); ok {
+					return cached, nil
+				}
 			}
 
 			link := strings.TrimSpace(params.Link)

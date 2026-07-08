@@ -110,6 +110,10 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case agentTypes.EventToolResult:
+		t.activity = ""
+		return t, nil
+
 	case agentTypes.EventSummaryGenerate:
 		t.activity = "summarizing…"
 

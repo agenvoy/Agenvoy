@@ -102,3 +102,30 @@ func Get(sessionID, callID string) (string, bool) {
 	}
 	return e.Result, true
 }
+
+func FindRecent(sessionID, toolName, args string) (string, bool) {
+	db := torii.DB(torii.DBToolCache)
+	prefix := keyPrefix(sessionID)
+	keys := db.Keys(prefix + "*")
+
+	var best toolHistory
+	found := false
+	for _, k := range keys {
+		entry, ok := db.Get(k)
+		if !ok {
+			continue
+		}
+		var e toolHistory
+		if err := json.Unmarshal([]byte(entry.Value()), &e); err != nil {
+			continue
+		}
+		if e.ToolName != toolName || e.Args != args {
+			continue
+		}
+		if !found || e.CreatedAt > best.CreatedAt {
+			best = e
+			found = true
+		}
+	}
+	return best.Result, found
+}

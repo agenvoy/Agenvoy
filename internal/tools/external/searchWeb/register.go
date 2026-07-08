@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -45,7 +46,11 @@ func Register() {
 				"query",
 			},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+			if cached, ok := toolcache.FindRecent(e.SessionID, "search_web", string(args)); ok {
+				return cached, nil
+			}
+
 			var params struct {
 				Query     string `json:"query"`
 				TimeRange string `json:"time_range"`
