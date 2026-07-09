@@ -2,14 +2,14 @@
 
 ## 工具設計規則
 
-新增或編輯工具的四條強制規則（由 `/tool-reviewer` 強制執行）：
+新增或編輯工具的四條強制規則（build-time 契約在 `tool_generate_guide`；後續品質由 `code-reviewer` skill 檢查 — 原本獨立的 `/tool-reviewer` skill 已被這兩者取代並移除）：
 
 1. **name 是唯一的語意載體** — stub-tool 的首輪呼叫只看得到 name；description 與 params 在第二輪才抵達
-2. **description 只服務參數呼叫的正確性** — 不放使用手冊、觸發條件或與其他工具的比較
+2. **description 固定 3 行、60-200 字元** — What（核心動作）／When（觸發時機 vs 替代方案，例：`use for X; Y for Z`）／Precondition（關鍵限制，無則省略）。不放填充語、不用粗體、不放輸出 schema dump。
 3. **僅限英文** — 中文只出現在面向使用者的 handler 回傳訊息
 4. **選用欄位必須宣告 `default`** — handler 仍需防禦 nil/缺失
 
-Description 長度：預設為單句、以動詞開頭。禁止：觸發條件（「Use when ...」）、工具比較、下游流程指示、輸出 schema 細節。
+觸發條件與同類工具比較是 When 行的必要內容，不是禁止項——只寫核心動作而沒有觸發訊號的 description 視為不完整。Parameter description 須涵蓋 How／When／Example，非平凡型別（object/array/enum）若說明少於 20 字元視為不完整。
 
 ## 工具並行標記
 
