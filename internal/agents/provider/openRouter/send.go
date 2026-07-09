@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -42,6 +44,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		merged = append([]agentTypes.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
+	reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openrouter", a.model))
 	result, _, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
@@ -50,7 +53,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"messages":    merged,
 		"temperature": 0.2,
 		"tools":       tools,
-		"reasoning":   map[string]any{},
+		"reasoning":   map[string]any{"effort": reasoning},
 	}, "json")
 	if err != nil {
 		return nil, fmt.Errorf("http.POST: %w", err)
@@ -59,7 +62,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 	}
 
-	return result.toOutput(), nil
+	out := result.toOutput()
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "openrouter", a.model, reasoning, out.Usage)
+	return out, nil
 }
 
 type orOutput struct {

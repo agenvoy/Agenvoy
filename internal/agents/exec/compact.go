@@ -26,6 +26,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("session id is required")
 	}
+	ctx = agentTypes.WithSessionID(ctx, sessionID)
 
 	old, _ := sessionHistory.Get(sessionID)
 	if len(old) < 4 {

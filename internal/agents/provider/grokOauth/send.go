@@ -15,6 +15,7 @@ import (
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -63,10 +64,10 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"store":        false,
 		"stream":       true,
 	}
+	var reasoning string
 	if provider.SupportReasoningEffort("grok-oauth", a.model) {
-		body["reasoning"] = map[string]any{
-			"effort": provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok-oauth", a.model)),
-		}
+		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok-oauth", a.model))
+		body["reasoning"] = map[string]any{"effort": reasoning}
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -92,7 +93,12 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 
-	return parseSSEStream(resp)
+	out, err := parseSSEStream(resp)
+	if err != nil {
+		return nil, err
+	}
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "grok-oauth", a.model, reasoning, out.Usage)
+	return out, nil
 }
 
 type sseEvent struct {

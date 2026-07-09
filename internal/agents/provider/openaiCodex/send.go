@@ -17,6 +17,7 @@ import (
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -61,6 +62,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 
+	reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("codex", a.model))
 	body := map[string]any{
 		"model":        a.model,
 		"input":        copilotResponse.ConvertInput(nonSystem),
@@ -68,7 +70,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"instructions": instructions,
 		"store":        false,
 		"stream":       true,
-		"reasoning":    map[string]any{"effort": provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openaiCodex", a.model)), "summary": "auto"},
+		"reasoning":    map[string]any{"effort": reasoning, "summary": "auto"},
 	}
 	if key := promptCacheKey(instructions); key != "" {
 		body["prompt_cache_key"] = key
@@ -114,6 +116,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	if err != nil {
 		return nil, err
 	}
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "codex", a.model, reasoning, out.Usage)
 	return out, nil
 }
 

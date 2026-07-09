@@ -45,8 +45,19 @@ func ClampReasoningLevel(level, maxLevel string) string {
 
 func MaxReasoningLevel(providerName, model string) string {
 	switch providerName {
-	case "openai", "openaiCodex":
+	case "openai", "codex", "copilot":
 		if strings.Contains(model, "codex-max") {
+			return "xhigh"
+		}
+		return "high"
+	case "openrouter":
+		return "xhigh"
+	case "claude":
+		if strings.Contains(model, "-20") {
+			return "high"
+		}
+		if strings.Contains(model, "opus-4-7") || strings.Contains(model, "opus-4-8") ||
+			strings.Contains(model, "fable-5") || strings.Contains(model, "mythos-5") {
 			return "xhigh"
 		}
 		return "high"

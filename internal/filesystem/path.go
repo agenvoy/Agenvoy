@@ -18,7 +18,6 @@ var (
 	AgenvoyDir              string
 	ConfigPath              string
 	DaemonLogPath           string
-	UsagePath               string
 	McpPath                 string
 	StoreDir                string
 	HistoryDBPath           string
@@ -83,7 +82,6 @@ func Init() error {
 		AgenvoyDir = filepath.Join(homeDir, ".config", projectName)
 		ConfigPath = filepath.Join(AgenvoyDir, "config.json")
 		DaemonLogPath = filepath.Join(AgenvoyDir, "daemon.log")
-		UsagePath = filepath.Join(AgenvoyDir, "usage.json")
 		McpPath = filepath.Join(AgenvoyDir, "mcp.json")
 
 		StoreDir = filepath.Join(AgenvoyDir, ".store")
@@ -169,6 +167,10 @@ func BotPath(sessionID string) string {
 
 func ActionLogPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "action.log")
+}
+
+func UsageLogPath(sessionID string) string {
+	return filepath.Join(SessionDir(sessionID), "usage.log")
 }
 
 func HistoryPath(sessionID string) string {
