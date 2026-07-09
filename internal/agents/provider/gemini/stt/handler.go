@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -104,15 +102,6 @@ func handler(ctx context.Context, path, prompt string) (string, error) {
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
 		return "", fmt.Errorf("empty response")
-	}
-
-	if err := record.UpdateUsage(model,
-		resp.UsageMetadata.PromptTokenCount-resp.UsageMetadata.CachedContentTokenCount,
-		resp.UsageMetadata.CandidatesTokenCount,
-		0, resp.UsageMetadata.CachedContentTokenCount,
-	); err != nil {
-		slog.Warn("usageManager.Update",
-			slog.String("error", err.Error()))
 	}
 
 	var parts []string

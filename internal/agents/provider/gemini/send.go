@@ -10,6 +10,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -64,7 +65,13 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("http.POST: %w", err)
 	}
 
-	return a.convertToOutput(&result), nil
+	var reasoning string
+	if provider.GetThinkingConfig("gemini", a.model) != "" {
+		reasoning = provider.GetReasoningLevel()
+	}
+	out := a.convertToOutput(&result)
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "gemini", a.model, reasoning, out.Usage)
+	return out, nil
 }
 
 func rewriteSyntheticActivations(messages []agentTypes.Message) []agentTypes.Message {

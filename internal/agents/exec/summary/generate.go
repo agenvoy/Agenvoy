@@ -23,6 +23,7 @@ var (
 )
 
 func Generate(ctx context.Context, agent agentTypes.Agent, sessionID string, histories []agentTypes.Message) error {
+	ctx = agentTypes.WithSessionID(ctx, sessionID)
 	raw, summaryMap := summary.Ensure(sessionID)
 	meta := summary.GetMeta(sessionID)
 

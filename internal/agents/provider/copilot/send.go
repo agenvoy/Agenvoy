@@ -9,6 +9,7 @@ import (
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -58,13 +59,14 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			nonSystem = append(nonSystem, m)
 		}
 
+		reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("copilot", a.model))
 		body := map[string]any{
 			"model":        a.model,
 			"input":        copilotResponse.ConvertInput(nonSystem),
 			"tools":        copilotResponse.ConvertTools(tools),
 			"instructions": instructions,
 			"store":        false,
-			"reasoning":    map[string]any{"effort": provider.GetReasoningLevel(), "summary": "auto"},
+			"reasoning":    map[string]any{"effort": reasoning, "summary": "auto"},
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
@@ -75,6 +77,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 		}
 		out := copilotResponse.ConvertOutput(result)
+		usagelog.Append(agentTypes.SessionIDFrom(ctx), "copilot", a.model, reasoning, out.Usage)
 		return &out, nil
 	}
 
@@ -86,8 +89,10 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	if provider.SupportTemperature("copilot", a.model) {
 		body["temperature"] = 0.2
 	}
+	var reasoning string
 	if provider.SupportReasoningEffort("copilot", a.model) {
-		body["reasoning_effort"] = provider.GetReasoningLevel()
+		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("copilot", a.model))
+		body["reasoning_effort"] = reasoning
 	}
 
 	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
@@ -98,5 +103,6 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 	}
 
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "copilot", a.model, reasoning, result.Usage)
 	return &result, nil
 }

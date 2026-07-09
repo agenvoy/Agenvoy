@@ -26,6 +26,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("session id is required")
 	}
+	ctx = agentTypes.WithSessionID(ctx, sessionID)
 
 	old, _ := sessionHistory.Get(sessionID)
 	if len(old) < 4 {
@@ -33,7 +34,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[compact] prune history", false, sessionID)
+	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[compact] prune history", false, "")
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for compact")
 	}

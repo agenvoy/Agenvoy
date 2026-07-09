@@ -2,14 +2,14 @@
 
 ## Tool design rules
 
-The four mandatory rules for adding or editing tools (enforced by `/tool-reviewer`):
+The four mandatory rules for adding or editing tools (build-time contract in `tool_generate_guide`; ongoing quality checked by the `code-reviewer` skill — the dedicated `/tool-reviewer` skill was retired in favor of these):
 
 1. **Name is the only semantic carrier** — stub-tool first calls only see the name; description and params arrive on the second round
-2. **Description serves parameter-call correctness only** — no usage manuals, trigger conditions, or comparisons with other tools
+2. **Description is exactly 3 lines, 60-200 chars** — What (core action) / When (trigger vs alternatives, e.g. `use for X; Y for Z`) / Precondition (key constraint, omit if none). No filler, no bold, no output-schema dump.
 3. **English only** — Chinese only appears in user-facing handler return messages
 4. **Optional fields must declare a `default`** — handlers still defend against nil/missing
 
-Description length: a single verb-led sentence by default. Forbidden: trigger conditions ("Use when ..."), tool comparisons, downstream flow instructions, output schema details.
+Trigger conditions and comparisons with similar tools are required in the When line, not forbidden — a description with only the core action and no trigger signal is treated as incomplete. Parameter descriptions must cover How/When/Example, and a non-trivial type (object/array/enum) under 20 chars is incomplete.
 
 ## Tool concurrency markers
 

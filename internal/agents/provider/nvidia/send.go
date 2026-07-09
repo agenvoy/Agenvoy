@@ -8,6 +8,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -63,5 +64,6 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 	}
 
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "nvidia", a.model, "", result.Usage)
 	return &result, nil
 }
