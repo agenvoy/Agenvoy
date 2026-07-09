@@ -34,7 +34,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[compact] prune history", false, sessionID)
+	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[compact] prune history", false, "")
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for compact")
 	}

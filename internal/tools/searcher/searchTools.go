@@ -73,17 +73,10 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 					continue
 				}
 
-				replaced := false
-				for i, t := range e.Tools {
-					if t.Function.Name == match.Name {
-						e.Tools[i] = full
-						replaced = true
-						break
-					}
+				if i := slices.IndexFunc(e.Tools, func(t toolTypes.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
+					e.Tools = slices.Delete(e.Tools, i, i+1)
 				}
-				if !replaced {
-					e.Tools = append(e.Tools, full)
-				}
+				e.Tools = append(e.Tools, full)
 				delete(e.StubTools, match.Name)
 			}
 
