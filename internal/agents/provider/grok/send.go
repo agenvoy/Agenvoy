@@ -56,7 +56,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		body["temperature"] = 0.2
 	}
 	if provider.SupportReasoningEffort("grok", a.model) {
-		body["reasoning_effort"] = provider.GetReasoningLevel()
+		body["reasoning_effort"] = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok", a.model))
 	}
 
 	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, map[string]string{

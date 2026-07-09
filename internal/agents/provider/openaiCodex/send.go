@@ -68,7 +68,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"instructions": instructions,
 		"store":        false,
 		"stream":       true,
-		"reasoning":    map[string]any{"effort": provider.GetReasoningLevel(), "summary": "auto"},
+		"reasoning":    map[string]any{"effort": provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openaiCodex", a.model)), "summary": "auto"},
 	}
 	if key := promptCacheKey(instructions); key != "" {
 		body["prompt_cache_key"] = key

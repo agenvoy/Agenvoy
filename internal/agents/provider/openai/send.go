@@ -60,7 +60,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			"tools":        copilotResponse.ConvertTools(tools),
 			"instructions": instructions,
 			"store":        false,
-			"reasoning":    map[string]any{"effort": provider.GetReasoningLevel(), "summary": "auto"},
+			"reasoning":    map[string]any{"effort": provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openai", a.model)), "summary": "auto"},
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
@@ -83,7 +83,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		body["temperature"] = 0.2
 	}
 	if provider.SupportReasoningEffort("openai", a.model) {
-		body["reasoning_effort"] = provider.GetReasoningLevel()
+		body["reasoning_effort"] = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openai", a.model))
 	}
 	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
 	if err != nil {

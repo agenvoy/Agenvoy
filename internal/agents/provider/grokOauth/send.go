@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -61,6 +62,11 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		"instructions": instructions,
 		"store":        false,
 		"stream":       true,
+	}
+	if provider.SupportReasoningEffort("grok-oauth", a.model) {
+		body["reasoning"] = map[string]any{
+			"effort": provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok-oauth", a.model)),
+		}
 	}
 
 	bodyBytes, err := json.Marshal(body)
