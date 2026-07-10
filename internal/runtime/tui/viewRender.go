@@ -256,6 +256,19 @@ func messageBlock(str string) string {
 	return sb.String()
 }
 
+func thinkingBlock(str string) string {
+	var sb strings.Builder
+	for i, line := range strings.Split(str, "\n") {
+		if i > 0 {
+			sb.WriteString("\n  ")
+		} else {
+			sb.WriteString(whiteStyle.Render("✻ "))
+		}
+		sb.WriteString(whiteStyle.Render(line))
+	}
+	return sb.String()
+}
+
 func messageRow(text, subagent string) string {
 	prefix := systemStyle.Render("⏺ ")
 	if strings.TrimSpace(subagent) != "" {
@@ -349,7 +362,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		if len(kept) == 0 {
 			return "", false
 		}
-		return whiteStyle.Render("✻ " + strings.Join(kept, "\n  ")), true
+		return thinkingBlock(strings.Join(kept, "\n")), true
 
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true

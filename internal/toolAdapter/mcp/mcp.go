@@ -134,7 +134,8 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for name, client := range m.clients {
+	for _, name := range slices.Sorted(maps.Keys(m.clients)) {
+		client := m.clients[name]
 		tools, err := client.List(ctx)
 		if err != nil {
 			slog.Warn("client.List",

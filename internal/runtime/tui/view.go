@@ -54,7 +54,6 @@ func (t TUI) viewIdle() string {
 	prefix := "\n"
 	var top string
 	if t.running {
-		prefix = ""
 		top = t.viewThinking() + "\n\n"
 	}
 
@@ -74,12 +73,6 @@ func (t TUI) viewThinking() string {
 	for _, line := range t.toolBuf {
 		sb.WriteString(line)
 		sb.WriteByte('\n')
-	}
-
-	if block := renderTodoList(t.todos); block != "" {
-		sb.WriteString("\n")
-		sb.WriteString(block)
-		sb.WriteString("\n\n")
 	}
 
 	verb := activityVerb(t.activity)
@@ -105,6 +98,11 @@ func (t TUI) viewThinking() string {
 	sb.WriteString(systemStyle.Render(verb + "…"))
 	sb.WriteString(" ")
 	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, " · ") + ")"))
+
+	if block := renderTodoList(t.todos); block != "" {
+		sb.WriteString("\n\n")
+		sb.WriteString(block)
+	}
 	return sb.String()
 }
 

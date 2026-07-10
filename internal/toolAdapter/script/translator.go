@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -84,7 +86,8 @@ func (t *Translator) IsExist(name string) bool {
 
 func (t *Translator) GetTools() []map[string]any {
 	tools := make([]map[string]any, 0, len(t.scripts))
-	for _, script := range t.scripts {
+	for _, key := range slices.Sorted(maps.Keys(t.scripts)) {
+		script := t.scripts[key]
 		params := json.RawMessage(`{"type":"object","properties":{}}`)
 		if len(script.Doc.Parameters) > 0 {
 			params = script.Doc.Parameters
@@ -103,8 +106,8 @@ func (t *Translator) GetTools() []map[string]any {
 
 func (t *Translator) AlwaysAllowNames() []string {
 	names := make([]string, 0, len(t.scripts))
-	for _, script := range t.scripts {
-		if script.Doc.AlwaysAllow {
+	for _, key := range slices.Sorted(maps.Keys(t.scripts)) {
+		if script := t.scripts[key]; script.Doc.AlwaysAllow {
 			names = append(names, t.prefix+script.Doc.Name)
 		}
 	}
@@ -113,16 +116,16 @@ func (t *Translator) AlwaysAllowNames() []string {
 
 func (t *Translator) ConcurrentNames() []string {
 	names := make([]string, 0, len(t.scripts))
-	for _, script := range t.scripts {
-		names = append(names, t.prefix+script.Doc.Name)
+	for _, key := range slices.Sorted(maps.Keys(t.scripts)) {
+		names = append(names, t.prefix+t.scripts[key].Doc.Name)
 	}
 	return names
 }
 
 func (t *Translator) Timeouts() map[string]int {
 	out := make(map[string]int, len(t.scripts))
-	for _, script := range t.scripts {
-		if script.Doc.Timeout > 0 {
+	for _, key := range slices.Sorted(maps.Keys(t.scripts)) {
+		if script := t.scripts[key]; script.Doc.Timeout > 0 {
 			out[t.prefix+script.Doc.Name] = script.Doc.Timeout
 		}
 	}
