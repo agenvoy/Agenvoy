@@ -8,17 +8,61 @@ import (
 
 var reasoningLevel = "medium"
 
-func SetReasoningLevel(level string) {
-	switch level {
-	case "low", "high":
-		reasoningLevel = level
+var reasoningLevelOrder = []string{"low", "medium", "high", "xhigh"}
+
+func NormalizeReasoningLevel(s string) string {
+	switch strings.ToLower(s) {
+	case "low", "medium", "high", "xhigh":
+		return strings.ToLower(s)
 	default:
-		reasoningLevel = "medium"
+		return "medium"
 	}
+}
+
+func SetReasoningLevel(level string) {
+	reasoningLevel = NormalizeReasoningLevel(level)
 }
 
 func GetReasoningLevel() string {
 	return reasoningLevel
+}
+
+func reasoningLevelIndex(level string) int {
+	for i, v := range reasoningLevelOrder {
+		if v == level {
+			return i
+		}
+	}
+	return 1
+}
+
+func ClampReasoningLevel(level, maxLevel string) string {
+	if reasoningLevelIndex(level) > reasoningLevelIndex(maxLevel) {
+		return maxLevel
+	}
+	return level
+}
+
+func MaxReasoningLevel(providerName, model string) string {
+	switch providerName {
+	case "openai", "codex", "copilot":
+		if strings.Contains(model, "codex-max") {
+			return "xhigh"
+		}
+		return "high"
+	case "openrouter":
+		return "xhigh"
+	case "claude":
+		if strings.Contains(model, "-20") {
+			return "high"
+		}
+		if strings.Contains(model, "opus-4-7") || strings.Contains(model, "opus-4-8") ||
+			strings.Contains(model, "fable-5") || strings.Contains(model, "mythos-5") {
+			return "xhigh"
+		}
+		return "high"
+	}
+	return "high"
 }
 
 func SupportTemperature(providerName, model string) bool {
@@ -62,7 +106,7 @@ func SupportReasoningEffort(providerName, model string) bool {
 		}
 		return true
 	case "grok", "grok-oauth":
-		return strings.Contains(model, "-mini")
+		return !strings.Contains(model, "non-reasoning")
 	}
 	return false
 }

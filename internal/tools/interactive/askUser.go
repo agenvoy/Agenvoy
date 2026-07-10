@@ -14,6 +14,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -48,12 +49,14 @@ type ToolResult struct {
 }
 
 type pendingMeta struct {
-	TaskHash     string             `json:"task_hash"`
-	SessionID    string             `json:"session_id"`
-	MessageID    string             `json:"message_id,omitempty"`
-	Objective    string             `json:"objective,omitempty"`
-	Completed    []string           `json:"completed,omitempty"`
-	NextSteps    []string           `json:"next_steps,omitempty"`
+	TaskHash     string                `json:"task_hash"`
+	SessionID    string                `json:"session_id"`
+	MessageID    string                `json:"message_id,omitempty"`
+	Model        string                `json:"model,omitempty"`
+	Reasoning    string                `json:"reasoning,omitempty"`
+	Objective    string                `json:"objective,omitempty"`
+	Completed    []string              `json:"completed,omitempty"`
+	NextSteps    []string              `json:"next_steps,omitempty"`
 	Questions    []runtime.Question    `json:"questions,omitempty"`
 	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
 	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
@@ -246,7 +249,8 @@ func CreateExecPending(sessionID, objective, messageID string) string {
 
 	cleanStaleProgress(sessionID)
 
-	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID}); err != nil {
+	model, reasoning := configBot.GetModel(sessionID)
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
 	return taskHash
@@ -362,6 +366,10 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 		return "", fmt.Errorf("ReadJSON: %w", err)
 	}
 
+	if meta.Model != "" {
+		configBot.SetModel(sessionID, meta.Model, meta.Reasoning)
+	}
+
 	var msg strings.Builder
 
 	if len(meta.Questions) > 0 {
@@ -464,10 +472,12 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 
 	pendingMu.Lock()
 	var allResults []ToolResult
-	var messageID string
+	var messageID, model, reasoning string
 	var todos []agentTypes.TodoItem
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
 		messageID = existing.MessageID
+		model = existing.Model
+		reasoning = existing.Reasoning
 		todos = existing.Todos
 		seen := make(map[string]bool, len(toolResults))
 		for _, r := range toolResults {
@@ -483,9 +493,12 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		}
 	} else {
 		allResults = toolResults
+		model, reasoning = configBot.GetModel(sessionID)
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
 		MessageID:   messageID,
+		Model:       model,
+		Reasoning:   reasoning,
 		Objective:   objective,
 		Completed:   completed,
 		NextSteps:   nextSteps,

@@ -22,7 +22,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -151,6 +150,7 @@ type (
 )
 
 func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
+	ctx = agentTypes.WithSessionID(ctx, session.ID)
 	executeStart := time.Now()
 
 	usedSkills := make(map[string]*skill.Skill)
@@ -689,11 +689,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return fmt.Errorf("unexpected content type: %T", choice.Message.Content)
 		}
 
-		if err := record.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
-			slog.Warn("usageManager.Update",
-				slog.String("session", session.ID),
-				slog.String("error", err.Error()))
-		}
 		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
 
 		keepPending = false
@@ -722,11 +717,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				return nil
 			}
 			sendText(events, summaryStripped)
-			if err := record.UpdateUsage(data.Agent.Name(), usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
-				slog.Warn("usageManager.Update",
-					slog.String("session", session.ID),
-					slog.String("error", err.Error()))
-			}
 			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false
@@ -752,11 +742,6 @@ func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessio
 
 func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) {
 	sendText(events, "no usable data, retry later, or using other tools.")
-	if err := record.UpdateUsage(model, usage.Input, usage.Output, usage.CacheCreate, usage.CacheRead); err != nil {
-		slog.Warn("usageManager.Update",
-			slog.String("session", sessionID),
-			slog.String("error", err.Error()))
-	}
 	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
 }
 

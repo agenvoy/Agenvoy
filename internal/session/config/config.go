@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -92,6 +93,10 @@ func Save(cfg *Config) error {
 	if err != nil {
 		oldDic = map[string]any{}
 	}
+
+	slices.SortFunc(cfg.Models, func(a, b ModelEntry) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	raw, err := json.Marshal(cfg)
 	if err != nil {

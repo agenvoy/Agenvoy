@@ -118,7 +118,7 @@ func runSummaryCron() {
 		if router == nil {
 			router = agents.DispatcherBot()
 		}
-		summaryAgent := exec.SelectAgent(bgCtx, router, agents.Registry(), "[summary] background summary cron", false, sid)
+		summaryAgent := exec.SelectAgent(bgCtx, router, agents.Registry(), "[summary] background summary cron", false, "")
 		if summaryAgent == nil {
 			continue
 		}

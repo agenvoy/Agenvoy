@@ -10,6 +10,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -61,7 +62,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	newTools := a.convertToTools(tools)
 
 	thinkingType := provider.GetThinkingType("claude", a.model)
-	level := provider.GetReasoningLevel()
+	level := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("claude", a.model))
 
 	requestBody := map[string]any{
 		"model":      a.model,
@@ -72,13 +73,14 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	if len(systemPrompts) > 0 {
 		requestBody["system"] = systemPrompts
 	}
+	var usedReasoning string
 	switch thinkingType {
 	case "adaptive":
 		requestBody["thinking"] = map[string]any{"type": "adaptive"}
 		requestBody["output_config"] = map[string]any{"effort": level}
+		usedReasoning = level
 	case "enabled":
-		// 4-5: budget_tokens required
-		budget := map[string]int{"low": 5000, "high": 32000}[level]
+		budget := map[string]int{"low": 5000, "medium": 10000, "high": 32000}[level]
 		if budget == 0 {
 			budget = 10000
 		}
@@ -86,6 +88,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			"type":          "enabled",
 			"budget_tokens": budget,
 		}
+		usedReasoning = level
 	default:
 		requestBody["temperature"] = 0.2
 	}
@@ -108,7 +111,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		return nil, fmt.Errorf("exceeded max_tokens (%d)", a.maxOutputTokens())
 	}
 
-	return a.convertToOutput(&result), nil
+	out := a.convertToOutput(&result)
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), "claude", a.model, usedReasoning, out.Usage)
+	return out, nil
 }
 
 func (a *Agent) convertToMessage(message agentTypes.Message) map[string]any {

@@ -13,6 +13,17 @@ type Agent interface {
 	Execute(ctx context.Context, skill *skill.Skill, userInput string, events chan<- Event, allowAll bool) error
 }
 
+type sessionIDCtxKey struct{}
+
+func WithSessionID(ctx context.Context, sessionID string) context.Context {
+	return context.WithValue(ctx, sessionIDCtxKey{}, sessionID)
+}
+
+func SessionIDFrom(ctx context.Context) string {
+	sid, _ := ctx.Value(sessionIDCtxKey{}).(string)
+	return sid
+}
+
 type AgentRegistry struct {
 	Registry map[string]Agent
 	Entries  []AgentEntry

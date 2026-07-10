@@ -61,6 +61,9 @@ func renderActionLine(p parsedAction) string {
 	switch p.kind {
 	case "user":
 		body = userWrapperRe.ReplaceAllString(body, "")
+		if strings.Contains(body, "[Resumed Task") {
+			return ""
+		}
 		body = strings.TrimSpace(body)
 		if body == "" {
 			return ""

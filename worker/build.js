@@ -391,6 +391,7 @@ for (const slug of allSlugs) {
 const TAGS_SRC = path.join(__dirname, "public/docs/tags");
 const RELEASED_DIR = path.join(OUT_DIR, "released");
 const releaseTags = [];
+let releaseDates = {};
 
 function buildVersionSidebar(activeTag, tags, dates) {
   let html = '<a class="nav-item" href="/docs/">Documentation</a>\n';
@@ -418,6 +419,7 @@ if (fs.existsSync(TAGS_SRC)) {
   const tags = tagFiles.map(f => f.replace(".md", "")).sort(semverSort);
   const manifestPath = path.join(TAGS_SRC, "manifest.json");
   const dates = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf-8")) : {};
+  releaseDates = dates;
 
   if (tags.length) {
     fs.mkdirSync(RELEASED_DIR, { recursive: true });
@@ -463,7 +465,13 @@ if (fs.existsSync(TAGS_SRC)) {
 }
 
 // Generate sitemap.xml
-const today = new Date().toISOString().split("T")[0];
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+const today = toLocalDateStr(new Date());
+function fileLastmod(p, fallback) {
+  return fs.existsSync(p) ? toLocalDateStr(fs.statSync(p).mtime) : fallback;
+}
 let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 sitemap += `  <url><loc>https://agenvoy.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority><lastmod>${today}</lastmod></url>\n`;
 sitemap += `  <url><loc>https://agenvoy.com/docs/</loc><changefreq>weekly</changefreq><priority>0.9</priority><lastmod>${today}</lastmod></url>\n`;
@@ -472,7 +480,8 @@ for (const slug of allSlugs) {
   const mdPath = path.join(PAGES_DIR, `${slug}.md`);
   if (!fs.existsSync(mdPath)) continue;
   const pri = PRIORITIES[slug] || 0.6;
-  sitemap += `  <url><loc>https://agenvoy.com/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri}</priority><lastmod>${today}</lastmod></url>\n`;
+  const lastmod = fileLastmod(mdPath, today);
+  sitemap += `  <url><loc>https://agenvoy.com/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri}</priority><lastmod>${lastmod}</lastmod></url>\n`;
 }
 // zh mirror
 sitemap += `  <url><loc>https://agenvoy.com/zh/</loc><changefreq>weekly</changefreq><priority>0.9</priority><lastmod>${today}</lastmod></url>\n`;
@@ -481,14 +490,17 @@ if (zhSlugs.length) {
   for (const slug of zhSlugs) {
     if (slug === "home") continue;
     const pri = (PRIORITIES[slug] || 0.6) - 0.1;
-    sitemap += `  <url><loc>https://agenvoy.com/zh/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri.toFixed(2)}</priority><lastmod>${today}</lastmod></url>\n`;
+    const lastmod = fileLastmod(path.join(PAGES_DIR, `${slug}.zh.md`), today);
+    sitemap += `  <url><loc>https://agenvoy.com/zh/docs/${slug}</loc><changefreq>monthly</changefreq><priority>${pri.toFixed(2)}</priority><lastmod>${lastmod}</lastmod></url>\n`;
   }
 }
 if (releaseTags.length) {
   sitemap += `  <url><loc>https://agenvoy.com/docs/released/</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>${today}</lastmod></url>\n`;
   for (let i = 0; i < releaseTags.length; i++) {
     const pri = i < 5 ? 0.5 : 0.3;
-    sitemap += `  <url><loc>https://agenvoy.com/docs/released/${releaseTags[i]}</loc><changefreq>yearly</changefreq><priority>${pri}</priority><lastmod>${today}</lastmod></url>\n`;
+    const tag = releaseTags[i];
+    const lastmod = releaseDates[tag] || fileLastmod(path.join(TAGS_SRC, `${tag}.md`), today);
+    sitemap += `  <url><loc>https://agenvoy.com/docs/released/${tag}</loc><changefreq>yearly</changefreq><priority>${pri}</priority><lastmod>${lastmod}</lastmod></url>\n`;
   }
 }
 sitemap += `</urlset>\n`;
