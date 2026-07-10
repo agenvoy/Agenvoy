@@ -84,7 +84,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 	}
-	tail := loadSessionTail(msg.id, t.width)
+	tail := loadSessionTail(msg.id, t.width, false)
 	if len(tail) == 0 {
 		seq = append(seq, tea.Println(hintStyle.Render("⎯ no history yet")+"\n"))
 	} else {

@@ -49,7 +49,7 @@ var commands = []Command{
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
-	{"history", "reload visible transcript · last 100 entries from action.log"},
+	{"resume", "reload visible transcript · last 100 entries from action.log"},
 	{"log", "open / view raw action.log via $PAGER (less)"},
 	{"cmd", "run / exec shell command directly in cwd · sh -c"},
 	{"pending", "list / resume interrupted tasks · error recovery · ask_user resume"},

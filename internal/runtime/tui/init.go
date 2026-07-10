@@ -107,7 +107,6 @@ func (t TUI) Init() tea.Cmd {
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-		seq = append(seq, loadSessionTail(sid, t.width)...)
 		if n := len(interactive.ListPendingTasks(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
 			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
@@ -275,7 +274,7 @@ func refreshBotName(sid string) {
 	}
 }
 
-func loadSessionTail(sid string, width int) []tea.Cmd {
+func loadSessionTail(sid string, width int, all bool) []tea.Cmd {
 	if strings.TrimSpace(sid) == "" {
 		return nil
 	}
@@ -283,17 +282,21 @@ func loadSessionTail(sid string, width int) []tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-	if len(lines) > historyLoad {
+	label := "recent history"
+	if all {
+		label = "full history"
+	} else if len(lines) > historyLoad {
 		lines = lines[len(lines)-historyLoad:]
 	}
 
-	cmds := make([]tea.Cmd, 0, len(lines)*2+1)
-	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")+"\n"))
-	for i, line := range lines {
-		if i > 0 {
+	cmds := make([]tea.Cmd, 0, len(lines)*2+2)
+	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ "+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
+	for i, l := range lines {
+		if i > 0 && l.kind != "done" {
 			cmds = append(cmds, tea.Println(""))
 		}
-		cmds = append(cmds, tea.Println(line))
+		cmds = append(cmds, tea.Println(l.line))
 	}
+	cmds = append(cmds, tea.Println(""))
 	return cmds
 }

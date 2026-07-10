@@ -82,7 +82,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/update":
 		return t.commandUpdate()
 
-	case "/history":
+	case "/resume":
 		return t.commandHistory()
 
 	case "/log":
@@ -112,7 +112,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 	}
-	tail := loadSessionTail(sid, t.width)
+	tail := loadSessionTail(sid, t.width, true)
 	if len(tail) == 0 {
 		seq = append(seq, tea.Println(hintStyle.Render("⎯ no history yet")+"\n"))
 	} else {

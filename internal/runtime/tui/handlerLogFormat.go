@@ -13,11 +13,13 @@ import (
 )
 
 var userWrapperRe = regexp.MustCompile(`^---\n當前時間:[^\n]*\n(?:[^\n]+\n)*?---\n`)
+var cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 
 type parsedAction struct {
-	hash string
-	kind string
-	body string
+	timestamp string
+	hash      string
+	kind      string
+	body      string
 }
 
 func cutBracket(s string) (inside, rest string, ok bool) {
@@ -29,7 +31,7 @@ func cutBracket(s string) (inside, rest string, ok bool) {
 }
 
 func parseActionLine(raw string) (parsedAction, bool) {
-	_, rest, ok := cutBracket(raw)
+	ts, rest, ok := cutBracket(raw)
 	if !ok {
 		return parsedAction{}, false
 	}
@@ -49,9 +51,10 @@ func parseActionLine(raw string) (parsedAction, bool) {
 	}
 
 	return parsedAction{
-		hash: hash,
-		kind: kind,
-		body: strings.TrimSpace(rest),
+		timestamp: ts,
+		hash:      hash,
+		kind:      kind,
+		body:      strings.TrimSpace(rest),
 	}, true
 }
 
@@ -95,7 +98,14 @@ func renderActionLine(p parsedAction, width int) string {
 		}, width)
 
 	case "done":
-		return renderEvent(formatDone(body), width)
+		line := renderEvent(formatDone(body), width)
+		if line == "" {
+			return ""
+		}
+		if ts := formatLogTimestamp(p.timestamp); ts != "" {
+			line = strings.TrimRight(line, "\n") + " · " + hintStyle.Render(ts) + "\n"
+		}
+		return line
 
 	case "skill_result":
 		str := strings.TrimSpace(body)
@@ -107,12 +117,19 @@ func renderActionLine(p parsedAction, width int) string {
 	return ""
 }
 
-func formatLog(raw string, width int) string {
+func formatLogTimestamp(ts string) string {
+	if t, err := time.Parse("2006-01-02 15:04:05.000", ts); err == nil {
+		return t.Format("2006-01-02 15:04:05")
+	}
+	return ts
+}
+
+func formatLog(raw string, width int) (kind, line string) {
 	p, ok := parseActionLine(raw)
 	if !ok {
-		return ""
+		return "", ""
 	}
-	return renderActionLine(p, width)
+	return p.kind, renderActionLine(p, width)
 }
 
 func renderEvent(ev agentTypes.Event, width int) string {
@@ -136,7 +153,14 @@ func formatDone(body string) agentTypes.Event {
 
 	var usage agentTypes.Usage
 	var hasUsage bool
+	hitPct := -1
 	for _, f := range fields {
+		if m := cacheHitPctRe.FindStringSubmatch(f); m != nil {
+			if n, err := strconv.Atoi(m[1]); err == nil {
+				hitPct = n
+			}
+			continue
+		}
 		k, v, found := strings.Cut(f, "=")
 		if !found {
 			continue
@@ -157,6 +181,10 @@ func formatDone(body string) agentTypes.Event {
 				hasUsage = true
 			}
 		}
+	}
+	if hitPct >= 0 && usage.Input > 0 {
+		usage.CacheRead = usage.Input * hitPct / 100
+		usage.Input -= usage.CacheRead
 	}
 	if hasUsage {
 		event.Usage = &usage

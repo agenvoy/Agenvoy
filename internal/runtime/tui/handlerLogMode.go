@@ -173,16 +173,23 @@ func fileSize(path string) int64 {
 	return st.Size()
 }
 
-func readAllLines(path string, width int) []string {
+type sessionTailLine struct {
+	kind string
+	line string
+}
+
+func readAllLines(path string, width int) []sessionTailLine {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
 		return nil
 	}
-	var out []string
+	var out []sessionTailLine
 	for raw := range strings.SplitSeq(text, "\n") {
-		if line := formatLog(raw, width); line != "" {
-			out = append(out, strings.TrimRight(line, "\n"))
+		kind, line := formatLog(raw, width)
+		if line == "" {
+			continue
 		}
+		out = append(out, sessionTailLine{kind: kind, line: strings.TrimRight(line, "\n")})
 	}
 	return out
 }
