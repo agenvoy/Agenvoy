@@ -71,6 +71,8 @@ type TUI struct {
 	runTarget      string
 	streaming      bool
 	tableBuf       []string
+	cmdMode        bool
+	execHandoff    bool
 
 	toolBuf         []string
 	toolCount       int
@@ -141,7 +143,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel`
+	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel · shift+t cmd mode`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false

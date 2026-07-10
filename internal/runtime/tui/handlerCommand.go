@@ -43,14 +43,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/dangerous":
 		return t.commandDangerous(parts)
 
-	case "/reset":
-		return t.commandReset()
-
-	case "/summary":
-		return t.commandSummary()
-
-	case "/compact":
-		return t.commandCompact()
+	case "/memory":
+		return t.commandMemory(parts)
 
 	case "/bot":
 		return t.commandBot(parts)
@@ -67,8 +61,14 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/telegram":
 		return t.commandTelegram(parts)
 
-	case "/feature":
-		return t.commandFeature(parts)
+	case "/voice":
+		return t.commandVoice(parts)
+
+	case "/image2":
+		return t.commandImage2(parts)
+
+	case "/kuradb":
+		return t.commandKuradb(parts)
 
 	case "/admin-channel":
 		return t.commandAdminChannel(parts)
@@ -87,9 +87,6 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/log":
 		return t.commandLog()
-
-	case "/cmd":
-		return t.commandCmd(cmd)
 
 	case "/key":
 		return t.commandKey(parts)

@@ -24,7 +24,7 @@ func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 
 	hashes := interactive.ListPendingTasks(sid)
 	if len(hashes) == 0 {
-		return t, tea.Println(hintStyle.Render("no pending tasks") + "\n"), true
+		return t, tea.Println(hintStyle.Render("⎯ no pending tasks") + "\n"), true
 	}
 
 	options := make([]string, 0, len(hashes))
@@ -46,7 +46,7 @@ func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 	}
 
 	if len(options) == 0 {
-		return t, tea.Println(hintStyle.Render("no pending tasks") + "\n"), true
+		return t, tea.Println(hintStyle.Render("⎯ no pending tasks") + "\n"), true
 	}
 
 	sessionID := sid

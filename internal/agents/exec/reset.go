@@ -38,6 +38,13 @@ func ForceSummary(ctx context.Context, sessionID string) (int, error) {
 	return len(histories), nil
 }
 
+func ResetSessionAll(sessionID string) (int, error) {
+	if sessionID == "" {
+		return 0, fmt.Errorf("session id is required")
+	}
+	return sessionManager.ResetAll(sessionID)
+}
+
 func ResetSessionWithSummary(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("session id is required")

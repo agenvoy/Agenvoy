@@ -356,6 +356,19 @@ func messageBlock(str string) string {
 	return sb.String()
 }
 
+func shellEchoBlock(str string) string {
+	var sb strings.Builder
+	for i, line := range strings.Split(str, "\n") {
+		if i > 0 {
+			sb.WriteString("\n  ")
+		} else {
+			sb.WriteString(warnStyle.Render("$ "))
+		}
+		sb.WriteString(userStyle.Render(line))
+	}
+	return sb.String()
+}
+
 func thinkingBlock(str string) string {
 	var sb strings.Builder
 	for i, line := range strings.Split(str, "\n") {

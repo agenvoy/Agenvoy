@@ -15,7 +15,7 @@ import (
 )
 
 func (t TUI) View() string {
-	if t.quitting {
+	if t.quitting || t.execHandoff {
 		return ""
 	}
 	if t.popup != nil {
