@@ -73,6 +73,7 @@ type TUI struct {
 	tableBuf       []string
 
 	toolBuf         []string
+	toolCount       int
 	todos           []agentTypes.TodoItem
 	inputHistory    []string
 	inputHistoryIdx int

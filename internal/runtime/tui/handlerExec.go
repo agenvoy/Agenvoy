@@ -13,8 +13,24 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
+const toolBufDisplayCap = 4
+
 type agentEvent struct {
 	event agentTypes.Event
+}
+
+func (t *TUI) collapseToolBuf() tea.Cmd {
+	count := t.toolCount
+	t.toolBuf = nil
+	t.toolCount = 0
+	if count == 0 {
+		return nil
+	}
+	label := "tool call"
+	if count != 1 {
+		label = "tool calls"
+	}
+	return tea.Println("\n" + hintStyle.Render(fmt.Sprintf("  Ran %d %s", count, label)))
 }
 
 type agentExec struct {
@@ -97,17 +113,25 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.activity = "tool: " + ev.ToolName
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
 			if ok {
+				t.toolCount++
 				t.toolBuf = append(t.toolBuf, line)
+				if len(t.toolBuf) > toolBufDisplayCap {
+					t.toolBuf = t.toolBuf[len(t.toolBuf)-toolBufDisplayCap:]
+				}
 			}
 			return t, nil
 		}
 
 	case agentTypes.EventReasoning:
 		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
-		if ok {
-			t.toolBuf = append(t.toolBuf, line)
+		if !ok {
+			return t, nil
 		}
-		return t, nil
+		collapse := t.collapseToolBuf()
+		if collapse != nil {
+			return t, tea.Sequence(collapse, tea.Println("\n"+line))
+		}
+		return t, tea.Println("\n" + line)
 
 	case agentTypes.EventToolResult:
 		t.activity = ""
@@ -130,24 +154,36 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventText:
 		if ev.Source == "" {
-			t.toolBuf = nil
+			collapse := t.collapseToolBuf()
 			raw := ev.Text
 
 			if len(t.tableBuf) > 0 {
 				if strings.Contains(raw, "|") {
 					t.tableBuf = append(t.tableBuf, raw)
+					if collapse != nil {
+						return t, collapse
+					}
 					return t, nil
 				}
 				cmds := t.flushTableBuf()
 				cmds = append(cmds, t.printStreamLine(renderMarkdown(raw)))
-				return t, tea.Batch(cmds...)
+				if collapse != nil {
+					cmds = append([]tea.Cmd{collapse}, cmds...)
+				}
+				return t, tea.Sequence(cmds...)
 			}
 
 			if strings.Contains(raw, "|") {
 				t.tableBuf = append(t.tableBuf, raw)
+				if collapse != nil {
+					return t, collapse
+				}
 				return t, nil
 			}
 
+			if collapse != nil {
+				return t, tea.Sequence(collapse, t.printStreamLine(renderMarkdown(raw)))
+			}
 			return t, t.printStreamLine(renderMarkdown(raw))
 		}
 
@@ -163,13 +199,20 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case agentTypes.EventDone:
-		t.toolBuf = nil
+		collapse := t.collapseToolBuf()
 		t.todos = nil
 		if ev.Usage != nil {
 			t.tokens = ev.Usage.Input + ev.Usage.Output
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output
 			t.lastCacheRead = ev.Usage.CacheRead
+		}
+		if collapse != nil {
+			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd)
+			if !ok {
+				return t, collapse
+			}
+			return t, tea.Sequence(collapse, tea.Println(line))
 		}
 
 	case agentTypes.EventUsageUpdate:
@@ -198,7 +241,7 @@ func (t *TUI) printStreamLine(line string) tea.Cmd {
 		if strings.TrimSpace(t.runTarget) != "" {
 			prefix = warnStyle.Render("⏺ [" + t.runTarget + "] ")
 		}
-		rendered = prefix + line
+		rendered = "\n" + prefix + line
 	} else {
 		rendered = "  " + line
 	}
@@ -220,6 +263,7 @@ func (t *TUI) flushTableBuf() []tea.Cmd {
 		if i == 0 && !t.streaming {
 			t.streaming = true
 			t.activity = "responding"
+			sb.WriteByte('\n')
 			if strings.TrimSpace(t.runTarget) != "" {
 				sb.WriteString(warnStyle.Render("⏺ [" + t.runTarget + "] "))
 			} else {

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -149,16 +151,16 @@ func (a *Adapter) IsExist(name string) bool {
 
 func (a *Adapter) GetTools() []map[string]any {
 	tools := make([]map[string]any, 0, len(a.apis))
-	for _, api := range a.apis {
-		tools = append(tools, api.translate(a.prefix))
+	for _, key := range slices.Sorted(maps.Keys(a.apis)) {
+		tools = append(tools, a.apis[key].translate(a.prefix))
 	}
 	return tools
 }
 
 func (a *Adapter) AlwaysAllowNames() []string {
 	names := make([]string, 0, len(a.apis))
-	for _, api := range a.apis {
-		if api.AlwaysAllow {
+	for _, key := range slices.Sorted(maps.Keys(a.apis)) {
+		if api := a.apis[key]; api.AlwaysAllow {
 			names = append(names, a.prefix+api.Name)
 		}
 	}
@@ -167,8 +169,8 @@ func (a *Adapter) AlwaysAllowNames() []string {
 
 func (a *Adapter) ConcurrentNames() []string {
 	names := make([]string, 0, len(a.apis))
-	for _, api := range a.apis {
-		if api.Concurrent {
+	for _, key := range slices.Sorted(maps.Keys(a.apis)) {
+		if api := a.apis[key]; api.Concurrent {
 			names = append(names, a.prefix+api.Name)
 		}
 	}
