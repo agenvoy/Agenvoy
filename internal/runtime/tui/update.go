@@ -1113,7 +1113,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		}
-		seq = append(seq, loadSessionTail(msg.id)...)
+		seq = append(seq, loadSessionTail(msg.id, t.width)...)
 		return t, tea.Sequence(seq...)
 
 	case sudoStream:

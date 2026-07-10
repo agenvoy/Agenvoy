@@ -105,6 +105,7 @@ github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D
 github.com/mattn/go-localereader v0.0.1 h1:ygSAOl7ZXTx4RdPYinUpg6W99U8jWvWi9Ye2JC/oIi4=
 github.com/mattn/go-localereader v0.0.1/go.mod h1:8fBrzywKY7BI3czFoHkuzRoWE9C+EiG4R1k4Cjx5p88=
 github.com/mattn/go-runewidth v0.0.10/go.mod h1:RAqKPSqVFrSLVXbA8x7dzmKdmGzieGRCM46jaSJTDAk=
+github.com/mattn/go-runewidth v0.0.12/go.mod h1:RAqKPSqVFrSLVXbA8x7dzmKdmGzieGRCM46jaSJTDAk=
 github.com/mattn/go-runewidth v0.0.23 h1:7ykA0T0jkPpzSvMS5i9uoNn2Xy3R383f9HDx3RybWcw=
 github.com/mattn/go-runewidth v0.0.23/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
 github.com/mattn/go-sqlite3 v1.14.33 h1:A5blZ5ulQo2AtayQ9/limgHEkFreKj1Dv226a1K73s0=
@@ -118,18 +119,16 @@ github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 h1:ZK8zHtRHOkbHy6Mmr5D
 github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6/go.mod h1:CJlz5H+gyd6CUWT45Oy4q24RdLyn7Md9Vj2/ldJBSIo=
 github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=
 github.com/muesli/cancelreader v0.2.2/go.mod h1:3XuTXfFS2VjM+HTLZY9Ak0l6eUKfijIfMUZ4EgX0QYo=
+github.com/muesli/reflow v0.3.0 h1:IFsN6K9NfGtjeggFP+68I4chLZV2yIKsXJFNZ+eWh6s=
+github.com/muesli/reflow v0.3.0/go.mod h1:pbwTDkVPibjO2kyvBQRBxTWEEGDGq0FlB1BIKtnHY/8=
 github.com/muesli/termenv v0.16.0 h1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc=
 github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3VfY/Cnk=
 github.com/pardnchiu/ToriiDB v0.5.1 h1:+jEtX4L1Pb1CZMYk485f6ulkR0w6I3jvz69fzmge0Ho=
 github.com/pardnchiu/ToriiDB v0.5.1/go.mod h1:0p0IsrySqXyXvKIJswKKG1Zi6wQ2TD/LdKcKx4It/EA=
 github.com/pardnchiu/go-bot v0.4.3 h1:N+uQv+cdNZgNXMeSEfCRfYBaAULYsCIFcRVJYIAYDTw=
 github.com/pardnchiu/go-bot v0.4.3/go.mod h1:9eE+MLerrx6XTz/WS0tGPiPdjKCGGeOHPRhIGfD1HfI=
-github.com/pardnchiu/go-browser v0.1.7 h1:utwHrx3IXSF1CTgDmjXhf0SGeVyM55tWrnPWHHTV4Vk=
-github.com/pardnchiu/go-browser v0.1.7/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
 github.com/pardnchiu/go-browser v0.2.0 h1:Mpf+bM0fVX2xaI6yGRgz+69RAzCOA8zltK7BntH6QAA=
 github.com/pardnchiu/go-browser v0.2.0/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
-github.com/pardnchiu/go-pkg v0.13.4 h1:Jk8PlgO353Rbi0xhRlQbYCnGK14enl+ivVJz0Z0DSNc=
-github.com/pardnchiu/go-pkg v0.13.4/go.mod h1:DUCX9mbGQ2YCULGvoMOgagVJBMjSyiTzuwt29fw1qfQ=
 github.com/pardnchiu/go-pkg v0.13.5 h1:p/6dcWN58kJ9IGA0tpJVGLsY1pbyDOU/n1q34cDwNcc=
 github.com/pardnchiu/go-pkg v0.13.5/go.mod h1:DUCX9mbGQ2YCULGvoMOgagVJBMjSyiTzuwt29fw1qfQ=
 github.com/pardnchiu/go-scheduler v1.2.0 h1:DBmFWOPjGUzQEKYHZNeLS9v9PmJrKk/VwxQeVO754Ns=
@@ -147,6 +146,7 @@ github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9q
 github.com/quic-go/quic-go v0.59.0 h1:OLJkp1Mlm/aS7dpKgTc6cnpynnD2Xg7C1pwL6vy/SAw=
 github.com/quic-go/quic-go v0.59.0/go.mod h1:upnsH4Ju1YkqpLXC305eW3yDZ4NfnNbmQRCMWS58IKU=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
+github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

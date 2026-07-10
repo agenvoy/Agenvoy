@@ -81,7 +81,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 	}
-	seq = append(seq, loadSessionTail(id)...)
+	seq = append(seq, loadSessionTail(id, t.width)...)
 	seq = append(seq, switchBlock)
 	return t, tea.Sequence(seq...)
 }

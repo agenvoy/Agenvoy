@@ -55,7 +55,7 @@ func parseActionLine(raw string) (parsedAction, bool) {
 	}, true
 }
 
-func renderActionLine(p parsedAction) string {
+func renderActionLine(p parsedAction, width int) string {
 	body := strings.ReplaceAll(p.body, sessionLog.ActionNewlineMarker, "\n")
 
 	switch p.kind {
@@ -75,7 +75,7 @@ func renderActionLine(p parsedAction) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str})
+		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str}, width)
 
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
@@ -83,7 +83,7 @@ func renderActionLine(p parsedAction) string {
 			Type:     agentTypes.EventToolSkipped,
 			ToolName: name,
 			ToolArgs: args,
-		})
+		}, width)
 
 	case "error":
 		name, msg, _ := strings.Cut(body, " ")
@@ -92,31 +92,31 @@ func renderActionLine(p parsedAction) string {
 			ToolName: name,
 			Text:     msg,
 			Err:      errors.New(msg),
-		})
+		}, width)
 
 	case "done":
-		return renderEvent(formatDone(body))
+		return renderEvent(formatDone(body), width)
 
 	case "skill_result":
 		str := strings.TrimSpace(body)
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str})
+		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str}, width)
 	}
 	return ""
 }
 
-func formatLog(raw string) string {
+func formatLog(raw string, width int) string {
 	p, ok := parseActionLine(raw)
 	if !ok {
 		return ""
 	}
-	return renderActionLine(p)
+	return renderActionLine(p, width)
 }
 
-func renderEvent(ev agentTypes.Event) string {
-	line, ok := renderAgentEvent(ev, "", "")
+func renderEvent(ev agentTypes.Event, width int) string {
+	line, ok := renderAgentEvent(ev, "", "", width)
 	if !ok {
 		return ""
 	}

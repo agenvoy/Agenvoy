@@ -153,7 +153,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 	}
-	seq = append(seq, loadSessionTail(t.currentSessionID)...)
+	seq = append(seq, loadSessionTail(t.currentSessionID, t.width)...)
 	seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ removed: %s", strings.Join(removed, ", ")))+"\n"))
 	return t, tea.Sequence(seq...)
 }

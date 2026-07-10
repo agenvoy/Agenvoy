@@ -112,7 +112,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 	}
-	tail := loadSessionTail(sid)
+	tail := loadSessionTail(sid, t.width)
 	if len(tail) == 0 {
 		seq = append(seq, tea.Println(hintStyle.Render("⎯ no history yet")+"\n"))
 	} else {
