@@ -34,12 +34,13 @@ func (a *Agent) Execute(ctx context.Context, skill *skill.Skill, userInput strin
 }
 
 func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
-	if err := a.checkExpires(ctx); err != nil {
-		return nil, fmt.Errorf("a.checkExpires: %w", err)
+	auth, err := a.authHeader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("a.authHeader: %w", err)
 	}
 
 	headers := map[string]string{
-		"Authorization":  "Bearer " + a.Refresh.Token,
+		"Authorization":  auth,
 		"Editor-Version": "vscode/1.95.0",
 	}
 

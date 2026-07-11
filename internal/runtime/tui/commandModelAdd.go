@@ -14,7 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/copilot"
+	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
 	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
 	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
@@ -134,7 +134,7 @@ func (t TUI) modelAddViaOAuth() (TUI, tea.Cmd) {
 	hasToken := false
 	switch prov {
 	case "copilot":
-		hasToken = copilot.HasToken()
+		hasToken = oauthCopilot.HasToken()
 	case "codex":
 		hasToken = openaicodex.HasToken()
 	case "grok-oauth":
@@ -188,13 +188,13 @@ func runOAuthFlow(ctx context.Context, prov string) {
 	var err error
 	switch prov {
 	case "copilot":
-		if copilot.HasToken() {
-			if cerr := copilot.ClearToken(); cerr != nil {
+		if oauthCopilot.HasToken() {
+			if cerr := oauthCopilot.ClearToken(); cerr != nil {
 				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
 				return
 			}
 		}
-		err = copilot.AuthWithCallback(ctx, func(code *copilot.DeviceCode) {
+		_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
 			send(OAuthInfo{
 				url:      code.VerificationURI,
 				userCode: code.UserCode,
