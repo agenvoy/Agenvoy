@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
@@ -34,7 +33,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[compact] prune history", false, "")
+	agent := summaryRouter()
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for compact")
 	}

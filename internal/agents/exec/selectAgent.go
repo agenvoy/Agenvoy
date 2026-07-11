@@ -97,13 +97,17 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
+			slog.Info("dispatcher payload",
+				slog.String("system", messages[0].Content.(string)),
+				slog.String("user", messages[1].Content.(string)))
 			prev := provider.GetReasoningLevel()
 			provider.SetReasoningLevel("low")
+			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
 			for range len(registry.Entries) {
 				if ctx.Err() != nil {
 					break
 				}
-				routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
+				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
 				resp, sendErr := bot.Send(routingCtx, messages, nil)
 				cancel()
 				if sendErr == nil {

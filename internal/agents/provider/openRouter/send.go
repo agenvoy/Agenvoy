@@ -57,6 +57,8 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	result, _, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
+		"HTTP-Referer":  "https://github.com/pardnchiu/agenvoy",
+		"X-Title":       "Agenvoy",
 	}, body, "json")
 	if err != nil {
 		return nil, fmt.Errorf("http.POST: %w", err)
