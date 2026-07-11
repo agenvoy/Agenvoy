@@ -34,6 +34,7 @@ type Request struct {
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 	Persist      bool     `json:"persist,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
+	AllowAll     *bool    `json:"allow_all,omitempty"`
 }
 
 func Send() gin.HandlerFunc {
@@ -55,6 +56,11 @@ func Send() gin.HandlerFunc {
 				prefix = "http-"
 			}
 			sessionID = prefix + utils.UUID()
+		}
+
+		allowAll := true
+		if req.AllowAll != nil {
+			allowAll = *req.AllowAll
 		}
 
 		events := make(chan agentTypes.Event, 64)
@@ -131,7 +137,7 @@ func Send() gin.HandlerFunc {
 				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
 				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
-				AllowAll:          true,
+				AllowAll:          allowAll,
 			}
 
 			if err := configBot.Save(sessionID, "", "", false); err != nil {
@@ -153,7 +159,7 @@ func Send() gin.HandlerFunc {
 				return
 			}
 
-			if err := exec.Execute(execCtx, data, session, wrapped, true); err != nil {
+			if err := exec.Execute(execCtx, data, session, wrapped, allowAll); err != nil {
 				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 				return
 			}

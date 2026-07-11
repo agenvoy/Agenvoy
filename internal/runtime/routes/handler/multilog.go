@@ -58,7 +58,7 @@ func StreamMultiLog() gin.HandlerFunc {
 				fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
 			}
 
-			for _, ev := range sessionLog.RecentEvents(sid, 100) {
+			for _, ev := range sessionLog.RecentEvents(sid, 512) {
 				te := taggedEvent{Session: sid, Event: ev}
 				if raw, err := json.Marshal(te); err == nil {
 					fmt.Fprintf(c.Writer, "data: %s\n\n", raw)

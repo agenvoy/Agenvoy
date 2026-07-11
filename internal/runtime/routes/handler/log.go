@@ -42,7 +42,7 @@ func StreamSessionLog() gin.HandlerFunc {
 			c.Writer.Flush()
 		}
 
-		for _, ev := range sessionLog.RecentEvents(sid, 100) {
+		for _, ev := range sessionLog.RecentEvents(sid, 512) {
 			raw, err := json.Marshal(ev)
 			if err != nil {
 				continue
