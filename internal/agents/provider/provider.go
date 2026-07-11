@@ -48,6 +48,20 @@ func ClampReasoningLevel(level, maxLevel string) string {
 	return level
 }
 
+func MinReasoningLevel(providerName, model string) string {
+	if providerName == "gemini" && GetThinkingConfig(providerName, model) == "level" {
+		return "low"
+	}
+	return "none"
+}
+
+func FloorReasoningLevel(level, minLevel string) string {
+	if reasoningLevelIndex(level) < reasoningLevelIndex(minLevel) {
+		return minLevel
+	}
+	return level
+}
+
 func MaxReasoningLevel(providerName, model string) string {
 	switch providerName {
 	case "openai", "codex", "copilot":
@@ -173,9 +187,12 @@ func GetThinkingConfig(providerName, model string) string {
 	return ""
 }
 
-func ThinkingBudget(level string) int {
+func ThinkingBudget(model, level string) int {
 	switch level {
 	case "none":
+		if strings.Contains(model, "2.5-pro") {
+			return 128
+		}
 		return 0
 	case "low":
 		return 1024

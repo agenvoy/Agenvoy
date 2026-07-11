@@ -37,8 +37,8 @@ type cacheCreateOutput struct {
 	} `json:"error,omitempty"`
 }
 
-func (a *Agent) applyCache(ctx context.Context, systemPrompt string, messages []Content) (cachedName string, tail []Content) {
-	bucketKey := cacheBucketKey(a.model, systemPrompt)
+func (a *Agent) applyCache(ctx context.Context, systemPrompt string, messages []Content, tools []map[string]any) (cachedName string, tail []Content) {
+	bucketKey := cacheBucketKey(a.model, systemPrompt, tools)
 
 	a.cacheMu.Lock()
 	entry := a.cacheStore[bucketKey]
@@ -59,7 +59,7 @@ func (a *Agent) applyCache(ctx context.Context, systemPrompt string, messages []
 		return "", messages
 	}
 
-	created, err := a.createCache(ctx, candidate, systemPrompt)
+	created, err := a.createCache(ctx, candidate, systemPrompt, tools)
 	if err != nil {
 		slog.Warn("gemini cache create failed",
 			slog.String("model", a.model),
@@ -81,7 +81,7 @@ func (a *Agent) applyCache(ctx context.Context, systemPrompt string, messages []
 	return created.name, messages[created.prefixLen:]
 }
 
-func (a *Agent) createCache(ctx context.Context, messages []Content, systemPrompt string) (*geminiCacheEntry, error) {
+func (a *Agent) createCache(ctx context.Context, messages []Content, systemPrompt string, tools []map[string]any) (*geminiCacheEntry, error) {
 	body := map[string]any{
 		"model":    "models/" + a.model,
 		"contents": messages,
@@ -90,6 +90,11 @@ func (a *Agent) createCache(ctx context.Context, messages []Content, systemPromp
 	if systemPrompt != "" {
 		body["systemInstruction"] = map[string]any{
 			"parts": []map[string]any{{"text": systemPrompt}},
+		}
+	}
+	if len(tools) > 0 {
+		body["tools"] = []map[string]any{
+			{"functionDeclarations": tools},
 		}
 	}
 
@@ -115,8 +120,9 @@ func (a *Agent) createCache(ctx context.Context, messages []Content, systemPromp
 	}, nil
 }
 
-func cacheBucketKey(model, systemPrompt string) string {
-	sum := sha256.Sum256([]byte(model + "|" + systemPrompt))
+func cacheBucketKey(model, systemPrompt string, tools []map[string]any) string {
+	raw, _ := json.Marshal(tools)
+	sum := sha256.Sum256([]byte(model + "|" + systemPrompt + "|" + string(raw)))
 	return hex.EncodeToString(sum[:])
 }
 

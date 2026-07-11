@@ -54,7 +54,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	newTools := a.convertToTools(tools)
 	apiURL := fmt.Sprintf("%s%s:generateContent", baseAPI, a.model)
 
-	cachedName, sendMessages := a.applyCache(ctx, systemPrompt, newMessages)
+	cachedName, sendMessages := a.applyCache(ctx, systemPrompt, newMessages, newTools)
 	requestBody := a.generateRequestBody(sendMessages, systemPrompt, newTools, cachedName)
 
 	result, _, err := go_pkg_http.POST[Output](ctx, a.httpClient, apiURL, map[string]string{
@@ -241,19 +241,19 @@ func sanitizeSchema(m map[string]any) {
 func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools []map[string]any, cachedContent string) map[string]any {
 	thinkingConfig := provider.GetThinkingConfig("gemini", a.model)
 	level := provider.GetReasoningLevel()
+	level = provider.ClampReasoningLevel(level, provider.MaxReasoningLevel("gemini", a.model))
+	level = provider.FloorReasoningLevel(level, provider.MinReasoningLevel("gemini", a.model))
 
 	generationConfig := map[string]any{}
 	switch {
-	case thinkingConfig == "level" && !provider.ReasoningDisabled(level):
-		// Gemini 3.x: thinkingLevel, keep temperature at default (1.0)
+	case thinkingConfig == "level":
 		generationConfig["thinkingConfig"] = map[string]any{
 			"thinkingLevel": level,
 		}
 	case thinkingConfig == "budget":
-		// Gemini 2.5: thinkingBudget token count
 		generationConfig["temperature"] = 0.2
 		generationConfig["thinkingConfig"] = map[string]any{
-			"thinkingBudget": provider.ThinkingBudget(level),
+			"thinkingBudget": provider.ThinkingBudget(a.model, level),
 		}
 	default:
 		generationConfig["temperature"] = 0.2
@@ -265,7 +265,10 @@ func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools 
 
 	if cachedContent != "" {
 		body["cachedContent"] = cachedContent
-	} else if prompt != "" {
+		return body
+	}
+
+	if prompt != "" {
 		body["systemInstruction"] = map[string]any{
 			"parts": []map[string]any{
 				{"text": prompt},
