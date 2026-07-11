@@ -15,6 +15,10 @@ import (
 )
 
 func compactThreshold(modelName string) int {
+	if strings.Contains(modelName, "oss-gpt-120") {
+		return int(128_000 * 0.8)
+	}
+
 	switch {
 	case strings.Contains(modelName, "gemini"):
 		return int(1_000_000 * 0.8)
