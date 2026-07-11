@@ -149,7 +149,7 @@ func drainNew(path string, lastSize int64) int64 {
 		if parsed.hash == own {
 			continue
 		}
-		line := renderActionLine(parsed)
+		line := renderActionLine(parsed, defaultWrapWidth)
 		if line == "" {
 			continue
 		}
@@ -173,16 +173,23 @@ func fileSize(path string) int64 {
 	return st.Size()
 }
 
-func readAllLines(path string) []string {
+type sessionTailLine struct {
+	kind string
+	line string
+}
+
+func readAllLines(path string, width int) []sessionTailLine {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
 		return nil
 	}
-	var out []string
+	var out []sessionTailLine
 	for raw := range strings.SplitSeq(text, "\n") {
-		if line := formatLog(raw); line != "" {
-			out = append(out, line)
+		kind, line := formatLog(raw, width)
+		if line == "" {
+			continue
 		}
+		out = append(out, sessionTailLine{kind: kind, line: strings.TrimRight(line, "\n")})
 	}
 	return out
 }

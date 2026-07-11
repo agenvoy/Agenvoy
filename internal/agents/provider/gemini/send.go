@@ -243,13 +243,13 @@ func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools 
 	level := provider.GetReasoningLevel()
 
 	generationConfig := map[string]any{}
-	switch thinkingConfig {
-	case "level":
+	switch {
+	case thinkingConfig == "level" && !provider.ReasoningDisabled(level):
 		// Gemini 3.x: thinkingLevel, keep temperature at default (1.0)
 		generationConfig["thinkingConfig"] = map[string]any{
 			"thinkingLevel": level,
 		}
-	case "budget":
+	case thinkingConfig == "budget":
 		// Gemini 2.5: thinkingBudget token count
 		generationConfig["temperature"] = 0.2
 		generationConfig["thinkingConfig"] = map[string]any{

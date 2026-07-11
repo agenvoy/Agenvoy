@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/wrap"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -20,15 +22,55 @@ var (
 	htmlTagRe      = regexp.MustCompile(`<[^>]*>`)
 )
 
+const defaultWrapWidth = 80
+
+func wordWrap(s string, width int) string {
+	f := &wordwrap.WordWrap{Limit: width, Newline: []rune{'\n'}, KeepNewlines: true}
+	_, _ = f.Write([]byte(s))
+	_ = f.Close()
+	return f.String()
+}
+
+func wrapText(s string, width int) string {
+	if width <= 0 {
+		width = defaultWrapWidth
+	}
+	width = max(width, 10)
+	return wrapLines(wordWrap(s, width), width)
+}
+
+func wrapLines(s string, width int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if lipgloss.Width(line) > width {
+			lines[i] = wrap.String(line, width)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+const tableBoxChars = "┌┬┐├┼┤└┴┘│─"
+
+func wrapProse(s string, width int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if strings.ContainsAny(line, tableBoxChars) {
+			continue
+		}
+		lines[i] = wrapText(line, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
 func toPureText(s string) string {
 	s = mdBoldRe.ReplaceAllString(s, "$1")
 	s = htmlTagRe.ReplaceAllString(s, "")
 	return s
 }
 
-func renderMarkdown(s string) string {
+func renderMarkdown(s string, width int) string {
 	s = htmlTagRe.ReplaceAllString(s, "")
-	s = renderTables(s)
+	s = renderTables(s, width)
 	s = mdBlockquoteRe.ReplaceAllStringFunc(s, func(match string) string {
 		m := mdBlockquoteRe.FindStringSubmatch(match)
 		content := mdBoldRe.ReplaceAllString(m[1], "$1")
@@ -64,11 +106,31 @@ func isTableSep(line string) bool {
 	return dashes >= 3
 }
 
+func splitTableRow(line string) []string {
+	runes := []rune(line)
+	var cells []string
+	var cur strings.Builder
+	for i := 0; i < len(runes); i++ {
+		switch {
+		case runes[i] == '\\' && i+1 < len(runes) && runes[i+1] == '|':
+			cur.WriteRune('|')
+			i++
+		case runes[i] == '|':
+			cells = append(cells, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(runes[i])
+		}
+	}
+	cells = append(cells, cur.String())
+	return cells
+}
+
 func parseTableCells(line string) []string {
 	line = strings.TrimSpace(line)
 	line = strings.TrimPrefix(line, "|")
 	line = strings.TrimSuffix(line, "|")
-	cells := strings.Split(line, "|")
+	cells := splitTableRow(line)
 	for i := range cells {
 		cells[i] = strings.TrimSpace(cells[i])
 	}
@@ -81,7 +143,7 @@ func cleanTableCell(s string) string {
 	return s
 }
 
-func renderTables(s string) string {
+func renderTables(s string, width int) string {
 	lines := strings.Split(s, "\n")
 	var out []string
 	i := 0
@@ -96,7 +158,7 @@ func renderTables(s string) string {
 			for j := i + 2; j < end; j++ {
 				rows = append(rows, parseTableCells(lines[j]))
 			}
-			out = append(out, buildTable(header, rows))
+			out = append(out, buildTable(header, rows, width))
 			i = end
 			continue
 		}
@@ -106,7 +168,9 @@ func renderTables(s string) string {
 	return strings.Join(out, "\n")
 }
 
-func buildTable(header []string, rows [][]string) string {
+const tableColMinWidth = 3
+
+func buildTable(header []string, rows [][]string, termWidth int) string {
 	numCols := len(header)
 	for _, row := range rows {
 		if len(row) > numCols {
@@ -131,17 +195,37 @@ func buildTable(header []string, rows [][]string) string {
 		}
 	}
 
-	widths := make([]int, numCols)
+	natural := make([]int, numCols)
 	for i, h := range header {
-		if w := lipgloss.Width(h); w > widths[i] {
-			widths[i] = w
+		if w := lipgloss.Width(h); w > natural[i] {
+			natural[i] = w
 		}
 	}
 	for _, row := range rows {
 		for i, cell := range row {
-			if w := lipgloss.Width(cell); w > widths[i] {
-				widths[i] = w
+			if w := lipgloss.Width(cell); w > natural[i] {
+				natural[i] = w
 			}
+		}
+	}
+
+	if termWidth <= 0 {
+		termWidth = defaultWrapWidth
+	}
+	overhead := numCols*3 + 1
+	available := termWidth - overhead
+
+	totalNatural := 0
+	for _, w := range natural {
+		totalNatural += w
+	}
+
+	widths := make([]int, numCols)
+	if available <= 0 || totalNatural <= available {
+		copy(widths, natural)
+	} else {
+		for i, w := range natural {
+			widths[i] = max(w*available/totalNatural, tableColMinWidth)
 		}
 	}
 
@@ -161,22 +245,38 @@ func buildTable(header []string, rows [][]string) string {
 	}
 
 	writeRow := func(cells []string, bold bool) {
+		cellLines := make([][]string, numCols)
+		maxLines := 1
 		for i, cell := range cells {
-			sb.WriteString(b("│"))
-			pad := max(widths[i]-lipgloss.Width(cell), 0)
-			if bold {
-				left := pad / 2
-				right := pad - left
-				sb.WriteString(strings.Repeat(" ", left+1))
-				sb.WriteString(whiteStyle.Bold(true).Render(cell))
-				sb.WriteString(strings.Repeat(" ", right+1))
-			} else {
-				sb.WriteByte(' ')
-				sb.WriteString(cell)
-				sb.WriteString(strings.Repeat(" ", pad+1))
-			}
+			lines := strings.Split(wrapLines(wordWrap(cell, widths[i]), widths[i]), "\n")
+			cellLines[i] = lines
+			maxLines = max(maxLines, len(lines))
 		}
-		sb.WriteString(b("│"))
+		for ln := 0; ln < maxLines; ln++ {
+			if ln > 0 {
+				sb.WriteByte('\n')
+			}
+			for i, w := range widths {
+				var content string
+				if ln < len(cellLines[i]) {
+					content = cellLines[i][ln]
+				}
+				sb.WriteString(b("│"))
+				pad := max(w-lipgloss.Width(content), 0)
+				if bold {
+					left := pad / 2
+					right := pad - left
+					sb.WriteString(strings.Repeat(" ", left+1))
+					sb.WriteString(whiteStyle.Bold(true).Render(content))
+					sb.WriteString(strings.Repeat(" ", right+1))
+				} else {
+					sb.WriteByte(' ')
+					sb.WriteString(content)
+					sb.WriteString(strings.Repeat(" ", pad+1))
+				}
+			}
+			sb.WriteString(b("│"))
+		}
 	}
 
 	hLine("┌", "┬", "┐")
@@ -256,6 +356,19 @@ func messageBlock(str string) string {
 	return sb.String()
 }
 
+func shellEchoBlock(str string) string {
+	var sb strings.Builder
+	for i, line := range strings.Split(str, "\n") {
+		if i > 0 {
+			sb.WriteString("\n  ")
+		} else {
+			sb.WriteString(warnStyle.Render("$ "))
+		}
+		sb.WriteString(userStyle.Render(line))
+	}
+	return sb.String()
+}
+
 func thinkingBlock(str string) string {
 	var sb strings.Builder
 	for i, line := range strings.Split(str, "\n") {
@@ -292,7 +405,7 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
-func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bool) {
+func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -338,11 +451,11 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 			}
 			return hintStyle.Render("  ⎿ " + srcPrefix + oneLine(str)), true
 		}
-		str := renderMarkdown(ev.Text)
+		str := renderMarkdown(ev.Text, width-2)
 		if str == "" {
 			return "", false
 		}
-		return messageRow(str, sessionLabel), true
+		return messageRow(wrapProse(str, width-2), sessionLabel), true
 
 	case agentTypes.EventReasoning:
 		if src != "" {
@@ -362,7 +475,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 		if len(kept) == 0 {
 			return "", false
 		}
-		return thinkingBlock(strings.Join(kept, "\n")), true
+		return thinkingBlock(wrapText(strings.Join(kept, "\n"), width-2)), true
 
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
@@ -390,6 +503,13 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string) (string, bo
 				footer = footer + " · [" + sessionLabel + "]"
 			} else {
 				footer = "[" + sessionLabel + "]"
+			}
+		}
+		if finishedAt != "" {
+			if footer != "" {
+				footer = footer + " · " + finishedAt
+			} else {
+				footer = finishedAt
 			}
 		}
 		if footer == "" {

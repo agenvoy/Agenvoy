@@ -13,11 +13,13 @@ import (
 )
 
 var userWrapperRe = regexp.MustCompile(`^---\n當前時間:[^\n]*\n(?:[^\n]+\n)*?---\n`)
+var cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 
 type parsedAction struct {
-	hash string
-	kind string
-	body string
+	timestamp string
+	hash      string
+	kind      string
+	body      string
 }
 
 func cutBracket(s string) (inside, rest string, ok bool) {
@@ -29,7 +31,7 @@ func cutBracket(s string) (inside, rest string, ok bool) {
 }
 
 func parseActionLine(raw string) (parsedAction, bool) {
-	_, rest, ok := cutBracket(raw)
+	ts, rest, ok := cutBracket(raw)
 	if !ok {
 		return parsedAction{}, false
 	}
@@ -49,13 +51,14 @@ func parseActionLine(raw string) (parsedAction, bool) {
 	}
 
 	return parsedAction{
-		hash: hash,
-		kind: kind,
-		body: strings.TrimSpace(rest),
+		timestamp: ts,
+		hash:      hash,
+		kind:      kind,
+		body:      strings.TrimSpace(rest),
 	}, true
 }
 
-func renderActionLine(p parsedAction) string {
+func renderActionLine(p parsedAction, width int) string {
 	body := strings.ReplaceAll(p.body, sessionLog.ActionNewlineMarker, "\n")
 
 	switch p.kind {
@@ -75,7 +78,7 @@ func renderActionLine(p parsedAction) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str})
+		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str}, width)
 
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
@@ -83,7 +86,7 @@ func renderActionLine(p parsedAction) string {
 			Type:     agentTypes.EventToolSkipped,
 			ToolName: name,
 			ToolArgs: args,
-		})
+		}, width)
 
 	case "error":
 		name, msg, _ := strings.Cut(body, " ")
@@ -92,31 +95,42 @@ func renderActionLine(p parsedAction) string {
 			ToolName: name,
 			Text:     msg,
 			Err:      errors.New(msg),
-		})
+		}, width)
 
 	case "done":
-		return renderEvent(formatDone(body))
+		return renderEvent(formatDone(body), width, formatLogTimestamp(p.timestamp))
 
 	case "skill_result":
 		str := strings.TrimSpace(body)
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str})
+		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str}, width)
 	}
 	return ""
 }
 
-func formatLog(raw string) string {
-	p, ok := parseActionLine(raw)
-	if !ok {
-		return ""
+func formatLogTimestamp(ts string) string {
+	if t, err := time.Parse("2006-01-02 15:04:05.000", ts); err == nil {
+		return t.Format("2006-01-02 15:04:05")
 	}
-	return renderActionLine(p)
+	return ts
 }
 
-func renderEvent(ev agentTypes.Event) string {
-	line, ok := renderAgentEvent(ev, "", "")
+func formatLog(raw string, width int) (kind, line string) {
+	p, ok := parseActionLine(raw)
+	if !ok {
+		return "", ""
+	}
+	return p.kind, renderActionLine(p, width)
+}
+
+func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
+	ts := ""
+	if len(finishedAt) > 0 {
+		ts = finishedAt[0]
+	}
+	line, ok := renderAgentEvent(ev, "", "", width, ts)
 	if !ok {
 		return ""
 	}
@@ -136,7 +150,14 @@ func formatDone(body string) agentTypes.Event {
 
 	var usage agentTypes.Usage
 	var hasUsage bool
+	hitPct := -1
 	for _, f := range fields {
+		if m := cacheHitPctRe.FindStringSubmatch(f); m != nil {
+			if n, err := strconv.Atoi(m[1]); err == nil {
+				hitPct = n
+			}
+			continue
+		}
 		k, v, found := strings.Cut(f, "=")
 		if !found {
 			continue
@@ -157,6 +178,10 @@ func formatDone(body string) agentTypes.Event {
 				hasUsage = true
 			}
 		}
+	}
+	if hitPct >= 0 && usage.Input > 0 {
+		usage.CacheRead = usage.Input * hitPct / 100
+		usage.Input -= usage.CacheRead
 	}
 	if hasUsage {
 		event.Usage = &usage

@@ -63,6 +63,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 
 	thinkingType := provider.GetThinkingType("claude", a.model)
 	level := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("claude", a.model))
+	if provider.ReasoningDisabled(level) {
+		thinkingType = ""
+	}
 
 	requestBody := map[string]any{
 		"model":      a.model,

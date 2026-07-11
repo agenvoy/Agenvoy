@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -17,7 +18,7 @@ type ReasoningSelect struct {
 	level string
 }
 
-var reasoningLevels = []string{"low", "medium", "high"}
+var reasoningLevels = []string{"none", "low", "medium", "high", "xhigh"}
 
 func (t TUI) commandReasoning(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
@@ -46,7 +47,7 @@ func (t TUI) commandReasoning(parts []string) (TUI, tea.Cmd, bool) {
 func (t TUI) openReasoningGlobalPopup() (TUI, tea.Cmd) {
 	current := provider.GetReasoningLevel()
 	options := make([]string, len(reasoningLevels))
-	cursor := 1
+	cursor := 2
 	for i, lvl := range reasoningLevels {
 		label := lvl
 		if lvl == current {
@@ -78,7 +79,7 @@ func (t TUI) openReasoningSessionPopup() (TUI, tea.Cmd) {
 	_, current := configBot.GetModel(sid)
 
 	options := make([]string, len(reasoningLevels))
-	cursor := 1
+	cursor := 2
 	for i, lvl := range reasoningLevels {
 		label := lvl
 		if lvl == current {
@@ -107,8 +108,13 @@ func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 		return t, nil
 	}
 
-	_, current := configBot.GetModel(sid)
-	idx := 1
+	model, current := configBot.GetModel(sid)
+	providerName, modelName, _ := strings.Cut(model, "@")
+	if !provider.SupportsReasoningSwitch(providerName, modelName) {
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s does not support reasoning switching", model)) + "\n")
+	}
+
+	idx := 2
 	for i, lvl := range reasoningLevels {
 		if lvl == current {
 			idx = i

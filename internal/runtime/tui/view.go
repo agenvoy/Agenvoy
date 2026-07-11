@@ -9,13 +9,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func (t TUI) View() string {
-	if t.quitting {
+	if t.quitting || t.execHandoff {
 		return ""
 	}
 	if t.popup != nil {
@@ -300,11 +301,18 @@ func (t TUI) sessionName() string {
 	if model != configBot.DefaultModel {
 		modelPart = warnStyle.Render(model)
 	}
+
+	providerName, modelName, _ := strings.Cut(model, "@")
+	if !provider.SupportsReasoningSwitch(providerName, modelName) {
+		return base + hintStyle.Render(" (") + modelPart + hintStyle.Render(")")
+	}
+	reasoning = provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel(providerName, modelName))
+
 	var reasonPart string
 	switch reasoning {
-	case "low":
+	case "none", "low":
 		reasonPart = okayStyle.Render(reasoning)
-	case "high":
+	case "high", "xhigh":
 		reasonPart = errorStyle.Render(reasoning)
 	default:
 		reasonPart = hintStyle.Render(reasoning)

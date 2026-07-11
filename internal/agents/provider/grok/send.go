@@ -59,7 +59,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	var reasoning string
 	if provider.SupportReasoningEffort("grok", a.model) {
 		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok", a.model))
-		body["reasoning_effort"] = reasoning
+		if !provider.ReasoningDisabled(reasoning) {
+			body["reasoning_effort"] = reasoning
+		}
 	}
 
 	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, map[string]string{
