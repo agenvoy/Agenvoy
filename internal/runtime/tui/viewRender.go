@@ -405,7 +405,7 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
-func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int) (string, bool) {
+func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -503,6 +503,13 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int) 
 				footer = footer + " · [" + sessionLabel + "]"
 			} else {
 				footer = "[" + sessionLabel + "]"
+			}
+		}
+		if finishedAt != "" {
+			if footer != "" {
+				footer = footer + " · " + finishedAt
+			} else {
+				footer = finishedAt
 			}
 		}
 		if footer == "" {

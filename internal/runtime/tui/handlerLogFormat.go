@@ -98,14 +98,7 @@ func renderActionLine(p parsedAction, width int) string {
 		}, width)
 
 	case "done":
-		line := renderEvent(formatDone(body), width)
-		if line == "" {
-			return ""
-		}
-		if ts := formatLogTimestamp(p.timestamp); ts != "" {
-			line = strings.TrimRight(line, "\n") + " · " + hintStyle.Render(ts) + "\n"
-		}
-		return line
+		return renderEvent(formatDone(body), width, formatLogTimestamp(p.timestamp))
 
 	case "skill_result":
 		str := strings.TrimSpace(body)
@@ -132,8 +125,12 @@ func formatLog(raw string, width int) (kind, line string) {
 	return p.kind, renderActionLine(p, width)
 }
 
-func renderEvent(ev agentTypes.Event, width int) string {
-	line, ok := renderAgentEvent(ev, "", "", width)
+func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
+	ts := ""
+	if len(finishedAt) > 0 {
+		ts = finishedAt[0]
+	}
+	line, ok := renderAgentEvent(ev, "", "", width, ts)
 	if !ok {
 		return ""
 	}
