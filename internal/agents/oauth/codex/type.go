@@ -1,4 +1,4 @@
-package openaicodex
+package oauthCodex
 
 import "time"
 

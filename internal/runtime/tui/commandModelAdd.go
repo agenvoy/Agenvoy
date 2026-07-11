@@ -14,9 +14,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
-	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	oauthGrokOauth "github.com/pardnchiu/agenvoy/internal/agents/oauth/grok"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -136,9 +136,9 @@ func (t TUI) modelAddViaOAuth() (TUI, tea.Cmd) {
 	case "copilot":
 		hasToken = oauthCopilot.HasToken()
 	case "codex":
-		hasToken = openaicodex.HasToken()
+		hasToken = oauthCodex.HasToken()
 	case "grok-oauth":
-		hasToken = grokoauth.HasToken()
+		hasToken = oauthGrokOauth.HasToken()
 	}
 	if hasToken {
 		label := strings.ToUpper(prov[:1]) + prov[1:]
@@ -201,23 +201,23 @@ func runOAuthFlow(ctx context.Context, prov string) {
 			})
 		})
 	case "codex":
-		if openaicodex.HasToken() {
-			if cerr := openaicodex.ClearToken(); cerr != nil {
+		if oauthCodex.HasToken() {
+			if cerr := oauthCodex.ClearToken(); cerr != nil {
 				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
 				return
 			}
 		}
-		err = openaicodex.AuthWithCallback(ctx, func(url string) {
+		_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	case "grok-oauth":
-		if grokoauth.HasToken() {
-			if cerr := grokoauth.ClearToken(); cerr != nil {
+		if oauthGrokOauth.HasToken() {
+			if cerr := oauthGrokOauth.ClearToken(); cerr != nil {
 				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
 				return
 			}
 		}
-		err = grokoauth.AuthWithCallback(ctx, func(url string) {
+		_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	default:

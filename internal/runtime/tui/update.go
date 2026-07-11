@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -427,6 +427,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.name == "" {
 			t.mcpAdd = nil
 			return t, tea.Println(errorStyle.Render("[!] mcp name required") + "\n")
+		}
+		if !isValidMcpServerName(msg.name) {
+			t.mcpAdd = nil
+			return t, tea.Println(errorStyle.Render("[!] mcp name must match [A-Za-z0-9_-]") + "\n")
 		}
 		t.mcpAdd.name = msg.name
 		next, cmd := t.openMcpAddTransport()
@@ -897,7 +901,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
 
 	case Image2Action:
-		if msg.action == "enable" && !openaicodex.HasToken() {
+		if msg.action == "enable" && !oauthCodex.HasToken() {
 			next, cmd := t.startImage2CodexOAuth()
 			return next, cmd
 		}

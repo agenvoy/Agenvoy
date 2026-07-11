@@ -1,4 +1,4 @@
-package grokoauth
+package oauthCodex
 
 import (
 	"context"
@@ -10,45 +10,36 @@ import (
 	"time"
 )
 
-func (a *Agent) ensureFreshToken(ctx context.Context) error {
-	if a.token == nil || a.token.expired() {
-		if err := a.refreshToken(ctx); err != nil {
-			return fmt.Errorf("grok-oauth token refresh failed: %w; run `agen model add` to re-authenticate", err)
-		}
-	}
-	return nil
-}
-
-func (a *Agent) refreshToken(ctx context.Context) error {
-	if a.token == nil || a.token.RefreshToken == "" {
-		return fmt.Errorf("no refresh token available")
+func refresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
+	if token == nil || token.RefreshToken == "" {
+		return nil, fmt.Errorf("no refresh token available")
 	}
 
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
-		"refresh_token": {a.token.RefreshToken},
+		"refresh_token": {token.RefreshToken},
 		"client_id":     {clientID},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL,
 		strings.NewReader(form.Encode()))
 	if err != nil {
-		return fmt.Errorf("http.NewRequestWithContext: %w", err)
+		return nil, fmt.Errorf("http.NewRequestWithContext: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := httpClient().Do(req)
 	if err != nil {
-		return fmt.Errorf("httpClient.Do: %w", err)
+		return nil, fmt.Errorf("httpClient.Do: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var raw oauthTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return fmt.Errorf("json.Decode: %w", err)
+		return nil, fmt.Errorf("json.Decode: %w", err)
 	}
 	if raw.Error != nil {
-		return fmt.Errorf("refresh error %v: %v", raw.Error, raw.ErrorDesc)
+		return nil, fmt.Errorf("refresh error %v: %v", raw.Error, raw.ErrorDesc)
 	}
 
 	expiry := time.Now().Add(time.Duration(raw.ExpiresIn) * time.Second)
@@ -58,14 +49,24 @@ func (a *Agent) refreshToken(ctx context.Context) error {
 
 	refreshToken := raw.RefreshToken
 	if refreshToken == "" {
-		refreshToken = a.token.RefreshToken
+		refreshToken = token.RefreshToken
 	}
 
-	a.token = &StoredToken{
+	accountID := parseAccountID(raw.IDToken)
+	if accountID == "" {
+		accountID = token.AccountID
+	}
+
+	next := &StoredToken{
 		AccessToken:  raw.AccessToken,
 		RefreshToken: refreshToken,
+		IDToken:      raw.IDToken,
+		AccountID:    accountID,
 		ExpiresAt:    expiry,
 	}
 
-	return saveToken(a.token)
+	if err := saveToken(next); err != nil {
+		return nil, err
+	}
+	return next, nil
 }
