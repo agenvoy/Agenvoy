@@ -1,4 +1,4 @@
-package copilot
+package oauthCopilot
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	tokenKey            = "agenvoy.copilot.token"
 	deviceCodeAPI       = "https://github.com/login/device/code"
 	oauthAccessTokenAPI = "https://github.com/login/oauth/access_token"
 	clientID            = "Iv1.b507a08c87ecfe98" // TODO: will replace with personal client id
@@ -22,6 +23,13 @@ var (
 	errAuthorizationPending = fmt.Errorf("authorization pending") // * pre declare error for ensuring padding wont cause login exit
 )
 
+type Token struct {
+	AccessToken string    `json:"access_token"`
+	TokenType   string    `json:"token_type"`
+	Scope       string    `json:"scope"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}
+
 type DeviceCode struct {
 	DeviceCode      string `json:"device_code"`
 	UserCode        string `json:"user_code"`
@@ -30,7 +38,34 @@ type DeviceCode struct {
 	Interval        int    `json:"interval"`
 }
 
-func (c *Agent) LoginWithCallback(ctx context.Context, onCode func(*DeviceCode)) (*Token, error) {
+type GopilotAccessToken struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	Scope       string `json:"scope"`
+	Error       string `json:"error"`
+}
+
+func Load() (*Token, error) {
+	raw := keychain.Get(tokenKey)
+	if raw == "" {
+		return nil, nil
+	}
+	var t Token
+	if err := json.Unmarshal([]byte(raw), &t); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+	}
+	return &t, nil
+}
+
+func HasToken() bool {
+	return keychain.Get(tokenKey) != ""
+}
+
+func ClearToken() error {
+	return keychain.Delete(tokenKey)
+}
+
+func LoginWithCallback(ctx context.Context, onCode func(*DeviceCode)) (*Token, error) {
 	code, _, err := go_pkg_http.POST[DeviceCode](ctx, nil, deviceCodeAPI,
 		map[string]string{},
 		map[string]any{
@@ -56,7 +91,7 @@ func (c *Agent) LoginWithCallback(ctx context.Context, onCode func(*DeviceCode))
 		case <-time.After(interval):
 		}
 
-		token, err = c.getAccessToken(ctx, client, code.DeviceCode)
+		token, err = getAccessToken(ctx, client, code.DeviceCode)
 		if err != nil {
 			// * waiting for authorize
 			if errors.Is(err, errAuthorizationPending) {
@@ -69,15 +104,7 @@ func (c *Agent) LoginWithCallback(ctx context.Context, onCode func(*DeviceCode))
 	return nil, fmt.Errorf("device code expired")
 }
 
-
-type GopilotAccessToken struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	Scope       string `json:"scope"`
-	Error       string `json:"error"`
-}
-
-func (c *Agent) getAccessToken(ctx context.Context, client *http.Client, deviceCode string) (*Token, error) {
+func getAccessToken(ctx context.Context, client *http.Client, deviceCode string) (*Token, error) {
 	accessToken, _, err := go_pkg_http.POST[GopilotAccessToken](ctx, client, oauthAccessTokenAPI,
 		map[string]string{},
 		map[string]any{

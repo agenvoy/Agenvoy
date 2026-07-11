@@ -3,12 +3,21 @@ package tui
 import (
 	"fmt"
 	"maps"
+	"regexp"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 )
+
+var (
+	mcpServerNameRegex = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+)
+
+func isValidMcpServerName(name string) bool {
+	return name != "" && mcpServerNameRegex.MatchString(name)
+}
 
 type mcpAddDraft struct {
 	name           string
@@ -81,8 +90,9 @@ type McpAddSaved struct {
 func (t TUI) commandMcpAdd() (TUI, tea.Cmd, bool) {
 	t.mcpAdd = &mcpAddDraft{}
 	t.popup = &Popup{
-		kind:  popupText,
-		title: "MCP server name",
+		kind:     popupText,
+		title:    "MCP server name",
+		subtitle: "only [A-Za-z0-9_-]",
 		onConfirm: func(value string) any {
 			return McpAddName{name: strings.TrimSpace(value)}
 		},
@@ -241,7 +251,6 @@ func (t TUI) openMcpAddBasicToken() (TUI, tea.Cmd) {
 	}
 	return t, nil
 }
-
 
 func parseKV(raw string) map[string]string {
 	out := map[string]string{}

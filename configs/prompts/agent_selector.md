@@ -15,13 +15,13 @@ Given a user request and a list of available agents (JSON array, each with `name
 ## Version Axis (applies globally)
 
 Within each node, newer version wins:
-- OpenAI / Codex: `5.5 > 5.4 > 5.3 > ...`
+- OpenAI / Codex: `5.6 > 5.5 > 5.4 > 5.3 > ...`. GPT-5.6 introduces tier-suffix naming instead of `-pro`/`-mini`: `sol` = flagship (maps to the `pro` node, **Opus-equivalent**), `terra` = balanced (maps to the plain `codex`/`openai` node, **Sonnet-equivalent**), `luna` = fast/low-cost (maps to the `mini` node, **Haiku-equivalent**). Ordering within GPT-5.6: `sol > terra > luna`.
 - Claude: `fable-5 > opus-4.8 > opus-4.7 > opus-4.6 > sonnet-4.6 > ...`
 - Gemini: `3.1 > 3 > 2.5 > ...`
-- Grok: `4 > 3 > ...`
+- Grok: `4.5 > 4 > 3 > ...`. **Grok 4.5 is Opus-tier** — treat it as equivalent to `claude-opus` for Tier S placement, not merely "latest grok".
 - DeepSeek: `reasoner > chat` (reasoner is reasoning-specialized; chat is general)
 
-A node label like `codex-mini` means: pick the highest-version codex-mini available (e.g. `codex-5.5-mini` over `codex-5.4-mini`).
+A node label like `codex-mini` means: pick the highest-version codex-mini available (e.g. `codex-5.6-luna` over `codex-5.5-mini`).
 
 ## Preference Tiers
 

@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
@@ -13,7 +13,7 @@ func (t TUI) commandImage2(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
 		switch parts[1] {
 		case "enable":
-			if !openaicodex.HasToken() {
+			if !oauthCodex.HasToken() {
 				next, cmd := t.startImage2CodexOAuth()
 				return next, cmd, true
 			}
@@ -55,7 +55,7 @@ type Image2Done struct {
 
 func setImage2(action string) tea.Cmd {
 	return func() tea.Msg {
-		if action == "enable" && !openaicodex.HasToken() {
+		if action == "enable" && !oauthCodex.HasToken() {
 			return Image2Done{action: action, err: fmt.Errorf("codex token is required; run /model global add and authenticate Codex first")}
 		}
 		cfg, err := config.Load()
