@@ -67,7 +67,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	var reasoning string
 	if provider.SupportReasoningEffort("grok-oauth", a.model) {
 		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok-oauth", a.model))
-		body["reasoning"] = map[string]any{"effort": reasoning}
+		if !provider.ReasoningDisabled(reasoning) {
+			body["reasoning"] = map[string]any{"effort": reasoning}
+		}
 	}
 
 	bodyBytes, err := json.Marshal(body)
