@@ -97,9 +97,6 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
-			slog.Info("dispatcher payload",
-				slog.String("system", messages[0].Content.(string)),
-				slog.String("user", messages[1].Content.(string)))
 			prev := provider.GetReasoningLevel()
 			provider.SetReasoningLevel("low")
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
