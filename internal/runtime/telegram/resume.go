@@ -8,11 +8,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -60,6 +62,9 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		scanner.Scan()
 	}
 
+	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, content)
+	sessionLog.Append(sessionID, userText)
+
 	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, sessionID)
 	if err != nil {
 		b.client.FinishStatus(ctx, chatID)
@@ -67,12 +72,14 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		b.client.Send(ctx, chatID, 0, errReply, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 		return
 	}
+	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
 
 	execData := exec.ExecData{
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,
 		Content:        content,
+		Input:          userText,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		PendingTask:    taskHash,

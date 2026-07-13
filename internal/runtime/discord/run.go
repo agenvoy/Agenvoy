@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
@@ -22,6 +23,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -191,6 +193,15 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetDiscordSession: %w", err)
 	}
 
+	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 channel: %s",
+		time.Now().Format("2006-01-02 15:04:05"),
+		workDir,
+		in.Username,
+		channelName(in),
+	)
+	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
+	sessionLog.Append(discordSessionID, userText)
+
 	var agent agentTypes.Agent
 	var fallbacks []agentTypes.Agent
 	if externalAgent == "" {
@@ -207,12 +218,19 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		fallbacks = rest
 	}
 
+	agentName := "external:" + externalAgent
+	if externalAgent == "" {
+		agentName = strings.TrimSpace(agent.Name())
+	}
+	sessionLog.Record(discordSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
+
 	execData := exec.ExecData{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
+		Input:          userText,
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,

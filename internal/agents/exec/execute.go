@@ -131,6 +131,7 @@ type ExecData struct {
 	Skill             *skill.Skill
 	SkillScanner      *runtime.SkillScanner
 	Content           string
+	Input             string
 	SessionID         string
 	ImageInputs       []string
 	FileInputs        []string
@@ -817,7 +818,6 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 		Role:    "user",
 		Content: userText,
 	})
-	sessionLog.Append(sessionID, userText)
 }
 
 func writeSessionHistEntry(ctx context.Context, sessionID string, msg agentTypes.Message) {

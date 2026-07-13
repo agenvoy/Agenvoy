@@ -20,9 +20,8 @@ import (
 )
 
 const (
-	ProbeTimeout              = 15 * time.Second
 	DispatcherCallTimeout     = 30 * time.Second
-	UnresponsiveProbeInterval = 3 * time.Minute
+	UnresponsiveProbeInterval = 30 * time.Second
 	HealthCheckTimeout        = 10 * time.Second
 )
 
@@ -267,27 +266,6 @@ func ResolveAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes
 	if len(candidates) == 0 {
 		return nil, nil, fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
 	}
-	// * single candidate has no fallback; skip probe and let real Send drive retry/timeout
-	if len(candidates) == 1 {
-		return candidates[0], nil, nil
-	}
-	for i, a := range candidates {
-		if utils.CheckAgentEndpointAlive(ctx, a, ProbeTimeout) {
-			rest := make([]agentTypes.Agent, 0, len(candidates)-i-1)
-			for _, b := range candidates[i+1:] {
-				if dead[b.Name()] {
-					continue
-				}
-				rest = append(rest, b)
-			}
-			return a, rest, nil
-		}
-		dead[a.Name()] = true
-		if ctx.Err() == nil {
-			slog.Warn("agent probe failed",
-				slog.String("name", a.Name()),
-				slog.Duration("timeout", ProbeTimeout))
-		}
-	}
-	return nil, nil, fmt.Errorf("all %d candidates failed probe", len(candidates))
+	// * skip probe; return primary immediately and let real Send drive retry/failover onto the rest
+	return candidates[0], candidates[1:], nil
 }
