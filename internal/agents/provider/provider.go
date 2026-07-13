@@ -2,17 +2,18 @@ package provider
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
 
 var reasoningLevel = "medium"
 
-var reasoningLevelOrder = []string{"low", "medium", "high", "xhigh"}
+var reasoningLevelOrder = []string{"none", "low", "medium", "high", "xhigh"}
 
 func NormalizeReasoningLevel(s string) string {
 	switch strings.ToLower(s) {
-	case "low", "medium", "high", "xhigh":
+	case "none", "low", "medium", "high", "xhigh":
 		return strings.ToLower(s)
 	default:
 		return "medium"
@@ -27,18 +28,36 @@ func GetReasoningLevel() string {
 	return reasoningLevel
 }
 
+func ReasoningDisabled(level string) bool {
+	return level == "none"
+}
+
 func reasoningLevelIndex(level string) int {
 	for i, v := range reasoningLevelOrder {
 		if v == level {
 			return i
 		}
 	}
-	return 1
+	return 2
 }
 
 func ClampReasoningLevel(level, maxLevel string) string {
 	if reasoningLevelIndex(level) > reasoningLevelIndex(maxLevel) {
 		return maxLevel
+	}
+	return level
+}
+
+func MinReasoningLevel(providerName, model string) string {
+	if providerName == "gemini" && GetThinkingConfig(providerName, model) == "level" {
+		return "low"
+	}
+	return "none"
+}
+
+func FloorReasoningLevel(level, minLevel string) string {
+	if reasoningLevelIndex(level) < reasoningLevelIndex(minLevel) {
+		return minLevel
 	}
 	return level
 }
@@ -85,12 +104,25 @@ func SupportTemperature(providerName, model string) bool {
 	return true
 }
 
+func gpt5MinorAtLeast(model string, min int) bool {
+	rest, ok := strings.CutPrefix(model, "gpt-5.")
+	if !ok {
+		return false
+	}
+	end := strings.IndexFunc(rest, func(r rune) bool { return r < '0' || r > '9' })
+	if end == -1 {
+		end = len(rest)
+	}
+	n, err := strconv.Atoi(rest[:end])
+	return err == nil && n >= min
+}
+
 func ResponsesAPI(providerName, model string) bool {
 	switch providerName {
 	case "openai":
-		return strings.Contains(model, "codex") || strings.HasPrefix(model, "gpt-5.4") || strings.HasSuffix(model, "-pro")
+		return strings.Contains(model, "codex") || gpt5MinorAtLeast(model, 4) || strings.HasSuffix(model, "-pro")
 	case "copilot":
-		return strings.Contains(model, "-codex") || strings.HasPrefix(model, "gpt-5.4")
+		return strings.Contains(model, "-codex") || gpt5MinorAtLeast(model, 4)
 	}
 	return false
 }
@@ -109,6 +141,27 @@ func SupportReasoningEffort(providerName, model string) bool {
 		return !strings.Contains(model, "non-reasoning")
 	}
 	return false
+}
+
+func SupportsReasoningSwitch(providerName, model string) bool {
+	switch providerName {
+	case "nvidia", "deepseek", "cloudflare", "compat":
+		return false
+	case "codex":
+		return true
+	case "openai", "copilot":
+		return ResponsesAPI(providerName, model) || SupportReasoningEffort(providerName, model)
+	case "grok", "grok-oauth":
+		return SupportReasoningEffort(providerName, model)
+	case "claude":
+		return GetThinkingType(providerName, model) != ""
+	case "gemini":
+		return GetThinkingConfig(providerName, model) != ""
+	case "openrouter":
+		vendor, _, _ := strings.Cut(model, "/")
+		return vendor != "deepseek"
+	}
+	return true
 }
 
 func GetThinkingType(providerName, model string) string {
@@ -134,8 +187,13 @@ func GetThinkingConfig(providerName, model string) string {
 	return ""
 }
 
-func ThinkingBudget(level string) int {
+func ThinkingBudget(model, level string) int {
 	switch level {
+	case "none":
+		if strings.Contains(model, "2.5-pro") {
+			return 128
+		}
+		return 0
 	case "low":
 		return 1024
 	case "high":

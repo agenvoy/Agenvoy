@@ -15,6 +15,7 @@ import (
 var (
 	lineRegex     = regexp.MustCompile(`^\[([^\]]+)\]\[([^\]]*)\]\[([^\]]+)\]\s*(.*)$`)
 	metaWrapRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n`)
+	cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 )
 
 func RecentEvents(sessionID string, limit int) []agentTypes.Event {
@@ -101,7 +102,14 @@ func parseDone(body string) agentTypes.Event {
 
 	var usage agentTypes.Usage
 	var hasUsage bool
+	hitPct := -1
 	for _, f := range fields {
+		if m := cacheHitPctRe.FindStringSubmatch(f); m != nil {
+			if n, err := strconv.Atoi(m[1]); err == nil {
+				hitPct = n
+			}
+			continue
+		}
 		k, v, found := strings.Cut(f, "=")
 		if !found {
 			continue
@@ -122,6 +130,10 @@ func parseDone(body string) agentTypes.Event {
 				hasUsage = true
 			}
 		}
+	}
+	if hitPct >= 0 && usage.Input > 0 {
+		usage.CacheRead = usage.Input * hitPct / 100
+		usage.Input -= usage.CacheRead
 	}
 	if hasUsage {
 		event.Usage = &usage

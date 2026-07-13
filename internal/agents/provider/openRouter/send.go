@@ -45,16 +45,21 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	}
 
 	reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openrouter", a.model))
-	result, _, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
-		"Authorization": "Bearer " + a.apiKey,
-		"Content-Type":  "application/json",
-	}, map[string]any{
+	body := map[string]any{
 		"model":       a.model,
 		"messages":    merged,
 		"temperature": 0.2,
 		"tools":       tools,
-		"reasoning":   map[string]any{"effort": reasoning},
-	}, "json")
+	}
+	if !provider.ReasoningDisabled(reasoning) {
+		body["reasoning"] = map[string]any{"effort": reasoning}
+	}
+	result, _, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
+		"Authorization": "Bearer " + a.apiKey,
+		"Content-Type":  "application/json",
+		"HTTP-Referer":  "https://github.com/pardnchiu/agenvoy",
+		"X-Title":       "Agenvoy",
+	}, body, "json")
 	if err != nil {
 		return nil, fmt.Errorf("http.POST: %w", err)
 	}

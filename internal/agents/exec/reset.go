@@ -28,7 +28,7 @@ func ForceSummary(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[summary] force refresh", false, "")
+	agent := summaryRouter()
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for summary refresh")
 	}
@@ -36,6 +36,13 @@ func ForceSummary(ctx context.Context, sessionID string) (int, error) {
 		return 0, fmt.Errorf("summary refresh failed: %w", err)
 	}
 	return len(histories), nil
+}
+
+func ResetSessionAll(sessionID string) (int, error) {
+	if sessionID == "" {
+		return 0, fmt.Errorf("session id is required")
+	}
+	return sessionManager.ResetAll(sessionID)
 }
 
 func ResetSessionWithSummary(ctx context.Context, sessionID string) (int, error) {
@@ -46,7 +53,7 @@ func ResetSessionWithSummary(ctx context.Context, sessionID string) (int, error)
 	_, histories := sessionHistory.Get(sessionID)
 
 	if len(histories) > 0 {
-		agent := SelectAgent(ctx, summaryRouter(), agents.Registry(), "[summary] reset session", false, "")
+		agent := summaryRouter()
 		if agent == nil {
 			return 0, fmt.Errorf("no agent available for summary refresh; reset aborted")
 		}

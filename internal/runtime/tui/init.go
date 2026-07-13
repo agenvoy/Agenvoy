@@ -73,6 +73,8 @@ type TUI struct {
 	runTarget      string
 	streaming      bool
 	tableBuf       []string
+	cmdMode        bool
+	execHandoff    bool
 
 	toolBuf         []string
 	toolCount       int
@@ -109,7 +111,6 @@ func (t TUI) Init() tea.Cmd {
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-		seq = append(seq, loadSessionTail(sid)...)
 		if n := len(interactive.ListPendingTasks(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
 			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
@@ -144,7 +145,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel`
+	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel · shift+t cmd mode`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -293,22 +294,29 @@ func refreshBotName(sid string) {
 	}
 }
 
-func loadSessionTail(sid string) []tea.Cmd {
+func loadSessionTail(sid string, width int, all bool) []tea.Cmd {
 	if strings.TrimSpace(sid) == "" {
 		return nil
 	}
-	lines := readAllLines(filesystem.ActionLogPath(sid))
+	lines := readAllLines(filesystem.ActionLogPath(sid), width)
 	if len(lines) == 0 {
 		return nil
 	}
-	if len(lines) > historyLoad {
+	label := "recent history"
+	if all {
+		label = "full history"
+	} else if len(lines) > historyLoad {
 		lines = lines[len(lines)-historyLoad:]
 	}
 
-	cmds := make([]tea.Cmd, 0, len(lines)+1)
-	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ recent history ("+strconv.Itoa(len(lines))+")")+"\n"))
-	for _, line := range lines {
-		cmds = append(cmds, tea.Println(line))
+	cmds := make([]tea.Cmd, 0, len(lines)*2+2)
+	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ "+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
+	for i, l := range lines {
+		if i > 0 && l.kind != "done" {
+			cmds = append(cmds, tea.Println(""))
+		}
+		cmds = append(cmds, tea.Println(l.line))
 	}
+	cmds = append(cmds, tea.Println(""))
 	return cmds
 }

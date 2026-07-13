@@ -43,14 +43,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/dangerous":
 		return t.commandDangerous(parts)
 
-	case "/reset":
-		return t.commandReset()
-
-	case "/summary":
-		return t.commandSummary()
-
-	case "/compact":
-		return t.commandCompact()
+	case "/memory":
+		return t.commandMemory(parts)
 
 	case "/bot":
 		return t.commandBot(parts)
@@ -70,8 +64,14 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/line":
 		return t.commandLine(parts)
 
-	case "/feature":
-		return t.commandFeature(parts)
+	case "/voice":
+		return t.commandVoice(parts)
+
+	case "/image2":
+		return t.commandImage2(parts)
+
+	case "/kuradb":
+		return t.commandKuradb(parts)
 
 	case "/admin-channel":
 		return t.commandAdminChannel(parts)
@@ -85,14 +85,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/update":
 		return t.commandUpdate()
 
-	case "/history":
+	case "/resume":
 		return t.commandHistory()
 
 	case "/log":
 		return t.commandLog()
-
-	case "/cmd":
-		return t.commandCmd(cmd)
 
 	case "/key":
 		return t.commandKey(parts)
@@ -115,7 +112,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 	}
-	tail := loadSessionTail(sid)
+	tail := loadSessionTail(sid, t.width, true)
 	if len(tail) == 0 {
 		seq = append(seq, tea.Println(hintStyle.Render("⎯ no history yet")+"\n"))
 	} else {

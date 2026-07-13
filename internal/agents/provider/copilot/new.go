@@ -2,32 +2,20 @@ package copilot
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-
+	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
-
-type Token struct {
-	AccessToken string    `json:"access_token"`
-	TokenType   string    `json:"token_type"`
-	Scope       string    `json:"scope"`
-	ExpiresAt   time.Time `json:"expires_at"`
-}
-
-const tokenKey = "agenvoy.copilot.token"
 
 type Agent struct {
 	httpClient *http.Client
 	model      string
-	Token      *Token
-	Refresh    *RefreshToken
+	Token      *oauthCopilot.Token
+	Refresh    *oauthCopilot.RefreshToken
 	workDir    string
 }
 
@@ -46,51 +34,31 @@ func New(model ...string) (*Agent, error) {
 		return nil, fmt.Errorf("os.Getwd: %w", err)
 	}
 
-	agent := &Agent{
-		httpClient: provider.NewHTTPClient(),
-		model:      usedModel,
-		workDir:    workDir,
+	token, err := oauthCopilot.Load()
+	if err != nil {
+		return nil, fmt.Errorf("oauth.Load: %w", err)
 	}
-
-	raw := keychain.Get(tokenKey)
-	if raw == "" {
+	if token == nil {
 		return nil, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
 	}
 
-	var token Token
-	if err := json.Unmarshal([]byte(raw), &token); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal: %w", err)
-	}
-	agent.Token = &token
-
-	return agent, nil
+	return &Agent{
+		httpClient: provider.NewHTTPClient(),
+		model:      usedModel,
+		workDir:    workDir,
+		Token:      token,
+	}, nil
 }
 
 func (a *Agent) Name() string {
 	return prefix + a.model
 }
 
-func HasToken() bool {
-	return keychain.Get(tokenKey) != ""
-}
-
-func ClearToken() error {
-	return keychain.Delete(tokenKey)
-}
-
-func AuthWithCallback(ctx context.Context, onCode func(*DeviceCode)) error {
-	workDir, err := os.Getwd()
+func (a *Agent) authHeader(ctx context.Context) (string, error) {
+	refresh, err := oauthCopilot.EnsureFreshSession(ctx, a.Token, a.Refresh)
 	if err != nil {
-		return fmt.Errorf("os.Getwd: %w", err)
+		return "", fmt.Errorf("oauth.EnsureFreshSession: %w", err)
 	}
-	a := &Agent{
-		httpClient: provider.NewHTTPClient(),
-		workDir:    workDir,
-	}
-	token, err := a.LoginWithCallback(ctx, onCode)
-	if err != nil {
-		return fmt.Errorf("a.LoginWithCallback: %w", err)
-	}
-	a.Token = token
-	return nil
+	a.Refresh = refresh
+	return "Bearer " + refresh.Token, nil
 }

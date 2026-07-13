@@ -41,3 +41,17 @@ func Reset(sessionID string) (int, error) {
 	}
 	return db.Del(keys...), nil
 }
+
+func ResetAll(sessionID string) (int, error) {
+	keys, err := Reset(sessionID)
+	if err != nil {
+		return keys, err
+	}
+	if err := os.Remove(filesystem.SummaryPath(sessionID)); err != nil && !os.IsNotExist(err) {
+		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryPath(sessionID), err)
+	}
+	if err := os.Remove(filesystem.SummaryMetaPath(sessionID)); err != nil && !os.IsNotExist(err) {
+		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryMetaPath(sessionID), err)
+	}
+	return keys, nil
+}

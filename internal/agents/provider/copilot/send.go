@@ -34,12 +34,13 @@ func (a *Agent) Execute(ctx context.Context, skill *skill.Skill, userInput strin
 }
 
 func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
-	if err := a.checkExpires(ctx); err != nil {
-		return nil, fmt.Errorf("a.checkExpires: %w", err)
+	auth, err := a.authHeader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("a.authHeader: %w", err)
 	}
 
 	headers := map[string]string{
-		"Authorization":  "Bearer " + a.Refresh.Token,
+		"Authorization":  auth,
 		"Editor-Version": "vscode/1.95.0",
 	}
 
@@ -66,7 +67,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 			"tools":        copilotResponse.ConvertTools(tools),
 			"instructions": instructions,
 			"store":        false,
-			"reasoning":    map[string]any{"effort": reasoning, "summary": "auto"},
+		}
+		if !provider.ReasoningDisabled(reasoning) {
+			body["reasoning"] = map[string]any{"effort": reasoning, "summary": "auto"}
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
@@ -92,7 +95,9 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	var reasoning string
 	if provider.SupportReasoningEffort("copilot", a.model) {
 		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("copilot", a.model))
-		body["reasoning_effort"] = reasoning
+		if !provider.ReasoningDisabled(reasoning) {
+			body["reasoning_effort"] = reasoning
+		}
 	}
 
 	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, headers, body, "json")

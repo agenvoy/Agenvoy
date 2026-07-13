@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -17,7 +18,18 @@ type ReasoningSelect struct {
 	level string
 }
 
-var reasoningLevels = []string{"low", "medium", "high"}
+var reasoningLevels = []string{"none", "low", "medium", "high", "xhigh"}
+
+func filteredReasoningLevels(model string) []string {
+	providerName, modelName, _ := strings.Cut(model, "@")
+	min := provider.MinReasoningLevel(providerName, modelName)
+	for i, lvl := range reasoningLevels {
+		if lvl == min {
+			return reasoningLevels[i:]
+		}
+	}
+	return reasoningLevels
+}
 
 func (t TUI) commandReasoning(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
@@ -45,9 +57,15 @@ func (t TUI) commandReasoning(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) openReasoningGlobalPopup() (TUI, tea.Cmd) {
 	current := provider.GetReasoningLevel()
-	options := make([]string, len(reasoningLevels))
-	cursor := 1
-	for i, lvl := range reasoningLevels {
+	dispatcherModel := ""
+	if cfg, err := config.Load(); err == nil {
+		dispatcherModel = cfg.DispatcherModel
+	}
+	levels := filteredReasoningLevels(dispatcherModel)
+
+	options := make([]string, len(levels))
+	cursor := 0
+	for i, lvl := range levels {
 		label := lvl
 		if lvl == current {
 			label += "  " + systemStyle.Render("[current]")
@@ -60,7 +78,7 @@ func (t TUI) openReasoningGlobalPopup() (TUI, tea.Cmd) {
 		kind:    popupSingleSelect,
 		title:   "Reasoning · global (dispatcher)",
 		options: options,
-		values:  reasoningLevels,
+		values:  levels,
 		cursor:  cursor,
 		onConfirm: func(chosen string) any {
 			return ReasoningSelect{level: chosen}
@@ -75,11 +93,12 @@ func (t TUI) openReasoningSessionPopup() (TUI, tea.Cmd) {
 		return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 	}
 
-	_, current := configBot.GetModel(sid)
+	model, current := configBot.GetModel(sid)
+	levels := filteredReasoningLevels(model)
 
-	options := make([]string, len(reasoningLevels))
-	cursor := 1
-	for i, lvl := range reasoningLevels {
+	options := make([]string, len(levels))
+	cursor := 0
+	for i, lvl := range levels {
 		label := lvl
 		if lvl == current {
 			label += "  " + systemStyle.Render("[current]")
@@ -92,7 +111,7 @@ func (t TUI) openReasoningSessionPopup() (TUI, tea.Cmd) {
 		kind:    popupSingleSelect,
 		title:   "Reasoning · session",
 		options: options,
-		values:  reasoningLevels,
+		values:  levels,
 		cursor:  cursor,
 		onConfirm: func(chosen string) any {
 			return SessionReasoningSelect{reasoning: chosen}
@@ -107,21 +126,27 @@ func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 		return t, nil
 	}
 
-	_, current := configBot.GetModel(sid)
-	idx := 1
-	for i, lvl := range reasoningLevels {
+	model, current := configBot.GetModel(sid)
+	providerName, modelName, _ := strings.Cut(model, "@")
+	if !provider.SupportsReasoningSwitch(providerName, modelName) {
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s does not support reasoning switching", model)) + "\n")
+	}
+
+	levels := filteredReasoningLevels(model)
+	idx := 0
+	for i, lvl := range levels {
 		if lvl == current {
 			idx = i
 			break
 		}
 	}
-	n := len(reasoningLevels)
+	n := len(levels)
 	if forward {
 		idx = (idx + 1) % n
 	} else {
 		idx = (idx - 1 + n) % n
 	}
-	level := reasoningLevels[idx]
+	level := levels[idx]
 	configBot.SetModel(sid, "", level)
 	return t, nil
 }

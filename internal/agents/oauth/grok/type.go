@@ -1,4 +1,4 @@
-package grokoauth
+package oauthGrok
 
 import "time"
 

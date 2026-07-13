@@ -1,4 +1,4 @@
-package grokoauth
+package oauthGrok
 
 import (
 	"context"
@@ -12,11 +12,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
-func (a *Agent) LoginWithCallback(ctx context.Context, onURL func(string)) (*StoredToken, error) {
+func LoginWithCallback(ctx context.Context, onURL func(string)) (*StoredToken, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return nil, fmt.Errorf("failed to generate PKCE verifier: %w", err)
@@ -57,11 +55,11 @@ func (a *Agent) LoginWithCallback(ctx context.Context, onURL func(string)) (*Sto
 	case err := <-errCh:
 		return nil, fmt.Errorf("callback: %w", err)
 	case code := <-codeCh:
-		return a.exchangeCode(ctx, code, verifier, challenge)
+		return exchangeCode(ctx, code, verifier, challenge)
 	}
 }
 
-func (a *Agent) exchangeCode(ctx context.Context, code, verifier, challenge string) (*StoredToken, error) {
+func exchangeCode(ctx context.Context, code, verifier, challenge string) (*StoredToken, error) {
 	form := url.Values{
 		"grant_type":            {"authorization_code"},
 		"code":                  {code},
@@ -79,7 +77,7 @@ func (a *Agent) exchangeCode(ctx context.Context, code, verifier, challenge stri
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := httpClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("httpClient.Do: %w", err)
 	}
@@ -108,22 +106,6 @@ func (a *Agent) exchangeCode(ctx context.Context, code, verifier, challenge stri
 		return nil, fmt.Errorf("saveToken: %w", err)
 	}
 	return token, nil
-}
-
-func HasToken() bool {
-	return keychain.Get(tokenKey) != ""
-}
-
-func ClearToken() error {
-	return keychain.Delete(tokenKey)
-}
-
-func saveToken(t *StoredToken) error {
-	raw, err := json.Marshal(t)
-	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
-	}
-	return keychain.Set(tokenKey, string(raw))
 }
 
 func buildAuthURL(challenge, state, nonce string) string {

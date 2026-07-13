@@ -99,11 +99,12 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 			}
 			prev := provider.GetReasoningLevel()
 			provider.SetReasoningLevel("low")
+			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
 			for range len(registry.Entries) {
 				if ctx.Err() != nil {
 					break
 				}
-				routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
+				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
 				resp, sendErr := bot.Send(routingCtx, messages, nil)
 				cancel()
 				if sendErr == nil {

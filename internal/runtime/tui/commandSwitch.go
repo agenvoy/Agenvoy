@@ -77,13 +77,11 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	}
 	switchBlock := tea.Println(strings.Join(switchLines, "\n") + "\n")
 
-	seq := []tea.Cmd{
+	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-	}
-	seq = append(seq, loadSessionTail(id)...)
-	seq = append(seq, switchBlock)
-	return t, tea.Sequence(seq...)
+		switchBlock,
+	)
 }
 
 func listSessions() []Session {

@@ -143,6 +143,12 @@ func FormatToolEvent(name, raw string) string {
 	return raw
 }
 
+var footerPrefixKeep = map[string]bool{
+	"codex":      true,
+	"copilot":    true,
+	"grok-oauth": true,
+}
+
 func FormatEventFooter(duration time.Duration, model string, usage *agentTypes.Usage) string {
 	var parts []string
 	if duration > 0 {
@@ -150,7 +156,7 @@ func FormatEventFooter(duration time.Duration, model string, usage *agentTypes.U
 	}
 
 	if model = strings.TrimSpace(model); model != "" {
-		if _, after, ok := strings.Cut(model, "@"); ok {
+		if prefix, after, ok := strings.Cut(model, "@"); ok && !footerPrefixKeep[prefix] {
 			model = after
 		}
 		parts = append(parts, model)

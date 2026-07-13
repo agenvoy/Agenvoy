@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -98,6 +98,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return t.cycleReasoning(false)
 				case "D":
 					return t.cycleReasoning(true)
+				case "T":
+					t.setCmdMode(!t.cmdMode)
+					return t, nil
 				}
 			}
 
@@ -172,6 +175,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
 
+			if t.cmdMode {
+				return t.runShellCmd(content)
+			}
+
 			if strings.HasPrefix(content, "/") {
 				if next, cmd, handled := t.handleCommand(content); handled {
 					return next, cmd
@@ -203,6 +210,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
+		return t, nil
+
+	case CmdDone:
+		t.execHandoff = false
 		return t, nil
 
 	case agentExecDone:
@@ -359,6 +370,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case MemoryScopeSelect:
+		switch msg.scope {
+		case "compact":
+			next, cmd, _ := t.commandCompact()
+			return next, cmd
+		case "reset":
+			next, cmd, _ := t.commandReset()
+			return next, cmd
+		case "summary":
+			next, cmd, _ := t.commandSummary()
+			return next, cmd
+		}
+		return t, nil
+
 	case McpAction:
 		switch msg.action {
 		case "add":
@@ -402,6 +427,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.name == "" {
 			t.mcpAdd = nil
 			return t, tea.Println(errorStyle.Render("[!] mcp name required") + "\n")
+		}
+		if !isValidMcpServerName(msg.name) {
+			t.mcpAdd = nil
+			return t, tea.Println(errorStyle.Render("[!] mcp name must match [A-Za-z0-9_-]") + "\n")
 		}
 		t.mcpAdd.name = msg.name
 		next, cmd := t.openMcpAddTransport()
@@ -787,17 +816,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.runRemoveSessionConfirm(msg)
 
 	case ResetSessionConfirm1:
-		if !msg.yes {
+		if msg.mode != "summary" && msg.mode != "all" {
 			return t, tea.Println(hintStyle.Render("⎯ reset cancelled") + "\n")
 		}
-		next, cmd := t.openResetConfirm2(msg.id)
+		next, cmd := t.openResetConfirm2(msg.id, msg.mode)
 		return next, cmd
 
 	case ResetSessionConfirm2:
 		if !msg.yes {
 			return t, tea.Println(hintStyle.Render("⎯ reset cancelled") + "\n")
 		}
-		next, cmd := t.runResetSession(msg.id)
+		next, cmd := t.runResetSession(msg.id, msg.mode)
 		return next, cmd
 
 	case ResetSessionDone:
@@ -881,20 +910,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case FeatureSelect:
-		switch msg.feature {
-		case "voice":
-			next, cmd, _ := t.commandVoice(nil)
-			return next, cmd
-		case "image2":
-			next, cmd, _ := t.commandImage2(nil)
-			return next, cmd
-		case "kuradb":
-			next, cmd, _ := t.commandKuradb(nil)
-			return next, cmd
-		}
-		return t, nil
-
 	case VoiceAction:
 		if msg.action == "enable" && voiceNeedsGeminiKey() {
 			next, cmd := t.openVoiceKeyPrompt()
@@ -922,7 +937,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
 
 	case Image2Action:
-		if msg.action == "enable" && !openaicodex.HasToken() {
+		if msg.action == "enable" && !oauthCodex.HasToken() {
 			next, cmd := t.startImage2CodexOAuth()
 			return next, cmd
 		}
@@ -1145,12 +1160,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.currentModel = ""
 		t.activity = ""
 
-		seq := []tea.Cmd{
+		return t, tea.Sequence(
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-		}
-		seq = append(seq, loadSessionTail(msg.id)...)
-		return t, tea.Sequence(seq...)
+		)
 
 	case sudoStream:
 		t.toolBuf = append(t.toolBuf, hintStyle.Render("  "+msg.line))
