@@ -98,6 +98,13 @@ func Send() gin.HandlerFunc {
 				}
 			}
 
+			workDir, _ := os.UserHomeDir()
+			userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
+				time.Now().Format("2006-01-02 15:04:05"), workDir, trimContent)
+			if sessionID != "" {
+				sessionLog.Append(sessionID, userText)
+			}
+
 			wrapped <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
 			var agent agentTypes.Agent
 			var fallbacks []agentTypes.Agent
@@ -127,13 +134,13 @@ func Send() gin.HandlerFunc {
 				sessionLog.Record(sessionID, agentResult)
 			}
 
-			workDir, _ := os.UserHomeDir()
 			data := exec.ExecData{
 				Agent:             agent,
 				FallbackAgents:    fallbacks,
 				WorkDir:           workDir,
 				Skill:             matchedSkill,
 				Content:           trimContent,
+				Input:             userText,
 				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
 				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
@@ -196,8 +203,11 @@ func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*age
 	}
 	session.ToolHistories = []agentTypes.Message{}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
-		time.Now().Format("2006-01-02 15:04:05"), data.WorkDir, data.Content)
+	userText := strings.TrimSpace(data.Input)
+	if userText == "" {
+		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
+			time.Now().Format("2006-01-02 15:04:05"), data.WorkDir, data.Content)
+	}
 	session.UserInput = agentTypes.Message{Role: "user", Content: userText}
 	session.Histories = append(session.Histories, agentTypes.Message{
 		Role:    "user",

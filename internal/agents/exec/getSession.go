@@ -97,7 +97,10 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 	session.OldHistories = maxHistory
 	session.ToolHistories = []agentTypes.Message{}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, trimInput)
+	userText := strings.TrimSpace(execData.Input)
+	if userText == "" {
+		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, trimInput)
+	}
 	session.Histories = append(session.Histories, agentTypes.Message{
 		Role:    "user",
 		Content: userText,

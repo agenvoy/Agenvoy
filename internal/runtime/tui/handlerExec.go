@@ -82,6 +82,10 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 
 	for ev := range ch {
 		send(agentEvent{event: ev})
+		switch ev.Type {
+		case agentTypes.EventDone, agentTypes.EventReasoning, agentTypes.EventText, agentTypes.EventToolCall, agentTypes.EventCompact:
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 
 	err := <-done

@@ -40,13 +40,16 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 	sess.OldHistories = maxHistory
 	sess.ToolHistories = []agentTypes.Message{}
 
-	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 channel: %s",
-		time.Now().Format("2006-01-02 15:04:05"),
-		data.WorkDir,
-		in.Username,
-		channelName(in),
-	)
-	userText := fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
+	userText := strings.TrimSpace(data.Input)
+	if userText == "" {
+		header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 channel: %s",
+			time.Now().Format("2006-01-02 15:04:05"),
+			data.WorkDir,
+			in.Username,
+			channelName(in),
+		)
+		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
+	}
 
 	sess.Histories = append(sess.Histories, agentTypes.Message{
 		Role:    "user",

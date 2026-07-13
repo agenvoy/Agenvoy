@@ -17,6 +17,7 @@ import (
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -98,6 +99,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
 	}
 
+	sessionLog.Append(sessionID, userText)
 	SaveUserInputHistory(ctx, sessionID, userText)
 
 	subCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
