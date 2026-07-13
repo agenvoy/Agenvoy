@@ -13,6 +13,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 )
 
@@ -56,6 +57,7 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 		Role:    "user",
 		Content: userText,
 	}
+	sessionLog.Append(sessionID, userText)
 	exec.SaveUserInputHistory(ctx, sessionID, userText)
 
 	return sess, nil
