@@ -43,16 +43,19 @@ func getSession(ctx context.Context, chatID int64, username, content string, dat
 	sess.OldHistories = maxHistory
 	sess.ToolHistories = []agentTypes.Message{}
 
-	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 chat ID: %d",
-		time.Now().Format("2006-01-02 15:04:05"),
-		data.WorkDir,
-		username,
-		chatID,
-	)
-	if name := strings.TrimSpace(missingName); name != "" {
-		header += fmt.Sprintf("\n備註: 找不到 session %q，改以當前 chat session 處理", name)
+	userText := strings.TrimSpace(data.Input)
+	if userText == "" {
+		header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 chat ID: %d",
+			time.Now().Format("2006-01-02 15:04:05"),
+			data.WorkDir,
+			username,
+			chatID,
+		)
+		if name := strings.TrimSpace(missingName); name != "" {
+			header += fmt.Sprintf("\n備註: 找不到 session %q，改以當前 chat session 處理", name)
+		}
+		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 	}
-	userText := fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 
 	sess.Histories = append(sess.Histories, agentTypes.Message{
 		Role:    "user",

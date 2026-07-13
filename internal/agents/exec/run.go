@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -62,6 +63,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		routingInput = "use " + hint + " " + trimInput
 	}
 
+	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, trimInput)
+	sessionLog.Append(sessionOverride, userText)
+
 	events <- agentTypes.Event{
 		Type: agentTypes.EventAgentSelect,
 	}
@@ -87,6 +91,10 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		}
 	}
 	events <- agentResult
+	sessionLog.Record(sessionOverride, agentResult)
+	if matchedSkill != nil {
+		sessionLog.Record(sessionOverride, skillResult)
+	}
 
 	execData := ExecData{
 		Agent:          agent,
@@ -94,6 +102,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        trimInput,
+		Input:          userText,
 		SessionID:      sessionOverride,
 		ImageInputs:    imageInputs,
 		FileInputs:     fileInputs,
@@ -103,13 +112,6 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	session, err := GetSession(ctx, execData)
 	if err != nil {
 		return fmt.Errorf("GetSession: %w", err)
-	}
-
-	if session != nil && session.ID != "" {
-		if matchedSkill != nil {
-			sessionLog.Record(session.ID, skillResult)
-		}
-		sessionLog.Record(session.ID, agentResult)
 	}
 
 	if externalAgent != "" {

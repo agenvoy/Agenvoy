@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot/models"
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -23,6 +24,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -244,6 +246,18 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		routingSessionID = cs
 	}
 
+	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 chat ID: %d",
+		time.Now().Format("2006-01-02 15:04:05"),
+		workDir,
+		in.Username,
+		in.ChatID,
+	)
+	if name := strings.TrimSpace(sessionMissing); name != "" {
+		header += fmt.Sprintf("\n備註: 找不到 session %q，改以當前 chat session 處理", name)
+	}
+	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
+	sessionLog.Append(routingSessionID, userText)
+
 	var agent agentTypes.Agent
 	var fallbacks []agentTypes.Agent
 	if externalAgent == "" {
@@ -266,12 +280,19 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		fallbacks = rest
 	}
 
+	agentName := "external:" + externalAgent
+	if externalAgent == "" {
+		agentName = strings.TrimSpace(agent.Name())
+	}
+	sessionLog.Record(routingSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
+
 	execData := exec.ExecData{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
+		Input:          userText,
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,

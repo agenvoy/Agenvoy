@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 
@@ -14,6 +15,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -60,18 +62,23 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		scanner.Scan()
 	}
 
+	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, content)
+	sessionLog.Append(sessionID, userText)
+
 	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, sessionID)
 	if err != nil {
 		b.client.FinishStatus(ctx, channelID)
 		b.client.Send(ctx, channelID, "", fmt.Sprintf("⚠️ %s", err.Error()))
 		return
 	}
+	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
 
 	execData := exec.ExecData{
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,
 		Content:        content,
+		Input:          userText,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		PendingTask:    taskHash,
