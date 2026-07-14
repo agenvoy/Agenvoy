@@ -63,6 +63,7 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 				toolDic[tool.Function.Name] = tool
 			}
 
+			e.ToolsMu.Lock()
 			for _, match := range matches {
 				if e.ExcludeTools[match.Name] {
 					continue
@@ -79,6 +80,7 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 				e.Tools = append(e.Tools, full)
 				delete(e.StubTools, match.Name)
 			}
+			e.ToolsMu.Unlock()
 
 			raw, err := json.Marshal(ToolMatch{
 				Injected:   matches,
