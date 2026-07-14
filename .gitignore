@@ -19,11 +19,4 @@ _discord
 dist/
 extensions/scripts/
 
-node_modules
-.wrangler
-worker/public/docs/*.html
-worker/public/docs/tags/
-worker/public/docs/released/
-worker/public/zh/docs/
-.tmp-go-build/
-.tmp-go-cache/
+.tmp*

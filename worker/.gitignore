@@ -1,7 +1,0 @@
-.DS_Store
-.env
-node_modules
-.wrangler
-public/docs/released/
-public/docs/tags/
-public/docs/*.html

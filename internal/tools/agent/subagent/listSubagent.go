@@ -33,7 +33,7 @@ func registListSubagent() {
 				if role == "" {
 					role = "(no role description)"
 				}
-				fmt.Fprintf(&sb, "- %s — %s\n", s.Name, go_pkg_utils.TruncateString(role, 200))
+				fmt.Fprintf(&sb, "- %s — %s\n", s.Name, go_pkg_utils.TruncateString(role, 256))
 			}
 			return strings.TrimRight(sb.String(), "\n"), nil
 		},

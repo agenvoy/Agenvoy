@@ -48,7 +48,7 @@ func (t TUI) commandBot(parts []string) (TUI, tea.Cmd, bool) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "Bot name",
-		input: existingName,
+		input: newPopupInput(existingName, false),
 		onConfirm: func(value string) any {
 			return BotNameSubmit{name: strings.TrimSpace(value)}
 		},
@@ -97,7 +97,7 @@ func (t TUI) showBotCustomPopup(name string) (TUI, tea.Cmd) {
 		kind:      popupText,
 		title:     fmt.Sprintf("Bot description (%s)", name),
 		multiline: true,
-		input:     t.botBodyDraft,
+		input:     newPopupInput(t.botBodyDraft, true),
 		onConfirm: func(value string) any {
 			return BotPromptSubmit{name: name, body: value}
 		},

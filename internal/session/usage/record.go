@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxLogSize     = 1 << 20
-	trimTargetSize = 768 << 10
+	maxLogSize     = 5 << 20
+	trimTargetSize = 4 << 20
 )
 
 var mu sync.Mutex

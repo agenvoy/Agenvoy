@@ -225,32 +225,23 @@ func (t TUI) viewPopup() string {
 		body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
 
 	case popupText:
+		p.input.SetWidth(max(width-10, 20))
+		body = append(body, p.input.View())
+		body = append(body, "")
 		if p.multiline {
-			lines := strings.Split(p.input, "\n")
-			for i, ln := range lines {
-				prefix := systemStyle.Render("  ")
-				if i == 0 {
-					prefix = systemStyle.Render("> ")
-				}
-				if i == len(lines)-1 {
-					body = append(body, prefix+ln+systemStyle.Render("▏"))
-				} else {
-					body = append(body, prefix+ln)
-				}
-			}
-			body = append(body, "")
 			body = append(body, hintStyle.Render("ctrl+s confirm · enter newline · esc cancel"))
 		} else {
-			field := systemStyle.Render("> ") + p.input + systemStyle.Render("▏")
-			body = append(body, field)
-			body = append(body, "")
 			body = append(body, hintStyle.Render("enter confirm · esc cancel"))
 		}
 
 	case popupSecret:
-		mask := strings.Repeat("•", len([]rune(p.input)))
-		field := systemStyle.Render("> ") + mask + systemStyle.Render("▏")
-		body = append(body, field)
+		p.input.SetWidth(max(width-10, 20))
+		mask := strings.Repeat("•", len([]rune(p.input.Value())))
+		secret := newPopupInput(mask, false)
+		cursor := p.input.LineInfo().StartColumn + p.input.LineInfo().CharOffset
+		secret.SetCursor(cursor)
+		secret.SetWidth(max(width-10, 20))
+		body = append(body, secret.View())
 		body = append(body, "")
 		body = append(body, hintStyle.Render("enter confirm · esc cancel · (input hidden)"))
 

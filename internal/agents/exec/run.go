@@ -66,6 +66,8 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, trimInput)
 	sessionLog.Append(sessionOverride, userText)
 
+	executeStart := time.Now()
+
 	events <- agentTypes.Event{
 		Type: agentTypes.EventAgentSelect,
 	}
@@ -151,6 +153,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		return err
 	}
 	if finalDone != nil {
+		finalDone.Duration = time.Since(executeStart)
 		events <- *finalDone
 	}
 	return nil
