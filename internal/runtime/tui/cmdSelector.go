@@ -51,6 +51,7 @@ var commands = []Command{
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
 	{"resume", "reload visible transcript · last 100 entries from action.log"},
 	{"log", "open / view raw action.log via $PAGER (less)"},
+	{"usage", "show per-model token usage · 24h / 7d / 28d"},
 	{"pending", "list / resume interrupted tasks · error recovery · ask_user resume"},
 	{"sudo", "enable / disable elevated mode · bypass command allowlist · 1h auto-expire"},
 	{"key", "update / rotate keychain value · pick from recorded keys"},
