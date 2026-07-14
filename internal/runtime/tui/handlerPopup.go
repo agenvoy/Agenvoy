@@ -8,8 +8,8 @@ import (
 	goruntime "runtime"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -30,8 +30,8 @@ const (
 type Popup struct {
 	pendingId string
 
-	kind      popupType
-	title     string
+	kind        popupType
+	title       string
 	subtitle    string
 	styledLines []string
 	diffLines   []string
@@ -42,7 +42,7 @@ type Popup struct {
 	multi      map[int]bool
 	maxVisible int
 
-	input          string
+	input          textarea.Model
 	multiline      bool
 	skipWithReason bool
 	sudoActive     bool
@@ -164,7 +164,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			p.kind = popupText
 			p.skipWithReason = true
 			p.title = "Reason (enter to skip):"
-			p.input = ""
+			p.input = newPopupInput("", false)
 			return t, nil
 		case chosen == "Abort task":
 			reply = runtime.Reply{Approve: false, Error: fmt.Errorf("user stopped")}
@@ -273,12 +273,32 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return t, nil
 }
 
+func newPopupInput(value string, multiline bool) textarea.Model {
+	input := textarea.New()
+	input.CharLimit = 8192
+	input.ShowLineNumbers = false
+	input.SetHeight(1)
+	input.SetValue(value)
+	input.Focus()
+	input.Cursor.Style = whiteStyle
+	input.SetPromptFunc(2, func(lineIdx int) string {
+		if lineIdx == 0 {
+			return systemStyle.Render("> ")
+		}
+		return "  "
+	})
+	if multiline {
+		input.SetHeight(6)
+	}
+	return input
+}
+
 func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
 	submit := func() (tea.Model, tea.Cmd) {
+		value := p.input.Value()
 		if p.pendingId == "" {
 			cb := p.onConfirm
-			value := p.input
 			t = t.closePopup()
 			if cb == nil {
 				return t, nil
@@ -289,12 +309,12 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			runtime.Resolve(p.pendingId, runtime.Reply{
 				Approve: false,
 				Skip:    true,
-				Reason:  strings.TrimSpace(p.input),
+				Reason:  strings.TrimSpace(value),
 			})
 			t = t.closePopup()
 			return t, nil
 		}
-		resolved, reply := p.advanceOrResolve(p.input)
+		resolved, reply := p.advanceOrResolve(value)
 		if resolved {
 			runtime.Resolve(p.pendingId, reply)
 			t = t.closePopup()
@@ -316,6 +336,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			Error: fmt.Errorf("user cancelled"),
 		})
 		t = t.closePopup()
+		return t, nil
 
 	case tea.KeyCtrlS:
 		if p.multiline {
@@ -323,23 +344,14 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyEnter:
-		if p.multiline {
-			p.input += "\n"
-			return t, nil
-		}
-		return submit()
-
-	case tea.KeyBackspace:
-		if r := []rune(p.input); len(r) > 0 {
-			p.input = string(r[:len(r)-1])
-		}
-
-	default:
-		if len(msg.Runes) > 0 && !msg.Alt {
-			p.input += string(msg.Runes)
+		if !p.multiline {
+			return submit()
 		}
 	}
-	return t, nil
+
+	var cmd tea.Cmd
+	p.input, cmd = p.input.Update(msg)
+	return t, cmd
 }
 
 func newPopup(id string, req runtime.Request) *Popup {
@@ -365,25 +377,28 @@ func newPopup(id string, req runtime.Request) *Popup {
 			}
 		}
 		p := &Popup{
-			pendingId:   id,
-			kind:        popupConfirm,
-			title:       fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
-			subtitle:    go_pkg_utils.TruncateString(display, 256),
-			options:     options,
-			sudoActive:  sudo.IsActive(),
+			pendingId:  id,
+			kind:       popupConfirm,
+			title:      fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
+			subtitle:   display,
+			options:    options,
+			sudoActive: sudo.IsActive(),
 		}
 		switch req.ToolName {
 		case "patch_file", "patch_tool", "patch_skill":
 			oldLines, newLines := utils.FormatPatchDiff(req.ToolArgs)
-			for _, l := range oldLines {
-				p.diffLines = append(p.diffLines, "- "+go_pkg_utils.TruncateString(l, 120))
+			remaining := 32
+			for _, l := range oldLines[:min(len(oldLines), 16)] {
+				p.diffLines = append(p.diffLines, "- "+l)
+				remaining--
 			}
-			for _, l := range newLines {
-				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
+			for _, l := range newLines[:min(len(newLines), remaining)] {
+				p.diffLines = append(p.diffLines, "+ "+l)
 			}
 		case "write_file":
-			for _, l := range utils.FormatWriteDiff(req.ToolArgs) {
-				p.diffLines = append(p.diffLines, "+ "+go_pkg_utils.TruncateString(l, 120))
+			lines := utils.FormatWriteDiff(req.ToolArgs)
+			for _, l := range lines[:min(len(lines), 16)] {
+				p.diffLines = append(p.diffLines, "+ "+l)
 			}
 		}
 		return p
@@ -407,8 +422,7 @@ func (p *Popup) loadCurrentQuestion() {
 	q := p.questions[p.questionIdx]
 	p.title = q.Question
 	p.subtitle = q.Detail
-	p.input = ""
-	p.cursor = 0
+	p.input = newPopupInput("", false)
 	p.multi = nil
 
 	switch {

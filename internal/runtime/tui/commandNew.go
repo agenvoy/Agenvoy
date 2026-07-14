@@ -39,7 +39,7 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "New session name (empty = unnamed)",
-		input: "",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return SessionNewSubmit{name: strings.TrimSpace(value)}
 		},
@@ -77,7 +77,7 @@ func (t TUI) showNewCustomPopup(name string) (TUI, tea.Cmd) {
 		kind:      popupText,
 		title:     "Session description",
 		multiline: true,
-		input:     "",
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return SessionNewPromptSubmit{name: name, body: strings.TrimSpace(value)}
 		},
