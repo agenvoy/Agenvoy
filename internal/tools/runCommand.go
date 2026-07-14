@@ -28,7 +28,8 @@ func registRunCommand() {
 		Description: `
 Run a binary with argv; returns combined stdout/stderr.
 Executes in the work directory. Use ['cd', '<path>'] to change the work directory for subsequent commands; the path is verified before switching.
-For pipes/redirects/shell expansion, pass argv=['sh','-c','<full shell command>'].`,
+For pipes/redirects/shell expansion, pass argv=['sh','-c','<full shell command>'].
+Do not use this to read file contents (cat/head/tail/etc.) — use read_file instead.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

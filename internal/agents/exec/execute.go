@@ -367,13 +367,17 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		err  error
 	}
 	sendFailCount := 0
-	oldHistoriesCompacted := extractOldHistories(ctx, data.Agent, session, &usage, events)
+	timeoutRetryCount := 0
+	oldHistoriesCompacted := false
+	firstAttempt := true
 	for range limit {
 		if ctx.Err() != nil {
 			keepPending = false
 			return ctx.Err()
 		}
-		if !compactFailed && lastInputTokens >= compactThreshold(data.Agent.Name()) {
+		if firstAttempt {
+			firstAttempt = false
+		} else if !compactFailed && lastInputTokens >= compactThreshold(data.Agent.Name()) {
 			compacted := false
 			if !oldHistoriesCompacted {
 				compacted = extractOldHistories(ctx, data.Agent, session, &usage, events)
@@ -399,7 +403,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			resultCh <- sendOutcome{resp: r, err: e}
 		}()
 
-		watchdog := time.NewTicker(UnresponsiveProbeInterval)
+		watchdog := time.NewTimer(UnresponsiveProbeInterval)
+		unresponsiveFailures := 0
 		var resp *agentTypes.Output
 		var err error
 		switched := false
@@ -416,6 +421,17 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				break waitSend
 			case <-watchdog.C:
 				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
+					unresponsiveFailures = 0
+					watchdog.Reset(UnresponsiveProbeInterval)
+					continue
+				}
+				unresponsiveFailures++
+				if unresponsiveFailures < MaxUnresponsiveProbeFailures {
+					slog.Warn("agent health probe failed, retrying",
+						slog.String("session", session.ID),
+						slog.String("name", data.Agent.Name()),
+						slog.Int("failures", unresponsiveFailures))
+					watchdog.Reset(UnresponsiveRetryInterval)
 					continue
 				}
 				next, nextName := nextAgent(ctx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound)
@@ -435,6 +451,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					}
 					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
 				}
+				unresponsiveFailures = 0
+				watchdog.Reset(UnresponsiveProbeInterval)
 				slog.Warn("agent unresponsive, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", data.Agent.Name()),
@@ -458,6 +476,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 			alreadyCall = make(map[string]string)
 			sendFailCount = 0
+			timeoutRetryCount = 0
 			emptyCount = 0
 			compactFailed = false
 			lastInputTokens = 0
@@ -509,6 +528,22 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
+
+			if isTimeout && timeoutRetryCount < MaxSendTimeoutRetries-1 {
+				timeoutRetryCount++
+				slog.Warn("data.Agent.Send timed out, retrying same model",
+					slog.String("session", session.ID),
+					slog.String("name", modelName),
+					slog.Int("attempt", timeoutRetryCount+1))
+				select {
+				case <-ctx.Done():
+					keepPending = false
+					return ctx.Err()
+				case <-time.After(SendTimeoutRetryInterval):
+				}
+				continue
+			}
+
 			next, nextName := nextAgent(ctx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound)
 			if next != nil {
 				slog.Warn("data.Agent.Send failed, switching model",
@@ -527,6 +562,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				}
 				alreadyCall = make(map[string]string)
 				sendFailCount = 0
+				timeoutRetryCount = 0
 				emptyCount = 0
 				compactFailed = false
 				lastInputTokens = 0
@@ -552,6 +588,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
 		sendFailCount = 0
+		timeoutRetryCount = 0
 
 		usage.Input += resp.Usage.Input
 		usage.Output += resp.Usage.Output
