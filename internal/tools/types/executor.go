@@ -3,6 +3,7 @@ package toolTypes
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
@@ -15,6 +16,7 @@ type ScriptToolExecutor interface {
 }
 
 type Executor struct {
+	ToolsMu          sync.Mutex
 	WorkDir          string
 	SessionID        string
 	Allowed          []string // * limit to these folders to use
