@@ -64,10 +64,12 @@ func FloorReasoningLevel(level, minLevel string) string {
 
 func MaxReasoningLevel(providerName, model string) string {
 	switch providerName {
-	case "openai", "codex", "copilot":
-		if strings.Contains(model, "codex-max") {
+	case "openai", "codex":
+		if strings.Contains(model, "codex-max") || strings.Contains(model, "gpt-5.6") {
 			return "xhigh"
 		}
+		return "high"
+	case "copilot":
 		return "high"
 	case "openrouter":
 		return "xhigh"

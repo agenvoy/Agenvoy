@@ -39,7 +39,7 @@ func IsSensitivePath(absPath string) bool {
 
 const (
 	maxReadSize      = 1 << 20
-	defaultReadLimit = 2048
+	defaultReadLimit = 1 << 30
 )
 
 func registReadFile() {
@@ -47,7 +47,7 @@ func registReadFile() {
 		Name:        "read_file",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Read a text, PDF, DOCX, PPTX, CSV/TSV, or image file. Must be called before patch_file (skip if already read this session). Also call after patch_file/write_file to verify the edit landed correctly.",
+		Description: "Canonical way to read any file (text, PDF, DOCX, PPTX, CSV/TSV, or image) — prefer this over run_command/cat/head/tail. Reads the entire file by default (capped at 1MB); pass offset/limit only to page through a file that hits that cap. Must be called before patch_file (skip if already read this session). Also call after patch_file/write_file to verify the edit landed correctly.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -62,8 +62,7 @@ func registReadFile() {
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Lines (pages for PDF, slides for PPTX, rows for CSV) to read. Defaults to 2048.",
-					"default":     defaultReadLimit,
+					"description": "Lines (pages for PDF, slides for PPTX, rows for CSV) to read. Defaults to reading the whole file; set explicitly to page through large files.",
 				},
 			},
 			"required": []string{
