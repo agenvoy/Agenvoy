@@ -26,6 +26,8 @@ func compactThreshold(modelName string) int {
 		return int(400_000 * 0.8)
 	case strings.Contains(modelName, "claude"):
 		return int(200_000 * 0.8)
+	case strings.Contains(modelName, "grok-4.5"):
+		return int(500_000 * 0.8)
 	case strings.Contains(modelName, "grok"):
 		return int(256_000 * 0.8)
 	case strings.Contains(modelName, "deepseek"):

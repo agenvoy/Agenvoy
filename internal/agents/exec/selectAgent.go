@@ -20,9 +20,13 @@ import (
 )
 
 const (
-	DispatcherCallTimeout     = 30 * time.Second
-	UnresponsiveProbeInterval = 30 * time.Second
-	HealthCheckTimeout        = 10 * time.Second
+	DispatcherCallTimeout        = 30 * time.Second
+	UnresponsiveProbeInterval    = 30 * time.Second
+	UnresponsiveRetryInterval    = 10 * time.Second
+	MaxUnresponsiveProbeFailures = 3
+	HealthCheckTimeout           = 10 * time.Second
+	SendTimeoutRetryInterval     = 15 * time.Second
+	MaxSendTimeoutRetries        = 3
 )
 
 type AgentConfig struct {
