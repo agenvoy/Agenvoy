@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/reflow/wrap"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -440,7 +439,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 	case agentTypes.EventToolSkipped:
 		line := "  ⎿ " + srcPrefix + "skipped: " + ev.ToolName
 		if arg := utils.FormatToolArgs(ev.ToolName, ev.ToolArgs, cwd); arg != "" {
-			line += "(" + go_pkg_utils.TruncateString(arg, 128) + ")"
+			line += "(" + arg + ")"
 		}
 		return hintStyle.Render(line), true
 
@@ -535,7 +534,7 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 	}
 	line := bullet + " " + srcPrefix + utils.ToolName(name)
 	if arg := utils.FormatToolArgs(name, args, cwd); arg != "" {
-		line += "(" + go_pkg_utils.TruncateString(arg, 128) + ")"
+		line += "(" + arg + ")"
 	}
 	style := hintStyle
 	if name == "invoke_subagent" {
@@ -551,13 +550,15 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 		}
 		var sb strings.Builder
 		sb.WriteString(header)
-		for _, l := range oldLines {
+		remaining := 32
+		for _, l := range oldLines[:min(len(oldLines), 16)] {
 			sb.WriteByte('\n')
-			sb.WriteString(diffOldStyle.Render("  - " + go_pkg_utils.TruncateString(l, 120)))
+			sb.WriteString(diffOldStyle.Render("  - " + l))
+			remaining--
 		}
-		for _, l := range newLines {
+		for _, l := range newLines[:min(len(newLines), remaining)] {
 			sb.WriteByte('\n')
-			sb.WriteString(diffNewStyle.Render("  + " + go_pkg_utils.TruncateString(l, 120)))
+			sb.WriteString(diffNewStyle.Render("  + " + l))
 		}
 		return sb.String()
 
@@ -568,9 +569,9 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 		}
 		var sb strings.Builder
 		sb.WriteString(header)
-		for _, l := range lines {
+		for _, l := range lines[:min(len(lines), 16)] {
 			sb.WriteByte('\n')
-			sb.WriteString(diffNewStyle.Render("  + " + go_pkg_utils.TruncateString(l, 120)))
+			sb.WriteString(diffNewStyle.Render("  + " + l))
 		}
 		return sb.String()
 	}
