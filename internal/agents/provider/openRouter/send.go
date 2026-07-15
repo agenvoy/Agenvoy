@@ -12,6 +12,10 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
+const (
+	chatAPI = "https://openrouter.ai/api/v1/chat/completions"
+)
+
 func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
 	var merged []agentTypes.Message
 	var systemParts []string

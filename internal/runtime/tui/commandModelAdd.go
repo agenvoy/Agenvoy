@@ -2,11 +2,9 @@ package tui
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -14,13 +12,25 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/agenvoy/internal/agents/oauth/grok"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/claude"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/cloudflare"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/copilot"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/deepseek"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/gemini"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/grok"
+	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/nvidia"
+	openrouter "github.com/pardnchiu/agenvoy/internal/agents/provider/openRouter"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/openai"
+	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 type modelAddItem struct {
@@ -564,13 +574,22 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", prov)) + "\n")
 	}
 
-	if endpoint, headers := remoteModelsEndpoint(t.modelAdd.provider); endpoint != "" {
+	if fn, ok := modelsProviders[t.modelAdd.provider]; ok {
 		prov := t.modelAdd.provider
 		label := strings.ToUpper(prov[:1]) + prov[1:]
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			ids := fetchRemoteModelIDs(ctx, endpoint, headers, prov)
+			config, err := agentKeychain.Config(ctx, prov)
+			var ids []string
+			if err == nil {
+				ids, err = fn(ctx, config)
+			}
+			if err != nil {
+				slog.Warn("provider Models",
+					slog.String("provider", prov),
+					slog.Any("error", err))
+			}
 			send(RemoteModelsResult{ids: ids})
 		}()
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", label)) + "\n")
@@ -732,204 +751,18 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	return t, nil
 }
 
-var remoteModelsProviders = map[string]struct {
-	endpoint    string
-	keychainKey string
-}{
-	"openai":     {"https://api.openai.com/v1/models", "OPENAI_API_KEY"},
-	"claude":     {"https://api.anthropic.com/v1/models", "CLAUDE_API_KEY"},
-	"gemini":     {"https://generativelanguage.googleapis.com/v1beta/models", "GEMINI_API_KEY"},
-	"grok":       {"https://api.x.ai/v1/models", "GROK_API_KEY"},
-	"deepseek":   {"https://api.deepseek.com/v1/models", "DEEPSEEK_API_KEY"},
-	"nvidia":     {"https://integrate.api.nvidia.com/v1/models", "NVIDIA_API_KEY"},
-	"openrouter": {"https://openrouter.ai/api/v1/models", "OPENROUTER_API_KEY"},
-}
-
-func remoteModelsEndpoint(prov string) (string, map[string]string) {
-	if prov == "codex" {
-		raw := keychain.Get("CODEX_OAUTH_TOKEN")
-		// ! agenvoy.codex.token will deprecated in v1.*.*
-		if raw == "" {
-			raw = keychain.Get("agenvoy.codex.token")
-		}
-		if raw == "" {
-			return "", nil
-		}
-		var token struct {
-			AccessToken string `json:"access_token"`
-			AccountID   string `json:"account_id"`
-		}
-		if json.Unmarshal([]byte(raw), &token) != nil || token.AccessToken == "" {
-			return "", nil
-		}
-		headers := map[string]string{
-			"Authorization": "Bearer " + token.AccessToken,
-		}
-		if token.AccountID != "" {
-			headers["ChatGPT-Account-Id"] = token.AccountID
-		}
-		return "https://agenvoy-codex.pardn.workers.dev/models", headers
-	}
-
-	if prov == "grok-oauth" {
-		raw := keychain.Get("GROK_OAUTH_TOKEN")
-		// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
-		if raw == "" {
-			raw = keychain.Get("agenvoy.grok-oauth.token")
-		}
-		if raw == "" {
-			return "", nil
-		}
-		var token struct {
-			AccessToken string `json:"access_token"`
-		}
-		if json.Unmarshal([]byte(raw), &token) != nil || token.AccessToken == "" {
-			return "", nil
-		}
-		return "https://api.x.ai/v1/models", map[string]string{
-			"Authorization": "Bearer " + token.AccessToken,
-		}
-	}
-
-	if prov == "copilot" {
-		raw := keychain.Get("COPILOT_OAUTH_TOKEN")
-		// ! agenvoy.copilot.token will deprecated in v1.*.*
-		if raw == "" {
-			raw = keychain.Get("agenvoy.copilot.token")
-		}
-		if raw == "" {
-			return "", nil
-		}
-		var ghToken struct {
-			AccessToken string `json:"access_token"`
-		}
-		if json.Unmarshal([]byte(raw), &ghToken) != nil || ghToken.AccessToken == "" {
-			return "", nil
-		}
-		client := &http.Client{Timeout: 10 * time.Second}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		type refreshResp struct {
-			Token string `json:"token"`
-		}
-		refresh, status, err := go_pkg_http.GET[refreshResp](ctx, client, "https://api.github.com/copilot_internal/v2/token", map[string]string{
-			"Authorization":  "token " + ghToken.AccessToken,
-			"Accept":         "application/json",
-			"Editor-Version": "vscode/1.95.0",
-		})
-		if err != nil || status != http.StatusOK || refresh.Token == "" {
-			return "", nil
-		}
-		return "https://api.githubcopilot.com/models", map[string]string{
-			"Authorization":  "Bearer " + refresh.Token,
-			"Editor-Version": "vscode/1.95.0",
-		}
-	}
-
-	if prov == "cloudflare" {
-		apiKey := keychain.Get("CLOUDFLARE_API_KEY")
-		accountID := keychain.Get("CLOUDFLARE_ACCOUNT_ID")
-		if apiKey == "" || accountID == "" {
-			return "", nil
-		}
-		return "https://api.cloudflare.com/client/v4/accounts/" + accountID + "/ai/models/search", map[string]string{
-			"Authorization": "Bearer " + apiKey,
-		}
-	}
-
-	info, ok := remoteModelsProviders[prov]
-	if !ok {
-		return "", nil
-	}
-	if info.keychainKey == "" {
-		return info.endpoint, nil
-	}
-	apiKey := keychain.Get(info.keychainKey)
-	if apiKey == "" {
-		return "", nil
-	}
-	if prov == "claude" {
-		return info.endpoint, map[string]string{
-			"x-api-key":         apiKey,
-			"anthropic-version": "2023-06-01",
-		}
-	}
-	if prov == "gemini" {
-		return info.endpoint + "?key=" + apiKey, nil
-	}
-	return info.endpoint, map[string]string{
-		"Authorization": "Bearer " + apiKey,
-	}
-}
-
-type geminiModelsResponse struct {
-	Models []struct {
-		Name string `json:"name"`
-	} `json:"models"`
-}
-
-type cloudflareModelsResponse struct {
-	Result []struct {
-		Name string `json:"name"`
-		Task struct {
-			Name string `json:"name"`
-		} `json:"task"`
-	} `json:"result"`
-}
-
-func fetchRemoteModelIDs(ctx context.Context, endpoint string, headers map[string]string, prov string) []string {
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	if prov == "cloudflare" {
-		data, status, err := go_pkg_http.GET[cloudflareModelsResponse](ctx, client, endpoint, headers)
-		if err != nil || status != http.StatusOK {
-			return nil
-		}
-		ids := make([]string, 0, len(data.Result))
-		for _, m := range data.Result {
-			if m.Name != "" && m.Task.Name == "Text Generation" {
-				ids = append(ids, m.Name)
-			}
-		}
-		return ids
-	}
-
-	if prov == "gemini" {
-		data, status, err := go_pkg_http.GET[geminiModelsResponse](ctx, client, endpoint, headers)
-		if err != nil || status != http.StatusOK {
-			return nil
-		}
-		ids := make([]string, 0, len(data.Models))
-		for _, m := range data.Models {
-			name := strings.TrimPrefix(m.Name, "models/")
-			if name != "" {
-				ids = append(ids, name)
-			}
-		}
-		return ids
-	}
-
-	data, status, err := go_pkg_http.GET[modelsResponse](ctx, client, endpoint, headers)
-	if err != nil || status != http.StatusOK {
-		slog.Warn("fetchRemoteModelIDs",
-			slog.String("provider", prov),
-			slog.String("endpoint", endpoint),
-			slog.Int("status", status),
-			slog.Any("error", err))
-		return nil
-	}
-	ids := make([]string, 0, len(data.Data))
-	for _, m := range data.Data {
-		id := strings.TrimSpace(m.ID)
-		if id == "" {
-			continue
-		}
-		if prov == "copilot" && (!m.ModelPickerEnabled || m.Policy.State == "disabled") {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	return ids
+var modelsProviders = map[string]func(context.Context, provider.Config) ([]string, error){
+	"codex":      openaicodex.Models,
+	"grok-oauth": grokoauth.Models,
+	"copilot":    copilot.Models,
+	"cloudflare": cloudflare.Models,
+	"openai":     openai.Models,
+	"claude":     claude.Models,
+	"gemini":     gemini.Models,
+	"grok":       grok.Models,
+	"deepseek":   deepseek.Models,
+	"nvidia":     nvidia.Models,
+	"openrouter": openrouter.Models,
 }
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
