@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -89,7 +88,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		body := strings.TrimSpace(string(raw))
 		if resp.StatusCode == http.StatusTooManyRequests {
 			if resetsAt := parseResetsAt(body); resetsAt > 0 {
-				return nil, &exec.RateLimit{
+				return nil, &agentTypes.RateLimit{
 					Agent:    a.Name(),
 					ResetsAt: resetsAt,
 					Body:     body,

@@ -3,10 +3,16 @@ package image2
 import (
 	"time"
 
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 func Register() {
+	cfg, err := config.Load()
+	if err != nil || cfg == nil || !cfg.EnableImage2 || !oauthCodex.HasToken() {
+		return
+	}
 
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "generate_image",

@@ -736,7 +736,6 @@ var remoteModelsProviders = map[string]struct {
 	endpoint    string
 	keychainKey string
 }{
-	"codex":      {"https://agenvoy-codex.pardn.workers.dev/models", ""},
 	"openai":     {"https://api.openai.com/v1/models", "OPENAI_API_KEY"},
 	"claude":     {"https://api.anthropic.com/v1/models", "CLAUDE_API_KEY"},
 	"gemini":     {"https://generativelanguage.googleapis.com/v1beta/models", "GEMINI_API_KEY"},
@@ -747,8 +746,37 @@ var remoteModelsProviders = map[string]struct {
 }
 
 func remoteModelsEndpoint(prov string) (string, map[string]string) {
+	if prov == "codex" {
+		raw := keychain.Get("CODEX_OAUTH_TOKEN")
+		// ! agenvoy.codex.token will deprecated in v1.*.*
+		if raw == "" {
+			raw = keychain.Get("agenvoy.codex.token")
+		}
+		if raw == "" {
+			return "", nil
+		}
+		var token struct {
+			AccessToken string `json:"access_token"`
+			AccountID   string `json:"account_id"`
+		}
+		if json.Unmarshal([]byte(raw), &token) != nil || token.AccessToken == "" {
+			return "", nil
+		}
+		headers := map[string]string{
+			"Authorization": "Bearer " + token.AccessToken,
+		}
+		if token.AccountID != "" {
+			headers["ChatGPT-Account-Id"] = token.AccountID
+		}
+		return "https://agenvoy-codex.pardn.workers.dev/models", headers
+	}
+
 	if prov == "grok-oauth" {
-		raw := keychain.Get("agenvoy.grok-oauth.token")
+		raw := keychain.Get("GROK_OAUTH_TOKEN")
+		// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
+		if raw == "" {
+			raw = keychain.Get("agenvoy.grok-oauth.token")
+		}
 		if raw == "" {
 			return "", nil
 		}
@@ -764,7 +792,11 @@ func remoteModelsEndpoint(prov string) (string, map[string]string) {
 	}
 
 	if prov == "copilot" {
-		raw := keychain.Get("agenvoy.copilot.token")
+		raw := keychain.Get("COPILOT_OAUTH_TOKEN")
+		// ! agenvoy.copilot.token will deprecated in v1.*.*
+		if raw == "" {
+			raw = keychain.Get("agenvoy.copilot.token")
+		}
 		if raw == "" {
 			return "", nil
 		}

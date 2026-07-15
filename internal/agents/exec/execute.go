@@ -20,6 +20,7 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -317,7 +318,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			"list_rag", "search_rag")
 	}
 	cfg, _ := config.Load()
-	if go_pkg_keychain.Get("agenvoy.codex.token") == "" || cfg == nil || !cfg.EnableImage2 {
+	if !oauthCodex.HasToken() || cfg == nil || !cfg.EnableImage2 {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
 	}
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
