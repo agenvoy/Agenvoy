@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
@@ -16,20 +14,6 @@ import (
 const (
 	chatAPI = "https://integrate.api.nvidia.com/v1/chat/completions"
 )
-
-func (a *Agent) Execute(ctx context.Context, skill *skill.Skill, userInput string, events chan<- agentTypes.Event, allowAll bool) error {
-	data := exec.ExecData{
-		Agent:   a,
-		WorkDir: a.workDir,
-		Skill:   skill,
-		Content: userInput,
-	}
-	session, err := exec.GetSession(ctx, data)
-	if err != nil {
-		return fmt.Errorf("exec.GetSession: %w", err)
-	}
-	return exec.Execute(ctx, data, session, events, allowAll)
-}
 
 func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
 	// * do not support mutiple system prompt, merge to one

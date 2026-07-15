@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/stt"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	"github.com/pardnchiu/agenvoy/internal/tools/stt"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"

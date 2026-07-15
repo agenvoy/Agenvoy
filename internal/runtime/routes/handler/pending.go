@@ -108,21 +108,23 @@ func ResumeSessionPending() gin.HandlerFunc {
 			return
 		}
 
-		var content string
+		var content, historyContent string
 		if info.HasQuestions && len(body.Answers) > 0 {
-			msg, err := interactive.LoadResumeMessage(sid, taskHash, body.Answers)
+			full, history, err := interactive.LoadResumeMessage(sid, taskHash, body.Answers)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("load resume: %v", err)})
 				return
 			}
-			content = msg
+			content = full
+			historyContent = history
 		} else {
-			msg, err := interactive.LoadResumeMessage(sid, taskHash, nil)
+			full, history, err := interactive.LoadResumeMessage(sid, taskHash, nil)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("load resume: %v", err)})
 				return
 			}
-			content = msg
+			content = full
+			historyContent = history
 		}
 
 		slog.Info("pending resume via web",
@@ -154,6 +156,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 				workDir,
 				sid,
 				taskHash,
+				historyContent,
 			)
 			if err != nil {
 				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Text: err.Error()}
@@ -207,4 +210,3 @@ func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 		}
 	}
 }
-

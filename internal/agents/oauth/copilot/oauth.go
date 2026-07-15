@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	tokenKey            = "agenvoy.copilot.token"
+	tokenKey            = "COPILOT_OAUTH_TOKEN"
 	deviceCodeAPI       = "https://github.com/login/device/code"
 	oauthAccessTokenAPI = "https://github.com/login/oauth/access_token"
 	clientID            = "Iv1.b507a08c87ecfe98" // TODO: will replace with personal client id
@@ -47,6 +47,10 @@ type GopilotAccessToken struct {
 
 func Load() (*Token, error) {
 	raw := keychain.Get(tokenKey)
+	// ! agenvoy.copilot.token will deprecated in v1.*.*
+	if raw == "" {
+		raw = keychain.Get("agenvoy.copilot.token")
+	}
 	if raw == "" {
 		return nil, nil
 	}
@@ -58,11 +62,17 @@ func Load() (*Token, error) {
 }
 
 func HasToken() bool {
-	return keychain.Get(tokenKey) != ""
+	// ! agenvoy.copilot.token will deprecated in v1.*.*
+	return keychain.Get(tokenKey) != "" || keychain.Get("agenvoy.copilot.token") != ""
 }
 
 func ClearToken() error {
-	return keychain.Delete(tokenKey)
+	err := keychain.Delete(tokenKey)
+	// ! agenvoy.copilot.token will deprecated in v1.*.*
+	if legacyErr := keychain.Delete("agenvoy.copilot.token"); legacyErr != nil && err == nil {
+		err = legacyErr
+	}
+	return err
 }
 
 func LoginWithCallback(ctx context.Context, onCode func(*DeviceCode)) (*Token, error) {

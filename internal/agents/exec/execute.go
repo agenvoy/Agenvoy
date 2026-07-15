@@ -20,6 +20,7 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -141,6 +142,7 @@ type ExecData struct {
 	AllowAll          bool
 	PendingTask       string
 	ReplyMessageID    string
+	HistoryContent    string
 }
 
 type (
@@ -316,7 +318,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			"list_rag", "search_rag")
 	}
 	cfg, _ := config.Load()
-	if go_pkg_keychain.Get("agenvoy.codex.token") == "" || cfg == nil || !cfg.EnableImage2 {
+	if !oauthCodex.HasToken() || cfg == nil || !cfg.EnableImage2 {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
 	}
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
@@ -376,7 +378,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	firstAttempt := true
 	for range limit {
 		if ctx.Err() != nil {
-			keepPending = false
 			return ctx.Err()
 		}
 		if firstAttempt {
@@ -418,7 +419,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			case <-ctx.Done():
 				watchdog.Stop()
 				cancelSend()
-				keepPending = false
 				return ctx.Err()
 			case out := <-resultCh:
 				resp, err = out.resp, out.err
@@ -491,7 +491,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		cancelSend()
 		if err != nil {
 			if ctx.Err() != nil {
-				keepPending = false
 				return ctx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
@@ -541,7 +540,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					slog.Int("attempt", timeoutRetryCount+1))
 				select {
 				case <-ctx.Done():
-					keepPending = false
 					return ctx.Err()
 				case <-time.After(SendTimeoutRetryInterval):
 				}
@@ -605,7 +603,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 		if len(resp.Choices) == 0 {
 			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
-				keepPending = false
 				return nil
 			}
 			continue
@@ -632,7 +629,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				if errors.Is(err, ErrAskUserInterrupted) {
 					return nil
 				}
-				keepPending = false
 				return err
 			}
 			for _, msg := range session.Tools[toolsBefore:] {
@@ -678,7 +674,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			str := value
 			if str == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
-					keepPending = false
 					return nil
 				}
 				continue
@@ -687,7 +682,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			stripped := StripModelResponse(str)
 			if stripped == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
-					keepPending = false
 					return nil
 				}
 				continue
@@ -718,7 +712,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 		case nil:
 			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
-				keepPending = false
 				return nil
 			}
 			continue
@@ -763,7 +756,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	sendEmptyData(events, session.ID, data.Agent.Name(), &usage, executeStart)
-	keepPending = false
 	return nil
 }
 

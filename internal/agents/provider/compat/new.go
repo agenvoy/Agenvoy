@@ -3,12 +3,10 @@ package compat
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 type Agent struct {
@@ -16,54 +14,28 @@ type Agent struct {
 	model      string
 	baseURL    string
 	apiKey     string
-	workDir    string
 }
 
 const (
-	defaultModel   = "qwen3:8b"
 	defaultBaseURL = "http://localhost:11434/v1"
 )
 
-func New(model ...string) (*Agent, error) {
-	usedModel := defaultModel
-	instanceName := ""
-
-	if len(model) > 0 && model[0] != "" {
-		raw := model[0]
-		if start := strings.Index(raw, "["); start != -1 {
-			if end := strings.Index(raw, "]"); end > start {
-				instanceName = strings.ToUpper(raw[start+1 : end])
-			}
-		}
-		if at := strings.Index(raw, "@"); at != -1 {
-			usedModel = raw[at+1:]
-		}
+func New(config provider.Config) (*Agent, error) {
+	if config.Model == "" {
+		return nil, fmt.Errorf("compat.New: Model is required")
 	}
 
-	apiKeyEnvKey := "COMPAT_API_KEY"
-	if instanceName != "" {
-		apiKeyEnvKey = "COMPAT_" + instanceName + "_API_KEY"
-	}
-
-	baseURL := config.GetCompatURL(instanceName)
+	baseURL := config.BaseURL
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 
-	apiKey := keychain.Get(apiKeyEnvKey)
-
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
-
 	return &Agent{
 		httpClient: &http.Client{Timeout: 10 * time.Minute},
-		model:      usedModel,
+		model:      config.Model,
 		baseURL:    baseURL,
-		apiKey:     apiKey,
-		workDir:    workDir,
+		apiKey:     config.APIKey,
 	}, nil
 }
 

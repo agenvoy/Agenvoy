@@ -100,7 +100,7 @@ func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
 	t.runStartedAt = time.Now()
 	t.runTarget = targetSession(content, t.currentSessionID)
 
-	go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, "")
+	go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, "", "")
 
 	return t, tea.Batch(
 		tea.Println(messageBlock(content)),

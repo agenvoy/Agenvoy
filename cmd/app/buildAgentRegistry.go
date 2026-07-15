@@ -1,13 +1,30 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/router"
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/router"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
+
+func modelConfig(ctx context.Context, name string) (router.Config, error) {
+	cfg, err := agentKeychain.Config(ctx, name)
+	if err != nil {
+		return router.Config{}, err
+	}
+	return router.Config{
+		Name:      name,
+		APIKey:    cfg.APIKey,
+		Token:     cfg.Token,
+		AccountID: cfg.AccountID,
+		GatewayID: cfg.GatewayID,
+		BaseURL:   cfg.BaseURL,
+	}, nil
+}
 
 func buildAgentRegistry() agentTypes.AgentRegistry {
 	agentEntries := exec.GetAgent()
@@ -16,7 +33,14 @@ func buildAgentRegistry() agentTypes.AgentRegistry {
 		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
 	}
 	for _, e := range agentEntries {
-		a, err := router.New(e.Name)
+		cfg, err := modelConfig(context.Background(), e.Name)
+		if err != nil {
+			slog.Warn("failed to resolve config",
+				slog.String("name", e.Name),
+				slog.String("error", err.Error()))
+			continue
+		}
+		a, err := router.New(cfg)
 		if err != nil {
 			slog.Warn("failed to initialize",
 				slog.String("name", e.Name),

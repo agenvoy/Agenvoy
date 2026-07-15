@@ -199,7 +199,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.lastIn, t.lastOut, t.lastCacheRead = 0, 0, 0
 			t.runTarget = targetSession(content, t.currentSessionID)
 
-			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "")
+			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
 
 			cmds = append(cmds,
 				tea.Println(messageBlock(content)),
@@ -272,7 +272,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.running = true
 		t.runStartedAt = time.Now()
 		t.runTarget = targetSession(content, t.currentSessionID)
-		go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "")
+		go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
 		return t, tea.Batch(
 			tea.Println(messageBlock(content)),
 			t.spinner.Tick,
@@ -1228,7 +1228,7 @@ func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
 	t.currentModel = configBot.DefaultModel
 	t.lastIn, t.lastOut, t.lastCacheRead = 0, 0, 0
 	t.runTarget = ""
-	go runExec(t.ctx, msg.Content, t.allowAll, t.cwd, sid, msg.PendingTask)
+	go runExec(t.ctx, msg.Content, t.allowAll, t.cwd, sid, msg.PendingTask, msg.HistoryContent)
 	return t, t.spinner.Tick
 }
 

@@ -3,7 +3,7 @@ package oauthGrok
 import "time"
 
 const (
-	tokenKey    = "agenvoy.grok-oauth.token"
+	tokenKey    = "GROK_OAUTH_TOKEN"
 	clientID    = "b1a00492-073a-47ea-816f-4c329264a828"
 	authURL     = "https://auth.x.ai/oauth2/authorize"
 	tokenURL    = "https://auth.x.ai/oauth2/token"

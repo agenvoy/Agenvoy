@@ -2,19 +2,12 @@ package exec
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
-
-type RateLimit struct {
-	Agent    string
-	ResetsAt int64
-	Body     string
-}
 
 var (
 	cooldownMap      sync.Map
@@ -33,17 +26,14 @@ var (
 	}
 )
 
-func (e *RateLimit) Error() string {
-	return fmt.Sprintf("HTTP 429: rate limit until %d: %s", e.ResetsAt, e.Body)
-}
-
-func isRateLimit(err error) *RateLimit {
-	var rateLimit *RateLimit
+func isRateLimit(err error) *agentTypes.RateLimit {
+	var rateLimit *agentTypes.RateLimit
 	if errors.As(err, &rateLimit) {
 		return rateLimit
 	}
 	return nil
 }
+
 func isCoolingDown(agentName string) bool {
 	v, ok := cooldownMap.Load(agentName)
 	if !ok {

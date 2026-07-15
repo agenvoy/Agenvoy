@@ -13,6 +13,8 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -53,7 +55,22 @@ func handler(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (
 		return "no codex@ model registered; run `agen model add` to authenticate Codex first.", nil
 	}
 
-	agent, err := openaicodex.New(codexModel)
+	token, err := oauthCodex.Load()
+	if err != nil {
+		return fmt.Sprintf("oauthCodex.Load: %s", err.Error()), nil
+	}
+	if token == nil {
+		return "no codex@ token; run `agen model add` to authenticate Codex first.", nil
+	}
+	token, err = oauthCodex.EnsureFresh(ctx, token)
+	if err != nil {
+		return fmt.Sprintf("codex token expired and refresh failed: %s; run `agen model add` to re-authenticate", err.Error()), nil
+	}
+
+	agent, err := openaicodex.New(provider.Config{
+		Model: strings.TrimPrefix(codexModel, openaicodex.Prefix),
+		Token: token,
+	})
 	if err != nil {
 		return fmt.Sprintf("codex agent init failed: %s", err.Error()), nil
 	}

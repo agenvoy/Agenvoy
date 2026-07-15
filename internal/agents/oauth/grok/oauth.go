@@ -25,6 +25,10 @@ func httpClient() *http.Client {
 
 func Load() (*StoredToken, error) {
 	raw := keychain.Get(tokenKey)
+	// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
+	if raw == "" {
+		raw = keychain.Get("agenvoy.grok-oauth.token")
+	}
 	if raw == "" {
 		return nil, nil
 	}
@@ -36,11 +40,17 @@ func Load() (*StoredToken, error) {
 }
 
 func HasToken() bool {
-	return keychain.Get(tokenKey) != ""
+	// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
+	return keychain.Get(tokenKey) != "" || keychain.Get("agenvoy.grok-oauth.token") != ""
 }
 
 func ClearToken() error {
-	return keychain.Delete(tokenKey)
+	err := keychain.Delete(tokenKey)
+	// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
+	if legacyErr := keychain.Delete("agenvoy.grok-oauth.token"); legacyErr != nil && err == nil {
+		err = legacyErr
+	}
+	return err
 }
 
 func EnsureFresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
