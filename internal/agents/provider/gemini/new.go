@@ -3,7 +3,6 @@ package gemini
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
@@ -16,7 +15,6 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 	apiKey     string
-	workDir    string
 	cacheMu    sync.Mutex
 	cacheStore map[string]*geminiCacheEntry
 }
@@ -36,13 +34,10 @@ func New(model ...string) (*Agent, error) {
 		return nil, fmt.Errorf("keychain.Get: GEMINI_API_KEY is required")
 	}
 
-	workDir, _ := os.Getwd()
-
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
 		model:      usedModel,
 		apiKey:     apiKey,
-		workDir:    workDir,
 		cacheStore: make(map[string]*geminiCacheEntry),
 	}, nil
 }

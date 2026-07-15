@@ -1,9 +1,7 @@
 package compat
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,7 +14,6 @@ type Agent struct {
 	model      string
 	baseURL    string
 	apiKey     string
-	workDir    string
 }
 
 const (
@@ -53,17 +50,11 @@ func New(model ...string) (*Agent, error) {
 
 	apiKey := keychain.Get(apiKeyEnvKey)
 
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
-
 	return &Agent{
 		httpClient: &http.Client{Timeout: 10 * time.Minute},
 		model:      usedModel,
 		baseURL:    baseURL,
 		apiKey:     apiKey,
-		workDir:    workDir,
 	}, nil
 }
 

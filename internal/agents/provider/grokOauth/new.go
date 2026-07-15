@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -29,7 +28,6 @@ func newHTTPClient() *http.Client {
 type Agent struct {
 	httpClient *http.Client
 	model      string
-	workDir    string
 
 	token *oauthGrok.StoredToken
 }
@@ -39,11 +37,6 @@ func New(model ...string) (*Agent, error) {
 		return nil, fmt.Errorf("grokoauth.New: model arg required with %q prefix", prefix)
 	}
 	usedModel := strings.TrimPrefix(model[0], prefix)
-
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
 
 	token, err := oauthGrok.Load()
 	if err != nil {
@@ -63,7 +56,6 @@ func New(model ...string) (*Agent, error) {
 	return &Agent{
 		httpClient: newHTTPClient(),
 		model:      usedModel,
-		workDir:    workDir,
 		token:      token,
 	}, nil
 }

@@ -3,7 +3,6 @@ package cloudflare
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -15,9 +14,8 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 	apiKey     string
-	accountID string
-	gatewayID string
-	workDir   string
+	accountID  string
+	gatewayID  string
 }
 
 const (
@@ -45,15 +43,12 @@ func New(model ...string) (*Agent, error) {
 		gatewayID = "default"
 	}
 
-	workDir, _ := os.Getwd()
-
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
 		model:      usedModel,
 		apiKey:     apiKey,
 		accountID:  accountID,
 		gatewayID:  gatewayID,
-		workDir:    workDir,
 	}, nil
 }
 

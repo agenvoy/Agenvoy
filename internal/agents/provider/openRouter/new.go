@@ -3,7 +3,6 @@ package openrouter
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -15,7 +14,6 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 	apiKey     string
-	workDir    string
 }
 
 const prefix = "openrouter@"
@@ -31,13 +29,10 @@ func New(model ...string) (*Agent, error) {
 		return nil, fmt.Errorf("keychain.Get: %s is required", keychainKey)
 	}
 
-	workDir, _ := os.Getwd()
-
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
 		model:      usedModel,
 		apiKey:     apiKey,
-		workDir:    workDir,
 	}, nil
 }
 

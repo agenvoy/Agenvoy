@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
@@ -16,7 +15,6 @@ type Agent struct {
 	model      string
 	Token      *oauthCopilot.Token
 	Refresh    *oauthCopilot.RefreshToken
-	workDir    string
 }
 
 const (
@@ -29,11 +27,6 @@ func New(model ...string) (*Agent, error) {
 	}
 	usedModel := strings.TrimPrefix(model[0], prefix)
 
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
-
 	token, err := oauthCopilot.Load()
 	if err != nil {
 		return nil, fmt.Errorf("oauth.Load: %w", err)
@@ -45,7 +38,6 @@ func New(model ...string) (*Agent, error) {
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
 		model:      usedModel,
-		workDir:    workDir,
 		Token:      token,
 	}, nil
 }

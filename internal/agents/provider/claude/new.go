@@ -3,7 +3,6 @@ package claude
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -15,7 +14,6 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 	apiKey     string
-	workDir    string
 }
 
 const (
@@ -33,16 +31,10 @@ func New(model ...string) (*Agent, error) {
 		return nil, fmt.Errorf("keychain.Get: CLAUDE_API_KEY is required")
 	}
 
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
-
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
 		model:      usedModel,
 		apiKey:     apiKey,
-		workDir:    workDir,
 	}, nil
 }
 
