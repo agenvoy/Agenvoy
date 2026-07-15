@@ -40,9 +40,10 @@ type WorkDir struct {
 }
 
 type ResumeExec struct {
-	SessionID   string
-	Content     string
-	PendingTask string
+	SessionID      string
+	Content        string
+	PendingTask    string
+	HistoryContent string
 }
 
 func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
@@ -67,14 +68,14 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 	}
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
-		content, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
+		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 		if err != nil {
 			slog.Warn("ask_user resume: pending already consumed",
 				slog.String("session", sessionID),
 				slog.String("task_hash", taskHash))
 			return
 		}
-		send(ResumeExec{SessionID: sessionID, Content: content, PendingTask: taskHash})
+		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history})
 	})
 
 	go newPendingChannel(ctx)

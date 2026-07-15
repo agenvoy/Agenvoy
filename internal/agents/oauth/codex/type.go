@@ -3,7 +3,7 @@ package oauthCodex
 import "time"
 
 const (
-	tokenKey    = "agenvoy.codex.token"
+	tokenKey    = "CODEX_OAUTH_TOKEN"
 	clientID    = "app_EMoamEEZ73f0CkXaXp7hrann"
 	authURL     = "https://auth.openai.com/oauth/authorize"
 	tokenURL    = "https://auth.openai.com/oauth/token"

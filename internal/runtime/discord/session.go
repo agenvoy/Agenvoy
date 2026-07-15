@@ -51,15 +51,19 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 	}
 
+	histText := userText
+	if h := strings.TrimSpace(data.HistoryContent); h != "" {
+		histText = h
+	}
 	sess.Histories = append(sess.Histories, agentTypes.Message{
 		Role:    "user",
-		Content: userText,
+		Content: histText,
 	})
 	sess.UserInput = agentTypes.Message{
 		Role:    "user",
 		Content: userText,
 	}
-	exec.SaveUserInputHistory(ctx, sessionID, userText)
+	exec.SaveUserInputHistory(ctx, sessionID, histText)
 
 	return sess, nil
 }

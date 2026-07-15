@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
@@ -16,42 +14,27 @@ type Agent struct {
 	model      string
 	Token      *oauthCopilot.Token
 	Refresh    *oauthCopilot.RefreshToken
-	workDir    string
 }
 
 const (
-	prefix = "copilot@"
+	Prefix = "copilot@"
 )
 
-func New(model ...string) (*Agent, error) {
-	if len(model) == 0 || !strings.HasPrefix(model[0], prefix) {
-		return nil, fmt.Errorf("copilot.New: model arg required with %q prefix", prefix)
-	}
-	usedModel := strings.TrimPrefix(model[0], prefix)
-
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("os.Getwd: %w", err)
-	}
-
-	token, err := oauthCopilot.Load()
-	if err != nil {
-		return nil, fmt.Errorf("oauth.Load: %w", err)
-	}
-	if token == nil {
-		return nil, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
+func New(config provider.Config) (*Agent, error) {
+	token, ok := config.Token.(*oauthCopilot.Token)
+	if !ok || token == nil {
+		return nil, fmt.Errorf("copilot.New: Token is required")
 	}
 
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
-		model:      usedModel,
-		workDir:    workDir,
+		model:      config.Model,
 		Token:      token,
 	}, nil
 }
 
 func (a *Agent) Name() string {
-	return prefix + a.model
+	return Prefix + a.model
 }
 
 func (a *Agent) authHeader(ctx context.Context) (string, error) {

@@ -12,8 +12,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	geminiStt "github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/stt"
-	codexImage2 "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex/image2"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -26,6 +24,8 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
+	codexImage2 "github.com/pardnchiu/agenvoy/internal/tools/image2"
+	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/stt"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 

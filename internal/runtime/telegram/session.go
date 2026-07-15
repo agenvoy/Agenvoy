@@ -57,15 +57,19 @@ func getSession(ctx context.Context, chatID int64, username, content string, dat
 		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 	}
 
+	histText := userText
+	if h := strings.TrimSpace(data.HistoryContent); h != "" {
+		histText = h
+	}
 	sess.Histories = append(sess.Histories, agentTypes.Message{
 		Role:    "user",
-		Content: userText,
+		Content: histText,
 	})
 	sess.UserInput = agentTypes.Message{
 		Role:    "user",
 		Content: userText,
 	}
-	exec.SaveUserInputHistory(ctx, histSessionID, userText)
+	exec.SaveUserInputHistory(ctx, histSessionID, histText)
 
 	return sess, nil
 }
