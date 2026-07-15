@@ -69,11 +69,11 @@ func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {
 	}
 
 	if !info.HasQuestions {
-		content, err := interactive.LoadResumeMessage(msg.id, msg.taskHash, nil)
+		full, history, err := interactive.LoadResumeMessage(msg.id, msg.taskHash, nil)
 		if err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] load resume: %v", err)) + "\n")
 		}
-		return t.startResume(ResumeExec{SessionID: msg.id, Content: content, PendingTask: msg.taskHash})
+		return t.startResume(ResumeExec{SessionID: msg.id, Content: full, PendingTask: msg.taskHash, HistoryContent: history})
 	}
 
 	meta, err := interactive.LoadPendingQuestions(msg.id, msg.taskHash)

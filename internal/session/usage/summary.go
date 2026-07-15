@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -45,11 +44,7 @@ func Usage(path string, days int, now time.Time) (map[string]ModelUsage, error) 
 			continue
 		}
 
-		providerModel := matches[2]
-		model := providerModel
-		if _, parsedModel, found := strings.Cut(providerModel, "@"); found {
-			model = parsedModel
-		}
+		model := matches[2]
 
 		values := [4]uint64{}
 		valid := true

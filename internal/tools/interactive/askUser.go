@@ -48,6 +48,11 @@ type ToolResult struct {
 	Result string `json:"result"`
 }
 
+type answeredQuestion struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
 type pendingMeta struct {
 	TaskHash     string                `json:"task_hash"`
 	SessionID    string                `json:"session_id"`
@@ -58,6 +63,7 @@ type pendingMeta struct {
 	Completed    []string              `json:"completed,omitempty"`
 	NextSteps    []string              `json:"next_steps,omitempty"`
 	Questions    []runtime.Question    `json:"questions,omitempty"`
+	Answer       []answeredQuestion    `json:"answer,omitempty"`
 	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
 	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
 	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
@@ -247,8 +253,6 @@ func CreateExecPending(sessionID, objective, messageID string) string {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	cleanStaleProgress(sessionID)
-
 	model, reasoning := configBot.GetModel(sessionID)
 	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
@@ -265,18 +269,6 @@ func LoadPendingMessageID(sessionID, taskHash string) string {
 		return ""
 	}
 	return meta.MessageID
-}
-
-func cleanStaleProgress(sessionID string) {
-	for _, hash := range ListPendingTasks(sessionID) {
-		meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, hash))
-		if err != nil {
-			continue
-		}
-		if len(meta.Questions) == 0 {
-			os.Remove(filesystem.PendingMetaPath(sessionID, hash))
-		}
-	}
 }
 
 func RecordToolAttempt(sessionID, taskHash string, attempt ToolAttempt) {
@@ -360,10 +352,28 @@ func LoadPendingQuestions(sessionID, taskHash string) ([]runtime.Question, error
 	return meta.Questions, nil
 }
 
-func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error) {
+func buildResumeAnswer(answer any) string {
+	switch v := answer.(type) {
+	case string:
+		return v
+	case []any:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, ", ")
+	default:
+		raw, _ := json.Marshal(v)
+		return string(raw)
+	}
+}
+
+func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, history string, err error) {
 	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
-		return "", fmt.Errorf("ReadJSON: %w", err)
+		return "", "", fmt.Errorf("ReadJSON: %w", err)
 	}
 
 	if meta.Model != "" {
@@ -405,13 +415,8 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 	}
 
 	completedIDs := make(map[string]bool, len(meta.ToolResults))
-	if len(meta.ToolResults) > 0 {
-		msg.WriteString("\n## Completed Tool Results\n")
-		msg.WriteString("These tools have already been executed. Results are final — do not re-execute.\n")
-		for _, tr := range meta.ToolResults {
-			completedIDs[tr.ID] = true
-			msg.WriteString(fmt.Sprintf("- **%s** (id=%s): %s\n", tr.Name, tr.ID, tr.Result))
-		}
+	for _, tr := range meta.ToolResults {
+		completedIDs[tr.ID] = true
 	}
 
 	var interrupted []ToolAttempt
@@ -428,26 +433,33 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 		}
 	}
 
+	if len(meta.Answer) > 0 {
+		msg.WriteString("\n## Answers\n")
+		for i, a := range meta.Answer {
+			msg.WriteString(fmt.Sprintf("%d. Q: %s\n   A: %s\n", i+1, a.Question, a.Answer))
+		}
+	}
+
+	var sb strings.Builder
 	if len(meta.Questions) > 0 {
-		msg.WriteString("\n## User Answers\n")
+		sb.WriteString("[Resumed Task — ask_user response received]\n\n")
+		if obj := strings.TrimSpace(meta.Objective); obj != "" {
+			sb.WriteString("## User Input\n")
+			sb.WriteString(obj)
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString("## Current Answers\n")
+		for i, q := range meta.Questions {
+			sb.WriteString(fmt.Sprintf("%d. Q: %s\n", i+1, q.Question))
+			if i < len(answers) {
+				sb.WriteString(fmt.Sprintf("   A: %s\n", buildResumeAnswer(answers[i])))
+			}
+		}
+		msg.WriteString("\n## Current Answers\n")
 		for i, q := range meta.Questions {
 			msg.WriteString(fmt.Sprintf("%d. Q: %s\n", i+1, q.Question))
 			if i < len(answers) {
-				switch v := answers[i].(type) {
-				case string:
-					msg.WriteString(fmt.Sprintf("   A: %s\n", v))
-				case []any:
-					parts := make([]string, 0, len(v))
-					for _, item := range v {
-						if s, ok := item.(string); ok {
-							parts = append(parts, s)
-						}
-					}
-					msg.WriteString(fmt.Sprintf("   A: %s\n", strings.Join(parts, ", ")))
-				default:
-					raw, _ := json.Marshal(v)
-					msg.WriteString(fmt.Sprintf("   A: %s\n", string(raw)))
-				}
+				msg.WriteString(fmt.Sprintf("   A: %s\n", buildResumeAnswer(answers[i])))
 			}
 		}
 	}
@@ -461,7 +473,26 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (string, error
 
 	msg.WriteString("\nContinue from where this task was interrupted. Use the completed tool results as ground truth.")
 
-	return msg.String(), nil
+	if len(meta.Questions) > 0 {
+		pendingMu.Lock()
+		for i, q := range meta.Questions {
+			answer := ""
+			if i < len(answers) {
+				answer = buildResumeAnswer(answers[i])
+			}
+			meta.Answer = append(meta.Answer, answeredQuestion{Question: q.Question, Answer: answer})
+		}
+		meta.Questions = nil
+		if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+			slog.Warn("LoadResumeMessage: move answered questions",
+				slog.String("session", sessionID),
+				slog.String("task_hash", taskHash),
+				slog.String("error", writeErr.Error()))
+		}
+		pendingMu.Unlock()
+	}
+
+	return msg.String(), sb.String(), nil
 }
 
 func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string) string {

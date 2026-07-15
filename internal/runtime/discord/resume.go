@@ -22,7 +22,7 @@ import (
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
-	content, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
+	full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 	if err != nil {
 		channelID, chErr := sessionDiscord.GetChannel(sessionID)
 		if chErr == nil && strings.TrimSpace(channelID) != "" {
@@ -62,10 +62,10 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		scanner.Scan()
 	}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, content)
+	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, full)
 	sessionLog.Append(sessionID, userText)
 
-	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, sessionID)
+	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, sessionID)
 	if err != nil {
 		b.client.FinishStatus(ctx, channelID)
 		b.client.Send(ctx, channelID, "", fmt.Sprintf("⚠️ %s", err.Error()))
@@ -77,18 +77,19 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,
-		Content:        content,
+		Content:        full,
 		Input:          userText,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		PendingTask:    taskHash,
+		HistoryContent: history,
 	}
 
 	syntheticIn := go_bot_discord.Input{
 		ChannelID: channelID,
 		Username:  "user",
 	}
-	sess, err := getSession(ctx, syntheticIn, content, execData)
+	sess, err := getSession(ctx, syntheticIn, full, execData)
 	if err != nil {
 		slog.Error("ask_user resume: getSession",
 			slog.String("session", sessionID),

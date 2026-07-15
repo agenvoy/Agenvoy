@@ -23,7 +23,7 @@ import (
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
-	content, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
+	full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 	if err != nil {
 		if chatID, chErr := lookupChatID(sessionID); chErr == nil {
 			b.client.Send(context.Background(), chatID, 0, "Pending task already resolved in another session.", nil)
@@ -62,10 +62,10 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		scanner.Scan()
 	}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, content)
+	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, full)
 	sessionLog.Append(sessionID, userText)
 
-	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, sessionID)
+	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, sessionID)
 	if err != nil {
 		b.client.FinishStatus(ctx, chatID)
 		errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
@@ -78,14 +78,15 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,
-		Content:        content,
+		Content:        full,
 		Input:          userText,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		PendingTask:    taskHash,
+		HistoryContent: history,
 	}
 
-	sess, err := getSession(ctx, chatID, "user", content, execData, sessionID, "")
+	sess, err := getSession(ctx, chatID, "user", full, execData, sessionID, "")
 	if err != nil {
 		slog.Error("ask_user resume: getSession",
 			slog.String("session", sessionID),

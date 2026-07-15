@@ -42,7 +42,7 @@ type agentExecDone struct {
 	err error
 }
 
-func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask string) {
+func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask, historyContent string) {
 	ctx, cancel := context.WithCancel(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
 	send(agentExec{cancel: cancel})
 
@@ -75,6 +75,7 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 			workDir,
 			sessionID,
 			pendingTask,
+			historyContent,
 		)
 		close(wrapped)
 		done <- err

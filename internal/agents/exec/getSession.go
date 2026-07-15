@@ -101,15 +101,19 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 	if userText == "" {
 		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, trimInput)
 	}
+	histText := userText
+	if h := strings.TrimSpace(execData.HistoryContent); h != "" {
+		histText = h
+	}
 	session.Histories = append(session.Histories, agentTypes.Message{
 		Role:    "user",
-		Content: userText,
+		Content: histText,
 	})
 	session.UserInput = agentTypes.Message{
 		Role:    "user",
 		Content: buildContent(userText, execData.ImageInputs, execData.FileInputs),
 	}
-	SaveUserInputHistory(ctx, overrideID, userText)
+	SaveUserInputHistory(ctx, overrideID, histText)
 
 	session.ID = overrideID
 	return &session, nil
