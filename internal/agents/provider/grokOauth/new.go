@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	oauthGrok "github.com/pardnchiu/agenvoy/internal/agents/oauth/grok"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-const prefix = "grok-oauth@"
+const Prefix = "grok-oauth@"
 
 func newHTTPClient() *http.Client {
 	base, ok := http.DefaultTransport.(*http.Transport)
@@ -32,36 +32,21 @@ type Agent struct {
 	token *oauthGrok.StoredToken
 }
 
-func New(model ...string) (*Agent, error) {
-	if len(model) == 0 || !strings.HasPrefix(model[0], prefix) {
-		return nil, fmt.Errorf("grokoauth.New: model arg required with %q prefix", prefix)
-	}
-	usedModel := strings.TrimPrefix(model[0], prefix)
-
-	token, err := oauthGrok.Load()
-	if err != nil {
-		return nil, fmt.Errorf("oauthGrokOauth.Load: %w", err)
-	}
-	if token == nil {
-		return nil, fmt.Errorf("grok-oauth token missing; run `agen model add` to authenticate")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	token, err = oauthGrok.EnsureFresh(ctx, token)
-	if err != nil {
-		return nil, fmt.Errorf("grok-oauth token expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
+func New(config provider.Config) (*Agent, error) {
+	token, ok := config.Token.(*oauthGrok.StoredToken)
+	if !ok || token == nil {
+		return nil, fmt.Errorf("grokoauth.New: Token is required")
 	}
 
 	return &Agent{
 		httpClient: newHTTPClient(),
-		model:      usedModel,
+		model:      config.Model,
 		token:      token,
 	}, nil
 }
 
 func (a *Agent) Name() string {
-	return prefix + a.model
+	return Prefix + a.model
 }
 
 func (a *Agent) authHeader(ctx context.Context) (string, error) {

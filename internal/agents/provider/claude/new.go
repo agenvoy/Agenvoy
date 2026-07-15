@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
@@ -17,24 +15,18 @@ type Agent struct {
 }
 
 const (
-	prefix = "claude@"
+	Prefix = "claude@"
 )
 
-func New(model ...string) (*Agent, error) {
-	if len(model) == 0 || !strings.HasPrefix(model[0], prefix) {
-		return nil, fmt.Errorf("claude.New: model arg required with %q prefix", prefix)
-	}
-	usedModel := strings.TrimPrefix(model[0], prefix)
-
-	apiKey := keychain.Get("CLAUDE_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("keychain.Get: CLAUDE_API_KEY is required")
+func New(config provider.Config) (*Agent, error) {
+	if config.APIKey == "" {
+		return nil, fmt.Errorf("claude.New: APIKey is required")
 	}
 
 	return &Agent{
 		httpClient: provider.NewHTTPClient(),
-		model:      usedModel,
-		apiKey:     apiKey,
+		model:      config.Model,
+		apiKey:     config.APIKey,
 	}, nil
 }
 
