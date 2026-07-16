@@ -13,7 +13,7 @@ const (
 	chatAPI = "https://api.deepseek.com/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
@@ -44,16 +44,15 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		body["temperature"] = 0.2
 	}
 
-	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
+	result, code, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
 	}, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 	if result.Error != nil {
-		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+		return nil, code, fmt.Errorf("%s", result.Error.Message)
 	}
-
-	return &result, nil
+	return &result, code, nil
 }

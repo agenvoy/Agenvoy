@@ -43,7 +43,7 @@ func flattenContent(c any) string {
 	return fmt.Sprintf("%v", c)
 }
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
@@ -79,16 +79,15 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		"cf-aig-gateway-id": a.gatewayID,
 	}
 
-	resp, _, err := go_pkg_http.POST[response](ctx, a.httpClient, a.endpoint(), headers, map[string]any{
+	resp, code, err := go_pkg_http.POST[response](ctx, a.httpClient, a.endpoint(), headers, map[string]any{
 		"model": a.model,
 		"input": input,
 	}, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 	if len(resp.Errors) > 0 {
-		return nil, fmt.Errorf("http.POST: %s", resp.Errors[0].Message)
+		return nil, code, fmt.Errorf("%s", resp.Errors[0].Message)
 	}
-
-	return &resp.Result, nil
+	return &resp.Result, code, nil
 }

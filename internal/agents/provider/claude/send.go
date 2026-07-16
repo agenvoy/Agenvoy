@@ -14,7 +14,7 @@ const (
 	messagesAPI = "https://api.anthropic.com/v1/messages"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	var systemPrompts []map[string]any
 	var newMessages []map[string]any
 
@@ -74,26 +74,24 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		requestBody["temperature"] = 0.2
 	}
 
-	result, _, err := go_pkg_http.POST[Output](ctx, a.httpClient, messagesAPI, map[string]string{
+	result, code, err := go_pkg_http.POST[Output](ctx, a.httpClient, messagesAPI, map[string]string{
 		"x-api-key":         a.apiKey,
 		"anthropic-version": "2023-06-01",
 		"anthropic-beta":    "prompt-caching-2024-07-31",
 		"Content-Type":      "application/json",
 	}, requestBody, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
-
 	if result.Error != nil {
-		return nil, fmt.Errorf("result.Error: %s", result.Error.Message)
+		return nil, code, fmt.Errorf("%s", result.Error.Message)
 	}
-
 	if result.StopReason == "max_tokens" {
-		return nil, fmt.Errorf("exceeded max_tokens (%d)", a.maxOutputTokens())
+		return nil, code, fmt.Errorf("exceeded max_tokens (%d)", a.maxOutputTokens())
 	}
 
 	out := a.convertToOutput(&result)
-	return out, nil
+	return out, code, nil
 }
 
 func (a *Agent) convertToMessage(message provider.Message) map[string]any {

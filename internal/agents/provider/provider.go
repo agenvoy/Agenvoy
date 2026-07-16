@@ -9,6 +9,8 @@ import (
 
 var reasoningLevelOrder = []string{"none", "low", "medium", "high", "xhigh"}
 
+const RateLimitCooldown = 30 * time.Minute
+
 func ReasoningDisabled(level string) bool {
 	return level == "none"
 }

@@ -370,6 +370,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	var shownReasoning []string
 	type sendOutcome struct {
 		resp *provider.Output
+		code int
 		err  error
 	}
 	sendFailCount := 0
@@ -404,13 +405,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		go func() {
-			r, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
-			resultCh <- sendOutcome{resp: r, err: e}
+			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
+			resultCh <- sendOutcome{resp: r, code: c, err: e}
 		}()
 
 		watchdog := time.NewTimer(UnresponsiveProbeInterval)
 		unresponsiveFailures := 0
 		var resp *provider.Output
+		var sendCode int
 		var err error
 		switched := false
 	waitSend:
@@ -421,7 +423,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				cancelSend()
 				return ctx.Err()
 			case out := <-resultCh:
-				resp, err = out.resp, out.err
+				resp, sendCode, err = out.resp, out.code, out.err
 				break waitSend
 			case <-watchdog.C:
 				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
@@ -496,12 +498,11 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if rateLimit := isRateLimit(err); rateLimit != nil {
-				cooldownMap.Store(rateLimit.Agent, rateLimit.ResetsAt)
+			if sendCode == 429 {
+				registerCooldown(modelName)
 				slog.Warn("data.Agent.Send rate limited, model cooldown registered",
 					slog.String("session", session.ID),
-					slog.String("name", rateLimit.Agent),
-					slog.Int64("resets_at", rateLimit.ResetsAt))
+					slog.String("name", modelName))
 			}
 
 			if isContextLengthError(err) {
@@ -589,6 +590,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
+		clearCooldown(data.Agent.Name())
 		sendFailCount = 0
 		timeoutRetryCount = 0
 
@@ -734,7 +736,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
-	resp, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
+	resp, _, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
+	if err == nil {
+		clearCooldown(data.Agent.Name())
+	}
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input
 		usage.Output += resp.Usage.Output

@@ -93,7 +93,7 @@ func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 	compactCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 	defer cancel()
 
-	resp, err := agent.Send(compactCtx, messages, nil, "medium")
+	resp, _, err := agent.Send(compactCtx, messages, nil, "medium")
 	if err != nil {
 		slog.Warn("extractOldHistories agent.Send",
 			slog.String("session", session.ID),
@@ -233,7 +233,7 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 	compactCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 	defer cancel()
 
-	resp, err := agent.Send(compactCtx, messages, nil, "medium")
+	resp, _, err := agent.Send(compactCtx, messages, nil, "medium")
 	if err != nil {
 		slog.Warn("compactRange agent.Send",
 			slog.String("session", session.ID),

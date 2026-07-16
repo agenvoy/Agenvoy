@@ -14,7 +14,7 @@ const (
 	responsesAPI = "https://api.openai.com/v1/responses"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
@@ -48,15 +48,16 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			body["reasoning"] = map[string]any{"effort": effort, "summary": "auto"}
 		}
 
-		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
+		result, code, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
 		if err != nil {
-			return nil, fmt.Errorf("http.POST: %w", err)
+			return nil, code, err
 		}
 		if result.Error != nil {
-			return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+			return nil, code, fmt.Errorf("%s", result.Error.Message)
 		}
+
 		out := copilotResponse.ConvertOutput(result)
-		return &out, nil
+		return &out, code, nil
 	}
 
 	body := map[string]any{
@@ -73,13 +74,13 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			body["reasoning_effort"] = effort
 		}
 	}
-	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
+	result, code, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 	if result.Error != nil {
-		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+		return nil, code, fmt.Errorf("http.POST: %s", result.Error.Message)
 	}
 
-	return &result, nil
+	return &result, code, nil
 }

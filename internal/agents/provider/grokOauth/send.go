@@ -2,7 +2,6 @@ package grokoauth
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,14 +11,15 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 const responsesAPI = "https://api.x.ai/v1/responses"
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("a.authHeader: %w", err)
+		return nil, 0, fmt.Errorf("a.authHeader: %w", err)
 	}
 
 	var instructions string
@@ -52,34 +52,25 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		}
 	}
 
-	bodyBytes, err := json.Marshal(body)
+	resp, err := go_pkg_http.POSTStream(ctx, a.httpClient, responsesAPI, map[string]string{
+		"Authorization": auth,
+		"Content-Type":  "application/json",
+	}, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("json.Marshal: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, responsesAPI, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("http.NewRequestWithContext: %w", err)
-	}
-	req.Header.Set("Authorization", auth)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := a.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("httpClient.Do: %w", err)
+		return nil, 0, fmt.Errorf("go_pkg_http.POSTStream: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+		return nil, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(raw)))
 	}
 
 	out, err := parseSSEStream(resp)
 	if err != nil {
-		return nil, err
+		return nil, resp.StatusCode, err
 	}
-	return out, nil
+	return out, resp.StatusCode, nil
 }
 
 type sseEvent struct {

@@ -192,7 +192,7 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []p
 	}
 
 	prompt := strings.TrimSpace(configs.CompactHistoryPrompt)
-	resp, err := agent.Send(ctx, []provider.Message{
+	resp, _, err := agent.Send(ctx, []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: sb.String()},
 	}, nil, "medium")

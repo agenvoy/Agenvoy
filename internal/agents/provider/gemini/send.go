@@ -14,7 +14,7 @@ const (
 	baseAPI = "https://generativelanguage.googleapis.com/v1beta/models/"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	messages = rewriteSyntheticActivations(messages)
 
 	var systemPrompt string
@@ -38,16 +38,16 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	cachedName, sendMessages := a.applyCache(ctx, systemPrompt, newMessages, newTools)
 	requestBody := a.generateRequestBody(sendMessages, systemPrompt, newTools, cachedName, reasoning)
 
-	result, _, err := go_pkg_http.POST[Output](ctx, a.httpClient, apiURL, map[string]string{
+	result, code, err := go_pkg_http.POST[Output](ctx, a.httpClient, apiURL, map[string]string{
 		"Content-Type":   "application/json",
 		"x-goog-api-key": a.apiKey,
 	}, requestBody, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 
 	out := a.convertToOutput(&result)
-	return out, nil
+	return out, code, nil
 }
 
 func rewriteSyntheticActivations(messages []provider.Message) []provider.Message {

@@ -13,7 +13,7 @@ const (
 	chatAPI = "https://openrouter.ai/api/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
@@ -39,21 +39,21 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	if !provider.ReasoningDisabled(effort) {
 		body["reasoning"] = map[string]any{"effort": effort}
 	}
-	result, _, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
+	result, code, err := go_pkg_http.POST[orOutput](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
 		"HTTP-Referer":  "https://github.com/pardnchiu/agenvoy",
 		"X-Title":       "Agenvoy",
 	}, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 	if result.Error != nil {
-		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+		return nil, code, fmt.Errorf("%s", result.Error.Message)
 	}
 
 	out := result.toOutput()
-	return out, nil
+	return out, code, nil
 }
 
 type orOutput struct {

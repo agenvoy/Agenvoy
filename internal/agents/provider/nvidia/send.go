@@ -13,7 +13,7 @@ const (
 	chatAPI = "https://integrate.api.nvidia.com/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	// * do not support mutiple system prompt, merge to one
 	var merged []provider.Message
 	var systemParts []string
@@ -30,7 +30,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		merged = append([]provider.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
-	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
+	result, code, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
 	}, map[string]any{
@@ -40,11 +40,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		"tools":       tools,
 	}, "json")
 	if err != nil {
-		return nil, fmt.Errorf("http.POST: %w", err)
+		return nil, code, err
 	}
 	if result.Error != nil {
-		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+		return nil, code, fmt.Errorf("%s", result.Error.Message)
 	}
-
-	return &result, nil
+	return &result, code, nil
 }

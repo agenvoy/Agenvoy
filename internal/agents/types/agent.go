@@ -8,7 +8,7 @@ import (
 
 type Agent interface {
 	Name() string
-	Send(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool, reasoning string) (*provider.Output, error)
+	Send(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool, reasoning string) (*provider.Output, int, error)
 }
 
 type sessionIDCtxKey struct{}

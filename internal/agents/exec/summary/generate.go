@@ -111,7 +111,7 @@ func generate(ctx context.Context, agent agentTypes.Agent, oldSummary string, hi
 }
 
 func exec(ctx context.Context, agent agentTypes.Agent, messages []provider.Message) map[string]any {
-	resp, err := agent.Send(ctx, messages, nil, "medium")
+	resp, _, err := agent.Send(ctx, messages, nil, "medium")
 	if err != nil {
 		slog.Warn("agentTypes.Agent Send",
 			slog.String("error", err.Error()))

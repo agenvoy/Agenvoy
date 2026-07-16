@@ -2,7 +2,6 @@ package openaicodex
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -14,7 +13,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 const (
@@ -23,10 +22,10 @@ const (
 	promptCacheKeyLen = 24
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, int, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("a.authHeader: %w", err)
+		return nil, 0, fmt.Errorf("a.authHeader: %w", err)
 	}
 
 	var instructions string
@@ -60,47 +59,30 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		body["prompt_cache_key"] = key
 	}
 
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("json.Marshal: %w", err)
+	headers := map[string]string{
+		"Authorization": auth,
+		"Content-Type":  "application/json",
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, responsesAPI, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("http.NewRequestWithContext: %w", err)
-	}
-	req.Header.Set("Authorization", auth)
-	req.Header.Set("Content-Type", "application/json")
 	if a.token != nil && a.token.AccountID != "" {
-		req.Header.Set("ChatGPT-Account-Id", a.token.AccountID)
+		headers["ChatGPT-Account-Id"] = a.token.AccountID
 	}
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := go_pkg_http.POSTStream(ctx, a.httpClient, responsesAPI, headers, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("httpClient.Do: %w", err)
+		return nil, 0, fmt.Errorf("go_pkg_http.POSTStream: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		body := strings.TrimSpace(string(raw))
-		if resp.StatusCode == http.StatusTooManyRequests {
-			if resetsAt := parseResetsAt(body); resetsAt > 0 {
-				return nil, &agentTypes.RateLimit{
-					Agent:    a.Name(),
-					ResetsAt: resetsAt,
-					Body:     body,
-				}
-			}
-		}
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
+		return nil, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(raw)))
 	}
 
 	out, err := parseSSEStream(resp)
 	if err != nil {
-		return nil, err
+		return nil, resp.StatusCode, err
 	}
-	return out, nil
+	return out, resp.StatusCode, nil
 }
 
 func promptCacheKey(instructions string) string {
@@ -307,16 +289,4 @@ func parseSSEStream(resp *http.Response) (*provider.Output, error) {
 		},
 		Usage: usage,
 	}, nil
-}
-
-func parseResetsAt(body string) int64 {
-	var envelope struct {
-		Error struct {
-			ResetsAt int64 `json:"resets_at"`
-		} `json:"error"`
-	}
-	if json.Unmarshal([]byte(body), &envelope) == nil && envelope.Error.ResetsAt > 0 {
-		return envelope.Error.ResetsAt
-	}
-	return 0
 }

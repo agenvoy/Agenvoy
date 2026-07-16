@@ -33,7 +33,7 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 	healthCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	resp, err := agent.Send(healthCtx, []provider.Message{
+	resp, _, err := agent.Send(healthCtx, []provider.Message{
 		{Role: "system", Content: "Reply with only: ok"},
 		{Role: "user", Content: "ping"},
 	}, nil, "none")
