@@ -1,11 +1,11 @@
 package exec
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
@@ -26,12 +26,12 @@ var (
 	}
 )
 
-func isRateLimit(err error) *agentTypes.RateLimit {
-	var rateLimit *agentTypes.RateLimit
-	if errors.As(err, &rateLimit) {
-		return rateLimit
-	}
-	return nil
+func registerCooldown(agentName string) {
+	cooldownMap.Store(agentName, time.Now().Add(provider.RateLimitCooldown).Unix())
+}
+
+func clearCooldown(agentName string) {
+	cooldownMap.Delete(agentName)
 }
 
 func isCoolingDown(agentName string) bool {
@@ -48,6 +48,17 @@ func isCoolingDown(agentName string) bool {
 }
 
 func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.Agent {
+	// * only one model, skip cooldown
+	if len(registry.Entries) <= 1 {
+		if bot != nil {
+			return bot
+		}
+		if len(registry.Entries) == 1 {
+			return registry.Registry[registry.Entries[0].Name]
+		}
+		return nil
+	}
+
 	if bot != nil && !isCoolingDown(bot.Name()) {
 		return bot
 	}
@@ -59,13 +70,24 @@ func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agen
 		}
 	}
 
+	if best := bestCandidate(registry, excludePrefix, true); best != nil {
+		return best
+	}
+	// * no healthy, skip cooldown
+	if best := bestCandidate(registry, excludePrefix, false); best != nil {
+		return best
+	}
+	return bot
+}
+
+func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, respectCooldown bool) agentTypes.Agent {
 	var best agentTypes.Agent
 	bestPri := len(providerPriority) + 1
 	for _, e := range registry.Entries {
 		if excludePrefix != "" && strings.HasPrefix(e.Name, excludePrefix) {
 			continue
 		}
-		if isCoolingDown(e.Name) {
+		if respectCooldown && isCoolingDown(e.Name) {
 			continue
 		}
 		providor, _, _ := strings.Cut(e.Name, "@")

@@ -7,12 +7,12 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
-func Replace(sessionID string, messages []agentTypes.Message) error {
+func Replace(sessionID string, messages []provider.Message) error {
 	if sessionID == "" {
 		return fmt.Errorf("session id is required")
 	}

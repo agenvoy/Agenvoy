@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -318,29 +319,46 @@ var (
 			Padding(0, 1)
 )
 
+// * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
+var asciiMarkLines = []string{
+	"      ███████",
+	"    ██       ██",
+	"  ██    █████████",
+	"",
+	"  ██           ██",
+	"    ██       ██",
+	"      ███████",
+}
+
 func headerBlock(daemon, http, discord, telegram, line string) string {
 	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(projectVersion)
 
-	const leftCol = 14
+	const markCol = 20
 	const gap = "   "
-	padLeft := func(s string) string {
+	padTo := func(s string, width int) string {
 		w := lipgloss.Width(s)
-		if w >= leftCol {
+		if w >= width {
 			return s
 		}
-		return s + strings.Repeat(" ", leftCol-w)
+		return s + strings.Repeat(" ", width-w)
 	}
 
-	body := strings.Join([]string{
+	textLines := []string{
 		logo,
 		hintStyle.Render("Make AI actually work for you"),
 		hintStyle.Render("Your productivity infrastructure"),
 		"",
-		padLeft(daemon) + gap + discord,
-		padLeft(http) + gap + telegram,
-		padLeft(line),
-	}, "\n")
-	return headerStyle.Render(body)
+		daemon + gap + discord,
+		http + gap + telegram,
+		line,
+	}
+
+	rows := make([]string, len(asciiMarkLines))
+	for i, mark := range asciiMarkLines {
+		rows[i] = systemStyle.Render(padTo(mark, markCol)) + textLines[i]
+	}
+	rows = append(rows, "")
+	return headerStyle.Render(strings.Join(rows, "\n"))
 }
 
 func messageBlock(str string) string {
@@ -405,7 +423,8 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
-func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
+// * context for live usage, context = nil for replay
+func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -497,7 +516,12 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
 	case agentTypes.EventDone:
-		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)
+		var footer string
+		if ctx != nil {
+			footer = utils.FormatEventFooterContext(ctx, ev.Duration, ev.Model, ev.Usage)
+		} else {
+			footer = utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)
+		}
 		if sessionLabel != "" {
 			if footer != "" {
 				footer = footer + " · [" + sessionLabel + "]"

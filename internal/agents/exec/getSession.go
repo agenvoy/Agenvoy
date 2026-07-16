@@ -22,6 +22,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -33,7 +34,7 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 		return content
 	}
 
-	parts := []agentTypes.ContentPart{
+	parts := []provider.ContentPart{
 		{
 			Type: "text",
 			Text: content,
@@ -45,7 +46,7 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 		if err != nil {
 			continue
 		}
-		parts = append(parts, agentTypes.ContentPart{
+		parts = append(parts, provider.ContentPart{
 			Type: "text",
 			Text: fmt.Sprintf("---\npath: %s\n---\n%s", filepath.Base(path), text),
 		})
@@ -57,9 +58,9 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 			continue
 		}
 		dataURL := "data:image/jpeg;base64," + b64
-		parts = append(parts, agentTypes.ContentPart{
+		parts = append(parts, provider.ContentPart{
 			Type:     "image_url",
-			ImageURL: &agentTypes.ImageURL{URL: dataURL, Detail: "auto"},
+			ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
 		})
 	}
 	return parts
@@ -72,8 +73,8 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 	}
 	trimInput := strings.TrimSpace(execData.Content)
 	session := agentTypes.AgentSession{
-		Tools:     []agentTypes.Message{},
-		Histories: []agentTypes.Message{},
+		Tools:     []provider.Message{},
+		Histories: []provider.Message{},
 	}
 
 	overrideID := strings.TrimSpace(execData.SessionID)
@@ -91,11 +92,11 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 
 	session.SystemPrompts = BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, overrideID, execData.AllowAll, execData.ExcludeSkills)
 	if summary := summary.GetPrompt(overrideID, OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
+		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
 	session.OldHistories = maxHistory
-	session.ToolHistories = []agentTypes.Message{}
+	session.ToolHistories = []provider.Message{}
 
 	userText := strings.TrimSpace(execData.Input)
 	if userText == "" {
@@ -105,11 +106,11 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 	if h := strings.TrimSpace(execData.HistoryContent); h != "" {
 		histText = h
 	}
-	session.Histories = append(session.Histories, agentTypes.Message{
+	session.Histories = append(session.Histories, provider.Message{
 		Role:    "user",
 		Content: histText,
 	})
-	session.UserInput = agentTypes.Message{
+	session.UserInput = provider.Message{
 		Role:    "user",
 		Content: buildContent(userText, execData.ImageInputs, execData.FileInputs),
 	}
@@ -121,7 +122,7 @@ func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSessio
 
 var msgTimeRegex = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
 
-func OldestMessageTime(histories []agentTypes.Message) time.Time {
+func OldestMessageTime(histories []provider.Message) time.Time {
 	for _, m := range histories {
 		s, ok := m.Content.(string)
 		if !ok {

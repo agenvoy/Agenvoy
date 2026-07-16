@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/go-llm-router/core"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -25,8 +26,8 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 
 	sess := &agentTypes.AgentSession{
 		ID:        sessionID,
-		Tools:     []agentTypes.Message{},
-		Histories: []agentTypes.Message{},
+		Tools:     []provider.Message{},
+		Histories: []provider.Message{},
 	}
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
@@ -35,11 +36,11 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 
 	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		sess.SummaryMessage = agentTypes.Message{Role: "assistant", Content: summary}
+		sess.SummaryMessage = provider.Message{Role: "assistant", Content: summary}
 	}
 
 	sess.OldHistories = maxHistory
-	sess.ToolHistories = []agentTypes.Message{}
+	sess.ToolHistories = []provider.Message{}
 
 	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n來源: LINE %s",
 		time.Now().Format("2006-01-02 15:04:05"),
@@ -49,11 +50,11 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 	)
 	userText := fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 
-	sess.Histories = append(sess.Histories, agentTypes.Message{
+	sess.Histories = append(sess.Histories, provider.Message{
 		Role:    "user",
 		Content: userText,
 	})
-	sess.UserInput = agentTypes.Message{
+	sess.UserInput = provider.Message{
 		Role:    "user",
 		Content: userText,
 	}

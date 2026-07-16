@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/stt"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -113,8 +113,8 @@ func wrapBlock(ch Channel, text string) string {
 	}
 }
 
-func BuildPushFooter(ch Channel, duration time.Duration, model string, usage *agentTypes.Usage) string {
-	footer := utils.FormatEventFooter(duration, model, usage)
+func BuildPushFooter(ctx context.Context, ch Channel, duration time.Duration, model string, usage *provider.Usage) string {
+	footer := utils.FormatEventFooterContext(ctx, duration, model, usage)
 	if footer == "" {
 		return ""
 	}

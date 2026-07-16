@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 

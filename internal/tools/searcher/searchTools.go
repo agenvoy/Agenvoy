@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -58,7 +59,7 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 				matches = matchKeyword(params.Query, e.AllTools)
 			}
 
-			toolDic := make(map[string]toolTypes.Tool, len(e.AllTools))
+			toolDic := make(map[string]provider.Tool, len(e.AllTools))
 			for _, tool := range e.AllTools {
 				toolDic[tool.Function.Name] = tool
 			}
@@ -74,7 +75,7 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 					continue
 				}
 
-				if i := slices.IndexFunc(e.Tools, func(t toolTypes.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
+				if i := slices.IndexFunc(e.Tools, func(t provider.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
 					e.Tools = slices.Delete(e.Tools, i, i+1)
 				}
 				e.Tools = append(e.Tools, full)
@@ -95,8 +96,8 @@ Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same
 	})
 }
 
-func matchName(names string, tools []toolTypes.Tool) []Tool {
-	dic := make(map[string]toolTypes.Tool, len(tools))
+func matchName(names string, tools []provider.Tool) []Tool {
+	dic := make(map[string]provider.Tool, len(tools))
 	for _, tool := range tools {
 		dic[strings.ToLower(tool.Function.Name)] = tool
 	}
@@ -135,7 +136,7 @@ func toolCategory(name string) string {
 	}
 }
 
-func matchKeyword(query string, tools []toolTypes.Tool) []Tool {
+func matchKeyword(query string, tools []provider.Tool) []Tool {
 	query = strings.ToLower(strings.TrimSpace(query))
 	terms := strings.Fields(query)
 	if len(terms) == 0 {
@@ -150,7 +151,7 @@ func matchKeyword(query string, tools []toolTypes.Tool) []Tool {
 	}
 
 	type scored struct {
-		tool  toolTypes.Tool
+		tool  provider.Tool
 		score int
 	}
 

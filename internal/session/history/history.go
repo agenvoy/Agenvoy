@@ -8,14 +8,14 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
 var muMap sync.Map
 
-func Append(sessionID string, delta []agentTypes.Message) error {
+func Append(sessionID string, delta []provider.Message) error {
 	if sessionID == "" || len(delta) == 0 {
 		return nil
 	}
@@ -27,7 +27,7 @@ func Append(sessionID string, delta []agentTypes.Message) error {
 
 	historyPath := filesystem.HistoryPath(sessionID)
 
-	latest, err := go_pkg_filesystem.ReadJSON[[]agentTypes.Message](historyPath)
+	latest, err := go_pkg_filesystem.ReadJSON[[]provider.Message](historyPath)
 	if err != nil {
 		latest = nil
 	}
@@ -66,9 +66,9 @@ func ClearMutex(sessionID string) {
 	muMap.Delete(sessionID)
 }
 
-func Get(sessionID string) (old, max []agentTypes.Message) {
+func Get(sessionID string) (old, max []provider.Message) {
 	historyPath := filesystem.HistoryPath(sessionID)
-	oldHistory, err := go_pkg_filesystem.ReadJSON[[]agentTypes.Message](historyPath)
+	oldHistory, err := go_pkg_filesystem.ReadJSON[[]provider.Message](historyPath)
 	if err != nil {
 		return nil, nil
 	}

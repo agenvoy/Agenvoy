@@ -18,7 +18,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -279,9 +278,6 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 
-	if cfg, err := config.Load(); err == nil {
-		provider.SetReasoningLevel(cfg.ReasoningLevel)
-	}
 	subagent.Register()
 
 	mcpManager := initMCP(context.Background(), "")
@@ -420,9 +416,6 @@ func watchConfig(ctx context.Context) func() {
 					continue
 				}
 				lastReload = time.Now()
-				if cfg, err := config.Load(); err == nil {
-					provider.SetReasoningLevel(cfg.ReasoningLevel)
-				}
 				if agents.Reload() {
 					slog.Info("⎯ host reloaded: config change")
 				}

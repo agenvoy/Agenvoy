@@ -12,7 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -58,10 +58,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	dead := map[string]bool{}
 
 	if sessionID != "" {
-		model, reasoning := configBot.GetModel(sessionID)
-		if reasoning != "" {
-			provider.SetReasoningLevel(reasoning)
-		}
+		model, _ := configBot.GetModel(sessionID)
 		if model != "" && model != configBot.DefaultModel {
 			if _, ok := registry.Registry[model]; ok {
 				return []string{model}, dead
@@ -96,21 +93,20 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 			if hasSkill {
 				userContent = "[Run Skill] " + userContent
 			}
-			messages := []agentTypes.Message{
+			messages := []provider.Message{
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
-			prev := provider.GetReasoningLevel()
-			provider.SetReasoningLevel("low")
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
 			for range len(registry.Entries) {
 				if ctx.Err() != nil {
 					break
 				}
 				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
-				resp, sendErr := bot.Send(routingCtx, messages, nil)
+				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, "none")
 				cancel()
 				if sendErr == nil {
+					clearCooldown(bot.Name())
 					if resp != nil && len(resp.Choices) > 0 {
 						if content, ok := resp.Choices[0].Message.Content.(string); ok {
 							raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
@@ -136,13 +132,13 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 					break
 				}
 				dead[bot.Name()] = true
-				rl := isRateLimit(sendErr)
-				if rl != nil {
-					cooldownMap.Store(bot.Name(), rl.ResetsAt)
+				rateLimited := sendCode == 429
+				if rateLimited {
+					registerCooldown(bot.Name())
 				}
 				next := checkCooldown(nil, registry)
 				hasNext := next != nil && !dead[next.Name()]
-				if ctx.Err() == nil && rl == nil {
+				if ctx.Err() == nil && !rateLimited {
 					slog.Warn("dispatcher routing failed",
 						slog.String("name", bot.Name()),
 						slog.String("error", sendErr.Error()))
@@ -150,13 +146,12 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				if !hasNext {
 					break
 				}
-				if ctx.Err() == nil && rl == nil {
+				if ctx.Err() == nil && !rateLimited {
 					slog.Warn("dispatcher retrying with fallback",
 						slog.String("name", next.Name()))
 				}
 				bot = next
 			}
-			provider.SetReasoningLevel(prev)
 		}
 	}
 

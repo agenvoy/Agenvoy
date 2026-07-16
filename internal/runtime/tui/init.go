@@ -145,7 +145,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel · shift+t cmd mode`
+	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
