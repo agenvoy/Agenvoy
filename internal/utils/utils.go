@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
@@ -32,10 +33,10 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 	healthCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	resp, err := agent.Send(healthCtx, []agentTypes.Message{
+	resp, _, err := agent.Send(healthCtx, []provider.Message{
 		{Role: "system", Content: "Reply with only: ok"},
 		{Role: "user", Content: "ping"},
-	}, nil)
+	}, nil, "none")
 	if err != nil || resp == nil || len(resp.Choices) == 0 {
 		return false
 	}
@@ -44,43 +45,43 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_chat_history":   "Search Chat",
-	"search_error_history":  "Search Error",
-	"search_google_news":    "Search News",
-	"search_web":            "Search Web",
-	"search_rag":            "Search RAG",
-	"search_files":          "Search Files",
-	"search_tools":          "Search Tools",
-	"list_rag":              "List RAG",
-	"list_files":            "List Files",
-	"list_tools":            "List Tools",
-	"list_chatbot":          "List Chat",
-	"list_schedule":         "List Schedule",
-	"read_file":             "Read",
-	"write_file":            "Write",
-	"patch_file":            "Patch",
-	"glob_files":            "Glob",
-	"fetch_page":            "Fetch",
-	"run_command":           "Run",
-	"run_skill":             "Skill",
-	"calculate":             "Calc",
-	"download_file":         "Download",
-	"write_todo":            "Plan",
-	"generate_image":        "Image",
-	"invoke_subagent":       "Subagent",
-	"git_log":               "Git Log",
-	"git_rollback":          "Rollback",
-	"read_error":            "Read",
-	"read_log":              "Read",
-	"remember_error":        "Remember",
-	"report_error":          "Report",
-	"format_chatbot":        "Format",
-	"send_to_chatbot":       "Send",
-	"send_http_request":     "Request",
-	"transcribe_media":      "Transcribe",
-	"add_schedule":          "Add Schedule",
-	"patch_schedule":        "Patch Schedule",
-	"remove_schedule":       "Remove Schedule",
+	"search_chat_history":  "Search Chat",
+	"search_error_history": "Search Error",
+	"search_google_news":   "Search News",
+	"search_web":           "Search Web",
+	"search_rag":           "Search RAG",
+	"search_files":         "Search Files",
+	"search_tools":         "Search Tools",
+	"list_rag":             "List RAG",
+	"list_files":           "List Files",
+	"list_tools":           "List Tools",
+	"list_chatbot":         "List Chat",
+	"list_schedule":        "List Schedule",
+	"read_file":            "Read",
+	"write_file":           "Write",
+	"patch_file":           "Patch",
+	"glob_files":           "Glob",
+	"fetch_page":           "Fetch",
+	"run_command":          "Run",
+	"run_skill":            "Skill",
+	"calculate":            "Calc",
+	"download_file":        "Download",
+	"write_todo":           "Plan",
+	"generate_image":       "Image",
+	"invoke_subagent":      "Subagent",
+	"git_log":              "Git Log",
+	"git_rollback":         "Rollback",
+	"read_error":           "Read",
+	"read_log":             "Read",
+	"remember_error":       "Remember",
+	"report_error":         "Report",
+	"format_chatbot":       "Format",
+	"send_to_chatbot":      "Send",
+	"send_http_request":    "Request",
+	"transcribe_media":     "Transcribe",
+	"add_schedule":         "Add Schedule",
+	"patch_schedule":       "Patch Schedule",
+	"remove_schedule":      "Remove Schedule",
 }
 
 func IsPlugTool(name string) bool {

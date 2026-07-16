@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -56,7 +57,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 	}
 
 	ctx := c.Request.Context()
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	var streamErr error
 
 	emitContent := func(str string) bool {

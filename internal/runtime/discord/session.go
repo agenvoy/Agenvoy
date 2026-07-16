@@ -10,6 +10,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -24,8 +25,8 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 
 	sess := &agentTypes.AgentSession{
 		ID:        sessionID,
-		Tools:     []agentTypes.Message{},
-		Histories: []agentTypes.Message{},
+		Tools:     []provider.Message{},
+		Histories: []provider.Message{},
 	}
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
@@ -34,11 +35,11 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 
 	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		sess.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
+		sess.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
 	sess.OldHistories = maxHistory
-	sess.ToolHistories = []agentTypes.Message{}
+	sess.ToolHistories = []provider.Message{}
 
 	userText := strings.TrimSpace(data.Input)
 	if userText == "" {
@@ -55,11 +56,11 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 	if h := strings.TrimSpace(data.HistoryContent); h != "" {
 		histText = h
 	}
-	sess.Histories = append(sess.Histories, agentTypes.Message{
+	sess.Histories = append(sess.Histories, provider.Message{
 		Role:    "user",
 		Content: histText,
 	})
-	sess.UserInput = agentTypes.Message{
+	sess.UserInput = provider.Message{
 		Role:    "user",
 		Content: userText,
 	}

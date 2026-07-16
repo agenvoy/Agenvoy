@@ -11,6 +11,7 @@ import (
 
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -222,7 +223,7 @@ func isGet(argsJSON string) bool {
 	return p.Method == "" || strings.EqualFold(p.Method, "GET")
 }
 
-func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agentTypes.AgentSession, map[string]string, error) {
+func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agentTypes.AgentSession, map[string]string, error) {
 	sessionData.ToolHistories = append(sessionData.ToolHistories, choice.Message)
 
 	calls := choice.Message.ToolCalls
@@ -356,7 +357,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 					continue
 				}
 				content := cs.preMsg
-				msg := agentTypes.Message{
+				msg := provider.Message{
 					Role:       "tool",
 					Content:    content,
 					ToolCallID: cs.id,
@@ -430,14 +431,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			if s.isImage {
 				injectImageToUserInput(sessionData, s.imageURL)
 			}
-			sessionData.ToolHistories = append(sessionData.ToolHistories, agentTypes.Message{
+			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
 				ToolCallID: s.id,
 			})
 			continue
 		case slotSkipped, slotStubActivated, slotValidateFailed:
-			msg := agentTypes.Message{
+			msg := provider.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
 				ToolCallID: s.id,
@@ -490,14 +491,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice agentTypes.O
 			toolMsgContent = fmt.Sprintf("[%s] image loaded", s.name)
 			injectImageToUserInput(sessionData, result)
 		}
-		toolMsg := agentTypes.Message{
+		toolMsg := provider.Message{
 			Role:       "tool",
 			Content:    toolMsgContent,
 			ToolCallID: s.id,
 		}
 		sessionData.Tools = append(sessionData.Tools, toolMsg)
 		if historyResult != "" {
-			sessionData.ToolHistories = append(sessionData.ToolHistories, agentTypes.Message{
+			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
 				Role:       "tool",
 				Content:    historyResult,
 				ToolCallID: s.id,
@@ -626,7 +627,7 @@ func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {
 }
 
 func requiredFields(exec *toolTypes.Executor, toolName string) []string {
-	lookup := func(list []toolTypes.Tool) []string {
+	lookup := func(list []provider.Tool) []string {
 		for _, t := range list {
 			if t.Function.Name != toolName {
 				continue
@@ -651,15 +652,15 @@ func requiredFields(exec *toolTypes.Executor, toolName string) []string {
 }
 
 func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
-	part := agentTypes.ContentPart{
+	part := provider.ContentPart{
 		Type:     "image_url",
-		ImageURL: &agentTypes.ImageURL{URL: dataURL, Detail: "auto"},
+		ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
 	}
 	switch v := session.UserInput.Content.(type) {
-	case []agentTypes.ContentPart:
+	case []provider.ContentPart:
 		session.UserInput.Content = append(v, part)
 	case string:
-		session.UserInput.Content = []agentTypes.ContentPart{
+		session.UserInput.Content = []provider.ContentPart{
 			{Type: "text", Text: v},
 			part,
 		}
@@ -668,7 +669,7 @@ func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
 
 const MaxVerifyRounds = 3
 
-func trimMessageContext(toolCall []agentTypes.Message, rounds int, feedbacks []string) []agentTypes.Message {
+func trimMessageContext(toolCall []provider.Message, rounds int, feedbacks []string) []provider.Message {
 	var firstVersion, feedback string
 
 	for _, m := range toolCall {
@@ -700,9 +701,9 @@ func trimMessageContext(toolCall []agentTypes.Message, rounds int, feedbacks []s
 		}
 	}
 
-	compact := make([]agentTypes.Message, 0, 2)
+	compact := make([]provider.Message, 0, 2)
 	if firstVersion != "" {
-		compact = append(compact, agentTypes.Message{
+		compact = append(compact, provider.Message{
 			Role:    "assistant",
 			Content: firstVersion,
 		})
@@ -714,7 +715,7 @@ func trimMessageContext(toolCall []agentTypes.Message, rounds int, feedbacks []s
 		for i, fb := range feedbacks {
 			sb.WriteString(fmt.Sprintf("### Round %d\n%s\n\n", i+1, fb))
 		}
-		compact = append(compact, agentTypes.Message{
+		compact = append(compact, provider.Message{
 			Role:    "user",
 			Content: sb.String(),
 		})
@@ -722,7 +723,7 @@ func trimMessageContext(toolCall []agentTypes.Message, rounds int, feedbacks []s
 	}
 
 	if feedback != "" {
-		compact = append(compact, agentTypes.Message{
+		compact = append(compact, provider.Message{
 			Role:    "user",
 			Content: fmt.Sprintf("以下是第 %d 輪外部驗證回饋（上限 %d 輪），請針對指出的每個問題，**重新呼叫工具查詢**以修正錯誤或補充缺漏，完成後再輸出最終結果：\n\n%s", rounds, MaxVerifyRounds, feedback),
 		})
@@ -730,7 +731,7 @@ func trimMessageContext(toolCall []agentTypes.Message, rounds int, feedbacks []s
 	return compact
 }
 
-func trimReviewContext(toolCall []agentTypes.Message) []agentTypes.Message {
+func trimReviewContext(toolCall []provider.Message) []provider.Message {
 	var draft, feedback string
 
 	for _, m := range toolCall {
@@ -760,15 +761,15 @@ func trimReviewContext(toolCall []agentTypes.Message) []agentTypes.Message {
 		}
 	}
 
-	compact := make([]agentTypes.Message, 0, 2)
+	compact := make([]provider.Message, 0, 2)
 	if draft != "" {
-		compact = append(compact, agentTypes.Message{
+		compact = append(compact, provider.Message{
 			Role:    "assistant",
 			Content: draft,
 		})
 	}
 	if feedback != "" {
-		compact = append(compact, agentTypes.Message{
+		compact = append(compact, provider.Message{
 			Role:    "user",
 			Content: "以下是內部審查回饋，請針對指出的每個問題修正後輸出最終結果：\n\n" + feedback,
 		})

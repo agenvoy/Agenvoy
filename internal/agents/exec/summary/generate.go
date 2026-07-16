@@ -11,7 +11,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 )
@@ -22,7 +22,7 @@ var (
 	summaryBracketRegex = regexp.MustCompile(`(?s)\[summary\]\s*([\s\S]*?)\s*\[/summary\]`)
 )
 
-func Generate(ctx context.Context, agent agentTypes.Agent, sessionID string, histories []agentTypes.Message) error {
+func Generate(ctx context.Context, agent agentTypes.Agent, sessionID string, histories []provider.Message) error {
 	ctx = agentTypes.WithSessionID(ctx, sessionID)
 	raw, summaryMap := summary.Ensure(sessionID)
 	meta := summary.GetMeta(sessionID)
@@ -69,12 +69,12 @@ func Generate(ctx context.Context, agent agentTypes.Agent, sessionID string, his
 	return nil
 }
 
-func chunkMessages(messages []agentTypes.Message, size int) [][]agentTypes.Message {
+func chunkMessages(messages []provider.Message, size int) [][]provider.Message {
 	if len(messages) == 0 {
 		return nil
 	}
 
-	var list [][]agentTypes.Message
+	var list [][]provider.Message
 	for i := 0; i < len(messages); i += size {
 		end := min(i+size, len(messages))
 		if end < len(messages) && end > 0 {
@@ -88,7 +88,7 @@ func chunkMessages(messages []agentTypes.Message, size int) [][]agentTypes.Messa
 	return list
 }
 
-func generate(ctx context.Context, agent agentTypes.Agent, oldSummary string, histories []agentTypes.Message) map[string]any {
+func generate(ctx context.Context, agent agentTypes.Agent, oldSummary string, histories []provider.Message) map[string]any {
 	prompt := strings.NewReplacer(
 		"{{.Summary}}", oldSummary,
 	).Replace(strings.TrimSpace(configs.SummaryPrompt))
@@ -102,7 +102,7 @@ func generate(ctx context.Context, agent agentTypes.Agent, oldSummary string, hi
 		fmt.Fprintf(&sb, "[%s]\n%s\n\n", hist.Role, str)
 	}
 
-	messages := []agentTypes.Message{
+	messages := []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: "```\n" + sb.String() + "```\n\nGenerate the updated summary now per the rules above. Output raw JSON only."},
 	}
@@ -110,11 +110,8 @@ func generate(ctx context.Context, agent agentTypes.Agent, oldSummary string, hi
 	return exec(ctx, agent, messages)
 }
 
-func exec(ctx context.Context, agent agentTypes.Agent, messages []agentTypes.Message) map[string]any {
-	prev := provider.GetReasoningLevel()
-	provider.SetReasoningLevel("medium")
-	resp, err := agent.Send(ctx, messages, nil)
-	provider.SetReasoningLevel(prev)
+func exec(ctx context.Context, agent agentTypes.Agent, messages []provider.Message) map[string]any {
+	resp, _, err := agent.Send(ctx, messages, nil, "medium")
 	if err != nil {
 		slog.Warn("agentTypes.Agent Send",
 			slog.String("error", err.Error()))
@@ -158,7 +155,7 @@ func exec(ctx context.Context, agent agentTypes.Agent, messages []agentTypes.Mes
 	return nil
 }
 
-func latestTime(messages []agentTypes.Message) string {
+func latestTime(messages []provider.Message) string {
 	var str string
 	for _, message := range messages {
 		t := extractTime(message)
@@ -169,7 +166,7 @@ func latestTime(messages []agentTypes.Message) string {
 	return str
 }
 
-func extractTime(msg agentTypes.Message) string {
+func extractTime(msg provider.Message) string {
 	str, ok := msg.Content.(string)
 	if !ok {
 		return ""
@@ -181,12 +178,12 @@ func extractTime(msg agentTypes.Message) string {
 	return list[1]
 }
 
-func filterAfter(messages []agentTypes.Message, cursor string) []agentTypes.Message {
+func filterAfter(messages []provider.Message, cursor string) []provider.Message {
 	if cursor == "" {
 		return messages
 	}
 
-	list := make([]agentTypes.Message, 0, len(messages))
+	list := make([]provider.Message, 0, len(messages))
 	for _, message := range messages {
 		t := extractTime(message)
 		if t == "" || t > cursor {

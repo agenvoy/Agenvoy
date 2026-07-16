@@ -9,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -82,7 +83,7 @@ func buildStatelessSession(req Request, userInput, workDir string, scanner *runt
 			break
 		}
 	}
-	var oldHistories []agentTypes.Message
+	var oldHistories []provider.Message
 	if lastUserIdx > 0 {
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
@@ -93,10 +94,10 @@ func buildStatelessSession(req Request, userInput, workDir string, scanner *runt
 	return &agentTypes.AgentSession{
 		SystemPrompts: systemPrompts,
 		OldHistories:  oldHistories,
-		Histories:     append([]agentTypes.Message{}, oldHistories...),
-		ToolHistories: []agentTypes.Message{},
-		Tools:         []agentTypes.Message{},
-		UserInput:     agentTypes.Message{Role: "user", Content: wrappedUser},
+		Histories:     append([]provider.Message{}, oldHistories...),
+		ToolHistories: []provider.Message{},
+		Tools:         []provider.Message{},
+		UserInput:     provider.Message{Role: "user", Content: wrappedUser},
 		Stateless:     true,
 	}
 }

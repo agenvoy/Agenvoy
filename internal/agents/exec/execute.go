@@ -20,7 +20,8 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -28,9 +29,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -351,13 +354,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	limit := filesystem.MaxToolIterations
+	_, reasoning := configBot.GetModel(session.ID)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)
 	allAgents = append(allAgents, data.FallbackAgents...)
 	fallbackRound := 0
 
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	alreadyCall := make(map[string]string)
 	turnAllowAll := false
 	emptyCount := 0
@@ -365,7 +369,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	lastInputTokens := 0
 	var shownReasoning []string
 	type sendOutcome struct {
-		resp *agentTypes.Output
+		resp *provider.Output
+		code int
 		err  error
 	}
 	sendFailCount := 0
@@ -400,13 +405,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		go func() {
-			r, e := sendAgent.Send(sendCtx, assembled, exec.Tools)
-			resultCh <- sendOutcome{resp: r, err: e}
+			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
+			resultCh <- sendOutcome{resp: r, code: c, err: e}
 		}()
 
 		watchdog := time.NewTimer(UnresponsiveProbeInterval)
 		unresponsiveFailures := 0
-		var resp *agentTypes.Output
+		var resp *provider.Output
+		var sendCode int
 		var err error
 		switched := false
 	waitSend:
@@ -417,7 +423,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				cancelSend()
 				return ctx.Err()
 			case out := <-resultCh:
-				resp, err = out.resp, out.err
+				resp, sendCode, err = out.resp, out.code, out.err
 				break waitSend
 			case <-watchdog.C:
 				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
@@ -492,12 +498,11 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if rateLimit := isRateLimit(err); rateLimit != nil {
-				cooldownMap.Store(rateLimit.Agent, rateLimit.ResetsAt)
+			if sendCode == 429 {
+				registerCooldown(modelName)
 				slog.Warn("data.Agent.Send rate limited, model cooldown registered",
 					slog.String("session", session.ID),
-					slog.String("name", rateLimit.Agent),
-					slog.Int64("resets_at", rateLimit.ResetsAt))
+					slog.String("name", modelName))
 			}
 
 			if isContextLengthError(err) {
@@ -585,6 +590,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
+		clearCooldown(data.Agent.Name())
 		sendFailCount = 0
 		timeoutRetryCount = 0
 
@@ -593,6 +599,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
+
+		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
+		usagelog.Append(session.ID, prov, model, resp.Usage)
 
 		usageSnapshot := usage
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
@@ -723,16 +732,23 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
-	summaryMessages := append(assembled, agentTypes.Message{
+	summaryMessages := append(assembled, provider.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
-	resp, err := data.Agent.Send(ctx, summaryMessages, nil)
+	resp, _, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
+	if err == nil {
+		clearCooldown(data.Agent.Name())
+	}
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+
+		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
+		usagelog.Append(session.ID, prov, model, resp.Usage)
+
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
@@ -757,7 +773,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 const maxEmptyRetry = 3
 
-func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) bool {
+func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, model string, usage *provider.Usage, start time.Time) bool {
 	*emptyCount++
 	if *emptyCount >= maxEmptyRetry {
 		sendEmptyData(events, sessionID, model, usage, start)
@@ -766,7 +782,7 @@ func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessio
 	return false
 }
 
-func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *agentTypes.Usage, start time.Time) {
+func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *provider.Usage, start time.Time) {
 	sendText(events, "no usable data, retry later, or using other tools.")
 	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
 }
@@ -810,7 +826,7 @@ func normalizeReasoning(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, session *agentTypes.AgentSession) error {
+func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agentTypes.AgentSession) error {
 	session.Histories = append(session.Histories, choice.Message)
 
 	if session.Stateless {
@@ -818,7 +834,7 @@ func saveNewHistory(ctx context.Context, choice agentTypes.OutputChoices, sessio
 	}
 
 	base := min(max(session.BaseLen, 0), len(session.Histories))
-	delta := make([]agentTypes.Message, 0, len(session.Histories)-base)
+	delta := make([]provider.Message, 0, len(session.Histories)-base)
 	for _, message := range session.Histories[base:] {
 		if message.Role == "system" ||
 			message.Role == "tool" ||
@@ -843,13 +859,13 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 	if sessionID == "" || strings.TrimSpace(userText) == "" {
 		return
 	}
-	writeSessionHistEntry(ctx, sessionID, agentTypes.Message{
+	writeSessionHistEntry(ctx, sessionID, provider.Message{
 		Role:    "user",
 		Content: userText,
 	})
 }
 
-func writeSessionHistEntry(ctx context.Context, sessionID string, msg agentTypes.Message) {
+func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return
@@ -870,7 +886,7 @@ func writeSessionHistEntry(ctx context.Context, sessionID string, msg agentTypes
 func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	id := "skill-assign-" + newID("skill", s.Name)
 	argsJSON, _ := json.Marshal(map[string]string{"skill": s.Name})
-	call := agentTypes.ToolCall{
+	call := provider.ToolCall{
 		ID:   id,
 		Type: "function",
 	}
@@ -878,11 +894,11 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	call.Function.Arguments = string(argsJSON)
 
 	session.ToolHistories = append(session.ToolHistories,
-		agentTypes.Message{
+		provider.Message{
 			Role:      "assistant",
-			ToolCalls: []agentTypes.ToolCall{call},
+			ToolCalls: []provider.ToolCall{call},
 		},
-		agentTypes.Message{
+		provider.Message{
 			Role:       "tool",
 			Content:    renderActivation(s),
 			ToolCallID: id,
@@ -893,7 +909,7 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 		"## BINDING SKILL EXECUTION — /%s\n\nThe user invoked /%s. Execute the procedure below by making the tool calls SKILL.md prescribes, in order.\n\n### How to obey\n\n- **When SKILL.md says «ask_user», invoke the `ask_user` tool** with JSON arguments matching the template SKILL.md gives. Writing a text question and waiting for a chat reply is NOT the same action and does not satisfy the step.\n- **The text following `/%s` is the user's INPUT to gather around, not a set of pre-filled answers.** Even if it looks complete, your next action is still `ask_user` to verify direction. Treat it like a topic, not a finished spec.\n- **After one tool call's result arrives, immediately make the next tool call SKILL.md prescribes**, in the same turn. Do not insert text like «下一步要不要繼續» between steps — the user already authorized the full procedure by typing `/%s`.\n- **Tool calls beat chat text.** If you find yourself writing instructions to the user («再丟一句…», «直接回我…»), stop and make the corresponding tool call instead.\n\n### Quick self-check before each turn\n\n1. What does SKILL.md say the next step is? (e.g. «呼叫 ask_user 問三維度之一»)\n2. Have I made that exact tool call in this turn? If no → make it now. If yes and result is back → make the step-after's tool call.\n\n---\n\n",
 		s.Name, s.Name, s.Name, s.Name,
 	)
-	session.SystemPrompts = append(session.SystemPrompts, agentTypes.Message{
+	session.SystemPrompts = append(session.SystemPrompts, provider.Message{
 		Role:    "system",
 		Content: bindingHeader + renderActivation(s),
 	})

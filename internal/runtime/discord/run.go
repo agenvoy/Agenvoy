@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	geminiSummary "github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/summary"
+	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -302,7 +302,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
-	footer := utils.FormatEventFooter(doneEvent.Duration, model, doneEvent.Usage)
+	footer := utils.FormatEventFooterContext(ctx, doneEvent.Duration, model, doneEvent.Usage)
 	hasMedia := len(attachmentPaths) > 0 || len(voiceTexts) > 0
 	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, execErrors)
 

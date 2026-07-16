@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
 )
@@ -21,8 +22,8 @@ type Executor struct {
 	SessionID        string
 	Allowed          []string // * limit to these folders to use
 	AllowedCommand   map[string]bool
-	Tools            []Tool
-	AllTools         []Tool
+	Tools            []provider.Tool
+	AllTools         []provider.Tool
 	StubTools        map[string]bool
 	ExcludeTools     map[string]bool
 	APIToolbox       *apiAdapter.Adapter
@@ -33,15 +34,4 @@ type Executor struct {
 	SkillScanner    *runtime.SkillScanner
 	CancelExecution context.CancelFunc
 	PendingTask     string
-}
-
-type Tool struct {
-	Type     string       `json:"type"`
-	Function ToolFunction `json:"function"`
-}
-
-type ToolFunction struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Parameters  json.RawMessage `json:"parameters"`
 }

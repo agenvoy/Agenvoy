@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
@@ -130,7 +131,7 @@ func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
 	if len(finishedAt) > 0 {
 		ts = finishedAt[0]
 	}
-	line, ok := renderAgentEvent(ev, "", "", width, ts)
+	line, ok := renderAgentEvent(nil, ev, "", "", width, ts)
 	if !ok {
 		return ""
 	}
@@ -148,7 +149,7 @@ func formatDone(body string) agentTypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

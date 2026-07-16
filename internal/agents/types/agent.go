@@ -3,13 +3,10 @@ package agentTypes
 import (
 	"context"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/go-llm-router/core"
 )
 
-type Agent interface {
-	Name() string
-	Send(ctx context.Context, messages []Message, toolDefs []toolTypes.Tool) (*Output, error)
-}
+type Agent = provider.Agent
 
 type sessionIDCtxKey struct{}
 
@@ -35,13 +32,13 @@ type AgentEntry struct {
 
 type AgentSession struct {
 	ID              string
-	SystemPrompts   []Message
-	OldHistories    []Message
-	SummaryMessage  Message
-	UserInput       Message
-	ToolHistories   []Message
-	Tools           []Message
-	Histories       []Message
+	SystemPrompts   []provider.Message
+	OldHistories    []provider.Message
+	SummaryMessage  provider.Message
+	UserInput       provider.Message
+	ToolHistories   []provider.Message
+	Tools           []provider.Message
+	Histories       []provider.Message
 	BaseLen         int
 	Stateless       bool
 	VerifyRounds    int

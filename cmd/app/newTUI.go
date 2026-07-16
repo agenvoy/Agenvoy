@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -81,9 +80,6 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 			slog.String("error", err.Error()))
 	}
 
-	if cfg, err := config.Load(); err == nil {
-		provider.SetReasoningLevel(cfg.ReasoningLevel)
-	}
 	subagent.Register()
 
 	mcpManager := initMCP(context.Background(), "")
