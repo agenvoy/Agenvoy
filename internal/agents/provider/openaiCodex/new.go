@@ -29,11 +29,11 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 
-	token *oauthCodex.StoredToken
+	token *provider.CodexToken
 }
 
 func New(config provider.Config) (*Agent, error) {
-	token, ok := config.Token.(*oauthCodex.StoredToken)
+	token, ok := config.Token.(*provider.CodexToken)
 	if !ok || token == nil {
 		return nil, fmt.Errorf("openaicodex.New: Token is required")
 	}

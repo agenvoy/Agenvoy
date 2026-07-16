@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -16,7 +14,7 @@ const (
 	messagesAPI = "https://api.anthropic.com/v1/messages"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	var systemPrompts []map[string]any
 	var newMessages []map[string]any
 
@@ -101,7 +99,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 func (a *Agent) convertToMessage(message provider.Message) map[string]any {
 	if message.ToolCallID != "" {
 		var toolResultContent any = message.Content
-		if parts, ok := message.Content.([]agentTypes.ContentPart); ok {
+		if parts, ok := message.Content.([]provider.ContentPart); ok {
 			var blocks []map[string]any
 			for _, p := range parts {
 				switch p.Type {
@@ -157,7 +155,7 @@ func (a *Agent) convertToMessage(message provider.Message) map[string]any {
 		}
 	}
 
-	if parts, ok := message.Content.([]agentTypes.ContentPart); ok {
+	if parts, ok := message.Content.([]provider.ContentPart); ok {
 		var content []map[string]any
 		for _, part := range parts {
 			if part.Type == "text" {
@@ -221,7 +219,7 @@ func parseDataURL(url string) (mediaType, data string, ok bool) {
 	return rest[:semi], rest[semi+8:], true
 }
 
-func (a *Agent) convertToTools(tools []toolTypes.Tool) []map[string]any {
+func (a *Agent) convertToTools(tools []provider.Tool) []map[string]any {
 	newTools := make([]map[string]any, len(tools))
 	for i, tool := range tools {
 		newTools[i] = map[string]any{

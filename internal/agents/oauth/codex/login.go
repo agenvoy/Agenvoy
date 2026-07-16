@@ -12,9 +12,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-func LoginWithCallback(ctx context.Context, onURL func(string)) (*StoredToken, error) {
+func LoginWithCallback(ctx context.Context, onURL func(string)) (*provider.CodexToken, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -54,7 +56,7 @@ func LoginWithCallback(ctx context.Context, onURL func(string)) (*StoredToken, e
 	}
 }
 
-func exchangeCode(ctx context.Context, code, verifier, redirect string) (*StoredToken, error) {
+func exchangeCode(ctx context.Context, code, verifier, redirect string) (*provider.CodexToken, error) {
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
@@ -89,7 +91,7 @@ func exchangeCode(ctx context.Context, code, verifier, redirect string) (*Stored
 		expiry = time.Now().Add(3600 * time.Second)
 	}
 
-	token := &StoredToken{
+	token := &provider.CodexToken{
 		AccessToken:  raw.AccessToken,
 		RefreshToken: raw.RefreshToken,
 		IDToken:      raw.IDToken,

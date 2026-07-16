@@ -284,7 +284,7 @@ func extractUserText(input provider.Message) string {
 	switch v := input.Content.(type) {
 	case string:
 		return v
-	case []agentTypes.ContentPart:
+	case []provider.ContentPart:
 		for _, part := range v {
 			if part.Type == "text" {
 				return part.Text

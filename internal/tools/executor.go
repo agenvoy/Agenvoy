@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/extensions"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
@@ -18,7 +19,7 @@ import (
 )
 
 func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*toolTypes.Executor, error) {
-	var tools []toolTypes.Tool
+	var tools []provider.Tool
 	if err := json.Unmarshal(toolRegister.JSON(), &tools); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}
@@ -49,7 +50,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 			if err != nil {
 				continue
 			}
-			var t toolTypes.Tool
+			var t provider.Tool
 			if err := json.Unmarshal(raw, &t); err != nil {
 				continue
 			}
@@ -83,7 +84,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 			if err != nil {
 				continue
 			}
-			var t toolTypes.Tool
+			var t provider.Tool
 			if err := json.Unmarshal(raw, &t); err != nil {
 				continue
 			}
@@ -108,15 +109,15 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	// * use claude code idea, use one tool to search and insert
 	stubParams := json.RawMessage(`{"type":"object","properties":{}}`)
 	stubTools := make(map[string]bool, len(tools))
-	initial := make([]toolTypes.Tool, 0, len(tools))
+	initial := make([]provider.Tool, 0, len(tools))
 	for _, t := range tools {
 		if toolRegister.IsAlwaysLoad(t.Function.Name) {
 			initial = append(initial, t)
 		} else {
 			stubTools[t.Function.Name] = true
-			initial = append(initial, toolTypes.Tool{
+			initial = append(initial, provider.Tool{
 				Type: t.Type,
-				Function: toolTypes.ToolFunction{
+				Function: provider.ToolFunction{
 					Name:        t.Function.Name,
 					Description: t.Function.Description,
 					Parameters:  stubParams,

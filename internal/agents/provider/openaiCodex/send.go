@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 	promptCacheKeyLen = 24
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)

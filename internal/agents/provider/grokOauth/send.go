@@ -12,12 +12,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const responsesAPI = "https://api.x.ai/v1/responses"
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)

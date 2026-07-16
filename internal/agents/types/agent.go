@@ -4,12 +4,11 @@ import (
 	"context"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type Agent interface {
 	Name() string
-	Send(ctx context.Context, messages []provider.Message, toolDefs []toolTypes.Tool) (*provider.Output, error)
+	Send(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool) (*provider.Output, error)
 }
 
 type sessionIDCtxKey struct{}

@@ -627,7 +627,7 @@ func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {
 }
 
 func requiredFields(exec *toolTypes.Executor, toolName string) []string {
-	lookup := func(list []toolTypes.Tool) []string {
+	lookup := func(list []provider.Tool) []string {
 		for _, t := range list {
 			if t.Function.Name != toolName {
 				continue
@@ -652,15 +652,15 @@ func requiredFields(exec *toolTypes.Executor, toolName string) []string {
 }
 
 func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
-	part := agentTypes.ContentPart{
+	part := provider.ContentPart{
 		Type:     "image_url",
-		ImageURL: &agentTypes.ImageURL{URL: dataURL, Detail: "auto"},
+		ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
 	}
 	switch v := session.UserInput.Content.(type) {
-	case []agentTypes.ContentPart:
+	case []provider.ContentPart:
 		session.UserInput.Content = append(v, part)
 	case string:
-		session.UserInput.Content = []agentTypes.ContentPart{
+		session.UserInput.Content = []provider.ContentPart{
 			{Type: "text", Text: v},
 			part,
 		}

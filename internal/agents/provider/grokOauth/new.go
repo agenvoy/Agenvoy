@@ -29,11 +29,11 @@ type Agent struct {
 	httpClient *http.Client
 	model      string
 
-	token *oauthGrok.StoredToken
+	token *provider.GrokToken
 }
 
 func New(config provider.Config) (*Agent, error) {
-	token, ok := config.Token.(*oauthGrok.StoredToken)
+	token, ok := config.Token.(*provider.GrokToken)
 	if !ok || token == nil {
 		return nil, fmt.Errorf("grokoauth.New: Token is required")
 	}

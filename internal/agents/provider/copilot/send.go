@@ -6,7 +6,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -15,7 +14,7 @@ const (
 	responsesAPI = "https://api.githubcopilot.com/responses"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -14,7 +13,7 @@ const (
 	chatAPI = "https://integrate.api.nvidia.com/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	// * do not support mutiple system prompt, merge to one
 	var merged []provider.Message
 	var systemParts []string

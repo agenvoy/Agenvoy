@@ -1,7 +1,5 @@
 package oauthCodex
 
-import "time"
-
 const (
 	tokenKey    = "CODEX_OAUTH_TOKEN"
 	clientID    = "app_EMoamEEZ73f0CkXaXp7hrann"
@@ -10,18 +8,6 @@ const (
 	redirectURI = "http://localhost:1455/auth/callback"
 	scopes      = "openid email profile offline_access"
 )
-
-type StoredToken struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	IDToken      string    `json:"id_token"`
-	AccountID    string    `json:"account_id"`
-	ExpiresAt    time.Time `json:"expires_at"`
-}
-
-func (t *StoredToken) expired() bool {
-	return time.Now().After(t.ExpiresAt.Add(-60 * time.Second))
-}
 
 type oauthTokenResponse struct {
 	AccessToken  string `json:"access_token"`

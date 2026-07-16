@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 func httpClient() *http.Client {
@@ -23,7 +25,7 @@ func httpClient() *http.Client {
 	}
 }
 
-func Load() (*StoredToken, error) {
+func Load() (*provider.GrokToken, error) {
 	raw := keychain.Get(tokenKey)
 	// ! agenvoy.grok-oauth.token will deprecated in v1.*.*
 	if raw == "" {
@@ -32,7 +34,7 @@ func Load() (*StoredToken, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	var t StoredToken
+	var t provider.GrokToken
 	if err := json.Unmarshal([]byte(raw), &t); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}
@@ -53,14 +55,14 @@ func ClearToken() error {
 	return err
 }
 
-func EnsureFresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
-	if token != nil && !token.expired() {
+func EnsureFresh(ctx context.Context, token *provider.GrokToken) (*provider.GrokToken, error) {
+	if token != nil && !token.Expired() {
 		return token, nil
 	}
 	return refresh(ctx, token)
 }
 
-func saveToken(t *StoredToken) error {
+func saveToken(t *provider.GrokToken) error {
 	raw, err := json.Marshal(t)
 	if err != nil {
 		return fmt.Errorf("json.Marshal: %w", err)

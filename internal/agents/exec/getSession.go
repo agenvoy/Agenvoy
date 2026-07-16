@@ -34,7 +34,7 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 		return content
 	}
 
-	parts := []agentTypes.ContentPart{
+	parts := []provider.ContentPart{
 		{
 			Type: "text",
 			Text: content,
@@ -46,7 +46,7 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 		if err != nil {
 			continue
 		}
-		parts = append(parts, agentTypes.ContentPart{
+		parts = append(parts, provider.ContentPart{
 			Type: "text",
 			Text: fmt.Sprintf("---\npath: %s\n---\n%s", filepath.Base(path), text),
 		})
@@ -58,9 +58,9 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 			continue
 		}
 		dataURL := "data:image/jpeg;base64," + b64
-		parts = append(parts, agentTypes.ContentPart{
+		parts = append(parts, provider.ContentPart{
 			Type:     "image_url",
-			ImageURL: &agentTypes.ImageURL{URL: dataURL, Detail: "auto"},
+			ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
 		})
 	}
 	return parts

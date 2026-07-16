@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 // * Responses API response types
@@ -94,7 +92,7 @@ func convertContent(role string, content any) any {
 		return []map[string]any{
 			{"type": textType, "text": v},
 		}
-	case []agentTypes.ContentPart:
+	case []provider.ContentPart:
 		parts := make([]map[string]any, 0, len(v))
 		for _, p := range v {
 			switch p.Type {
@@ -125,7 +123,7 @@ func convertContent(role string, content any) any {
 	}
 }
 
-func ConvertTools(tools []toolTypes.Tool) []ToolCall {
+func ConvertTools(tools []provider.Tool) []ToolCall {
 	result := make([]ToolCall, len(tools))
 	for i, t := range tools {
 		result[i] = ToolCall{

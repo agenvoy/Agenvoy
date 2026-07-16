@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -14,7 +13,7 @@ const (
 	chatAPI = "https://api.x.ai/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {

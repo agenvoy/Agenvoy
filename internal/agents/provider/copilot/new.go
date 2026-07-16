@@ -12,8 +12,8 @@ import (
 type Agent struct {
 	httpClient *http.Client
 	model      string
-	Token      *oauthCopilot.Token
-	Refresh    *oauthCopilot.RefreshToken
+	Token      *provider.CopilotToken
+	Refresh    *provider.CopilotRefreshToken
 }
 
 const (
@@ -21,7 +21,7 @@ const (
 )
 
 func New(config provider.Config) (*Agent, error) {
-	token, ok := config.Token.(*oauthCopilot.Token)
+	token, ok := config.Token.(*provider.CopilotToken)
 	if !ok || token == nil {
 		return nil, fmt.Errorf("copilot.New: Token is required")
 	}

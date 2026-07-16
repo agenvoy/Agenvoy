@@ -7,23 +7,20 @@ import (
 	"time"
 
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 const (
 	copilotTokenAPI = "https://api.github.com/copilot_internal/v2/token"
 )
 
-type RefreshToken struct {
-	Token     string `json:"token"`
-	ExpiresAt int64  `json:"expires_at"`
-}
-
-func EnsureFreshSession(ctx context.Context, token *Token, refresh *RefreshToken) (*RefreshToken, error) {
+func EnsureFreshSession(ctx context.Context, token *provider.CopilotToken, refresh *provider.CopilotRefreshToken) (*provider.CopilotRefreshToken, error) {
 	if refresh != nil && time.Now().Unix() < refresh.ExpiresAt-60 {
 		return refresh, nil
 	}
 
-	next, code, err := go_pkg_http.GET[RefreshToken](ctx, nil, copilotTokenAPI, map[string]string{
+	next, code, err := go_pkg_http.GET[provider.CopilotRefreshToken](ctx, nil, copilotTokenAPI, map[string]string{
 		"Authorization":  "token " + token.AccessToken,
 		"Accept":         "application/json",
 		"Editor-Version": "vscode/1.95.0",

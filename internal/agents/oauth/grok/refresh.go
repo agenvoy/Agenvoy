@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-func refresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
+func refresh(ctx context.Context, token *provider.GrokToken) (*provider.GrokToken, error) {
 	if token == nil || token.RefreshToken == "" {
 		return nil, fmt.Errorf("no refresh token available")
 	}
@@ -52,7 +54,7 @@ func refresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
 		refreshToken = token.RefreshToken
 	}
 
-	next := &StoredToken{
+	next := &provider.GrokToken{
 		AccessToken:  raw.AccessToken,
 		RefreshToken: refreshToken,
 		ExpiresAt:    expiry,

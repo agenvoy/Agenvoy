@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-func refresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
+func refresh(ctx context.Context, token *provider.CodexToken) (*provider.CodexToken, error) {
 	if token == nil || token.RefreshToken == "" {
 		return nil, fmt.Errorf("no refresh token available")
 	}
@@ -57,7 +59,7 @@ func refresh(ctx context.Context, token *StoredToken) (*StoredToken, error) {
 		accountID = token.AccountID
 	}
 
-	next := &StoredToken{
+	next := &provider.CodexToken{
 		AccessToken:  raw.AccessToken,
 		RefreshToken: refreshToken,
 		IDToken:      raw.IDToken,

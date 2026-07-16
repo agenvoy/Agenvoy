@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -32,7 +33,7 @@ type Def struct {
 
 var handlerMap = map[string]Handler{}
 var groupHandlerMap = map[string]GroupHandler{}
-var defList []toolTypes.Tool
+var defList []provider.Tool
 var builtinNames []string
 var readOnlySet = map[string]bool{}
 var alwaysLoadSet = map[string]bool{}
@@ -53,9 +54,9 @@ func Regist(d Def) {
 	}
 
 	raw, _ := json.Marshal(d.Parameters)
-	tool := toolTypes.Tool{
+	tool := provider.Tool{
 		Type: "function",
-		Function: toolTypes.ToolFunction{
+		Function: provider.ToolFunction{
 			Name:        d.Name,
 			Description: d.Description,
 			Parameters:  raw,
@@ -82,7 +83,7 @@ func Regist(d Def) {
 }
 
 func RemoveByPrefix(prefix string) {
-	defList = slices.DeleteFunc(defList, func(t toolTypes.Tool) bool {
+	defList = slices.DeleteFunc(defList, func(t provider.Tool) bool {
 		return strings.HasPrefix(t.Function.Name, prefix)
 	})
 	builtinNames = slices.DeleteFunc(builtinNames, func(n string) bool {
@@ -147,7 +148,7 @@ func IsFireAndForget(name string) bool {
 	return fireAndForgetSet[name]
 }
 
-func GetTool(name string) *toolTypes.Tool {
+func GetTool(name string) *provider.Tool {
 	for i := range defList {
 		if defList[i].Function.Name == name {
 			return &defList[i]

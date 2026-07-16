@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -16,7 +14,7 @@ const (
 	baseAPI = "https://generativelanguage.googleapis.com/v1beta/models/"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
 	messages = rewriteSyntheticActivations(messages)
 
 	var systemPrompt string
@@ -92,7 +90,7 @@ func (a *Agent) convertToContent(message provider.Message) Content {
 				},
 			},
 		}
-		if parts, ok := message.Content.([]agentTypes.ContentPart); ok {
+		if parts, ok := message.Content.([]provider.ContentPart); ok {
 			for _, p := range parts {
 				if p.Type == "image_url" && p.ImageURL != nil {
 					url := p.ImageURL.URL
@@ -135,7 +133,7 @@ func (a *Agent) convertToContent(message provider.Message) Content {
 	switch v := message.Content.(type) {
 	case string:
 		content.Parts = []Part{{Text: v}}
-	case []agentTypes.ContentPart:
+	case []provider.ContentPart:
 		for _, p := range v {
 			switch p.Type {
 			case "text":
@@ -162,7 +160,7 @@ func (a *Agent) convertToContent(message provider.Message) Content {
 	return content
 }
 
-func (a *Agent) convertToTools(tools []toolTypes.Tool) []map[string]any {
+func (a *Agent) convertToTools(tools []provider.Tool) []map[string]any {
 	newTools := make([]map[string]any, len(tools))
 	for i, tool := range tools {
 		var params map[string]any

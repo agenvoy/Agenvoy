@@ -8,7 +8,6 @@ import (
 
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
-	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
@@ -28,7 +27,7 @@ type userResponse struct {
 }
 
 func Usage(ctx context.Context, config provider.Config) (float64, error) {
-	token, ok := config.Token.(*oauthCopilot.Token)
+	token, ok := config.Token.(*provider.CopilotToken)
 	if !ok || token == nil {
 		return 0, fmt.Errorf("Usage: Token is required")
 	}

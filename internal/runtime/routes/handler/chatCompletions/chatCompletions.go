@@ -98,7 +98,7 @@ func normalizeContent(messages []provider.Message) {
 		if !ok {
 			continue
 		}
-		parts := make([]agentTypes.ContentPart, 0, len(raw))
+		parts := make([]provider.ContentPart, 0, len(raw))
 		allText := true
 		var textBuf strings.Builder
 		for _, item := range raw {
@@ -114,19 +114,19 @@ func normalizeContent(messages []provider.Message) {
 					textBuf.WriteByte('\n')
 				}
 				textBuf.WriteString(text)
-				parts = append(parts, agentTypes.ContentPart{Type: "text", Text: text})
+				parts = append(parts, provider.ContentPart{Type: "text", Text: text})
 			case "image_url":
 				url, detail := extractImageURL(m["image_url"])
-				parts = append(parts, agentTypes.ContentPart{
+				parts = append(parts, provider.ContentPart{
 					Type:     "image_url",
-					ImageURL: &agentTypes.ImageURL{URL: url, Detail: detail},
+					ImageURL: &provider.ImageURL{URL: url, Detail: detail},
 				})
 				allText = false
 			case "input_image":
 				url, _ := m["image_url"].(string)
-				parts = append(parts, agentTypes.ContentPart{
+				parts = append(parts, provider.ContentPart{
 					Type:     "image_url",
-					ImageURL: &agentTypes.ImageURL{URL: url, Detail: "auto"},
+					ImageURL: &provider.ImageURL{URL: url, Detail: "auto"},
 				})
 				allText = false
 			}
