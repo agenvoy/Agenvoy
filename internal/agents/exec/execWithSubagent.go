@@ -11,6 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -73,30 +74,30 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
 	if oldHistory == nil {
-		oldHistory = []agentTypes.Message{}
+		oldHistory = []provider.Message{}
 	}
 	if maxHistory == nil {
-		maxHistory = []agentTypes.Message{}
+		maxHistory = []provider.Message{}
 	}
 
 	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
 		time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, task)
 
-	histories := append([]agentTypes.Message{}, oldHistory...)
-	histories = append(histories, agentTypes.Message{Role: "user", Content: userText})
+	histories := append([]provider.Message{}, oldHistory...)
+	histories = append(histories, provider.Message{Role: "user", Content: userText})
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
 		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills),
 		OldHistories:  maxHistory,
-		ToolHistories: []agentTypes.Message{},
-		Tools:         []agentTypes.Message{},
+		ToolHistories: []provider.Message{},
+		Tools:         []provider.Message{},
 		Histories:     histories,
 		BaseLen:       len(oldHistory),
-		UserInput:     agentTypes.Message{Role: "user", Content: userText},
+		UserInput:     provider.Message{Role: "user", Content: userText},
 	}
 	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
+		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
 	sessionLog.Append(sessionID, userText)

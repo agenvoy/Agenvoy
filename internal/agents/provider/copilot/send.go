@@ -17,7 +17,7 @@ const (
 	responsesAPI = "https://api.githubcopilot.com/responses"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)
@@ -30,7 +30,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 
 	if provider.ResponsesAPI("copilot", a.model) {
 		var instructions string
-		nonSystem := make([]agentTypes.Message, 0, len(messages))
+		nonSystem := make([]provider.Message, 0, len(messages))
 		for _, m := range messages {
 			if m.Role == "system" {
 				if s, ok := m.Content.(string); ok {
@@ -84,7 +84,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 
-	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
+	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, headers, body, "json")
 	if err != nil {
 		return nil, fmt.Errorf("http.POST: %w", err)
 	}

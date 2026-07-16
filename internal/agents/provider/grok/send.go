@@ -16,8 +16,8 @@ const (
 	chatAPI = "https://api.x.ai/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
-	var merged []agentTypes.Message
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
 		if m.Role == "system" {
@@ -29,7 +29,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 	if len(systemParts) > 0 {
-		merged = append([]agentTypes.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
+		merged = append([]provider.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
 	body := map[string]any{
@@ -48,7 +48,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 
-	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, map[string]string{
+	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
 	}, body, "json")

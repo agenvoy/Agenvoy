@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
 	chatAPI := a.baseURL + "/chat/completions"
 
 	headers := map[string]string{
@@ -20,7 +21,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		headers["Authorization"] = "Bearer " + a.apiKey
 	}
 
-	result, _, err := go_pkg_http.POST[agentTypes.Output](ctx, a.httpClient, chatAPI, headers, map[string]any{
+	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, headers, map[string]any{
 		"model":       a.model,
 		"messages":    messages,
 		"temperature": 0.2,

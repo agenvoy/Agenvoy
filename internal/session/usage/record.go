@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -20,7 +20,7 @@ const (
 
 var mu sync.Mutex
 
-func Append(sessionID, providerName, model, reasoning string, u agentTypes.Usage) {
+func Append(sessionID, providerName, model, reasoning string, u provider.Usage) {
 	if sessionID == "" {
 		return
 	}

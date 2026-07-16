@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -100,7 +101,7 @@ func parseDone(body string) agentTypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 var timestampRegex = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
 
-func Write(sessionID string, messages []agentTypes.Message) error {
+func Write(sessionID string, messages []provider.Message) error {
 	if conn == nil || len(messages) == 0 {
 		return nil
 	}

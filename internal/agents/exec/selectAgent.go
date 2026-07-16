@@ -96,7 +96,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 			if hasSkill {
 				userContent = "[Run Skill] " + userContent
 			}
-			messages := []agentTypes.Message{
+			messages := []provider.Message{
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
@@ -17,11 +18,11 @@ var (
 )
 
 type Request struct {
-	Model         string               `json:"model"`
-	Messages      []agentTypes.Message `json:"messages"`
-	Stream        bool                 `json:"stream"`
-	workDir       string               `json:"-"`
-	systemPrompts []agentTypes.Message `json:"-"`
+	Model         string             `json:"model"`
+	Messages      []provider.Message `json:"messages"`
+	Stream        bool               `json:"stream"`
+	workDir       string             `json:"-"`
+	systemPrompts []provider.Message `json:"-"`
 }
 
 func ChatCompletions() gin.HandlerFunc {
@@ -42,8 +43,8 @@ func ChatCompletions() gin.HandlerFunc {
 			req.workDir = workDir
 		}
 
-		systemPrompts := make([]agentTypes.Message, 0)
-		messages := make([]agentTypes.Message, 0, len(req.Messages))
+		systemPrompts := make([]provider.Message, 0)
+		messages := make([]provider.Message, 0, len(req.Messages))
 		for _, msg := range req.Messages {
 			if msg.Role == "system" {
 				systemPrompts = append(systemPrompts, msg)
@@ -91,7 +92,7 @@ func ChatCompletions() gin.HandlerFunc {
 	}
 }
 
-func normalizeContent(messages []agentTypes.Message) {
+func normalizeContent(messages []provider.Message) {
 	for i := range messages {
 		raw, ok := messages[i].Content.([]any)
 		if !ok {
@@ -154,7 +155,7 @@ func extractImageURL(v any) (url, detail string) {
 	return
 }
 
-func extractWorkDirFromZed(messages []agentTypes.Message) string {
+func extractWorkDirFromZed(messages []provider.Message) string {
 	for _, msg := range messages {
 		if msg.Role != "system" {
 			continue
@@ -173,7 +174,7 @@ func extractWorkDirFromZed(messages []agentTypes.Message) string {
 
 func collect(c *gin.Context, id string, created int64, model string, events <-chan agentTypes.Event) {
 	var textBuf strings.Builder
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	var streamErr error
 	for ev := range events {
 		switch ev.Type {

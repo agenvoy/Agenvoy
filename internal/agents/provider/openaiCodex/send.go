@@ -25,14 +25,14 @@ const (
 	promptCacheKeyLen = 24
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)
 	}
 
 	var instructions string
-	var nonSystem []agentTypes.Message
+	var nonSystem []provider.Message
 	for _, m := range messages {
 		if m.Role == "system" {
 			if s, ok := m.Content.(string); ok {
@@ -141,13 +141,13 @@ type pendingCall struct {
 	args   string
 }
 
-func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
+func parseSSEStream(resp *http.Response) (*provider.Output, error) {
 	var (
 		textBuf        strings.Builder
 		reasonDeltaBuf strings.Builder
 		reasonItemBuf  strings.Builder
-		toolCalls      []agentTypes.ToolCall
-		usage          agentTypes.Usage
+		toolCalls      []provider.ToolCall
+		usage          provider.Usage
 		argsBuf        = map[string]*strings.Builder{}
 		pending        []pendingCall
 	)
@@ -245,7 +245,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 
 		case "response.completed":
 			if ev.Response != nil {
-				usage = agentTypes.Usage{
+				usage = provider.Usage{
 					Input:     ev.Response.Usage.InputTokens - ev.Response.Usage.InputTokensDetails.CachedTokens,
 					Output:    ev.Response.Usage.OutputTokens,
 					CacheRead: ev.Response.Usage.InputTokensDetails.CachedTokens,
@@ -276,7 +276,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 				args = b.String()
 			}
 		}
-		toolCalls = append(toolCalls, agentTypes.ToolCall{
+		toolCalls = append(toolCalls, provider.ToolCall{
 			ID:   p.callID,
 			Type: "function",
 			Function: struct {
@@ -289,7 +289,7 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 		})
 	}
 
-	msg := agentTypes.Message{Role: "assistant"}
+	msg := provider.Message{Role: "assistant"}
 	if str := textBuf.String(); str != "" {
 		msg.Content = str
 	}
@@ -304,8 +304,8 @@ func parseSSEStream(resp *http.Response) (*agentTypes.Output, error) {
 		finishReason = "tool_calls"
 	}
 
-	return &agentTypes.Output{
-		Choices: []agentTypes.OutputChoices{
+	return &provider.Output{
+		Choices: []provider.OutputChoices{
 			{Message: msg, FinishReason: finishReason},
 		},
 		Usage: usage,

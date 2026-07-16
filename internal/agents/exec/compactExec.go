@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
@@ -37,7 +38,7 @@ func compactThreshold(modelName string) int {
 	}
 }
 
-func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string) bool {
+func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, taskHash string) bool {
 	if len(session.ToolHistories) == 0 {
 		return false
 	}
@@ -51,7 +52,7 @@ func compactExec(ctx context.Context, agent agentTypes.Agent, session *agentType
 	return compactRange(ctx, agent, session, usage, taskHash, groupStarts[batchSize])
 }
 
-func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, events chan<- agentTypes.Event) bool {
+func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
 	if len(session.OldHistories) == 0 {
 		return false
 	}
@@ -83,7 +84,7 @@ func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 		"{{.UserQuestion}}", userQuestion,
 	).Replace(strings.TrimSpace(configs.OldHistoryExtractPrompt))
 
-	messages := []agentTypes.Message{
+	messages := []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: sb.String()},
 	}
@@ -114,7 +115,7 @@ func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 		return false
 	}
 
-	session.OldHistories = []agentTypes.Message{
+	session.OldHistories = []provider.Message{
 		{Role: "user", Content: "以下是先前對話的整併摘要（僅為背景參考，不代表本次問題所需的完整資料——若需要最新資訊仍須查找或呼叫工具，尚未回覆使用者）：\n\n" + strings.TrimSpace(result)},
 	}
 	return true
@@ -126,7 +127,7 @@ func rawToolDumpFallback(session *agentTypes.AgentSession, taskHash string) bool
 	}
 
 	messages := session.ToolHistories
-	var planPair []agentTypes.Message
+	var planPair []provider.Message
 	if taskHash != "" {
 		planPair = lastWriteTodoPair(messages)
 		messages = stripWriteTodo(messages, false)
@@ -138,8 +139,8 @@ func rawToolDumpFallback(session *agentTypes.AgentSession, taskHash string) bool
 	}
 
 	session.OldHistories = nil
-	session.SummaryMessage = agentTypes.Message{}
-	head := []agentTypes.Message{
+	session.SummaryMessage = provider.Message{}
+	head := []provider.Message{
 		{Role: "user", Content: "以下是先前工具查詢的原始結果（摘要失敗，未經萃取，回答原始問題所需的需求資料，尚未回覆使用者）：\n\n" + raw},
 	}
 	head = append(head, planPair...)
@@ -147,7 +148,7 @@ func rawToolDumpFallback(session *agentTypes.AgentSession, taskHash string) bool
 	return true
 }
 
-func rawToolDump(messages []agentTypes.Message) string {
+func rawToolDump(messages []provider.Message) string {
 	nameByID := make(map[string]string)
 	for _, msg := range messages {
 		for _, tc := range msg.ToolCalls {
@@ -173,7 +174,7 @@ func rawToolDump(messages []agentTypes.Message) string {
 	return strings.TrimSpace(sb.String())
 }
 
-func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *agentTypes.Usage, taskHash string, boundaryIdx int) bool {
+func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, taskHash string, boundaryIdx int) bool {
 	userQuestion := extractUserText(session.UserInput)
 	if userQuestion == "" {
 		return false
@@ -182,7 +183,7 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 	tail := session.ToolHistories[boundaryIdx:]
 
 	prefix := session.ToolHistories[:boundaryIdx]
-	var planPair []agentTypes.Message
+	var planPair []provider.Message
 	if taskHash != "" {
 		if !containsWriteTodo(tail) {
 			planPair = lastWriteTodoPair(prefix)
@@ -220,7 +221,7 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 		"{{.UserQuestion}}", userQuestion,
 	).Replace(strings.TrimSpace(configs.CompactExecPrompt))
 
-	messages := []agentTypes.Message{
+	messages := []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: sb.String()},
 	}
@@ -252,8 +253,8 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 	}
 
 	session.OldHistories = nil
-	session.SummaryMessage = agentTypes.Message{}
-	head := []agentTypes.Message{
+	session.SummaryMessage = provider.Message{}
+	head := []provider.Message{
 		{Role: "user", Content: "以下是先前工具查詢結果的整併資料（回答原始問題所需的需求資料，尚未回覆使用者）：\n\n" + strings.TrimSpace(result)},
 	}
 	head = append(head, planPair...)
@@ -262,7 +263,7 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 	return true
 }
 
-func groupStartIndices(msgs []agentTypes.Message) []int {
+func groupStartIndices(msgs []provider.Message) []int {
 	var idx []int
 	for i, m := range msgs {
 		if m.Role == "assistant" && len(m.ToolCalls) > 0 {
@@ -272,7 +273,7 @@ func groupStartIndices(msgs []agentTypes.Message) []int {
 	return idx
 }
 
-func extractUserText(input agentTypes.Message) string {
+func extractUserText(input provider.Message) string {
 	switch v := input.Content.(type) {
 	case string:
 		return v

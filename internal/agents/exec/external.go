@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
@@ -33,7 +34,7 @@ func CallExternal(ctx context.Context, sessionID, agent, prompt string, readOnly
 
 	sendText(events, out)
 	if sessionID != "" {
-		writeSessionHistEntry(ctx, sessionID, agentTypes.Message{
+		writeSessionHistEntry(ctx, sessionID, provider.Message{
 			Role:    "assistant",
 			Content: out,
 		})

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -80,14 +81,14 @@ func postSkillImprove(s *skill.Skill, trace []execStep) {
 
 	session := &agentTypes.AgentSession{
 		Stateless: true,
-		SystemPrompts: []agentTypes.Message{{
+		SystemPrompts: []provider.Message{{
 			Role:    "system",
 			Content: "You are a background skill-improvement agent. Analyze the execution trace, identify failures or inefficiencies, and patch the skill definition using file tools only (read_file, patch_file, write_file, write_skill, patch_tool). Do not call search_web, fetch_page, ask_user, or any network tool. Output nothing — your work is the file edit.",
 		}},
-		ToolHistories: []agentTypes.Message{},
-		Tools:         []agentTypes.Message{},
-		Histories:     []agentTypes.Message{},
-		UserInput:     agentTypes.Message{Role: "user", Content: userText},
+		ToolHistories: []provider.Message{},
+		Tools:         []provider.Message{},
+		Histories:     []provider.Message{},
+		UserInput:     provider.Message{Role: "user", Content: userText},
 	}
 
 	events := make(chan agentTypes.Event, 64)

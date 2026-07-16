@@ -1,10 +1,10 @@
 package cloudflare
 
-import agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+import "github.com/pardnchiu/agenvoy/internal/agents/provider"
 
 type response struct {
-	Result  agentTypes.Output `json:"result"`
-	Success bool              `json:"success"`
+	Result  provider.Output `json:"result"`
+	Success bool            `json:"success"`
 	Errors  []struct {
 		Message string `json:"message"`
 		Code    int    `json:"code"`

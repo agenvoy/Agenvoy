@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
@@ -149,7 +149,7 @@ var footerPrefixKeep = map[string]bool{
 	"grok-oauth": true,
 }
 
-func FormatEventFooter(duration time.Duration, model string, usage *agentTypes.Usage) string {
+func FormatEventFooter(duration time.Duration, model string, usage *provider.Usage) string {
 	var parts []string
 	if duration > 0 {
 		parts = append(parts, duration.Round(100*time.Millisecond).String())

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -45,8 +46,8 @@ func flattenContent(c any) string {
 	return fmt.Sprintf("%v", c)
 }
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
-	var merged []agentTypes.Message
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
 		if m.Role == "system" {
@@ -55,7 +56,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 				systemParts = append(systemParts, s)
 			}
 		} else {
-			merged = append(merged, agentTypes.Message{
+			merged = append(merged, provider.Message{
 				Role:       m.Role,
 				Content:    flattenContent(m.Content),
 				ToolCalls:  m.ToolCalls,
@@ -64,7 +65,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 	if len(systemParts) > 0 {
-		merged = append([]agentTypes.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
+		merged = append([]provider.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
 	input := map[string]any{
@@ -76,8 +77,8 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	}
 
 	headers := map[string]string{
-		"Authorization":      "Bearer " + a.apiKey,
-		"Content-Type":       "application/json",
+		"Authorization":     "Bearer " + a.apiKey,
+		"Content-Type":      "application/json",
 		"cf-aig-gateway-id": a.gatewayID,
 	}
 

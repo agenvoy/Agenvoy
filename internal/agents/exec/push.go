@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 type PushPayload struct {
 	SessionID string
 	Text      string
 	Model     string
-	Usage     *agentTypes.Usage
+	Usage     *provider.Usage
 	Duration  time.Duration
 	Prefix    string
 }

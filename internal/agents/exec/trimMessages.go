@@ -3,11 +3,11 @@ package exec
 import (
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-func assembleMessages(systemPart []agentTypes.Message, oldHistory []agentTypes.Message, summaryMessage agentTypes.Message, userInput agentTypes.Message, toolCall []agentTypes.Message, taskHash string) []agentTypes.Message {
-	result := make([]agentTypes.Message, 0, len(systemPart)+len(oldHistory)+2+len(toolCall))
+func assembleMessages(systemPart []provider.Message, oldHistory []provider.Message, summaryMessage provider.Message, userInput provider.Message, toolCall []provider.Message, taskHash string) []provider.Message {
+	result := make([]provider.Message, 0, len(systemPart)+len(oldHistory)+2+len(toolCall))
 	result = append(result, systemPart...)
 	for _, msg := range oldHistory {
 		if content, ok := msg.Content.(string); ok && (strings.Contains(content, poisonRefusal) || strings.Contains(content, guardrailSentinel)) {
@@ -27,7 +27,7 @@ func assembleMessages(systemPart []agentTypes.Message, oldHistory []agentTypes.M
 	return result
 }
 
-func stripWriteTodo(messages []agentTypes.Message, keepLast bool) []agentTypes.Message {
+func stripWriteTodo(messages []provider.Message, keepLast bool) []provider.Message {
 	keepID := ""
 	if keepLast {
 		for i := len(messages) - 1; i >= 0 && keepID == ""; i-- {
@@ -52,13 +52,13 @@ func stripWriteTodo(messages []agentTypes.Message, keepLast bool) []agentTypes.M
 		return messages
 	}
 
-	kept := make([]agentTypes.Message, 0, len(messages))
+	kept := make([]provider.Message, 0, len(messages))
 	for _, msg := range messages {
 		if msg.ToolCallID != "" && todoIDs[msg.ToolCallID] {
 			continue
 		}
 		if len(msg.ToolCalls) > 0 {
-			filtered := make([]agentTypes.ToolCall, 0, len(msg.ToolCalls))
+			filtered := make([]provider.ToolCall, 0, len(msg.ToolCalls))
 			for _, tc := range msg.ToolCalls {
 				if !todoIDs[tc.ID] {
 					filtered = append(filtered, tc)
@@ -78,7 +78,7 @@ func stripWriteTodo(messages []agentTypes.Message, keepLast bool) []agentTypes.M
 	return kept
 }
 
-func lastWriteTodoPair(messages []agentTypes.Message) []agentTypes.Message {
+func lastWriteTodoPair(messages []provider.Message) []provider.Message {
 	for i := len(messages) - 1; i >= 0; i-- {
 		id := ""
 		for _, tc := range messages[i].ToolCalls {
@@ -96,20 +96,20 @@ func lastWriteTodoPair(messages []agentTypes.Message) []agentTypes.Message {
 			}
 			call := messages[i]
 			call.Content = nil
-			call.ToolCalls = []agentTypes.ToolCall{}
+			call.ToolCalls = []provider.ToolCall{}
 			for _, tc := range messages[i].ToolCalls {
 				if tc.ID == id {
 					call.ToolCalls = append(call.ToolCalls, tc)
 				}
 			}
-			return []agentTypes.Message{call, m}
+			return []provider.Message{call, m}
 		}
 		return nil
 	}
 	return nil
 }
 
-func containsWriteTodo(messages []agentTypes.Message) bool {
+func containsWriteTodo(messages []provider.Message) bool {
 	for _, msg := range messages {
 		for _, tc := range msg.ToolCalls {
 			if tc.Function.Name == "write_todo" {
@@ -120,7 +120,7 @@ func containsWriteTodo(messages []agentTypes.Message) bool {
 	return false
 }
 
-func trimOnContextExceeded(oldHistory *[]agentTypes.Message, toolCall *[]agentTypes.Message) bool {
+func trimOnContextExceeded(oldHistory *[]provider.Message, toolCall *[]provider.Message) bool {
 	if len(*oldHistory) > 0 {
 		n := 2
 		if len(*oldHistory) < 2 {
@@ -152,7 +152,7 @@ func trimOnContextExceeded(oldHistory *[]agentTypes.Message, toolCall *[]agentTy
 		ids[tool.ID] = true
 	}
 
-	kept := make([]agentTypes.Message, 0, len(*toolCall))
+	kept := make([]provider.Message, 0, len(*toolCall))
 	for i, m := range *toolCall {
 		if i == firstToolCall {
 			continue

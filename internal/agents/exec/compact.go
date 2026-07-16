@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
@@ -71,7 +72,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	kept := make([]agentTypes.Message, 0, len(old))
+	kept := make([]provider.Message, 0, len(old))
 	removed := 0
 	for i, ex := range exchanges {
 		if removeSet[i] {
@@ -93,7 +94,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 	return removed, nil
 }
 
-func syncActionLog(sessionID string, messages []agentTypes.Message) {
+func syncActionLog(sessionID string, messages []provider.Message) {
 	var keptContents []string
 	for _, msg := range messages {
 		if msg.Role == "user" {
@@ -103,7 +104,7 @@ func syncActionLog(sessionID string, messages []agentTypes.Message) {
 	sessionLog.RetainExchanges(sessionID, keptContents)
 }
 
-func groupExchanges(messages []agentTypes.Message) []compactExchange {
+func groupExchanges(messages []provider.Message) []compactExchange {
 	var list []compactExchange
 	current := -1
 	for i, msg := range messages {
@@ -120,7 +121,7 @@ func groupExchanges(messages []agentTypes.Message) []compactExchange {
 	return list
 }
 
-func preFilter(messages []agentTypes.Message, exchanges []compactExchange) map[int]bool {
+func preFilter(messages []provider.Message, exchanges []compactExchange) map[int]bool {
 	removeSet := make(map[int]bool)
 
 	seen := make(map[string]int)
@@ -146,7 +147,7 @@ func preFilter(messages []agentTypes.Message, exchanges []compactExchange) map[i
 
 var metadataBlockRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
 
-func extractUserContent(msg agentTypes.Message) string {
+func extractUserContent(msg provider.Message) string {
 	content := historyStore.ExtractContent(msg.Content)
 	content = metadataBlockRegex.ReplaceAllString(content, "")
 	lines := strings.SplitN(content, "\n", 20)
@@ -165,7 +166,7 @@ func extractUserContent(msg agentTypes.Message) string {
 	return strings.TrimSpace(strings.Join(lines[start:], "\n"))
 }
 
-func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []agentTypes.Message, exchanges []compactExchange, indices []int) (map[int]bool, error) {
+func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []provider.Message, exchanges []compactExchange, indices []int) (map[int]bool, error) {
 	var sb strings.Builder
 	for _, i := range indices {
 		ex := exchanges[i]
@@ -190,7 +191,7 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []a
 	}
 
 	prompt := strings.TrimSpace(configs.CompactHistoryPrompt)
-	resp, err := agent.Send(ctx, []agentTypes.Message{
+	resp, err := agent.Send(ctx, []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: sb.String()},
 	}, nil)

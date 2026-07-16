@@ -3,6 +3,7 @@ package copilotResponse
 import (
 	"encoding/json"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -45,7 +46,7 @@ type ToolCall struct {
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
-func ConvertInput(messages []agentTypes.Message) []map[string]any {
+func ConvertInput(messages []provider.Message) []map[string]any {
 	result := make([]map[string]any, 0, len(messages))
 	for _, m := range messages {
 		// * tool result -> function_call_output
@@ -137,8 +138,8 @@ func ConvertTools(tools []toolTypes.Tool) []ToolCall {
 	return result
 }
 
-func ConvertOutput(r Output) agentTypes.Output {
-	var msg agentTypes.Message
+func ConvertOutput(r Output) provider.Output {
+	var msg provider.Message
 	msg.Role = "assistant"
 
 	for _, item := range r.Output {
@@ -154,7 +155,7 @@ func ConvertOutput(r Output) agentTypes.Output {
 				msg.ReasoningContent += s.Text
 			}
 		case "function_call":
-			msg.ToolCalls = append(msg.ToolCalls, agentTypes.ToolCall{
+			msg.ToolCalls = append(msg.ToolCalls, provider.ToolCall{
 				ID:   item.CallID,
 				Type: "function",
 				Function: struct {
@@ -173,11 +174,11 @@ func ConvertOutput(r Output) agentTypes.Output {
 		finishReason = "tool_calls"
 	}
 
-	return agentTypes.Output{
-		Choices: []agentTypes.OutputChoices{
+	return provider.Output{
+		Choices: []provider.OutputChoices{
 			{Message: msg, FinishReason: finishReason},
 		},
-		Usage: agentTypes.Usage{
+		Usage: provider.Usage{
 			Input:     r.Usage.InputTokens - r.Usage.InputTokensDetails.CachedTokens,
 			Output:    r.Usage.OutputTokens,
 			CacheRead: r.Usage.InputTokensDetails.CachedTokens,

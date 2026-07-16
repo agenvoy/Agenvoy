@@ -17,7 +17,7 @@ const (
 	messagesAPI = "https://api.anthropic.com/v1/messages"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
 	var systemPrompts []map[string]any
 	var newMessages []map[string]any
 
@@ -103,7 +103,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	return out, nil
 }
 
-func (a *Agent) convertToMessage(message agentTypes.Message) map[string]any {
+func (a *Agent) convertToMessage(message provider.Message) map[string]any {
 	if message.ToolCallID != "" {
 		var toolResultContent any = message.Content
 		if parts, ok := message.Content.([]agentTypes.ContentPart); ok {
@@ -241,10 +241,10 @@ func (a *Agent) convertToTools(tools []toolTypes.Tool) []map[string]any {
 	return newTools
 }
 
-func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
-	output := &agentTypes.Output{
-		Choices: make([]agentTypes.OutputChoices, 1),
-		Usage: agentTypes.Usage{
+func (a *Agent) convertToOutput(resp *Output) *provider.Output {
+	output := &provider.Output{
+		Choices: make([]provider.OutputChoices, 1),
+		Usage: provider.Usage{
 			Input:       resp.Usage.InputTokens,
 			Output:      resp.Usage.OutputTokens,
 			CacheCreate: resp.Usage.CacheCreationInputTokens,
@@ -252,7 +252,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 		},
 	}
 
-	var toolCalls []agentTypes.ToolCall
+	var toolCalls []provider.ToolCall
 	var textContent string
 	var reasoning strings.Builder
 
@@ -271,7 +271,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 				arg = string(raw)
 			}
 
-			toolCall := agentTypes.ToolCall{
+			toolCall := provider.ToolCall{
 				ID:   item.ID,
 				Type: "function",
 			}
@@ -281,7 +281,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 		}
 	}
 
-	output.Choices[0].Message = agentTypes.Message{
+	output.Choices[0].Message = provider.Message{
 		Role:             "assistant",
 		Content:          textContent,
 		ReasoningContent: reasoning.String(),

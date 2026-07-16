@@ -3,6 +3,8 @@ package agentTypes
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
 type EventType int
@@ -129,19 +131,19 @@ func (e EventType) String() string {
 }
 
 type Event struct {
-	Type     EventType     `json:"type"`
-	Source   string        `json:"source,omitempty"`
-	Text     string        `json:"text,omitempty"`
-	ToolName string        `json:"tool_name,omitempty"`
-	ToolArgs string        `json:"tool_args,omitempty"`
-	ToolID   string        `json:"tool_id,omitempty"`
-	Result   string        `json:"result,omitempty"`
-	Model    string        `json:"model,omitempty"`
-	Usage    *Usage        `json:"usage,omitempty"`
-	Duration time.Duration `json:"duration,omitempty"`
-	Todos    []TodoItem    `json:"todos,omitempty"`
-	Err      error         `json:"-"`
-	ReplyCh  chan bool     `json:"-"`
+	Type     EventType       `json:"type"`
+	Source   string          `json:"source,omitempty"`
+	Text     string          `json:"text,omitempty"`
+	ToolName string          `json:"tool_name,omitempty"`
+	ToolArgs string          `json:"tool_args,omitempty"`
+	ToolID   string          `json:"tool_id,omitempty"`
+	Result   string          `json:"result,omitempty"`
+	Model    string          `json:"model,omitempty"`
+	Usage    *provider.Usage `json:"usage,omitempty"`
+	Duration time.Duration   `json:"duration,omitempty"`
+	Todos    []TodoItem      `json:"todos,omitempty"`
+	Err      error           `json:"-"`
+	ReplyCh  chan bool       `json:"-"`
 }
 
 type TodoItem struct {

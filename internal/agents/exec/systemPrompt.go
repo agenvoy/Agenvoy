@@ -12,22 +12,22 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []agentTypes.Message {
-	var prompts []agentTypes.Message
+func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []provider.Message {
+	var prompts []provider.Message
 	switch {
 	case strings.HasPrefix(sessionID, "tg-"):
-		prompts = append(prompts, agentTypes.Message{Role: "system", Content: configs.TelegramSystemPrompt})
+		prompts = append(prompts, provider.Message{Role: "system", Content: configs.TelegramSystemPrompt})
 	case strings.HasPrefix(sessionID, "dc-"):
-		prompts = append(prompts, agentTypes.Message{Role: "system", Content: configs.DiscordSystemPrompt})
+		prompts = append(prompts, provider.Message{Role: "system", Content: configs.DiscordSystemPrompt})
 	}
-	prompts = append(prompts, agentTypes.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
+	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
 	return prompts
 }
 
@@ -122,8 +122,8 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []agentTypes.Message {
-	return []agentTypes.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []provider.Message {
+	return []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
 }
 
 func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) string {

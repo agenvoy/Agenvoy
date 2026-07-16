@@ -6,13 +6,13 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
-func compact(sessionID, historyPath string, messages []agentTypes.Message, currentBytes int) {
+func compact(sessionID, historyPath string, messages []provider.Message, currentBytes int) {
 	if len(messages) < 4 {
 		return
 	}
@@ -109,7 +109,7 @@ func getTimestamp(key string) (int64, bool) {
 	return ts, true
 }
 
-func getStartAt(messages []agentTypes.Message) int64 {
+func getStartAt(messages []provider.Message) int64 {
 	for _, msg := range messages {
 		content := historyStore.ExtractContent(msg.Content)
 		ts := historyStore.ExtractTimestamp(content)

@@ -5,15 +5,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 type Response struct {
-	Text      string            `json:"text"`
-	Model     string            `json:"model,omitempty"`
-	Usage     *agentTypes.Usage `json:"usage,omitempty"`
-	SessionID string            `json:"session_id"`
+	Text      string          `json:"text"`
+	Model     string          `json:"model,omitempty"`
+	Usage     *provider.Usage `json:"usage,omitempty"`
+	SessionID string          `json:"session_id"`
 }
 
 func sendResult(c *gin.Context, sessionID string, input string, events <-chan agentTypes.Event) {

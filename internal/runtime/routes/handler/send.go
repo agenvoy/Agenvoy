@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -183,8 +184,8 @@ func Send() gin.HandlerFunc {
 func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*agentTypes.AgentSession, error) {
 	session := &agentTypes.AgentSession{
 		ID:        sessionID,
-		Tools:     []agentTypes.Message{},
-		Histories: []agentTypes.Message{},
+		Tools:     []provider.Message{},
+		Histories: []provider.Message{},
 	}
 
 	scanner := data.SkillScanner
@@ -199,17 +200,17 @@ func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*age
 	session.OldHistories = maxHistory
 
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = agentTypes.Message{Role: "user", Content: summary}
+		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
-	session.ToolHistories = []agentTypes.Message{}
+	session.ToolHistories = []provider.Message{}
 
 	userText := strings.TrimSpace(data.Input)
 	if userText == "" {
 		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
 			time.Now().Format("2006-01-02 15:04:05"), data.WorkDir, data.Content)
 	}
-	session.UserInput = agentTypes.Message{Role: "user", Content: userText}
-	session.Histories = append(session.Histories, agentTypes.Message{
+	session.UserInput = provider.Message{Role: "user", Content: userText}
+	session.Histories = append(session.Histories, provider.Message{
 		Role:    "user",
 		Content: userText,
 	})

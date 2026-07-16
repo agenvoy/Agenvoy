@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
@@ -148,7 +149,7 @@ func formatDone(body string) agentTypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage agentTypes.Usage
+	var usage provider.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

@@ -17,7 +17,7 @@ const (
 	baseAPI = "https://generativelanguage.googleapis.com/v1beta/models/"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
 	messages = rewriteSyntheticActivations(messages)
 
 	var systemPrompt string
@@ -58,8 +58,8 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 	return out, nil
 }
 
-func rewriteSyntheticActivations(messages []agentTypes.Message) []agentTypes.Message {
-	out := make([]agentTypes.Message, 0, len(messages))
+func rewriteSyntheticActivations(messages []provider.Message) []provider.Message {
+	out := make([]provider.Message, 0, len(messages))
 	for i := 0; i < len(messages); i++ {
 		msg := messages[i]
 		if msg.Role == "assistant" && len(msg.ToolCalls) == 1 {
@@ -68,7 +68,7 @@ func rewriteSyntheticActivations(messages []agentTypes.Message) []agentTypes.Mes
 				next := messages[i+1]
 				if next.Role == "tool" && next.ToolCallID == tc.ID {
 					activation, _ := next.Content.(string)
-					out = append(out, agentTypes.Message{
+					out = append(out, provider.Message{
 						Role:    "user",
 						Content: activation,
 					})
@@ -82,7 +82,7 @@ func rewriteSyntheticActivations(messages []agentTypes.Message) []agentTypes.Mes
 	return out
 }
 
-func (a *Agent) convertToContent(message agentTypes.Message) Content {
+func (a *Agent) convertToContent(message provider.Message) Content {
 	content := Content{}
 	if message.ToolCallID != "" {
 		content.Role = "function"
@@ -268,13 +268,13 @@ func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools 
 	return body
 }
 
-func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
-	output := &agentTypes.Output{
-		Choices: make([]agentTypes.OutputChoices, 1),
+func (a *Agent) convertToOutput(resp *Output) *provider.Output {
+	output := &provider.Output{
+		Choices: make([]provider.OutputChoices, 1),
 	}
 
 	if resp.UsageMetadata != nil {
-		output.Usage = agentTypes.Usage{
+		output.Usage = provider.Usage{
 			Input:     resp.UsageMetadata.PromptTokenCount - resp.UsageMetadata.CachedContentTokenCount,
 			Output:    resp.UsageMetadata.CandidatesTokenCount,
 			CacheRead: resp.UsageMetadata.CachedContentTokenCount,
@@ -286,7 +286,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 	}
 
 	candidate := resp.Candidates[0]
-	var toolCalls []agentTypes.ToolCall
+	var toolCalls []provider.ToolCall
 	var textContent string
 	var reasoning strings.Builder
 
@@ -307,7 +307,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 				args = string(raw)
 			}
 
-			toolCall := agentTypes.ToolCall{
+			toolCall := provider.ToolCall{
 				ID:               part.FunctionCall.Name,
 				Type:             "function",
 				ThoughtSignature: part.ThoughtSignature,
@@ -318,7 +318,7 @@ func (a *Agent) convertToOutput(resp *Output) *agentTypes.Output {
 		}
 	}
 
-	output.Choices[0].Message = agentTypes.Message{
+	output.Choices[0].Message = provider.Message{
 		Role:             "assistant",
 		Content:          textContent,
 		ReasoningContent: reasoning.String(),

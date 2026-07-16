@@ -16,8 +16,8 @@ const (
 	chatAPI = "https://openrouter.ai/api/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools []toolTypes.Tool) (*agentTypes.Output, error) {
-	var merged []agentTypes.Message
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []toolTypes.Tool) (*provider.Output, error) {
+	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
 		if m.Role == "system" {
@@ -29,7 +29,7 @@ func (a *Agent) Send(ctx context.Context, messages []agentTypes.Message, tools [
 		}
 	}
 	if len(systemParts) > 0 {
-		merged = append([]agentTypes.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
+		merged = append([]provider.Message{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, merged...)
 	}
 
 	reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openrouter", a.model))
@@ -71,18 +71,18 @@ type orOutput struct {
 				Text    string `json:"text"`
 				Summary string `json:"summary"`
 			} `json:"reasoning_details"`
-			ToolCalls []agentTypes.ToolCall `json:"tool_calls"`
+			ToolCalls []provider.ToolCall `json:"tool_calls"`
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
-	Usage agentTypes.Usage `json:"usage"`
+	Usage provider.Usage `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
 
-func (o *orOutput) toOutput() *agentTypes.Output {
-	out := &agentTypes.Output{Usage: o.Usage}
+func (o *orOutput) toOutput() *provider.Output {
+	out := &provider.Output{Usage: o.Usage}
 	for _, c := range o.Choices {
 		reasoning := c.Message.Reasoning
 		if reasoning == "" {
@@ -102,8 +102,8 @@ func (o *orOutput) toOutput() *agentTypes.Output {
 			}
 			reasoning = sb.String()
 		}
-		out.Choices = append(out.Choices, agentTypes.OutputChoices{
-			Message: agentTypes.Message{
+		out.Choices = append(out.Choices, provider.OutputChoices{
+			Message: provider.Message{
 				Role:             c.Message.Role,
 				Content:          c.Message.Content,
 				ReasoningContent: reasoning,

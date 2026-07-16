@@ -3,12 +3,13 @@ package agentTypes
 import (
 	"context"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type Agent interface {
 	Name() string
-	Send(ctx context.Context, messages []Message, toolDefs []toolTypes.Tool) (*Output, error)
+	Send(ctx context.Context, messages []provider.Message, toolDefs []toolTypes.Tool) (*provider.Output, error)
 }
 
 type sessionIDCtxKey struct{}
@@ -35,13 +36,13 @@ type AgentEntry struct {
 
 type AgentSession struct {
 	ID              string
-	SystemPrompts   []Message
-	OldHistories    []Message
-	SummaryMessage  Message
-	UserInput       Message
-	ToolHistories   []Message
-	Tools           []Message
-	Histories       []Message
+	SystemPrompts   []provider.Message
+	OldHistories    []provider.Message
+	SummaryMessage  provider.Message
+	UserInput       provider.Message
+	ToolHistories   []provider.Message
+	Tools           []provider.Message
+	Histories       []provider.Message
 	BaseLen         int
 	Stateless       bool
 	VerifyRounds    int
