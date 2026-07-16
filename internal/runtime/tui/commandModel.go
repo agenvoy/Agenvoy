@@ -15,29 +15,23 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 			return t.commandModelAdd()
 		case "remove":
 			return t.commandModelRemove()
-		case "session":
-			return t.commandSessionModel()
 		case "dispatch":
 			return t.commandDispatcher()
 		case "summary":
 			return t.commandSummaryModel()
-		case "reasoning":
-			return t.commandReasoning(parts[1:])
 		}
 	}
 
 	t.popup = &Popup{
-		kind: popupSingleSelect,
+		kind:  popupSingleSelect,
 		title: "Model",
 		options: []string{
 			"add        add model from provider",
 			"remove     remove model from registry",
-			"session    pick session model",
 			"dispatch   set dispatcher model",
 			"summary    set summary model",
-			"reasoning  set reasoning depth",
 		},
-		values: []string{"add", "remove", "session", "dispatch", "summary", "reasoning"},
+		values: []string{"add", "remove", "dispatch", "summary"},
 		onConfirm: func(chosen string) any {
 			return ModelScopeSelect{scope: chosen}
 		},

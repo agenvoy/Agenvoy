@@ -13,12 +13,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -358,17 +358,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "remove":
 			next, cmd, _ := t.commandModelRemove()
 			return next, cmd
-		case "session":
-			next, cmd, _ := t.commandSessionModel()
-			return next, cmd
 		case "dispatch":
 			next, cmd, _ := t.commandDispatcher()
 			return next, cmd
 		case "summary":
 			next, cmd, _ := t.commandSummaryModel()
-			return next, cmd
-		case "reasoning":
-			next, cmd, _ := t.commandReasoning(nil)
 			return next, cmd
 		}
 		return t, nil
@@ -528,17 +522,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		next, cmd, _ := t.commandMcpReconnect()
 		return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ mcp added: %s", msg.name))), cmd)
-
-	case ReasoningScopeSelect:
-		switch msg.scope {
-		case "global":
-			next, cmd := t.openReasoningGlobalPopup()
-			return next, cmd
-		case "session":
-			next, cmd := t.openReasoningSessionPopup()
-			return next, cmd
-		}
-		return t, nil
 
 	case AllowSkillScopeSelect:
 		next, cmd := t.openAllowSkillPickerPopup(msg.scope)
@@ -1049,18 +1032,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SummaryModelSelect:
 		next, cmd := t.runSummaryModelSelect(msg.name)
 		agents.Reload()
-		return next, cmd
-
-	case ReasoningSelect:
-		next, cmd := t.runReasoningSelect(msg.level)
-		return next, cmd
-
-	case SessionModelSelect:
-		next, cmd := t.runSessionModelSelect(msg.model)
-		return next, cmd
-
-	case SessionReasoningSelect:
-		next, cmd := t.runSessionReasoningSelect(msg.reasoning)
 		return next, cmd
 
 	case UpdateConfirm:

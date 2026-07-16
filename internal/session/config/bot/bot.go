@@ -11,7 +11,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
 const (
@@ -90,12 +89,7 @@ func GetModel(sessionID string) (model, reasoning string) {
 		model = DefaultModel
 	}
 	if reasoning == "" {
-		cfg, err := config.Load()
-		if err == nil && cfg.ReasoningLevel != "" {
-			reasoning = cfg.ReasoningLevel
-		} else {
-			reasoning = DefaultReasoning
-		}
+		reasoning = DefaultReasoning
 	}
 	return model, reasoning
 }
