@@ -6,8 +6,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -59,7 +57,6 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 			return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 		}
 		out := copilotResponse.ConvertOutput(result)
-		usagelog.Append(agentTypes.SessionIDFrom(ctx), "openai", a.model, reasoning, out.Usage)
 		return &out, nil
 	}
 
@@ -86,6 +83,5 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
 	}
 
-	usagelog.Append(agentTypes.SessionIDFrom(ctx), "openai", a.model, reasoning, result.Usage)
 	return &result, nil
 }

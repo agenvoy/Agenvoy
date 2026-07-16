@@ -14,6 +14,7 @@ import (
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
@@ -201,6 +202,9 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []p
 	if len(resp.Choices) == 0 {
 		return nil, fmt.Errorf("empty response")
 	}
+
+	prov, model, _ := strings.Cut(agent.Name(), "@")
+	usagelog.Append(agentTypes.SessionIDFrom(ctx), prov, model, resp.Usage)
 
 	str, ok := resp.Choices[0].Message.Content.(string)
 	if !ok {

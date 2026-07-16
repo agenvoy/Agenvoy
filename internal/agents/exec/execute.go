@@ -32,6 +32,7 @@ import (
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -595,6 +596,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.CacheRead += resp.Usage.CacheRead
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
 
+		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
+		usagelog.Append(session.ID, prov, model, resp.Usage)
+
 		usageSnapshot := usage
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
 
@@ -734,6 +738,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+
+		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
+		usagelog.Append(session.ID, prov, model, resp.Usage)
+
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)

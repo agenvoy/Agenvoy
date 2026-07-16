@@ -8,7 +8,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -60,12 +59,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 	if len(systemPrompts) > 0 {
 		requestBody["system"] = systemPrompts
 	}
-	var usedReasoning string
 	switch thinkingType {
 	case "adaptive":
 		requestBody["thinking"] = map[string]any{"type": "adaptive"}
 		requestBody["output_config"] = map[string]any{"effort": level}
-		usedReasoning = level
 	case "enabled":
 		budget := map[string]int{"low": 5000, "medium": 10000, "high": 32000}[level]
 		if budget == 0 {
@@ -75,7 +72,6 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 			"type":          "enabled",
 			"budget_tokens": budget,
 		}
-		usedReasoning = level
 	default:
 		requestBody["temperature"] = 0.2
 	}
@@ -99,7 +95,6 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 	}
 
 	out := a.convertToOutput(&result)
-	usagelog.Append(agentTypes.SessionIDFrom(ctx), "claude", a.model, usedReasoning, out.Usage)
 	return out, nil
 }
 

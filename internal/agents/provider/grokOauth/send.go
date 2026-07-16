@@ -12,8 +12,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	copilotResponse "github.com/pardnchiu/agenvoy/internal/agents/provider/copilot/response"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -83,7 +81,6 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 	if err != nil {
 		return nil, err
 	}
-	usagelog.Append(agentTypes.SessionIDFrom(ctx), "grok-oauth", a.model, reasoning, out.Usage)
 	return out, nil
 }
 

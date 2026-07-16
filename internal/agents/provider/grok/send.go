@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
@@ -48,17 +46,16 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []t
 		}
 	}
 
-	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
+	out, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
 	}, body, "json")
 	if err != nil {
 		return nil, fmt.Errorf("http.POST: %w", err)
 	}
-	if result.Error != nil {
-		return nil, fmt.Errorf("http.POST: %s", result.Error.Message)
+	if out.Error != nil {
+		return nil, fmt.Errorf("http.POST: %s", out.Error.Message)
 	}
 
-	usagelog.Append(agentTypes.SessionIDFrom(ctx), "grok", a.model, reasoning, result.Usage)
-	return &result, nil
+	return &out, nil
 }

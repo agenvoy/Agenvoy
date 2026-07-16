@@ -212,7 +212,7 @@ func liveUsageSuffix(ctx context.Context, model string) string {
 		return ""
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	if fn, ok := footerUsageFn[prefix]; ok {

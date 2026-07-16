@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
 func compactThreshold(modelName string) int {
@@ -109,6 +110,9 @@ func extractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 	}
+
+	prov, model, _ := strings.Cut(agent.Name(), "@")
+	usagelog.Append(session.ID, prov, model, resp.Usage)
 
 	result, ok := resp.Choices[0].Message.Content.(string)
 	if !ok || strings.TrimSpace(result) == "" {
@@ -246,6 +250,9 @@ func compactRange(ctx context.Context, agent agentTypes.Agent, session *agentTyp
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 	}
+
+	prov, model, _ := strings.Cut(agent.Name(), "@")
+	usagelog.Append(session.ID, prov, model, resp.Usage)
 
 	result, ok := resp.Choices[0].Message.Content.(string)
 	if !ok || strings.TrimSpace(result) == "" {
