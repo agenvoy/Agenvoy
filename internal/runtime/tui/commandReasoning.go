@@ -56,10 +56,13 @@ func (t TUI) commandReasoning(parts []string) (TUI, tea.Cmd, bool) {
 }
 
 func (t TUI) openReasoningGlobalPopup() (TUI, tea.Cmd) {
-	current := provider.GetReasoningLevel()
 	dispatcherModel := ""
+	current := configBot.DefaultReasoning
 	if cfg, err := config.Load(); err == nil {
 		dispatcherModel = cfg.DispatcherModel
+		if cfg.ReasoningLevel != "" {
+			current = cfg.ReasoningLevel
+		}
 	}
 	levels := filteredReasoningLevels(dispatcherModel)
 
@@ -165,6 +168,5 @@ func (t TUI) runReasoningSelect(level string) (TUI, tea.Cmd) {
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
 	}
 
-	provider.SetReasoningLevel(level)
 	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ reasoning: %s", level)) + "\n")
 }

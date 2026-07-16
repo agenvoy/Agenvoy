@@ -7,26 +7,7 @@ import (
 	"time"
 )
 
-var reasoningLevel = "medium"
-
 var reasoningLevelOrder = []string{"none", "low", "medium", "high", "xhigh"}
-
-func NormalizeReasoningLevel(s string) string {
-	switch strings.ToLower(s) {
-	case "none", "low", "medium", "high", "xhigh":
-		return strings.ToLower(s)
-	default:
-		return "medium"
-	}
-}
-
-func SetReasoningLevel(level string) {
-	reasoningLevel = NormalizeReasoningLevel(level)
-}
-
-func GetReasoningLevel() string {
-	return reasoningLevel
-}
 
 func ReasoningDisabled(level string) bool {
 	return level == "none"
