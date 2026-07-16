@@ -6,10 +6,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
 )
 
-type Agent interface {
-	Name() string
-	Send(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool, reasoning string) (*provider.Output, int, error)
-}
+type Agent = provider.Agent
 
 type sessionIDCtxKey struct{}
 

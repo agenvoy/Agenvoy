@@ -17,7 +17,6 @@ import (
 	openrouter "github.com/pardnchiu/agenvoy/internal/agents/provider/openRouter"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider/openai"
 	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
 type Config struct {
@@ -30,29 +29,29 @@ type Config struct {
 	GatewayID string
 }
 
-var newFn = map[string]func(config Config) (agentTypes.Agent, error){
-	"claude": func(config Config) (agentTypes.Agent, error) {
+var newFn = map[string]func(config Config) (provider.Agent, error){
+	"claude": func(config Config) (provider.Agent, error) {
 		return claude.New(provider.Config{Model: strings.TrimPrefix(config.Name, claude.Prefix), APIKey: config.APIKey})
 	},
-	"openai": func(config Config) (agentTypes.Agent, error) {
+	"openai": func(config Config) (provider.Agent, error) {
 		return openai.New(provider.Config{Model: strings.TrimPrefix(config.Name, openai.Prefix), APIKey: config.APIKey})
 	},
-	"gemini": func(config Config) (agentTypes.Agent, error) {
+	"gemini": func(config Config) (provider.Agent, error) {
 		return gemini.New(provider.Config{Model: strings.TrimPrefix(config.Name, gemini.Prefix), APIKey: config.APIKey})
 	},
-	"grok": func(config Config) (agentTypes.Agent, error) {
+	"grok": func(config Config) (provider.Agent, error) {
 		return grok.New(provider.Config{Model: strings.TrimPrefix(config.Name, grok.Prefix), APIKey: config.APIKey})
 	},
-	"deepseek": func(config Config) (agentTypes.Agent, error) {
+	"deepseek": func(config Config) (provider.Agent, error) {
 		return deepseek.New(provider.Config{Model: strings.TrimPrefix(config.Name, deepseek.Prefix), APIKey: config.APIKey})
 	},
-	"nvidia": func(config Config) (agentTypes.Agent, error) {
+	"nvidia": func(config Config) (provider.Agent, error) {
 		return nvidia.New(provider.Config{Model: strings.TrimPrefix(config.Name, nvidia.Prefix), APIKey: config.APIKey})
 	},
-	"openrouter": func(config Config) (agentTypes.Agent, error) {
+	"openrouter": func(config Config) (provider.Agent, error) {
 		return openrouter.New(provider.Config{Model: strings.TrimPrefix(config.Name, openrouter.Prefix), APIKey: config.APIKey})
 	},
-	"cloudflare": func(config Config) (agentTypes.Agent, error) {
+	"cloudflare": func(config Config) (provider.Agent, error) {
 		return cloudflare.New(provider.Config{
 			Model:     strings.TrimPrefix(config.Name, cloudflare.Prefix),
 			APIKey:    config.APIKey,
@@ -60,7 +59,7 @@ var newFn = map[string]func(config Config) (agentTypes.Agent, error){
 			GatewayID: config.GatewayID,
 		})
 	},
-	"compat": func(config Config) (agentTypes.Agent, error) {
+	"compat": func(config Config) (provider.Agent, error) {
 		_, model, _ := strings.Cut(config.Name, "@")
 		return compat.New(provider.Config{
 			Model:   model,
@@ -68,18 +67,18 @@ var newFn = map[string]func(config Config) (agentTypes.Agent, error){
 			BaseURL: config.BaseURL,
 		})
 	},
-	"copilot": func(config Config) (agentTypes.Agent, error) {
+	"copilot": func(config Config) (provider.Agent, error) {
 		return copilot.New(provider.Config{Model: strings.TrimPrefix(config.Name, copilot.Prefix), Token: config.Token})
 	},
-	"codex": func(config Config) (agentTypes.Agent, error) {
+	"codex": func(config Config) (provider.Agent, error) {
 		return openaicodex.New(provider.Config{Model: strings.TrimPrefix(config.Name, openaicodex.Prefix), Token: config.Token})
 	},
-	"grok-oauth": func(config Config) (agentTypes.Agent, error) {
+	"grok-oauth": func(config Config) (provider.Agent, error) {
 		return grokoauth.New(provider.Config{Model: strings.TrimPrefix(config.Name, grokoauth.Prefix), Token: config.Token})
 	},
 }
 
-func New(config Config) (agentTypes.Agent, error) {
+func New(config Config) (provider.Agent, error) {
 	providerFull, _, _ := strings.Cut(config.Name, "@")
 	prov, _, _ := strings.Cut(providerFull, "[")
 	fn, ok := newFn[prov]

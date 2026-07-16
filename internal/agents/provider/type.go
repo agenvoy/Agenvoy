@@ -1,9 +1,15 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 )
+
+type Agent interface {
+	Name() string
+	Send(ctx context.Context, messages []Message, toolDefs []Tool, reasoning string) (*Output, int, error)
+}
 
 type Config struct {
 	Model   string
