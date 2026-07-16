@@ -14,7 +14,7 @@ const (
 	responsesAPI = "https://api.githubcopilot.com/responses"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)
@@ -41,7 +41,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			nonSystem = append(nonSystem, m)
 		}
 
-		reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("copilot", a.model))
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("copilot", a.model))
 		body := map[string]any{
 			"model":        a.model,
 			"input":        copilotResponse.ConvertInput(nonSystem),
@@ -49,8 +49,8 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			"instructions": instructions,
 			"store":        false,
 		}
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning"] = map[string]any{"effort": reasoning, "summary": "auto"}
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning"] = map[string]any{"effort": effort, "summary": "auto"}
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
@@ -72,11 +72,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	if provider.SupportTemperature("copilot", a.model) {
 		body["temperature"] = 0.2
 	}
-	var reasoning string
 	if provider.SupportReasoningEffort("copilot", a.model) {
-		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("copilot", a.model))
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning_effort"] = reasoning
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("copilot", a.model))
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning_effort"] = effort
 		}
 	}
 

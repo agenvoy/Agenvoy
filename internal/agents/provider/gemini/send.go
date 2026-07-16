@@ -14,7 +14,7 @@ const (
 	baseAPI = "https://generativelanguage.googleapis.com/v1beta/models/"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	messages = rewriteSyntheticActivations(messages)
 
 	var systemPrompt string
@@ -36,7 +36,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	apiURL := fmt.Sprintf("%s%s:generateContent", baseAPI, a.model)
 
 	cachedName, sendMessages := a.applyCache(ctx, systemPrompt, newMessages, newTools)
-	requestBody := a.generateRequestBody(sendMessages, systemPrompt, newTools, cachedName)
+	requestBody := a.generateRequestBody(sendMessages, systemPrompt, newTools, cachedName, reasoning)
 
 	result, _, err := go_pkg_http.POST[Output](ctx, a.httpClient, apiURL, map[string]string{
 		"Content-Type":   "application/json",
@@ -214,10 +214,9 @@ func sanitizeSchema(m map[string]any) {
 	}
 }
 
-func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools []map[string]any, cachedContent string) map[string]any {
+func (a *Agent) generateRequestBody(messages []Content, prompt string, newTools []map[string]any, cachedContent string, reasoning string) map[string]any {
 	thinkingConfig := provider.GetThinkingConfig("gemini", a.model)
-	level := provider.GetReasoningLevel()
-	level = provider.ClampReasoningLevel(level, provider.MaxReasoningLevel("gemini", a.model))
+	level := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("gemini", a.model))
 	level = provider.FloorReasoningLevel(level, provider.MinReasoningLevel("gemini", a.model))
 
 	generationConfig := map[string]any{}

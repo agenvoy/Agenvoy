@@ -13,7 +13,7 @@ const (
 	chatAPI = "https://api.deepseek.com/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {

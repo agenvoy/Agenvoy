@@ -36,7 +36,7 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 	resp, err := agent.Send(healthCtx, []provider.Message{
 		{Role: "system", Content: "Reply with only: ok"},
 		{Role: "user", Content: "ping"},
-	}, nil)
+	}, nil, "none")
 	if err != nil || resp == nil || len(resp.Choices) == 0 {
 		return false
 	}

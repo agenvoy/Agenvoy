@@ -43,7 +43,7 @@ func flattenContent(c any) string {
 	return fmt.Sprintf("%v", c)
 }
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {

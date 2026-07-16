@@ -13,7 +13,7 @@ const (
 	chatAPI = "https://api.x.ai/v1/chat/completions"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	var merged []provider.Message
 	var systemParts []string
 	for _, m := range messages {
@@ -37,11 +37,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	if provider.SupportTemperature("grok", a.model) {
 		body["temperature"] = 0.2
 	}
-	var reasoning string
 	if provider.SupportReasoningEffort("grok", a.model) {
-		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok", a.model))
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning_effort"] = reasoning
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("grok", a.model))
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning_effort"] = effort
 		}
 	}
 

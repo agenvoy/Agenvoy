@@ -319,28 +319,46 @@ var (
 			Padding(0, 1)
 )
 
+// * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
+var asciiMarkLines = []string{
+	"      ███████",
+	"    ██       ██",
+	"  ██    █████████",
+	"",
+	"  ██           ██",
+	"    ██       ██",
+	"      ███████",
+}
+
 func headerBlock(daemon, http, discord, telegram string) string {
 	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(projectVersion)
 
-	const leftCol = 14
+	const markCol = 20
 	const gap = "   "
-	padLeft := func(s string) string {
+	padTo := func(s string, width int) string {
 		w := lipgloss.Width(s)
-		if w >= leftCol {
+		if w >= width {
 			return s
 		}
-		return s + strings.Repeat(" ", leftCol-w)
+		return s + strings.Repeat(" ", width-w)
 	}
 
-	body := strings.Join([]string{
+	textLines := []string{
 		logo,
 		hintStyle.Render("Make AI actually work for you"),
 		hintStyle.Render("Your productivity infrastructure"),
 		"",
-		padLeft(daemon) + gap + discord,
-		padLeft(http) + gap + telegram,
-	}, "\n")
-	return headerStyle.Render(body)
+		daemon + gap + discord,
+		http + gap + telegram,
+		"",
+	}
+
+	rows := make([]string, len(asciiMarkLines))
+	for i, mark := range asciiMarkLines {
+		rows[i] = systemStyle.Render(padTo(mark, markCol)) + textLines[i]
+	}
+	rows = append(rows, "")
+	return headerStyle.Render(strings.Join(rows, "\n"))
 }
 
 func messageBlock(str string) string {

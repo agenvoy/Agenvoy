@@ -29,6 +29,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -353,6 +354,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	limit := filesystem.MaxToolIterations
+	_, reasoning := configBot.GetModel(session.ID)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)
@@ -402,7 +404,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		go func() {
-			r, e := sendAgent.Send(sendCtx, assembled, exec.Tools)
+			r, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
 			resultCh <- sendOutcome{resp: r, err: e}
 		}()
 
@@ -732,7 +734,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
-	resp, err := data.Agent.Send(ctx, summaryMessages, nil)
+	resp, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input
 		usage.Output += resp.Usage.Output

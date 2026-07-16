@@ -16,7 +16,7 @@ import (
 
 const responsesAPI = "https://api.x.ai/v1/responses"
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)
@@ -45,11 +45,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		"store":        false,
 		"stream":       true,
 	}
-	var reasoning string
 	if provider.SupportReasoningEffort("grok-oauth", a.model) {
-		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("grok-oauth", a.model))
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning"] = map[string]any{"effort": reasoning}
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("grok-oauth", a.model))
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning"] = map[string]any{"effort": effort}
 		}
 	}
 

@@ -58,10 +58,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	dead := map[string]bool{}
 
 	if sessionID != "" {
-		model, reasoning := configBot.GetModel(sessionID)
-		if reasoning != "" {
-			provider.SetReasoningLevel(reasoning)
-		}
+		model, _ := configBot.GetModel(sessionID)
 		if model != "" && model != configBot.DefaultModel {
 			if _, ok := registry.Registry[model]; ok {
 				return []string{model}, dead
@@ -100,15 +97,13 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
-			prev := provider.GetReasoningLevel()
-			provider.SetReasoningLevel("low")
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
 			for range len(registry.Entries) {
 				if ctx.Err() != nil {
 					break
 				}
 				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
-				resp, sendErr := bot.Send(routingCtx, messages, nil)
+				resp, sendErr := bot.Send(routingCtx, messages, nil, "none")
 				cancel()
 				if sendErr == nil {
 					if resp != nil && len(resp.Choices) > 0 {
@@ -156,7 +151,6 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				}
 				bot = next
 			}
-			provider.SetReasoningLevel(prev)
 		}
 	}
 

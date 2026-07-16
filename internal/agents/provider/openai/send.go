@@ -14,7 +14,7 @@ const (
 	responsesAPI = "https://api.openai.com/v1/responses"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + a.apiKey,
 		"Content-Type":  "application/json",
@@ -36,7 +36,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			nonSystem = append(nonSystem, m)
 		}
 
-		reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openai", a.model))
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("openai", a.model))
 		body := map[string]any{
 			"model":        a.model,
 			"input":        copilotResponse.ConvertInput(nonSystem),
@@ -44,8 +44,8 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 			"instructions": instructions,
 			"store":        false,
 		}
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning"] = map[string]any{"effort": reasoning, "summary": "auto"}
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning"] = map[string]any{"effort": effort, "summary": "auto"}
 		}
 
 		result, _, err := go_pkg_http.POST[copilotResponse.Output](ctx, a.httpClient, responsesAPI, headers, body, "json")
@@ -67,11 +67,10 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	if provider.SupportTemperature("openai", a.model) {
 		body["temperature"] = 0.2
 	}
-	var reasoning string
 	if provider.SupportReasoningEffort("openai", a.model) {
-		reasoning = provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("openai", a.model))
-		if !provider.ReasoningDisabled(reasoning) {
-			body["reasoning_effort"] = reasoning
+		effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("openai", a.model))
+		if !provider.ReasoningDisabled(effort) {
+			body["reasoning_effort"] = effort
 		}
 	}
 	result, _, err := go_pkg_http.POST[provider.Output](ctx, a.httpClient, chatAPI, headers, body, "json")

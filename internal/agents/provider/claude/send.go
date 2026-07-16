@@ -14,7 +14,7 @@ const (
 	messagesAPI = "https://api.anthropic.com/v1/messages"
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	var systemPrompts []map[string]any
 	var newMessages []map[string]any
 
@@ -43,7 +43,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 	newTools := a.convertToTools(tools)
 
 	thinkingType := provider.GetThinkingType("claude", a.model)
-	level := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("claude", a.model))
+	level := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("claude", a.model))
 	if provider.ReasoningDisabled(level) {
 		thinkingType = ""
 	}

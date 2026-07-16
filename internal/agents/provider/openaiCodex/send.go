@@ -23,7 +23,7 @@ const (
 	promptCacheKeyLen = 24
 )
 
-func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool) (*provider.Output, error) {
+func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []provider.Tool, reasoning string) (*provider.Output, error) {
 	auth, err := a.authHeader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("a.authHeader: %w", err)
@@ -44,7 +44,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		}
 	}
 
-	reasoning := provider.ClampReasoningLevel(provider.GetReasoningLevel(), provider.MaxReasoningLevel("codex", a.model))
+	effort := provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel("codex", a.model))
 	body := map[string]any{
 		"model":        a.model,
 		"input":        copilotResponse.ConvertInput(nonSystem),
@@ -53,8 +53,8 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, tools []p
 		"store":        false,
 		"stream":       true,
 	}
-	if !provider.ReasoningDisabled(reasoning) {
-		body["reasoning"] = map[string]any{"effort": reasoning, "summary": "auto"}
+	if !provider.ReasoningDisabled(effort) {
+		body["reasoning"] = map[string]any{"effort": effort, "summary": "auto"}
 	}
 	if key := promptCacheKey(instructions); key != "" {
 		body["prompt_cache_key"] = key

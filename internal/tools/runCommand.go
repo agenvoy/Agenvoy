@@ -145,6 +145,7 @@ func runCommandStreaming(cmd *exec.Cmd) (string, error) {
 	cmd.Stderr = pw
 
 	var sb strings.Builder
+	var scanErr error
 	done := make(chan struct{})
 
 	go func() {
@@ -159,11 +160,16 @@ func runCommandStreaming(cmd *exec.Cmd) (string, error) {
 				hook(line)
 			}
 		}
+		scanErr = scanner.Err()
 	}()
 
 	err := cmd.Run()
 	pw.Close()
 	<-done
+
+	if scanErr != nil {
+		sb.WriteString(fmt.Sprintf("\n[output truncated: %s]\n", scanErr.Error()))
+	}
 
 	if err != nil {
 		return fmt.Sprintf("%s\nError: %s", sb.String(), err.Error()), nil
