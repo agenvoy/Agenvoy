@@ -12,12 +12,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/copilot"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider/deepseek"
-	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
-	openrouter "github.com/pardnchiu/agenvoy/internal/agents/provider/openRouter"
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	"github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/copilot"
+	"github.com/pardnchiu/go-llm-router/core/deepseek"
+	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
+	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 )
 
 type ProviderUsageResult struct {

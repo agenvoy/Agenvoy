@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"

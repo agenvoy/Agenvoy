@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"

@@ -13,9 +13,9 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
-	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	"github.com/pardnchiu/go-llm-router/core"
+	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )

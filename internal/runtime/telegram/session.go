@@ -8,7 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"

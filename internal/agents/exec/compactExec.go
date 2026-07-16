@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 

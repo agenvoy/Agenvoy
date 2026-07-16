@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	oauthCodex "github.com/pardnchiu/agenvoy/internal/agents/oauth/codex"
-	oauthCopilot "github.com/pardnchiu/agenvoy/internal/agents/oauth/copilot"
-	oauthGrok "github.com/pardnchiu/agenvoy/internal/agents/oauth/grok"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
+	oauthGrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
+	"github.com/pardnchiu/go-llm-router/core"
 	sessionConfig "github.com/pardnchiu/agenvoy/internal/session/config"
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 )

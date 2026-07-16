@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"

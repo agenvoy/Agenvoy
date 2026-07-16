@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )

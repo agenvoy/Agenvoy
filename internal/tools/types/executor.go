@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
 )

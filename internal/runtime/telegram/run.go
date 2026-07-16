@@ -16,7 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	geminiSummary "github.com/pardnchiu/agenvoy/internal/agents/provider/gemini/summary"
+	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
