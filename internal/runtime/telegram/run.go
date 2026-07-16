@@ -354,7 +354,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
-	footer := utils.FormatEventFooter(doneEvent.Duration, model, doneEvent.Usage)
+	footer := utils.FormatEventFooterContext(ctx, doneEvent.Duration, model, doneEvent.Usage)
 	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0 || len(voiceTexts) > 0
 	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
 

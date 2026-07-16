@@ -101,6 +101,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "T":
 					t.setCmdMode(!t.cmdMode)
 					return t, nil
+				case "U":
+					next, cmd, _ := t.commandProviderUsage()
+					return next, cmd
 				}
 			}
 
@@ -650,6 +653,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case RemoteModelsResult:
 		return t.runRemoteModelsResult(msg)
+
+	case ProviderUsageResult:
+		return t, tea.Println(hintStyle.Render("⎯ ") + " " + strings.Join(msg.lines, " / ") + "\n")
 
 	case ModelScanLocalResult:
 		return t.runModelScanLocalResult(msg)

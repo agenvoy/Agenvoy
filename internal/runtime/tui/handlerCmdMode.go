@@ -21,7 +21,7 @@ func (t *TUI) setCmdMode(on bool) {
 		})
 		return
 	}
-	t.textarea.Placeholder = `/ commands · enter send · alt+enter newline · esc cancel · shift+t cmd mode`
+	t.textarea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage`
 	t.textarea.SetPromptFunc(2, func(lineIdx int) string {
 		if lineIdx == 0 {
 			return whiteStyle.Render("❯ ")

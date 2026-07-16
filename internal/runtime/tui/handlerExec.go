@@ -117,7 +117,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
 			ev.ToolName != "write_todo" {
 			t.activity = "tool: " + ev.ToolName
-			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
+			line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
 				t.toolCount++
 				t.toolBuf = append(t.toolBuf, line)
@@ -129,7 +129,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 
 	case agentTypes.EventReasoning:
-		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
+		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, "")
 		if !ok {
 			return t, nil
 		}
@@ -152,7 +152,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		} else {
 			t.activity = "compacting tool history…"
 		}
-		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
+		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, "")
 		if ok {
 			t.toolBuf = append(t.toolBuf, line)
 		}
@@ -215,13 +215,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		finishedAt := time.Now().Format("2006-01-02 15:04:05")
 		if collapse != nil {
-			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
+			line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, finishedAt)
 			if !ok {
 				return t, collapse
 			}
 			return t, tea.Sequence(collapse, tea.Println(line))
 		}
-		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
+		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
 			return t, nil
 		}
@@ -237,7 +237,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	}
 
-	line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
+	line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, "")
 	if !ok {
 		return t, nil
 	}

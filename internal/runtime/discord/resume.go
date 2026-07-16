@@ -126,7 +126,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	if model == "" && primary != nil {
 		model = primary.Name()
 	}
-	footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Usage)
+	footer := utils.FormatEventFooterContext(ctx, result.Done.Duration, model, result.Done.Usage)
 	hasMedia := len(attachmentPaths) > 0
 	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, result.ExecErrors)
 

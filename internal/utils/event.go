@@ -1,13 +1,20 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/provider"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/copilot"
+	"github.com/pardnchiu/agenvoy/internal/agents/provider/deepseek"
+	grokoauth "github.com/pardnchiu/agenvoy/internal/agents/provider/grokOauth"
+	openrouter "github.com/pardnchiu/agenvoy/internal/agents/provider/openRouter"
+	openaicodex "github.com/pardnchiu/agenvoy/internal/agents/provider/openaiCodex"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
@@ -150,6 +157,14 @@ var footerPrefixKeep = map[string]bool{
 }
 
 func FormatEventFooter(duration time.Duration, model string, usage *provider.Usage) string {
+	return formatEventFooter(duration, model, usage, "")
+}
+
+func FormatEventFooterContext(ctx context.Context, duration time.Duration, model string, usage *provider.Usage) string {
+	return formatEventFooter(duration, model, usage, liveUsageSuffix(ctx, model))
+}
+
+func formatEventFooter(duration time.Duration, model string, usage *provider.Usage, modelSuffix string) string {
 	var parts []string
 	if duration > 0 {
 		parts = append(parts, duration.Round(100*time.Millisecond).String())
@@ -159,17 +174,70 @@ func FormatEventFooter(duration time.Duration, model string, usage *provider.Usa
 		if prefix, after, ok := strings.Cut(model, "@"); ok && !footerPrefixKeep[prefix] {
 			model = after
 		}
+		if modelSuffix != "" {
+			model += modelSuffix
+		}
 		parts = append(parts, model)
 	}
 
 	if usage != nil && (usage.Input > 0 || usage.CacheRead > 0 || usage.Output > 0) {
 		totalInput := usage.Input + usage.CacheRead
+		hitPct := 0
 		if usage.CacheRead > 0 && totalInput > 0 {
-			hitPct := int(float64(usage.CacheRead) / float64(totalInput) * 100)
+			hitPct = int(float64(usage.CacheRead) / float64(totalInput) * 100)
+		}
+		if hitPct > 0 {
 			parts = append(parts, fmt.Sprintf("↑ %s(%d%%) ↓ %s", go_pkg_utils.CompactNumber(totalInput), hitPct, go_pkg_utils.CompactNumber(usage.Output)))
 		} else {
 			parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", go_pkg_utils.CompactNumber(totalInput), go_pkg_utils.CompactNumber(usage.Output)))
 		}
 	}
 	return strings.Join(parts, " · ")
+}
+
+var footerUsageFn = map[string]func(context.Context, provider.Config) (float64, error){
+	"codex":      openaicodex.Usage,
+	"copilot":    copilot.Usage,
+	"grok-oauth": grokoauth.Usage,
+}
+
+var footerBalanceFn = map[string]func(context.Context, provider.Config) (float64, error){
+	"deepseek":   deepseek.Usage,
+	"openrouter": openrouter.Usage,
+}
+
+func liveUsageSuffix(ctx context.Context, model string) string {
+	prefix, _, ok := strings.Cut(strings.TrimSpace(model), "@")
+	if !ok {
+		return ""
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if fn, ok := footerUsageFn[prefix]; ok {
+		cfg, err := agentKeychain.Config(ctx, prefix)
+		if err != nil {
+			return ""
+		}
+		remaining, err := fn(ctx, cfg)
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprintf("(%.0f%%)", remaining)
+	}
+
+	if fn, ok := footerBalanceFn[prefix]; ok {
+		cfg, err := agentKeychain.Config(ctx, prefix)
+		if err != nil {
+			return ""
+		}
+		balance, err := fn(ctx, cfg)
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprintf("($%.2f)", balance)
+	}
+
+	return ""
 }
