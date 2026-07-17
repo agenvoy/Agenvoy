@@ -59,6 +59,7 @@ func (t TUI) openCronEditRequirement(skill, expression string) (TUI, tea.Cmd) {
 		kind:      popupText,
 		title:     fmt.Sprintf("Cron edit %s (current: %s) — describe change", skill, expression),
 		multiline: true,
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return CronEditSubmit{
 				skill:       skill,

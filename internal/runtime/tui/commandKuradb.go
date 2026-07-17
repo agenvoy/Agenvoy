@@ -86,6 +86,7 @@ func (t TUI) openKuradbKeyPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "KuraDB · OPENAI_API_KEY",
+		input:    newPopupInput("", false),
 		subtitle: "required for embedding (text-embedding-3-small) · Enter to submit · Esc to cancel",
 		onConfirm: func(value string) any {
 			return KuradbKeySubmit{token: strings.TrimSpace(value)}

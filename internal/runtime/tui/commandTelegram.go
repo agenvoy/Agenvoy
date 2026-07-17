@@ -62,6 +62,7 @@ func (t TUI) openTelegramTokenPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "Telegram Bot Token",
+		input:    newPopupInput("", false),
 		subtitle: "from @BotFather · Enter to submit · Esc to cancel",
 		onConfirm: func(value string) any {
 			return TelegramTokenSubmit{token: strings.TrimSpace(value)}

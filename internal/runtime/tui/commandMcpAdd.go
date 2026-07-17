@@ -93,6 +93,7 @@ func (t TUI) commandMcpAdd() (TUI, tea.Cmd, bool) {
 		kind:     popupText,
 		title:    "MCP server name",
 		subtitle: "only [A-Za-z0-9_-]",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddName{name: strings.TrimSpace(value)}
 		},
@@ -117,6 +118,7 @@ func (t TUI) openMcpAddCommand() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "Command (executable path or name)",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddCommand{command: strings.TrimSpace(value)}
 		},
@@ -129,6 +131,7 @@ func (t TUI) openMcpAddArgs() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "Args (comma-separated, blank to skip)",
 		subtitle: "example: --port,8080,--config,./cfg.json",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddArgs{raw: value}
 		},
@@ -142,6 +145,7 @@ func (t TUI) openMcpAddEnv() (TUI, tea.Cmd) {
 		multiline: true,
 		title:     "Env (KEY=VALUE per line · ctrl+s submit · blank to skip)",
 		subtitle:  "example:\nAPI_KEY=${MY_KEY}\nREGION=us-west-1",
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return McpAddEnv{raw: value}
 		},
@@ -153,6 +157,7 @@ func (t TUI) openMcpAddURL() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "URL",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddURL{url: strings.TrimSpace(value)}
 		},
@@ -179,6 +184,7 @@ func (t TUI) openMcpAddHeaders() (TUI, tea.Cmd) {
 		multiline: true,
 		title:     "Extra headers (KEY=VALUE per line · ctrl+s submit · blank to skip)",
 		subtitle:  "example:\nX-Trace=1\nX-Client=agenvoy",
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return McpAddHeaders{raw: value}
 		},
@@ -209,6 +215,7 @@ func (t TUI) openMcpAddBearerToken() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "Bearer token",
 		subtitle: "raw token or ${TOKEN}; Bearer is added automatically",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddBearerToken{token: strings.TrimSpace(value)}
 		},
@@ -221,6 +228,7 @@ func (t TUI) openMcpAddAPIKeyHeader() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "API key header name",
 		subtitle: "blank uses X-API-Key",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddAPIKeyHeader{header: strings.TrimSpace(value)}
 		},
@@ -233,6 +241,7 @@ func (t TUI) openMcpAddAPIKeyValue(header string) (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    fmt.Sprintf("%s value", header),
 		subtitle: "raw key or ${TOKEN}",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddAPIKeyValue{value: strings.TrimSpace(value)}
 		},
@@ -245,6 +254,7 @@ func (t TUI) openMcpAddBasicToken() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "Basic auth token",
 		subtitle: "base64 user:pass or ${BASIC_TOKEN}; Basic is added automatically",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return McpAddBasicToken{token: strings.TrimSpace(value)}
 		},

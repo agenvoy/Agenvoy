@@ -62,6 +62,7 @@ func (t TUI) openDiscordTokenPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "Discord Bot Token",
+		input:    newPopupInput("", false),
 		subtitle: "from Discord Developer Portal · Enter to submit · Esc to cancel",
 		onConfirm: func(value string) any {
 			return DiscordTokenSubmit{token: strings.TrimSpace(value)}
