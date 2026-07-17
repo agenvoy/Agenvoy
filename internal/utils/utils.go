@@ -298,17 +298,39 @@ func FormatToolArgs(name, raw, cwd string) string {
 	return raw
 }
 
-func FormatPatchDiff(raw string) (oldLines, newLines []string) {
+type PatchHunk struct {
+	OldLines []string
+	NewLines []string
+}
+
+func FormatPatchDiff(raw string) []PatchHunk {
+	var multi struct {
+		Targets []struct {
+			Old    string `json:"old_string"`
+			New    string `json:"new_string"`
+			Insert string `json:"insert_string"`
+		} `json:"targets"`
+	}
+	if json.Unmarshal([]byte(raw), &multi) == nil && len(multi.Targets) > 0 {
+		hunks := make([]PatchHunk, 0, len(multi.Targets))
+		for _, t := range multi.Targets {
+			if t.Insert != "" {
+				hunks = append(hunks, PatchHunk{NewLines: splitLines(t.Insert)})
+				continue
+			}
+			hunks = append(hunks, PatchHunk{OldLines: splitLines(t.Old), NewLines: splitLines(t.New)})
+		}
+		return hunks
+	}
+
 	var p struct {
 		Old string `json:"old_string"`
 		New string `json:"new_string"`
 	}
 	if json.Unmarshal([]byte(raw), &p) != nil {
-		return nil, nil
+		return nil
 	}
-	oldLines = splitLines(p.Old)
-	newLines = splitLines(p.New)
-	return
+	return []PatchHunk{{OldLines: splitLines(p.Old), NewLines: splitLines(p.New)}}
 }
 
 func FormatWriteDiff(raw string) []string {

@@ -386,14 +386,23 @@ func newPopup(id string, req runtime.Request) *Popup {
 		}
 		switch req.ToolName {
 		case "patch_file", "patch_tool", "patch_skill":
-			oldLines, newLines := utils.FormatPatchDiff(req.ToolArgs)
+			hunks := utils.FormatPatchDiff(req.ToolArgs)
 			remaining := 32
-			for _, l := range oldLines[:min(len(oldLines), 16)] {
-				p.diffLines = append(p.diffLines, "- "+l)
-				remaining--
-			}
-			for _, l := range newLines[:min(len(newLines), remaining)] {
-				p.diffLines = append(p.diffLines, "+ "+l)
+			for i, h := range hunks {
+				if remaining <= 0 {
+					break
+				}
+				if i > 0 {
+					p.diffLines = append(p.diffLines, "")
+				}
+				for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+					p.diffLines = append(p.diffLines, "- "+l)
+					remaining--
+				}
+				for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+					p.diffLines = append(p.diffLines, "+ "+l)
+					remaining--
+				}
 			}
 		case "write_file":
 			lines := utils.FormatWriteDiff(req.ToolArgs)

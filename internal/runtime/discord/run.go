@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -23,9 +22,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	"github.com/pardnchiu/go-llm-router/core"
+	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 )
 
 func channelName(in go_bot_discord.Input) string {
@@ -33,6 +35,33 @@ func channelName(in go_bot_discord.Input) string {
 		return in.ChannelName
 	}
 	return in.Username
+}
+
+func recordChatter(in go_bot_discord.Input, content string) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return
+	}
+
+	sessionID, err := sessionDiscord.New(in.GuildID, in.ChannelID, in.UserID)
+	if err != nil {
+		slog.Warn("sessionDiscord.New (chatter)",
+			slog.String("channel", channelName(in)),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	username := in.Username
+	if username == "" {
+		username = "unknown"
+	}
+	if err := sessionHistory.Append(sessionID, []provider.Message{
+		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
+	}); err != nil {
+		slog.Warn("sessionHistory.Append (chatter)",
+			slog.String("channel", channelName(in)),
+			slog.String("error", err.Error()))
+	}
 }
 
 func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
@@ -61,6 +90,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 			}
 		}
 		if !mentioned {
+			recordChatter(in, content)
 			return nil
 		}
 		content = strings.ReplaceAll(content, fmt.Sprintf("<@%s>", botID), "")
