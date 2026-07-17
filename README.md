@@ -45,6 +45,12 @@ git merge github/develop   # resolve conflicts, keep the LINE runtime
 
 The LINE runtime lives in `internal/runtime/line/` and a handful of integration points (`cmd/app/main.go`, `internal/agents/exec/systemPrompt.go`, `internal/filesystem/path.go`, TUI `/line` command). Conflicts during a merge are almost always at these seams; resolve them in favour of preserving the LINE channel.
 
+## Group / room session naming
+
+For LINE **groups**, and multi-person **chat rooms**, every reply requires @-mentioning the bot — unmentioned messages are recorded into session history but not answered.
+
+LINE's API does not expose a room name (`GetGroupSummary` only exists for groups, not rooms), so a chat room's session name has no auto-populated label. Rename it yourself via the TUI's session naming command after the session is created.
+
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
