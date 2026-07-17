@@ -9,13 +9,16 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/line/line-bot-sdk-go/v8/linebot"
 	go_bot_line "github.com/pardnchiu/go-bot/line"
+	"github.com/pardnchiu/go-llm-router/core"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -48,6 +51,52 @@ func sourceName(in go_bot_line.Input) string {
 	}
 }
 
+func isMentioned(in go_bot_line.Input, botID string) bool {
+	if in.Raw == nil || botID == "" {
+		return false
+	}
+	tm, ok := in.Raw.Message.(*linebot.TextMessage)
+	if !ok || tm.Mention == nil {
+		return false
+	}
+	for _, m := range tm.Mention.Mentionees {
+		if m == nil {
+			continue
+		}
+		if m.Type == linebot.MentionedTargetTypeAll || m.UserID == botID {
+			return true
+		}
+	}
+	return false
+}
+
+func recordChatter(in go_bot_line.Input, content string) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return
+	}
+
+	sessionID, err := sessionManager.GetLineSession(in.SourceType, in.UserID, in.GroupID, in.RoomID)
+	if err != nil {
+		slog.Warn("sessionManager.GetLineSession (chatter)",
+			slog.String("source", sourceName(in)),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	username := in.Username
+	if username == "" {
+		username = "unknown"
+	}
+	if err := sessionHistory.Append(sessionID, []provider.Message{
+		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
+	}); err != nil {
+		slog.Warn("sessionHistory.Append (chatter)",
+			slog.String("source", sourceName(in)),
+			slog.String("error", err.Error()))
+	}
+}
+
 func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bot_line.Input) error {
 	content := strings.TrimSpace(in.Text)
 	if content == "" {
@@ -66,6 +115,21 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	target := sourceID(in)
 	if target == "" {
 		return fmt.Errorf("no source id")
+	}
+
+	_, hasVerifyPending := pending.Get(target)
+	if (in.GroupID != "" || in.RoomID != "") && !hasVerifyPending {
+		status := b.client.Status()
+		if !isMentioned(in, status.UserID) {
+			recordChatter(in, content)
+			return nil
+		}
+		if status.DisplayName != "" {
+			content = strings.TrimSpace(strings.ReplaceAll(content, "@"+status.DisplayName, ""))
+			if content == "" && !hasAttachment {
+				return nil
+			}
+		}
 	}
 
 	if !utils.IsAuthorized(filesystem.LineAuthPath, target) {
