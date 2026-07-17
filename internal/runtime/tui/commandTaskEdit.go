@@ -60,6 +60,7 @@ func (t TUI) openTaskEditRequirement(skill string, at time.Time) (TUI, tea.Cmd) 
 		kind:      popupText,
 		title:     fmt.Sprintf("Task edit %s (current: %s) — describe change", skill, at.Local().Format("2006-01-02 15:04")),
 		multiline: true,
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return TaskEditSubmit{
 				skill:       skill,

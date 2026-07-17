@@ -66,6 +66,7 @@ func (t TUI) openVoiceKeyPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "Voice · GEMINI_API_KEY",
+		input:    newPopupInput("", false),
 		subtitle: "required for voice transcription / voice reply · Enter to submit · Esc to cancel",
 		onConfirm: func(value string) any {
 			return VoiceKeySubmit{token: strings.TrimSpace(value)}

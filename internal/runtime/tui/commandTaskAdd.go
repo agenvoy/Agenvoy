@@ -15,6 +15,7 @@ func (t TUI) commandTaskAdd() (TUI, tea.Cmd, bool) {
 		kind:      popupText,
 		title:     "Task add — describe one-shot task (when + what)",
 		multiline: true,
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return TaskAddSubmit{requirement: strings.TrimSpace(value)}
 		},

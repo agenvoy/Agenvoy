@@ -52,6 +52,7 @@ func (t TUI) openKeyValuePrompt(key string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    fmt.Sprintf("Key · %s", key),
+		input:    newPopupInput("", false),
 		subtitle: "Enter new value · Enter to submit · Esc to cancel",
 		onConfirm: func(value string) any {
 			return KeySubmit{key: key, value: strings.TrimSpace(value)}

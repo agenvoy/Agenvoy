@@ -304,6 +304,7 @@ func (t TUI) openModelAddAPIKey() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupSecret,
 		title: fmt.Sprintf("%s API key", label),
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return ModelAddAPIKeySubmit{key: value}
 		},
@@ -320,6 +321,7 @@ func (t TUI) runModelAddAPIKeyReplace(replace string) (TUI, tea.Cmd) {
 		t.popup = &Popup{
 			kind:  popupSecret,
 			title: fmt.Sprintf("%s API key (new)", label),
+			input: newPopupInput("", false),
 			onConfirm: func(value string) any {
 				return ModelAddAPIKeySubmit{key: value}
 			},
@@ -375,6 +377,7 @@ func (t TUI) openModelAddAccountID() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "Cloudflare account ID",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return ModelAddAccountIDSubmit{id: strings.TrimSpace(value)}
 		},
@@ -390,6 +393,7 @@ func (t TUI) runModelAddAccountIDReplace(replace string) (TUI, tea.Cmd) {
 		t.popup = &Popup{
 			kind:  popupText,
 			title: "Cloudflare account ID (new)",
+			input: newPopupInput("", false),
 			onConfirm: func(value string) any {
 				return ModelAddAccountIDSubmit{id: strings.TrimSpace(value)}
 			},
@@ -435,6 +439,7 @@ func (t TUI) runModelAddGatewayIDPick(chosen string) (TUI, tea.Cmd) {
 		t.popup = &Popup{
 			kind:  popupText,
 			title: "Cloudflare AI Gateway ID",
+			input: newPopupInput("", false),
 			onConfirm: func(value string) any {
 				return ModelAddGatewayIDSubmit{id: strings.TrimSpace(value)}
 			},
@@ -467,6 +472,7 @@ func (t TUI) openModelAddCompatName() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "Compat provider name (ex. ollama)",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return ModelAddCompatNameSubmit{name: strings.TrimSpace(value)}
 		},
@@ -491,6 +497,7 @@ func (t TUI) openModelAddCompatURL() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "URL (blank = scan local)",
 		subtitle: "enter up to /v1 — e.g. http://localhost:11434/v1",
+		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return ModelAddCompatURLSubmit{url: strings.TrimSpace(value)}
 		},
@@ -518,6 +525,7 @@ func (t TUI) openModelAddCompatKey() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupSecret,
 		title: "API key (blank to skip)",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return ModelAddCompatKeySubmit{key: strings.TrimSpace(value)}
 		},
@@ -598,6 +606,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: fmt.Sprintf("Model name (prefix: %s)", prefix),
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			name := strings.TrimSpace(value)
 			if name == "" {
