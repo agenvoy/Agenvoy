@@ -140,6 +140,19 @@ func truncateWriteArgs(argsJSON string) string {
 			m[field] = omitted
 		}
 	}
+	if targets, ok := m["targets"].([]any); ok {
+		for _, t := range targets {
+			tm, ok := t.(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, field := range []string{"old_string", "new_string"} {
+				if _, ok := tm[field]; ok {
+					tm[field] = omitted
+				}
+			}
+		}
+	}
 	out, err := json.Marshal(m)
 	if err != nil {
 		return argsJSON

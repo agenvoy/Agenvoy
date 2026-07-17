@@ -207,6 +207,19 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 ***
 
+## Developer Recommendations
+
+A cost-effective model setup to get started:
+
+- Apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token, then use it for:
+  - `gpt-oss-20b` as the **dispatcher** model
+  - `gpt-oss-120b` as the **fallback** and **summary** model
+- Use a subscription plan as your **primary** model:
+  - OpenAI ChatGPT Plus ($20/mo)
+  - SuperGrok ($30/mo)
+
+***
+
 ## How it compares
 
 | | **Agenvoy** | OpenClaw | Hermes-agent |

@@ -207,6 +207,19 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 ***
 
+## 開發者建議
+
+一組省錢好上手的模型配置：
+
+- 申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，用於：
+  - `gpt-oss-20b` 作為 **dispatcher** 模型
+  - `gpt-oss-120b` 作為 **fallback** 與 **summary** 模型
+- 用訂閱制當作 **主力** 模型：
+  - OpenAI ChatGPT Plus（$20/月）
+  - SuperGrok（$30/月）
+
+***
+
 ## 與其他工具相比
 
 | | **Agenvoy** | OpenClaw | Hermes-agent |
