@@ -303,10 +303,7 @@ func buildTable(header []string, rows [][]string, termWidth int) string {
 var projectVersion = "dev"
 
 var (
-	headerStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colSystem).
-			Padding(0, 2)
+	headerStyle = lipgloss.NewStyle()
 
 	textAreaStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), true, false, true, false).
@@ -453,7 +450,7 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 		if ev.Source != "" {
 			bullet = "  ⎿"
 		}
-		return buildToolLine(bullet, ev.Source, ev.ToolName, ev.ToolArgs, cwd), true
+		return buildToolLine(bullet, ev.Source, ev.ToolName, ev.ToolArgs, cwd, width), true
 
 	case agentTypes.EventToolSkipped:
 		line := "  ⎿ " + srcPrefix + "skipped: " + ev.ToolName
@@ -546,11 +543,21 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 }
 
 var (
-	diffOldStyle = lipgloss.NewStyle().Foreground(colError)
-	diffNewStyle = lipgloss.NewStyle().Foreground(colOk)
+	diffOldStyle = lipgloss.NewStyle().Background(lipgloss.Color("#400000")).Foreground(lipgloss.Color("#FFFFFF"))
+	diffNewStyle = lipgloss.NewStyle().Background(lipgloss.Color("#002a00")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
-func buildToolLine(bullet, source, name, args, cwd string) string {
+func padToWidth(s string, width int) string {
+	if w := lipgloss.Width(s); width > w {
+		return s + strings.Repeat(" ", width-w)
+	}
+	return s
+}
+
+func buildToolLine(bullet, source, name, args, cwd string, width int) string {
+	if width <= 0 {
+		width = defaultWrapWidth
+	}
 	src := strings.TrimSpace(source)
 	srcPrefix := ""
 	if src != "" {
@@ -568,21 +575,30 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 
 	switch name {
 	case "patch_file", "patch_tool", "patch_skill":
-		oldLines, newLines := utils.FormatPatchDiff(args)
-		if len(oldLines) == 0 && len(newLines) == 0 {
+		hunks := utils.FormatPatchDiff(args)
+		if len(hunks) == 0 {
 			return header
 		}
 		var sb strings.Builder
 		sb.WriteString(header)
 		remaining := 32
-		for _, l := range oldLines[:min(len(oldLines), 16)] {
-			sb.WriteByte('\n')
-			sb.WriteString(diffOldStyle.Render("  - " + l))
-			remaining--
-		}
-		for _, l := range newLines[:min(len(newLines), remaining)] {
-			sb.WriteByte('\n')
-			sb.WriteString(diffNewStyle.Render("  + " + l))
+		for i, h := range hunks {
+			if remaining <= 0 {
+				break
+			}
+			if i > 0 {
+				sb.WriteByte('\n')
+			}
+			for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+				sb.WriteByte('\n')
+				sb.WriteString(diffOldStyle.Render(padToWidth("  - "+l, width)))
+				remaining--
+			}
+			for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+				sb.WriteByte('\n')
+				sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
+				remaining--
+			}
 		}
 		return sb.String()
 
@@ -595,7 +611,7 @@ func buildToolLine(bullet, source, name, args, cwd string) string {
 		sb.WriteString(header)
 		for _, l := range lines[:min(len(lines), 16)] {
 			sb.WriteByte('\n')
-			sb.WriteString(diffNewStyle.Render("  + " + l))
+			sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
 		}
 		return sb.String()
 	}

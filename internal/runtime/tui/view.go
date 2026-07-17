@@ -142,11 +142,15 @@ func (t TUI) viewPopup() string {
 		body = append(body, textStyle.Render(p.subtitle))
 	}
 	body = append(body, p.styledLines...)
+	diffWidth := max(width-6, 20)
 	for _, dl := range p.diffLines {
-		if strings.HasPrefix(dl, "- ") {
-			body = append(body, diffOldStyle.Render("  "+dl))
-		} else {
-			body = append(body, diffNewStyle.Render("  "+dl))
+		switch {
+		case dl == "":
+			body = append(body, "")
+		case strings.HasPrefix(dl, "- "):
+			body = append(body, diffOldStyle.Render(padToWidth("  "+dl, diffWidth)))
+		default:
+			body = append(body, diffNewStyle.Render(padToWidth("  "+dl, diffWidth)))
 		}
 	}
 	body = append(body, "")

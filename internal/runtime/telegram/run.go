@@ -16,7 +16,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -24,11 +23,14 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	"github.com/pardnchiu/go-llm-router/core"
+	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -58,6 +60,33 @@ func inputHasVoice(in go_bot_telegram.Input) bool {
 	}
 	m := in.Raw.Message
 	return m.Voice != nil || m.Audio != nil || m.Video != nil || m.VideoNote != nil
+}
+
+func recordChatter(in go_bot_telegram.Input, content string) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return
+	}
+
+	sessionID, err := sessionTelegram.New(in.ChatID)
+	if err != nil {
+		slog.Warn("sessionTelegram.New (chatter)",
+			slog.Int64("chat", in.ChatID),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	username := in.Username
+	if username == "" {
+		username = "unknown"
+	}
+	if err := sessionHistory.Append(sessionID, []provider.Message{
+		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
+	}); err != nil {
+		slog.Warn("sessionHistory.Append (chatter)",
+			slog.Int64("chat", in.ChatID),
+			slog.String("error", err.Error()))
+	}
 }
 
 func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []go_bot_telegram.Input) error {
@@ -91,6 +120,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		}
 		target := "@" + botUsername
 		if !strings.Contains(content, target) {
+			recordChatter(in, content)
 			return nil
 		}
 		content = strings.TrimSpace(strings.ReplaceAll(content, target, ""))
