@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -57,7 +57,7 @@ var toolDisplayName = map[string]string{
 	"list_tools":           "List Tools",
 	"list_chatbot":         "List Chat",
 	"list_schedule":        "List Schedule",
-	"read_file":            "Read",
+	"read_files":           "Read",
 	"write_file":           "Write",
 	"patch_file":           "Patch",
 	"glob_files":           "Glob",
@@ -174,36 +174,103 @@ func FormatToolArgs(name, raw, cwd string) string {
 		}
 
 	case "list_files":
-		dir := pick("dir", "path")
-		if dir == "" {
+		dirs, ok := dic["dirs"].([]any)
+		if !ok || len(dirs) == 0 {
 			break
 		}
-		if r, ok := dic["recursive"].(bool); ok && r {
-			return dir + " (recursive)"
+		labels := make([]string, 0, len(dirs))
+		for _, d := range dirs {
+			dm, ok := d.(map[string]any)
+			if !ok {
+				continue
+			}
+			dir, _ := dm["dir"].(string)
+			if dir == "" {
+				dir = "."
+			}
+			if r, ok := dm["recursive"].(bool); ok && r {
+				dir += " (recursive)"
+			}
+			labels = append(labels, dir)
 		}
-		return dir
+		if len(labels) > 0 {
+			return strings.Join(labels, ", ")
+		}
 
-	case "read_file", "write_file", "patch_file", "glob_files":
+	case "read_files":
+		files, ok := dic["files"].([]any)
+		if !ok || len(files) == 0 {
+			break
+		}
+		paths := make([]string, 0, len(files))
+		for _, f := range files {
+			fm, ok := f.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
+				paths = append(paths, p)
+			}
+		}
+		if len(paths) > 0 {
+			return strings.Join(paths, ", ")
+		}
+
+	case "glob_files":
+		queries, ok := dic["queries"].([]any)
+		if !ok || len(queries) == 0 {
+			break
+		}
+		patterns := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
+				patterns = append(patterns, p)
+			}
+		}
+		if len(patterns) > 0 {
+			return strings.Join(patterns, ", ")
+		}
+
+	case "write_file", "patch_file":
 		if s := pick("path", "pattern"); s != "" {
 			return s
 		}
 
 	case "search_files":
-		dir := strings.TrimSpace(pick("dir"))
-		if dir == "" {
-			dir = "."
+		queries, ok := dic["queries"].([]any)
+		if !ok || len(queries) == 0 {
+			break
 		}
-		if isCwd(dir) {
-			dir = "./"
+		labels := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			dir, _ := qm["dir"].(string)
+			dir = strings.TrimSpace(dir)
+			if dir == "" {
+				dir = "."
+			}
+			if isCwd(dir) {
+				dir = "./"
+			}
+			loc := dir
+			if fp, _ := qm["file_pattern"].(string); strings.TrimSpace(fp) != "" {
+				loc = strings.TrimRight(dir, "/") + "/" + fp
+			}
+			if pat, _ := qm["pattern"].(string); pat != "" {
+				loc += " [" + pat + "]"
+			}
+			labels = append(labels, loc)
 		}
-		loc := dir
-		if fp := strings.TrimSpace(pick("file_pattern")); fp != "" {
-			loc = strings.TrimRight(dir, "/") + "/" + fp
+		if len(labels) > 0 {
+			return strings.Join(labels, ", ")
 		}
-		if pat := pick("pattern"); pat != "" {
-			return loc + " [" + pat + "]"
-		}
-		return loc
 
 	case "search_web", "search_google_news":
 		if q := pick("query", "keyword"); q != "" {
@@ -301,6 +368,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 type PatchHunk struct {
 	OldLines []string
 	NewLines []string
+	Row      int
 }
 
 func FormatPatchDiff(raw string) []PatchHunk {
@@ -309,16 +377,20 @@ func FormatPatchDiff(raw string) []PatchHunk {
 			Old    string `json:"old_string"`
 			New    string `json:"new_string"`
 			Insert string `json:"insert_string"`
+			Row    int    `json:"row"`
 		} `json:"targets"`
 	}
 	if json.Unmarshal([]byte(raw), &multi) == nil && len(multi.Targets) > 0 {
 		hunks := make([]PatchHunk, 0, len(multi.Targets))
 		for _, t := range multi.Targets {
 			if t.Insert != "" {
-				hunks = append(hunks, PatchHunk{NewLines: splitLines(t.Insert)})
+				hunks = append(hunks, PatchHunk{NewLines: splitLines(t.Insert), Row: t.Row})
 				continue
 			}
-			hunks = append(hunks, PatchHunk{OldLines: splitLines(t.Old), NewLines: splitLines(t.New)})
+			if t.Old == t.New {
+				continue
+			}
+			hunks = append(hunks, PatchHunk{OldLines: splitLines(t.Old), NewLines: splitLines(t.New), Row: t.Row})
 		}
 		return hunks
 	}
@@ -327,7 +399,7 @@ func FormatPatchDiff(raw string) []PatchHunk {
 		Old string `json:"old_string"`
 		New string `json:"new_string"`
 	}
-	if json.Unmarshal([]byte(raw), &p) != nil {
+	if json.Unmarshal([]byte(raw), &p) != nil || p.Old == p.New {
 		return nil
 	}
 	return []PatchHunk{{OldLines: splitLines(p.Old), NewLines: splitLines(p.New)}}

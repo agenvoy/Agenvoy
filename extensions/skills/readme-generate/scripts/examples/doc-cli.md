@@ -83,13 +83,13 @@ cp .env.example .env
 
 ### 內建工具
 
-| 工具 | 參數 | 說明 |
-|------|------|------|
-| `read_file` | `path` | 讀取指定路徑的檔案內容 |
-| `list_files` | `path`, `recursive` | 列出目錄內容 |
-| `write_file` | `path`, `content` | 寫入或建立檔案 |
-| `search_content` | `pattern`, `file_pattern` | 使用 regex 搜尋檔案內容 |
-| `run_command` | `command` | 執行白名單內的 shell 指令 |
+| 工具 | 說明 |
+|------|------|
+| `read_file` | 讀取檔案內容 |
+| `list_files` | 列出目錄內容 |
+| `write_file` | 寫入或建立檔案 |
+| `search_content` | 使用 regex 搜尋檔案內容 |
+| `run_command` | 執行白名單內的 shell 指令 |
 
 ***
 

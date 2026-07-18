@@ -104,6 +104,10 @@ func (t TUI) viewThinking() string {
 		sb.WriteString("\n\n")
 		sb.WriteString(block)
 	}
+	if block := renderWaitBlock(t.pendingSteer); block != "" {
+		sb.WriteString("\n\n")
+		sb.WriteString(block)
+	}
 	return sb.String()
 }
 

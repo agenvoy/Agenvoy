@@ -20,9 +20,10 @@ func registPatchFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name: "patch_file",
 		Description: `
-Replace one or more exact string matches inside a file, or insert new lines at a given line number.
+Targeted edit by exact string match and/or 1-based line number (row) — replace matched text, disambiguate
+which occurrence to edit by row, or insert new lines at a given row.
 Use for targeted edits; write_file for full rewrite; patch_skill for skill files.
-Must read_file before patching to get the exact anchor string or line number.
+Must read_files before patching to get the exact anchor string or line number.
 Each target is either a replace (old_string/new_string) or a pure insert (insert_string/row) — never both.
 Targets with row are applied from the highest row to the lowest first (so line numbers stay valid against
 the original file even when other targets shift lines), then remaining targets apply top to bottom.`,

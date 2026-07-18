@@ -395,12 +395,12 @@ func newPopup(id string, req runtime.Request) *Popup {
 				if i > 0 {
 					p.diffLines = append(p.diffLines, "")
 				}
-				for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
-					p.diffLines = append(p.diffLines, "- "+l)
+				for j, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+					p.diffLines = append(p.diffLines, "- "+rowLabel(h.Row, j)+l)
 					remaining--
 				}
-				for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
-					p.diffLines = append(p.diffLines, "+ "+l)
+				for j, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+					p.diffLines = append(p.diffLines, "+ "+rowLabel(h.Row, j)+l)
 					remaining--
 				}
 			}

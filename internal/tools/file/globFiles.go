@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -19,22 +20,34 @@ func registGlobFiles() {
 		Name:        "glob_files",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Find files matching a glob pattern within a directory (e.g. '**/*.go'). Use when only a filename or partial path is known — never guess full paths. Call read_file on each match before editing to confirm the correct file.",
+		Description: "Find files matching glob patterns within a directory (e.g. '**/*.go'). Use when only a filename or partial path is known — never guess full paths. Supports multiple patterns/dirs in one call — when several patterns need searching, put them all in `queries` rather than issuing separate calls; matches are merged and deduplicated. Call read_files on each match before editing to confirm the correct file.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"dir": map[string]any{
-					"type":        "string",
-					"description": "Directory to search in (e.g. '.', '~/downloads', '/abs/path'). Defaults to current working directory.",
-					"default":     ".",
-				},
-				"pattern": map[string]any{
-					"type":        "string",
-					"description": "Glob pattern relative to dir (e.g. '**/*.go', '*.md'). No leading '/' or '~' — put absolute paths in dir.",
+				"queries": map[string]any{
+					"type":        "array",
+					"description": "One or more glob searches.",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"dir": map[string]any{
+								"type":        "string",
+								"description": "Directory to search in (e.g. '.', '~/downloads', '/abs/path'). Defaults to current working directory.",
+								"default":     ".",
+							},
+							"pattern": map[string]any{
+								"type":        "string",
+								"description": "Glob pattern relative to dir (e.g. '**/*.go', '*.md'). No leading '/' or '~' — put absolute paths in dir.",
+							},
+						},
+						"required": []string{
+							"pattern",
+						},
+					},
 				},
 			},
 			"required": []string{
-				"pattern",
+				"queries",
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
@@ -42,40 +55,59 @@ func registGlobFiles() {
 				return "", err
 			}
 			var params struct {
-				Dir     string `json:"dir"`
-				Pattern string `json:"pattern"`
+				Queries []struct {
+					Dir     string `json:"dir"`
+					Pattern string `json:"pattern"`
+				} `json:"queries"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-
-			dir := strings.TrimSpace(params.Dir)
-			absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, dir, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
-			if err != nil {
-				return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+			if len(params.Queries) == 0 {
+				return "", fmt.Errorf("queries is required")
 			}
 
-			if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-				return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
-			}
-
-			pattern := strings.TrimSpace(params.Pattern)
-			if pattern == "" {
-				return "", fmt.Errorf("pattern is required")
-			}
-
-			matches, err := go_pkg_filesystem_reader.GlobFiles(absPath, pattern)
-			if err != nil {
-				if denied.IsPermission(err) {
-					denied.Register(e.SessionID, absPath)
-					return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
+			seen := make(map[string]struct{})
+			var merged []go_pkg_filesystem_reader.File
+			for _, q := range params.Queries {
+				pattern := strings.TrimSpace(q.Pattern)
+				if pattern == "" {
+					return "", fmt.Errorf("pattern is required")
 				}
-				return "", fmt.Errorf("go_pkg_filesystem_reader.GlobFiles: %w", err)
+
+				absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, strings.TrimSpace(q.Dir), go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+				if err != nil {
+					return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+				}
+
+				if parent, ok := denied.Hit(e.SessionID, absPath); ok {
+					return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
+				}
+
+				matches, err := go_pkg_filesystem_reader.GlobFiles(absPath, pattern)
+				if err != nil {
+					if denied.IsPermission(err) {
+						denied.Register(e.SessionID, absPath)
+						return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
+					}
+					return "", fmt.Errorf("go_pkg_filesystem_reader.GlobFiles: %w", err)
+				}
+				if err := ctx.Err(); err != nil {
+					return "", err
+				}
+				for _, m := range matches {
+					if _, ok := seen[m.Path]; ok {
+						continue
+					}
+					seen[m.Path] = struct{}{}
+					merged = append(merged, m)
+				}
 			}
-			if err := ctx.Err(); err != nil {
-				return "", err
-			}
-			raw, err := json.Marshal(matches)
+
+			slices.SortFunc(merged, func(a, b go_pkg_filesystem_reader.File) int {
+				return strings.Compare(a.Path, b.Path)
+			})
+			raw, err := json.Marshal(merged)
 			if err != nil {
 				return "", fmt.Errorf("json.Marshal: %w", err)
 			}

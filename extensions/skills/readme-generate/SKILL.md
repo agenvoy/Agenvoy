@@ -840,10 +840,10 @@ cp .env.example .env
 
 ### Built-in Tools
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `read_file` | `path` | Read file content at the specified path |
-| `write_file` | `path`, `content` | Write or create a file |
+| Tool | Description |
+|------|-------------|
+| `read_file` | Read file content |
+| `write_file` | Write or create a file |
 ```
 
 **函式庫 API 參考範例：**

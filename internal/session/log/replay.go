@@ -82,6 +82,10 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 		return agentTypes.Event{Type: agentTypes.EventExecError, ToolName: name, Text: msg, Err: errors.New(msg)}, true
 	case "done":
 		return parseDone(body), true
+	case "canceled":
+		event := parseDone(body)
+		event.Type = agentTypes.EventCanceled
+		return event, true
 	case "skill_result":
 		return agentTypes.Event{Type: agentTypes.EventSkillResult, Text: body}, true
 	case "agent_result":

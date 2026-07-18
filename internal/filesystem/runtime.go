@@ -35,8 +35,9 @@ type DeniedConfig struct {
 var (
 	DeniedMap      DeniedConfig
 	DeniedMapBytes []byte
-	WhiteList      []string
-	NetWhiteList   []string
+	WhiteList    []string
+	NetWhiteList []string
+	WhiteCommand []string
 )
 
 const (
@@ -170,6 +171,17 @@ func LoadRuntime() error {
 			return fmt.Errorf("json.Unmarshal net_white_list: %w", err)
 		}
 		NetWhiteList = merge(NetWhiteList, user)
+	}
+
+	if err := json.Unmarshal(configs.WhiteCommand, &WhiteCommand); err != nil {
+		return fmt.Errorf("embedded white_command: %w", err)
+	}
+	if data, ok := raw["white_command"]; ok && len(data) > 0 {
+		var user []string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal white_command: %w", err)
+		}
+		WhiteCommand = merge(WhiteCommand, user)
 	}
 
 	deniedBytes, err := json.Marshal(DeniedMap)

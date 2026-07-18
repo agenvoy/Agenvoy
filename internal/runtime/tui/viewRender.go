@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -318,13 +319,13 @@ var (
 
 // * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
 var asciiMarkLines = []string{
-	"      ███████",
-	"    ██       ██",
-	"  ██    █████████",
+	"      .:::::.",
+	"    .::     ::.",
+	"  .::    :::::::.",
 	"",
-	"  ██           ██",
-	"    ██       ██",
-	"      ███████",
+	"  ::.         .::",
+	"    ::.     .::",
+	"      :::::::",
 }
 
 func headerBlock(daemon, http, discord, telegram string) string {
@@ -352,7 +353,7 @@ func headerBlock(daemon, http, discord, telegram string) string {
 
 	rows := make([]string, len(asciiMarkLines))
 	for i, mark := range asciiMarkLines {
-		rows[i] = systemStyle.Render(padTo(mark, markCol)) + textLines[i]
+		rows[i] = whiteStyle.Render(padTo(mark, markCol)) + textLines[i]
 	}
 	rows = append(rows, "")
 	return headerStyle.Render(strings.Join(rows, "\n"))
@@ -493,6 +494,13 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 		}
 		return thinkingBlock(wrapText(strings.Join(kept, "\n"), width-2)), true
 
+	case agentTypes.EventUserInjected:
+		text := strings.TrimSpace(ev.Text)
+		if text == "" {
+			return "", false
+		}
+		return hintStyle.Render("❯ ") + okayStyle.Render(text), true
+
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
 
@@ -537,6 +545,13 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 			return "", false
 		}
 		return hintStyle.Render("  ⎿ "+footer) + "\n", true
+
+	case agentTypes.EventCanceled:
+		footer := "canceled"
+		if finishedAt != "" {
+			footer += " · " + finishedAt
+		}
+		return warnStyle.Render("  ⎿ "+footer) + "\n", true
 	}
 
 	return "", false
@@ -546,6 +561,13 @@ var (
 	diffOldStyle = lipgloss.NewStyle().Background(lipgloss.Color("#400000")).Foreground(lipgloss.Color("#FFFFFF"))
 	diffNewStyle = lipgloss.NewStyle().Background(lipgloss.Color("#002a00")).Foreground(lipgloss.Color("#FFFFFF"))
 )
+
+func rowLabel(row, offset int) string {
+	if row <= 0 {
+		return ""
+	}
+	return strconv.Itoa(row+offset) + " "
+}
 
 func padToWidth(s string, width int) string {
 	if w := lipgloss.Width(s); width > w {
@@ -589,14 +611,14 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 			if i > 0 {
 				sb.WriteByte('\n')
 			}
-			for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+			for j, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
 				sb.WriteByte('\n')
-				sb.WriteString(diffOldStyle.Render(padToWidth("  - "+l, width)))
+				sb.WriteString(diffOldStyle.Render(padToWidth("  - "+rowLabel(h.Row, j)+l, width)))
 				remaining--
 			}
-			for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+			for j, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
 				sb.WriteByte('\n')
-				sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
+				sb.WriteString(diffNewStyle.Render(padToWidth("  + "+rowLabel(h.Row, j)+l, width)))
 				remaining--
 			}
 		}

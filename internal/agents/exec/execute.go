@@ -20,8 +20,6 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -37,6 +35,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	provider "github.com/pardnchiu/go-llm-router/core"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 )
 
 const (
@@ -210,6 +210,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
+		defer ClearSteer(session.ID)
 
 		var inputText string
 		if s, ok := session.UserInput.Content.(string); ok {
@@ -379,7 +380,15 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	firstAttempt := true
 	for range limit {
 		if ctx.Err() != nil {
+			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+			interactive.DeletePending(session.ID, exec.PendingTask)
+			keepPending = false
 			return ctx.Err()
+		}
+		if pending := getSteer(session.ID); len(pending) > 0 {
+			raw := strings.Join(pending, "\n")
+			session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
+			events <- agentTypes.Event{Type: agentTypes.EventUserInjected, Text: raw}
 		}
 		if firstAttempt {
 			firstAttempt = false
@@ -421,6 +430,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			case <-ctx.Done():
 				watchdog.Stop()
 				cancelSend()
+				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				interactive.DeletePending(session.ID, exec.PendingTask)
+				keepPending = false
 				return ctx.Err()
 			case out := <-resultCh:
 				resp, sendCode, err = out.resp, out.code, out.err
@@ -493,6 +505,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		cancelSend()
 		if err != nil {
 			if ctx.Err() != nil {
+				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				interactive.DeletePending(session.ID, exec.PendingTask)
+				keepPending = false
 				return ctx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
@@ -541,6 +556,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					slog.Int("attempt", timeoutRetryCount+1))
 				select {
 				case <-ctx.Done():
+					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+					interactive.DeletePending(session.ID, exec.PendingTask)
+					keepPending = false
 					return ctx.Err()
 				case <-time.After(SendTimeoutRetryInterval):
 				}
@@ -714,6 +732,12 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 			interactive.FinalizePending(session.ID, exec.PendingTask, responseText)
+
+			if pending := getSteer(session.ID); len(pending) > 0 {
+				session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
+				events <- agentTypes.Event{Type: agentTypes.EventUserInjected, Text: strings.Join(pending, "\n")}
+				continue
+			}
 
 		case nil:
 			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {

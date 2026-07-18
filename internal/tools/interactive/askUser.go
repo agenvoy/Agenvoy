@@ -218,6 +218,15 @@ func FinalizePending(sessionID, taskHash, reply string) {
 	}
 }
 
+func DeletePending(sessionID, taskHash string) {
+	if taskHash == "" {
+		return
+	}
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	os.Remove(filesystem.PendingMetaPath(sessionID, taskHash))
+}
+
 func CleanupPending(sessionID, taskHash string) {
 	if taskHash == "" {
 		return
