@@ -26,7 +26,7 @@ func activityVerb(activity string) string {
 	case strings.HasPrefix(activity, "tool: "):
 		tool := strings.TrimPrefix(activity, "tool: ")
 		switch tool {
-		case "read_file":
+		case "read_files":
 			return "Reading"
 
 		case "write_file", "patch_file":

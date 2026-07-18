@@ -57,7 +57,7 @@ var toolDisplayName = map[string]string{
 	"list_tools":           "List Tools",
 	"list_chatbot":         "List Chat",
 	"list_schedule":        "List Schedule",
-	"read_file":            "Read",
+	"read_files":           "Read",
 	"write_file":           "Write",
 	"patch_file":           "Patch",
 	"glob_files":           "Glob",
@@ -183,7 +183,45 @@ func FormatToolArgs(name, raw, cwd string) string {
 		}
 		return dir
 
-	case "read_file", "write_file", "patch_file", "glob_files":
+	case "read_files":
+		files, ok := dic["files"].([]any)
+		if !ok || len(files) == 0 {
+			break
+		}
+		paths := make([]string, 0, len(files))
+		for _, f := range files {
+			fm, ok := f.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
+				paths = append(paths, p)
+			}
+		}
+		if len(paths) > 0 {
+			return strings.Join(paths, ", ")
+		}
+
+	case "glob_files":
+		queries, ok := dic["queries"].([]any)
+		if !ok || len(queries) == 0 {
+			break
+		}
+		patterns := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
+				patterns = append(patterns, p)
+			}
+		}
+		if len(patterns) > 0 {
+			return strings.Join(patterns, ", ")
+		}
+
+	case "write_file", "patch_file":
 		if s := pick("path", "pattern"); s != "" {
 			return s
 		}

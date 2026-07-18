@@ -94,7 +94,7 @@ type toolSlot struct {
 }
 
 func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, turnAllowAll bool) bool {
-	if toolName == "read_file" && isSensitiveReadFile(toolArgs) {
+	if toolName == "read_files" && isSensitiveReadFile(toolArgs) {
 		return true
 	}
 	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
@@ -114,7 +114,7 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 		return
 	}
 	for key := range alreadyCall {
-		if strings.HasPrefix(key, "read_file|") && strings.Contains(key, p.Path) {
+		if strings.HasPrefix(key, "read_files|") && strings.Contains(key, p.Path) {
 			delete(alreadyCall, key)
 		}
 	}
@@ -134,7 +134,7 @@ func truncateWriteArgs(argsJSON string) string {
 	if json.Unmarshal([]byte(argsJSON), &m) != nil {
 		return argsJSON
 	}
-	const omitted = "[omitted after successful write — already applied on disk; read_file to inspect]"
+	const omitted = "[omitted after successful write — already applied on disk; read_files to inspect]"
 	for _, field := range []string{"content", "old_string", "new_string"} {
 		if _, ok := m[field]; ok {
 			m[field] = omitted
@@ -218,12 +218,19 @@ func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
 
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
-		Path string `json:"path"`
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
 	}
-	if json.Unmarshal([]byte(argsJSON), &p) != nil || p.Path == "" {
+	if json.Unmarshal([]byte(argsJSON), &p) != nil {
 		return false
 	}
-	return file.IsSensitivePath(p.Path)
+	for _, f := range p.Files {
+		if f.Path != "" && file.IsSensitivePath(f.Path) {
+			return true
+		}
+	}
+	return false
 }
 
 func isGet(argsJSON string) bool {

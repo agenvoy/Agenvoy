@@ -30,7 +30,7 @@ func registReasoningGuide() {
 
 - rag_web: non-smalltalk info query (people, orgs, facts, current events, prices, time-sensitive) — ground in search_rag + live web, never training knowledge alone.
 - market_analysis: stock/ETF/market analysis — assess macro, regional, industry, asset-specific layers, never single region.
-- targeted_read: file question needs only specific symbols/sections/keywords — search first, narrow read_file over whole-file read.
+- targeted_read: file question needs only specific symbols/sections/keywords — search first, narrow read_files over whole-file read.
 - ask_user: missing target, vague scope, unclear spec, ambiguous time, scheduling without content, non-unique tool choice — resolve intent first.
 - subagent_delegation: named session ("call X"/"呼叫 X"), reusable single subtask, or broad multi-source/cross-entity request — decide delegation before invoke_subagent.
 - write_todo: analysis/research task or complex multi-step task, no active Skill — decide checklist before write_todo.`,

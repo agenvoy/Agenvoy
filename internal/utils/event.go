@@ -73,7 +73,7 @@ func FormatToolEvent(name, raw string) string {
 		}
 		return val
 
-	case "read_file", "write_file", "patch_file", "glob_files":
+	case "read_files", "write_file", "patch_file", "glob_files":
 		if val := arg("path", "pattern"); val != "" {
 			return val
 		}
