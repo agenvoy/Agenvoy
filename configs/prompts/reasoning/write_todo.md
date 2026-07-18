@@ -4,3 +4,4 @@ Analysis/research task or complex multi-step task, no active Skill → live chec
 
 - **Mark `completed` the instant a step finishes — never batch.** Same turn, before next step starts.
 - **Close checklist before final answer.** Last step done → final `write_todo` call, every item `completed` (zero `in_progress`) — THEN write closing response. Never leave a step `in_progress` at task end.
+- **An unfinished plan can be revised, not just executed.** Whether the trigger is a mid-run user interjection or your own reasoning surfacing that a step is wrong, redundant, missing, or ordered badly — evaluate whether the plan needs to change. If it does, say what changes and why, then send the revised step set (steps already `completed` stay `completed`; only the remaining ones shift). If it doesn't, acknowledge briefly (for a user message) or say nothing (for self-noticed non-issues) and keep executing.

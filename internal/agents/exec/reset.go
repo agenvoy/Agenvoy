@@ -42,6 +42,7 @@ func ResetSessionAll(sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("session id is required")
 	}
+	ClearSteer(sessionID)
 	return sessionManager.ResetAll(sessionID)
 }
 
@@ -62,5 +63,6 @@ func ResetSessionWithSummary(ctx context.Context, sessionID string) (int, error)
 		}
 	}
 
+	ClearSteer(sessionID)
 	return sessionManager.Reset(sessionID)
 }

@@ -80,6 +80,13 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp("done", strings.Join(parts, " "))
 
+	case agentTypes.EventCanceled:
+		parts := []string{event.Model}
+		if event.Duration > 0 {
+			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
+		}
+		return withTimestamp("canceled", strings.Join(parts, " "))
+
 	case agentTypes.EventSkillResult:
 		str := strings.TrimSpace(event.Text)
 		if str == "" {

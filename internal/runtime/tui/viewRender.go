@@ -318,13 +318,13 @@ var (
 
 // * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
 var asciiMarkLines = []string{
-	"      ███████",
-	"    ██       ██",
-	"  ██    █████████",
+	"      .:::::.",
+	"    .::     ::.",
+	"  .::    :::::::.",
 	"",
-	"  ██           ██",
-	"    ██       ██",
-	"      ███████",
+	"  ::.         .::",
+	"    ::.     .::",
+	"      :::::::",
 }
 
 func headerBlock(daemon, http, discord, telegram string) string {
@@ -352,7 +352,7 @@ func headerBlock(daemon, http, discord, telegram string) string {
 
 	rows := make([]string, len(asciiMarkLines))
 	for i, mark := range asciiMarkLines {
-		rows[i] = systemStyle.Render(padTo(mark, markCol)) + textLines[i]
+		rows[i] = whiteStyle.Render(padTo(mark, markCol)) + textLines[i]
 	}
 	rows = append(rows, "")
 	return headerStyle.Render(strings.Join(rows, "\n"))
@@ -493,6 +493,13 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 		}
 		return thinkingBlock(wrapText(strings.Join(kept, "\n"), width-2)), true
 
+	case agentTypes.EventUserInjected:
+		text := strings.TrimSpace(ev.Text)
+		if text == "" {
+			return "", false
+		}
+		return hintStyle.Render("❯ ") + okayStyle.Render(text), true
+
 	case agentTypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
 
@@ -537,6 +544,13 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 			return "", false
 		}
 		return hintStyle.Render("  ⎿ "+footer) + "\n", true
+
+	case agentTypes.EventCanceled:
+		footer := "canceled"
+		if finishedAt != "" {
+			footer += " · " + finishedAt
+		}
+		return warnStyle.Render("  ⎿ "+footer) + "\n", true
 	}
 
 	return "", false

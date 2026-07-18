@@ -113,6 +113,20 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case agentTypes.EventUserInjected:
+		if ev.Source == "" {
+			t.pendingSteer = nil
+		}
+		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, "")
+		if !ok {
+			return t, nil
+		}
+		collapse := t.collapseToolBuf()
+		if collapse != nil {
+			return t, tea.Sequence(collapse, tea.Println("\n"+line))
+		}
+		return t, tea.Println("\n" + line)
+
 	case agentTypes.EventToolCall:
 		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
 			ev.ToolName != "write_todo" {
@@ -224,6 +238,19 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
 			return t, nil
+		}
+		return t, tea.Println(line)
+
+	case agentTypes.EventCanceled:
+		collapse := t.collapseToolBuf()
+		t.todos = nil
+		finishedAt := time.Now().Format("2006-01-02 15:04:05")
+		line, ok := renderAgentEvent(t.ctx, ev, t.runTarget, t.cwd, t.width, finishedAt)
+		if !ok {
+			return t, collapse
+		}
+		if collapse != nil {
+			return t, tea.Sequence(collapse, tea.Println(line))
 		}
 		return t, tea.Println(line)
 
