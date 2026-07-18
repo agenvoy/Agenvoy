@@ -27,7 +27,7 @@ Skill instructions may reference tool names from other environments. Always map 
 | Edit skill file / patch skill / 修改 skill 檔案 | `patch_skill` | `{"path": "<relative path under skills dir, e.g. my-skill/SKILL.md>", "old_string": "<exact text>", "new_string": "<replacement>"}` |
 | List files / 列出檔案 | `list_files` | `{"dirs": [{"dir": "<absolute directory path preferred>"}]}` |
 | Find files / glob / 搜尋檔案 | `glob_files` | `{"queries": [{"pattern": "<glob pattern>"}]}` |
-| Search file content / grep / 搜尋內容 | `search_content` | `{"query": "<keyword>", "path": "<directory>"}` |
+| Search file content / grep / 搜尋內容 | `search_files` | `{"queries": [{"pattern": "<keyword>", "dir": "<directory>"}]}` |
 | Read image / 讀取圖片 | `read_files` | `{"files": [{"path": "<image path>"}]}` |
 | Search web / Google / web search / 搜尋網路 | `search_web` | `{"query": "<search terms>"}` |
 | Fetch page / open URL / 讀取網頁 / 開啟連結 | `fetch_page` | `{"url": "<full URL>"}` |

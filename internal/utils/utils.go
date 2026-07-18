@@ -241,21 +241,36 @@ func FormatToolArgs(name, raw, cwd string) string {
 		}
 
 	case "search_files":
-		dir := strings.TrimSpace(pick("dir"))
-		if dir == "" {
-			dir = "."
+		queries, ok := dic["queries"].([]any)
+		if !ok || len(queries) == 0 {
+			break
 		}
-		if isCwd(dir) {
-			dir = "./"
+		labels := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			dir, _ := qm["dir"].(string)
+			dir = strings.TrimSpace(dir)
+			if dir == "" {
+				dir = "."
+			}
+			if isCwd(dir) {
+				dir = "./"
+			}
+			loc := dir
+			if fp, _ := qm["file_pattern"].(string); strings.TrimSpace(fp) != "" {
+				loc = strings.TrimRight(dir, "/") + "/" + fp
+			}
+			if pat, _ := qm["pattern"].(string); pat != "" {
+				loc += " [" + pat + "]"
+			}
+			labels = append(labels, loc)
 		}
-		loc := dir
-		if fp := strings.TrimSpace(pick("file_pattern")); fp != "" {
-			loc = strings.TrimRight(dir, "/") + "/" + fp
+		if len(labels) > 0 {
+			return strings.Join(labels, ", ")
 		}
-		if pat := pick("pattern"); pat != "" {
-			return loc + " [" + pat + "]"
-		}
-		return loc
 
 	case "search_web", "search_google_news":
 		if q := pick("query", "keyword"); q != "" {

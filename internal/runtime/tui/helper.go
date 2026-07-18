@@ -44,7 +44,7 @@ func activityVerb(activity string) string {
 		case "invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents":
 			return "Delegating"
 
-		case "list_files", "glob_files", "search_content":
+		case "list_files", "glob_files", "search_files":
 			return "Listing"
 
 		case "calculate":
