@@ -381,6 +381,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	for range limit {
 		if ctx.Err() != nil {
 			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+			interactive.DeletePending(session.ID, exec.PendingTask)
+			keepPending = false
 			return ctx.Err()
 		}
 		if pending := getSteer(session.ID); len(pending) > 0 {
@@ -429,6 +431,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				watchdog.Stop()
 				cancelSend()
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				interactive.DeletePending(session.ID, exec.PendingTask)
+				keepPending = false
 				return ctx.Err()
 			case out := <-resultCh:
 				resp, sendCode, err = out.resp, out.code, out.err
@@ -502,6 +506,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		if err != nil {
 			if ctx.Err() != nil {
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				interactive.DeletePending(session.ID, exec.PendingTask)
+				keepPending = false
 				return ctx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
@@ -551,6 +557,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				select {
 				case <-ctx.Done():
 					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+					interactive.DeletePending(session.ID, exec.PendingTask)
+					keepPending = false
 					return ctx.Err()
 				case <-time.After(SendTimeoutRetryInterval):
 				}

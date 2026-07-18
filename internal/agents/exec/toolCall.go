@@ -6,13 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -21,6 +23,7 @@ import (
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
@@ -103,7 +106,65 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if toolName == "send_http_request" && isGet(toolArgs) {
 		return false
 	}
+	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {
+		return false
+	}
 	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+}
+
+func hasDangerousGitFlag(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "-o", a == "--output", a == "--output-directory":
+			return true
+		case strings.HasPrefix(a, "--output=") || strings.HasPrefix(a, "--output-directory="):
+			return true
+		case strings.HasPrefix(a, "-o") && a != "-o":
+			return true
+		}
+	}
+	return false
+}
+
+func stripSafeGitGlobalFlags(argv []string) []string {
+	i := 1
+	for i < len(argv) && strings.HasPrefix(argv[i], "-") {
+		if argv[i] == "-c" || strings.HasPrefix(argv[i], "-c=") {
+			break
+		}
+		if !strings.Contains(argv[i], "=") && i+1 < len(argv) && !strings.HasPrefix(argv[i+1], "-") {
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return append([]string{argv[0]}, argv[i:]...)
+}
+
+func isReadOnlyRunCommand(toolArgs string) bool {
+	var p struct {
+		Argv []string `json:"argv"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil || len(p.Argv) == 0 {
+		return false
+	}
+	argv := p.Argv
+	bin := filepath.Base(argv[0])
+	if bin == "git" {
+		argv = stripSafeGitGlobalFlags(argv)
+	}
+
+	matched := slices.Contains(filesystem.WhiteCommand, bin)
+	if !matched && len(argv) > 1 {
+		matched = slices.Contains(filesystem.WhiteCommand, bin+" "+argv[1])
+	}
+	if !matched {
+		return false
+	}
+	if bin == "git" {
+		return !hasDangerousGitFlag(argv[2:])
+	}
+	return true
 }
 
 func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string) {
