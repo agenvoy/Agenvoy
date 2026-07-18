@@ -64,16 +64,68 @@ func FormatToolEvent(name, raw string) string {
 		}
 
 	case "list_files":
-		val := arg("dir", "path")
-		if val == "" {
+		dirs, ok := argMap["dirs"].([]any)
+		if !ok || len(dirs) == 0 {
 			break
 		}
-		if recursive, ok := argMap["recursive"].(bool); ok && recursive {
-			return val + " (recursive)"
+		labels := make([]string, 0, len(dirs))
+		for _, d := range dirs {
+			dm, ok := d.(map[string]any)
+			if !ok {
+				continue
+			}
+			dir, _ := dm["dir"].(string)
+			if dir == "" {
+				dir = "."
+			}
+			if r, ok := dm["recursive"].(bool); ok && r {
+				dir += " (recursive)"
+			}
+			labels = append(labels, dir)
 		}
-		return val
+		if len(labels) > 0 {
+			return strings.Join(labels, ", ")
+		}
 
-	case "read_files", "write_file", "patch_file", "glob_files":
+	case "read_files":
+		files, ok := argMap["files"].([]any)
+		if !ok || len(files) == 0 {
+			break
+		}
+		paths := make([]string, 0, len(files))
+		for _, f := range files {
+			fm, ok := f.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
+				paths = append(paths, p)
+			}
+		}
+		if len(paths) > 0 {
+			return strings.Join(paths, ", ")
+		}
+
+	case "glob_files":
+		queries, ok := argMap["queries"].([]any)
+		if !ok || len(queries) == 0 {
+			break
+		}
+		patterns := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
+				patterns = append(patterns, p)
+			}
+		}
+		if len(patterns) > 0 {
+			return strings.Join(patterns, ", ")
+		}
+
+	case "write_file", "patch_file":
 		if val := arg("path", "pattern"); val != "" {
 			return val
 		}

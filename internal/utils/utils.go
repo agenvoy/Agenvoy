@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -174,14 +174,28 @@ func FormatToolArgs(name, raw, cwd string) string {
 		}
 
 	case "list_files":
-		dir := pick("dir", "path")
-		if dir == "" {
+		dirs, ok := dic["dirs"].([]any)
+		if !ok || len(dirs) == 0 {
 			break
 		}
-		if r, ok := dic["recursive"].(bool); ok && r {
-			return dir + " (recursive)"
+		labels := make([]string, 0, len(dirs))
+		for _, d := range dirs {
+			dm, ok := d.(map[string]any)
+			if !ok {
+				continue
+			}
+			dir, _ := dm["dir"].(string)
+			if dir == "" {
+				dir = "."
+			}
+			if r, ok := dm["recursive"].(bool); ok && r {
+				dir += " (recursive)"
+			}
+			labels = append(labels, dir)
 		}
-		return dir
+		if len(labels) > 0 {
+			return strings.Join(labels, ", ")
+		}
 
 	case "read_files":
 		files, ok := dic["files"].([]any)
@@ -339,6 +353,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 type PatchHunk struct {
 	OldLines []string
 	NewLines []string
+	Row      int
 }
 
 func FormatPatchDiff(raw string) []PatchHunk {
@@ -347,16 +362,20 @@ func FormatPatchDiff(raw string) []PatchHunk {
 			Old    string `json:"old_string"`
 			New    string `json:"new_string"`
 			Insert string `json:"insert_string"`
+			Row    int    `json:"row"`
 		} `json:"targets"`
 	}
 	if json.Unmarshal([]byte(raw), &multi) == nil && len(multi.Targets) > 0 {
 		hunks := make([]PatchHunk, 0, len(multi.Targets))
 		for _, t := range multi.Targets {
 			if t.Insert != "" {
-				hunks = append(hunks, PatchHunk{NewLines: splitLines(t.Insert)})
+				hunks = append(hunks, PatchHunk{NewLines: splitLines(t.Insert), Row: t.Row})
 				continue
 			}
-			hunks = append(hunks, PatchHunk{OldLines: splitLines(t.Old), NewLines: splitLines(t.New)})
+			if t.Old == t.New {
+				continue
+			}
+			hunks = append(hunks, PatchHunk{OldLines: splitLines(t.Old), NewLines: splitLines(t.New), Row: t.Row})
 		}
 		return hunks
 	}
@@ -365,7 +384,7 @@ func FormatPatchDiff(raw string) []PatchHunk {
 		Old string `json:"old_string"`
 		New string `json:"new_string"`
 	}
-	if json.Unmarshal([]byte(raw), &p) != nil {
+	if json.Unmarshal([]byte(raw), &p) != nil || p.Old == p.New {
 		return nil
 	}
 	return []PatchHunk{{OldLines: splitLines(p.Old), NewLines: splitLines(p.New)}}

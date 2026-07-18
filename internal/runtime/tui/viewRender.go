@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -561,6 +562,13 @@ var (
 	diffNewStyle = lipgloss.NewStyle().Background(lipgloss.Color("#002a00")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
+func rowLabel(row, offset int) string {
+	if row <= 0 {
+		return ""
+	}
+	return strconv.Itoa(row+offset) + " "
+}
+
 func padToWidth(s string, width int) string {
 	if w := lipgloss.Width(s); width > w {
 		return s + strings.Repeat(" ", width-w)
@@ -603,14 +611,14 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 			if i > 0 {
 				sb.WriteByte('\n')
 			}
-			for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+			for j, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
 				sb.WriteByte('\n')
-				sb.WriteString(diffOldStyle.Render(padToWidth("  - "+l, width)))
+				sb.WriteString(diffOldStyle.Render(padToWidth("  - "+rowLabel(h.Row, j)+l, width)))
 				remaining--
 			}
-			for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+			for j, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
 				sb.WriteByte('\n')
-				sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
+				sb.WriteString(diffNewStyle.Render(padToWidth("  + "+rowLabel(h.Row, j)+l, width)))
 				remaining--
 			}
 		}
