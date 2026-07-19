@@ -52,7 +52,6 @@ func (t TUI) viewIdle() string {
 	}
 	right := t.sessionTag()
 
-	prefix := "\n"
 	var top string
 	if t.running {
 		top = t.viewThinking() + "\n\n"
@@ -66,7 +65,7 @@ func (t TUI) viewIdle() string {
 
 	pad := width - lipgloss.Width(confirmMode) - lipgloss.Width(right)
 	pad = max(pad, 1)
-	return prefix + top + box + "\n" + confirmMode + strings.Repeat(" ", pad) + right
+	return top + box + "\n" + confirmMode + strings.Repeat(" ", pad) + right
 }
 
 func (t TUI) viewThinking() string {

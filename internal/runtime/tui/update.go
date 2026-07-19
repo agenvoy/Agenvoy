@@ -216,7 +216,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
 
 			cmds = append(cmds,
-				tea.Println(messageBlock(content)+"\n"),
+				tea.Println(messageBlock(content)),
 				t.spinner.Tick,
 			)
 			return t, tea.Batch(cmds...)
