@@ -19,6 +19,7 @@ import (
 func registOpenFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "open_file",
+		AlwaysAllow: true,
 		Description: "Open a file with the OS default application (e.g. play a video, view an image, open a PDF viewer). Use this instead of run_command's `open`/`xdg-open` — the sandboxed run_command path cannot reach the OS's app-launch service. Only for launching a GUI viewer; not for reading file contents (use read_files for that).",
 		Parameters: map[string]any{
 			"type": "object",
