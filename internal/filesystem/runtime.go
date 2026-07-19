@@ -33,11 +33,11 @@ type DeniedConfig struct {
 }
 
 var (
-	DeniedMap      DeniedConfig
-	DeniedMapBytes []byte
-	WhiteList    []string
-	NetWhiteList []string
-	WhiteCommand []string
+	DeniedMap       DeniedConfig
+	DeniedMapBytes  []byte
+	WhiteList       []string
+	NetWhiteList    []string
+	ReadOnlyCommand []string
 )
 
 const (
@@ -173,15 +173,15 @@ func LoadRuntime() error {
 		NetWhiteList = merge(NetWhiteList, user)
 	}
 
-	if err := json.Unmarshal(configs.WhiteCommand, &WhiteCommand); err != nil {
-		return fmt.Errorf("embedded white_command: %w", err)
+	if err := json.Unmarshal(configs.ReadOnlyCommand, &ReadOnlyCommand); err != nil {
+		return fmt.Errorf("embedded read_only_command: %w", err)
 	}
-	if data, ok := raw["white_command"]; ok && len(data) > 0 {
+	if data, ok := raw["read_only_command"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal white_command: %w", err)
+			return fmt.Errorf("json.Unmarshal read_only_command: %w", err)
 		}
-		WhiteCommand = merge(WhiteCommand, user)
+		ReadOnlyCommand = merge(ReadOnlyCommand, user)
 	}
 
 	deniedBytes, err := json.Marshal(DeniedMap)

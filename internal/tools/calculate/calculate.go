@@ -1,5 +1,5 @@
 // * generate by claude sonnet 4.5
-package calculator
+package calculate
 
 import (
 	"fmt"

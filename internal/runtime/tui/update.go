@@ -110,6 +110,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "U":
 					next, cmd, _ := t.commandProviderUsage()
 					return next, cmd
+				case "M":
+					next, cmd, _ := t.commandModelList()
+					return next, cmd
 				}
 			}
 

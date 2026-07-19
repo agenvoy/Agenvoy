@@ -8,11 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
@@ -25,7 +24,7 @@ func registSearchFiles() {
 Search file contents by RE2 regex within a directory.
 Locate code or text when the matching string is known but the file is not.
 Scope with file_pattern glob (e.g. '**/*.go', 'configs/**').
-Supports multiple searches in one call — when several patterns/dirs need searching, put them all in ` + "`queries`" + ` rather than issuing separate calls; matches are merged and deduplicated.`,
+Batch multiple patterns/dirs into one 'queries' call instead of separate calls; matches are merged and deduplicated.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -81,46 +80,11 @@ Supports multiple searches in one call — when several patterns/dirs need searc
 			seen := make(map[string]struct{})
 			var merged []go_pkg_filesystem_reader.File
 			for _, q := range params.Queries {
-				pattern := strings.TrimSpace(q.Pattern)
-				if pattern == "" {
-					return "", fmt.Errorf("pattern is required")
-				}
-
-				dir := strings.TrimSpace(q.Dir)
-				absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, dir, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+				matches, err := searchOne(ctx, e, q.Dir, q.Pattern, q.FilePattern)
 				if err != nil {
-					return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
-				}
-
-				if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-					return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
-				}
-
-				var filePatterns []string
-				if q.FilePattern != "" {
-					filePatterns = strings.Split(filepath.ToSlash(q.FilePattern), "/")
-				}
-				matches, err := go_pkg_filesystem_reader.SearchFiles(absPath, pattern, filePatterns, 0,
-					go_pkg_filesystem_reader.ListOption{
-						SkipExcluded:    true,
-						SkipDenied:      true,
-						IgnoreWalkError: true,
-					})
-				if err != nil {
-					if denied.IsPermission(err) {
-						denied.Register(e.SessionID, absPath)
-						return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
-					}
-					return "", fmt.Errorf("go_pkg_filesystem_reader.SearchFiles: %w", err)
-				}
-				if err := ctx.Err(); err != nil {
 					return "", err
 				}
-
 				for _, m := range matches {
-					if rel, err := filepath.Rel(absPath, m.Path); err == nil {
-						m.Path = rel
-					}
 					if _, ok := seen[m.Path]; ok {
 						continue
 					}
@@ -143,4 +107,49 @@ Supports multiple searches in one call — when several patterns/dirs need searc
 			return string(raw), nil
 		},
 	})
+}
+
+func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string) ([]go_pkg_filesystem_reader.File, error) {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return nil, fmt.Errorf("pattern is required")
+	}
+
+	dir = strings.TrimSpace(dir)
+	absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, dir, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+	}
+
+	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
+		return nil, fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
+	}
+
+	var filePatterns []string
+	if filePattern != "" {
+		filePatterns = strings.Split(filepath.ToSlash(filePattern), "/")
+	}
+	matches, err := go_pkg_filesystem_reader.SearchFiles(absPath, pattern, filePatterns, 0,
+		go_pkg_filesystem_reader.ListOption{
+			SkipExcluded:    true,
+			SkipDenied:      true,
+			IgnoreWalkError: true,
+		})
+	if err != nil {
+		if denied.IsPermission(err) {
+			denied.Register(e.SessionID, absPath)
+			return nil, fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
+		}
+		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/reader: SearchFiles: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	for i, m := range matches {
+		if rel, err := filepath.Rel(absPath, m.Path); err == nil {
+			matches[i].Path = rel
+		}
+	}
+	return matches, nil
 }

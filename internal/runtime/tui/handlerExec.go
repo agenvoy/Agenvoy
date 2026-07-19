@@ -14,8 +14,6 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-const toolBufDisplayCap = 4
-
 type agentEvent struct {
 	event agentTypes.Event
 }
@@ -135,9 +133,6 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			if ok {
 				t.toolCount++
 				t.toolBuf = append(t.toolBuf, line)
-				if len(t.toolBuf) > toolBufDisplayCap {
-					t.toolBuf = t.toolBuf[len(t.toolBuf)-toolBufDisplayCap:]
-				}
 			}
 			return t, nil
 		}
