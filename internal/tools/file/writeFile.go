@@ -17,8 +17,11 @@ import (
 
 func registWriteFile() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "write_file",
-		Description: "Create a brand-new file, or fully overwrite an existing one — never for partial changes. For any targeted edit to an existing file use patch_file instead. Call read_files after to verify. One write per change; trust success strings. Default export path: ~/Downloads or ~/.config/agenvoy/download/.",
+		Name: "write_file",
+		Description: `
+Create a brand-new file, or fully overwrite an existing one — never for partial changes (use patch_file for those).
+Call read_files after to verify. One write per change; trust success strings.
+Default export path: ~/Downloads or ~/.config/agenvoy/download/.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -45,16 +48,15 @@ func registWriteFile() {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
 
-			path := strings.TrimSpace(params.Path)
-
 			baseDir := e.WorkDir
 			if baseDir == "" {
 				baseDir = filesystem.DownloadDir
 			}
 
+			path := strings.TrimSpace(params.Path)
 			absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
 			if err != nil {
-				return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
 			}
 			if absPath == "" {
 				return "", fmt.Errorf("path is required")
@@ -87,7 +89,7 @@ func registWriteFile() {
 					denied.Register(e.SessionID, absPath)
 					return "", fmt.Errorf("permission denied: %s (recorded; further writes under this path will be skipped)", absPath)
 				}
-				return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 			}
 
 			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)

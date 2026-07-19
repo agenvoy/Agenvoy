@@ -47,7 +47,13 @@ func registReadFiles() {
 		Name:        "read_files",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: "Canonical way to read any file (text, PDF, DOCX, PPTX, CSV/TSV, or image) — prefer this over run_command/cat/head/tail. Reads the entire file by default (capped at 1MB); pass offset/limit only to page through a file that hits that cap. Supports multiple files in one call — when several files need reading, put them all in `files` rather than issuing separate calls. Must be called before patch_file (skip if already read this session). Also call after patch_file/write_file to verify the edit landed correctly. Returns a JSON object mapping each requested path to its content (or an error string for that path).",
+		Description: `
+Canonical way to read any file (text, PDF, DOCX, PPTX, CSV/TSV, or image) — prefer this over run_command/cat/head/tail.
+Reads the entire file by default (capped at 1MB); pass offset/limit only to page through a file that hits that cap.
+Batch multiple files into one 'files' call instead of separate calls.
+Must be called before patch_file (skip if already read this session).
+Also call after patch_file/write_file to verify the edit landed correctly.
+Returns a JSON object mapping each requested path to its content (or an error string for that path).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -122,7 +128,7 @@ func registReadFiles() {
 func readOne(ctx context.Context, e *toolTypes.Executor, baseDir, path string, offset, limit int) (string, error) {
 	absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
 	}
 	if absPath == "" {
 		return "", fmt.Errorf("path is required")
