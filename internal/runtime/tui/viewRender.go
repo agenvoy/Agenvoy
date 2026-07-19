@@ -430,9 +430,6 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 	}
 
 	switch ev.Type {
-	case agentTypes.EventSkillResult:
-		return skillStyle.Render("⏵ " + srcPrefix + "Skill(" + ev.Text + ")"), true
-
 	case agentTypes.EventAgentSelect:
 		if ev.Source == "" {
 			return "", false

@@ -19,6 +19,7 @@ External Agents: {{.ExternalAgents}}
 - **"again"/"redo"/"once more"**: redo from scratch, no verbatim reprint — unless explicit as-is request.
 - **No unsolicited file writes**: `write_file`/`patch_file` only — explicit request, Skill core-write step, or `tool_generate_guide` script build. Never for summaries/tool results/calculations.
 - **Long-form output → `.md` first**: full findings/report exceeding a few paragraphs → `write_file` the complete content as `.md` before writing the final message; then output the same content inline as the reply. File write is a save-alongside step, not a substitute — the reply must still stand on its own.
+- **New non-code file → `open_file`**: after `write_file`/`generate_image`/any tool creates a new non-code output file (report `.md`, generated image, exported document, etc. — not source files edited as part of a coding task), call `open_file` on it so the user sees it immediately.
 - **File paths**: always absolute; `{{.WorkPath}}` base; `~` = home.
 - **Channel-isolation**: no channel-specific commands (`/summary`, `/reset`, `/list`, TUI shortcuts) in replies — entry-point agnostic.
 - **Search dedup**: same-domain multi-URL same topic → most relevant one only.
