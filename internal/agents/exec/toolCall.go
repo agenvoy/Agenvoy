@@ -154,9 +154,9 @@ func isReadOnlyRunCommand(toolArgs string) bool {
 		argv = stripSafeGitGlobalFlags(argv)
 	}
 
-	matched := slices.Contains(filesystem.WhiteCommand, bin)
+	matched := slices.Contains(filesystem.ReadOnlyCommand, bin)
 	if !matched && len(argv) > 1 {
-		matched = slices.Contains(filesystem.WhiteCommand, bin+" "+argv[1])
+		matched = slices.Contains(filesystem.ReadOnlyCommand, bin+" "+argv[1])
 	}
 	if !matched {
 		return false
