@@ -15,10 +15,9 @@ import (
 	toolScheduler "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
 	toolSearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	"github.com/pardnchiu/agenvoy/internal/tools/userData"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/fetchPage"
-	_ "github.com/pardnchiu/agenvoy/internal/tools/git"
+	_ "github.com/pardnchiu/agenvoy/internal/tools/revision"
 )
 
 func init() {
@@ -30,7 +29,6 @@ func init() {
 	errorMemory.Register()
 	toolScheduler.Register()
 	toolSearcher.Register()
-	userData.Register()
 	interactive.Register()
 	guide.Register()
 

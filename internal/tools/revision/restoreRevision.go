@@ -1,4 +1,4 @@
-package git
+package revision
 
 import (
 	"context"
@@ -10,24 +10,25 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func registRollback() {
+func registRestoreRevision() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "git_rollback",
+		Name: "restore_revision",
 		Description: `
-Reset skills or tools directory to a prior git commit (hard reset).
+Restore Agenvoy's own skill or tool storage to an earlier revision (hard reset).
+Scope is limited to ~/.config/agenvoy — never the user's project repository.
 Use to revert a broken auto-commit or unwanted self-improvement.
-Run git_log first to identify the target commit hash.`,
+Run list_revisions first to identify the target revision.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"tag": map[string]any{
 					"type":        "string",
 					"enum":        []string{"skills", "tools"},
-					"description": "Target repo. 'skills' = ~/.config/agenvoy/skills, 'tools' = ~/.config/agenvoy/tools.",
+					"description": "Target storage. 'skills' = ~/.config/agenvoy/skills, 'tools' = ~/.config/agenvoy/tools.",
 				},
 				"commit": map[string]any{
 					"type":        "string",
-					"description": "Commit hash (≥7 chars) or ref to reset to. Get from git_log (e.g. 'a1b2c3d', 'HEAD~1').",
+					"description": "Revision hash (≥7 chars) or ref to reset to. Get from list_revisions (e.g. 'a1b2c3d', 'HEAD~1').",
 				},
 			},
 			"required": []string{"tag", "commit"},
