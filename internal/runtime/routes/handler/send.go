@@ -14,8 +14,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -25,6 +23,7 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Request struct {
@@ -80,14 +79,9 @@ func Send() gin.HandlerFunc {
 				wrapped <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: trimContent}
 			}
 
-			externalAgent, externalEffective, externalReadOnly := external.MatchExternal(trimContent)
-			if externalAgent != "" {
-				trimContent = strings.TrimSpace(externalEffective)
-			}
-
 			var matchedSkill *skill.Skill
 			var skillResult agentTypes.Event
-			if externalAgent == "" && scanner != nil {
+			if scanner != nil {
 				if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
 					matchedSkill = m
 					trimContent = strings.TrimSpace(effective)
@@ -109,27 +103,22 @@ func Send() gin.HandlerFunc {
 			wrapped <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
 			var agent agentTypes.Agent
 			var fallbacks []agentTypes.Agent
-			var agentResult agentTypes.Event
-			if externalAgent != "" {
-				agentResult = agentTypes.Event{Type: agentTypes.EventAgentResult, Text: "external:" + externalAgent}
-			} else {
-				registry := agents.Registry()
-				if req.Model != "" {
-					if a, ok := registry.Registry[req.Model]; ok {
-						agent = a
-					}
+			registry := agents.Registry()
+			if req.Model != "" {
+				if a, ok := registry.Registry[req.Model]; ok {
+					agent = a
 				}
-				if agent == nil {
-					primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
-					if err != nil {
-						wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
-						return
-					}
-					agent = primary
-					fallbacks = rest
-				}
-				agentResult = agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name()}
 			}
+			if agent == nil {
+				primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
+				if err != nil {
+					wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+					return
+				}
+				agent = primary
+				fallbacks = rest
+			}
+			agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name()}
 			wrapped <- agentResult
 			if sessionID != "" {
 				sessionLog.Record(sessionID, agentResult)
@@ -157,13 +146,6 @@ func Send() gin.HandlerFunc {
 			session, err := newSession(execCtx, data, sessionID)
 			if err != nil {
 				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
-				return
-			}
-
-			if externalAgent != "" {
-				if err := exec.CallExternal(execCtx, session.ID, externalAgent, trimContent, externalReadOnly, wrapped); err != nil {
-					wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
-				}
 				return
 			}
 

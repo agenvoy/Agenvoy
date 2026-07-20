@@ -12,7 +12,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -891,9 +890,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "allow-cmd":
 			next, cmd, _ := t.commandAllowCmd(nil)
 			return next, cmd
-		case "allow-report":
-			next, cmd, _ := t.commandAllowReport(nil)
-			return next, cmd
 		}
 		return t, nil
 
@@ -1008,21 +1004,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(hintStyle.Render("⎯ admin-channel cleared") + "\n")
 		}
 		return t, tea.Println(hintStyle.Render("⎯ admin-channel set · "+value) + "\n")
-
-	case AllowReportAction:
-		next, cmd := t.openAllowReportConfirm(msg.action)
-		return next, cmd
-
-	case AllowReportConfirm:
-		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ allow-report cancelled") + "\n")
-		}
-		if msg.action == "enable" {
-			next, cmd := t.runAllowReportEnable()
-			return next, cmd
-		}
-		next, cmd := t.runAllowReportDisable()
-		return next, cmd
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -1212,9 +1193,6 @@ func noMatches(input string) bool {
 		if m, _ := runtime.MatchSkill(scanner, input); m != nil {
 			return true
 		}
-	}
-	if agent, _, _ := external.MatchExternal(input); agent != "" {
-		return true
 	}
 	return false
 }

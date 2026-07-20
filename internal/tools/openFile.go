@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -62,19 +64,22 @@ func openFile(ctx context.Context, e *toolTypes.Executor, path string) (string, 
 		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
 	}
 
-	var binary string
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		binary = "open"
+		cmd = exec.CommandContext(ctx, "open", absPath)
 	case "linux":
-		binary = "xdg-open"
+		bin, args, cmdErr := linuxOpenCmd(ctx, absPath)
+		if cmdErr != nil {
+			return "", fmt.Errorf("open_file: %w", cmdErr)
+		}
+		cmd = exec.CommandContext(ctx, bin, args...)
 	case "windows":
-		binary = "explorer"
+		cmd = exec.CommandContext(ctx, "explorer", absPath)
 	default:
 		return "", fmt.Errorf("open_file: unsupported platform %s", runtime.GOOS)
 	}
 
-	cmd := exec.CommandContext(ctx, binary, absPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if denied.IsPermission(err) {
@@ -84,4 +89,41 @@ func openFile(ctx context.Context, e *toolTypes.Executor, path string) (string, 
 	}
 
 	return fmt.Sprintf("opened %s", absPath), nil
+}
+
+func linuxOpenCmd(ctx context.Context, target string) (string, []string, error) {
+	if isWSL() {
+		if winPath, err := wslToWindowsPath(ctx, target); err == nil {
+			if bin, lookErr := exec.LookPath("cmd.exe"); lookErr == nil {
+				return bin, []string{"/c", "start", "", winPath}, nil
+			}
+		}
+	}
+	if bin, err := exec.LookPath("wslview"); err == nil {
+		return bin, []string{target}, nil
+	}
+	if bin, err := exec.LookPath("xdg-open"); err == nil {
+		return bin, []string{target}, nil
+	}
+	return "", nil, fmt.Errorf("no opener available (cmd.exe/wslview/xdg-open not found)")
+}
+
+func wslToWindowsPath(ctx context.Context, path string) (string, error) {
+	bin, err := exec.LookPath("wslpath")
+	if err != nil {
+		return "", err
+	}
+	out, err := exec.CommandContext(ctx, bin, "-w", path).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func isWSL() bool {
+	raw, err := os.ReadFile("/proc/version")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(string(raw)), "microsoft")
 }

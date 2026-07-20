@@ -19,7 +19,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -942,12 +941,4 @@ func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 func newID(parts ...string) string {
 	h := sha256.Sum256([]byte(strings.Join(parts, "|") + fmt.Sprint(time.Now().UnixNano())))
 	return hex.EncodeToString(h[:])[:8]
-}
-
-func externalAgentsList() string {
-	agents := external.Agents()
-	if len(agents) == 0 {
-		return "none detected"
-	}
-	return strings.Join(agents, ", ")
 }

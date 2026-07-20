@@ -500,8 +500,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		return sessionData, alreadyCall, err
 	}
 
-	hasExternalAgent := false
-	hasReviewResult := false
 	todoCheckpointHit := false
 
 	for i := range slots {
@@ -587,29 +585,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		} else {
 			sessionData.ToolHistories = append(sessionData.ToolHistories, toolMsg)
 		}
-
-		switch s.name {
-		case "cross_review_with_external_agents":
-			hasExternalAgent = true
-			sessionData.VerifyRounds++
-			sessionData.VerifyFeedbacks = append(sessionData.VerifyFeedbacks, result)
-		case "review_result":
-			hasReviewResult = true
-		}
 	}
 
 	if todoCheckpointHit {
 		clearCheckpointedToolResults(sessionData)
 	}
 
-	if hasExternalAgent || hasReviewResult {
-		sessionData.OldHistories = nil
-		if hasExternalAgent {
-			sessionData.ToolHistories = trimMessageContext(sessionData.ToolHistories, sessionData.VerifyRounds, sessionData.VerifyFeedbacks)
-		} else {
-			sessionData.ToolHistories = trimReviewContext(sessionData.ToolHistories)
-		}
-	}
 	return sessionData, alreadyCall, nil
 }
 
@@ -746,114 +727,4 @@ func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
 			part,
 		}
 	}
-}
-
-const MaxVerifyRounds = 3
-
-func trimMessageContext(toolCall []provider.Message, rounds int, feedbacks []string) []provider.Message {
-	var firstVersion, feedback string
-
-	for _, m := range toolCall {
-		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
-			continue
-		}
-		for _, tc := range m.ToolCalls {
-			if tc.Function.Name != "cross_review_with_external_agents" && tc.Function.Name != "invoke_external_agent" {
-				continue
-			}
-
-			var params struct {
-				Result string `json:"result"`
-			}
-			if err := json.Unmarshal([]byte(tc.Function.Arguments), &params); err == nil && params.Result != "" {
-				firstVersion = params.Result
-			}
-
-			for _, tm := range toolCall {
-				if tm.Role == "tool" && tm.ToolCallID == tc.ID {
-					if s, ok := tm.Content.(string); ok {
-						s = strings.TrimPrefix(s, "[cross_review_with_external_agents] ")
-						s = strings.TrimPrefix(s, "[invoke_external_agent] ")
-						feedback = s
-					}
-					break
-				}
-			}
-		}
-	}
-
-	compact := make([]provider.Message, 0, 2)
-	if firstVersion != "" {
-		compact = append(compact, provider.Message{
-			Role:    "assistant",
-			Content: firstVersion,
-		})
-	}
-
-	if rounds >= MaxVerifyRounds {
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("已完成 %d 輪外部驗證仍未全員通過，**停止重試**，禁止再次呼叫 cross_review_with_external_agents。請以當前草稿為基礎直接輸出最終結果，並在文末新增 `## 外部驗證未通過理由` 區塊，依序列出各輪 agent 指出的具體問題。\n\n", rounds))
-		for i, fb := range feedbacks {
-			sb.WriteString(fmt.Sprintf("### Round %d\n%s\n\n", i+1, fb))
-		}
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: sb.String(),
-		})
-		return compact
-	}
-
-	if feedback != "" {
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: fmt.Sprintf("以下是第 %d 輪外部驗證回饋（上限 %d 輪），請針對指出的每個問題，**重新呼叫工具查詢**以修正錯誤或補充缺漏，完成後再輸出最終結果：\n\n%s", rounds, MaxVerifyRounds, feedback),
-		})
-	}
-	return compact
-}
-
-func trimReviewContext(toolCall []provider.Message) []provider.Message {
-	var draft, feedback string
-
-	for _, m := range toolCall {
-		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
-			continue
-		}
-		for _, tc := range m.ToolCalls {
-			if tc.Function.Name != "review_result" {
-				continue
-			}
-
-			var params struct {
-				Result string `json:"result"`
-			}
-			if err := json.Unmarshal([]byte(tc.Function.Arguments), &params); err == nil {
-				draft = params.Result
-			}
-
-			for _, tm := range toolCall {
-				if tm.Role == "tool" && tm.ToolCallID == tc.ID {
-					if s, ok := tm.Content.(string); ok {
-						feedback = strings.TrimPrefix(s, "[內部審查 · ")
-					}
-					break
-				}
-			}
-		}
-	}
-
-	compact := make([]provider.Message, 0, 2)
-	if draft != "" {
-		compact = append(compact, provider.Message{
-			Role:    "assistant",
-			Content: draft,
-		})
-	}
-	if feedback != "" {
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: "以下是內部審查回饋，請針對指出的每個問題修正後輸出最終結果：\n\n" + feedback,
-		})
-	}
-	return compact
 }

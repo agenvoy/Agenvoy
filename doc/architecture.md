@@ -66,12 +66,12 @@ graph TB
 
 ## Module: Agent Execution and Routing
 
-A request is matched to a skill, an external agent, or a configured model. The executor builds system prompts and a session, sends messages to the selected model, loops through tool calls, trims context when needed, and moves to fallback agents when a send attempt fails.
+A request is matched to a skill or a configured model. The executor builds system prompts and a session, sends messages to the selected model, loops through tool calls, trims context when needed, and moves to fallback agents when a send attempt fails.
 
 ```mermaid
 graph TB
     subgraph Execution[Agent Execution]
-        Input[User input] --> Match[Match skill / external agent]
+        Input[User input] --> Match[Match skill]
         Match --> Resolve[Resolve primary & fallback agents]
         Resolve --> Session[Build AgentSession]
         Session --> Prompt[Build system prompts]

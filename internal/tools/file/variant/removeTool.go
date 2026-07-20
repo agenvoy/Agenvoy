@@ -19,7 +19,7 @@ func registRemoveTool() {
 		Name: "remove_tool",
 		Description: `
 Move a script tool directory to ~/.config/agenvoy/tools/script/.Trash/.
-Use when a tool is obsolete or must be rebuilt; recoverable via git_rollback.`,
+Use when a tool is obsolete or must be rebuilt; recoverable via restore_revision.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

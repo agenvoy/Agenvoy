@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type execStep struct {
@@ -60,8 +60,7 @@ func postSkillImprove(s *skill.Skill, trace []execStep) {
 	}
 
 	excludedTools := []string{
-		"invoke_subagent", "invoke_external_agent",
-		"cross_review_with_external_agents", "review_result",
+		"invoke_subagent",
 		"ask_user", "generate_image", "search_web", "fetch_page",
 	}
 	excludedTools = append(excludedTools, tools.TUIOnlyTools...)
