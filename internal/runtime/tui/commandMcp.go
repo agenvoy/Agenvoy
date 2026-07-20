@@ -35,7 +35,7 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 		kind:        popupSingleSelect,
 		title:       "MCP",
 		styledLines: mcpStatusLines(),
-		options:     []string{"add", "remove", "reconnect", "install  external agent config"},
+		options:     []string{"add", "remove", "reconnect", "install MCP config to other agents"},
 		values:      []string{"add", "remove", "reconnect", "install"},
 		onConfirm: func(chosen string) any {
 			return McpAction{action: chosen}

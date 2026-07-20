@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -60,7 +60,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 			return "", fmt.Errorf("cwd and home both failed")
 		}
 	}
-	subagentExcludeBase := []string{"invoke_subagent", "list_subagent_sessions", "invoke_external_agent", "cross_review_with_external_agents", "review_result"}
+	subagentExcludeBase := []string{"invoke_subagent", "list_subagent_sessions"}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
 	execData := ExecData{
 		Agent:             agent,

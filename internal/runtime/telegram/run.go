@@ -15,7 +15,6 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -29,7 +28,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
@@ -254,13 +253,8 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		content = strings.TrimSpace(effective)
 	}
 
-	externalAgent, externalEffective, externalReadOnly := external.MatchExternal(content)
-	if externalAgent != "" {
-		content = strings.TrimSpace(externalEffective)
-	}
-
 	var matchedSkill *skill.Skill
-	if externalAgent == "" && scanner != nil {
+	if scanner != nil {
 		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
 			matchedSkill = m
 			content = strings.TrimSpace(effective)
@@ -288,32 +282,23 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
 	sessionLog.Append(routingSessionID, userText)
 
-	var agent agentTypes.Agent
-	var fallbacks []agentTypes.Agent
-	if externalAgent == "" {
-		primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
-		if err != nil {
-			if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
-					slog.String("chat", chatName(in)),
-					slog.String("error", finishErr.Error()))
-			}
-			errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
-			if _, sendErr := b.client.Send(ctx, in.ChatID, in.MessageID, errReply, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); sendErr != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send (ResolveAgent error reply)",
-					slog.String("chat", chatName(in)),
-					slog.String("error", sendErr.Error()))
-			}
-			return fmt.Errorf("ResolveAgent: %w", err)
+	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
+	if err != nil {
+		if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
+				slog.String("chat", chatName(in)),
+				slog.String("error", finishErr.Error()))
 		}
-		agent = primary
-		fallbacks = rest
+		errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
+		if _, sendErr := b.client.Send(ctx, in.ChatID, in.MessageID, errReply, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); sendErr != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send (ResolveAgent error reply)",
+				slog.String("chat", chatName(in)),
+				slog.String("error", sendErr.Error()))
+		}
+		return fmt.Errorf("ResolveAgent: %w", err)
 	}
 
-	agentName := "external:" + externalAgent
-	if externalAgent == "" {
-		agentName = strings.TrimSpace(agent.Name())
-	}
+	agentName := strings.TrimSpace(agent.Name())
 	sessionLog.Record(routingSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
 
 	execData := exec.ExecData{
@@ -337,13 +322,8 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 
 	events := make(chan agentTypes.Event, 128)
 	go func() {
-		var execErr error
 		execCtx := exec.SuppressDcPush(ctx)
-		if externalAgent != "" {
-			execErr = exec.CallExternal(execCtx, sess.ID, externalAgent, content, externalReadOnly, events)
-		} else {
-			execErr = exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
-		}
+		execErr := exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
 		if execErr != nil {
 			slog.Warn("exec",
 				slog.String("session", sess.ID),

@@ -66,12 +66,12 @@ graph TB
 
 ## 模組：Agent 執行與路由
 
-請求會比對至 Skill、外部 Agent 或已設定模型。執行器建立 system prompt 與 session，將訊息傳給選定模型，迭代處理工具呼叫；需要時裁剪 context，若傳送失敗則轉移至 fallback Agent。
+請求會比對至 Skill 或已設定模型。執行器建立 system prompt 與 session，將訊息傳給選定模型，迭代處理工具呼叫；需要時裁剪 context，若傳送失敗則轉移至 fallback Agent。
 
 ```mermaid
 graph TB
     subgraph Execution[Agent 執行]
-        Input[使用者輸入] --> Match[比對 Skill／外部 Agent]
+        Input[使用者輸入] --> Match[比對 Skill]
         Match --> Resolve[解析主要與 Fallback Agent]
         Resolve --> Session[建立 AgentSession]
         Session --> Prompt[建立 System Prompts]

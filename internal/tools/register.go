@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	externalAgent "github.com/pardnchiu/agenvoy/internal/tools/agent/external"
 	"github.com/pardnchiu/agenvoy/internal/tools/calculate"
 	"github.com/pardnchiu/agenvoy/internal/tools/errorMemory"
 	"github.com/pardnchiu/agenvoy/internal/tools/external"
@@ -26,7 +25,6 @@ func init() {
 	registSearchConversationHistory()
 
 	external.Register()
-	externalAgent.Register()
 	fetchPage.Register()
 	file.Register()
 	errorMemory.Register()

@@ -12,7 +12,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -1212,9 +1211,6 @@ func noMatches(input string) bool {
 		if m, _ := runtime.MatchSkill(scanner, input); m != nil {
 			return true
 		}
-	}
-	if agent, _, _ := external.MatchExternal(input); agent != "" {
-		return true
 	}
 	return false
 }

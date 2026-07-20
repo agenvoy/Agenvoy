@@ -15,14 +15,13 @@ import (
 // * Runtime limits, loaded once from ~/.config/agenvoy/config.json `limits` section.
 // * Defaults below are the only fallback; env vars are no longer read.
 var (
-	Port                       = "17989"
-	MaxToolIterations          = 128
-	AgentSendTimeoutSec        = 600
-	MaxHistoryMessages         = 8
-	MaxHistoryBytes            = 5 * 1024 * 1024
-	MaxSessionTasks            = 3
-	MaxSubagentTimeoutMin      = 10
-	MaxExternalAgentTimeoutMin = 10
+	Port                  = "17989"
+	MaxToolIterations     = 128
+	AgentSendTimeoutSec   = 600
+	MaxHistoryMessages    = 8
+	MaxHistoryBytes       = 5 * 1024 * 1024
+	MaxSessionTasks       = 3
+	MaxSubagentTimeoutMin = 10
 )
 
 type DeniedConfig struct {
@@ -41,20 +40,18 @@ var (
 )
 
 const (
-	hardCapMaxSessionTasks            = 10
-	hardCapMaxSubagentTimeoutMin      = 60
-	hardCapMaxExternalAgentTimeoutMin = 60
+	hardCapMaxSessionTasks       = 10
+	hardCapMaxSubagentTimeoutMin = 60
 )
 
 type RuntimeLimits struct {
-	Port                       string `json:"port,omitempty"`
-	MaxToolIterations          int    `json:"max_tool_iterations,omitempty"`
-	AgentSendTimeoutSec        int    `json:"agent_send_timeout_seconds,omitempty"`
-	MaxHistoryMessages         int    `json:"max_history_messages,omitempty"`
-	MaxHistoryBytes            int    `json:"max_history_bytes,omitempty"`
-	MaxSessionTasks            int    `json:"max_session_tasks,omitempty"`
-	MaxSubagentTimeoutMin      int    `json:"max_subagent_timeout_min,omitempty"`
-	MaxExternalAgentTimeoutMin int    `json:"max_external_agent_timeout_min,omitempty"`
+	Port                  string `json:"port,omitempty"`
+	MaxToolIterations     int    `json:"max_tool_iterations,omitempty"`
+	AgentSendTimeoutSec   int    `json:"agent_send_timeout_seconds,omitempty"`
+	MaxHistoryMessages    int    `json:"max_history_messages,omitempty"`
+	MaxHistoryBytes       int    `json:"max_history_bytes,omitempty"`
+	MaxSessionTasks       int    `json:"max_session_tasks,omitempty"`
+	MaxSubagentTimeoutMin int    `json:"max_subagent_timeout_min,omitempty"`
 }
 
 func LoadRuntime() error {
@@ -131,12 +128,6 @@ func LoadRuntime() error {
 		changed = true
 	}
 	MaxSubagentTimeoutMin = min(hardCapMaxSubagentTimeoutMin, limits.MaxSubagentTimeoutMin)
-
-	if limits.MaxExternalAgentTimeoutMin <= 0 {
-		limits.MaxExternalAgentTimeoutMin = MaxExternalAgentTimeoutMin
-		changed = true
-	}
-	MaxExternalAgentTimeoutMin = min(hardCapMaxExternalAgentTimeoutMin, limits.MaxExternalAgentTimeoutMin)
 
 	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
 		return fmt.Errorf("embedded denied_map: %w", err)

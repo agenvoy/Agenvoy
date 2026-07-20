@@ -41,7 +41,5 @@ type AgentSession struct {
 	Histories       []provider.Message
 	BaseLen         int
 	Stateless       bool
-	VerifyRounds    int
-	VerifyFeedbacks []string
 	ToolCheckpoint  int
 }
