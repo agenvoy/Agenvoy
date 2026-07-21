@@ -32,13 +32,16 @@ func New() *gin.Engine {
 	r.GET("/v1/session/:session_id/pending", handler.ListSessionPending())
 	r.GET("/v1/session/:session_id/pending/:task_hash/questions", handler.GetSessionPendingQuestions())
 	r.POST("/v1/session/:session_id/pending/:task_hash/resume", handler.ResumeSessionPending())
+	r.GET("/v1/file", localhostOnly(), handler.GetFile())
+	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 
 	return r
 }
 
 var allowedOrigins = map[string]bool{
-	"https://web.agenvoy.com": true,
+	"https://web.agenvoy.com":                 true,
+	"https://agenvoy-board.pardn.workers.dev": true,
 }
 
 func cors() gin.HandlerFunc {
