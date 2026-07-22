@@ -29,3 +29,22 @@ func GetKey() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"key": key, "value": value})
 	}
 }
+
+func DeleteKey() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.Query("key")
+		if key == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "key is required"})
+			return
+		}
+		if err := keychain.Delete(key); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := config.DeleteKey(key); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+}
