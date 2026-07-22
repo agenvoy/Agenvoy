@@ -126,6 +126,18 @@ func SaveKey(key string) error {
 	return Save(cfg)
 }
 
+func DeleteKey(key string) error {
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	if idx := slices.Index(cfg.Keys, key); idx != -1 {
+		cfg.Keys = slices.Delete(cfg.Keys, idx, idx+1)
+		return Save(cfg)
+	}
+	return nil
+}
+
 func IsKeyExist(key string) bool {
 	cfg, err := Load()
 	if err != nil {

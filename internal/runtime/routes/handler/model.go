@@ -139,23 +139,119 @@ func RemoveModel() gin.HandlerFunc {
 		}
 		cfg.Models = slices.Delete(cfg.Models, idx, idx+1)
 
+		firstModel := ""
+		if len(cfg.Models) > 0 {
+			firstModel = cfg.Models[0].Name
+		}
 		if cfg.DispatcherModel == name {
-			cfg.DispatcherModel = ""
-			if len(cfg.Models) > 0 {
-				cfg.DispatcherModel = cfg.Models[0].Name
-			}
+			cfg.DispatcherModel = firstModel
 		}
 		if cfg.SummaryModel == name {
-			cfg.SummaryModel = ""
+			cfg.SummaryModel = firstModel
 		}
 
 		if err := config.Save(cfg); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		if dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir); err == nil {
+			for _, dir := range dirs {
+				sid := dir.Name
+				if strings.HasPrefix(sid, ".") {
+					continue
+				}
+				if model, _ := configBot.GetModel(sid); model == name {
+					configBot.SetModel(sid, configBot.DefaultModel, "")
+				}
+			}
+		}
+
 		agents.Reload()
 
 		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+}
+
+func GetDispatcherModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"model": cfg.DispatcherModel})
+	}
+}
+
+func SetDispatcherModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Model string `json:"model"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		model := strings.TrimSpace(body.Model)
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if model != "" && !slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == model }) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
+			return
+		}
+		cfg.DispatcherModel = model
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		agents.Reload()
+		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
+	}
+}
+
+func GetSummaryModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"model": cfg.SummaryModel})
+	}
+}
+
+func SetSummaryModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Model string `json:"model"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		model := strings.TrimSpace(body.Model)
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if model != "" && !slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == model }) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
+			return
+		}
+		cfg.SummaryModel = model
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		agents.Reload()
+		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
 	}
 }
 

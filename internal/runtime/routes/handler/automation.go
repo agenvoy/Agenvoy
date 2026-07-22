@@ -38,7 +38,7 @@ func ListCrons() gin.HandlerFunc {
 	}
 }
 
-func RemoveCron() gin.HandlerFunc {
+func DeleteCron() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
 			Skill string `json:"skill"`
@@ -97,7 +97,7 @@ func ListTasks() gin.HandlerFunc {
 	}
 }
 
-func RemoveTask() gin.HandlerFunc {
+func DeleteTask() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
 			Skill string `json:"skill"`
