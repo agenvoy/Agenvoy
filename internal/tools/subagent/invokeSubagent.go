@@ -29,7 +29,7 @@ func registInvokeSubagent() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
-		Description: "Spawn a subagent in its own session. For a SINGLE delegated subtask, first `list_subagent_sessions` — if a listed role fits the task, `ask_user` whether to route there; on yes set `name` to that session's name, on no leave `name` EMPTY (temp). Set `name` verbatim also when the user explicitly delegates to a session (呼叫/請/找/call/ask/let X do Y — X is that name). Otherwise leave `name` EMPTY — never invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless. Broad PARALLEL fan-out skips this check and stays anonymous (name empty). One call per distinct subtask — never duplicate the same task.",
+		Description: "Spawn a subagent in its own session. For a SINGLE delegated subtask, first `list_subagent_sessions` — if a listed role fits the task, `ask_user` whether to route there; on yes set `name` to that session's name, on no leave `name` EMPTY (temp). Set `name` verbatim also when the user explicitly delegates to a session (呼叫/請/找/call/ask/let X do Y — X is that name). Otherwise leave `name` EMPTY — never invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless. Broad PARALLEL fan-out skips this check and stays anonymous (name empty). One call per distinct subtask — never duplicate the same task. Result is prefixed `[subagent · <model> · session=<id> · usage: in=X out=Y cached=Z]` — that usage line is this subagent's total token cost (summed across its own tool-call loop); tally it across all fan-out calls when reporting your own turn's cost.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -69,7 +69,7 @@ func registInvokeSubagent() {
 				"task",
 			},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Task         string   `json:"task"`
 				Name         string   `json:"name,omitempty"`
@@ -108,7 +108,7 @@ func registInvokeSubagent() {
 				excludeTools = []string{}
 			}
 
-			return exec.ExecWithSubagent(ctx, task, sessionID, model, systemPrompt, excludeTools)
+			return exec.ExecWithSubagent(ctx, task, sessionID, model, systemPrompt, excludeTools, e.SessionID)
 		},
 	})
 }

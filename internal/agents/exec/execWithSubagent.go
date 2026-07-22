@@ -20,10 +20,11 @@ import (
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
-func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPrompt string, excludedTools []string) (string, error) {
+func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
@@ -138,6 +139,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 	}()
 
 	var sb strings.Builder
+	var totalUsage provider.Usage
 	for ev := range events {
 		pubsub.Pub(sessionID, ev)
 		passSubagentEvent(parentEvents, displayName, ev)
@@ -151,6 +153,13 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 				sb.WriteByte('\n')
 			}
 			sb.WriteString(ev.Text)
+		case agentTypes.EventDone:
+			if ev.Usage != nil {
+				totalUsage.Input += ev.Usage.Input
+				totalUsage.Output += ev.Usage.Output
+				totalUsage.CacheCreate += ev.Usage.CacheCreate
+				totalUsage.CacheRead += ev.Usage.CacheRead
+			}
 		case agentTypes.EventError:
 			if ev.Err != nil {
 				slog.Warn("subagent event error",
@@ -160,20 +169,27 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		}
 	}
 
+	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d", totalUsage.Input+totalUsage.CacheRead, totalUsage.Output, totalUsage.CacheRead)
+
+	if parentSessionID != "" && parentSessionID != sessionID && (totalUsage.Input > 0 || totalUsage.Output > 0 || totalUsage.CacheRead > 0 || totalUsage.CacheCreate > 0) {
+		prov, usageModel, _ := strings.Cut(agent.Name(), "@")
+		usagelog.Append(parentSessionID, prov, usageModel, totalUsage)
+	}
+
 	if err := <-errCh; err != nil {
 		str := strings.TrimSpace(sb.String())
 		if str == "" {
 			return "", fmt.Errorf("subagent execute: %w", err)
 		}
-		return fmt.Sprintf("[subagent partial result · %s · session=%s]\n%s\n\n[error] %s",
-			agent.Name(), sessionID, str, err.Error()), nil
+		return fmt.Sprintf("[subagent partial result · %s · session=%s · %s]\n%s\n\n[error] %s",
+			agent.Name(), sessionID, usageLine, str, err.Error()), nil
 	}
 
 	result := strings.TrimSpace(sb.String())
 	if result == "" {
-		return fmt.Sprintf("[subagent · %s · session=%s] 未產出文字結果", agent.Name(), sessionID), nil
+		return fmt.Sprintf("[subagent · %s · session=%s · %s] 未產出文字結果", agent.Name(), sessionID, usageLine), nil
 	}
-	return fmt.Sprintf("[subagent · %s · session=%s]\n%s", agent.Name(), sessionID, result), nil
+	return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessionID, usageLine, result), nil
 }
 
 func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentTypes.Event) {
