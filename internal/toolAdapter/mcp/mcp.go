@@ -90,6 +90,36 @@ func (m *MCP) Status(sessionID string) []ServerInfo {
 	return list
 }
 
+type HealthInfo struct {
+	Name  string `json:"name"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+func (m *MCP) Health(ctx context.Context) []HealthInfo {
+	if m == nil {
+		return nil
+	}
+
+	m.mu.Lock()
+	names := slices.Sorted(maps.Keys(m.clients))
+	clients := make(map[string]Client, len(names))
+	for _, name := range names {
+		clients[name] = m.clients[name]
+	}
+	m.mu.Unlock()
+
+	list := make([]HealthInfo, 0, len(names))
+	for _, name := range names {
+		if _, err := clients[name].List(ctx); err != nil {
+			list = append(list, HealthInfo{Name: name, OK: false, Error: err.Error()})
+		} else {
+			list = append(list, HealthInfo{Name: name, OK: true})
+		}
+	}
+	return list
+}
+
 func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 	if m == nil {
 		return nil
