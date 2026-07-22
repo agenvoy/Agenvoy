@@ -24,6 +24,8 @@ func New() *gin.Engine {
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
 	r.GET("/v1/sessions", handler.ListSessions())
 	r.GET("/v1/models", handler.ListModels())
+	r.POST("/v1/models", localhostOnly(), handler.AddModel())
+	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
 	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
@@ -35,6 +37,12 @@ func New() *gin.Engine {
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
+
+	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
+	r.GET("/v1/providers/:provider/check", localhostOnly(), handler.CheckProviderKey())
+	r.POST("/v1/providers/:provider/key", localhostOnly(), handler.AddProviderKey())
+	r.GET("/v1/providers/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
+	r.GET("/v1/providers/:provider/models", localhostOnly(), handler.ListProviderModels())
 
 	return r
 }
@@ -49,7 +57,7 @@ func cors() gin.HandlerFunc {
 		origin := c.GetHeader("Origin")
 		if allowedOrigins[origin] {
 			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", "Content-Type")
 			c.Header("Access-Control-Allow-Private-Network", "true")
 			if c.Request.Method == http.MethodOptions {
