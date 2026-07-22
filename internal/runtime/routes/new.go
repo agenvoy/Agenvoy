@@ -44,6 +44,21 @@ func New() *gin.Engine {
 	r.GET("/v1/providers/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
 	r.GET("/v1/providers/:provider/models", localhostOnly(), handler.ListProviderModels())
 
+	r.GET("/v1/mcp", localhostOnly(), handler.ListMcpServers())
+	r.POST("/v1/mcp", localhostOnly(), handler.SetMcpServer())
+	r.POST("/v1/mcp/remove", localhostOnly(), handler.RemoveMcpServer())
+	r.GET("/v1/mcp/status", localhostOnly(), handler.McpStatus())
+	r.GET("/v1/mcp/health", localhostOnly(), handler.McpHealth())
+	r.POST("/v1/mcp/reconnect", localhostOnly(), handler.McpReconnect())
+
+	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
+	r.GET("/v1/cron", localhostOnly(), handler.ListCrons())
+	r.POST("/v1/cron/remove", localhostOnly(), handler.RemoveCron())
+	r.POST("/v1/cron/run", localhostOnly(), handler.RunCron())
+	r.GET("/v1/task", localhostOnly(), handler.ListTasks())
+	r.POST("/v1/task/remove", localhostOnly(), handler.RemoveTask())
+	r.POST("/v1/task/run", localhostOnly(), handler.RunTask())
+
 	return r
 }
 
