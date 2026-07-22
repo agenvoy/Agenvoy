@@ -26,7 +26,7 @@ func activityVerb(activity string) string {
 	case strings.HasPrefix(activity, "tool: "):
 		tool := strings.TrimPrefix(activity, "tool: ")
 		switch tool {
-		case "read_file":
+		case "read_files":
 			return "Reading"
 
 		case "write_file", "patch_file":
@@ -41,10 +41,10 @@ func activityVerb(activity string) string {
 		case "fetch_page":
 			return "Fetching"
 
-		case "invoke_subagent", "invoke_external_agent", "cross_review_with_external_agents":
+		case "invoke_subagent":
 			return "Delegating"
 
-		case "list_files", "glob_files", "search_content":
+		case "list_files", "glob_files", "search_files":
 			return "Listing"
 
 		case "calculate":

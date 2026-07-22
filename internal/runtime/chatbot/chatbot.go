@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	"github.com/pardnchiu/agenvoy/internal/tools/stt"
+	"github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 

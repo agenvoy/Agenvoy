@@ -1,4 +1,4 @@
-package calculator
+package calculate
 
 import (
 	"strings"

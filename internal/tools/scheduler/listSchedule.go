@@ -14,7 +14,7 @@ import (
 func registListSchedule() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "list_schedule",
-		Description: "List scheduled tasks and/or crons in current session. For test/dry-run requests: find skill name here, then read_file SKILL.md and execute directly — never reply with 'run /sched-X in TUI'.",
+		Description: "List scheduled tasks and/or crons in current session. For test/dry-run requests: find skill name here, then read_files SKILL.md and execute directly — never reply with 'run /sched-X in TUI'.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

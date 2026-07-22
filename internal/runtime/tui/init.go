@@ -79,6 +79,7 @@ type TUI struct {
 	toolBuf         []string
 	toolCount       int
 	todos           []agentTypes.TodoItem
+	pendingSteer    []string
 	inputHistory    []string
 	inputHistoryIdx int
 
@@ -121,6 +122,10 @@ func (t TUI) Init() tea.Cmd {
 	return tea.Sequence(seq...)
 }
 
+type CancelRunConfirm struct {
+	yes bool
+}
+
 type autoSubmit struct {
 	input string
 }
@@ -145,7 +150,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage`
+	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage · shift+m models`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -312,7 +317,7 @@ func loadSessionTail(sid string, width int, all bool) []tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(lines)*2+2)
 	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ "+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
 	for i, l := range lines {
-		if i > 0 && l.kind != "done" {
+		if i > 0 && l.kind != "done" && l.kind != "canceled" {
 			cmds = append(cmds, tea.Println(""))
 		}
 		cmds = append(cmds, tea.Println(l.line))

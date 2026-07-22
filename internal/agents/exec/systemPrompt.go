@@ -7,12 +7,12 @@ import (
 	goRuntime "runtime"
 	"strings"
 
+	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -77,7 +77,6 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.ExternalAgents}}", externalAgentsList(),
 		"{{.ProjectInstructions}}", loadProjectInstructions(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)

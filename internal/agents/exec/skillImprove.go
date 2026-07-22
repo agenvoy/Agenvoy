@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type execStep struct {
@@ -60,8 +60,7 @@ func postSkillImprove(s *skill.Skill, trace []execStep) {
 	}
 
 	excludedTools := []string{
-		"invoke_subagent", "invoke_external_agent",
-		"cross_review_with_external_agents", "review_result",
+		"invoke_subagent",
 		"ask_user", "generate_image", "search_web", "fetch_page",
 	}
 	excludedTools = append(excludedTools, tools.TUIOnlyTools...)
@@ -83,7 +82,7 @@ func postSkillImprove(s *skill.Skill, trace []execStep) {
 		Stateless: true,
 		SystemPrompts: []provider.Message{{
 			Role:    "system",
-			Content: "You are a background skill-improvement agent. Analyze the execution trace, identify failures or inefficiencies, and patch the skill definition using file tools only (read_file, patch_file, write_file, write_skill, patch_tool). Do not call search_web, fetch_page, ask_user, or any network tool. Output nothing — your work is the file edit.",
+			Content: "You are a background skill-improvement agent. Analyze the execution trace, identify failures or inefficiencies, and patch the skill definition using file tools only (read_files, patch_file, write_file, write_skill, patch_tool). Do not call search_web, fetch_page, ask_user, or any network tool. Output nothing — your work is the file edit.",
 		}},
 		ToolHistories: []provider.Message{},
 		Tools:         []provider.Message{},

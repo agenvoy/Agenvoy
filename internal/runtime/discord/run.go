@@ -14,7 +14,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -26,7 +25,7 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 )
 
@@ -205,13 +204,8 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		scanner.Scan()
 	}
 
-	externalAgent, externalEffective, externalReadOnly := external.MatchExternal(content)
-	if externalAgent != "" {
-		content = strings.TrimSpace(externalEffective)
-	}
-
 	var matchedSkill *skill.Skill
-	if externalAgent == "" && scanner != nil {
+	if scanner != nil {
 		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
 			matchedSkill = m
 			content = strings.TrimSpace(effective)
@@ -232,26 +226,17 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
 	sessionLog.Append(discordSessionID, userText)
 
-	var agent agentTypes.Agent
-	var fallbacks []agentTypes.Agent
-	if externalAgent == "" {
-		primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, discordSessionID)
-		if err != nil {
-			if _, sendErr := b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send (ResolveAgent error reply)",
-					slog.String("channel", channelName(in)),
-					slog.String("error", sendErr.Error()))
-			}
-			return fmt.Errorf("ResolveAgent: %w", err)
+	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, discordSessionID)
+	if err != nil {
+		if _, sendErr := b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
+			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send (ResolveAgent error reply)",
+				slog.String("channel", channelName(in)),
+				slog.String("error", sendErr.Error()))
 		}
-		agent = primary
-		fallbacks = rest
+		return fmt.Errorf("ResolveAgent: %w", err)
 	}
 
-	agentName := "external:" + externalAgent
-	if externalAgent == "" {
-		agentName = strings.TrimSpace(agent.Name())
-	}
+	agentName := strings.TrimSpace(agent.Name())
 	sessionLog.Record(discordSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
 
 	execData := exec.ExecData{
@@ -286,13 +271,8 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 	events := make(chan agentTypes.Event, 128)
 	go func() {
-		var execErr error
 		execCtx := exec.SuppressDcPush(ctx)
-		if externalAgent != "" {
-			execErr = exec.CallExternal(execCtx, sess.ID, externalAgent, content, externalReadOnly, events)
-		} else {
-			execErr = exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
-		}
+		execErr := exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
 		if execErr != nil {
 			slog.Warn("exec",
 				slog.String("session", sess.ID),

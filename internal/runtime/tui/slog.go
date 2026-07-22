@@ -103,6 +103,10 @@ func renderLogLine(e Log) string {
 		line := fmt.Sprintf("$ Telegram Verification Code: %s (%s)", code, username)
 		return systemStyle.Render(line) + "\n"
 	}
+	if strings.HasPrefix(e.Msg, "⎯ host reloaded") {
+		line := "$ [" + e.Source + "] " + body + " - " + e.Time.Format("15:04:05")
+		return warnStyle.Render(line) + "\n"
+	}
 	if strings.HasPrefix(e.Msg, "Discord Verification Code") {
 		code := extractField(body, "code=")
 		username := extractField(body, "name=")

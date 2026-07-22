@@ -238,13 +238,16 @@ func reload() error {
 	return nil
 }
 
-func fire(sessionID, skillName string) {
+func Fire(sessionID, skillName string) (string, error) {
 	fn := runnerFn.Load()
 	if fn == nil || *fn == nil {
-		return
+		return "", fmt.Errorf("scheduler runner not initialized")
 	}
-	ctx := context.Background()
-	if _, err := (*fn)(ctx, sessionID, skillName); err != nil {
+	return (*fn)(context.Background(), sessionID, skillName)
+}
+
+func fire(sessionID, skillName string) {
+	if _, err := Fire(sessionID, skillName); err != nil {
 		slog.Warn("scheduler.fire: runner error",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))

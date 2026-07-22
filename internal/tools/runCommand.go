@@ -29,7 +29,8 @@ func registRunCommand() {
 Run a binary with argv; returns combined stdout/stderr.
 Executes in the work directory. Use ['cd', '<path>'] to change the work directory for subsequent commands; the path is verified before switching.
 For pipes/redirects/shell expansion, pass argv=['sh','-c','<full shell command>'].
-Do not use this to read file contents (cat/head/tail/etc.) — use read_file instead.`,
+Do NOT wrap a single command with no shell metacharacters (|, &&, >, *, ~) in sh -c — call it directly, e.g. ['git','status'] not ['sh','-c','git status'].
+Do not use this to read file contents (cat/head/tail/etc.) — use read_files instead.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -178,12 +179,12 @@ func registFetchPage() {
 				}
 				saveTo = &p
 			}
-			return handler(ctx, link, params.KeepLinks, sameSession, headless, outType, saveTo)
+			return handler(ctx, link, params.KeepLinks, sameSession, headless, outType, saveTo, params.Force)
 		},
 	})
 }
 
-func handler(ctx context.Context, link string, keepLinks, sameSession, headless bool, outType int, saveTo *string) (string, error) {
+func handler(ctx context.Context, link string, keepLinks, sameSession, headless bool, outType int, saveTo *string, force bool) (string, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {
 		return "", fmt.Errorf("url.Parse: %w", err)
@@ -200,7 +201,7 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 	parsed.Fragment = ""
 	link = parsed.String()
 
-	if hit, _, _ := isSkipped(link); hit {
+	if hit, _, _ := isSkipped(link); hit && !force {
 		return "", fmt.Errorf("%s blocked", link)
 	}
 
@@ -222,6 +223,10 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 		var fe *go_browser.Error
 		if errors.As(err, &fe) {
 			status = fe.Status
+		} else {
+			slog.Warn("go_browser.Fetch",
+				slog.String("url", link),
+				slog.String("error", err.Error()))
 		}
 		if result != nil {
 			title = result.Title

@@ -19,7 +19,7 @@ func registRemoveSkill() {
 		Name: "remove_skill",
 		Description: `
 Move a skill directory to ~/.config/agenvoy/skills/.Trash/.
-Use when a skill is obsolete or must be rebuilt; recoverable via git_rollback.`,
+Use when a skill is obsolete or must be rebuilt; recoverable via restore_revision.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

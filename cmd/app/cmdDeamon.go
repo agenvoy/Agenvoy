@@ -22,7 +22,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
@@ -34,14 +33,15 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/agenvoy/internal/tools/agent/subagent"
-	codexImage2 "github.com/pardnchiu/agenvoy/internal/tools/image2"
-	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/stt"
+	"github.com/pardnchiu/agenvoy/internal/sudo"
+	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	codexImage2 "github.com/pardnchiu/agenvoy/internal/tools/external/image2"
+	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
+	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
@@ -69,7 +69,7 @@ var (
 	lastKuradbEnabled bool
 )
 
-func reloadDiscord() {
+func reloadDiscord(attempt int) {
 	newToken := keychain.Get(discord.Key)
 	newEnabled := false
 	if cfg, err := config.Load(); err == nil && cfg != nil {
@@ -79,7 +79,7 @@ func reloadDiscord() {
 	discordMu.Lock()
 	defer discordMu.Unlock()
 
-	if newEnabled == lastDiscordEnabled && newToken == lastDiscordToken {
+	if attempt == 0 && newEnabled == lastDiscordEnabled && newToken == lastDiscordToken {
 		return
 	}
 
@@ -87,23 +87,35 @@ func reloadDiscord() {
 		_ = discord.Close(discordBot)
 		discordBot = nil
 	}
-	lastDiscordEnabled = newEnabled
-	lastDiscordToken = newToken
 
 	if !newEnabled || newToken == "" {
+		lastDiscordEnabled = newEnabled
+		lastDiscordToken = newToken
 		return
 	}
 
 	bot, err := discord.New()
 	if err != nil {
 		slog.Error("discord.New",
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.Int("attempt", attempt))
+		if attempt < reloadRetryMax {
+			go func() {
+				time.Sleep(reloadRetryDelay)
+				reloadDiscord(attempt + 1)
+			}()
+		}
 		return
 	}
+	lastDiscordEnabled = newEnabled
+	lastDiscordToken = newToken
 	discordBot = bot
 }
 
-func reloadTelegram() {
+const reloadRetryMax = 5
+const reloadRetryDelay = 30 * time.Second
+
+func reloadTelegram(attempt int) {
 	newToken := keychain.Get(telegram.Key)
 	newEnabled := false
 	if cfg, err := config.Load(); err == nil && cfg != nil {
@@ -113,7 +125,7 @@ func reloadTelegram() {
 	telegramMu.Lock()
 	defer telegramMu.Unlock()
 
-	if newEnabled == lastTelegramEnabled && newToken == lastTelegramToken {
+	if attempt == 0 && newEnabled == lastTelegramEnabled && newToken == lastTelegramToken {
 		return
 	}
 
@@ -121,19 +133,28 @@ func reloadTelegram() {
 		_ = telegram.Close(telegramBot)
 		telegramBot = nil
 	}
-	lastTelegramEnabled = newEnabled
-	lastTelegramToken = newToken
 
 	if !newEnabled || newToken == "" {
+		lastTelegramEnabled = newEnabled
+		lastTelegramToken = newToken
 		return
 	}
 
 	bot, err := telegram.New()
 	if err != nil {
 		slog.Error("telegram.New",
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.Int("attempt", attempt))
+		if attempt < reloadRetryMax {
+			go func() {
+				time.Sleep(reloadRetryDelay)
+				reloadTelegram(attempt + 1)
+			}()
+		}
 		return
 	}
+	lastTelegramEnabled = newEnabled
+	lastTelegramToken = newToken
 	telegramBot = bot
 }
 
@@ -315,8 +336,8 @@ func cmdDaemon() {
 	stopWatcher := watchConfig(context.Background())
 	defer stopWatcher()
 
-	reloadDiscord()
-	reloadTelegram()
+	reloadDiscord(0)
+	reloadTelegram(0)
 	reloadLine()
 	reloadKuradb()
 	monitor.Start(context.Background())
@@ -419,8 +440,8 @@ func watchConfig(ctx context.Context) func() {
 				if agents.Reload() {
 					slog.Info("⎯ host reloaded: config change")
 				}
-				reloadDiscord()
-				reloadTelegram()
+				reloadDiscord(0)
+				reloadTelegram(0)
 				reloadLine()
 				reloadKuradb()
 			case err, ok := <-w.Errors:
@@ -450,7 +471,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 			slog.String("error", err.Error()))
 	}
 
-	output, err := exec.ExecWithSubagent(exec.WithDcPushPrefix(ctx, skillName), body, sessionID, "", "", nil)
+	output, err := exec.ExecWithSubagent(exec.WithDcPushPrefix(ctx, skillName), body, sessionID, "", "", nil, "")
 	if err != nil {
 		return "", err
 	}

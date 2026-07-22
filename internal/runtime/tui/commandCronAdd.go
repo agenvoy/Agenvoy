@@ -15,6 +15,7 @@ func (t TUI) commandCronAdd() (TUI, tea.Cmd, bool) {
 		kind:      popupText,
 		title:     "Cron add — describe schedule (when + what)",
 		multiline: true,
+		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
 			return CronAddSubmit{requirement: strings.TrimSpace(value)}
 		},

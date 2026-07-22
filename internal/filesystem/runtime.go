@@ -34,16 +34,16 @@ type DeniedConfig struct {
 }
 
 var (
-	DeniedMap      DeniedConfig
-	DeniedMapBytes []byte
-	WhiteList      []string
-	NetWhiteList   []string
+	DeniedMap       DeniedConfig
+	DeniedMapBytes  []byte
+	WhiteList       []string
+	NetWhiteList    []string
+	ReadOnlyCommand []string
 )
 
 const (
-	hardCapMaxSessionTasks            = 10
-	hardCapMaxSubagentTimeoutMin      = 60
-	hardCapMaxExternalAgentTimeoutMin = 60
+	hardCapMaxSessionTasks       = 10
+	hardCapMaxSubagentTimeoutMin = 60
 )
 
 type RuntimeLimits struct {
@@ -139,12 +139,6 @@ func LoadRuntime() error {
 	}
 	MaxSubagentTimeoutMin = min(hardCapMaxSubagentTimeoutMin, limits.MaxSubagentTimeoutMin)
 
-	if limits.MaxExternalAgentTimeoutMin <= 0 {
-		limits.MaxExternalAgentTimeoutMin = MaxExternalAgentTimeoutMin
-		changed = true
-	}
-	MaxExternalAgentTimeoutMin = min(hardCapMaxExternalAgentTimeoutMin, limits.MaxExternalAgentTimeoutMin)
-
 	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
 		return fmt.Errorf("embedded denied_map: %w", err)
 	}
@@ -178,6 +172,17 @@ func LoadRuntime() error {
 			return fmt.Errorf("json.Unmarshal net_white_list: %w", err)
 		}
 		NetWhiteList = merge(NetWhiteList, user)
+	}
+
+	if err := json.Unmarshal(configs.ReadOnlyCommand, &ReadOnlyCommand); err != nil {
+		return fmt.Errorf("embedded read_only_command: %w", err)
+	}
+	if data, ok := raw["read_only_command"]; ok && len(data) > 0 {
+		var user []string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal read_only_command: %w", err)
+		}
+		ReadOnlyCommand = merge(ReadOnlyCommand, user)
 	}
 
 	deniedBytes, err := json.Marshal(DeniedMap)

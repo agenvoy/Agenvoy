@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -41,14 +40,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		trimInput = strings.TrimSpace(effective)
 	}
 
-	externalAgent, externalEffective, externalReadOnly := external.MatchExternal(trimInput)
-	if externalAgent != "" {
-		trimInput = strings.TrimSpace(externalEffective)
-	}
-
 	var matchedSkill *skill.Skill
 	var skillResult agentTypes.Event
-	if externalAgent == "" && scanner != nil {
+	if scanner != nil {
 		if m, effective := runtime.MatchSkill(scanner, trimInput); m != nil {
 			matchedSkill = m
 			trimInput = strings.TrimSpace(effective)
@@ -72,25 +66,13 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		Type: agentTypes.EventAgentSelect,
 	}
 
-	var agent agentTypes.Agent
-	var fallbacks []agentTypes.Agent
-	var agentResult agentTypes.Event
-	if externalAgent != "" {
-		agentResult = agentTypes.Event{
-			Type: agentTypes.EventAgentResult,
-			Text: "external:" + externalAgent,
-		}
-	} else {
-		primary, rest, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, sessionOverride)
-		if err != nil {
-			return fmt.Errorf("ResolveAgent: %w", err)
-		}
-		agent = primary
-		fallbacks = rest
-		agentResult = agentTypes.Event{
-			Type: agentTypes.EventAgentResult,
-			Text: strings.TrimSpace(agent.Name()),
-		}
+	agent, fallbacks, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, sessionOverride)
+	if err != nil {
+		return fmt.Errorf("ResolveAgent: %w", err)
+	}
+	agentResult := agentTypes.Event{
+		Type: agentTypes.EventAgentResult,
+		Text: strings.TrimSpace(agent.Name()),
 	}
 	events <- agentResult
 	sessionLog.Record(sessionOverride, agentResult)
@@ -115,10 +97,6 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	session, err := GetSession(ctx, execData)
 	if err != nil {
 		return fmt.Errorf("GetSession: %w", err)
-	}
-
-	if externalAgent != "" {
-		return CallExternal(ctx, session.ID, externalAgent, trimInput, externalReadOnly, events)
 	}
 
 	doneEvents := make(chan agentTypes.Event, 4)

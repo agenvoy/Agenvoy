@@ -26,6 +26,7 @@ func (t TUI) commandAllowCmd(parts []string) (TUI, tea.Cmd, bool) {
 	t.popup = &Popup{
 		kind:  popupText,
 		title: "Command to allow (appended to config.json white_list)",
+		input: newPopupInput("", false),
 		onConfirm: func(value string) any {
 			return AllowCmdSubmit{name: strings.TrimSpace(value)}
 		},

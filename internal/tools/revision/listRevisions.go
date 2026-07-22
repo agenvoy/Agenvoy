@@ -1,4 +1,4 @@
-package git
+package revision
 
 import (
 	"context"
@@ -21,25 +21,26 @@ func matchTarget(tag string) (filesystem.GitTarget, error) {
 	}
 }
 
-func registLog() {
+func registListRevisions() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "git_log",
+		Name:        "list_revisions",
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `
-Show git commit history for skills or tools directory.
-Use to find a commit hash before git_rollback, or to verify auto-commits landed.`,
+List revision history of Agenvoy's own skill or tool storage.
+Scope is limited to ~/.config/agenvoy — never the user's project repository.
+Use to find a revision before restore_revision, or to verify auto-commits landed.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"tag": map[string]any{
 					"type":        "string",
 					"enum":        []string{"skills", "tools"},
-					"description": "Target repo. 'skills' = ~/.config/agenvoy/skills, 'tools' = ~/.config/agenvoy/tools.",
+					"description": "Target storage. 'skills' = ~/.config/agenvoy/skills, 'tools' = ~/.config/agenvoy/tools.",
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Number of commits to return. Clamped to [1, 50] (e.g. 10).",
+					"description": "Number of revisions to return. Clamped to [1, 50] (e.g. 10).",
 					"default":     20,
 				},
 			},

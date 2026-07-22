@@ -37,7 +37,7 @@ var commands = []Command{
 	{"mcp", "add / remove / reconnect MCP server · global or session scope"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
-	{"dangerous", "remove-session / allow-skill / allow-cmd / allow-report"},
+	{"dangerous", "remove-session / allow-skill / allow-cmd"},
 	{"memory", "compact / reset / summary · manage session memory"},
 	{"bot", "edit / rename current session · name / description (persona)"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},

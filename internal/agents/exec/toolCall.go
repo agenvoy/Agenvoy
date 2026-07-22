@@ -6,13 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -21,6 +23,7 @@ import (
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
@@ -94,7 +97,7 @@ type toolSlot struct {
 }
 
 func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, turnAllowAll bool) bool {
-	if toolName == "read_file" && isSensitiveReadFile(toolArgs) {
+	if toolName == "read_files" && isSensitiveReadFile(toolArgs) {
 		return true
 	}
 	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
@@ -103,7 +106,65 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if toolName == "send_http_request" && isGet(toolArgs) {
 		return false
 	}
+	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {
+		return false
+	}
 	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+}
+
+func hasDangerousGitFlag(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "-o", a == "--output", a == "--output-directory":
+			return true
+		case strings.HasPrefix(a, "--output=") || strings.HasPrefix(a, "--output-directory="):
+			return true
+		case strings.HasPrefix(a, "-o") && a != "-o":
+			return true
+		}
+	}
+	return false
+}
+
+func stripSafeGitGlobalFlags(argv []string) []string {
+	i := 1
+	for i < len(argv) && strings.HasPrefix(argv[i], "-") {
+		if argv[i] == "-c" || strings.HasPrefix(argv[i], "-c=") {
+			break
+		}
+		if !strings.Contains(argv[i], "=") && i+1 < len(argv) && !strings.HasPrefix(argv[i+1], "-") {
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return append([]string{argv[0]}, argv[i:]...)
+}
+
+func isReadOnlyRunCommand(toolArgs string) bool {
+	var p struct {
+		Argv []string `json:"argv"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil || len(p.Argv) == 0 {
+		return false
+	}
+	argv := p.Argv
+	bin := filepath.Base(argv[0])
+	if bin == "git" {
+		argv = stripSafeGitGlobalFlags(argv)
+	}
+
+	matched := slices.Contains(filesystem.ReadOnlyCommand, bin)
+	if !matched && len(argv) > 1 {
+		matched = slices.Contains(filesystem.ReadOnlyCommand, bin+" "+argv[1])
+	}
+	if !matched {
+		return false
+	}
+	if bin == "git" {
+		return !hasDangerousGitFlag(argv[2:])
+	}
+	return true
 }
 
 func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string) {
@@ -114,7 +175,7 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 		return
 	}
 	for key := range alreadyCall {
-		if strings.HasPrefix(key, "read_file|") && strings.Contains(key, p.Path) {
+		if strings.HasPrefix(key, "read_files|") && strings.Contains(key, p.Path) {
 			delete(alreadyCall, key)
 		}
 	}
@@ -134,7 +195,7 @@ func truncateWriteArgs(argsJSON string) string {
 	if json.Unmarshal([]byte(argsJSON), &m) != nil {
 		return argsJSON
 	}
-	const omitted = "[omitted after successful write — already applied on disk; read_file to inspect]"
+	const omitted = "[omitted after successful write — already applied on disk; read_files to inspect]"
 	for _, field := range []string{"content", "old_string", "new_string"} {
 		if _, ok := m[field]; ok {
 			m[field] = omitted
@@ -218,12 +279,19 @@ func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
 
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
-		Path string `json:"path"`
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
 	}
-	if json.Unmarshal([]byte(argsJSON), &p) != nil || p.Path == "" {
+	if json.Unmarshal([]byte(argsJSON), &p) != nil {
 		return false
 	}
-	return file.IsSensitivePath(p.Path)
+	for _, f := range p.Files {
+		if f.Path != "" && file.IsSensitivePath(f.Path) {
+			return true
+		}
+	}
+	return false
 }
 
 func isGet(argsJSON string) bool {
@@ -432,8 +500,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		return sessionData, alreadyCall, err
 	}
 
-	hasExternalAgent := false
-	hasReviewResult := false
 	todoCheckpointHit := false
 
 	for i := range slots {
@@ -519,29 +585,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		} else {
 			sessionData.ToolHistories = append(sessionData.ToolHistories, toolMsg)
 		}
-
-		switch s.name {
-		case "cross_review_with_external_agents":
-			hasExternalAgent = true
-			sessionData.VerifyRounds++
-			sessionData.VerifyFeedbacks = append(sessionData.VerifyFeedbacks, result)
-		case "review_result":
-			hasReviewResult = true
-		}
 	}
 
 	if todoCheckpointHit {
 		clearCheckpointedToolResults(sessionData)
 	}
 
-	if hasExternalAgent || hasReviewResult {
-		sessionData.OldHistories = nil
-		if hasExternalAgent {
-			sessionData.ToolHistories = trimMessageContext(sessionData.ToolHistories, sessionData.VerifyRounds, sessionData.VerifyFeedbacks)
-		} else {
-			sessionData.ToolHistories = trimReviewContext(sessionData.ToolHistories)
-		}
-	}
 	return sessionData, alreadyCall, nil
 }
 
@@ -678,114 +727,4 @@ func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
 			part,
 		}
 	}
-}
-
-const MaxVerifyRounds = 3
-
-func trimMessageContext(toolCall []provider.Message, rounds int, feedbacks []string) []provider.Message {
-	var firstVersion, feedback string
-
-	for _, m := range toolCall {
-		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
-			continue
-		}
-		for _, tc := range m.ToolCalls {
-			if tc.Function.Name != "cross_review_with_external_agents" && tc.Function.Name != "invoke_external_agent" {
-				continue
-			}
-
-			var params struct {
-				Result string `json:"result"`
-			}
-			if err := json.Unmarshal([]byte(tc.Function.Arguments), &params); err == nil && params.Result != "" {
-				firstVersion = params.Result
-			}
-
-			for _, tm := range toolCall {
-				if tm.Role == "tool" && tm.ToolCallID == tc.ID {
-					if s, ok := tm.Content.(string); ok {
-						s = strings.TrimPrefix(s, "[cross_review_with_external_agents] ")
-						s = strings.TrimPrefix(s, "[invoke_external_agent] ")
-						feedback = s
-					}
-					break
-				}
-			}
-		}
-	}
-
-	compact := make([]provider.Message, 0, 2)
-	if firstVersion != "" {
-		compact = append(compact, provider.Message{
-			Role:    "assistant",
-			Content: firstVersion,
-		})
-	}
-
-	if rounds >= MaxVerifyRounds {
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("已完成 %d 輪外部驗證仍未全員通過，**停止重試**，禁止再次呼叫 cross_review_with_external_agents。請以當前草稿為基礎直接輸出最終結果，並在文末新增 `## 外部驗證未通過理由` 區塊，依序列出各輪 agent 指出的具體問題。\n\n", rounds))
-		for i, fb := range feedbacks {
-			sb.WriteString(fmt.Sprintf("### Round %d\n%s\n\n", i+1, fb))
-		}
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: sb.String(),
-		})
-		return compact
-	}
-
-	if feedback != "" {
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: fmt.Sprintf("以下是第 %d 輪外部驗證回饋（上限 %d 輪），請針對指出的每個問題，**重新呼叫工具查詢**以修正錯誤或補充缺漏，完成後再輸出最終結果：\n\n%s", rounds, MaxVerifyRounds, feedback),
-		})
-	}
-	return compact
-}
-
-func trimReviewContext(toolCall []provider.Message) []provider.Message {
-	var draft, feedback string
-
-	for _, m := range toolCall {
-		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
-			continue
-		}
-		for _, tc := range m.ToolCalls {
-			if tc.Function.Name != "review_result" {
-				continue
-			}
-
-			var params struct {
-				Result string `json:"result"`
-			}
-			if err := json.Unmarshal([]byte(tc.Function.Arguments), &params); err == nil {
-				draft = params.Result
-			}
-
-			for _, tm := range toolCall {
-				if tm.Role == "tool" && tm.ToolCallID == tc.ID {
-					if s, ok := tm.Content.(string); ok {
-						feedback = strings.TrimPrefix(s, "[內部審查 · ")
-					}
-					break
-				}
-			}
-		}
-	}
-
-	compact := make([]provider.Message, 0, 2)
-	if draft != "" {
-		compact = append(compact, provider.Message{
-			Role:    "assistant",
-			Content: draft,
-		})
-	}
-	if feedback != "" {
-		compact = append(compact, provider.Message{
-			Role:    "user",
-			Content: "以下是內部審查回饋，請針對指出的每個問題修正後輸出最終結果：\n\n" + feedback,
-		})
-	}
-	return compact
 }

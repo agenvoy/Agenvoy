@@ -12,7 +12,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/external"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -81,10 +80,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, nil
 			}
 			if t.running && t.cancelExec != nil {
-				t.cancelExec()
-				t.toolBuf = nil
-				t.todos = nil
-				return t, tea.Println(warnStyle.Render("⎯ cancelled") + "\n")
+				t.popup = &Popup{
+					kind:    popupSingleSelect,
+					title:   "Cancel current task?",
+					options: []string{"No", "Yes  cancel"},
+					values:  []string{"no", "yes"},
+					onConfirm: func(chosen string) any {
+						return CancelRunConfirm{yes: chosen == "yes"}
+					},
+				}
+				return t, nil
 			}
 
 		case tea.KeyRunes:
@@ -103,6 +108,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return t, nil
 				case "U":
 					next, cmd, _ := t.commandProviderUsage()
+					return next, cmd
+				case "M":
+					next, cmd, _ := t.commandModelList()
 					return next, cmd
 				}
 			}
@@ -163,10 +171,15 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if t.running {
-				if strings.TrimSpace(t.textarea.Value()) == "" {
+				content := strings.TrimSpace(t.textarea.Value())
+				if content == "" {
 					return t, nil
 				}
-				return t, tea.Println(hintStyle.Render("⎯ busy · esc to cancel · queue comming soon"))
+				exec.AppendSteer(t.currentSessionID, content)
+				t.pendingSteer = append(t.pendingSteer, content)
+				t.textarea.Reset()
+				t.textarea.SetHeight(1)
+				return t, nil
 			}
 
 			content := strings.TrimSpace(t.textarea.Value())
@@ -225,10 +238,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.activity = ""
 		t.runTarget = ""
 		t.streaming = false
-		if errors.Is(msg.err, context.Canceled) && t.lastInput != "" {
-			t.textarea.SetValue(t.lastInput)
-			t.textarea.SetHeight(max(1, min(t.textarea.LineCount(), 5)))
-			t.lastInput = ""
+		leftoverSteer := t.pendingSteer
+		t.pendingSteer = nil
+		if errors.Is(msg.err, context.Canceled) {
+			restore := t.lastInput
+			if len(leftoverSteer) > 0 {
+				if restore != "" {
+					restore += "\n"
+				}
+				restore += strings.Join(leftoverSteer, "\n")
+			}
+			if restore != "" {
+				t.textarea.SetValue(restore)
+				t.textarea.SetHeight(max(1, min(t.textarea.LineCount(), 5)))
+				t.lastInput = ""
+			}
 		}
 		if t.currentSessionID != "" {
 			t.currentSessionName, _ = configBot.Get(t.currentSessionID)
@@ -798,6 +822,15 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runTaskRemove(msg.skill)
 		return next, cmd
 
+	case CancelRunConfirm:
+		if !msg.yes {
+			return t, nil
+		}
+		if t.cancelExec != nil {
+			t.cancelExec()
+		}
+		return t, nil
+
 	case RemoveSessionPick:
 		return t.runRemoveSessionPick(msg.chosen)
 
@@ -892,9 +925,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "allow-cmd":
 			next, cmd, _ := t.commandAllowCmd(nil)
-			return next, cmd
-		case "allow-report":
-			next, cmd, _ := t.commandAllowReport(nil)
 			return next, cmd
 		}
 		return t, nil
@@ -1010,21 +1040,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(hintStyle.Render("⎯ admin-channel cleared") + "\n")
 		}
 		return t, tea.Println(hintStyle.Render("⎯ admin-channel set · "+value) + "\n")
-
-	case AllowReportAction:
-		next, cmd := t.openAllowReportConfirm(msg.action)
-		return next, cmd
-
-	case AllowReportConfirm:
-		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ allow-report cancelled") + "\n")
-		}
-		if msg.action == "enable" {
-			next, cmd := t.runAllowReportEnable()
-			return next, cmd
-		}
-		next, cmd := t.runAllowReportDisable()
-		return next, cmd
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -1214,9 +1229,6 @@ func noMatches(input string) bool {
 		if m, _ := runtime.MatchSkill(scanner, input); m != nil {
 			return true
 		}
-	}
-	if agent, _, _ := external.MatchExternal(input); agent != "" {
-		return true
 	}
 	return false
 }

@@ -101,6 +101,11 @@ func renderActionLine(p parsedAction, width int) string {
 	case "done":
 		return renderEvent(formatDone(body), width, formatLogTimestamp(p.timestamp))
 
+	case "canceled":
+		event := formatDone(body)
+		event.Type = agentTypes.EventCanceled
+		return renderEvent(event, width, formatLogTimestamp(p.timestamp))
+
 	case "skill_result":
 		str := strings.TrimSpace(body)
 		if str == "" {

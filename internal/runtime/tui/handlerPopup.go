@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	goruntime "runtime"
 	"strings"
@@ -123,8 +124,13 @@ func openBrowser(link string) {
 	case "darwin":
 		cmd = exec.Command("open", link)
 	case "linux":
-		cmd = exec.Command("xdg-open", link)
+		cmd = linuxOpenCommand(link)
 	default:
+		return
+	}
+	if cmd == nil {
+		slog.Warn("openOAuthBrowser: no opener available",
+			slog.String("url", link))
 		return
 	}
 	if err := cmd.Start(); err != nil {
@@ -132,6 +138,44 @@ func openBrowser(link string) {
 			slog.String("url", link),
 			slog.String("error", err.Error()))
 	}
+}
+
+func linuxOpenCommand(link string) *exec.Cmd {
+	if bin := wslBrowserPath(); bin != "" {
+		return exec.Command(bin, link)
+	}
+	if bin, err := exec.LookPath("wslview"); err == nil {
+		return exec.Command(bin, link)
+	}
+	if bin, err := exec.LookPath("xdg-open"); err == nil {
+		return exec.Command(bin, link)
+	}
+	return nil
+}
+
+func isWSL() bool {
+	raw, err := os.ReadFile("/proc/version")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(string(raw)), "microsoft")
+}
+
+func wslBrowserPath() string {
+	if !isWSL() {
+		return ""
+	}
+	candidates := []string{
+		"/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
+		"/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+		"/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }
 
 func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -395,12 +439,12 @@ func newPopup(id string, req runtime.Request) *Popup {
 				if i > 0 {
 					p.diffLines = append(p.diffLines, "")
 				}
-				for _, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
-					p.diffLines = append(p.diffLines, "- "+l)
+				for j, l := range h.OldLines[:min(len(h.OldLines), 16, remaining)] {
+					p.diffLines = append(p.diffLines, "- "+rowLabel(h.Row, j)+l)
 					remaining--
 				}
-				for _, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
-					p.diffLines = append(p.diffLines, "+ "+l)
+				for j, l := range h.NewLines[:min(len(h.NewLines), remaining)] {
+					p.diffLines = append(p.diffLines, "+ "+rowLabel(h.Row, j)+l)
 					remaining--
 				}
 			}

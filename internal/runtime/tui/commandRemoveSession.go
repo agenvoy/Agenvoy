@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
@@ -116,6 +117,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 		deleteSessionHistKeys(sid)
 		historyStore.Clear(sid)
 		sessionHistory.ClearMutex(sid)
+		exec.ClearSteer(sid)
 		if err := os.RemoveAll(filesystem.SessionDir(sid)); err != nil {
 			continue
 		}

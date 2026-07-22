@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
-
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
@@ -23,27 +23,40 @@ func registSearchFiles() {
 		Description: `
 Search file contents by RE2 regex within a directory.
 Locate code or text when the matching string is known but the file is not.
-Scope with file_pattern glob (e.g. '**/*.go', 'configs/**').`,
+Scope with file_pattern glob (e.g. '**/*.go', 'configs/**').
+Batch multiple patterns/dirs into one 'queries' call instead of separate calls; matches are merged and deduplicated.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"dir": map[string]any{
-					"type":        "string",
-					"description": "Directory to search in (e.g. '.', '~/downloads', '/abs/path'). Defaults to current working directory.",
-					"default":     ".",
-				},
-				"pattern": map[string]any{
-					"type":        "string",
-					"description": "RE2 regex matched per line (e.g. 'func\\s+\\w+Handler', 'TODO:', 'api_key').",
-				},
-				"file_pattern": map[string]any{
-					"type":        "string",
-					"description": "Glob relative to dir to narrow files (e.g. '**/*.go', 'configs/**/*.json').",
-					"default":     "**/*",
+				"queries": map[string]any{
+					"type":        "array",
+					"description": "One or more content searches.",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"dir": map[string]any{
+								"type":        "string",
+								"description": "Directory to search in (e.g. '.', '~/downloads', '/abs/path'). Defaults to current working directory.",
+								"default":     ".",
+							},
+							"pattern": map[string]any{
+								"type":        "string",
+								"description": "RE2 regex matched per line (e.g. 'func\\s+\\w+Handler', 'TODO:', 'api_key').",
+							},
+							"file_pattern": map[string]any{
+								"type":        "string",
+								"description": "Glob relative to dir to narrow files (e.g. '**/*.go', 'configs/**/*.json').",
+								"default":     "**/*",
+							},
+						},
+						"required": []string{
+							"pattern",
+						},
+					},
 				},
 			},
 			"required": []string{
-				"pattern",
+				"queries",
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
@@ -51,65 +64,92 @@ Scope with file_pattern glob (e.g. '**/*.go', 'configs/**').`,
 				return "", err
 			}
 			var params struct {
-				Dir         string `json:"dir"`
-				Pattern     string `json:"pattern"`
-				FilePattern string `json:"file_pattern"`
+				Queries []struct {
+					Dir         string `json:"dir"`
+					Pattern     string `json:"pattern"`
+					FilePattern string `json:"file_pattern"`
+				} `json:"queries"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-
-			dir := strings.TrimSpace(params.Dir)
-			absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, dir, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
-			if err != nil {
-				return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+			if len(params.Queries) == 0 {
+				return "", fmt.Errorf("queries is required")
 			}
 
-			if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-				return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
-			}
-
-			pattern := strings.TrimSpace(params.Pattern)
-			if pattern == "" {
-				return "", fmt.Errorf("pattern is required")
-			}
-
-			var filePatterns []string
-			if params.FilePattern != "" {
-				filePatterns = strings.Split(filepath.ToSlash(params.FilePattern), "/")
-			}
-			matches, err := go_pkg_filesystem_reader.SearchFiles(absPath, pattern, filePatterns, 0,
-				go_pkg_filesystem_reader.ListOption{
-					SkipExcluded:    true,
-					SkipDenied:      true,
-					IgnoreWalkError: true,
-				})
-			if err != nil {
-				if denied.IsPermission(err) {
-					denied.Register(e.SessionID, absPath)
-					return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
+			seen := make(map[string]struct{})
+			var merged []go_pkg_filesystem_reader.File
+			for _, q := range params.Queries {
+				matches, err := searchOne(ctx, e, q.Dir, q.Pattern, q.FilePattern)
+				if err != nil {
+					return "", err
 				}
-				return "", fmt.Errorf("go_pkg_filesystem_reader.SearchFiles: %w", err)
-			}
-
-			if len(matches) == 0 {
-				return fmt.Sprintf("no files found: %s", pattern), nil
-			}
-			if err := ctx.Err(); err != nil {
-				return "", err
-			}
-
-			for i, f := range matches {
-				if rel, err := filepath.Rel(absPath, f.Path); err == nil {
-					matches[i].Path = rel
+				for _, m := range matches {
+					if _, ok := seen[m.Path]; ok {
+						continue
+					}
+					seen[m.Path] = struct{}{}
+					merged = append(merged, m)
 				}
 			}
 
-			raw, err := json.Marshal(matches)
+			if len(merged) == 0 {
+				return "no files found", nil
+			}
+
+			slices.SortFunc(merged, func(a, b go_pkg_filesystem_reader.File) int {
+				return strings.Compare(a.Path, b.Path)
+			})
+			raw, err := json.Marshal(merged)
 			if err != nil {
 				return "", fmt.Errorf("json.Marshal: %w", err)
 			}
 			return string(raw), nil
 		},
 	})
+}
+
+func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string) ([]go_pkg_filesystem_reader.File, error) {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return nil, fmt.Errorf("pattern is required")
+	}
+
+	dir = strings.TrimSpace(dir)
+	absPath, err := go_pkg_filesystem.AbsPath(e.WorkDir, dir, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+	}
+
+	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
+		return nil, fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
+	}
+
+	var filePatterns []string
+	if filePattern != "" {
+		filePatterns = strings.Split(filepath.ToSlash(filePattern), "/")
+	}
+	matches, err := go_pkg_filesystem_reader.SearchFiles(absPath, pattern, filePatterns, 0,
+		go_pkg_filesystem_reader.ListOption{
+			SkipExcluded:    true,
+			SkipDenied:      true,
+			IgnoreWalkError: true,
+		})
+	if err != nil {
+		if denied.IsPermission(err) {
+			denied.Register(e.SessionID, absPath)
+			return nil, fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
+		}
+		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/reader: SearchFiles: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	for i, m := range matches {
+		if rel, err := filepath.Rel(absPath, m.Path); err == nil {
+			matches[i].Path = rel
+		}
+	}
+	return matches, nil
 }
