@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 )
 
@@ -64,6 +65,22 @@ func GetFile() gin.HandlerFunc {
 			c.Header("X-Content-SHA256", sum)
 		}
 		c.File(absPath)
+	}
+}
+
+func OpenFile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		absPath, code, err := resolveFilePath(c.Query("path"))
+		if err != nil {
+			c.JSON(code, gin.H{"error": err.Error()})
+			return
+		}
+		result, err := tools.OpenFile(c.Request.Context(), "", "", absPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"result": result})
 	}
 }
 

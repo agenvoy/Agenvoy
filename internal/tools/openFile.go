@@ -41,13 +41,13 @@ func registOpenFile() {
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-			return openFile(ctx, e, params.Path)
+			return OpenFile(ctx, e.WorkDir, e.SessionID, params.Path)
 		},
 	})
 }
 
-func openFile(ctx context.Context, e *toolTypes.Executor, path string) (string, error) {
-	baseDir := e.WorkDir
+func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, error) {
+	baseDir := workDir
 	if baseDir == "" {
 		baseDir = filesystem.DownloadDir
 	}
@@ -60,7 +60,7 @@ func openFile(ctx context.Context, e *toolTypes.Executor, path string) (string, 
 		return "", fmt.Errorf("path is required")
 	}
 
-	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
+	if parent, ok := denied.Hit(sessionID, absPath); ok {
 		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
 	}
 
@@ -83,7 +83,7 @@ func openFile(ctx context.Context, e *toolTypes.Executor, path string) (string, 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if denied.IsPermission(err) {
-			denied.Register(e.SessionID, absPath)
+			denied.Register(sessionID, absPath)
 		}
 		return fmt.Sprintf("%s\nError: %s", string(output), err.Error()), nil
 	}
