@@ -77,6 +77,9 @@ func New() *gin.Engine {
 	r.DELETE("/v1/task", localhostOnly(), handler.DeleteTask())
 	r.POST("/v1/task/run", localhostOnly(), handler.RunTask())
 
+	r.GET("/v1/kuradb", localhostOnly(), handler.GetKuradbSetting())
+	r.POST("/v1/kuradb", localhostOnly(), handler.SetKuradbSetting())
+
 	return r
 }
 
