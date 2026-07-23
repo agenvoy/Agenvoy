@@ -80,6 +80,11 @@ func New() *gin.Engine {
 	r.GET("/v1/kuradb", localhostOnly(), handler.GetKuradbSetting())
 	r.POST("/v1/kuradb", localhostOnly(), handler.SetKuradbSetting())
 
+	r.GET("/v1/allowlist/cmd", localhostOnly(), handler.ListAllowCmd())
+	r.POST("/v1/allowlist/cmd", localhostOnly(), handler.AddAllowCmd())
+	r.GET("/v1/allowlist/skill", localhostOnly(), handler.ListAllowSkill())
+	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())
+
 	return r
 }
 
