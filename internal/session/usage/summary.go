@@ -14,10 +14,10 @@ var linePattern = regexp.MustCompile(`^\[(\d{4}-\d{2}-\d{2} [^\]]+)\]\[([^\]]+)\
 const timestampLayout = "2006-01-02 15:04:05.000"
 
 type ModelUsage struct {
-	Input  uint64
-	Output uint64
-	Write  uint64
-	Hit    uint64
+	Input  uint64 `json:"input"`
+	Output uint64 `json:"output"`
+	Write  uint64 `json:"write"`
+	Hit    uint64 `json:"hit"`
 }
 
 func Usage(path string, days int, now time.Time) (map[string]ModelUsage, error) {

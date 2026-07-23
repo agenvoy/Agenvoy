@@ -40,6 +40,17 @@ func Search(ctx context.Context, tool, keyword string, limit int) string {
 	return format(records, limit)
 }
 
+func List(limit int) []Record {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	db := torii.DB(torii.DBErrorMemory)
+	return scanWithFilter(db, "*", func(Record) bool { return true }, limit)
+}
+
 func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword string, limit int) []Record {
 	keys, err := db.VSearch(ctx, keyword, pattern, limit)
 	if err != nil || len(keys) == 0 {

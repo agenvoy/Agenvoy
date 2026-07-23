@@ -44,6 +44,12 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id/pending/:task_hash/resume", handler.ResumeSessionPending())
 	r.GET("/v1/session/:session_id/persona", localhostOnly(), handler.GetSessionPersona())
 	r.POST("/v1/session/:session_id/persona", localhostOnly(), handler.SetSessionPersona())
+	r.POST("/v1/session/:session_id/compact", localhostOnly(), handler.CompactSession())
+	r.GET("/v1/session/:session_id/daemon", localhostOnly(), handler.GetSessionDaemonLog())
+	r.GET("/v1/session/:session_id/action", localhostOnly(), handler.GetSessionActionLog())
+	r.GET("/v1/session/:session_id/usage", localhostOnly(), handler.GetSessionUsageLog())
+	r.GET("/v1/session/:session_id/history", localhostOnly(), handler.ListSessionHistoryFiles())
+	r.GET("/v1/session/:session_id/history/*file", localhostOnly(), handler.GetSessionHistoryFile())
 
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
@@ -84,6 +90,8 @@ func New() *gin.Engine {
 	r.POST("/v1/allowlist/cmd", localhostOnly(), handler.AddAllowCmd())
 	r.GET("/v1/allowlist/skill", localhostOnly(), handler.ListAllowSkill())
 	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())
+
+	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 
 	return r
 }

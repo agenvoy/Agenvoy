@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -165,6 +167,29 @@ func DeleteSession() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+}
+
+func CompactSession() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sid := strings.TrimSpace(c.Param("session_id"))
+		if sid == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+			return
+		}
+		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+			return
+		}
+
+		go func() {
+			if _, err := exec.CompactHistory(context.Background(), sid); err != nil {
+				slog.Warn("handler.CompactSession",
+					slog.String("session", sid),
+					slog.String("error", err.Error()))
+			}
+		}()
+		c.JSON(http.StatusAccepted, gin.H{"ok": true, "started": true})
 	}
 }
 
