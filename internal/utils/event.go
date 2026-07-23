@@ -232,8 +232,8 @@ func formatEventFooter(duration time.Duration, model string, usage *provider.Usa
 		parts = append(parts, model)
 	}
 
-	if usage != nil && (usage.Input > 0 || usage.CacheRead > 0 || usage.Output > 0) {
-		totalInput := usage.Input + usage.CacheRead
+	if usage != nil && (usage.Input > 0 || usage.CacheRead > 0 || usage.CacheCreate > 0 || usage.Output > 0) {
+		totalInput := usage.Input + usage.CacheRead + usage.CacheCreate
 		hitPct := 0
 		if usage.CacheRead > 0 && totalInput > 0 {
 			hitPct = int(float64(usage.CacheRead) / float64(totalInput) * 100)
