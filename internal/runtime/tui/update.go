@@ -212,7 +212,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.runStartedAt = time.Now()
 			t.activity = ""
 			t.currentModel = configBot.DefaultModel
-			t.lastIn, t.lastOut, t.lastCacheRead = 0, 0, 0
+			t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
 			t.runTarget = targetSession(content, t.currentSessionID)
 
 			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
@@ -1149,6 +1149,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.lastIn = 0
 		t.lastOut = 0
 		t.lastCacheRead = 0
+		t.lastCacheCreate = 0
 		t.currentModel = ""
 		t.activity = ""
 
@@ -1218,7 +1219,7 @@ func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
 	t.runStartedAt = time.Now()
 	t.activity = ""
 	t.currentModel = configBot.DefaultModel
-	t.lastIn, t.lastOut, t.lastCacheRead = 0, 0, 0
+	t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
 	t.runTarget = ""
 	go runExec(t.ctx, msg.Content, t.allowAll, t.cwd, sid, msg.PendingTask, msg.HistoryContent)
 	return t, t.spinner.Tick

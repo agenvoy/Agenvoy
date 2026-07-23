@@ -22,6 +22,7 @@ import (
 
 const (
 	BinaryPath        = "/usr/local/bin/kura"
+	InstallURL        = "https://kuradb.agenvoy.com/scripts/install.sh"
 	serviceKey        = "kuradb"
 	healthInterval    = 1 * time.Minute
 	healthRequestTime = 5 * time.Second
@@ -92,7 +93,7 @@ func Health(ctx context.Context, onFail func()) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := probeHealth(ctx); err != nil {
+			if err := ProbeHealth(ctx); err != nil {
 				strikes++
 				slog.Warn("kuradb.RunHealth: probe failed",
 					slog.Int("strike", strikes),
@@ -116,7 +117,7 @@ func Health(ctx context.Context, onFail func()) {
 	}
 }
 
-func probeHealth(ctx context.Context) error {
+func ProbeHealth(ctx context.Context) error {
 	if !IsRunning() {
 		return fmt.Errorf("runtime.uid: process not alive")
 	}
@@ -172,4 +173,35 @@ func isAlive(pid int) bool {
 		return false
 	}
 	return proc.Signal(syscall.Signal(0)) == nil
+}
+
+const execTimeout = 15 * time.Second
+
+func Start(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, execTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, BinaryPath)
+	cmd.Env = os.Environ()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("kura: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func Stop(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, execTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, BinaryPath, "stop")
+	cmd.Env = os.Environ()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("kura stop: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func Restart(ctx context.Context) error {
+	if err := Stop(ctx); err != nil {
+		return err
+	}
+	return Start(ctx)
 }

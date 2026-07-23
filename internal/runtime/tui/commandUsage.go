@@ -108,7 +108,7 @@ func formatUsageCell(u usagelog.ModelUsage) string {
 		return strings.Repeat(" ", usageCellWidth)
 	}
 	hitPct := 0.0
-	if total := u.Input + u.Hit; total > 0 {
+	if total := u.Input + u.Hit + u.Write; total > 0 {
 		hitPct = float64(u.Hit) / float64(total) * 100
 	}
 	rounded := int(hitPct + 0.5)

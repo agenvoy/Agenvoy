@@ -13,8 +13,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-const kuradbInstallURL = "https://kuradb.agenvoy.com/scripts/install.sh"
-
 type KuradbAction struct {
 	action string
 }
@@ -99,7 +97,7 @@ func runKuradbEnableExec() tea.Cmd {
 	script := fmt.Sprintf(`set -e
 curl -fsSL %s | bash
 kura add agenvoy 2>/dev/null || true
-`, kuradbInstallURL)
+`, kuradb.InstallURL)
 
 	cmd := exec.Command("bash", "-c", script)
 	cmd.Env = os.Environ()
@@ -135,7 +133,7 @@ func runKuradbUpdateExec() tea.Cmd {
 	script := fmt.Sprintf(`set -e
 curl -fsSL %s | bash
 kura add agenvoy 2>/dev/null || true
-`, kuradbInstallURL)
+`, kuradb.InstallURL)
 
 	cmd := exec.Command("bash", "-c", script)
 	cmd.Env = os.Environ()
