@@ -74,6 +74,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 	t.lastIn = 0
 	t.lastOut = 0
 	t.lastCacheRead = 0
+	t.lastCacheCreate = 0
 
 	hint := fmt.Sprintf("⎯ compact: %s (nothing to remove)", utils.ShortenSessionID(msg.id))
 	if msg.removed > 0 {

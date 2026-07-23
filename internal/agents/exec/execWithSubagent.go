@@ -169,7 +169,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		}
 	}
 
-	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d", totalUsage.Input+totalUsage.CacheRead, totalUsage.Output, totalUsage.CacheRead)
+	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", totalUsage.Input+totalUsage.CacheRead+totalUsage.CacheCreate, totalUsage.Output, totalUsage.CacheRead, totalUsage.CacheCreate)
 
 	if parentSessionID != "" && parentSessionID != sessionID && (totalUsage.Input > 0 || totalUsage.Output > 0 || totalUsage.CacheRead > 0 || totalUsage.CacheCreate > 0) {
 		prov, usageModel, _ := strings.Cut(agent.Name(), "@")

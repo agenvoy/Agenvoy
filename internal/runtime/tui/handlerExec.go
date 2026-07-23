@@ -217,10 +217,11 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		collapse := t.collapseToolBuf()
 		t.todos = nil
 		if ev.Usage != nil {
-			t.tokens = ev.Usage.Input + ev.Usage.Output
+			t.tokens = ev.Usage.Input + ev.Usage.Output + ev.Usage.CacheRead + ev.Usage.CacheCreate
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output
 			t.lastCacheRead = ev.Usage.CacheRead
+			t.lastCacheCreate = ev.Usage.CacheCreate
 		}
 		finishedAt := time.Now().Format("2006-01-02 15:04:05")
 		if collapse != nil {
@@ -254,6 +255,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output
 			t.lastCacheRead = ev.Usage.CacheRead
+			t.lastCacheCreate = ev.Usage.CacheCreate
 		}
 		return t, nil
 
