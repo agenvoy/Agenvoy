@@ -36,7 +36,7 @@ func New() *gin.Engine {
 	r.PUT("/v1/session", localhostOnly(), handler.UpdateSession())
 	r.DELETE("/v1/session", localhostOnly(), handler.DeleteSession())
 	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
-	r.POST("/v1/session/:session_id/cancel", handler.CancelSession())
+	r.POST("/v1/session/:session_id/cancel/:task_id", handler.CancelSessionTask())
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
 	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
 	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())

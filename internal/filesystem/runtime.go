@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -20,7 +21,7 @@ var (
 	AgentSendTimeoutSec   = 600
 	MaxHistoryMessages    = 8
 	MaxHistoryBytes       = 5 * 1024 * 1024
-	MaxSessionTasks       = 3
+	MaxSessionTasks       = runtime.NumCPU() * 2
 	MaxSubagentTimeoutMin = 10
 )
 
@@ -39,10 +40,9 @@ var (
 	ReadOnlyCommand []string
 )
 
-const (
-	hardCapMaxSessionTasks       = 10
-	hardCapMaxSubagentTimeoutMin = 60
-)
+const hardCapMaxSubagentTimeoutMin = 60
+
+var hardCapMaxSessionTasks = runtime.NumCPU() * 4
 
 type RuntimeLimits struct {
 	Port                  string `json:"port,omitempty"`
