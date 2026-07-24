@@ -32,7 +32,7 @@ func StreamSessionLog() gin.HandlerFunc {
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Flush()
 
-		sub := pubsub.Sub(sid, 64)
+		sub := pubsub.Sub(sid, 1024)
 		defer sub.Close()
 
 		if raw, err := json.Marshal(agentTypes.Event{Type: agentTypes.EventConnected, Text: sid}); err == nil {
@@ -73,6 +73,14 @@ func StreamSessionLog() gin.HandlerFunc {
 					return
 				}
 				c.Writer.Flush()
+				if ev.Type == agentTypes.EventDone {
+					if n := sub.TakeDropped(); n > 0 {
+						if _, err := fmt.Fprintf(c.Writer, "data: {\"type\":\"EventTruncated\",\"dropped\":%d}\n\n", n); err != nil {
+							return
+						}
+						c.Writer.Flush()
+					}
+				}
 			case <-heartbeat.C:
 				if _, err := fmt.Fprint(c.Writer, ": ping\n\n"); err != nil {
 					return
