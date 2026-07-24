@@ -3,8 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
+
+const mergeBlockWait = 250 * time.Millisecond
 
 type taggedEvent struct {
 	Session string `json:"session"`
@@ -67,17 +71,32 @@ func StreamMultiLog() gin.HandlerFunc {
 		}
 		c.Writer.Flush()
 
-		merged := make(chan taggedEvent, 128)
+		merged := make(chan taggedEvent, 1024)
+		var fanInDropped atomic.Int64
 		for _, sid := range sids {
-			sub := pubsub.Sub(sid, 64)
+			sub := pubsub.Sub(sid, 1024)
 			subs = append(subs, sub)
 
 			go func(id string, s *pubsub.Subscriber) {
 				for ev := range s.Events() {
+					te := taggedEvent{Session: id, Event: ev}
 					select {
-					case merged <- taggedEvent{Session: id, Event: ev}:
+					case merged <- te:
+						continue
 					default:
 					}
+
+					timer := time.NewTimer(mergeBlockWait)
+					select {
+					case merged <- te:
+					case <-timer.C:
+						n := fanInDropped.Add(1)
+						slog.Warn("multilog fan-in overflow, event dropped",
+							slog.String("session", id),
+							slog.String("event", ev.Type.String()),
+							slog.Int64("dropped_total", n))
+					}
+					timer.Stop()
 				}
 			}(sid, sub)
 		}
@@ -108,6 +127,18 @@ func StreamMultiLog() gin.HandlerFunc {
 					return
 				}
 				c.Writer.Flush()
+				if te.Type == agentTypes.EventDone {
+					dropped := fanInDropped.Swap(0)
+					for _, s := range subs {
+						dropped += s.TakeDropped()
+					}
+					if dropped > 0 {
+						if _, err := fmt.Fprintf(c.Writer, "data: {\"session\":%q,\"type\":\"EventTruncated\",\"dropped\":%d}\n\n", te.Session, dropped); err != nil {
+							return
+						}
+						c.Writer.Flush()
+					}
+				}
 			case <-heartbeat.C:
 				if _, err := fmt.Fprint(c.Writer, ": ping\n\n"); err != nil {
 					return

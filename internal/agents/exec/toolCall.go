@@ -202,7 +202,7 @@ func truncateWriteArgs(argsJSON string) string {
 	if json.Unmarshal([]byte(argsJSON), &m) != nil {
 		return argsJSON
 	}
-	const omitted = "[omitted after successful write — already applied on disk; read_files to inspect]"
+	const omitted = "[ARGUMENT ELIDED FROM HISTORY TO SAVE CONTEXT — NOT THE FILE'S CONTENT. The full text was sent and written to disk successfully. Do NOT re-write this file to restore it.]"
 	for _, field := range []string{"content", "old_string", "new_string"} {
 		if _, ok := m[field]; ok {
 			m[field] = omitted
