@@ -48,7 +48,7 @@ graph TB
 
 ## Module: Daemon and HTTP API
 
-The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds locally and exposes agent execution, OpenAI-compatible chat completions, direct tool calls, sessions, models, logs, and pending-task recovery.
+The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, tool calls, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers, cron/task automation, KuraDB lifecycle, command/skill allowlists, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. A separate web dashboard (hosted independently, not part of this repo) is the intended client for the config tier.
 
 ```mermaid
 graph TB
@@ -58,10 +58,14 @@ graph TB
         ToolInit --> AgentInit[Agent Registry & Skill Scanner]
         AgentInit --> Services[Scheduler & Integrations]
         Services --> Routes[Gin Routes]
-        Routes --> HTTP[127.0.0.1 HTTP API]
         Config[config.json Watcher] --> Reload[Reload agents / integrations]
         Reload --> AgentInit
     end
+    Routes --> ExecAPI[Agent-execution API<br/>send · chat/completions · tools · sessions · models · SSE logs]
+    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · cron/task · kuradb · allowlists · torii inspection]
+    ConfigAPI --> LocalGuard[localhostOnly guard]
+    ExecAPI --> Client[CLI / TUI / remote agents]
+    LocalGuard --> Dashboard[Web dashboard, separate repo]
 ```
 
 ## Module: Agent Execution and Routing
@@ -129,6 +133,29 @@ graph TB
     end
 ```
 
+## Module: Task Lifecycle, Concurrency, and Cancellation
+
+Every execution registers itself in `status.json` — and registers its cancel function — *before* competing for a per-session concurrency slot, so a task queued behind the limit stays observable and cancellable instead of blocking invisibly. Each task records the PID of the process running it; any reader that finds a task whose PID is no longer alive treats it as stale and clears it, so a killed or crashed process cannot leave a session permanently marked online.
+
+Concurrency is per session (`limits.max_session_tasks`, defaulting to twice the CPU count). Sessions never block or cancel one another, and exceeding the limit queues a task rather than rejecting it.
+
+```mermaid
+graph TB
+    subgraph Lifecycle[Task Lifecycle]
+        Start[Execute] --> Register[Register task and PID in status.json]
+        Register --> CancelReg[Register cancel func under task ID]
+        CancelReg --> Gate{Concurrency slot free}
+        Gate -->|Yes| Run[Run agent loop]
+        Gate -->|No| Queue[Queued: visible and cancellable]
+        Queue --> Run
+        Run --> Terminal[Completed / Failed / Canceled]
+        Terminal --> Clear[Remove task from status.json]
+    end
+    CancelAPI[POST /v1/session/:id/cancel/:task_id] --> Registry[Task ID to cancel func registry]
+    Registry --> Run
+    StaleCheck[Reader finds dead PID] --> Clear
+```
+
 ## Module: Chat and MCP Integrations
 
 Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP; Agenvoy can also expose local tools as a stdin JSON-RPC MCP server.
@@ -188,6 +215,8 @@ stateDiagram-v2
     [*] --> Initialized
     Initialized --> Ready: Tools and agents loaded
     Ready --> Selecting: Request received
+    Selecting --> Queued: No concurrency slot
+    Queued --> Running: Slot released
     Selecting --> Running: Agent resolved
     Running --> WaitingConfirmation: Tool confirmation
     WaitingConfirmation --> Running: Approved or skipped
@@ -198,8 +227,11 @@ stateDiagram-v2
     Running --> Fallback: Send failure
     Fallback --> Running: Fallback selected
     Running --> Completed: Final response
+    Running --> Canceled: Cancel requested
+    Queued --> Canceled: Cancel requested
     Running --> Failed: Unrecoverable error
     Completed --> Ready
+    Canceled --> Ready
     Failed --> Ready
     Ready --> [*]: Shutdown
 ```
@@ -221,6 +253,7 @@ flowchart LR
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[pending metadata]
+    Sessions --> Status[status.json: active tasks and owning PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History search]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP clients]
     Tools[~/.config/agenvoy/tools] --> Registry[Tool registry]
