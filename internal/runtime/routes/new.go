@@ -93,6 +93,10 @@ func New() *gin.Engine {
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 
+	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
+	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())
+	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
+
 	return r
 }
 
