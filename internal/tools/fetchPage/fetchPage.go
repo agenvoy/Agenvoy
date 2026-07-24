@@ -79,6 +79,7 @@ func registFetchPage() {
 		Name:        "fetch_page",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		Timeout:     90 * time.Second,
 		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads. Request in the form \"open:[url]\" → always set headless=false.",
 		Parameters: map[string]any{
 			"type": "object",

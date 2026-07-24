@@ -35,7 +35,7 @@ func StreamSessionLog() gin.HandlerFunc {
 		sub := pubsub.Sub(sid, 1024)
 		defer sub.Close()
 
-		if raw, err := json.Marshal(agentTypes.Event{Type: agentTypes.EventConnected, Text: sid}); err == nil {
+		if raw, err := json.Marshal(newConnectedFrame(sid)); err == nil {
 			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", raw); err != nil {
 				return
 			}
