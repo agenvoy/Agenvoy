@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"time"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
@@ -22,6 +23,7 @@ func Register() {
 		Name:        "search_web",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		Timeout:     90 * time.Second,
 		Description: "[system-default] Web search via DuckDuckGo. Use for named entities, post-cutoff facts, versions, prices, news. Results are snippets. cdp=true forces browser fetch, auto-enabled on 202.",
 		Parameters: map[string]any{
 			"type": "object",

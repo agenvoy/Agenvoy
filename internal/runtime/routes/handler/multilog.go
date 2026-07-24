@@ -13,6 +13,7 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
@@ -21,6 +22,23 @@ const mergeBlockWait = 250 * time.Millisecond
 type taggedEvent struct {
 	Session string `json:"session"`
 	agentTypes.Event
+}
+
+type connectedFrame struct {
+	Session string `json:"session,omitempty"`
+	agentTypes.Event
+	State   string `json:"state,omitempty"`
+	EndedAt string `json:"ended_at,omitempty"`
+}
+
+func newConnectedFrame(sessionID string) connectedFrame {
+	status := configStatus.Get(sessionID)
+	return connectedFrame{
+		Session: sessionID,
+		Event:   agentTypes.Event{Type: agentTypes.EventConnected, Text: sessionID},
+		State:   status.State,
+		EndedAt: status.EndedAt,
+	}
 }
 
 func StreamMultiLog() gin.HandlerFunc {
@@ -54,11 +72,7 @@ func StreamMultiLog() gin.HandlerFunc {
 		var subs []*pubsub.Subscriber
 
 		for _, sid := range sids {
-			connEv := taggedEvent{
-				Session: sid,
-				Event:   agentTypes.Event{Type: agentTypes.EventConnected, Text: sid},
-			}
-			if raw, err := json.Marshal(connEv); err == nil {
+			if raw, err := json.Marshal(newConnectedFrame(sid)); err == nil {
 				fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
 			}
 
