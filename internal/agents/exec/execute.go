@@ -204,7 +204,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		ctx = context.WithValue(ctx, parentWorkDirKey{}, data.WorkDir)
 	}
 
-	if session != nil && session.ID != "" {
+	var taskID string
+	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
@@ -215,8 +216,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		if s, ok := session.UserInput.Content.(string); ok {
 			inputText = s
 		}
-		taskID := configStatus.Online(session.ID, inputText)
+		taskID = configStatus.Online(session.ID, inputText)
 		defer configStatus.Idle(session.ID, taskID)
+		defer unregisterCancel(taskID)
 
 		original := events
 		teed := make(chan agentTypes.Event, 64)
@@ -230,6 +232,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		stateless := session.Stateless
 		go func() {
 			defer close(done)
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("event tee goroutine panic recovered",
+						slog.String("session", sid),
+						slog.Any("panic", r))
+				}
+			}()
 			for ev := range teed {
 				if !stateless {
 					sessionLog.Record(sid, ev)
@@ -291,6 +300,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	defer execCancel()
 	ctx = execCtx
 	exec.CancelExecution = execCancel
+	registerCancel(taskID, execCancel)
 
 	keepPending := true
 	if !session.Stateless && session.ID != "" {
@@ -459,13 +469,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					slog.Error("agent unresponsive, no healthy fallback; aborting",
 						slog.String("session", session.ID),
 						slog.String("name", deadName))
-					sendText(events, fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName))
+					msg := fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName)
+					sendText(events, msg)
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    deadName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
+					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
+					keepPending = false
 					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
 				}
 				unresponsiveFailures = 0
@@ -525,13 +538,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 						slog.String("session", session.ID),
 						slog.String("error", err.Error()),
 						slog.Int("attempts", sendFailCount))
-					sendText(events, fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName))
+					msg := fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName)
+					sendText(events, msg)
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
+					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
+					keepPending = false
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
@@ -605,6 +621,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				Usage:    &usage,
 				Duration: time.Since(executeStart),
 			}
+			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
+			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
 		clearCooldown(data.Agent.Name())

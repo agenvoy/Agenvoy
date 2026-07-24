@@ -54,7 +54,7 @@ func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agent
 		fmt.Fprintf(writer, "data: %s\n\n", raw)
 		flusher.Flush()
 
-		if event.Type == agentTypes.EventDone || event.Type == agentTypes.EventError {
+		if event.Type == agentTypes.EventDone || event.Type == agentTypes.EventError || event.Type == agentTypes.EventCanceled {
 			break
 		}
 	}
