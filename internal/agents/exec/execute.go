@@ -204,28 +204,34 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		ctx = context.WithValue(ctx, parentWorkDirKey{}, data.WorkDir)
 	}
 
+	parentCtx := ctx
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
+	ctx = execCtx
+
 	var taskID string
 	if session.ID != "" {
-		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
-			return fmt.Errorf("EnterConcurrent: %w", err)
-		}
-		defer sessionManager.RemoveConcurrent(session.ID)
-		defer ClearSteer(session.ID)
-
 		var inputText string
 		if s, ok := session.UserInput.Content.(string); ok {
 			inputText = s
 		}
 		taskID = configStatus.Online(session.ID, inputText)
 		defer configStatus.Idle(session.ID, taskID)
+		registerCancel(taskID, execCancel)
 		defer unregisterCancel(taskID)
+
+		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
+			return fmt.Errorf("EnterConcurrent: %w", err)
+		}
+		defer sessionManager.RemoveConcurrent(session.ID)
+		defer ClearSteer(session.ID)
 
 		original := events
 		teed := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
-		pushCtx := ctx
+		pushCtx := parentCtx
 		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
@@ -296,11 +302,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
 
-	execCtx, execCancel := context.WithCancel(ctx)
-	defer execCancel()
-	ctx = execCtx
 	exec.CancelExecution = execCancel
-	registerCancel(taskID, execCancel)
 
 	keepPending := true
 	if !session.Stateless && session.ID != "" {
