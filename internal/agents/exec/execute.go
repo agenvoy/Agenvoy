@@ -205,7 +205,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	var taskID string
-	if session != nil && session.ID != "" {
+	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
@@ -232,6 +232,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		stateless := session.Stateless
 		go func() {
 			defer close(done)
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("event tee goroutine panic recovered",
+						slog.String("session", sid),
+						slog.Any("panic", r))
+				}
+			}()
 			for ev := range teed {
 				if !stateless {
 					sessionLog.Record(sid, ev)

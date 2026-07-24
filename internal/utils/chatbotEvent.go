@@ -78,6 +78,10 @@ func formatChatbotToolEvent(count int, event agentTypes.Event) string {
 }
 
 func EventLog(tag string, event agentTypes.Event, sessionID string, _ string) {
+	if event.Type == agentTypes.EventCanceled {
+		slog.Info(tag, slog.String("canceled", sessionID))
+		return
+	}
 	if event.Type != agentTypes.EventError && event.Type != agentTypes.EventExecError {
 		return
 	}

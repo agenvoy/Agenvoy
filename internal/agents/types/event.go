@@ -1,10 +1,12 @@
 package agentTypes
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type EventType int
@@ -152,6 +154,13 @@ type Event struct {
 	Todos    []TodoItem      `json:"todos,omitempty"`
 	Err      error           `json:"-"`
 	ReplyCh  chan bool       `json:"-"`
+}
+
+func ErrorEvent(err error) Event {
+	if errors.Is(err, context.Canceled) {
+		return Event{Type: EventCanceled}
+	}
+	return Event{Type: EventError, Err: err}
 }
 
 type TodoItem struct {
