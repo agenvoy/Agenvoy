@@ -3,14 +3,15 @@ package toolRegister
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Handler func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error)
@@ -176,26 +177,60 @@ func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json
 	tctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	handler, ok := handlerMap[name]
-	if ok {
-		result, err := handler(tctx, e, args)
-		if tctx.Err() == context.DeadlineExceeded {
-			return result, fmt.Errorf("tool %q timed out after %s", name, timeout)
-		}
-		return result, err
-	}
-
-	for prefix, handler := range groupHandlerMap {
-		if strings.HasPrefix(name, prefix) {
-			result, err := handler(tctx, e, name, args)
-			if tctx.Err() == context.DeadlineExceeded {
-				return result, fmt.Errorf("tool %q timed out after %s", name, timeout)
+	var run func() (string, error)
+	if handler, ok := handlerMap[name]; ok {
+		run = func() (string, error) { return handler(tctx, e, args) }
+	} else {
+		for prefix, groupHandler := range groupHandlerMap {
+			if strings.HasPrefix(name, prefix) {
+				handler := groupHandler
+				run = func() (string, error) { return handler(tctx, e, name, args) }
+				break
 			}
-			return result, err
 		}
 	}
+	if run == nil {
+		return "", fmt.Errorf("not exist: %s", name)
+	}
 
-	return "", fmt.Errorf("not exist: %s", name)
+	return runWithDeadline(tctx, run, name, timeout)
+}
+
+type dispatchResult struct {
+	result string
+	err    error
+}
+
+func runWithDeadline(tctx context.Context, run func() (string, error), name string, timeout time.Duration) (string, error) {
+	done := make(chan dispatchResult, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("tool handler panicked",
+					slog.String("name", name),
+					slog.Any("panic", r))
+				done <- dispatchResult{err: fmt.Errorf("tool %q panicked: %v", name, r)}
+			}
+		}()
+		result, err := run()
+		done <- dispatchResult{result: result, err: err}
+	}()
+
+	select {
+	case out := <-done:
+		if tctx.Err() == context.DeadlineExceeded {
+			return out.result, fmt.Errorf("tool %q timed out after %s", name, timeout)
+		}
+		return out.result, out.err
+	case <-tctx.Done():
+		if errors.Is(tctx.Err(), context.DeadlineExceeded) {
+			slog.Warn("tool handler abandoned after timeout",
+				slog.String("name", name),
+				slog.String("timeout", timeout.String()))
+			return "", fmt.Errorf("tool %q timed out after %s and did not honor cancellation", name, timeout)
+		}
+		return "", tctx.Err()
+	}
 }
 
 func RegistGroup(prefix string, handler GroupHandler) {

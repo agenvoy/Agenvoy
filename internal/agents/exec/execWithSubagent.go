@@ -134,8 +134,16 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 	events := make(chan agentTypes.Event, 64)
 	errCh := make(chan error, 1)
 	go func() {
+		defer close(events)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("subagent Execute panic recovered",
+					slog.String("session", sessionID),
+					slog.Any("panic", r))
+				errCh <- fmt.Errorf("subagent execute panicked: %v", r)
+			}
+		}()
 		errCh <- Execute(subCtx, execData, session, events, allowAll)
-		close(events)
 	}()
 
 	var sb strings.Builder

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -45,6 +47,25 @@ func ListSessionPending() gin.HandlerFunc {
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"pending": list})
+	}
+}
+
+func DeleteSessionPending() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sid := strings.TrimSpace(c.Param("session_id"))
+		taskHash := strings.TrimSpace(c.Param("task_hash"))
+		if sid == "" || taskHash == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
+			return
+		}
+
+		if _, ok := interactive.LoadPendingInfo(sid, taskHash); !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": "pending task not found"})
+			return
+		}
+
+		interactive.DeletePending(sid, taskHash)
+		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }
 
@@ -133,7 +154,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 			slog.Int("answers", len(body.Answers)))
 
 		events := make(chan agentTypes.Event, 64)
-		ctx := c.Request.Context()
+		ctx := context.WithoutCancel(c.Request.Context())
 		wrapped := pubsub.Wrap(ctx, sid, events, 64)
 
 		go func() {
@@ -159,11 +180,19 @@ func ResumeSessionPending() gin.HandlerFunc {
 				historyContent,
 			)
 			if err != nil {
-				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Text: err.Error()}
+				wrapped <- agentTypes.ErrorEvent(err)
 			}
 		}()
 
 		result := collectResult(content, events)
+		drainEvents(events)
+		if result.Canceled {
+			c.JSON(http.StatusOK, gin.H{
+				"session_id": sid,
+				"canceled":   true,
+			})
+			return
+		}
 		if result.Error != "" {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":      result.Error,
@@ -179,14 +208,15 @@ func ResumeSessionPending() gin.HandlerFunc {
 }
 
 type resumeResult struct {
-	Text  string
-	Error string
+	Text     string
+	Error    string
+	Canceled bool
 }
 
 func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 	var text strings.Builder
 	var lastErr string
-	timeout := time.After(10 * time.Minute)
+	timeout := time.After(time.Duration(filesystem.MaxResumeWaitMin) * time.Minute)
 
 	for {
 		select {
@@ -195,6 +225,8 @@ func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 				return resumeResult{Text: text.String(), Error: lastErr}
 			}
 			switch ev.Type {
+			case agentTypes.EventCanceled:
+				return resumeResult{Text: text.String(), Canceled: true}
 			case agentTypes.EventText, agentTypes.EventTextDone:
 				if ev.Text != "" {
 					text.WriteString(ev.Text)

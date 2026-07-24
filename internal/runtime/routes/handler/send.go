@@ -112,7 +112,7 @@ func Send() gin.HandlerFunc {
 			if agent == nil {
 				primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
 				if err != nil {
-					wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+					wrapped <- agentTypes.ErrorEvent(err)
 					return
 				}
 				agent = primary
@@ -145,12 +145,12 @@ func Send() gin.HandlerFunc {
 
 			session, err := newSession(execCtx, data, sessionID)
 			if err != nil {
-				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+				wrapped <- agentTypes.ErrorEvent(err)
 				return
 			}
 
 			if err := exec.Execute(execCtx, data, session, wrapped, allowAll); err != nil {
-				wrapped <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+				wrapped <- agentTypes.ErrorEvent(err)
 				return
 			}
 		}()
@@ -160,6 +160,7 @@ func Send() gin.HandlerFunc {
 		} else {
 			sendResult(c, sessionID, req.Content, events)
 		}
+		drainEvents(events)
 	}
 }
 

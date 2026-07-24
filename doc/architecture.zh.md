@@ -48,7 +48,7 @@ graph TB
 
 ## 模組：Daemon 與 HTTP API
 
-Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定本機，提供 Agent 執行、OpenAI-compatible chat completions、直接工具呼叫、session、模型、log 與 pending task 恢復能力。
+Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、工具呼叫、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server、cron/task 自動化、KuraDB 生命週期、指令／skill 白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。設定層的預期用戶端是一個獨立托管的 web dashboard（不在本 repo 內）。
 
 ```mermaid
 graph TB
@@ -58,10 +58,14 @@ graph TB
         ToolInit --> AgentInit[Agent 註冊表與 Skill Scanner]
         AgentInit --> Services[Scheduler 與整合服務]
         Services --> Routes[Gin Routes]
-        Routes --> HTTP[127.0.0.1 HTTP API]
         Config[config.json Watcher] --> Reload[重新載入 Agent／整合]
         Reload --> AgentInit
     end
+    Routes --> ExecAPI[Agent 執行層 API<br/>send · chat/completions · 工具 · session · 模型 · SSE log]
+    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · cron/task · kuradb · 白名單 · torii 查閱]
+    ConfigAPI --> LocalGuard[localhostOnly 守衛]
+    ExecAPI --> Client[CLI／TUI／遠端 Agent]
+    LocalGuard --> Dashboard[Web dashboard（獨立 repo）]
 ```
 
 ## 模組：Agent 執行與路由
@@ -129,6 +133,29 @@ graph TB
     end
 ```
 
+## 模組：任務生命週期、併發與取消
+
+每次執行都會**先**把任務登記進 `status.json`、並登記自己的取消函式，**才**去競爭該 session 的併發名額，因此被上限擋住而排隊中的任務依然看得到、也取消得掉，不會無聲卡住。每筆任務都記錄執行它的行程 PID；任何讀取端只要發現某筆任務的 PID 已不存在，就視為 stale 並清除——被砍掉或崩潰的行程因此無法讓 session 永久停留在 online 狀態。
+
+併發上限是 per session（`limits.max_session_tasks`，預設為 CPU 數量的兩倍）。不同 session 之間不會互相阻塞或取消，超過上限的任務是排隊等待，而不是被拒絕。
+
+```mermaid
+graph TB
+    subgraph Lifecycle[任務生命週期]
+        Start[Execute] --> Register[於 status.json 登記任務與 PID]
+        Register --> CancelReg[以任務 ID 登記取消函式]
+        CancelReg --> Gate{併發名額是否可用}
+        Gate -->|是| Run[執行 Agent 迴圈]
+        Gate -->|否| Queue[排隊中：可觀察、可取消]
+        Queue --> Run
+        Run --> Terminal[完成／失敗／已取消]
+        Terminal --> Clear[從 status.json 移除任務]
+    end
+    CancelAPI[POST /v1/session/:id/cancel/:task_id] --> Registry[任務 ID 對應取消函式的登記表]
+    Registry --> Run
+    StaleCheck[讀取端發現 PID 已死] --> Clear
+```
+
 ## 模組：聊天與 MCP 整合
 
 Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 可經由 stdio 或 streamable HTTP 使用；Agenvoy 也能以 stdin JSON-RPC MCP server 形式暴露本機工具。
@@ -188,6 +215,8 @@ stateDiagram-v2
     [*] --> Initialized
     Initialized --> Ready: 工具與 Agent 已載入
     Ready --> Selecting: 收到請求
+    Selecting --> Queued: 無可用併發名額
+    Queued --> Running: 名額釋出
     Selecting --> Running: Agent 已解析
     Running --> WaitingConfirmation: 工具確認
     WaitingConfirmation --> Running: 已核准或略過
@@ -198,8 +227,11 @@ stateDiagram-v2
     Running --> Fallback: 傳送失敗
     Fallback --> Running: 已選擇 Fallback
     Running --> Completed: 最終回應
+    Running --> Canceled: 收到取消請求
+    Queued --> Canceled: 收到取消請求
     Running --> Failed: 無法復原的錯誤
     Completed --> Ready
+    Canceled --> Ready
     Failed --> Ready
     Ready --> [*]: 關閉
 ```
@@ -221,6 +253,7 @@ flowchart LR
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[Pending Metadata]
+    Sessions --> Status[status.json：執行中任務與所屬 PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History Search]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]

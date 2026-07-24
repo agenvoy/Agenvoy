@@ -65,7 +65,8 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `limits.max_tool_iterations` | `128` | 單次 Agent 工作的工具迭代上限 |
 | `limits.agent_send_timeout_seconds` | `600` | 模型請求逾時秒數 |
 | `limits.max_history_messages` | `8` | 保留的近期歷史訊息數 |
-| `limits.max_session_tasks` | `3` | 每個 session 的並行工作數上限 |
+| `limits.max_session_tasks` | `NumCPU × 2` | 每個 session 的並行工作數上限；超出的任務排隊等待而非失敗（硬上限 `NumCPU × 4`） |
+| `limits.max_subagent_timeout_min` | `10` | Subagent 逾時分鐘數（無論設定值為何，硬上限固定 `60`） |
 
 ```json
 {
@@ -166,16 +167,109 @@ curl --fail-with-body -sS \
 
 ## HTTP API 參考
 
+Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求來源必須是 `127.0.0.1`／`::1`（`localhostOnly()` 守衛）——這些會動到 credential、設定檔或行程生命週期，設計上是給同機器的 dashboard 用，不是給遠端 client 呼叫。
+
+**Agent 執行**
+
 | Method | Path | 說明 |
 |---|---|---|
-| `POST` | `/v1/send` | 執行 Agent，支援 SSE、session、model 與工具排除 |
+| `POST` | `/v1/send` | 執行 Agent |
 | `POST` | `/v1/chat/completions` | OpenAI 相容且 stateless 的 chat completions |
+| `GET` | `/v1/log` | SSE：跨所有 session 的事件串流 |
 | `GET` | `/v1/tools` | 列出工具 |
 | `POST` | `/v1/tool/:tool_name` | 直接呼叫工具 |
+
+**模型**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` | `/v1/models` | 列出已註冊模型 |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型 |
+| `GET` `POST` | `/v1/model/dispatcher` | **local** — 讀取／設定 dispatcher 模型 |
+| `GET` `POST` | `/v1/model/summary` | **local** — 讀取／設定 summary 模型 |
+
+**Session**
+
+| Method | Path | 說明 |
+|---|---|---|
 | `GET` | `/v1/sessions` | 列出 session 與狀態 |
-| `GET` | `/v1/models` | 列出模型 |
-| `GET` | `/v1/session/:session_id/status` | 查詢 session 狀態與用量 |
-| `GET` | `/v1/session/:session_id/pending` | 列出待完成工作 |
+| `POST` `PUT` `DELETE` | `/v1/session` | **local** — 建立／重新命名／刪除 session |
+| `POST` | `/v1/session/:id/model` | 設定該 session 的模型 |
+| `GET` | `/v1/session/:id/status` | 查詢 session 狀態與用量 |
+| `GET` | `/v1/session/:id/log` | SSE：單一 session 的事件串流 |
+| `POST` | `/v1/session/:id/event` | **local** — 對某 session 的事件串流手動發布事件 |
+| `GET` | `/v1/session/:id/pending` | 列出待完成（`ask_user`／confirm）工作 |
+| `GET` | `/v1/session/:id/pending/:task_hash/questions` | 取得待完成工作的問題內容 |
+| `POST` | `/v1/session/:id/pending/:task_hash/resume` | 回答待完成工作並恢復執行 |
+| `DELETE` | `/v1/session/:id/pending/:task_hash` | 直接捨棄待完成工作，不回答 |
+| `POST` | `/v1/session/:id/cancel/:task_id` | 取消單一執行中的任務。`task_id` 由 `/status` 取得；設計上只做逐一取消，沒有一次砍全部的版本 |
+| `GET` `POST` | `/v1/session/:id/persona` | **local** — 讀取／設定 session persona |
+| `POST` | `/v1/session/:id/compact` | **local** — 背景壓縮歷史（fire-and-forget,立即回 `202 Accepted`） |
+| `GET` | `/v1/session/:id/daemon` | **local** — `daemon.log` 中提到該 sessionID 的行（best-effort grep,非真正的 per-session 檔） |
+| `GET` | `/v1/session/:id/action` | **local** — 該 session 的 `action.log` 全文 |
+| `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d 各模型 token 用量（與 TUI `/usage` 畫面同一套聚合邏輯） |
+| `GET` | `/v1/session/:id/history` | **local** — 列出已歸檔的完成 pending task 檔案 |
+| `GET` | `/v1/session/:id/history/*file` | **local** — 讀取單一歸檔的 pending task 檔案 |
+
+**Channel**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` | `/v1/channel/status` | **local** — Telegram／Discord 啟用狀態、bot 使用者名稱、是否已存 token |
+| `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱 |
+
+**檔案與憑證**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` `PUT` | `/v1/file` | **local** — 讀取／寫入檔案 |
+| `GET` | `/v1/file/open` | **local** — 以系統預設程式開啟檔案／URL |
+| `GET` `DELETE` | `/v1/key` | **local** — 查詢／刪除 keychain 中單一憑證 |
+| `GET` `POST` | `/v1/keys` | **local** — 列出／設定憑證 |
+
+**Provider**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` | `/v1/providers` | **local** — 列出 provider 及其可用操作 |
+| `GET` | `/v1/provider/:provider/check` | **local** — 該 provider 是否已有憑證 |
+| `POST` | `/v1/provider/:provider/key` | **local** — 設定 API key |
+| `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth 流程 |
+| `GET` | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型 |
+
+**MCP**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` `POST` | `/v1/mcp` | **local** — 列出／新增 MCP server |
+| `POST` | `/v1/mcp/remove` | **local** — 移除 MCP server |
+| `GET` | `/v1/mcp/status` | **local** — 各 server 連線狀態 |
+| `GET` | `/v1/mcp/health` | **local** — 各 server health probe |
+| `POST` | `/v1/mcp/reconnect` | **local** — 重連全部 MCP client 並重新註冊工具 |
+
+**排程與自動化**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill 內容 |
+| `GET` `DELETE` | `/v1/cron` | **local** — 列出／刪除 cron 項目 |
+| `POST` | `/v1/cron/run` | **local** — 立即觸發 cron 項目（`202 Accepted`） |
+| `GET` `DELETE` | `/v1/task` | **local** — 列出／刪除單次任務 |
+| `POST` | `/v1/task/run` | **local** — 立即觸發任務（`202 Accepted`） |
+
+**KuraDB 與白名單**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` `POST` | `/v1/kuradb` | **local** — 查詢狀態／enable／disable／start／stop／restart。安裝／解除安裝仍只走 TUI（需要真實終端機處理 `sudo`／安裝腳本的互動提示）,此 API 只切換 `enabled` flag 並控制已安裝好的 `kura` 行程 |
+| `GET` `POST` | `/v1/allowlist/cmd` | **local** — 列出／新增指令白名單（append-only,需重啟 daemon 生效） |
+| `GET` `POST` | `/v1/allowlist/skill` | **local** — 列出／切換 skill 白名單（`scope=global\|project`） |
+
+**查閱**
+
+| Method | Path | 說明 |
+|---|---|---|
+| `GET` | `/v1/torii/error` | **local** — 查閱工具錯誤記憶；`tool`／`keyword` 皆未帶時回傳無過濾全表掃 |
 
 ## 工具參考
 

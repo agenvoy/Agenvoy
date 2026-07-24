@@ -204,32 +204,47 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		ctx = context.WithValue(ctx, parentWorkDirKey{}, data.WorkDir)
 	}
 
-	if session != nil && session.ID != "" {
+	parentCtx := ctx
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
+	ctx = execCtx
+
+	var taskID string
+	if session.ID != "" {
+		var inputText string
+		if s, ok := session.UserInput.Content.(string); ok {
+			inputText = s
+		}
+		taskID = configStatus.Online(session.ID, inputText)
+		defer configStatus.Idle(session.ID, taskID)
+		registerCancel(taskID, execCancel)
+		defer unregisterCancel(taskID)
+
 		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
 		defer ClearSteer(session.ID)
 
-		var inputText string
-		if s, ok := session.UserInput.Content.(string); ok {
-			inputText = s
-		}
-		taskID := configStatus.Online(session.ID, inputText)
-		defer configStatus.Idle(session.ID, taskID)
-
 		original := events
 		teed := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
-		pushCtx := ctx
+		pushCtx := parentCtx
 		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
 		stateless := session.Stateless
 		go func() {
 			defer close(done)
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("event tee goroutine panic recovered",
+						slog.String("session", sid),
+						slog.Any("panic", r))
+				}
+			}()
 			for ev := range teed {
 				if !stateless {
 					sessionLog.Record(sid, ev)
@@ -287,9 +302,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
 
-	execCtx, execCancel := context.WithCancel(ctx)
-	defer execCancel()
-	ctx = execCtx
 	exec.CancelExecution = execCancel
 
 	keepPending := true
@@ -463,13 +475,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					slog.Error("agent unresponsive, no healthy fallback; aborting",
 						slog.String("session", session.ID),
 						slog.String("name", deadName))
-					sendText(events, fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName))
+					msg := fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName)
+					sendText(events, msg)
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    deadName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
+					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
+					keepPending = false
 					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
 				}
 				unresponsiveFailures = 0
@@ -529,13 +544,16 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 						slog.String("session", session.ID),
 						slog.String("error", err.Error()),
 						slog.Int("attempts", sendFailCount))
-					sendText(events, fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName))
+					msg := fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName)
+					sendText(events, msg)
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
 						Duration: time.Since(executeStart),
 					}
+					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
+					keepPending = false
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
@@ -609,6 +627,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				Usage:    &usage,
 				Duration: time.Since(executeStart),
 			}
+			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
+			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
 		clearCooldown(data.Agent.Name())
@@ -628,7 +648,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
 
 		if len(resp.Choices) == 0 {
-			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
@@ -649,6 +670,11 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 		if len(choice.Message.ToolCalls) > 0 {
 			emptyCount = 0
+			if text, ok := choice.Message.Content.(string); ok {
+				if stripped := StripModelResponse(text); stripped != "" && !isGuardrailRefusal(stripped) {
+					sendText(events, stripped)
+				}
+			}
 			toolsBefore := len(session.Tools)
 			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
@@ -699,7 +725,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		case string:
 			str := value
 			if str == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -707,7 +734,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 			stripped := StripModelResponse(str)
 			if stripped == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, executeStart) {
+					keepPending = false
 					return nil
 				}
 				continue
@@ -743,7 +771,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 		case nil:
-			if emptyRetryExhausted(&emptyCount, events, session.ID, data.Agent.Name(), &usage, executeStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, executeStart) {
+				keepPending = false
 				return nil
 			}
 			continue
@@ -794,24 +823,35 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
-	sendEmptyData(events, session.ID, data.Agent.Name(), &usage, executeStart)
+	slog.Error("tool loop exhausted without a usable final answer",
+		slog.String("session", session.ID),
+		slog.String("name", data.Agent.Name()))
+	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, executeStart)
+	keepPending = false
 	return nil
 }
 
 const maxEmptyRetry = 3
+const emptyDataReply = "no usable data, retry later, or using other tools."
 
-func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, model string, usage *provider.Usage, start time.Time) bool {
+func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time) bool {
 	*emptyCount++
 	if *emptyCount >= maxEmptyRetry {
-		sendEmptyData(events, sessionID, model, usage, start)
+		slog.Error("model returned empty response, retries exhausted",
+			slog.String("session", sessionID),
+			slog.String("name", model),
+			slog.String("reason", reason),
+			slog.Int("attempts", *emptyCount))
+		sendEmptyData(events, sessionID, taskHash, model, usage, start)
 		return true
 	}
 	return false
 }
 
-func sendEmptyData(events chan<- agentTypes.Event, sessionID, model string, usage *provider.Usage, start time.Time) {
-	sendText(events, "no usable data, retry later, or using other tools.")
+func sendEmptyData(events chan<- agentTypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time) {
+	sendText(events, emptyDataReply)
 	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
+	interactive.FinalizePending(sessionID, taskHash, emptyDataReply)
 }
 
 func extractToolName(content string) string {

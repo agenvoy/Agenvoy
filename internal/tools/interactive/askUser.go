@@ -428,6 +428,14 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		completedIDs[tr.ID] = true
 	}
 
+	if len(meta.ToolResults) > 0 {
+		msg.WriteString("\n## Completed Tool Results\n")
+		msg.WriteString("Actual output from each tool call completed before this task was interrupted — this is the ground truth referenced above, use it directly instead of re-deriving or guessing.\n")
+		for _, tr := range meta.ToolResults {
+			msg.WriteString(fmt.Sprintf("\n### %s (id=%s)\n%s\n", tr.Name, tr.ID, tr.Result))
+		}
+	}
+
 	var interrupted []ToolAttempt
 	for _, ta := range meta.ToolAttempts {
 		if !completedIDs[ta.ID] {

@@ -49,7 +49,7 @@ func registInvokeSubagent() {
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "Worker model name. Leave blank for dispatcher auto-select.",
+					"description": "Worker model name — always set this. Size it to the subtask: single-source fetch/extract/summarize → small fast model; multi-source cross-verification with a real tool loop → mid model (the usual choice); top model only when the subagent's own output needs deep reasoning, not just heavy reading. Blank falls back to a dispatcher routing call that costs an extra request and over-selects the top tier for plain collection work.",
 					"default":     "",
 					"enum":        models,
 				},

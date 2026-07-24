@@ -36,12 +36,14 @@ func New() *gin.Engine {
 	r.PUT("/v1/session", localhostOnly(), handler.UpdateSession())
 	r.DELETE("/v1/session", localhostOnly(), handler.DeleteSession())
 	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
+	r.POST("/v1/session/:session_id/cancel/:task_id", handler.CancelSessionTask())
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
 	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
 	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
 	r.GET("/v1/session/:session_id/pending", handler.ListSessionPending())
 	r.GET("/v1/session/:session_id/pending/:task_hash/questions", handler.GetSessionPendingQuestions())
 	r.POST("/v1/session/:session_id/pending/:task_hash/resume", handler.ResumeSessionPending())
+	r.DELETE("/v1/session/:session_id/pending/:task_hash", handler.DeleteSessionPending())
 	r.GET("/v1/session/:session_id/persona", localhostOnly(), handler.GetSessionPersona())
 	r.POST("/v1/session/:session_id/persona", localhostOnly(), handler.SetSessionPersona())
 	r.POST("/v1/session/:session_id/compact", localhostOnly(), handler.CompactSession())
@@ -92,6 +94,10 @@ func New() *gin.Engine {
 	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
+
+	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
+	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())
+	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
 
 	return r
 }

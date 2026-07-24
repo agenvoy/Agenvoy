@@ -27,6 +27,13 @@ import (
 )
 
 func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("askUserInBackground panic recovered",
+				slog.String("session", sessionID),
+				slog.Any("panic", r))
+		}
+	}()
 	var params struct {
 		Questions []runtime.Question `json:"questions"`
 		State     struct {
@@ -195,7 +202,7 @@ func truncateWriteArgs(argsJSON string) string {
 	if json.Unmarshal([]byte(argsJSON), &m) != nil {
 		return argsJSON
 	}
-	const omitted = "[omitted after successful write — already applied on disk; read_files to inspect]"
+	const omitted = "[ARGUMENT ELIDED FROM HISTORY TO SAVE CONTEXT — NOT THE FILE'S CONTENT. The full text was sent and written to disk successfully. Do NOT re-write this file to restore it.]"
 	for _, field := range []string{"content", "old_string", "new_string"} {
 		if _, ok := m[field]; ok {
 			m[field] = omitted
@@ -594,7 +601,32 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	return sessionData, alreadyCall, nil
 }
 
+func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event, err error) {
+	s.execErr = err.Error()
+	s.execErrVal = err
+	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
+		Name:   s.name,
+		ID:     s.id,
+		Result: "error: " + err.Error(),
+	})
+	events <- agentTypes.Event{
+		Type:     agentTypes.EventToolCallEnd,
+		ToolName: s.name,
+		ToolID:   s.id,
+	}
+}
+
 func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		slog.Error("runToolExec panic recovered",
+			slog.String("tool", s.name),
+			slog.Any("panic", r))
+		failToolEvent(exec, s, events, fmt.Errorf("tool %s panicked: %v", s.name, r))
+	}()
 	events <- agentTypes.Event{
 		Type:     agentTypes.EventToolCall,
 		ToolName: s.name,
@@ -608,18 +640,7 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}
 	result, err := tools.Execute(ctx, exec, s.name, json.RawMessage(s.args))
 	if err != nil {
-		s.execErr = err.Error()
-		s.execErrVal = err
-		go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
-			Name:   s.name,
-			ID:     s.id,
-			Result: "error: " + err.Error(),
-		})
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolCallEnd,
-			ToolName: s.name,
-			ToolID:   s.id,
-		}
+		failToolEvent(exec, s, events, err)
 		return
 	}
 

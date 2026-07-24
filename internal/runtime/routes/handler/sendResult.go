@@ -51,6 +51,9 @@ func sendResult(c *gin.Context, sessionID string, input string, events <-chan ag
 		case agentTypes.EventDone:
 			resp.Model = event.Model
 			resp.Usage = event.Usage
+		case agentTypes.EventCanceled:
+			c.JSON(http.StatusOK, gin.H{"session_id": sessionID, "canceled": true})
+			return
 		case agentTypes.EventError:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": event.Err.Error()})
 			return
