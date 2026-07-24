@@ -160,6 +160,7 @@ func Send() gin.HandlerFunc {
 		} else {
 			sendResult(c, sessionID, req.Content, events)
 		}
+		drainEvents(events)
 	}
 }
 

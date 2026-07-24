@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -184,6 +185,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 		}()
 
 		result := collectResult(content, events)
+		drainEvents(events)
 		if result.Canceled {
 			c.JSON(http.StatusOK, gin.H{
 				"session_id": sid,
@@ -214,7 +216,7 @@ type resumeResult struct {
 func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 	var text strings.Builder
 	var lastErr string
-	timeout := time.After(10 * time.Minute)
+	timeout := time.After(time.Duration(filesystem.MaxResumeWaitMin) * time.Minute)
 
 	for {
 		select {

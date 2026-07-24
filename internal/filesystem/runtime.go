@@ -23,6 +23,7 @@ var (
 	MaxHistoryBytes       = 5 * 1024 * 1024
 	MaxSessionTasks       = runtime.NumCPU() * 2
 	MaxSubagentTimeoutMin = 10
+	MaxResumeWaitMin      = 30
 )
 
 type DeniedConfig struct {
@@ -41,6 +42,7 @@ var (
 )
 
 const hardCapMaxSubagentTimeoutMin = 60
+const hardCapMaxResumeWaitMin = 120
 
 var hardCapMaxSessionTasks = runtime.NumCPU() * 4
 
@@ -52,6 +54,7 @@ type RuntimeLimits struct {
 	MaxHistoryBytes       int    `json:"max_history_bytes,omitempty"`
 	MaxSessionTasks       int    `json:"max_session_tasks,omitempty"`
 	MaxSubagentTimeoutMin int    `json:"max_subagent_timeout_min,omitempty"`
+	MaxResumeWaitMin      int    `json:"max_resume_wait_min,omitempty"`
 }
 
 func LoadRuntime() error {
@@ -128,6 +131,12 @@ func LoadRuntime() error {
 		changed = true
 	}
 	MaxSubagentTimeoutMin = min(hardCapMaxSubagentTimeoutMin, limits.MaxSubagentTimeoutMin)
+
+	if limits.MaxResumeWaitMin <= 0 {
+		limits.MaxResumeWaitMin = MaxResumeWaitMin
+		changed = true
+	}
+	MaxResumeWaitMin = min(hardCapMaxResumeWaitMin, limits.MaxResumeWaitMin)
 
 	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
 		return fmt.Errorf("embedded denied_map: %w", err)
