@@ -16,6 +16,24 @@ func List() []string {
 	return filesystem.WhiteList
 }
 
+func System() []string {
+	return filesystem.WhiteListSystem
+}
+
+func Custom() []string {
+	shipped := make(map[string]bool, len(filesystem.WhiteListSystem))
+	for _, name := range filesystem.WhiteListSystem {
+		shipped[name] = true
+	}
+	out := make([]string, 0, len(filesystem.WhiteList)-len(shipped))
+	for _, name := range filesystem.WhiteList {
+		if !shipped[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 func Append(name string) (bool, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {

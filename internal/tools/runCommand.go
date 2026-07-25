@@ -87,6 +87,10 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv []string) (stri
 
 	binary := filepath.Base(argv[0])
 
+	if !elevated && binary != argv[0] {
+		return "", fmt.Errorf("failed to run command: %q must be a bare command name (%q), not a path", argv[0], binary)
+	}
+
 	if (binary == "sh" || binary == "bash") && len(argv) >= 3 && argv[1] == "-c" {
 		if !elevated && !e.AllowedCommand[binary] {
 			return "", fmt.Errorf("failed to run command: %s is not allowed", binary)

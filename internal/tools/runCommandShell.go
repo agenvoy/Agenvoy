@@ -43,6 +43,10 @@ func validateShellScript(script string, allowed map[string]bool) error {
 			return false
 		}
 		base := filepath.Base(bin)
+		if bin != base {
+			bad = fmt.Errorf("sh -c: %q must be a bare command name (%q), not a path", bin, base)
+			return false
+		}
 		if base == "rm" {
 			bad = fmt.Errorf("rm is not allowed inside sh -c")
 			return false
