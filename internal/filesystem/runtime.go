@@ -21,9 +21,9 @@ var (
 	AgentSendTimeoutSec   = 600
 	MaxHistoryMessages    = 24
 	MaxHistoryBytes       = 5 * 1024 * 1024
-	MaxSessionTasks       = runtime.NumCPU() * 2
-	MaxSubagentTimeoutMin = 10
-	MaxResumeWaitMin      = 30
+	MaxSessionTasks       = runtime.NumCPU() * 4
+	MaxSubagentTimeoutMin = 30
+	MaxResumeWaitMin      = 60
 )
 
 type DeniedConfig struct {
@@ -41,20 +41,12 @@ var (
 	ReadOnlyCommand []string
 )
 
-const hardCapMaxSubagentTimeoutMin = 60
-const hardCapMaxResumeWaitMin = 120
-
-var hardCapMaxSessionTasks = runtime.NumCPU() * 4
-
 type RuntimeLimits struct {
-	Port                  string `json:"port,omitempty"`
-	MaxToolIterations     int    `json:"max_tool_iterations,omitempty"`
-	AgentSendTimeoutSec   int    `json:"agent_send_timeout_seconds,omitempty"`
-	MaxHistoryMessages    int    `json:"max_history_messages,omitempty"`
-	MaxHistoryBytes       int    `json:"max_history_bytes,omitempty"`
-	MaxSessionTasks       int    `json:"max_session_tasks,omitempty"`
-	MaxSubagentTimeoutMin int    `json:"max_subagent_timeout_min,omitempty"`
-	MaxResumeWaitMin      int    `json:"max_resume_wait_min,omitempty"`
+	Port                string `json:"port,omitempty"`
+	MaxToolIterations   int    `json:"max_tool_iterations,omitempty"`
+	AgentSendTimeoutSec int    `json:"agent_send_timeout_seconds,omitempty"`
+	MaxHistoryMessages  int    `json:"max_history_messages,omitempty"`
+	MaxHistoryBytes     int    `json:"max_history_bytes,omitempty"`
 }
 
 func LoadRuntime() error {
@@ -119,24 +111,6 @@ func LoadRuntime() error {
 		changed = true
 	}
 	MaxHistoryBytes = limits.MaxHistoryBytes
-
-	if limits.MaxSessionTasks <= 0 {
-		limits.MaxSessionTasks = MaxSessionTasks
-		changed = true
-	}
-	MaxSessionTasks = min(hardCapMaxSessionTasks, limits.MaxSessionTasks)
-
-	if limits.MaxSubagentTimeoutMin <= 0 {
-		limits.MaxSubagentTimeoutMin = MaxSubagentTimeoutMin
-		changed = true
-	}
-	MaxSubagentTimeoutMin = min(hardCapMaxSubagentTimeoutMin, limits.MaxSubagentTimeoutMin)
-
-	if limits.MaxResumeWaitMin <= 0 {
-		limits.MaxResumeWaitMin = MaxResumeWaitMin
-		changed = true
-	}
-	MaxResumeWaitMin = min(hardCapMaxResumeWaitMin, limits.MaxResumeWaitMin)
 
 	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
 		return fmt.Errorf("embedded denied_map: %w", err)
