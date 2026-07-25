@@ -9,6 +9,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-telegram/bot v1.20.0
+	github.com/line/line-bot-sdk-go/v8 v8.18.0
 	github.com/muesli/reflow v0.3.0
 	github.com/pardnchiu/ToriiDB v0.5.1
 	github.com/pardnchiu/go-bot v0.4.3
@@ -22,7 +23,6 @@ require (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
-	github.com/line/line-bot-sdk-go/v8 v8.18.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.33 // indirect
 )
 

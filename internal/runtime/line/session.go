@@ -11,11 +11,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/go-llm-router/core"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func getSession(ctx context.Context, in go_bot_line.Input, content string, data exec.ExecData) (*agentTypes.AgentSession, error) {
