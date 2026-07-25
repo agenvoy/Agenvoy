@@ -3,7 +3,7 @@ package exec
 import (
 	"strings"
 
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func assembleMessages(systemPart []provider.Message, oldHistory []provider.Message, summaryMessage provider.Message, userInput provider.Message, toolCall []provider.Message, taskHash string) []provider.Message {

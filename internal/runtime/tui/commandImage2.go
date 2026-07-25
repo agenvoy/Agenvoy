@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 )
 
 func (t TUI) commandImage2(parts []string) (TUI, tea.Cmd, bool) {

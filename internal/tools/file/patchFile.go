@@ -20,14 +20,13 @@ func registPatchFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name: "patch_file",
 		Description: `
-Targeted edit by exact string match and/or 1-based line number (row) — replace matched text, disambiguate
-which occurrence to edit by row, or insert new lines at a given row.
-write_file for full rewrite; patch_skill for skill files.
-Must read_files before patching to get the exact anchor string or line number.
-Each target is either a replace (old_string/new_string) or a pure insert (insert_string/row) — never both.
-Targets with row are applied from the highest row to the lowest first (so line numbers stay valid against
-the original file even when other targets shift lines), then remaining targets apply top to bottom against
-each other's output — order overlapping old_string targets accordingly.`,
+Edit a file that already exists — the default for every change to something on disk, however small or however many
+regions it touches.
+Replaces text matched exactly, disambiguates which occurrence by 1-based line number (row), or inserts new lines at
+a row. Batch every region of one file into a single call rather than repeating the tool.
+write_file only for a file's first version or a deliberate full rewrite; patch_skill for skill files.
+Read the file first: anchors have to match its current bytes exactly, so the edit is built against what the file
+really contains rather than what it is assumed to contain.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -37,7 +36,7 @@ each other's output — order overlapping old_string targets accordingly.`,
 				},
 				"targets": map[string]any{
 					"type":        "array",
-					"description": "One or more edits. Each is either {old_string, new_string[, replace_all][, row]} or {insert_string, row}.",
+					"description": "One or more edits. Each is either {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Targets carrying row apply highest row first, so line numbers stay valid against the original file even when other targets shift lines; the remaining targets then apply top to bottom against each other's output — order overlapping old_string targets accordingly.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
