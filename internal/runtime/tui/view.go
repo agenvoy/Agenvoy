@@ -12,7 +12,6 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func (t TUI) View() string {
@@ -301,17 +300,11 @@ func (t TUI) sessionName() string {
 		modelPart = warnStyle.Render(model)
 	}
 
-	providerName, modelName, _ := strings.Cut(model, "@")
-	if !provider.SupportsReasoningSwitch(providerName, modelName) {
-		return base + hintStyle.Render(" (") + modelPart + hintStyle.Render(")")
-	}
-	reasoning = provider.ClampReasoningLevel(reasoning, provider.MaxReasoningLevel(providerName, modelName))
-
 	var reasonPart string
 	switch reasoning {
 	case "none", "low":
 		reasonPart = okayStyle.Render(reasoning)
-	case "high", "xhigh":
+	case "high", "xhigh", "max":
 		reasonPart = errorStyle.Render(reasoning)
 	default:
 		reasonPart = hintStyle.Render(reasoning)

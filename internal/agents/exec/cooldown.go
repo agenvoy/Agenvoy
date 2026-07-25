@@ -6,8 +6,9 @@ import (
 	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
+
+const rateLimitCooldown = 30 * time.Minute
 
 var (
 	cooldownMap      sync.Map
@@ -27,7 +28,7 @@ var (
 )
 
 func registerCooldown(agentName string) {
-	cooldownMap.Store(agentName, time.Now().Add(provider.RateLimitCooldown).Unix())
+	cooldownMap.Store(agentName, time.Now().Add(rateLimitCooldown).Unix())
 }
 
 func clearCooldown(agentName string) {

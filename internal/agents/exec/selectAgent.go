@@ -103,7 +103,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 					break
 				}
 				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
-				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, "none")
+				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone)
 				cancel()
 				if sendErr == nil {
 					clearCooldown(bot.Name())

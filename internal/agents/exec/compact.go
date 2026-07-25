@@ -195,7 +195,7 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []p
 	resp, _, err := agent.Send(ctx, []provider.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: sb.String()},
-	}, nil, "medium")
+	}, nil, provider.ReasoningMedium)
 	if err != nil {
 		return nil, fmt.Errorf("agent send: %w", err)
 	}
