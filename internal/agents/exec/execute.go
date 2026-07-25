@@ -527,9 +527,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if sendCode == 429 {
+			if sendCode == 429 || isQuotaExhaustedError(err, sendCode) {
+				reason := "rate limited"
+				if sendCode != 429 {
+					reason = "quota exhausted"
+				}
 				registerCooldown(modelName)
-				slog.Warn("data.Agent.Send rate limited, model cooldown registered",
+				slog.Warn("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
 			}

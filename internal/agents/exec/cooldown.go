@@ -102,3 +102,27 @@ func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, resp
 	}
 	return best
 }
+
+func isQuotaExhaustedError(err error, code int) bool {
+	if err == nil {
+		return false
+	}
+	if code == 402 || code == 403 {
+		return true
+	}
+	s := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"spending-limit",
+		"out of credits",
+		"insufficient_quota",
+		"insufficient quota",
+		"usage_limit_reached",
+		"quota exceeded",
+		"billing",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
