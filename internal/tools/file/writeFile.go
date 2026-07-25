@@ -19,15 +19,15 @@ func registWriteFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name: "write_file",
 		Description: `
-Create a brand-new file, or fully overwrite an existing one — never for partial changes (use patch_file for those).
-Call read_files after to verify. One write per change; trust success strings.
-Default export path: ~/Downloads or ~/.config/agenvoy/download/.`,
+Create a file that does not exist yet, or deliberately replace one wholesale — regenerating from scratch, or an explicit "overwrite this" request.
+Any edit to a file that already exists goes to patch_file instead: re-sending a whole file to change part of it throws away text that was already correct, and leaves the same edit to be made again.
+The result reports the file's real byte count, line count and first/last lines — check those to confirm the write landed, rather than writing again.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"path": map[string]any{
 					"type":        "string",
-					"description": "File to write (e.g. '/abs/path/foo.go', '~/notes.md').",
+					"description": "File to write (e.g. '/abs/path/foo.go', '~/notes.md'). Exports with no path given belong in ~/Downloads or ~/.config/agenvoy/download/.",
 					"default":     "",
 				},
 				"content": map[string]any{
@@ -94,10 +94,51 @@ Default export path: ~/Downloads or ~/.config/agenvoy/download/.`,
 
 			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)
 
-			if isNew {
-				return fmt.Sprintf("successfully created: %s", absPath), nil
-			}
-			return fmt.Sprintf("successfully updated %s", absPath), nil
+			return writeReceipt(isNew, absPath, content), nil
 		},
 	})
+}
+
+// writeReceipt reports what actually landed on disk.
+//
+// A successful write has its content argument elided from history immediately,
+// so on the next turn the model sees its own tool_call carrying the elision
+// marker where the content used to be. Reading that as "the file now holds a
+// placeholder", it rewrites — and that rewrite is elided too, so the marker
+// comes straight back and the rewrite repeats without end. Telling the model
+// not to do this in prose loses against what it appears to see itself having
+// sent; a receipt it can check does not, because the size, line count and real
+// first/last lines cannot come from a placeholder.
+//
+// * os.Stat retained: the on-disk size is the authoritative number here, and
+// go-pkg exposes no accessor for it.
+func writeReceipt(isNew bool, path, content string) string {
+	verb := "updated"
+	if isNew {
+		verb = "created"
+	}
+
+	size := len(content)
+	if info, err := os.Stat(path); err == nil {
+		size = int(info.Size())
+	}
+
+	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	return fmt.Sprintf(
+		"successfully %s: %s (%d bytes, %d lines on disk)\nfirst line: %s\nlast line: %s\nThis is the file's real content. The elided write argument left in history is a context-saving marker, not what was written — do not rewrite the file to \"restore\" it.",
+		verb, path, size, len(lines),
+		excerptLine(lines[0]), excerptLine(lines[len(lines)-1]),
+	)
+}
+
+func excerptLine(line string) string {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return "(blank)"
+	}
+	runes := []rune(line)
+	if len(runes) > 120 {
+		return string(runes[:120]) + "…"
+	}
+	return line
 }

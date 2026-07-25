@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/extensions"
-	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
 	scriptAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/script"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*toolTypes.Executor, error) {

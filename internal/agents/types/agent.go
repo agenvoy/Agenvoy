@@ -3,7 +3,7 @@ package agentTypes
 import (
 	"context"
 
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Agent = provider.Agent
@@ -31,15 +31,15 @@ type AgentEntry struct {
 }
 
 type AgentSession struct {
-	ID              string
-	SystemPrompts   []provider.Message
-	OldHistories    []provider.Message
-	SummaryMessage  provider.Message
-	UserInput       provider.Message
-	ToolHistories   []provider.Message
-	Tools           []provider.Message
-	Histories       []provider.Message
-	BaseLen         int
-	Stateless       bool
-	ToolCheckpoint  int
+	ID             string
+	SystemPrompts  []provider.Message
+	OldHistories   []provider.Message
+	SummaryMessage provider.Message
+	UserInput      provider.Message
+	ToolHistories  []provider.Message
+	Tools          []provider.Message
+	Histories      []provider.Message
+	BaseLen        int
+	Stateless      bool
+	ToolCheckpoint int
 }

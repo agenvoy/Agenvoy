@@ -6,9 +6,9 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/go-llm-router/core/router"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	"github.com/pardnchiu/go-llm-router/core/router"
 )
 
 func modelConfig(ctx context.Context, name string) (router.Config, error) {

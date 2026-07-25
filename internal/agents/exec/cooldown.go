@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
