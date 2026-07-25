@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type PushPayload struct {

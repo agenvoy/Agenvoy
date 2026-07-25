@@ -10,11 +10,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/go-llm-router/core"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func getSession(ctx context.Context, in go_bot_discord.Input, content string, data exec.ExecData) (*agentTypes.AgentSession, error) {

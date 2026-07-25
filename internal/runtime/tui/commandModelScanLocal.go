@@ -48,7 +48,6 @@ var defaultLocalEndpoints = []struct {
 	{"LLAMACPP", "http://localhost:8080/v1"},
 }
 
-
 func scanLocalModels(ctx context.Context, extraURL string) {
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
@@ -282,4 +281,3 @@ func (t TUI) runModelScanLocalPick(chosen string) (TUI, tea.Cmd) {
 
 	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ added: %s · registry reloaded", strings.Join(added, ", "))) + "\n")
 }
-

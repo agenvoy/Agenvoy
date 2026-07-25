@@ -143,6 +143,8 @@ github.com/pardnchiu/go-browser v0.3.0 h1:AYvPM9zEizY119QXJmqOumIX+OVoUNFuGKO0Mu
 github.com/pardnchiu/go-browser v0.3.0/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
 github.com/pardnchiu/go-llm-router v0.1.2 h1:VbJC7U8EDBvWwH9pu3AednlksyX8I7L5LEFfSEGqy5c=
 github.com/pardnchiu/go-llm-router v0.1.2/go.mod h1:yyou5VYxxvqwrmwwrm5f1RFPXHiSIQ0x1rZ+okpN91g=
+github.com/pardnchiu/go-llm-router v0.2.0 h1:UDMUNTxZh+V2LuCg5GAshh6FbURnxpdySSWHNeYqyrc=
+github.com/pardnchiu/go-llm-router v0.2.0/go.mod h1:yyou5VYxxvqwrmwwrm5f1RFPXHiSIQ0x1rZ+okpN91g=
 github.com/pardnchiu/go-pkg v0.13.6 h1:/JU1j6x1BgsDNYTzZLXq8wuDBN5Sm6Hw1AXL6ebdnCI=
 github.com/pardnchiu/go-pkg v0.13.6/go.mod h1:CG0GIe7PKEAI48Xx2l83EP3uqq4cKIStZ72YLU5Ix/4=
 github.com/pardnchiu/go-pkg v0.13.7 h1:H9WpmfHjIRviHsq3W54FJMTpjEnG6boopjxG+dkPpHM=

@@ -41,7 +41,6 @@ func Clean() {
 	}
 }
 
-
 func cleanTaskHistory(sessionDir string, now time.Time) {
 	histDir := filepath.Join(sessionDir, "history")
 	files, err := os.ReadDir(histDir)

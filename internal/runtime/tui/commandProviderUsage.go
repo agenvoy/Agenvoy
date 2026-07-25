@@ -12,7 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/go-llm-router/core"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
