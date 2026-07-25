@@ -34,8 +34,8 @@ func NewSkillScanner() *SkillScanner {
 
 	cwd, _ := os.Getwd()
 	paths := []string{
-		filepath.Join(cwd, ".claude", "skills"),
 		filepath.Join(cwd, ".skills"),
+		filepath.Join(cwd, ".claude", "skills"),
 		filesystem.SystemSkillsDir,
 		filesystem.SkillsDir,
 		filepath.Join(home, ".claude", "skills"),
@@ -157,4 +157,32 @@ func MatchSkill(scanner *SkillScanner, input string, excludeSkills ...string) (*
 		tail = trimmed
 	}
 	return s, tail
+}
+
+func SkillSource(path string) string {
+	if path == "" {
+		return ""
+	}
+	switch {
+	case filesystem.SystemSkillsDir != "" && strings.HasPrefix(path, filesystem.SystemSkillsDir+"/"):
+		return "system"
+	case filesystem.SkillsDir != "" && strings.HasPrefix(path, filesystem.SkillsDir+"/"):
+		return "agenvoy"
+	case strings.Contains(path, "/.claude/skills/"):
+		return "claude"
+	case strings.Contains(path, "/.opencode/skills/"):
+		return "opencode"
+	case strings.Contains(path, "/.openai/skills/"):
+		return "openai"
+	case strings.Contains(path, "/.codex/skills/"):
+		return "codex"
+	case strings.Contains(path, "/.skills/"):
+		return "local"
+	case strings.HasPrefix(path, "/mnt/skills/"):
+		rest := strings.TrimPrefix(path, "/mnt/skills/")
+		if i := strings.IndexByte(rest, '/'); i > 0 {
+			return "mnt-" + rest[:i]
+		}
+	}
+	return ""
 }
