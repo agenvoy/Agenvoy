@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -93,10 +94,9 @@ type toolSlot struct {
 	args string
 	hash string
 
-	state    int
-	preMsg   string
-	isImage  bool
-	imageURL string
+	state     int
+	preMsg    string
+	imageURLs []string
 
 	result     string
 	execErr    string
@@ -351,10 +351,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 		if cached, ok := alreadyCall[hash]; ok && cached != "" {
 			cachedContent := strings.TrimSpace(cached)
-			if strings.HasPrefix(cached, "data:image/") {
-				cachedContent = fmt.Sprintf("[%s] image loaded", toolName)
-				slots[i].isImage = true
-				slots[i].imageURL = cached
+			if images, rest := splitImageResult(cached); len(images) > 0 {
+				cachedContent = imageLoadedMessage(toolName, len(images), rest)
+				slots[i].imageURLs = images
 			}
 			slots[i].state = slotCached
 			slots[i].preMsg = cachedContent
@@ -452,8 +451,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				}
 				switch cs.state {
 				case slotCached:
-					if cs.isImage {
-						injectImageToUserInput(sessionData, cs.imageURL)
+					for _, url := range cs.imageURLs {
+						injectImageToUserInput(sessionData, url)
 					}
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				default:
@@ -514,8 +513,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 		switch s.state {
 		case slotCached:
-			if s.isImage {
-				injectImageToUserInput(sessionData, s.imageURL)
+			for _, url := range s.imageURLs {
+				injectImageToUserInput(sessionData, url)
 			}
 			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
 				Role:       "tool",
@@ -561,7 +560,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			calls[i].Function.Arguments = truncateWriteArgs(calls[i].Function.Arguments)
 		}
 		alreadyCall[s.hash] = result
-		if s.execErr == "" && !strings.HasPrefix(result, "data:image/") && toolcache.IsCacheable(s.name) {
+		if images, _ := splitImageResult(result); s.execErr == "" && len(images) == 0 && toolcache.IsCacheable(s.name) {
 			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
 
@@ -573,9 +572,11 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		}
 
 		toolMsgContent := strings.TrimSpace(fmt.Sprintf("[%s] %s", s.name, result))
-		if strings.HasPrefix(result, "data:image/") {
-			toolMsgContent = fmt.Sprintf("[%s] image loaded", s.name)
-			injectImageToUserInput(sessionData, result)
+		if images, rest := splitImageResult(result); len(images) > 0 {
+			toolMsgContent = imageLoadedMessage(s.name, len(images), rest)
+			for _, url := range images {
+				injectImageToUserInput(sessionData, url)
+			}
 		}
 		toolMsg := provider.Message{
 			Role:       "tool",
@@ -732,6 +733,49 @@ func requiredFields(exec *toolTypes.Executor, toolName string) []string {
 		return r
 	}
 	return lookup(exec.Tools)
+}
+
+func splitImageResult(result string) (images []string, rest string) {
+	trimmed := strings.TrimSpace(result)
+	if strings.HasPrefix(trimmed, "data:image/") {
+		return []string{trimmed}, ""
+	}
+	if !strings.HasPrefix(trimmed, "{") {
+		return nil, result
+	}
+
+	var dic map[string]string
+	if json.Unmarshal([]byte(trimmed), &dic) != nil {
+		return nil, result
+	}
+
+	kept := make(map[string]string, len(dic))
+	for _, path := range slices.Sorted(maps.Keys(dic)) {
+		if strings.HasPrefix(dic[path], "data:image/") {
+			images = append(images, dic[path])
+			continue
+		}
+		kept[path] = dic[path]
+	}
+	if len(images) == 0 {
+		return nil, result
+	}
+	if len(kept) == 0 {
+		return images, ""
+	}
+	raw, err := json.Marshal(kept)
+	if err != nil {
+		return images, result
+	}
+	return images, string(raw)
+}
+
+func imageLoadedMessage(toolName string, count int, rest string) string {
+	msg := fmt.Sprintf("[%s] %d image(s) loaded", toolName, count)
+	if rest != "" {
+		msg += " " + rest
+	}
+	return msg
 }
 
 func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
