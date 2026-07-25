@@ -10,11 +10,16 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowCmd "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/cmd"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 func ListAllowCmd() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"white_list": allowCmd.List()})
+		c.JSON(http.StatusOK, gin.H{
+			"white_list": allowCmd.List(),
+			"system":     allowCmd.System(),
+			"custom":     allowCmd.Custom(),
+		})
 	}
 }
 
@@ -69,7 +74,14 @@ func ListAllowSkill() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"scope": scope, "skills": names, "allowed": allowed})
+		source := make(map[string]string, len(names))
+		for _, name := range names {
+			if sk := scanner.Lookup(name); sk != nil {
+				source[name] = runtime.SkillSource(sk.AbsPath)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"scope": scope, "skills": names, "allowed": allowed, "source": source})
 	}
 }
 

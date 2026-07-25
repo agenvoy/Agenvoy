@@ -37,6 +37,7 @@ var (
 	DeniedMap       DeniedConfig
 	DeniedMapBytes  []byte
 	WhiteList       []string
+	WhiteListSystem []string
 	NetWhiteList    []string
 	ReadOnlyCommand []string
 )
@@ -118,6 +119,8 @@ func LoadRuntime() error {
 	if err := json.Unmarshal(configs.WhiteList, &WhiteList); err != nil {
 		return fmt.Errorf("embedded white_list: %w", err)
 	}
+
+	WhiteListSystem = append([]string(nil), WhiteList...)
 	if data, ok := raw["denied_map"]; ok && len(data) > 0 {
 		var user DeniedConfig
 		if err := json.Unmarshal(data, &user); err != nil {
