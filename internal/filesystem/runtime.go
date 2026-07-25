@@ -19,7 +19,7 @@ var (
 	Port                  = "17989"
 	MaxToolIterations     = 128
 	AgentSendTimeoutSec   = 600
-	MaxHistoryMessages    = 8
+	MaxHistoryMessages    = 24
 	MaxHistoryBytes       = 5 * 1024 * 1024
 	MaxSessionTasks       = runtime.NumCPU() * 2
 	MaxSubagentTimeoutMin = 10
