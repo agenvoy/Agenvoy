@@ -364,7 +364,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
 
 	if in.MessageID != 0 {
-		replyText = "​\n" + replyText
+		replyText = "\u200b\n" + replyText
 	}
 	chunks := chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(replyText))
 	replyTo := in.MessageID

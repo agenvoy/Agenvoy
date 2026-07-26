@@ -49,7 +49,7 @@ func registInvokeSubagent() {
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "Worker model name — always set this. Size it to the subtask: single-source fetch/extract/summarize → small fast model; multi-source cross-verification with a real tool loop → mid model (the usual choice); top model only when the subagent's own output needs deep reasoning, not just heavy reading. Blank falls back to a dispatcher routing call that costs an extra request and over-selects the top tier for plain collection work.",
+					"description": "Worker model name — always set this. Size it to the subtask by tier: single-source fetch/extract/summarize → B (`*-luna`, `deepseek`, `grok<4.5`, `claude-haiku`, `gemini-flash`); multi-source cross-verification with a real tool loop → A (`*-terra`, `claude-sonnet`, `gemini-pro`, `glm`, `k3`, `deepseek-pro`), the usual choice; S (`claude-fable/opus`, `*-sol`, `grok-4.5+`) only when the subagent's own output needs deep reasoning, not just heavy reading; never C (`*-mini`, `*-nano`, `*b`) for a long tool loop. `-sol`/`-terra`/`-luna` mark the rung, not the version — `gpt-5.6-terra` is A, not S. Blank falls back to a dispatcher routing call that costs an extra request and over-selects S for plain collection work.",
 					"default":     "",
 					"enum":        models,
 				},
