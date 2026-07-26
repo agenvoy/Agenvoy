@@ -44,7 +44,8 @@ const (
 )
 
 var (
-	timestampHeaderRegex   = regexp.MustCompile(`(?m)^-{3,}\n.*\n-{3,}\n`)
+	timestampHeaderRegex   = regexp.MustCompile(`\A\s*-{3,}\n(?:[^\n]*\n)*?-{3,}\n`)
+	contextMetaLineRegex   = regexp.MustCompile(`\A\s*(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)\s*[:：][^\n]*\n?`)
 	summaryBlockRegex      = regexp.MustCompile(`(?s)<summary>\s*[\s\S]*?\s*</summary>|\[summary\]\s*[\s\S]*?\s*\[/summary\]`)
 	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
 	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
@@ -78,6 +79,13 @@ func isGuardrailRefusal(content string) bool {
 
 func StripModelResponse(str string) string {
 	str = timestampHeaderRegex.ReplaceAllString(str, "")
+	for {
+		trimmed := contextMetaLineRegex.ReplaceAllString(str, "")
+		if trimmed == str {
+			break
+		}
+		str = trimmed
+	}
 	str = summaryBlockRegex.ReplaceAllString(str, "")
 	if loc := summaryLeakMarkerRegex.FindStringIndex(str); loc != nil {
 		dropped := strings.TrimSpace(str[loc[0]:])
@@ -141,6 +149,7 @@ type ExecData struct {
 	ExcludeTools      []string
 	ExcludeSkills     []string
 	ExtraSystemPrompt string
+	Reasoning         string
 	AllowAll          bool
 	PendingTask       string
 	ReplyMessageID    string
@@ -366,7 +375,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	limit := filesystem.MaxToolIterations
-	_, reasoningName := configBot.GetModel(session.ID)
+	reasoningName := data.Reasoning
+	if reasoningName == "" {
+		_, reasoningName = configBot.GetModel(session.ID)
+	}
 	reasoning, _ := provider.ParseReasoning(reasoningName)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))

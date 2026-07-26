@@ -422,7 +422,7 @@ func messageRow(text, subagent string) string {
 }
 
 // * context for live usage, context = nil for replay
-func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
+func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -519,7 +519,7 @@ func renderAgentEvent(ctx context.Context, ev agentTypes.Event, sessionLabel, cw
 
 	case agentTypes.EventDone:
 		var footer string
-		if ctx != nil {
+		if liveUsage {
 			footer = utils.FormatEventFooterContext(ctx, ev.Duration, ev.Model, ev.Usage)
 		} else {
 			footer = utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)

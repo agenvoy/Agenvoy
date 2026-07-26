@@ -166,12 +166,14 @@ func latestTime(messages []provider.Message) string {
 	return str
 }
 
+var msgTimeRegex = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
+
 func extractTime(msg provider.Message) string {
 	str, ok := msg.Content.(string)
 	if !ok {
 		return ""
 	}
-	list := regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`).FindStringSubmatch(str)
+	list := msgTimeRegex.FindStringSubmatch(str)
 	if len(list) < 2 {
 		return ""
 	}

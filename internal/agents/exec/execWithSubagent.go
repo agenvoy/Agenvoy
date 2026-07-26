@@ -24,7 +24,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
-func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
+func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
@@ -70,6 +70,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, systemPr
 		ExcludeTools:      excluded,
 		ExcludeSkills:     tools.TUIOnlySkills,
 		ExtraSystemPrompt: systemPrompt,
+		Reasoning:         reasoning,
 		AllowAll:          allowAll,
 	}
 
