@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	"log/slog"
 	"slices"
 	"strings"
@@ -15,6 +16,14 @@ import (
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
+
+var reasoningLevels = func() []string {
+	out := make([]string, 0, int(provider.ReasoningMax)+1)
+	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+		out = append(out, r.String())
+	}
+	return out
+}()
 
 func registInvokeSubagent() {
 	models := []string{}
@@ -49,9 +58,15 @@ func registInvokeSubagent() {
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "Worker model name — always set this. Size it to the subtask: single-source fetch/extract/summarize → small fast model; multi-source cross-verification with a real tool loop → mid model (the usual choice); top model only when the subagent's own output needs deep reasoning, not just heavy reading. Blank falls back to a dispatcher routing call that costs an extra request and over-selects the top tier for plain collection work.",
+					"description": "Worker model — always set it; blank spends an extra dispatcher call and over-selects for what is plain collection work. Walk fastest-first, take the first that can do the subtask: `gpt-oss-120b` → `deepseek-flash` → `grok` → `*-luna` → `claude-haiku` → `gemini-flash` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`. Collection lands in the first half; pass `*-terra` only to cross-verify many sources through a long tool loop. Needing `*-sol`/`claude-opus` means the task should have been split further — take one, or anything below `gpt-oss-120b` where tool-calling turns unreliable, only as the sole candidate. `-sol`/`-terra`/`-luna` are rungs, not versions: `gpt-5.6-terra` sits at `*-terra`.",
 					"default":     "",
 					"enum":        models,
+				},
+				"reasoning": map[string]any{
+					"type":        "string",
+					"enum":        reasoningLevels,
+					"default":     "low",
+					"description": "Thinking depth. Keep `low` — gathering needs none and depth multiplies across the fan-out. Raise it only for a leg whose own written output must reason rather than gather.",
 				},
 				"system_prompt": map[string]any{
 					"type":        "string",
@@ -75,6 +90,7 @@ func registInvokeSubagent() {
 				Name         string   `json:"name,omitempty"`
 				SessionID    string   `json:"session_id,omitempty"`
 				Model        string   `json:"model,omitempty"`
+				Reasoning    string   `json:"reasoning,omitempty"`
 				SystemPrompt string   `json:"system_prompt,omitempty"`
 				ExcludeTools []string `json:"exclude_tools,omitempty"`
 			}
@@ -101,6 +117,11 @@ func registInvokeSubagent() {
 				model = ""
 			}
 
+			reasoning := strings.TrimSpace(params.Reasoning)
+			if _, ok := provider.ParseReasoning(reasoning); !ok {
+				reasoning = provider.ReasoningLow.String()
+			}
+
 			systemPrompt := strings.TrimSpace(params.SystemPrompt)
 
 			excludeTools := params.ExcludeTools
@@ -108,7 +129,7 @@ func registInvokeSubagent() {
 				excludeTools = []string{}
 			}
 
-			return exec.ExecWithSubagent(ctx, task, sessionID, model, systemPrompt, excludeTools, e.SessionID)
+			return exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning, systemPrompt, excludeTools, e.SessionID)
 		},
 	})
 }

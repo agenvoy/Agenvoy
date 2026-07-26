@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strconv"
@@ -136,7 +137,7 @@ func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
 	if len(finishedAt) > 0 {
 		ts = finishedAt[0]
 	}
-	line, ok := renderAgentEvent(nil, ev, "", "", width, ts)
+	line, ok := renderAgentEvent(context.Background(), false, ev, "", "", width, ts)
 	if !ok {
 		return ""
 	}

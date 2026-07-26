@@ -243,12 +243,10 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		scanner.Scan()
 	}
 
-	var sessionOverride, sessionMissing string
+	var sessionOverride string
 	if name, effective := session.CheckAssign(content); name != "" {
 		if id := session.GetSessionID(name); id != "" {
 			sessionOverride = id
-		} else {
-			sessionMissing = name
 		}
 		content = strings.TrimSpace(effective)
 	}
@@ -276,9 +274,6 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		in.Username,
 		in.ChatID,
 	)
-	if name := strings.TrimSpace(sessionMissing); name != "" {
-		header += fmt.Sprintf("\n備註: 找不到 session %q，改以當前 chat session 處理", name)
-	}
 	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
 	sessionLog.Append(routingSessionID, userText)
 
@@ -314,7 +309,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		ReplyMessageID: strconv.Itoa(in.MessageID),
 	}
 
-	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride, sessionMissing)
+	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride)
 	if err != nil {
 		return fmt.Errorf("getSession: %w", err)
 	}
@@ -369,7 +364,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
 
 	if in.MessageID != 0 {
-		replyText = "​\n" + replyText
+		replyText = "\u200b\n" + replyText
 	}
 	chunks := chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(replyText))
 	replyTo := in.MessageID
