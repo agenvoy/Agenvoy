@@ -149,6 +149,7 @@ type ExecData struct {
 	ExcludeTools      []string
 	ExcludeSkills     []string
 	ExtraSystemPrompt string
+	Reasoning         string
 	AllowAll          bool
 	PendingTask       string
 	ReplyMessageID    string
@@ -374,7 +375,10 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	limit := filesystem.MaxToolIterations
-	_, reasoningName := configBot.GetModel(session.ID)
+	reasoningName := data.Reasoning
+	if reasoningName == "" {
+		_, reasoningName = configBot.GetModel(session.ID)
+	}
 	reasoning, _ := provider.ParseReasoning(reasoningName)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
