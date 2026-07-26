@@ -86,7 +86,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		HistoryContent: history,
 	}
 
-	sess, err := getSession(ctx, chatID, "user", full, execData, sessionID, "")
+	sess, err := getSession(ctx, chatID, "user", full, execData, sessionID)
 	if err != nil {
 		slog.Error("ask_user resume: getSession",
 			slog.String("session", sessionID),

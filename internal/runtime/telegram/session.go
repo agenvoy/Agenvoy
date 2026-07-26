@@ -15,7 +15,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func getSession(ctx context.Context, chatID int64, username, content string, data exec.ExecData, overrideID, missingName string) (*agentTypes.AgentSession, error) {
+func getSession(ctx context.Context, chatID int64, username, content string, data exec.ExecData, overrideID string) (*agentTypes.AgentSession, error) {
 	chatSessionID, err := sessionTelegram.New(chatID)
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetTelegramSession: %w", err)
@@ -52,9 +52,6 @@ func getSession(ctx context.Context, chatID int64, username, content string, dat
 			username,
 			chatID,
 		)
-		if name := strings.TrimSpace(missingName); name != "" {
-			header += fmt.Sprintf("\n備註: 找不到 session %q，改以當前 chat session 處理", name)
-		}
 		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
 	}
 
