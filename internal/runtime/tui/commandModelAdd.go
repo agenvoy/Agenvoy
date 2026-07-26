@@ -591,7 +591,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			config, err := agentKeychain.Config(ctx, prov)
 			var ids []string
 			if err == nil {
-				ids, err = fn(ctx, config)
+				ids, err = fn(ctx, config, provider.ModelFilter{TextOnly: true})
 			}
 			if err != nil {
 				slog.Warn("provider Models",
@@ -760,7 +760,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	return t, nil
 }
 
-var modelsProviders = map[string]func(context.Context, provider.Config) ([]string, error){
+var modelsProviders = map[string]func(context.Context, provider.Config, provider.ModelFilter) ([]string, error){
 	"codex":      openaicodex.Models,
 	"grok-oauth": grokoauth.Models,
 	"copilot":    copilot.Models,

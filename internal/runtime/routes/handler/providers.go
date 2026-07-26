@@ -267,47 +267,47 @@ func modelsFn(prov string) func(c *gin.Context, cfg provider.Config) ([]string, 
 	switch prov {
 	case "openai":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openai.Models(c.Request.Context(), cfg)
+			return openai.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "codex":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openaicodex.Models(c.Request.Context(), cfg)
+			return openaicodex.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "claude":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return claude.Models(c.Request.Context(), cfg)
+			return claude.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "gemini":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return gemini.Models(c.Request.Context(), cfg)
+			return gemini.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "grok":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return grok.Models(c.Request.Context(), cfg)
+			return grok.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "grok-oauth":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return grokoauth.Models(c.Request.Context(), cfg)
+			return grokoauth.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "copilot":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return copilot.Models(c.Request.Context(), cfg)
+			return copilot.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "deepseek":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return deepseek.Models(c.Request.Context(), cfg)
+			return deepseek.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "nvidia":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return nvidia.Models(c.Request.Context(), cfg)
+			return nvidia.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "openrouter":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openrouter.Models(c.Request.Context(), cfg)
+			return openrouter.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "cloudflare":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return cloudflare.Models(c.Request.Context(), cfg)
+			return cloudflare.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	default:
 		return nil

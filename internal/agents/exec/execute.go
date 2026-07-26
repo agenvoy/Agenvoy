@@ -370,7 +370,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	}
 
 	limit := filesystem.MaxToolIterations
-	_, reasoning := configBot.GetModel(session.ID)
+	_, reasoningName := configBot.GetModel(session.ID)
+	reasoning, _ := provider.ParseReasoning(reasoningName)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)
@@ -393,6 +394,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	timeoutRetryCount := 0
 	oldHistoriesCompacted := false
 	firstAttempt := true
+
 	for range limit {
 		if ctx.Err() != nil {
 			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}

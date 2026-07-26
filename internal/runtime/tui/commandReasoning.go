@@ -1,26 +1,18 @@
 package tui
 
 import (
-	"fmt"
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-var reasoningLevels = []string{"none", "low", "medium", "high", "xhigh"}
-
-func filteredReasoningLevels(model string) []string {
-	providerName, modelName, _ := strings.Cut(model, "@")
-	min := provider.MinReasoningLevel(providerName, modelName)
-	for i, lvl := range reasoningLevels {
-		if lvl == min {
-			return reasoningLevels[i:]
-		}
+var reasoningLevels = func() []string {
+	out := make([]string, 0, int(provider.ReasoningMax)+1)
+	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+		out = append(out, r.String())
 	}
-	return reasoningLevels
-}
+	return out
+}()
 
 func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
@@ -28,27 +20,22 @@ func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 		return t, nil
 	}
 
-	model, current := configBot.GetModel(sid)
-	providerName, modelName, _ := strings.Cut(model, "@")
-	if !provider.SupportsReasoningSwitch(providerName, modelName) {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s does not support reasoning switching", model)) + "\n")
-	}
+	_, current := configBot.GetModel(sid)
 
-	levels := filteredReasoningLevels(model)
 	idx := 0
-	for i, lvl := range levels {
+	for i, lvl := range reasoningLevels {
 		if lvl == current {
 			idx = i
 			break
 		}
 	}
-	n := len(levels)
+	n := len(reasoningLevels)
 	if forward {
 		idx = (idx + 1) % n
 	} else {
 		idx = (idx - 1 + n) % n
 	}
-	level := levels[idx]
+	level := reasoningLevels[idx]
 	configBot.SetModel(sid, "", level)
 	return t, nil
 }
