@@ -63,6 +63,9 @@ var ToolErrorGuide string
 //go:embed prompts/subagent_dispatch_guide.md
 var SubagentDispatchGuide string
 
+//go:embed prompts/html_render_guide.md
+var HtmlRenderGuide string
+
 //go:embed prompts/subagent_charter.md
 var SubagentCharter string
 

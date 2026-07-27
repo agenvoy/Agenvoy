@@ -5,4 +5,5 @@ func Register() {
 	registToolErrorGuide()
 	registSubagentDispatchGuide()
 	registReasoningGuide()
+	registHtmlRenderGuide()
 }

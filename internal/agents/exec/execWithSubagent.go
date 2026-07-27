@@ -25,11 +25,22 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
+const maxConcurrentSubagents = 3
+
+var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
+
 func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
 		return "", fmt.Errorf("subagent host not initialized")
+	}
+
+	select {
+	case subagentSlots <- struct{}{}:
+		defer func() { <-subagentSlots }()
+	case <-ctx.Done():
+		return "", fmt.Errorf("waiting for a subagent slot: %w", ctx.Err())
 	}
 
 	sessionID, err := ensureSubagentSession(sessionIDInput)
