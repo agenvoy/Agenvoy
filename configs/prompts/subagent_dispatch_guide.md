@@ -7,6 +7,7 @@ Fan-out via `invoke_subagent` (not a single delegation) → this session is the 
 - **Dispatch in parallel**: every `invoke_subagent` call in one response, never sequential. One call per subtask, never the same task twice.
 - **Leave `name` empty** — set it only when the user reused an existing session by name; an invented name just mislabels a temp session.
 - **Every task description must carry both**: "use all available tools to cross-verify from multiple sources" and "return the complete report as text in your response, do not write a file" — the planner sees only returned text, never files on disk.
+- **Ask a leg for data, never for a deliverable** — subagents cannot write files or render pages/PDFs, and they ignore output-format instructions by charter. Any page, document, or report the user wants is rendered here, by the planner, after synthesis.
 - **Synthesis merges, it does not compress** — one section or row per entity, full per-item detail kept. Cutting N legs down to 3–5 bullets is incomplete synthesis; only the subagents' scratch formatting and meta-commentary should disappear.
 - **Always set `model`** — blank spends an extra dispatcher call and over-selects for what is plain collection work. Tier letters do not apply here: a leg is assigned, not routed. Walk fastest-first, take the first that can do the leg:
   `gpt-oss-120b` → `deepseek-flash` → `grok` → `*-luna` → `claude-haiku` → `gemini-flash` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`

@@ -11,6 +11,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -61,15 +62,24 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			return "", fmt.Errorf("cwd and home both failed")
 		}
 	}
-	subagentExcludeBase := []string{"invoke_subagent", "list_subagent_sessions"}
+	// * collection-only charter: no nesting, no writes, no deliverable renderers
+	subagentExcludeBase := []string{
+		"invoke_subagent", "list_subagent_sessions",
+		"write_file", "patch_file", "generate*",
+	}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
+
+	charter := configs.SubagentCharter
+	if extra := strings.TrimSpace(systemPrompt); extra != "" {
+		charter += "\n\n---\n\n" + extra
+	}
 	execData := ExecData{
 		Agent:             agent,
 		WorkDir:           workDir,
 		Content:           task,
 		ExcludeTools:      excluded,
 		ExcludeSkills:     tools.TUIOnlySkills,
-		ExtraSystemPrompt: systemPrompt,
+		ExtraSystemPrompt: charter,
 		Reasoning:         reasoning,
 		AllowAll:          allowAll,
 	}
