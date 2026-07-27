@@ -3,7 +3,9 @@ package exec
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	goRuntime "runtime"
+	"slices"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -13,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
@@ -25,7 +28,28 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 		prompts = append(prompts, provider.Message{Role: "system", Content: configs.DiscordSystemPrompt})
 	}
 	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
+	if section := mcpInstructionsSection(); section != "" {
+		prompts = append(prompts, provider.Message{Role: "system", Content: section})
+	}
 	return prompts
+}
+
+func mcpInstructionsSection() string {
+	instructions := mcp.Manager().Instructions()
+	if len(instructions) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## MCP Server Instructions\n\nEach block is the operating contract its server declared; follow it for that server's tools.\n")
+	for _, name := range slices.Sorted(maps.Keys(instructions)) {
+		sb.WriteString("\n### ")
+		sb.WriteString(name)
+		sb.WriteString("\n\n")
+		sb.WriteString(instructions[name])
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) string {

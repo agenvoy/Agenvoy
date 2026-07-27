@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -94,6 +95,26 @@ type HealthInfo struct {
 	Name  string `json:"name"`
 	OK    bool   `json:"ok"`
 	Error string `json:"error,omitempty"`
+}
+
+func (m *MCP) Instructions() map[string]string {
+	if m == nil {
+		return nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	out := make(map[string]string, len(m.clients))
+	for _, name := range slices.Sorted(maps.Keys(m.clients)) {
+		if text := strings.TrimSpace(m.clients[name].Instructions()); text != "" {
+			out[name] = text
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (m *MCP) Health(ctx context.Context) []HealthInfo {

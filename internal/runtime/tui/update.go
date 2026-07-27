@@ -171,23 +171,25 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if t.running {
-				content := strings.TrimSpace(t.textarea.Value())
-				if content == "" {
+				raw := t.textarea.Value()
+				if strings.TrimSpace(raw) == "" {
 					return t, nil
 				}
-				exec.AppendSteer(t.currentSessionID, content)
-				t.pendingSteer = append(t.pendingSteer, content)
+				exec.AppendSteer(t.currentSessionID, raw)
+				t.pendingSteer = append(t.pendingSteer, raw)
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)
 				return t, nil
 			}
 
-			content := strings.TrimSpace(t.textarea.Value())
+			raw := t.textarea.Value()
+			// * content is trimmed for dispatch decisions only; raw reaches the agent verbatim
+			content := strings.TrimSpace(raw)
 			if content == "" {
 				return t, nil
 			}
-			t = t.recordInputHistory(content)
-			t.lastInput = content
+			t = t.recordInputHistory(raw)
+			t.lastInput = raw
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
 
@@ -215,10 +217,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
 			t.runTarget = targetSession(content, t.currentSessionID)
 
-			go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
+			go runExec(t.ctx, raw, t.allowAll, t.cwd, t.currentSessionID, "", "")
 
 			cmds = append(cmds,
-				tea.Println(messageBlock(content)),
+				tea.Println(messageBlock(raw)),
 				t.spinner.Tick,
 			)
 			return t, tea.Batch(cmds...)

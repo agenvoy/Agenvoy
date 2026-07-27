@@ -11,6 +11,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -31,6 +32,20 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		return "", fmt.Errorf("subagent host not initialized")
 	}
 
+	sessionID, err := ensureSubagentSession(sessionIDInput)
+	if err != nil {
+		return "", fmt.Errorf("ensureSubagentSession: %w", err)
+	}
+
+	if strings.TrimSpace(sessionIDInput) != "" && !strings.HasPrefix(sessionID, "temp-") {
+		sessionModel, sessionReasoning := configBot.GetModel(sessionID)
+		model = ""
+		if sessionModel != configBot.DefaultModel {
+			model = sessionModel
+		}
+		reasoning = sessionReasoning
+	}
+
 	var agent agentTypes.Agent
 	if model != "" {
 		agent = registry.Registry[model]
@@ -39,11 +54,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 	if agent == nil {
 		return "", fmt.Errorf("no agent available")
-	}
-
-	sessionID, err := ensureSubagentSession(sessionIDInput)
-	if err != nil {
-		return "", fmt.Errorf("ensureSubagentSession: %w", err)
 	}
 
 	allowAll, ok := ctx.Value(allowAllCtxKey{}).(bool)
@@ -61,15 +71,24 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			return "", fmt.Errorf("cwd and home both failed")
 		}
 	}
-	subagentExcludeBase := []string{"invoke_subagent", "list_subagent_sessions"}
+	// * collection-only charter: no nesting, no writes, no deliverable renderers
+	subagentExcludeBase := []string{
+		"invoke_subagent", "list_subagent_sessions",
+		"write_file", "patch_file", "generate*",
+	}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
+
+	charter := configs.SubagentCharter
+	if extra := strings.TrimSpace(systemPrompt); extra != "" {
+		charter += "\n\n---\n\n" + extra
+	}
 	execData := ExecData{
 		Agent:             agent,
 		WorkDir:           workDir,
 		Content:           task,
 		ExcludeTools:      excluded,
 		ExcludeSkills:     tools.TUIOnlySkills,
-		ExtraSystemPrompt: systemPrompt,
+		ExtraSystemPrompt: charter,
 		Reasoning:         reasoning,
 		AllowAll:          allowAll,
 	}

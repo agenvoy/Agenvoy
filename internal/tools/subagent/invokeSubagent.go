@@ -58,7 +58,7 @@ func registInvokeSubagent() {
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "Worker model — always set it; blank spends an extra dispatcher call and over-selects for what is plain collection work. Walk fastest-first, take the first that can do the subtask: `gpt-oss-120b` → `deepseek-flash` → `grok` → `*-luna` → `claude-haiku` → `gemini-flash` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`. Collection lands in the first half; pass `*-terra` only to cross-verify many sources through a long tool loop. Needing `*-sol`/`claude-opus` means the task should have been split further — take one, or anything below `gpt-oss-120b` where tool-calling turns unreliable, only as the sole candidate. `-sol`/`-terra`/`-luna` are rungs, not versions: `gpt-5.6-terra` sits at `*-terra`.",
+					"description": "Worker model, used only when the run lands in a temp session — set it whenever `name` is empty. A `name` that resolves to an existing session ignores this field and runs under that session's own configured model and reasoning. For a temp run always set it; blank spends an extra dispatcher call and over-selects for what is plain collection work. Walk fastest-first, take the first that can do the subtask: `gpt-oss-120b` → `deepseek-flash` → `grok` → `*-luna` → `claude-haiku` → `gemini-flash` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`. Collection lands in the first half; pass `*-terra` only to cross-verify many sources through a long tool loop. Needing `*-sol`/`claude-opus` means the task should have been split further — take one, or anything below `gpt-oss-120b` where tool-calling turns unreliable, only as the sole candidate. `-sol`/`-terra`/`-luna` are rungs, not versions: `gpt-5.6-terra` sits at `*-terra`.",
 					"default":     "",
 					"enum":        models,
 				},
@@ -66,7 +66,7 @@ func registInvokeSubagent() {
 					"type":        "string",
 					"enum":        reasoningLevels,
 					"default":     "low",
-					"description": "Thinking depth. Keep `low` — gathering needs none and depth multiplies across the fan-out. Raise it only for a leg whose own written output must reason rather than gather.",
+					"description": "Thinking depth, used only when the run lands in a temp session; a resolved `name` uses that session's own setting. Keep `low` — gathering needs none and depth multiplies across the fan-out. Raise it only for a leg whose own written output must reason rather than gather.",
 				},
 				"system_prompt": map[string]any{
 					"type":        "string",
