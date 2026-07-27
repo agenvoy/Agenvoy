@@ -32,6 +32,20 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		return "", fmt.Errorf("subagent host not initialized")
 	}
 
+	sessionID, err := ensureSubagentSession(sessionIDInput)
+	if err != nil {
+		return "", fmt.Errorf("ensureSubagentSession: %w", err)
+	}
+
+	if strings.TrimSpace(sessionIDInput) != "" && !strings.HasPrefix(sessionID, "temp-") {
+		sessionModel, sessionReasoning := configBot.GetModel(sessionID)
+		model = ""
+		if sessionModel != configBot.DefaultModel {
+			model = sessionModel
+		}
+		reasoning = sessionReasoning
+	}
+
 	var agent agentTypes.Agent
 	if model != "" {
 		agent = registry.Registry[model]
@@ -40,11 +54,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 	if agent == nil {
 		return "", fmt.Errorf("no agent available")
-	}
-
-	sessionID, err := ensureSubagentSession(sessionIDInput)
-	if err != nil {
-		return "", fmt.Errorf("ensureSubagentSession: %w", err)
 	}
 
 	allowAll, ok := ctx.Value(allowAllCtxKey{}).(bool)
