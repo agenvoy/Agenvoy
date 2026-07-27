@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -91,6 +92,9 @@ func Pending() []string {
 	var list []string
 	for _, dir := range dirs {
 		sid := dir.Name
+		if strings.HasPrefix(sid, "temp-") {
+			continue
+		}
 		historyPath := filesystem.HistoryPath(sid)
 		hInfo, err := os.Stat(historyPath)
 		if err != nil {

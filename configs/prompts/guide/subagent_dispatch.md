@@ -21,6 +21,7 @@ Fan-out via `invoke_subagent` rather than a single delegation → this session i
 - **Dispatch in parallel, three at a time**: put the batch's `invoke_subagent` calls in one response, never sequential. Three legs run concurrently; a fourth queues behind them while its own timeout keeps running, so split a wider set into successive batches of three and synthesize once the last batch returns. One call per subtask, never the same task twice.
 - **Leave `name` empty** — set it only when the user reused an existing session by name; an invented name just mislabels a temp session.
 - **Ask a leg for data, never for a deliverable** — subagents cannot write files or render pages/PDFs, and they ignore output-format instructions by charter. Any page, document, or report the user wants is rendered here, by the planner, after synthesis.
+- **A failed leg gets re-dispatched, not skipped** — any leg that comes back as an error, including "finished without producing any text", left a hole in the data. It is a failure, never a finding of "no data". Re-dispatch it once with a model other than the one named in the error; the batch's other legs are unaffected. Never fill the gap from your own knowledge, and never present a synthesis as complete while a leg is still missing — name the entity that is uncovered.
 - **Synthesis merges, it does not compress** — one section or row per entity, full per-item detail kept. Cutting N legs down to 3–5 bullets is incomplete synthesis; only the subagents' scratch formatting and meta-commentary should disappear.
 
 ### Task description
