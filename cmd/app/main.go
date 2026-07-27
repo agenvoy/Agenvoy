@@ -20,7 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
 func init() {

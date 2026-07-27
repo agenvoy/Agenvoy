@@ -14,8 +14,8 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
 func ListMcpServers() gin.HandlerFunc {

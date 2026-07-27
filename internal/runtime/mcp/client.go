@@ -42,8 +42,8 @@ func newClient(ctx context.Context, name string, cfg ServerConfig) (Client, erro
 	switch {
 	case expanded.IsHTTP():
 		return &HttpClient{
-			url:        strings.TrimSpace(cfg.URL),
-			headers:    cfg.Headers,
+			url:        strings.TrimSpace(expanded.URL),
+			headers:    expanded.Headers,
 			httpClient: &http.Client{Timeout: 60 * time.Second},
 		}, nil
 	case expanded.IsStdio():
