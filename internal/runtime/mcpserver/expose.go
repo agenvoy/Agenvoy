@@ -124,11 +124,11 @@ After reading the guide: write_tool -> test_tool (script only) -> call the new t
 	})
 
 	box.builtin["tool_generate_guide"] = func(_ context.Context, _ json.RawMessage) (string, error) {
-		return configs.ToolGuide, nil
+		return configs.GuideToolGenerate, nil
 	}
 
 	box.builtin["script_tool_generate_guide"] = func(_ context.Context, _ json.RawMessage) (string, error) {
-		return configs.ToolGuide, nil
+		return configs.GuideToolGenerate, nil
 	}
 }
 

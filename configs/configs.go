@@ -33,18 +33,6 @@ var SystemPrompt string
 //go:embed prompts/chatcompletions_system_prompt.md
 var ChatCompletionsSystemPrompt string
 
-//go:embed prompts/discord_system_prompt.md
-var DiscordSystemPrompt string
-
-//go:embed prompts/discord_format.md
-var DiscordFormat string
-
-//go:embed prompts/telegram_system_prompt.md
-var TelegramSystemPrompt string
-
-//go:embed prompts/telegram_format.md
-var TelegramFormat string
-
 //go:embed prompts/default_session_prompt.md
 var DefaultSessionPrompt string
 
@@ -54,38 +42,51 @@ var PermissionAlwaysAllow string
 //go:embed prompts/single_confirm.md
 var PermissionSingleConfirm string
 
-//go:embed prompts/tool_guide.md
-var ToolGuide string
-
-//go:embed prompts/tool_error_guide.md
-var ToolErrorGuide string
-
-//go:embed prompts/subagent_dispatch_guide.md
-var SubagentDispatchGuide string
-
-//go:embed prompts/html_render_guide.md
-var HtmlRenderGuide string
-
 //go:embed prompts/subagent_charter.md
 var SubagentCharter string
 
-//go:embed prompts/reasoning/rag_web.md
-var ReasoningRAGWeb string
+// * Prompts > Guide
 
-//go:embed prompts/reasoning/market_analysis.md
-var ReasoningMarketAnalysis string
+//go:embed prompts/guide/tool_generate.md
+var GuideToolGenerate string
 
-//go:embed prompts/reasoning/targeted_read.md
-var ReasoningTargetedRead string
+//go:embed prompts/guide/tool_error.md
+var GuideToolError string
 
-//go:embed prompts/reasoning/ask_user.md
-var ReasoningAskUser string
+//go:embed prompts/guide/rag_web.md
+var GuideRAGWeb string
 
-//go:embed prompts/reasoning/subagent_delegation.md
-var ReasoningSubagentDelegation string
+//go:embed prompts/guide/market_analysis.md
+var GuideMarketAnalysis string
 
-//go:embed prompts/reasoning/write_todo.md
-var ReasoningWriteTodo string
+//go:embed prompts/guide/targeted_read.md
+var GuideTargetedRead string
+
+//go:embed prompts/guide/ask_user.md
+var GuideAskUser string
+
+//go:embed prompts/guide/subagent_dispatch.md
+var GuideSubagentDispatch string
+
+//go:embed prompts/guide/html_render.md
+var GuideHtmlRender string
+
+//go:embed prompts/guide/write_todo.md
+var GuideWriteTodo string
+
+// * Prompts > Chatbot
+
+//go:embed prompts/chatbot/telegram_system_prompt.md
+var TelegramSystemPrompt string
+
+//go:embed prompts/chatbot/telegram_format.md
+var TelegramFormat string
+
+//go:embed prompts/chatbot/discord_system_prompt.md
+var DiscordSystemPrompt string
+
+//go:embed prompts/chatbot/discord_format.md
+var DiscordFormat string
 
 // * Configs
 
