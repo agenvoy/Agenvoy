@@ -21,17 +21,29 @@ import (
 
 func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []provider.Message {
 	var prompts []provider.Message
-	switch {
-	case strings.HasPrefix(sessionID, "tg-"):
-		prompts = append(prompts, provider.Message{Role: "system", Content: configs.TelegramSystemPrompt})
-	case strings.HasPrefix(sessionID, "dc-"):
-		prompts = append(prompts, provider.Message{Role: "system", Content: configs.DiscordSystemPrompt})
+	if channel := channelSystemPrompt(sessionID); channel != "" {
+		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
 	}
 	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
 	return prompts
+}
+
+// * the channel prompt carries the rules that apply every turn; {{.ChatbotFormat}} is where its platform's full
+// * formatting reference lands, so a tg-/dc- session never has to fetch it before it can answer correctly.
+func channelSystemPrompt(sessionID string) string {
+	var template, format string
+	switch {
+	case strings.HasPrefix(sessionID, "tg-"):
+		template, format = configs.TelegramSystemPrompt, configs.TelegramFormat
+	case strings.HasPrefix(sessionID, "dc-"):
+		template, format = configs.DiscordSystemPrompt, configs.DiscordFormat
+	default:
+		return ""
+	}
+	return strings.NewReplacer("{{.ChatbotFormat}}", strings.TrimSpace(format)).Replace(template)
 }
 
 func mcpInstructionsSection() string {

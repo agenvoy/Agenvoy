@@ -27,23 +27,37 @@ var SummaryPrompt string
 //go:embed prompts/summary_context.md
 var SummaryContext string
 
-//go:embed prompts/system_prompt.md
+//go:embed prompts/system_prompt/system_prompt.md
 var SystemPrompt string
 
-//go:embed prompts/chatcompletions_system_prompt.md
+//go:embed prompts/system_prompt/chatcompletions_system_prompt.md
 var ChatCompletionsSystemPrompt string
 
 //go:embed prompts/default_session_prompt.md
 var DefaultSessionPrompt string
 
-//go:embed prompts/always_allow.md
+//go:embed prompts/system_prompt/always_allow.md
 var PermissionAlwaysAllow string
 
-//go:embed prompts/single_confirm.md
+//go:embed prompts/system_prompt/single_confirm.md
 var PermissionSingleConfirm string
 
-//go:embed prompts/subagent_charter.md
+//go:embed prompts/system_prompt/subagent_charter.md
 var SubagentCharter string
+
+// * Prompts > systemPrompt > Chatbot
+
+//go:embed prompts/system_prompt/chatbot/telegram_system_prompt.md
+var TelegramSystemPrompt string
+
+//go:embed prompts/system_prompt/chatbot/telegram_format.md
+var TelegramFormat string
+
+//go:embed prompts/system_prompt/chatbot/discord_system_prompt.md
+var DiscordSystemPrompt string
+
+//go:embed prompts/system_prompt/chatbot/discord_format.md
+var DiscordFormat string
 
 // * Prompts > Guide
 
@@ -73,20 +87,6 @@ var GuideHtmlRender string
 
 //go:embed prompts/guide/write_todo.md
 var GuideWriteTodo string
-
-// * Prompts > Chatbot
-
-//go:embed prompts/chatbot/telegram_system_prompt.md
-var TelegramSystemPrompt string
-
-//go:embed prompts/chatbot/telegram_format.md
-var TelegramFormat string
-
-//go:embed prompts/chatbot/discord_system_prompt.md
-var DiscordSystemPrompt string
-
-//go:embed prompts/chatbot/discord_format.md
-var DiscordFormat string
 
 // * Configs
 

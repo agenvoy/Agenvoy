@@ -79,11 +79,11 @@ func sendToChatbotDescription() string {
 	sb.WriteString("[system-default] Send a formatted message to an authorized chat/channel, from any session (including TUI / CLI / cron). Never fabricate target_id — call list_chatbot for the platform first.\n")
 	if slices.Contains(platformEnum, platformTelegram) {
 		sb.WriteString("- Telegram (platform=telegram): if the user did not name a specific chat, list_chatbot(platform=telegram) → ask_user(options=[names]) → map chosen name → target_id → send. Group ids carrying a `-` prefix are especially prone to LLM hallucination and may target chats the bot was kicked from (→ 403 forbidden).\n")
-		sb.WriteString("- Before composing the message argument, call format_chatbot(platform=telegram) (HTML mode only — markdown leaks render literally).\n")
+		sb.WriteString("- Telegram messages go out with parse_mode=HTML: use <b>, <i>, <code>, <pre>, <a href>, <blockquote> and nothing else. Markdown (**bold**, backtick code, leading -/*/#, [text](url), fenced blocks) and `| … |` tables render as literal characters.\n")
 	}
 	if slices.Contains(platformEnum, platformDiscord) {
 		sb.WriteString("- Discord (platform=discord): if the user did not name a specific channel, list_chatbot(platform=discord) → ask_user(options=[names]) → map chosen name → target_id → send.\n")
-		sb.WriteString("- Before composing the message argument, call format_chatbot(platform=discord) (Discord markdown only — HTML / LaTeX / tables render literally).\n")
+		sb.WriteString("- Discord messages are markdown: **bold**, *italic*, backtick code, fenced blocks, > quote, - bullet, # heading (H1-H3). HTML tags, LaTeX and tables render as literal characters.\n")
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }
