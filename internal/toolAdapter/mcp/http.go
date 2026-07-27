@@ -24,9 +24,10 @@ type HttpClient struct {
 	nextID     atomic.Int64
 	closed     atomic.Bool
 
-	once      sync.Once
-	err       error
-	sessionID string
+	once         sync.Once
+	err          error
+	sessionID    string
+	instructions string
 }
 
 type Response struct {
@@ -50,10 +51,12 @@ func (c *HttpClient) init(ctx context.Context) error {
 				"version": "0.1.0",
 			},
 		}
-		if _, err := c.call(ctx, "initialize", params); err != nil {
+		result, err := c.call(ctx, "initialize", params)
+		if err != nil {
 			c.err = fmt.Errorf("http initialize: %w", err)
 			return
 		}
+		c.instructions = parseInstructions(result)
 
 		if err := c.notify(ctx, "notifications/initialized", nil); err != nil {
 			c.err = fmt.Errorf("notify initialized: %w", err)
@@ -238,4 +241,8 @@ func (c *HttpClient) Call(ctx context.Context, name string, args map[string]any)
 func (c *HttpClient) Close() error {
 	c.closed.Store(true)
 	return nil
+}
+
+func (c *HttpClient) Instructions() string {
+	return c.instructions
 }

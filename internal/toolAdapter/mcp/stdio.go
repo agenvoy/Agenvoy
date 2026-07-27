@@ -25,6 +25,8 @@ type StdioClient struct {
 	writeMu    sync.Mutex
 	readErr    error
 	readDone   chan struct{}
+
+	instructions string
 }
 
 func newStdioClient(ctx context.Context, cfg ServerConfig) (*StdioClient, error) {
@@ -186,9 +188,11 @@ func (c *StdioClient) initialize(ctx context.Context) error {
 			"version": "0.1.0",
 		},
 	}
-	if _, err := c.call(ctx, "initialize", params); err != nil {
+	result, err := c.call(ctx, "initialize", params)
+	if err != nil {
 		return err
 	}
+	c.instructions = parseInstructions(result)
 	if err := c.notify("notifications/initialized", nil); err != nil {
 		return fmt.Errorf("notifications/initialized: %w", err)
 	}
@@ -239,4 +243,8 @@ func (c *StdioClient) Close() error {
 		}
 	}
 	return nil
+}
+
+func (c *StdioClient) Instructions() string {
+	return c.instructions
 }

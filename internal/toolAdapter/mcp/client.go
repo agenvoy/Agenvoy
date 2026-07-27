@@ -14,7 +14,21 @@ const protocolVersion = "2024-11-05"
 type Client interface {
 	List(ctx context.Context) ([]Tool, error)
 	Call(ctx context.Context, name string, args map[string]any) (string, error)
+	Instructions() string
 	Close() error
+}
+
+func parseInstructions(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var out struct {
+		Instructions string `json:"instructions"`
+	}
+	if json.Unmarshal(raw, &out) != nil {
+		return ""
+	}
+	return strings.TrimSpace(out.Instructions)
 }
 
 type Tool struct {

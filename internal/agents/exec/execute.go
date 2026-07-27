@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -360,8 +361,22 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 	if len(data.ExcludeTools) > 0 {
 		excluded := make(map[string]bool, len(data.ExcludeTools))
+		var prefixes []string
 		for _, name := range data.ExcludeTools {
+			if prefix, ok := strings.CutSuffix(name, "*"); ok {
+				prefixes = append(prefixes, prefix)
+				continue
+			}
 			excluded[name] = true
+		}
+		if len(prefixes) > 0 {
+			for _, t := range exec.Tools {
+				if slices.ContainsFunc(prefixes, func(p string) bool {
+					return strings.HasPrefix(t.Function.Name, p)
+				}) {
+					excluded[t.Function.Name] = true
+				}
+			}
 		}
 		exec.ExcludeTools = excluded
 

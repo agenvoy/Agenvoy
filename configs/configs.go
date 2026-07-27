@@ -66,6 +66,9 @@ var ToolErrorGuide string
 //go:embed prompts/subagent_dispatch_guide.md
 var SubagentDispatchGuide string
 
+//go:embed prompts/subagent_charter.md
+var SubagentCharter string
+
 //go:embed prompts/reasoning/rag_web.md
 var ReasoningRAGWeb string
 
