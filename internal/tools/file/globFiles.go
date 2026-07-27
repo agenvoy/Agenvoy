@@ -23,6 +23,7 @@ func registGlobFiles() {
 Find files matching glob patterns within a directory (e.g. '**/*.go').
 Use when only a filename or partial path is known — never guess full paths.
 Batch multiple patterns/dirs into one 'queries' call instead of separate calls; matches are merged and deduplicated.
+Every pattern must carry a literal to match on. '**/*' and friends are rejected: use list_files for a directory's contents, search_files to find by content.
 Call read_files on each match before editing to confirm the correct file.`,
 		Parameters: map[string]any{
 			"type": "object",
@@ -40,7 +41,7 @@ Call read_files on each match before editing to confirm the correct file.`,
 							},
 							"pattern": map[string]any{
 								"type":        "string",
-								"description": "Glob pattern relative to dir (e.g. '**/*.go', '*.md'). No leading '/' or '~' — put absolute paths in dir.",
+								"description": "Glob pattern relative to dir (e.g. '**/*.go', '*.md'). No leading '/' or '~' — put absolute paths in dir. Must contain a literal substring to match on; a pattern of only wildcards selects the entire tree and is rejected.",
 							},
 						},
 						"required": []string{
@@ -98,10 +99,22 @@ Call read_files on each match before editing to confirm the correct file.`,
 	})
 }
 
+func isCatchAllPattern(pattern string) bool {
+	for _, r := range pattern {
+		if r != '*' && r != '/' && r != '.' && r != '?' {
+			return false
+		}
+	}
+	return true
+}
+
 func globOne(ctx context.Context, e *toolTypes.Executor, dir, pattern string) ([]go_pkg_filesystem_reader.File, error) {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
 		return nil, fmt.Errorf("pattern is required")
+	}
+	if isCatchAllPattern(pattern) {
+		return nil, fmt.Errorf("pattern %q matches every file and narrows nothing; use list_files to see what a directory holds, or search_files to find files by their content", pattern)
 	}
 
 	dir = strings.TrimSpace(dir)
