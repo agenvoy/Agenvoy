@@ -10,8 +10,8 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
-	scriptAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/script"
+	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
+	scriptAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
