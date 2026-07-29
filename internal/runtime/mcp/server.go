@@ -1,4 +1,4 @@
-package mcpserver
+package mcp
 
 import (
 	"bufio"
@@ -11,37 +11,8 @@ import (
 	"sync"
 )
 
-const (
-	protocolVersion = "2024-11-05"
-)
-
 func emptySchema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{}}`)
-}
-
-type request struct {
-	JSONRPC string          `json:"jsonrpc"`
-	ID      *int64          `json:"id,omitempty"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params,omitempty"`
-}
-
-type response struct {
-	JSONRPC string          `json:"jsonrpc"`
-	ID      *int64          `json:"id,omitempty"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Error   *Error          `json:"error,omitempty"`
-}
-
-type Error struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-type mcpTool struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema json.RawMessage `json:"inputSchema"`
 }
 
 type Server struct {
@@ -51,7 +22,7 @@ type Server struct {
 	toolBox *toolbox
 }
 
-func New() *Server {
+func NewServer() *Server {
 	server := &Server{stdout: os.Stdout}
 	server.toolBox = scanTools()
 	return server
@@ -157,16 +128,16 @@ func (s *Server) handleCall(ctx context.Context, req *request) {
 
 	result, err := toolBox.dispatch(ctx, params.Name, params.Arguments)
 	if err != nil {
-		raw, _ := json.Marshal(map[string]any{
-			"content": []map[string]any{{"type": "text", "text": err.Error()}},
-			"isError": true,
+		raw, _ := json.Marshal(Result{
+			Content: []ResultContent{{Type: "text", Text: err.Error()}},
+			IsError: true,
 		})
 		s.send(req.ID, raw)
 		return
 	}
 
-	raw, _ := json.Marshal(map[string]any{
-		"content": []map[string]any{{"type": "text", "text": result}},
+	raw, _ := json.Marshal(Result{
+		Content: []ResultContent{{Type: "text", Text: result}},
 	})
 	s.send(req.ID, raw)
 }
@@ -176,7 +147,7 @@ func (s *Server) send(id *int64, result json.RawMessage) {
 }
 
 func (s *Server) error(id *int64, code int, msg string) {
-	s.write(response{JSONRPC: "2.0", ID: id, Error: &Error{Code: code, Message: msg}})
+	s.write(response{JSONRPC: "2.0", ID: id, Error: &rpcError{Code: code, Message: msg}})
 }
 
 func (s *Server) write(v any) {

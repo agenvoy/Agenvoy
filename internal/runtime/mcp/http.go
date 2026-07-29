@@ -30,28 +30,9 @@ type HttpClient struct {
 	instructions string
 }
 
-type Response struct {
-	JSONRPC string          `json:"jsonrpc"`
-	ID      *int64          `json:"id,omitempty"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Error   *struct {
-		Code    int             `json:"code"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data,omitempty"`
-	} `json:"error,omitempty"`
-}
-
 func (c *HttpClient) init(ctx context.Context) error {
 	c.once.Do(func() {
-		params := map[string]any{
-			"protocolVersion": protocolVersion,
-			"capabilities":    map[string]any{},
-			"clientInfo": map[string]any{
-				"name":    "agenvoy",
-				"version": "0.1.0",
-			},
-		}
-		result, err := c.call(ctx, "initialize", params)
+		result, err := c.call(ctx, "initialize", initializeParams())
 		if err != nil {
 			c.err = fmt.Errorf("http initialize: %w", err)
 			return
@@ -72,15 +53,7 @@ func (c *HttpClient) call(ctx context.Context, method string, params any) (json.
 	}
 
 	id := c.nextID.Add(1)
-	body := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"method":  method,
-	}
-
-	if params != nil {
-		body["params"] = params
-	}
+	body := newRequest(id, method, params)
 
 	result, err := go_pkg_http.POSTStream(ctx, c.httpClient, c.url, c.getHeaders(), body, "json")
 	if err != nil {
@@ -112,14 +85,7 @@ func (c *HttpClient) call(ctx context.Context, method string, params any) (json.
 }
 
 func (c *HttpClient) notify(ctx context.Context, method string, params any) error {
-	body := map[string]any{
-		"jsonrpc": "2.0",
-		"method":  method,
-	}
-
-	if params != nil {
-		body["params"] = params
-	}
+	body := newNotification(method, params)
 
 	result, err := go_pkg_http.POSTStream(ctx, c.httpClient, c.url, c.getHeaders(), body, "json")
 	if err != nil {
@@ -148,18 +114,18 @@ func (c *HttpClient) getHeaders() map[string]string {
 }
 
 func parse(raw []byte, id int64) (json.RawMessage, error) {
-	var response Response
-	if err := json.Unmarshal(raw, &response); err != nil {
+	var res response
+	if err := json.Unmarshal(raw, &res); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}
-	if response.Error != nil {
-		return nil, fmt.Errorf("rpc error %d: %s", response.Error.Code, response.Error.Message)
+	if res.Error != nil {
+		return nil, fmt.Errorf("rpc error %d: %s", res.Error.Code, res.Error.Message)
 	}
 
-	if response.ID != nil && *response.ID != id {
-		return nil, fmt.Errorf("response id mismatch: got %d want %d", *response.ID, id)
+	if res.ID != nil && *res.ID != id {
+		return nil, fmt.Errorf("response id mismatch: got %d want %d", *res.ID, id)
 	}
-	return response.Result, nil
+	return res.Result, nil
 }
 
 func parseSSE(body io.Reader, id int64) (json.RawMessage, error) {

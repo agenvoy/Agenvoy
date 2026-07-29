@@ -20,7 +20,7 @@ type StdioClient struct {
 
 	nextID     atomic.Int64
 	inflightMu sync.Mutex
-	inflight   map[int64]chan Response
+	inflight   map[int64]chan response
 	closed     atomic.Bool
 	writeMu    sync.Mutex
 	readErr    error
@@ -54,7 +54,7 @@ func newStdioClient(ctx context.Context, cfg ServerConfig) (*StdioClient, error)
 		cmd:      cmd,
 		stdin:    stdin,
 		stdout:   bufio.NewReader(stdout),
-		inflight: map[int64]chan Response{},
+		inflight: map[int64]chan response{},
 		readDone: make(chan struct{}),
 	}
 
@@ -75,16 +75,16 @@ func (c *StdioClient) read() {
 	for {
 		line, err := c.stdout.ReadBytes('\n')
 		if len(line) > 0 {
-			var response Response
-			if err := json.Unmarshal(line, &response); err == nil && response.ID != nil {
+			var res response
+			if err := json.Unmarshal(line, &res); err == nil && res.ID != nil {
 				c.inflightMu.Lock()
-				ch, ok := c.inflight[*response.ID]
+				ch, ok := c.inflight[*res.ID]
 				if ok {
-					delete(c.inflight, *response.ID)
+					delete(c.inflight, *res.ID)
 				}
 				c.inflightMu.Unlock()
 				if ok {
-					ch <- response
+					ch <- res
 				}
 			}
 		}
@@ -93,7 +93,7 @@ func (c *StdioClient) read() {
 			c.readErr = err
 
 			pending := c.inflight
-			c.inflight = map[int64]chan Response{}
+			c.inflight = map[int64]chan response{}
 			c.inflightMu.Unlock()
 			for _, ch := range pending {
 				close(ch)
@@ -125,20 +125,12 @@ func (c *StdioClient) call(ctx context.Context, method string, params any) (json
 	}
 
 	id := c.nextID.Add(1)
-	ch := make(chan Response, 1)
+	ch := make(chan response, 1)
 	c.inflightMu.Lock()
 	c.inflight[id] = ch
 	c.inflightMu.Unlock()
 
-	req := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"method":  method,
-	}
-	if params != nil {
-		req["params"] = params
-	}
-	if err := c.write(req); err != nil {
+	if err := c.write(newRequest(id, method, params)); err != nil {
 		c.inflightMu.Lock()
 		delete(c.inflight, id)
 		c.inflightMu.Unlock()
@@ -151,7 +143,7 @@ func (c *StdioClient) call(ctx context.Context, method string, params any) (json
 		delete(c.inflight, id)
 		c.inflightMu.Unlock()
 		return nil, ctx.Err()
-	case response, ok := <-ch:
+	case res, ok := <-ch:
 		if !ok {
 			c.inflightMu.Lock()
 			err := c.readErr
@@ -161,34 +153,19 @@ func (c *StdioClient) call(ctx context.Context, method string, params any) (json
 			}
 			return nil, err
 		}
-		if response.Error != nil {
-			return nil, fmt.Errorf("rpc error %d: %s", response.Error.Code, response.Error.Message)
+		if res.Error != nil {
+			return nil, fmt.Errorf("rpc error %d: %s", res.Error.Code, res.Error.Message)
 		}
-		return response.Result, nil
+		return res.Result, nil
 	}
 }
 
 func (c *StdioClient) notify(method string, params any) error {
-	msg := map[string]any{
-		"jsonrpc": "2.0",
-		"method":  method,
-	}
-	if params != nil {
-		msg["params"] = params
-	}
-	return c.write(msg)
+	return c.write(newNotification(method, params))
 }
 
 func (c *StdioClient) initialize(ctx context.Context) error {
-	params := map[string]any{
-		"protocolVersion": protocolVersion,
-		"capabilities":    map[string]any{},
-		"clientInfo": map[string]any{
-			"name":    "agenvoy",
-			"version": "0.1.0",
-		},
-	}
-	result, err := c.call(ctx, "initialize", params)
+	result, err := c.call(ctx, "initialize", initializeParams())
 	if err != nil {
 		return err
 	}

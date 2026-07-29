@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-const protocolVersion = "2024-11-05"
-
 type Client interface {
 	List(ctx context.Context) ([]Tool, error)
 	Call(ctx context.Context, name string, args map[string]any) (string, error)
@@ -53,12 +51,14 @@ func newClient(ctx context.Context, name string, cfg ServerConfig) (Client, erro
 	}
 }
 
+type ResultContent struct {
+	Text string `json:"text"`
+	Type string `json:"type"`
+}
+
 type Result struct {
-	Content []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-	} `json:"content"`
-	IsError bool `json:"isError"`
+	Content []ResultContent `json:"content"`
+	IsError bool            `json:"isError,omitempty"`
 }
 
 func extractText(raw json.RawMessage) (string, error) {

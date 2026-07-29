@@ -1,4 +1,4 @@
-package mcpserver
+package mcp
 
 import (
 	"context"
@@ -9,11 +9,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
-
-type notification struct {
-	JSONRPC string `json:"jsonrpc"`
-	Method  string `json:"method"`
-}
 
 func (s *Server) notify() {
 	s.write(notification{
