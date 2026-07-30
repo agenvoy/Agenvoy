@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -32,6 +33,8 @@ type Def struct {
 	Timeout       time.Duration
 }
 
+var mu sync.RWMutex
+
 var handlerMap = map[string]Handler{}
 var groupHandlerMap = map[string]GroupHandler{}
 var defList []provider.Tool
@@ -48,6 +51,9 @@ func Regist(d Def) {
 		slog.Warn("toolRegister.Regist: empty name, skipped")
 		return
 	}
+
+	mu.Lock()
+	defer mu.Unlock()
 
 	if _, exists := handlerMap[d.Name]; exists {
 		slog.Warn("toolRegister.Regist: name already registered, overwriting",
@@ -84,6 +90,9 @@ func Regist(d Def) {
 }
 
 func RemoveByPrefix(prefix string) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	defList = slices.DeleteFunc(defList, func(t provider.Tool) bool {
 		return strings.HasPrefix(t.Function.Name, prefix)
 	})
@@ -103,6 +112,8 @@ func RemoveByPrefix(prefix string) {
 }
 
 func GetTimeout(name string) time.Duration {
+	mu.RLock()
+	defer mu.RUnlock()
 	if t, ok := timeoutMap[name]; ok {
 		return t
 	}
@@ -110,10 +121,14 @@ func GetTimeout(name string) time.Duration {
 }
 
 func IsAlwaysLoad(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return alwaysLoadSet[name]
 }
 
 func IsReadOnly(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return readOnlySet[name]
 }
 
@@ -122,6 +137,8 @@ func MarkAlwaysAllow(name string) {
 	if name == "" {
 		return
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	readOnlySet[name] = true
 }
 
@@ -130,6 +147,8 @@ func MarkConcurrent(name string) {
 	if name == "" {
 		return
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	concurrentSet[name] = true
 }
 
@@ -138,33 +157,46 @@ func MarkTimeout(name string, timeout time.Duration) {
 	if name == "" || timeout <= 0 {
 		return
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	timeoutMap[name] = timeout
 }
 
 func IsConcurrent(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return concurrentSet[name]
 }
 
 func IsFireAndForget(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return fireAndForgetSet[name]
 }
 
 func GetTool(name string) *provider.Tool {
+	mu.RLock()
+	defer mu.RUnlock()
 	for i := range defList {
 		if defList[i].Function.Name == name {
-			return &defList[i]
+			tool := defList[i]
+			return &tool
 		}
 	}
 	return nil
 }
 
 func BuiltinNames() []string {
+	mu.RLock()
+	defer mu.RUnlock()
 	dst := make([]string, len(builtinNames))
 	copy(dst, builtinNames)
 	return dst
 }
 
 func JSON() []byte {
+	mu.RLock()
+	defer mu.RUnlock()
 	raw, err := json.Marshal(defList)
 	if err != nil {
 		return []byte("[]")
@@ -178,6 +210,7 @@ func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json
 	defer cancel()
 
 	var run func() (string, error)
+	mu.RLock()
 	if handler, ok := handlerMap[name]; ok {
 		run = func() (string, error) { return handler(tctx, e, args) }
 	} else {
@@ -189,6 +222,7 @@ func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json
 			}
 		}
 	}
+	mu.RUnlock()
 	if run == nil {
 		return "", fmt.Errorf("not exist: %s", name)
 	}
@@ -234,5 +268,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 }
 
 func RegistGroup(prefix string, handler GroupHandler) {
+	mu.Lock()
+	defer mu.Unlock()
 	groupHandlerMap[prefix] = handler
 }

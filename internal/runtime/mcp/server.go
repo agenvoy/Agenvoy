@@ -11,6 +11,44 @@ import (
 	"sync"
 )
 
+const protocolVersion = "2024-11-05"
+
+type rpcError struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data,omitempty"`
+}
+
+type request struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      *int64          `json:"id,omitempty"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+type response struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      *int64          `json:"id,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *rpcError       `json:"error,omitempty"`
+}
+
+type notification struct {
+	JSONRPC string          `json:"jsonrpc"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+type toolContent struct {
+	Text string `json:"text"`
+	Type string `json:"type"`
+}
+
+type toolResult struct {
+	Content []toolContent `json:"content"`
+	IsError bool          `json:"isError,omitempty"`
+}
+
 func emptySchema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{}}`)
 }
@@ -128,16 +166,16 @@ func (s *Server) handleCall(ctx context.Context, req *request) {
 
 	result, err := toolBox.dispatch(ctx, params.Name, params.Arguments)
 	if err != nil {
-		raw, _ := json.Marshal(Result{
-			Content: []ResultContent{{Type: "text", Text: err.Error()}},
+		raw, _ := json.Marshal(toolResult{
+			Content: []toolContent{{Type: "text", Text: err.Error()}},
 			IsError: true,
 		})
 		s.send(req.ID, raw)
 		return
 	}
 
-	raw, _ := json.Marshal(Result{
-		Content: []ResultContent{{Type: "text", Text: result}},
+	raw, _ := json.Marshal(toolResult{
+		Content: []toolContent{{Type: "text", Text: result}},
 	})
 	s.send(req.ID, raw)
 }

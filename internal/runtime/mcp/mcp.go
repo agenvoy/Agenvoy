@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
@@ -50,7 +51,7 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
-		client, err := newClient(ctx, key, cfg.Servers[key])
+		client, err := newClient(ctx, key, cfg.Servers[key], mcp.refresher(key))
 		if err != nil {
 			slog.Warn("newClient",
 				slog.String("server", key),
@@ -162,7 +163,7 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 
 	m.mu.Lock()
 	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
-		client, err := newClient(ctx, key, cfg.Servers[key])
+		client, err := newClient(ctx, key, cfg.Servers[key], m.refresher(key))
 		if err != nil {
 			slog.Warn("mcp reconnect newClient",
 				slog.String("server", key),
@@ -175,6 +176,55 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 
 	m.RegisterAll(ctx)
 	return nil
+}
+
+func (m *MCP) refresher(name string) func() {
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		m.refresh(ctx, name)
+	}
+}
+
+func (m *MCP) refresh(ctx context.Context, name string) {
+	if m == nil {
+		return
+	}
+
+	m.mu.Lock()
+	client, ok := m.clients[name]
+	m.mu.Unlock()
+	if !ok {
+		return
+	}
+
+	tools, err := client.List(ctx)
+	if err != nil {
+		slog.Warn("mcp refresh client.List",
+			slog.String("server", name),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.clients[name] != client {
+		return
+	}
+
+	toolRegister.RemoveByPrefix("mcp__" + name + "__")
+	registered := 0
+	for _, tool := range tools {
+		def, ok := tool.getDef(name, client)
+		if !ok {
+			continue
+		}
+		toolRegister.Regist(def)
+		registered++
+	}
+	slog.Info("mcp tools refreshed",
+		slog.String("server", name),
+		slog.Int("tools", registered))
 }
 
 func (m *MCP) RegisterAll(ctx context.Context) {
