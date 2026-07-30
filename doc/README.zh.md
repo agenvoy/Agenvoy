@@ -175,8 +175,9 @@ Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI �
 | 長期記憶 | 保留重要資訊與上下文 |
 | 檔案搜尋 | 從本機檔案回答問題 |
 | Sub-Agent | 多 Agent 協作 |
-| MCP client | 連接外部 MCP 服務 |
+| MCP client | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新） |
 | MCP server | 讓任何 MCP 相容 Agent 使用你的沙箱工具 |
+| 推理指引 | 透過 `reasoning_guide(topic=...)` 按需載入規則 |
 | Tool Market | 分享與安裝工具 |
 | 語音轉錄 | 音訊與影片轉文字 |
 | 自我改進 | 執行失敗後自動修正 |

@@ -175,8 +175,9 @@ Agenvoy is for developers, technical operators, and AI-heavy workflows that need
 | Long-term memory | Retains key info and context |
 | File search | Answers from your local files |
 | Sub-Agent | Multi-agent collaboration |
-| MCP client | Connect to external MCP services |
+| MCP client | Connect to external MCP services via official go-sdk (live tool refresh) |
 | MCP server | Expose sandboxed tools to any MCP-compatible agent |
+| Reasoning guides | On-demand rules via `reasoning_guide(topic=...)` |
 | Tool Market | Share and install tools |
 | Transcription | Audio and video to text |
 | Self-improvement | Auto-fixes after execution failures |
