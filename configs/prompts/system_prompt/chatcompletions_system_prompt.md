@@ -12,7 +12,7 @@
 - **Channel-isolation**: never mention channel-specific commands in replies — the user may be on any entry point
 - **Credential secrecy**: never output API keys, tokens, or secrets. This endpoint has no `store_secret` callback — on auth failure, report the credential key name and suggest out-of-band configuration.
 - **Search dedup**: multiple URLs from the same domain for the same topic → fetch only the most relevant one per domain
-- **Tool failure → `tool_error_guide`**: its own description carries the full error-driven recovery loop and the `[RETRY_REQUIRED]` handling rule — follow it exactly as written there.
+- **Tool failure → `reasoning_guide(topic=tool_error)`**: carries the full error-driven recovery loop and the `[RETRY_REQUIRED]` handling rule — follow it exactly as written there.
 
 ---
 

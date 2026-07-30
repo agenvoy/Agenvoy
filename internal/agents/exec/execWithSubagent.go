@@ -10,6 +10,7 @@ import (
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -25,11 +26,22 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
+const maxConcurrentSubagents = 3
+
+var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
+
 func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
 		return "", fmt.Errorf("subagent host not initialized")
+	}
+
+	select {
+	case subagentSlots <- struct{}{}:
+		defer func() { <-subagentSlots }()
+	case <-ctx.Done():
+		return "", fmt.Errorf("waiting for a subagent slot: %w", ctx.Err())
 	}
 
 	sessionID, err := ensureSubagentSession(sessionIDInput)
@@ -204,18 +216,25 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		usagelog.Append(parentSessionID, prov, usageModel, totalUsage)
 	}
 
+	retryHint := ""
+	if ctx.Err() == nil {
+		retryHint = fmt.Sprintf(" Re-dispatch this leg with a model other than %s; the rest of the fan-out is unaffected.", agent.Name())
+	}
+
 	if err := <-errCh; err != nil {
-		str := strings.TrimSpace(sb.String())
-		if str == "" {
-			return "", fmt.Errorf("subagent execute: %w", err)
+		if str := strings.TrimSpace(sb.String()); str != "" {
+			slog.Warn("subagent partial output discarded",
+				slog.String("session", sessionID),
+				slog.String("model", agent.Name()),
+				slog.String("output", go_pkg_utils.TruncateString(str, 2000)))
 		}
-		return fmt.Sprintf("[subagent partial result · %s · session=%s · %s]\n%s\n\n[error] %s",
-			agent.Name(), sessionID, usageLine, str, err.Error()), nil
+		return "", fmt.Errorf("subagent %s failed: %w.%s", agent.Name(), err, retryHint)
 	}
 
 	result := strings.TrimSpace(sb.String())
 	if result == "" {
-		return fmt.Sprintf("[subagent · %s · session=%s · %s] 未產出文字結果", agent.Name(), sessionID, usageLine), nil
+		return "", fmt.Errorf("subagent %s finished without producing any text (%s).%s",
+			agent.Name(), usageLine, retryHint)
 	}
 	return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessionID, usageLine, result), nil
 }
@@ -250,12 +269,13 @@ func ensureSubagentSession(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		if idle := sessionManager.FindIdleTemp(); idle != "" {
-			if _, err := sessionManager.Reset(idle); err != nil {
-				slog.Warn("ensureSubagentSession Reset",
+			if _, err := sessionManager.ResetAll(idle); err != nil {
+				slog.Warn("ensureSubagentSession ResetAll, opening a fresh session instead",
 					slog.String("session", idle),
 					slog.String("error", err.Error()))
+			} else {
+				return idle, nil
 			}
-			return idle, nil
 		}
 		id, err := sessionManager.New("temp-")
 		if err != nil {

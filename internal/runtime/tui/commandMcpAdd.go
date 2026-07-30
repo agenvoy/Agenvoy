@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
 var (

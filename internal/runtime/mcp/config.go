@@ -2,9 +2,14 @@ package mcp
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -94,4 +99,51 @@ func (c ServerConfig) IsHTTP() bool {
 
 func (c ServerConfig) IsStdio() bool {
 	return strings.TrimSpace(c.Command) != ""
+}
+
+func (c ServerConfig) toTransport() (mcpsdk.Transport, error) {
+	switch {
+	case c.IsHTTP():
+		return &mcpsdk.StreamableClientTransport{
+			Endpoint:   strings.TrimSpace(c.URL),
+			HTTPClient: headerClient(c.Headers),
+		}, nil
+	case c.IsStdio():
+		cmd := exec.Command(c.Command, c.Args...)
+		cmd.Env = os.Environ()
+		for key, value := range c.Env {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+		}
+		cmd.Stderr = os.Stderr
+		return &mcpsdk.CommandTransport{Command: cmd}, nil
+	default:
+		return nil, fmt.Errorf("neither command nor url")
+	}
+}
+
+type headerRoundTripper struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
+
+func (r *headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	for key, value := range r.headers {
+		req.Header.Set(key, value)
+	}
+	return r.base.RoundTrip(req)
+}
+
+func headerClient(headers map[string]string) *http.Client {
+	transport := &http.Transport{}
+	if base, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = base.Clone()
+	}
+	transport.ResponseHeaderTimeout = 60 * time.Second
+
+	var roundTripper http.RoundTripper = transport
+	if len(headers) > 0 {
+		roundTripper = &headerRoundTripper{base: transport, headers: headers}
+	}
+	return &http.Client{Transport: roundTripper}
 }

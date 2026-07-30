@@ -28,7 +28,6 @@ func Register() {
 		platformEnum = append(platformEnum, platformDiscord)
 	}
 
-	registChatbotFormat()
 	registListChatbot()
 	registSendToChatbot()
 }

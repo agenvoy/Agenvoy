@@ -1198,6 +1198,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// * a dropped file arrives as a paste; quote it before the textarea sees it so spaces survive as one path
+	if key, ok := msg.(tea.KeyMsg); ok && key.Paste {
+		if quoted, ok := quoteDroppedPaths(string(key.Runes)); ok {
+			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(quoted), Paste: true}
+		}
+	}
+
 	prev := t.textarea.Value()
 
 	var cmd tea.Cmd

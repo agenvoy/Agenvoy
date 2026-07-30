@@ -177,5 +177,6 @@ func isContextLengthError(err error) bool {
 		strings.Contains(msg, "reduce the length of the messages") ||
 		strings.Contains(msg, "too many tokens") ||
 		strings.Contains(msg, "maximum context") ||
+		strings.Contains(msg, "maximum prompt length") ||
 		strings.Contains(msg, "context length")
 }

@@ -64,9 +64,16 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `limits.port` | `17989` | 本機 HTTP daemon 連接埠 |
 | `limits.max_tool_iterations` | `128` | 單次 Agent 工作的工具迭代上限 |
 | `limits.agent_send_timeout_seconds` | `600` | 模型請求逾時秒數 |
-| `limits.max_history_messages` | `8` | 保留的近期歷史訊息數 |
-| `limits.max_session_tasks` | `NumCPU × 2` | 每個 session 的並行工作數上限；超出的任務排隊等待而非失敗（硬上限 `NumCPU × 4`） |
-| `limits.max_subagent_timeout_min` | `10` | Subagent 逾時分鐘數（無論設定值為何，硬上限固定 `60`） |
+| `limits.max_history_messages` | `24` | 保留的近期歷史訊息數 |
+| `limits.max_history_bytes` | `5242880` | 歷史訊息大小上限（位元組） |
+
+套件內建預設值（目前不會從 `config.json` 讀取）：
+
+| 常數 | 預設值 | 說明 |
+|---|---:|---|
+| `MaxSessionTasks` | `NumCPU × 4` | 每個 session 的並行工作數上限；超出的任務排隊等待而非失敗 |
+| `MaxSubagentTimeoutMin` | `30` | Subagent 逾時分鐘數 |
+| `MaxResumeWaitMin` | `60` | Pending resume 等待回答的分鐘數 |
 
 ```json
 {
@@ -80,7 +87,7 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 ### MCP Client
 
-在 `~/.config/agenvoy/mcp.json` 登錄 stdio 或 streamable HTTP MCP server：
+MCP client 與 server 位於 `internal/runtime/mcp`，並使用官方 [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk)。在 `~/.config/agenvoy/mcp.json` 登錄 stdio 或 streamable HTTP MCP server。Client 會訂閱工具清單變更通知，遠端 server 更新目錄時會重新註冊工具；server instructions 會注入 agent system prompt：
 
 ```json
 {
@@ -280,11 +287,16 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `run_command` | 在 shell 驗證與 sandbox 約束下執行命令 |
 | `ask_user`、`write_todo` | 互動式輸入與多步驟進度追蹤 |
 | `search_tools` | 搜尋已註冊工具 |
+| `reasoning_guide` | 依 `topic` 取得完整推理規則（`tool_generate`、`tool_error`、`subagent_dispatch`、`html_render` 等） |
 | `invoke_subagent` | 委派單一子任務 |
 
-## 架構入口
+## 架構
 
 請參閱完整的 [Architecture](./architecture.md) 與繁體中文 [架構](./architecture.zh.md)。
+
+## License
+
+本專案以 [Apache License 2.0](../LICENSE) 授權。
 
 ***
 
