@@ -93,7 +93,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具都進入同一註冊表。檔案與命令操作在執行前會通過 denied path、allow rule、確認閘門、shell 驗證與 sandbox enforcement。
+內建工具與探索到的 API、script、extension、MCP 工具都進入同一註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。檔案與命令操作在執行前會通過 denied path、allow rule、確認閘門、shell 驗證與 sandbox enforcement。推理規則透過單一 `reasoning_guide(topic=...)` 工具按需取得。
 
 ```mermaid
 graph TB
@@ -137,7 +137,7 @@ graph TB
 
 每次執行都會**先**把任務登記進 `status.json`、並登記自己的取消函式，**才**去競爭該 session 的併發名額，因此被上限擋住而排隊中的任務依然看得到、也取消得掉，不會無聲卡住。每筆任務都記錄執行它的行程 PID；任何讀取端只要發現某筆任務的 PID 已不存在，就視為 stale 並清除——被砍掉或崩潰的行程因此無法讓 session 永久停留在 online 狀態。
 
-併發上限是 per session（`limits.max_session_tasks`，預設為 CPU 數量的兩倍）。不同 session 之間不會互相阻塞或取消，超過上限的任務是排隊等待，而不是被拒絕。
+併發上限是 per session（`MaxSessionTasks`，預設為 CPU 數量的四倍）。不同 session 之間不會互相阻塞或取消，超過上限的任務是排隊等待，而不是被拒絕。
 
 ```mermaid
 graph TB
@@ -158,7 +158,7 @@ graph TB
 
 ## 模組：聊天與 MCP 整合
 
-Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 可經由 stdio 或 streamable HTTP 使用；Agenvoy 也能以 stdin JSON-RPC MCP server 形式暴露本機工具。
+Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
 
 ```mermaid
 graph TB
@@ -172,10 +172,11 @@ graph TB
         Format --> Reply[回覆／狀態／Push]
 
         MCPConfig[mcp.json] --> Transport{Transport}
-        Transport --> Stdio[Stdio Client]
-        Transport --> StreamHTTP[Streamable HTTP Client]
-        Stdio --> MCPTools[已註冊 MCP Tools]
-        StreamHTTP --> MCPTools
+        Transport --> SDKClient[go-sdk Client]
+        SDKClient --> MCPTools[已註冊 MCP Tools]
+        SDKClient --> Refresh[tools/list_changed 刷新]
+        Refresh --> MCPTools
+        SDKClient --> Instructions[Server instructions → system prompt]
         ExternalClient[外部 MCP Client] --> LocalMCP[stdin JSON-RPC Server]
         LocalMCP --> Tools[本機工具註冊表]
     end

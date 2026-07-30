@@ -26,6 +26,15 @@ go build -tags fts5 -ldflags "-X github.com/pardnchiu/agenvoy/internal/runtime/t
 ./agen
 ```
 
+### Using Makefile
+
+```bash
+make build
+agen
+```
+
+`make build` installs the binary to `/usr/local/bin/agen` and therefore requires `sudo`.
+
 ### Run without installing
 
 ```bash
@@ -45,14 +54,20 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 | `limits.port` | `17989` | Local HTTP daemon port |
 | `limits.max_tool_iterations` | `128` | Maximum tool iterations per run |
 | `limits.agent_send_timeout_seconds` | `600` | Model-request timeout |
-| `limits.max_history_messages` | `8` | Recent history messages retained |
+| `limits.max_history_messages` | `24` | Recent history messages retained |
 | `limits.max_history_bytes` | `5242880` | History-size ceiling |
-| `limits.max_session_tasks` | `NumCPU × 2` | Concurrent tasks per session; further tasks queue rather than fail (hard-capped at `NumCPU × 4`) |
-| `limits.max_subagent_timeout_min` | `10` | Subagent timeout in minutes (hard-capped at `60` regardless of config) |
+
+Package defaults (not currently read from `config.json`):
+
+| Constant | Default | Description |
+|---|---:|---|
+| `MaxSessionTasks` | `NumCPU × 4` | Concurrent tasks per session; further tasks queue rather than fail |
+| `MaxSubagentTimeoutMin` | `30` | Subagent timeout in minutes |
+| `MaxResumeWaitMin` | `60` | How long a pending resume waits for answers |
 
 ### MCP client configuration
 
-Configure stdio or streamable HTTP MCP servers in `~/.config/agenvoy/mcp.json`:
+MCP client and server live in `internal/runtime/mcp` and use the official [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk). Configure stdio or streamable HTTP MCP servers in `~/.config/agenvoy/mcp.json`. Clients subscribe to tool-list change notifications and re-register tools when a remote server updates its catalog; server instructions are surfaced into the agent system prompt.
 
 ```json
 {
@@ -232,6 +247,18 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/torii/error` | **local** — read the tool-error memory store; unfiltered when `tool`/`keyword` are both omitted. |
+
+## Tool Reference
+
+| Tool | Purpose |
+|---|---|
+| `read_files`, `list_files`, `glob_files`, `search_files` | Batch-read, list, and search files |
+| `write_file`, `patch_file` | Create, overwrite, or precisely edit files |
+| `run_command` | Run commands under shell validation and sandbox constraints |
+| `ask_user`, `write_todo` | Interactive input and multi-step progress tracking |
+| `search_tools` | Search registered tools |
+| `reasoning_guide` | Fetch full reasoning rules by `topic` (`tool_generate`, `tool_error`, `subagent_dispatch`, `html_render`, …) |
+| `invoke_subagent` | Delegate a single subtask |
 
 ## Architecture
 

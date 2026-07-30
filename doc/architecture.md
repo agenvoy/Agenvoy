@@ -93,7 +93,7 @@ graph TB
 
 ## Module: Tool Registry and Sandbox
 
-Built-in tools and discovered API, script, extension, and MCP tools enter one registry. Before execution, file and command operations pass through denied-path checks, allow rules, confirmation gates, shell validation, and sandbox enforcement.
+Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Before execution, file and command operations pass through denied-path checks, allow rules, confirmation gates, shell validation, and sandbox enforcement. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
 
 ```mermaid
 graph TB
@@ -137,7 +137,7 @@ graph TB
 
 Every execution registers itself in `status.json` — and registers its cancel function — *before* competing for a per-session concurrency slot, so a task queued behind the limit stays observable and cancellable instead of blocking invisibly. Each task records the PID of the process running it; any reader that finds a task whose PID is no longer alive treats it as stale and clears it, so a killed or crashed process cannot leave a session permanently marked online.
 
-Concurrency is per session (`limits.max_session_tasks`, defaulting to twice the CPU count). Sessions never block or cancel one another, and exceeding the limit queues a task rather than rejecting it.
+Concurrency is per session (`MaxSessionTasks`, defaulting to four times the CPU count). Sessions never block or cancel one another, and exceeding the limit queues a task rather than rejecting it.
 
 ```mermaid
 graph TB
@@ -158,7 +158,7 @@ graph TB
 
 ## Module: Chat and MCP Integrations
 
-Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP; Agenvoy can also expose local tools as a stdin JSON-RPC MCP server.
+Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
 
 ```mermaid
 graph TB
@@ -172,10 +172,11 @@ graph TB
         Format --> Reply[Reply / status / push]
 
         MCPConfig[mcp.json] --> Transport{Transport}
-        Transport --> Stdio[Stdio client]
-        Transport --> StreamHTTP[Streamable HTTP client]
-        Stdio --> MCPTools[Registered MCP tools]
-        StreamHTTP --> MCPTools
+        Transport --> SDKClient[go-sdk client]
+        SDKClient --> MCPTools[Registered MCP tools]
+        SDKClient --> Refresh[tools/list_changed refresh]
+        Refresh --> MCPTools
+        SDKClient --> Instructions[Server instructions → system prompt]
         ExternalClient[External MCP client] --> LocalMCP[stdin JSON-RPC server]
         LocalMCP --> Tools[Local tool registry]
     end
