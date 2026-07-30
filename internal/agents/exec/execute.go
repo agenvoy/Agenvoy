@@ -352,7 +352,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
 		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"format_chatbot", "list_chatbot", "send_to_chatbot")
+			"list_chatbot", "send_to_chatbot")
 	}
 
 	if len(data.ExcludeTools) > 0 {

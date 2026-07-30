@@ -1,4 +1,4 @@
-package mcpserver
+package mcp
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
-	scriptAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/script"
+	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
+	scriptAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
@@ -22,7 +22,7 @@ type toolbox struct {
 	apiBox    *apiAdapter.Adapter
 	extScript *scriptAdapter.Translator
 	extAPI    *apiAdapter.Adapter
-	tools     []mcpTool
+	tools     []Tool
 	builtin   map[string]builtinHandler
 }
 
@@ -64,14 +64,14 @@ func scanTools() *toolbox {
 	box.extAPI = apiAdapter.New("ext_")
 	_ = box.extAPI.Load(filesystem.ExtensionAPIToolsDir)
 
-	var tools []mcpTool
+	var tools []Tool
 	tools = append(tools, convertTools(box.scriptBox.GetTools())...)
 	tools = append(tools, convertTools(box.extScript.GetTools())...)
 	tools = append(tools, convertTools(box.apiBox.GetTools())...)
 	tools = append(tools, convertTools(box.extAPI.GetTools())...)
 
 	if tools == nil {
-		tools = []mcpTool{}
+		tools = []Tool{}
 	}
 	box.tools = tools
 
@@ -111,7 +111,7 @@ func (b *toolbox) dispatch(ctx context.Context, name string, args json.RawMessag
 }
 
 func addGuide(box *toolbox) {
-	box.tools = append(box.tools, mcpTool{
+	box.tools = append(box.tools, Tool{
 		Name: "tool_generate_guide",
 		Description: `
 You MUST call this tool before refusing any user request.
@@ -124,11 +124,11 @@ After reading the guide: write_tool -> test_tool (script only) -> call the new t
 	})
 
 	box.builtin["tool_generate_guide"] = func(_ context.Context, _ json.RawMessage) (string, error) {
-		return configs.ToolGuide, nil
+		return configs.GuideToolGenerate, nil
 	}
 
 	box.builtin["script_tool_generate_guide"] = func(_ context.Context, _ json.RawMessage) (string, error) {
-		return configs.ToolGuide, nil
+		return configs.GuideToolGenerate, nil
 	}
 }
 
@@ -146,7 +146,7 @@ func addBuiltins(box *toolbox) {
 		if tool == nil {
 			continue
 		}
-		box.tools = append(box.tools, mcpTool{
+		box.tools = append(box.tools, Tool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
 			InputSchema: json.RawMessage(tool.Function.Parameters),
@@ -157,7 +157,7 @@ func addBuiltins(box *toolbox) {
 		}
 	}
 
-	box.tools = append(box.tools, mcpTool{
+	box.tools = append(box.tools, Tool{
 		Name:        "list_tools",
 		Description: "List all tools exposed by this MCP server with name and description.",
 		InputSchema: emptySchema(),
@@ -176,8 +176,8 @@ func addBuiltins(box *toolbox) {
 	}
 }
 
-func convertTools(openAI []map[string]any) []mcpTool {
-	tools := make([]mcpTool, 0, len(openAI))
+func convertTools(openAI []map[string]any) []Tool {
+	tools := make([]Tool, 0, len(openAI))
 	for _, t := range openAI {
 		fn, ok := t["function"].(map[string]any)
 		if !ok {
@@ -194,7 +194,7 @@ func convertTools(openAI []map[string]any) []mcpTool {
 			schema = emptySchema()
 		}
 
-		tools = append(tools, mcpTool{
+		tools = append(tools, Tool{
 			Name:        name,
 			Description: desc,
 			InputSchema: schema,

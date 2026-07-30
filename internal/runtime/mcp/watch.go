@@ -1,4 +1,4 @@
-package mcpserver
+package mcp
 
 import (
 	"context"
@@ -7,12 +7,29 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-type notification struct {
-	JSONRPC string `json:"jsonrpc"`
-	Method  string `json:"method"`
+func addWatch(watcher *fsnotify.Watcher, dir string) {
+	if err := watcher.Add(dir); err != nil {
+		slog.Warn("fsnotify.Add",
+			slog.String("dir", dir),
+			slog.String("error", err.Error()))
+	}
+}
+
+func listToolDirs(dir string) []string {
+	entries, err := go_pkg_filesystem_reader.ListDirs(dir)
+	if err != nil {
+		return nil
+	}
+	list := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		list = append(list, entry.Path)
+	}
+	return list
 }
 
 func (s *Server) notify() {
@@ -39,10 +56,9 @@ func (s *Server) watch(ctx context.Context) {
 		filesystem.ExtensionAPIToolsDir,
 	}
 	for _, dir := range dirs {
-		if err := watcher.Add(dir); err != nil {
-			slog.Warn("fsnotify.Add",
-				slog.String("dir", dir),
-				slog.String("error", err.Error()))
+		addWatch(watcher, dir)
+		for _, sub := range listToolDirs(dir) {
+			addWatch(watcher, sub)
 		}
 	}
 
@@ -65,6 +81,9 @@ func (s *Server) watch(ctx context.Context) {
 				}
 				if !ev.Has(fsnotify.Create) && !ev.Has(fsnotify.Write) && !ev.Has(fsnotify.Remove) && !ev.Has(fsnotify.Rename) {
 					continue
+				}
+				if ev.Has(fsnotify.Create) && go_pkg_filesystem_reader.IsDir(ev.Name) {
+					addWatch(watcher, ev.Name)
 				}
 
 				if debounce != nil {

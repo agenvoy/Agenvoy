@@ -37,7 +37,7 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
-	"github.com/pardnchiu/agenvoy/internal/toolAdapter/mcp"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	codexImage2 "github.com/pardnchiu/agenvoy/internal/tools/external/image2"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"

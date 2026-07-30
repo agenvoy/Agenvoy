@@ -73,7 +73,6 @@ var toolDisplayName = map[string]string{
 	"restore_revision":     "Restore",
 	"read_error":           "Read",
 	"remember_error":       "Remember",
-	"format_chatbot":       "Format",
 	"send_to_chatbot":      "Send",
 	"send_http_request":    "Request",
 	"transcribe_media":     "Transcribe",

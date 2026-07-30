@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/toolAdapter/api"
+	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
