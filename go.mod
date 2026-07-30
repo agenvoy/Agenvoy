@@ -9,6 +9,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-telegram/bot v1.20.0
+	github.com/line/line-bot-sdk-go/v8 v8.18.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/muesli/reflow v0.3.0
 	github.com/pardnchiu/ToriiDB v0.5.1

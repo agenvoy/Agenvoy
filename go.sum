@@ -102,6 +102,8 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/leodido/go-urn v1.4.0 h1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=
 github.com/leodido/go-urn v1.4.0/go.mod h1:bvxc+MVxLKB4z00jd1z+Dvzr47oO32F/QSNjSBOlFxI=
+github.com/line/line-bot-sdk-go/v8 v8.18.0 h1:YbkGTFixMwTFtWhWwdu6lExbkuQGUCFHukLtC7YeMO4=
+github.com/line/line-bot-sdk-go/v8 v8.18.0/go.mod h1:AeSRUuu7WGgveGDJb6DyKyFUOst2UB2aF6LO2cQeuXs=
 github.com/lucasb-eyer/go-colorful v1.4.0 h1:UtrWVfLdarDgc44HcS7pYloGHJUjHV/4FwW4TvVgFr4=
 github.com/lucasb-eyer/go-colorful v1.4.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
@@ -135,8 +137,6 @@ github.com/pardnchiu/go-bot v0.4.3 h1:N+uQv+cdNZgNXMeSEfCRfYBaAULYsCIFcRVJYIAYDT
 github.com/pardnchiu/go-bot v0.4.3/go.mod h1:9eE+MLerrx6XTz/WS0tGPiPdjKCGGeOHPRhIGfD1HfI=
 github.com/pardnchiu/go-browser v0.3.0 h1:AYvPM9zEizY119QXJmqOumIX+OVoUNFuGKO0Mur/m90=
 github.com/pardnchiu/go-browser v0.3.0/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
-github.com/pardnchiu/go-llm-router v0.3.0 h1:AkVcvjmNGEu0P9aKNy1+4VCJ/qmoDAMZVk1WB7l8oiQ=
-github.com/pardnchiu/go-llm-router v0.3.0/go.mod h1:yyou5VYxxvqwrmwwrm5f1RFPXHiSIQ0x1rZ+okpN91g=
 github.com/pardnchiu/go-llm-router v0.3.1 h1:iqxwP0VzrjkAaPt4U+oZC/ZQH54JcjtZE4gLBFlvR0k=
 github.com/pardnchiu/go-llm-router v0.3.1/go.mod h1:yyou5VYxxvqwrmwwrm5f1RFPXHiSIQ0x1rZ+okpN91g=
 github.com/pardnchiu/go-pkg v0.13.7 h1:H9WpmfHjIRviHsq3W54FJMTpjEnG6boopjxG+dkPpHM=
