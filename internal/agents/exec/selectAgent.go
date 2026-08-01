@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -84,7 +85,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	picked := []string{}
 	seen := map[string]bool{}
 
-	bot = checkCooldown(bot, registry)
+	bot = cooldown.Check(bot, registry)
 
 	if bot != nil {
 		agentJson, err := json.Marshal(registry.Entries)
@@ -106,7 +107,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone)
 				cancel()
 				if sendErr == nil {
-					clearCooldown(bot.Name())
+					cooldown.Clear(bot.Name())
 					if resp != nil && len(resp.Choices) > 0 {
 						if content, ok := resp.Choices[0].Message.Content.(string); ok {
 							raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
@@ -119,7 +120,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 									if _, ok := known[n]; !ok {
 										continue
 									}
-									if isCoolingDown(n) {
+									if cooldown.IsCoolingDown(n) {
 										dead[n] = true
 										continue
 									}
@@ -134,9 +135,9 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				dead[bot.Name()] = true
 				rateLimited := sendCode == 429
 				if rateLimited {
-					registerCooldown(bot.Name())
+					cooldown.Register(bot.Name())
 				}
-				next := checkCooldown(nil, registry)
+				next := cooldown.Check(nil, registry)
 				hasNext := next != nil && !dead[next.Name()]
 				if ctx.Err() == nil && !rateLimited {
 					slog.Warn("dispatcher routing failed",

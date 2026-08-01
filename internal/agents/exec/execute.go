@@ -17,9 +17,12 @@ import (
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -37,11 +40,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
-)
-
-const (
-	poisonRefusal     = "無法執行此操作"
-	guardrailSentinel = "[KARAPPO]"
 )
 
 var (
@@ -75,7 +73,7 @@ func splitThinkTag(s string) (think, rest string) {
 }
 
 func isGuardrailRefusal(content string) bool {
-	return strings.Contains(content, guardrailSentinel)
+	return strings.Contains(content, configs.GuardrailSentinel)
 }
 
 func StripModelResponse(str string) string {
@@ -432,15 +430,15 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 		if firstAttempt {
 			firstAttempt = false
-		} else if !compactFailed && lastInputTokens >= compactThreshold(data.Agent.Name()) {
+		} else if !compactFailed && lastInputTokens >= compact.CheckThreshold(data.Agent.Name()) {
 			compacted := false
 			if !oldHistoriesCompacted {
-				compacted = extractOldHistories(ctx, data.Agent, session, &usage, events)
+				compacted = compact.ExtractOldHistories(ctx, data.Agent, session, &usage, events)
 				oldHistoriesCompacted = true
 			}
 			if !compacted {
 				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
-				compacted = compactExec(ctx, data.Agent, session, &usage, exec.PendingTask)
+				compacted = compact.ToolHistory(ctx, data.Agent, session, &usage, exec.PendingTask)
 			}
 			if compacted {
 				lastInputTokens = 0
@@ -448,7 +446,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				compactFailed = true
 			}
 		}
-		assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
+		assembled := compact.AssembleMessages(session, exec.PendingTask)
 		sendStart := time.Now()
 		sendCtx, cancelSend := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
@@ -532,7 +530,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		if switched {
 			cancelSend()
 			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
-			if !rawToolDumpFallback(session, exec.PendingTask) {
+			if !compact.RawToolFallback(session, exec.PendingTask) {
 				session.ToolHistories = nil
 			}
 			alreadyCall = make(map[string]string)
@@ -556,18 +554,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if sendCode == 429 || isQuotaExhaustedError(err, sendCode) {
-				reason := "rate limited"
-				if sendCode != 429 {
-					reason = "quota exhausted"
-				}
-				registerCooldown(modelName)
+			if reason := cooldown.Reason(err, sendCode); reason != "" {
+				cooldown.Register(modelName)
 				slog.Warn("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
 			}
 
-			if isContextLengthError(err) {
+			if compact.IsContextLengthError(err) {
 				if len(session.OldHistories) == 0 && len(session.ToolHistories) == 0 {
 					slog.Error("data.Agent.Send context length exceeded, nothing left to trim",
 						slog.String("session", session.ID),
@@ -586,7 +580,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
-				trimOnContextExceeded(&session.OldHistories, &session.ToolHistories)
+				compact.TrimFallback(&session.OldHistories, &session.ToolHistories)
 				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
 					slog.String("session", session.ID),
 					slog.Int("attempts", sendFailCount))
@@ -628,7 +622,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				}
 				data.Agent = next
 				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
-				if !rawToolDumpFallback(session, exec.PendingTask) {
+				if !compact.RawToolFallback(session, exec.PendingTask) {
 					session.ToolHistories = nil
 				}
 				alreadyCall = make(map[string]string)
@@ -660,7 +654,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
-		clearCooldown(data.Agent.Name())
+		cooldown.Clear(data.Agent.Name())
 		sendFailCount = 0
 		timeoutRetryCount = 0
 
@@ -772,9 +766,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			emptyCount = 0
 
 			if isGuardrailRefusal(stripped) {
-				sendText(events, poisonRefusal)
+				sendText(events, configs.PoisonRefusal)
 				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
-				interactive.FinalizePending(session.ID, exec.PendingTask, poisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
@@ -816,14 +810,14 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		return nil
 	}
 
-	assembled := assembleMessages(session.SystemPrompts, session.OldHistories, session.SummaryMessage, session.UserInput, session.ToolHistories, exec.PendingTask)
+	assembled := compact.AssembleMessages(session, exec.PendingTask)
 	summaryMessages := append(assembled, provider.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
 	resp, _, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
 	if err == nil {
-		clearCooldown(data.Agent.Name())
+		cooldown.Clear(data.Agent.Name())
 	}
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input
@@ -838,9 +832,9 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
-				sendText(events, poisonRefusal)
+				sendText(events, configs.PoisonRefusal)
 				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
-				interactive.FinalizePending(session.ID, exec.PendingTask, poisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
@@ -937,7 +931,7 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 			(message.Role == "assistant" && len(message.ToolCalls) > 0) {
 			continue
 		}
-		if content, ok := message.Content.(string); ok && (strings.Contains(content, poisonRefusal) || strings.Contains(content, guardrailSentinel)) {
+		if content, ok := message.Content.(string); ok && (strings.Contains(content, configs.PoisonRefusal) || strings.Contains(content, configs.GuardrailSentinel)) {
 			continue
 		}
 		delta = append(delta, message)

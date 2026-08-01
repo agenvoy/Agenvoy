@@ -9,18 +9,18 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
-	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
 func init() {
@@ -111,15 +111,14 @@ func runSummaryCron() {
 		if len(histories) == 0 {
 			continue
 		}
-		bgCtx := context.Background()
-		summaryAgent := agents.SummaryBot()
-		if summaryAgent == nil {
-			summaryAgent = agents.DispatcherBot()
+		bgCtx, cancel := context.WithTimeout(context.Background(), time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+		err := agentSummary.Generate(bgCtx, sid, histories)
+		cancel()
+		if err != nil {
+			slog.Warn("agentSummary.Generate",
+				slog.String("session", sid),
+				slog.String("error", err.Error()))
 		}
-		if summaryAgent == nil {
-			continue
-		}
-		agentSummary.Generate(bgCtx, summaryAgent, sid, histories)
 	}
 }
 
