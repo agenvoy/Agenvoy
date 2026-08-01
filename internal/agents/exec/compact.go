@@ -9,11 +9,13 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
+	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
@@ -35,7 +37,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := summaryRouter()
+	agent := agents.Registry().Fallback
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for compact")
 	}
@@ -191,24 +193,12 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []p
 		sb.WriteString("\n")
 	}
 
-	prompt := strings.TrimSpace(configs.CompactHistoryPrompt)
-	resp, _, err := agent.Send(ctx, []provider.Message{
-		{Role: "system", Content: prompt},
+	str := agentSummary.Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, []provider.Message{
+		{Role: "system", Content: strings.TrimSpace(configs.CompactHistoryPrompt)},
 		{Role: "user", Content: sb.String()},
-	}, nil, provider.ReasoningMedium)
-	if err != nil {
-		return nil, fmt.Errorf("agent send: %w", err)
-	}
-	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("empty response")
-	}
-
-	prov, model, _ := strings.Cut(agent.Name(), "@")
-	usagelog.Append(agentTypes.SessionIDFrom(ctx), prov, model, resp.Usage)
-
-	str, ok := resp.Choices[0].Message.Content.(string)
-	if !ok {
-		return nil, fmt.Errorf("non-string response")
+	}, provider.ReasoningMedium, compact.CheckThreshold)
+	if str == "" {
+		return nil, fmt.Errorf("no usable response")
 	}
 
 	return parseRemoveIndices(str, len(exchanges))

@@ -3,16 +3,12 @@ package compact
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents"
+	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -68,7 +64,7 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 	}
 
 	// * step7: start to compact old history
-	result := sendCompact(ctx, agent, session.ID, usage, messages)
+	result := agentSummary.Send(ctx, agent, session.ID, usage, messages, provider.ReasoningNone, CheckThreshold)
 	if result == "" {
 		return false
 	}
@@ -94,67 +90,4 @@ func extractUserInput(input provider.Message) string {
 		}
 	}
 	return ""
-}
-
-func sendCompact(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *provider.Usage, messages []provider.Message) string {
-	sender := agent
-	usedSummary := false
-	if summaryBot := agents.SummaryBot(); summaryBot != nil && payloadRunes(messages) < CheckThreshold(summaryBot.Name()) {
-		sender = summaryBot
-		usedSummary = true
-	}
-
-	resp, err := send(ctx, sender, messages)
-	if err != nil && usedSummary {
-		slog.Warn("sendCompact: summary model send",
-			slog.String("session", sessionID),
-			slog.String("model", sender.Name()),
-			slog.String("error", err.Error()))
-		sender = agent
-		resp, err = send(ctx, sender, messages)
-	}
-	if err != nil {
-		slog.Warn("sendCompact: send",
-			slog.String("session", sessionID),
-			slog.String("model", sender.Name()),
-			slog.String("error", err.Error()))
-		return ""
-	}
-	if len(resp.Choices) == 0 {
-		return ""
-	}
-
-	if usage != nil {
-		usage.Input += resp.Usage.Input
-		usage.Output += resp.Usage.Output
-		usage.CacheCreate += resp.Usage.CacheCreate
-		usage.CacheRead += resp.Usage.CacheRead
-	}
-
-	prov, model, _ := strings.Cut(sender.Name(), "@")
-	usagelog.Append(sessionID, prov, model, resp.Usage)
-
-	result, ok := resp.Choices[0].Message.Content.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(result)
-}
-
-func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Message) (*provider.Output, error) {
-	compactCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
-	defer cancel()
-
-	resp, _, err := agent.Send(compactCtx, messages, nil, provider.ReasoningNone)
-	return resp, err
-}
-
-func payloadRunes(messages []provider.Message) int {
-	total := 0
-	for _, msg := range messages {
-		if content, ok := msg.Content.(string); ok {
-			total += utf8.RuneCountInString(content)
-		}
-	}
-	return total
 }

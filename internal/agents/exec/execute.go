@@ -22,6 +22,7 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -553,12 +554,8 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if sendCode == 429 || isQuotaExhaustedError(err, sendCode) {
-				reason := "rate limited"
-				if sendCode != 429 {
-					reason = "quota exhausted"
-				}
-				registerCooldown(modelName)
+			if reason := cooldown.Reason(err, sendCode); reason != "" {
+				cooldown.Register(modelName)
 				slog.Warn("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
@@ -657,7 +654,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
-		clearCooldown(data.Agent.Name())
+		cooldown.Clear(data.Agent.Name())
 		sendFailCount = 0
 		timeoutRetryCount = 0
 
@@ -820,7 +817,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	})
 	resp, _, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
 	if err == nil {
-		clearCooldown(data.Agent.Name())
+		cooldown.Clear(data.Agent.Name())
 	}
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input

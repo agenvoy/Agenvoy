@@ -1,4 +1,4 @@
-package exec
+package cooldown
 
 import (
 	"strings"
@@ -27,15 +27,15 @@ var (
 	}
 )
 
-func registerCooldown(agentName string) {
+func Register(agentName string) {
 	cooldownMap.Store(agentName, time.Now().Add(rateLimitCooldown).Unix())
 }
 
-func clearCooldown(agentName string) {
+func Clear(agentName string) {
 	cooldownMap.Delete(agentName)
 }
 
-func isCoolingDown(agentName string) bool {
+func IsCoolingDown(agentName string) bool {
 	v, ok := cooldownMap.Load(agentName)
 	if !ok {
 		return false
@@ -48,8 +48,7 @@ func isCoolingDown(agentName string) bool {
 	return true
 }
 
-func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.Agent {
-	// * only one model, skip cooldown
+func Check(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.Agent {
 	if len(registry.Entries) <= 1 {
 		if bot != nil {
 			return bot
@@ -60,7 +59,7 @@ func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agen
 		return nil
 	}
 
-	if bot != nil && !isCoolingDown(bot.Name()) {
+	if bot != nil && !IsCoolingDown(bot.Name()) {
 		return bot
 	}
 
@@ -74,7 +73,7 @@ func checkCooldown(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agen
 	if best := bestCandidate(registry, excludePrefix, true); best != nil {
 		return best
 	}
-	// * no healthy, skip cooldown
+
 	if best := bestCandidate(registry, excludePrefix, false); best != nil {
 		return best
 	}
@@ -88,7 +87,7 @@ func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, resp
 		if excludePrefix != "" && strings.HasPrefix(e.Name, excludePrefix) {
 			continue
 		}
-		if respectCooldown && isCoolingDown(e.Name) {
+		if respectCooldown && IsCoolingDown(e.Name) {
 			continue
 		}
 		providor, _, _ := strings.Cut(e.Name, "@")
@@ -102,28 +101,4 @@ func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, resp
 		}
 	}
 	return best
-}
-
-func isQuotaExhaustedError(err error, code int) bool {
-	if err == nil {
-		return false
-	}
-	if code == 402 || code == 403 {
-		return true
-	}
-	s := strings.ToLower(err.Error())
-	for _, marker := range []string{
-		"spending-limit",
-		"out of credits",
-		"insufficient_quota",
-		"insufficient quota",
-		"usage_limit_reached",
-		"quota exceeded",
-		"billing",
-	} {
-		if strings.Contains(s, marker) {
-			return true
-		}
-	}
-	return false
 }

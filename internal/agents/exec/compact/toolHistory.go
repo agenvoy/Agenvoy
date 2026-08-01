@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/todo"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -63,7 +64,7 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 	}
 
 	// * step8: start to compact tool histories
-	result := sendCompact(ctx, agent, session.ID, usage, messages)
+	result := agentSummary.Send(ctx, agent, session.ID, usage, messages, provider.ReasoningNone, CheckThreshold)
 	if result == "" {
 		return false
 	}
