@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -181,7 +182,7 @@ func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.
 
 const maxFallbackRounds = 3
 
-func nextAgent(ctx context.Context, sessionID, currentModel string, fallbacks *[]agentTypes.Agent, allAgents []agentTypes.Agent, round *int) (agentTypes.Agent, string) {
+func nextAgent(ctx context.Context, sessionID, currentModel string, fallbacks *[]agentTypes.Agent, allAgents []agentTypes.Agent, round *int, inputTokens int) (agentTypes.Agent, string) {
 	if model, _ := configBot.GetModel(sessionID); model != "" && model != configBot.DefaultModel {
 		return nil, ""
 	}
@@ -196,7 +197,8 @@ func nextAgent(ctx context.Context, sessionID, currentModel string, fallbacks *[
 	if len(others) == 0 {
 		return nil, ""
 	}
-	*fallbacks = filterOutPrefix(*fallbacks, prefix)
+	others = filterByWindow(others, inputTokens)
+	*fallbacks = filterByWindow(filterOutPrefix(*fallbacks, prefix), inputTokens)
 
 	for {
 		agent, name := pickHealthyFallback(ctx, fallbacks)
@@ -217,6 +219,24 @@ func nextAgent(ctx context.Context, sessionID, currentModel string, fallbacks *[
 		copy(rebuilt, others)
 		*fallbacks = rebuilt
 	}
+}
+
+func filterByWindow(agents []agentTypes.Agent, inputTokens int) []agentTypes.Agent {
+	if inputTokens <= 0 {
+		return agents
+	}
+
+	out := make([]agentTypes.Agent, 0, len(agents))
+	for _, a := range agents {
+		if a == nil || compact.CheckThreshold(a.Name()) < inputTokens {
+			continue
+		}
+		out = append(out, a)
+	}
+	if len(out) == 0 {
+		return agents
+	}
+	return out
 }
 
 func filterOutPrefix(agents []agentTypes.Agent, prefix string) []agentTypes.Agent {

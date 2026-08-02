@@ -490,7 +490,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					watchdog.Reset(UnresponsiveRetryInterval)
 					continue
 				}
-				next, nextName := nextAgent(ctx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound)
+				next, nextName := nextAgent(ctx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 				if next == nil {
 					watchdog.Stop()
 					cancelSend()
@@ -538,7 +538,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			timeoutRetryCount = 0
 			emptyCount = 0
 			compactFailed = false
-			lastInputTokens = 0
 			continue
 		}
 		sendElapsed := time.Since(sendStart).Round(time.Second)
@@ -609,7 +608,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				continue
 			}
 
-			next, nextName := nextAgent(ctx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound)
+			next, nextName := nextAgent(ctx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 			if next != nil {
 				slog.Warn("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
@@ -630,7 +629,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				timeoutRetryCount = 0
 				emptyCount = 0
 				compactFailed = false
-				lastInputTokens = 0
 				continue
 			}
 
