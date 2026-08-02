@@ -9,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -71,7 +72,7 @@ func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Messa
 	sendCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 	defer cancel()
 
-	resp, _, err := agent.Send(sendCtx, messages, nil, reasoning)
+	resp, _, err := agent.Send(sendCtx, messages, nil, reasoning, fast.Mode())
 	return resp, err
 }
 

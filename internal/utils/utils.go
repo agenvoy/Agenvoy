@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -36,7 +37,7 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 	resp, _, err := agent.Send(healthCtx, []provider.Message{
 		{Role: "system", Content: "Reply with only: ok"},
 		{Role: "user", Content: "ping"},
-	}, nil, provider.ReasoningNone)
+	}, nil, provider.ReasoningNone, fast.Mode())
 	if err != nil || resp == nil || len(resp.Choices) == 0 {
 		return false
 	}
@@ -67,7 +68,6 @@ var toolDisplayName = map[string]string{
 	"calculate":            "Calc",
 	"download_file":        "Download",
 	"write_todo":           "Plan",
-	"generate_image":       "Image",
 	"invoke_subagent":      "Subagent",
 	"list_revisions":       "Revisions",
 	"restore_revision":     "Restore",

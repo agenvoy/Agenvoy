@@ -1,4 +1,4 @@
-package exec
+package compact
 
 import (
 	"context"
@@ -7,12 +7,13 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -25,11 +26,21 @@ type compactExchange struct {
 	end   int
 }
 
-func CompactHistory(ctx context.Context, sessionID string) (int, error) {
+var (
+	compactJSONRegex   = regexp.MustCompile(`\{[^{}]*"remove"\s*:\s*\[[^]]*\][^{}]*\}`)
+	metadataBlockRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
+)
+
+func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("session id is required")
 	}
-	ctx = agentTypes.WithSessionID(ctx, sessionID)
+
+	compactCtx, cancel := context.WithTimeout(
+		agentTypes.WithSessionID(ctx, sessionID),
+		2*time.Duration(filesystem.AgentSendTimeoutSec)*time.Second,
+	)
+	defer cancel()
 
 	old, _ := sessionHistory.Get(sessionID)
 	if len(old) < 4 {
@@ -58,7 +69,7 @@ func CompactHistory(ctx context.Context, sessionID string) (int, error) {
 	}
 
 	if len(remaining) >= 2 {
-		llmRemove, err := identifyRemovable(ctx, agent, old, exchanges, remaining)
+		llmRemove, err := identifyRemovable(compactCtx, agent, old, exchanges, remaining)
 		if err != nil {
 			slog.Warn("compact: LLM pass failed, using pre-filter only",
 				slog.String("session", sessionID),
@@ -126,29 +137,19 @@ func groupExchanges(messages []provider.Message) []compactExchange {
 
 func preFilter(messages []provider.Message, exchanges []compactExchange) map[int]bool {
 	removeSet := make(map[int]bool)
+	seen := make(map[string]bool)
 
-	seen := make(map[string]int)
 	for i := len(exchanges) - 1; i >= 0; i-- {
-		if removeSet[i] {
-			continue
-		}
-		userContent := extractUserContent(messages[exchanges[i].start])
-		normalized := strings.TrimSpace(userContent)
-		if normalized == "" {
+		content := extractUserContent(messages[exchanges[i].start])
+		if content == "" || seen[content] {
 			removeSet[i] = true
 			continue
 		}
-		if _, exists := seen[normalized]; exists {
-			removeSet[i] = true
-		} else {
-			seen[normalized] = i
-		}
+		seen[content] = true
 	}
 
 	return removeSet
 }
-
-var metadataBlockRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
 
 func extractUserContent(msg provider.Message) string {
 	content := historyStore.ExtractContent(msg.Content)
@@ -196,15 +197,13 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []p
 	str := agentSummary.Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, []provider.Message{
 		{Role: "system", Content: strings.TrimSpace(configs.CompactHistoryPrompt)},
 		{Role: "user", Content: sb.String()},
-	}, provider.ReasoningMedium, compact.CheckThreshold)
+	}, provider.ReasoningMedium, CheckThreshold)
 	if str == "" {
 		return nil, fmt.Errorf("no usable response")
 	}
 
 	return parseRemoveIndices(str, len(exchanges))
 }
-
-var compactJSONRegex = regexp.MustCompile(`\{[^{}]*"remove"\s*:\s*\[[^]]*\][^{}]*\}`)
 
 func parseRemoveIndices(raw string, exchangeCount int) (map[int]bool, error) {
 	match := compactJSONRegex.FindString(raw)

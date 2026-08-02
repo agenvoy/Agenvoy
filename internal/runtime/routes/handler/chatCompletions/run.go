@@ -55,7 +55,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	if workDir == "" {
 		workDir, _ = os.UserHomeDir()
 	}
-	data := exec.ExecData{
+	data := exec.ExecuteMeta{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

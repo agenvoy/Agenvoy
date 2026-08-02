@@ -2,14 +2,10 @@ package exec
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -23,118 +19,24 @@ import (
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 )
 
-var (
-	timestampHeaderRegex   = regexp.MustCompile(`\A\s*-{3,}\n(?:[^\n]*\n)*?-{3,}\n`)
-	contextMetaLineRegex   = regexp.MustCompile(`\A\s*(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)\s*[:：][^\n]*\n?`)
-	summaryBlockRegex      = regexp.MustCompile(`(?s)<summary>\s*[\s\S]*?\s*</summary>|\[summary\]\s*[\s\S]*?\s*\[/summary\]`)
-	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
-	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
-	thinkOpenRegex         = regexp.MustCompile(`(?i)<think>`)
-)
-
-func splitThinkTag(s string) (think, rest string) {
-	var parts []string
-	for _, m := range thinkTagRegex.FindAllStringSubmatch(s, -1) {
-		if t := strings.TrimSpace(m[1]); t != "" {
-			parts = append(parts, t)
-		}
-	}
-	rest = thinkTagRegex.ReplaceAllString(s, "")
-	if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
-		if t := strings.TrimSpace(rest[loc[1]:]); t != "" {
-			parts = append(parts, t)
-		}
-		rest = rest[:loc[0]]
-	}
-	rest = strings.TrimSpace(rest)
-	if len(parts) == 0 {
-		return "", rest
-	}
-	return strings.Join(parts, "\n"), rest
-}
-
-func isGuardrailRefusal(content string) bool {
-	return strings.Contains(content, configs.GuardrailSentinel)
-}
-
-func StripModelResponse(str string) string {
-	str = timestampHeaderRegex.ReplaceAllString(str, "")
-	for {
-		trimmed := contextMetaLineRegex.ReplaceAllString(str, "")
-		if trimmed == str {
-			break
-		}
-		str = trimmed
-	}
-	str = summaryBlockRegex.ReplaceAllString(str, "")
-	if loc := summaryLeakMarkerRegex.FindStringIndex(str); loc != nil {
-		dropped := strings.TrimSpace(str[loc[0]:])
-		head := dropped
-		if len(head) > 120 {
-			head = head[:120]
-		}
-		str = strings.TrimRight(str[:loc[0]], " \t\n\r#")
-		slog.Warn("StripModelResponse summary leak stripped",
-			slog.Int("dropped_chars", len(dropped)),
-			slog.String("dropped_head", head))
-	}
-	lines := strings.Split(str, "\n")
-	inFence := false
-	for i, line := range lines {
-		trimmed := strings.TrimLeft(line, " \t")
-		if strings.HasPrefix(trimmed, "```") {
-			inFence = !inFence
-		}
-		if !inFence {
-			lines[i] = trimmed
-		}
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
-}
-
-func isSendTimeoutError(err error, sendCtxErr error) bool {
-	if errors.Is(sendCtxErr, context.DeadlineExceeded) {
-		return true
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	s := err.Error()
-	switch {
-	case strings.Contains(s, "Client.Timeout"):
-		return true
-	case strings.Contains(s, "context deadline exceeded"):
-		return true
-	case strings.Contains(s, "timeout awaiting response headers"):
-		return true
-	case strings.Contains(s, "TLS handshake timeout"):
-		return true
-	case strings.Contains(s, "i/o timeout"):
-		return true
-	}
-	return false
-}
-
-type ExecData struct {
+type ExecuteMeta struct {
 	Agent             agentTypes.Agent
 	FallbackAgents    []agentTypes.Agent
 	WorkDir           string
@@ -162,35 +64,9 @@ type (
 	parentWorkDirKey  struct{}
 )
 
-func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
-	ctx = agentTypes.WithSessionID(ctx, session.ID)
-	executeStart := time.Now()
-
-	usedSkills := make(map[string]*skill.Skill)
-	var execTrace []execStep
-	if data.Skill != nil {
-		usedSkills[data.Skill.Name] = data.Skill
-	}
-	defer func() {
-		if len(usedSkills) == 0 {
-			return
-		}
-		hasError := false
-		for _, step := range execTrace {
-			if step.Error != "" {
-				hasError = true
-				break
-			}
-		}
-		if !hasError {
-			return
-		}
-		trace := make([]execStep, len(execTrace))
-		copy(trace, execTrace)
-		for _, s := range usedSkills {
-			go postSkillImprove(s, trace)
-		}
-	}()
+func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
+	execCtx := agentTypes.WithSessionID(ctx, session.ID)
+	execStart := time.Now()
 
 	if !allowAll {
 		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowSkill.Match(data.WorkDir, data.Skill.Name) {
@@ -198,24 +74,25 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 	}
 
-	ctx = context.WithValue(ctx, allowAllCtxKey{}, allowAll)
+	execCtx = context.WithValue(execCtx, allowAllCtxKey{}, allowAll)
 
 	if !allowAll {
-		ctx = context.WithValue(ctx, allowListRulesKey{}, allowTool.List(data.WorkDir))
+		execCtx = context.WithValue(execCtx, allowListRulesKey{}, allowTool.List(data.WorkDir))
 	}
 
 	if events != nil {
-		ctx = context.WithValue(ctx, parentEventsKey{}, events)
+		execCtx = context.WithValue(execCtx, parentEventsKey{}, events)
 	}
 
 	if strings.TrimSpace(data.WorkDir) != "" {
-		ctx = context.WithValue(ctx, parentWorkDirKey{}, data.WorkDir)
+		execCtx = context.WithValue(execCtx, parentWorkDirKey{}, data.WorkDir)
 	}
 
-	parentCtx := ctx
-	execCtx, execCancel := context.WithCancel(ctx)
+	// * pushCtx keeps the values but not the cancellation: push hooks still fire
+	// * after the turn is canceled
+	pushCtx := execCtx
+	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
-	ctx = execCtx
 
 	var taskID string
 	if session.ID != "" {
@@ -228,7 +105,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		registerCancel(taskID, execCancel)
 		defer unregisterCancel(taskID)
 
-		if err := sessionManager.AddConcurrent(ctx, session.ID); err != nil {
+		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
@@ -239,7 +116,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
-		pushCtx := parentCtx
 		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
@@ -341,9 +217,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			"list_rag", "search_rag")
 	}
 	cfg, _ := config.Load()
-	if !oauthCodex.HasToken() || cfg == nil || !cfg.EnableImage2 {
-		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
-	}
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
 	}
@@ -417,11 +290,11 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	firstAttempt := true
 
 	for range limit {
-		if ctx.Err() != nil {
-			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+		if execCtx.Err() != nil {
+			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 			interactive.DeletePending(session.ID, exec.PendingTask)
 			keepPending = false
-			return ctx.Err()
+			return execCtx.Err()
 		}
 		if pending := getSteer(session.ID); len(pending) > 0 {
 			raw := strings.Join(pending, "\n")
@@ -433,12 +306,12 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		} else if !compactFailed && lastInputTokens >= compact.CheckThreshold(data.Agent.Name()) {
 			compacted := false
 			if !oldHistoriesCompacted {
-				compacted = compact.ExtractOldHistories(ctx, data.Agent, session, &usage, events)
+				compacted = compact.ExtractOldHistories(execCtx, data.Agent, session, &usage, events)
 				oldHistoriesCompacted = true
 			}
 			if !compacted {
 				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
-				compacted = compact.ToolHistory(ctx, data.Agent, session, &usage, exec.PendingTask)
+				compacted = compact.ToolHistory(execCtx, data.Agent, session, &usage, exec.PendingTask)
 			}
 			if compacted {
 				lastInputTokens = 0
@@ -448,11 +321,11 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		}
 		assembled := compact.AssembleMessages(session, exec.PendingTask)
 		sendStart := time.Now()
-		sendCtx, cancelSend := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		go func() {
-			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
+			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning, fast.Mode())
 			resultCh <- sendOutcome{resp: r, code: c, err: e}
 		}()
 
@@ -465,18 +338,18 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	waitSend:
 		for {
 			select {
-			case <-ctx.Done():
+			case <-execCtx.Done():
 				watchdog.Stop()
 				cancelSend()
-				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 				interactive.DeletePending(session.ID, exec.PendingTask)
 				keepPending = false
-				return ctx.Err()
+				return execCtx.Err()
 			case out := <-resultCh:
 				resp, sendCode, err = out.resp, out.code, out.err
 				break waitSend
 			case <-watchdog.C:
-				if utils.CheckAgentEndpointAlive(ctx, data.Agent, HealthCheckTimeout) {
+				if utils.CheckAgentEndpointAlive(execCtx, data.Agent, HealthCheckTimeout) {
 					unresponsiveFailures = 0
 					watchdog.Reset(UnresponsiveProbeInterval)
 					continue
@@ -490,7 +363,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					watchdog.Reset(UnresponsiveRetryInterval)
 					continue
 				}
-				next, nextName := nextAgent(ctx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound)
+				next, nextName := nextAgent(execCtx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 				if next == nil {
 					watchdog.Stop()
 					cancelSend()
@@ -504,7 +377,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 						Type:     agentTypes.EventDone,
 						Model:    deadName,
 						Usage:    &usage,
-						Duration: time.Since(executeStart),
+						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
 					keepPending = false
@@ -538,18 +411,17 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			timeoutRetryCount = 0
 			emptyCount = 0
 			compactFailed = false
-			lastInputTokens = 0
 			continue
 		}
 		sendElapsed := time.Since(sendStart).Round(time.Second)
 		sendCtxErr := sendCtx.Err()
 		cancelSend()
 		if err != nil {
-			if ctx.Err() != nil {
-				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+			if execCtx.Err() != nil {
+				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 				interactive.DeletePending(session.ID, exec.PendingTask)
 				keepPending = false
-				return ctx.Err()
+				return execCtx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
@@ -573,7 +445,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
-						Duration: time.Since(executeStart),
+						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
 					keepPending = false
@@ -599,17 +471,17 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					slog.String("name", modelName),
 					slog.Int("attempt", timeoutRetryCount+1))
 				select {
-				case <-ctx.Done():
-					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(executeStart)}
+				case <-execCtx.Done():
+					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 					interactive.DeletePending(session.ID, exec.PendingTask)
 					keepPending = false
-					return ctx.Err()
+					return execCtx.Err()
 				case <-time.After(SendTimeoutRetryInterval):
 				}
 				continue
 			}
 
-			next, nextName := nextAgent(ctx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound)
+			next, nextName := nextAgent(execCtx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 			if next != nil {
 				slog.Warn("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
@@ -630,7 +502,6 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				timeoutRetryCount = 0
 				emptyCount = 0
 				compactFailed = false
-				lastInputTokens = 0
 				continue
 			}
 
@@ -648,7 +519,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 				Type:     agentTypes.EventDone,
 				Model:    modelName,
 				Usage:    &usage,
-				Duration: time.Since(executeStart),
+				Duration: time.Since(execStart),
 			}
 			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
 			keepPending = false
@@ -671,7 +542,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
 
 		if len(resp.Choices) == 0 {
-			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, executeStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart) {
 				keepPending = false
 				return nil
 			}
@@ -698,48 +569,12 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 					sendText(events, stripped)
 				}
 			}
-			toolsBefore := len(session.Tools)
-			session, alreadyCall, err = toolCall(ctx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
+			session, alreadyCall, err = toolCall(execCtx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
 				if errors.Is(err, ErrAskUserInterrupted) {
 					return nil
 				}
 				return err
-			}
-			for _, msg := range session.Tools[toolsBefore:] {
-				content, _ := msg.Content.(string)
-				step := execStep{Tool: extractToolName(content)}
-				if strings.Contains(content, " failed: ") {
-					if _, after, ok := strings.Cut(content, " failed: "); ok {
-						step.Error = after
-					}
-				}
-				if step.Tool != "" {
-					execTrace = append(execTrace, step)
-				}
-			}
-			if scanner != nil && scanner.Skills != nil {
-				for _, tc := range choice.Message.ToolCalls {
-					if strings.TrimSpace(tc.Function.Name) != "run_skill" {
-						continue
-					}
-					var p struct {
-						Skill string `json:"skill"`
-					}
-					if json.Unmarshal([]byte(tc.Function.Arguments), &p) != nil {
-						continue
-					}
-					name := strings.TrimSpace(p.Skill)
-					if name == "" {
-						continue
-					}
-					if _, ok := usedSkills[name]; ok {
-						continue
-					}
-					if s, ok := scanner.Skills.ByName[name]; ok && s != nil {
-						usedSkills[name] = s
-					}
-				}
 			}
 			continue
 		}
@@ -748,7 +583,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		case string:
 			str := value
 			if str == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, executeStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, execStart) {
 					keepPending = false
 					return nil
 				}
@@ -757,7 +592,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 			stripped := StripModelResponse(str)
 			if stripped == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, executeStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart) {
 					keepPending = false
 					return nil
 				}
@@ -767,7 +602,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 
 			if isGuardrailRefusal(stripped) {
 				sendText(events, configs.PoisonRefusal)
-				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
@@ -779,7 +614,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
 
-			if err := saveNewHistory(ctx, choice, session); err != nil {
+			if err := saveNewHistory(execCtx, choice, session); err != nil {
 				slog.Warn("writeHistory",
 					slog.String("session", session.ID),
 					slog.String("error", err.Error()))
@@ -794,7 +629,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			}
 
 		case nil:
-			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, executeStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, execStart) {
 				keepPending = false
 				return nil
 			}
@@ -804,7 +639,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			return fmt.Errorf("unexpected content type: %T", choice.Message.Content)
 		}
 
-		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 
 		keepPending = false
 		return nil
@@ -815,7 +650,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
-	resp, _, err := data.Agent.Send(ctx, summaryMessages, nil, reasoning)
+	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
 	if err == nil {
 		cooldown.Clear(data.Agent.Name())
 	}
@@ -833,13 +668,13 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
 				sendText(events, configs.PoisonRefusal)
-				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
 			sendText(events, summaryStripped)
-			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(executeStart)}
+			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false
 			return nil
@@ -849,163 +684,7 @@ func Execute(ctx context.Context, data ExecData, session *agentTypes.AgentSessio
 	slog.Error("tool loop exhausted without a usable final answer",
 		slog.String("session", session.ID),
 		slog.String("name", data.Agent.Name()))
-	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, executeStart)
+	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart)
 	keepPending = false
 	return nil
-}
-
-const maxEmptyRetry = 3
-const emptyDataReply = "no usable data, retry later, or using other tools."
-
-func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time) bool {
-	*emptyCount++
-	if *emptyCount >= maxEmptyRetry {
-		slog.Error("model returned empty response, retries exhausted",
-			slog.String("session", sessionID),
-			slog.String("name", model),
-			slog.String("reason", reason),
-			slog.Int("attempts", *emptyCount))
-		sendEmptyData(events, sessionID, taskHash, model, usage, start)
-		return true
-	}
-	return false
-}
-
-func sendEmptyData(events chan<- agentTypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time) {
-	sendText(events, emptyDataReply)
-	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
-	interactive.FinalizePending(sessionID, taskHash, emptyDataReply)
-}
-
-func extractToolName(content string) string {
-	if len(content) < 3 || content[0] != '[' {
-		return ""
-	}
-	end := strings.Index(content, "]")
-	if end < 0 {
-		return ""
-	}
-	return content[1:end]
-}
-
-func sendText(events chan<- agentTypes.Event, str string) {
-	str = strings.TrimRight(str, "\n")
-	if str != "" {
-		for line := range strings.SplitSeq(str, "\n") {
-			events <- agentTypes.Event{Type: agentTypes.EventText, Text: line}
-		}
-	}
-	events <- agentTypes.Event{Type: agentTypes.EventTextDone}
-}
-
-func emitReasoning(events chan<- agentTypes.Event, str string, shown *[]string) {
-	cur := normalizeReasoning(str)
-	if cur == "" {
-		return
-	}
-	for _, prev := range *shown {
-		if strings.Contains(prev, cur) {
-			return
-		}
-	}
-	events <- agentTypes.Event{Type: agentTypes.EventReasoning, Text: strings.TrimSpace(str)}
-	*shown = append(*shown, cur)
-}
-
-func normalizeReasoning(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
-func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agentTypes.AgentSession) error {
-	session.Histories = append(session.Histories, choice.Message)
-
-	if session.Stateless {
-		return nil
-	}
-
-	base := min(max(session.BaseLen, 0), len(session.Histories))
-	delta := make([]provider.Message, 0, len(session.Histories)-base)
-	for _, message := range session.Histories[base:] {
-		if message.Role == "system" ||
-			message.Role == "tool" ||
-			(message.Role == "assistant" && len(message.ToolCalls) > 0) {
-			continue
-		}
-		if content, ok := message.Content.(string); ok && (strings.Contains(content, configs.PoisonRefusal) || strings.Contains(content, configs.GuardrailSentinel)) {
-			continue
-		}
-		delta = append(delta, message)
-	}
-
-	if err := sessionHistory.Append(session.ID, delta); err != nil {
-		return fmt.Errorf("sessionHistory.Append: %w", err)
-	}
-
-	writeSessionHistEntry(ctx, session.ID, choice.Message)
-	return nil
-}
-
-func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
-	if sessionID == "" || strings.TrimSpace(userText) == "" {
-		return
-	}
-	writeSessionHistEntry(ctx, sessionID, provider.Message{
-		Role:    "user",
-		Content: userText,
-	})
-}
-
-func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-	key := fmt.Sprintf("%s:%d", sessionID, time.Now().UnixNano())
-	db := torii.DB(torii.DBSessionHist)
-	value := string(msgBytes)
-
-	if setErr := db.SetVector(ctx, key, value, torii.SetDefault, nil); setErr != nil {
-		if setErr = db.Set(key, value, torii.SetDefault, nil); setErr != nil {
-			slog.Warn("store.DB.Set",
-				slog.String("session", sessionID),
-				slog.String("error", setErr.Error()))
-		}
-	}
-}
-
-func assignBindingSkill(session *agentTypes.AgentSession, s *skill.Skill) {
-	id := "skill-assign-" + newID("skill", s.Name)
-	argsJSON, _ := json.Marshal(map[string]string{"skill": s.Name})
-	call := provider.ToolCall{
-		ID:   id,
-		Type: "function",
-	}
-	call.Function.Name = "run_skill"
-	call.Function.Arguments = string(argsJSON)
-
-	session.ToolHistories = append(session.ToolHistories,
-		provider.Message{
-			Role:      "assistant",
-			ToolCalls: []provider.ToolCall{call},
-		},
-		provider.Message{
-			Role:       "tool",
-			Content:    renderActivation(s),
-			ToolCallID: id,
-		},
-	)
-
-	bindingHeader := fmt.Sprintf(
-		"## BINDING SKILL EXECUTION — /%s\n\nThe user invoked /%s. Execute the procedure below by making the tool calls SKILL.md prescribes, in order.\n\n### How to obey\n\n- **When SKILL.md says «ask_user», invoke the `ask_user` tool** with JSON arguments matching the template SKILL.md gives. Writing a text question and waiting for a chat reply is NOT the same action and does not satisfy the step.\n- **The text following `/%s` is the user's INPUT to gather around, not a set of pre-filled answers.** Even if it looks complete, your next action is still `ask_user` to verify direction. Treat it like a topic, not a finished spec.\n- **After one tool call's result arrives, immediately make the next tool call SKILL.md prescribes**, in the same turn. Do not insert text like «下一步要不要繼續» between steps — the user already authorized the full procedure by typing `/%s`.\n- **Tool calls beat chat text.** If you find yourself writing instructions to the user («再丟一句…», «直接回我…»), stop and make the corresponding tool call instead.\n\n### Quick self-check before each turn\n\n1. What does SKILL.md say the next step is? (e.g. «呼叫 ask_user 問三維度之一»)\n2. Have I made that exact tool call in this turn? If no → make it now. If yes and result is back → make the step-after's tool call.\n\n---\n\n",
-		s.Name, s.Name, s.Name, s.Name,
-	)
-	session.SystemPrompts = append(session.SystemPrompts, provider.Message{
-		Role:    "system",
-		Content: bindingHeader + renderActivation(s),
-	})
-}
-
-func newID(parts ...string) string {
-	h := sha256.Sum256([]byte(strings.Join(parts, "|") + fmt.Sprint(time.Now().UnixNano())))
-	return hex.EncodeToString(h[:])[:8]
 }

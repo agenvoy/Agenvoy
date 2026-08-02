@@ -11,6 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
@@ -183,7 +184,7 @@ func CompactSession() gin.HandlerFunc {
 		}
 
 		go func() {
-			if _, err := exec.CompactHistory(context.Background(), sid); err != nil {
+			if _, err := compact.SessionHistory(context.Background(), sid); err != nil {
 				slog.Warn("handler.CompactSession",
 					slog.String("session", sid),
 					slog.String("error", err.Error()))

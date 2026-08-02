@@ -15,7 +15,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func getSession(ctx context.Context, chatID int64, username, content string, data exec.ExecData, overrideID string) (*agentTypes.AgentSession, error) {
+func getSession(ctx context.Context, chatID int64, username, content string, data exec.ExecuteMeta, overrideID string) (*agentTypes.AgentSession, error) {
 	chatSessionID, err := sessionTelegram.New(chatID)
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetTelegramSession: %w", err)

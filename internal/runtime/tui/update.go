@@ -12,12 +12,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -103,6 +103,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return t.cycleReasoning(false)
 				case "D":
 					return t.cycleReasoning(true)
+				case "F":
+					if fast.IsEnabled() {
+						fast.Disable()
+					} else {
+						fast.Enable()
+					}
+					return t, nil
 				case "T":
 					t.setCmdMode(!t.cmdMode)
 					return t, nil
@@ -920,19 +927,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice %s: %v", msg.action, msg.err)) + "\n")
 		}
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
-
-	case Image2Action:
-		if msg.action == "enable" && !oauthCodex.HasToken() {
-			next, cmd := t.startImage2CodexOAuth()
-			return next, cmd
-		}
-		return t, setImage2(msg.action)
-
-	case Image2Done:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] image2 %s: %v", msg.action, msg.err)) + "\n")
-		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ image2 %sd", msg.action)) + "\n")
 
 	case KuradbAction:
 		switch msg.action {

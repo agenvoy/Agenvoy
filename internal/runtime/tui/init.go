@@ -41,12 +41,11 @@ type TUI struct {
 	pendingResume *ResumeExec
 	lastInput     string
 
-	popup                  *Popup
-	popupQueue             []Pending
-	botBodyDraft           string
-	mcpAdd                 *mcpAddDraft
-	modelAdd               *modelAddItem
-	enableImage2AfterOAuth bool
+	popup        *Popup
+	popupQueue   []Pending
+	botBodyDraft string
+	mcpAdd       *mcpAddDraft
+	modelAdd     *modelAddItem
 
 	selector *CmdSelector
 
@@ -149,7 +148,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage · shift+m models`
+	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage · shift+m models · shift+f fast`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false

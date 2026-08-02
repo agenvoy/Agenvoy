@@ -7,7 +7,6 @@
 - Go 1.25.1 或更新版本
 - macOS 或支援 Go、SQLite 與 `go-pkg/sandbox` 相依套件的環境
 - 至少一組模型供應商憑證；透過 TUI 設定 API key 或 OAuth
-- Telegram、Discord、語音、圖片與 KuraDB 功能各自需要對應憑證
 
 ## 安裝
 
@@ -51,7 +50,6 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | Keychain 項目 | 用途 |
 |---|---|
 | `OPENAI_API_KEY` | OpenAI 與 KuraDB |
-| `GEMINI_API_KEY` | Gemini、語音轉錄與圖片功能 |
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商 |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN` | 聊天機器人整合 |
 
@@ -84,6 +82,18 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
   }
 }
 ```
+
+### TUI 執行模式
+
+當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.4.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
+
+### 圖像生成已移除
+
+圖像生成支援目前暫時移除，等待 router 整合重新設計。`image2` 指令、`enable_image2` 設定旗標、`generate_image` 工具及相關註冊路徑目前均不可用。
+
+- 從既有設定中移除 `enable_image2`。
+- 停止呼叫 `/image2` 與 `generate_image`。
+- 若仍需要圖像輸出，請使用外部圖像生成整合。
 
 ### MCP Client
 
