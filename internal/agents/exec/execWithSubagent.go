@@ -94,7 +94,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if extra := strings.TrimSpace(systemPrompt); extra != "" {
 		charter += "\n\n---\n\n" + extra
 	}
-	execData := ExecData{
+	execData := ExecuteMeta{
 		Agent:             agent,
 		WorkDir:           workDir,
 		Content:           task,

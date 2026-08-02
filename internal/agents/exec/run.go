@@ -80,7 +80,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		sessionLog.Record(sessionOverride, skillResult)
 	}
 
-	execData := ExecData{
+	execData := ExecuteMeta{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

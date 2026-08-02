@@ -124,7 +124,7 @@ func Send() gin.HandlerFunc {
 				sessionLog.Record(sessionID, agentResult)
 			}
 
-			data := exec.ExecData{
+			data := exec.ExecuteMeta{
 				Agent:             agent,
 				FallbackAgents:    fallbacks,
 				WorkDir:           workDir,
@@ -164,7 +164,7 @@ func Send() gin.HandlerFunc {
 	}
 }
 
-func newSession(ctx context.Context, data exec.ExecData, sessionID string) (*agentTypes.AgentSession, error) {
+func newSession(ctx context.Context, data exec.ExecuteMeta, sessionID string) (*agentTypes.AgentSession, error) {
 	session := &agentTypes.AgentSession{
 		ID:        sessionID,
 		Tools:     []provider.Message{},

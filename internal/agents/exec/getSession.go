@@ -66,7 +66,7 @@ func buildContent(content string, imageInputs []string, fileInputs []string) any
 	return parts
 }
 
-func GetSession(ctx context.Context, execData ExecData) (*agentTypes.AgentSession, error) {
+func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSession, error) {
 	scanner := execData.SkillScanner
 	if scanner == nil {
 		scanner = agents.Scanner()
