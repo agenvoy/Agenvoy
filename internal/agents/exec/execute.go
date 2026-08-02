@@ -19,6 +19,7 @@ import (
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -324,7 +325,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		go func() {
-			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning)
+			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning, fast.Mode())
 			resultCh <- sendOutcome{resp: r, code: c, err: e}
 		}()
 
@@ -649,7 +650,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
-	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning)
+	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
 	if err == nil {
 		cooldown.Clear(data.Agent.Name())
 	}

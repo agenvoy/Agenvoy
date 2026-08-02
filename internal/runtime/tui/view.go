@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -40,6 +41,11 @@ func (t TUI) viewIdle() string {
 		return ""
 	}
 
+	var fastMode string
+	if fast.IsEnabled() {
+		fastMode = systemStyle.Render(" [fast]")
+	}
+
 	var confirmMode string
 	if sudo.IsActive() {
 		remain := sudo.RemainingSeconds()
@@ -63,9 +69,10 @@ func (t TUI) viewIdle() string {
 
 	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
 
-	pad := width - lipgloss.Width(confirmMode) - lipgloss.Width(right)
+	left := fastMode + confirmMode
+	pad := width - lipgloss.Width(left) - lipgloss.Width(right)
 	pad = max(pad, 1)
-	return prefix + top + box + "\n" + confirmMode + strings.Repeat(" ", pad) + right
+	return prefix + top + box + "\n" + left + strings.Repeat(" ", pad) + right
 }
 
 func (t TUI) viewThinking() string {

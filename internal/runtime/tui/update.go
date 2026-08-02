@@ -12,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -102,6 +103,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return t.cycleReasoning(false)
 				case "D":
 					return t.cycleReasoning(true)
+				case "F":
+					if fast.IsEnabled() {
+						fast.Disable()
+					} else {
+						fast.Enable()
+					}
+					return t, nil
 				case "T":
 					t.setCmdMode(!t.cmdMode)
 					return t, nil

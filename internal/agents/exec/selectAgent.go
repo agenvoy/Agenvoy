@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -105,7 +106,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 					break
 				}
 				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
-				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone)
+				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode())
 				cancel()
 				if sendErr == nil {
 					cooldown.Clear(bot.Name())
