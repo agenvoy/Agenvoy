@@ -113,3 +113,8 @@ var TUITools []byte
 
 //go:embed jsons/never_open.json
 var NeverOpen []byte
+
+const (
+	PoisonRefusal     = "無法執行此操作"
+	GuardrailSentinel = "[KARAPPO]"
+)

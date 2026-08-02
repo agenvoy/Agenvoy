@@ -28,7 +28,6 @@ type Config struct {
 	LineUsername     string        `json:"line_username"`
 	KuradbEnabled    bool          `json:"kuradb_enabled"`
 	EnableVoice      bool          `json:"enable_voice"`
-	EnableImage2     bool          `json:"enable_image2"`
 	AdminChannel     string        `json:"admin_channel"`
 }
 

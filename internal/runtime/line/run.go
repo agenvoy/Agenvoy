@@ -231,7 +231,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		return fmt.Errorf("ResolveAgent: %w", err)
 	}
 
-	execData := exec.ExecData{
+	execData := exec.ExecuteMeta{
 		Agent:          primary,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

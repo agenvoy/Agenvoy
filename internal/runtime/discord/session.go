@@ -17,7 +17,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func getSession(ctx context.Context, in go_bot_discord.Input, content string, data exec.ExecData) (*agentTypes.AgentSession, error) {
+func getSession(ctx context.Context, in go_bot_discord.Input, content string, data exec.ExecuteMeta) (*agentTypes.AgentSession, error) {
 	sessionID, err := sessionDiscord.New(in.GuildID, in.ChannelID, in.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetDiscordSession: %w", err)

@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -55,7 +55,7 @@ func (t TUI) runCompact(sid string) (TUI, tea.Cmd) {
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
-			removed, err := exec.CompactHistory(ctx, sid)
+			removed, err := compact.SessionHistory(ctx, sid)
 			return CompactDone{id: sid, removed: removed, err: err}
 		},
 	)

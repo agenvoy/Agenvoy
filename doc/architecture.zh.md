@@ -46,6 +46,26 @@ graph TB
     Update --> Installer[官方更新腳本]
 ```
 
+## 執行模式
+
+Agenvoy 支援在 TUI 中切換只存在於目前行程的執行模式。當輸入區為空時按下 `Shift+F`，即可在預設模式與 fast mode 之間切換；啟用時標題列會顯示 `[fast]`。執行器、dispatcher、summary 與相關模型呼叫會將選定模式傳給 `go-llm-router` v0.4.0。支援的 provider backend 可將 `provider.ModeFast` 對應到更快速的服務層級；預設模式則維持一般 provider 行為。此切換狀態只保存在記憶體中，不會寫入 `config.json`。
+
+```mermaid
+graph LR
+    Input[輸入區為空] --> Toggle[Shift+F]
+    Toggle --> State{行程內模式}
+    State -->|預設| Default[provider.ModeDefault]
+    State -->|Fast| Fast[provider.ModeFast]
+    Default --> Calls[執行器／dispatcher／summary 呼叫]
+    Fast --> Calls
+    Calls --> Router[go-llm-router v0.4.0]
+    Router --> Providers[支援的 provider backend]
+```
+
+## 圖像生成邊界
+
+圖像生成目前暫時不可用，等待 router 整合重新設計。原有的 `image2` 指令、`enable_image2` 設定旗標、`generate_image` 工具與註冊路徑已不再屬於 runtime；若需要圖像輸出，請使用外部整合。
+
 ## 模組：Daemon 與 HTTP API
 
 Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、工具呼叫、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server、cron/task 自動化、KuraDB 生命週期、指令／skill 白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。設定層的預期用戶端是一個獨立托管的 web dashboard（不在本 repo 內）。

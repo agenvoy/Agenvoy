@@ -296,7 +296,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	agentName := strings.TrimSpace(agent.Name())
 	sessionLog.Record(routingSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
 
-	execData := exec.ExecData{
+	execData := exec.ExecuteMeta{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

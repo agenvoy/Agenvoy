@@ -27,6 +27,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/line"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
@@ -38,8 +39,6 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
-	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
-	codexImage2 "github.com/pardnchiu/agenvoy/internal/tools/external/image2"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -279,7 +278,6 @@ func cmdDaemon() {
 	}
 	defer historyStore.Close()
 
-	codexImage2.Register()
 	geminiStt.Register()
 	chatbotTool.Register()
 	kuradbTool.Register()
