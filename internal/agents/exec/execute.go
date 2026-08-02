@@ -33,7 +33,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 )
 
 type ExecuteMeta struct {
@@ -217,9 +216,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			"list_rag", "search_rag")
 	}
 	cfg, _ := config.Load()
-	if !oauthCodex.HasToken() || cfg == nil || !cfg.EnableImage2 {
-		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
-	}
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
 	}

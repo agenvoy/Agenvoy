@@ -41,12 +41,11 @@ type TUI struct {
 	pendingResume *ResumeExec
 	lastInput     string
 
-	popup                  *Popup
-	popupQueue             []Pending
-	botBodyDraft           string
-	mcpAdd                 *mcpAddDraft
-	modelAdd               *modelAddItem
-	enableImage2AfterOAuth bool
+	popup        *Popup
+	popupQueue   []Pending
+	botBodyDraft string
+	mcpAdd       *mcpAddDraft
+	modelAdd     *modelAddItem
 
 	selector *CmdSelector
 

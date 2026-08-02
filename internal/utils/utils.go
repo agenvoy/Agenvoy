@@ -67,7 +67,6 @@ var toolDisplayName = map[string]string{
 	"calculate":            "Calc",
 	"download_file":        "Download",
 	"write_todo":           "Plan",
-	"generate_image":       "Image",
 	"invoke_subagent":      "Subagent",
 	"list_revisions":       "Revisions",
 	"restore_revision":     "Restore",

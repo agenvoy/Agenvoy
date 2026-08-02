@@ -260,12 +260,6 @@ func (t TUI) runOAuthInfo(msg OAuthInfo) (TUI, tea.Cmd) {
 }
 
 func (t TUI) runOAuthSuccess(msg OAuthSuccess) (TUI, tea.Cmd) {
-	if t.enableImage2AfterOAuth && msg.provider == "codex" {
-		t.enableImage2AfterOAuth = false
-		t.modelAdd = nil
-		t.popup = nil
-		return t, setImage2("enable")
-	}
 	if t.modelAdd == nil {
 		t.modelAdd = &modelAddItem{provider: msg.provider}
 	}
@@ -275,7 +269,6 @@ func (t TUI) runOAuthSuccess(msg OAuthSuccess) (TUI, tea.Cmd) {
 
 func (t TUI) runOAuthFailed(msg OAuthFailed) (TUI, tea.Cmd) {
 	t.modelAdd = nil
-	t.enableImage2AfterOAuth = false
 	t.popup = nil
 	switch {
 	case errors.Is(msg.err, context.Canceled):
