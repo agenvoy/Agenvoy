@@ -6,7 +6,7 @@
 
 - Go 1.25.1 or later
 - macOS or another environment supporting Go, SQLite, and the `go-pkg` sandbox dependencies
-- At least one configured model-provider credential; Telegram, Discord, voice, image generation, and KuraDB need their respective credentials
+- At least one configured model-provider credential; Telegram, Discord, voice, and KuraDB need their respective credentials. Image generation is temporarily unavailable.
 
 ## Installation
 
@@ -64,6 +64,19 @@ Package defaults (not currently read from `config.json`):
 | `MaxSessionTasks` | `NumCPU × 4` | Concurrent tasks per session; further tasks queue rather than fail |
 | `MaxSubagentTimeoutMin` | `30` | Subagent timeout in minutes |
 | `MaxResumeWaitMin` | `60` | How long a pending resume waits for answers |
+
+### TUI execution modes
+
+When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.4.0 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
+
+### Image generation
+
+Image generation support is temporarily removed while the router integration is being redesigned. The `image2` command, `enable_image2` configuration flag, `generate_image` tool, and related registration path are no longer available.
+
+- Remove `enable_image2` from persisted configuration.
+- Stop invoking `/image2` and `generate_image`.
+- Use an external image-generation integration if image output is still required.
+
 
 ### MCP client configuration
 

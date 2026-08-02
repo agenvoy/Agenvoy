@@ -46,6 +46,26 @@ graph TB
     Update --> Installer[Official update script]
 ```
 
+## Execution Modes
+
+Agenvoy supports a process-local execution-mode toggle in the TUI. Press `Shift+F` while the input area is empty to switch between the default mode and fast mode; the header shows `[fast]` when enabled. The executor, dispatcher, summary, and related model calls pass the selected mode to `go-llm-router` v0.4.0. Supported provider backends can map `provider.ModeFast` to a faster service tier, while the default mode preserves normal provider behavior. The toggle is held in memory and is not persisted in `config.json`.
+
+```mermaid
+graph LR
+    Input[Empty TUI input] --> Toggle[Shift+F]
+    Toggle --> State{Process-local mode}
+    State -->|Default| Default[provider.ModeDefault]
+    State -->|Fast| Fast[provider.ModeFast]
+    Default --> Calls[Executor / dispatcher / summary calls]
+    Fast --> Calls
+    Calls --> Router[go-llm-router v0.4.0]
+    Router --> Providers[Supported provider backends]
+```
+
+## Image Generation Boundary
+
+Image generation is temporarily unavailable while the router integration is being redesigned. The former `image2` command, `enable_image2` configuration flag, `generate_image` tool, and registration path are no longer part of the runtime. Use an external integration when image output is required.
+
 ## Module: Daemon and HTTP API
 
 The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, tool calls, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers, cron/task automation, KuraDB lifecycle, command/skill allowlists, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. A separate web dashboard (hosted independently, not part of this repo) is the intended client for the config tier.
