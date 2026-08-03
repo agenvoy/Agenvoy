@@ -209,6 +209,11 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		}
 	}
 
+	passSubagentEvent(parentEvents, displayName, agentTypes.Event{
+		Type:     agentTypes.EventToolResult,
+		ToolName: "invoke_subagent",
+	})
+
 	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", totalUsage.Input+totalUsage.CacheRead+totalUsage.CacheCreate, totalUsage.Output, totalUsage.CacheRead, totalUsage.CacheCreate)
 
 	if parentSessionID != "" && parentSessionID != sessionID && (totalUsage.Input > 0 || totalUsage.Output > 0 || totalUsage.CacheRead > 0 || totalUsage.CacheCreate > 0) {

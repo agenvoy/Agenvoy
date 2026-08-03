@@ -81,6 +81,14 @@ func (t TUI) viewThinking() string {
 		sb.WriteString(line)
 		sb.WriteByte('\n')
 	}
+	for _, name := range t.subOrder {
+		block, ok := t.subBuf[name]
+		if !ok {
+			continue
+		}
+		sb.WriteString(block.render(name, t.width))
+		sb.WriteByte('\n')
+	}
 
 	verb := activityVerb(t.activity)
 	elapsed := formatTime(int(time.Since(t.runStartedAt).Seconds()))
