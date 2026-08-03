@@ -235,6 +235,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
+		// * a turn that ends without EventDone (ask_user popup, panic, abandoned tool) leaves the
+		// * live area populated; clear it here so the next turn cannot resurrect finished rows
+		t.toolBuf, t.toolCount = nil, 0
+		t.subCount, t.subActive = 0, 0
+		t.subBuf, t.subOrder = nil, nil
 		return t, nil
 
 	case CmdDone:

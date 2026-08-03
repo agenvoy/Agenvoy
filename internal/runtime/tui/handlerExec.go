@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 type agentEvent struct {
@@ -19,17 +21,91 @@ type agentEvent struct {
 }
 
 func (t *TUI) collapseToolBuf() tea.Cmd {
-	count := t.toolCount
+	count, subs := t.toolCount, t.subCount
 	t.toolBuf = nil
 	t.toolCount = 0
-	if count == 0 {
+	t.subCount = 0
+	if count == 0 && subs == 0 {
 		return nil
 	}
-	label := "tool call"
-	if count != 1 {
-		label = "tool calls"
+	var parts []string
+	if count > 0 {
+		label := "tool call"
+		if count != 1 {
+			label += "s"
+		}
+		parts = append(parts, fmt.Sprintf("%d %s", count, label))
 	}
-	return tea.Println("\n" + hintStyle.Render(fmt.Sprintf("  Ran %d %s", count, label)))
+	if subs > 0 {
+		label := "subagent call"
+		if subs != 1 {
+			label += "s"
+		}
+		parts = append(parts, fmt.Sprintf("%d %s", subs, label))
+	}
+	return tea.Println("\n" + hintStyle.Render("  Ran "+strings.Join(parts, " · ")))
+}
+
+const subagentLogLines = 3
+
+type subagentLive struct {
+	tools int
+	lines []string
+}
+
+func (b *subagentLive) render(name string, width int) string {
+	header := "  ⎿ [" + name + "]"
+	if b.tools > 0 {
+		label := "tool"
+		if b.tools != 1 {
+			label = "tools"
+		}
+		header += fmt.Sprintf(" %d %s", b.tools, label)
+	}
+	var sb strings.Builder
+	sb.WriteString(hintStyle.Render(header))
+	for _, line := range b.lines {
+		sb.WriteByte('\n')
+		sb.WriteString(hintStyle.Render(go_pkg_utils.TruncateString("    ⎿  "+line, max(width-4, 24))))
+	}
+	return sb.String()
+}
+
+func (t *TUI) trackSubagent(name, activity string) *subagentLive {
+	if t.subBuf == nil {
+		t.subBuf = map[string]*subagentLive{}
+	}
+	block, ok := t.subBuf[name]
+	if !ok {
+		block = &subagentLive{}
+		t.subBuf[name] = block
+		t.subOrder = append(t.subOrder, name)
+	}
+	if activity != "" {
+		block.lines = append(block.lines, activity)
+		if len(block.lines) > subagentLogLines {
+			block.lines = block.lines[len(block.lines)-subagentLogLines:]
+		}
+	}
+	return block
+}
+
+func toolActivity(ev agentTypes.Event, cwd string) string {
+	label := utils.ToolName(ev.ToolName)
+	if arg := utils.FormatToolArgs(ev.ToolName, ev.ToolArgs, cwd); arg != "" {
+		label += "(" + arg + ")"
+	}
+	return oneLine(label)
+}
+
+func (t *TUI) dropSubagent(name string) {
+	if t.subBuf == nil {
+		return
+	}
+	delete(t.subBuf, name)
+	if i := slices.Index(t.subOrder, name); i >= 0 {
+		t.subOrder = slices.Delete(t.subOrder, i, i+1)
+	}
 }
 
 type agentExec struct {
@@ -94,9 +170,11 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	switch ev.Type {
 	case agentTypes.EventAgentSelect:
-		if ev.Source == "" {
-			t.activity = "selecting agent…"
+		if ev.Source != "" {
+			t.trackSubagent(ev.Source, "selecting agent…")
+			return t, nil
 		}
+		t.activity = "selecting agent…"
 
 	case agentTypes.EventAgentResult:
 		if ev.Source == "" {
@@ -128,16 +206,35 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	case agentTypes.EventToolCall:
 		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
 			ev.ToolName != "write_todo" {
+			if ev.Source != "" {
+				t.trackSubagent(ev.Source, toolActivity(ev, t.cwd)).tools++
+				return t, nil
+			}
 			t.activity = "tool: " + ev.ToolName
 			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
-				t.toolCount++
+				if ev.ToolName == "invoke_subagent" {
+					t.subCount++
+					t.subActive++
+				} else {
+					t.toolCount++
+				}
 				t.toolBuf = append(t.toolBuf, line)
 			}
 			return t, nil
 		}
 
+	case agentTypes.EventToolSkipped:
+		if ev.Source != "" {
+			t.trackSubagent(ev.Source, "skipped: "+ev.ToolName)
+			return t, nil
+		}
+
 	case agentTypes.EventReasoning:
+		if ev.Source != "" {
+			t.trackSubagent(ev.Source, "✻ "+oneLine(toPureText(ev.Text)))
+			return t, nil
+		}
 		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 		if !ok {
 			return t, nil
@@ -149,6 +246,19 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, tea.Println("\n" + line)
 
 	case agentTypes.EventToolResult:
+		if ev.Source != "" {
+			if ev.ToolName == "invoke_subagent" {
+				t.dropSubagent(ev.Source)
+			}
+			return t, nil
+		}
+
+		if ev.ToolName == "invoke_subagent" {
+			t.subActive = max(t.subActive-1, 0)
+			if t.subActive == 0 {
+				t.subBuf, t.subOrder = nil, nil
+			}
+		}
 		t.activity = ""
 		return t, nil
 
@@ -156,6 +266,10 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		t.activity = "summarizing…"
 
 	case agentTypes.EventCompact:
+		if ev.Source != "" {
+			t.trackSubagent(ev.Source, "compacting…")
+			return t, nil
+		}
 		if ev.Text == "history" {
 			t.activity = "compacting history…"
 		} else {
@@ -214,8 +328,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case agentTypes.EventDone:
+		if ev.Source != "" {
+			t.dropSubagent(ev.Source)
+			return t, nil
+		}
 		collapse := t.collapseToolBuf()
 		t.todos = nil
+		t.subBuf, t.subOrder, t.subActive = nil, nil, 0
 		if ev.Usage != nil {
 			t.tokens = ev.Usage.Input + ev.Usage.Output + ev.Usage.CacheRead + ev.Usage.CacheCreate
 			t.lastIn = ev.Usage.Input
@@ -238,8 +357,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, tea.Println(line)
 
 	case agentTypes.EventCanceled:
+		if ev.Source != "" {
+			t.dropSubagent(ev.Source)
+			return t, nil
+		}
 		collapse := t.collapseToolBuf()
 		t.todos = nil
+		t.subBuf, t.subOrder, t.subActive = nil, nil, 0
 		finishedAt := time.Now().Format("2006-01-02 15:04:05")
 		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
