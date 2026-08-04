@@ -29,6 +29,7 @@ func New() *gin.Engine {
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
 	r.GET("/v1/models", handler.ListModels())
+	r.GET("/v1/models/*id", handler.GetModel())
 	r.POST("/v1/models", localhostOnly(), handler.AddModel())
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
