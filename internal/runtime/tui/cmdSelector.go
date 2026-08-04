@@ -44,6 +44,7 @@ var commands = []Command{
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"voice", "enable / disable voice message · gemini tts"},
 	{"kuradb", "enable / disable / update / start / stop KuraDB RAG"},
+	{"webui", "enable / disable Open WebUI container · podman / docker auto-detected"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},
