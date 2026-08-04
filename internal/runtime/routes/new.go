@@ -3,6 +3,7 @@ package routes
 import (
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,12 +19,17 @@ func New() *gin.Engine {
 	r.Use(cors())
 
 	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
+
+	webuiProxy := handler.WebuiProxy()
+	r.Any("/webui", localhostOnly(), webuiProxy)
+	r.Any("/webui/*path", localhostOnly(), webuiProxy)
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
 
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
 	r.GET("/v1/models", handler.ListModels())
+	r.GET("/v1/models/*id", handler.GetModel())
 	r.POST("/v1/models", localhostOnly(), handler.AddModel())
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
@@ -98,6 +104,17 @@ func New() *gin.Engine {
 	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
 	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())
 	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
+
+	r.NoRoute(localhostOnly(), func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/v1/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{
+				"message": "not found",
+				"type":    "not_found",
+			}})
+			return
+		}
+		webuiProxy(c)
+	})
 
 	return r
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
+	"github.com/pardnchiu/agenvoy/internal/runtime/webui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -235,6 +236,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
+		// * a turn that ends without EventDone (ask_user popup, panic, abandoned tool) leaves the
+		// * live area populated; clear it here so the next turn cannot resurrect finished rows
+		t.toolBuf, t.toolCount = nil, 0
+		t.subCount, t.subActive = 0, 0
+		t.subBuf, t.subOrder = nil, nil
 		return t, nil
 
 	case CmdDone:
@@ -997,6 +1003,38 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		}
 		return t, nil
+
+	case WebuiAction:
+		switch msg.action {
+		case "enable":
+			return t, tea.Sequence(
+				tea.Println(hintStyle.Render("⎯ webui deploying")+"\n"),
+				runWebuiExec("enable"),
+			)
+		case "disable":
+			return t, tea.Sequence(
+				tea.Println(hintStyle.Render("⎯ webui removing")+"\n"),
+				runWebuiExec("disable"),
+			)
+		}
+		return t, nil
+
+	case WebuiDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui %s: %v", msg.action, msg.err)) + "\n")
+		}
+		if msg.action == "enable" {
+			port := webui.HostPort(webui.Engine())
+			if port == "" {
+				return t, tea.Println(errorStyle.Render("[!] webui enable: container has no published port") + "\n")
+			}
+			if err := webui.SavePort(port); err != nil {
+				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui save port: %v", err)) + "\n")
+			}
+			return t, tea.Println(hintStyle.Render(
+				fmt.Sprintf("⎯ webui enabled · http://127.0.0.1:%s · proxied at /webui", port)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render("⎯ webui disabled") + "\n")
 
 	case KuradbKeySubmit:
 		token := strings.TrimSpace(msg.token)

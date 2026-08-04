@@ -78,6 +78,10 @@ type TUI struct {
 
 	toolBuf         []string
 	toolCount       int
+	subCount        int
+	subActive       int
+	subBuf          map[string]*subagentLive
+	subOrder        []string
 	todos           []agentTypes.TodoItem
 	pendingSteer    []string
 	inputHistory    []string
