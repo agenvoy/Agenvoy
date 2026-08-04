@@ -24,7 +24,26 @@ func ListModels() gin.HandlerFunc {
 				}
 			}
 		}
-		c.JSON(http.StatusOK, gin.H{"models": models})
+
+		data := make([]gin.H, 0, len(models))
+		for _, name := range models {
+			owner := "agenvoy"
+			if prefix, _, ok := strings.Cut(name, "@"); ok && prefix != "" {
+				owner = prefix
+			}
+			data = append(data, gin.H{
+				"id":       name,
+				"object":   "model",
+				"created":  0,
+				"owned_by": owner,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"models": models,
+			"object": "list",
+			"data":   data,
+		})
 	}
 }
 

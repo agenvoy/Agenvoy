@@ -25,6 +25,7 @@ type Config struct {
 	TelegramEnabled  bool          `json:"telegram_enabled"`
 	TelegramUsername string        `json:"telegram_username"`
 	KuradbEnabled    bool          `json:"kuradb_enabled"`
+	WebuiPort        string        `json:"webui_port,omitempty"`
 	EnableVoice      bool          `json:"enable_voice"`
 	AdminChannel     string        `json:"admin_channel"`
 }
