@@ -51,7 +51,6 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 
 | Setting | Default | Description |
 |---|---:|---|
-| `limits.port` | `17989` | Local HTTP daemon port |
 | `limits.max_tool_iterations` | `128` | Maximum tool iterations per run |
 | `limits.agent_send_timeout_seconds` | `600` | Model-request timeout |
 | `limits.max_history_messages` | `24` | Recent history messages retained |
@@ -121,7 +120,7 @@ agen run 'Inspect the latest Git changes and produce a summary'
 
 ### Local HTTP API
 
-The daemon listens on `127.0.0.1:17989` by default.
+The daemon listens on `127.0.0.1:17989`. The port is fixed and not configurable; Open WebUI, when deployed, is likewise fixed on `17990` and proxied at `/webui`.
 
 ```bash
 curl --fail-with-body -sS \
@@ -130,7 +129,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed.
+`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed. `reasoning_effort` accepts `none` `low` `medium` `high` `xhigh` `max` (plus the aliases `minimal` `extra` `ultra`); omitted or unrecognized values fall back to the session's reasoning setting.
 
 ### MCP server mode
 

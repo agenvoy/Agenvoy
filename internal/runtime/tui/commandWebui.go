@@ -23,32 +23,37 @@ type WebuiDone struct {
 func (t TUI) commandWebui(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
 		switch parts[1] {
-		case "enable", "disable":
+		case "enable", "start", "stop", "disable":
 			action := parts[1]
 			return t, func() tea.Msg { return WebuiAction{action: action} }, true
 		}
 	}
 
 	engine := webui.Engine()
-	_, running := webui.Status(engine)
+	options := webuiActions(webui.Status(engine))
 
-	options := []string{"enable", "disable"}
-	cursor := 0
-	if running {
-		cursor = 1
-	}
 	t.popup = &Popup{
 		kind:        popupSingleSelect,
 		title:       "Open WebUI",
 		styledLines: webuiStatus(engine),
 		options:     options,
 		values:      options,
-		cursor:      cursor,
 		onConfirm: func(chosen string) any {
 			return WebuiAction{action: chosen}
 		},
 	}
 	return t, nil, true
+}
+
+func webuiActions(exists, running bool) []string {
+	switch {
+	case running:
+		return []string{"stop", "disable"}
+	case exists:
+		return []string{"start", "disable"}
+	default:
+		return []string{"enable"}
+	}
 }
 
 func webuiStatus(engine string) []string {
@@ -59,7 +64,7 @@ func webuiStatus(engine string) []string {
 	exists, running := webui.Status(engine)
 	switch {
 	case running:
-		return []string{prefix + okayStyle.Render("● running ("+webui.URL()+")")}
+		return []string{prefix + okayStyle.Render("● running ("+webui.URL+")")}
 	case exists:
 		return []string{prefix + errorStyle.Render("○ stopped")}
 	default:

@@ -969,36 +969,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case WebuiAction:
-		switch msg.action {
-		case "enable":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ webui deploying")+"\n"),
-				runWebuiExec("enable"),
-			)
-		case "disable":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ webui removing")+"\n"),
-				runWebuiExec("disable"),
-			)
+		progress, ok := map[string]string{
+			"enable":  "deploying",
+			"start":   "starting",
+			"stop":    "stopping",
+			"disable": "removing",
+		}[msg.action]
+		if !ok {
+			return t, nil
 		}
-		return t, nil
+		return t, tea.Sequence(
+			tea.Println(hintStyle.Render("⎯ webui "+progress)+"\n"),
+			runWebuiExec(msg.action),
+		)
 
 	case WebuiDone:
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui %s: %v", msg.action, msg.err)) + "\n")
 		}
-		if msg.action == "enable" {
-			port := webui.HostPort(webui.Engine())
-			if port == "" {
-				return t, tea.Println(errorStyle.Render("[!] webui enable: container has no published port") + "\n")
-			}
-			if err := webui.SavePort(port); err != nil {
-				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui save port: %v", err)) + "\n")
-			}
+		switch msg.action {
+		case "enable", "start":
 			return t, tea.Println(hintStyle.Render(
-				fmt.Sprintf("⎯ webui enabled · http://127.0.0.1:%s · proxied at /webui", port)) + "\n")
+				fmt.Sprintf("⎯ webui running · %s · proxied at /webui", webui.URL)) + "\n")
+		case "stop":
+			return t, tea.Println(hintStyle.Render("⎯ webui stopped · still deployed") + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ webui disabled") + "\n")
+		return t, tea.Println(hintStyle.Render("⎯ webui disabled · container and volume removed") + "\n")
 
 	case KuradbKeySubmit:
 		token := strings.TrimSpace(msg.token)
