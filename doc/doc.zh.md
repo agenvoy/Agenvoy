@@ -59,7 +59,6 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 | 設定 | 預設值 | 說明 |
 |---|---:|---|
-| `limits.port` | `17989` | 本機 HTTP daemon 連接埠 |
 | `limits.max_tool_iterations` | `128` | 單次 Agent 工作的工具迭代上限 |
 | `limits.agent_send_timeout_seconds` | `600` | 模型請求逾時秒數 |
 | `limits.max_history_messages` | `24` | 保留的近期歷史訊息數 |
@@ -76,7 +75,6 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 ```json
 {
   "limits": {
-    "port": "17989",
     "max_tool_iterations": 128,
     "agent_send_timeout_seconds": 600
   }
@@ -159,7 +157,7 @@ printf '%s\n' \
 
 ### HTTP API
 
-Daemon 預設只監聽 `127.0.0.1:17989`：
+Daemon 只監聽 `127.0.0.1:17989`，連接埠固定不可調整；Open WebUI 部署後同樣固定在 `17990`，由 `/webui` 反向代理：
 
 ```bash
 curl --fail-with-body -sS \

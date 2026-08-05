@@ -16,7 +16,6 @@ import (
 // * Runtime limits, loaded once from ~/.config/agenvoy/config.json `limits` section.
 // * Defaults below are the only fallback; env vars are no longer read.
 var (
-	Port                  = "17989"
 	MaxToolIterations     = 128
 	AgentSendTimeoutSec   = 600
 	MaxHistoryMessages    = 24
@@ -42,8 +41,9 @@ var (
 	ReadOnlyCommand []string
 )
 
+const Port = "17989"
+
 type RuntimeLimits struct {
-	Port                string `json:"port,omitempty"`
 	MaxToolIterations   int    `json:"max_tool_iterations,omitempty"`
 	AgentSendTimeoutSec int    `json:"agent_send_timeout_seconds,omitempty"`
 	MaxHistoryMessages  int    `json:"max_history_messages,omitempty"`
@@ -72,11 +72,6 @@ func LoadRuntime() error {
 	}
 
 	changed := false
-	if limits.Port == "" {
-		limits.Port = Port
-		changed = true
-	}
-	Port = limits.Port
 
 	// * legacy parameter keep for now
 	var legacy struct {
