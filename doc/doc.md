@@ -130,7 +130,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed.
+`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed. `reasoning_effort` accepts `none` `low` `medium` `high` `xhigh` `max` (plus the aliases `minimal` `extra` `ultra`); omitted or unrecognized values fall back to the session's reasoning setting.
 
 ### MCP server mode
 

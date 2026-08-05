@@ -168,7 +168,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` 為 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。
+`/v1/chat/completions` 為 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。`reasoning_effort` 接受 `none` `low` `medium` `high` `xhigh` `max`（另支援別名 `minimal` `extra` `ultra`）；未帶或無法識別的值退回該 session 的 reasoning 設定。
 
 ## 命令列參考
 

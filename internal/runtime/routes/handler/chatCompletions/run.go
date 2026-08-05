@@ -60,6 +60,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        trimContent,
+		Reasoning:      req.ReasoningEffort,
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       true,
