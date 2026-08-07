@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
@@ -13,8 +14,9 @@ import (
 )
 
 type MCP struct {
-	mu      sync.Mutex
-	clients map[string]Client
+	mu        sync.Mutex
+	clients   map[string]Client
+	lastError map[string]string
 }
 
 var (
@@ -38,6 +40,7 @@ type ServerInfo struct {
 	Name      string
 	Transport string
 	Connected bool
+	Error     string
 }
 
 func New(ctx context.Context, sessionID string) (*MCP, error) {
@@ -47,7 +50,8 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 	}
 
 	mcp := &MCP{
-		clients: map[string]Client{},
+		clients:   map[string]Client{},
+		lastError: map[string]string{},
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
@@ -64,16 +68,14 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 }
 
 func (m *MCP) Status(sessionID string) []ServerInfo {
-	if m == nil {
-		return nil
-	}
 	cfg, err := Load()
 	if err != nil {
 		return nil
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	if m != nil {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+	}
 
 	list := make([]ServerInfo, 0, len(cfg.Servers))
 	for _, name := range slices.Sorted(maps.Keys(cfg.Servers)) {
@@ -82,12 +84,12 @@ func (m *MCP) Status(sessionID string) []ServerInfo {
 		if s.Expand().IsHTTP() {
 			transport = "streamable-http"
 		}
-		_, connected := m.clients[name]
-		list = append(list, ServerInfo{
-			Name:      name,
-			Transport: transport,
-			Connected: connected,
-		})
+		info := ServerInfo{Name: name, Transport: transport}
+		if m != nil {
+			_, info.Connected = m.clients[name]
+			info.Error = m.lastError[name]
+		}
+		list = append(list, info)
 	}
 	return list
 }
@@ -152,6 +154,7 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 		_ = c.Close()
 	}
 	m.clients = map[string]Client{}
+	m.lastError = map[string]string{}
 	m.mu.Unlock()
 
 	toolRegister.RemoveByPrefix("mcp__")
@@ -176,6 +179,65 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 
 	m.RegisterAll(ctx)
 	return nil
+}
+
+func (m *MCP) ReconnectServer(ctx context.Context, name string) error {
+	if m == nil {
+		return fmt.Errorf("no MCP manager")
+	}
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	server, ok := cfg.Servers[name]
+	if !ok {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	m.Disconnect(name)
+
+	client, err := newClient(ctx, name, server, m.refresher(name))
+	if err != nil {
+		m.mu.Lock()
+		m.lastError[name] = err.Error()
+		m.mu.Unlock()
+		return err
+	}
+
+	m.mu.Lock()
+	m.clients[name] = client
+	m.mu.Unlock()
+
+	m.refresh(ctx, name)
+	return nil
+}
+
+func (m *MCP) Disconnect(name string) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	if client, ok := m.clients[name]; ok {
+		_ = client.Close()
+		delete(m.clients, name)
+	}
+	delete(m.lastError, name)
+	m.mu.Unlock()
+
+	toolRegister.RemoveByPrefix("mcp__" + name + "__")
+}
+
+func (m *MCP) Tools(ctx context.Context, name string) ([]Tool, error) {
+	if m == nil {
+		return nil, fmt.Errorf("no MCP manager")
+	}
+	m.mu.Lock()
+	client, ok := m.clients[name]
+	m.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("server %q is not connected", name)
+	}
+	return client.List(ctx)
 }
 
 func (m *MCP) refresher(name string) func() {
@@ -203,6 +265,9 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 		slog.Warn("mcp refresh client.List",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
+		m.mu.Lock()
+		m.lastError[name] = err.Error()
+		m.mu.Unlock()
 		return
 	}
 
@@ -211,6 +276,7 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 	if m.clients[name] != client {
 		return
 	}
+	delete(m.lastError, name)
 
 	toolRegister.RemoveByPrefix("mcp__" + name + "__")
 	registered := 0
@@ -222,7 +288,7 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 		toolRegister.Regist(def)
 		registered++
 	}
-	slog.Info("mcp tools refreshed",
+	slog.Debug("mcp tools refreshed",
 		slog.String("server", name),
 		slog.Int("tools", registered))
 }
@@ -242,8 +308,10 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 			slog.Warn("client.List",
 				slog.String("server", name),
 				slog.String("error", err.Error()))
+			m.lastError[name] = err.Error()
 			continue
 		}
+		delete(m.lastError, name)
 
 		for _, tool := range tools {
 			def, ok := tool.getDef(name, client)

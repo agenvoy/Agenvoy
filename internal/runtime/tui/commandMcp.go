@@ -3,18 +3,32 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
-type McpAction struct {
+type McpMenuPick struct {
+	value string
+}
+
+type McpServerAction struct {
+	server string
 	action string
 }
 
 type McpReconnectDone struct {
-	err error
+	server string
+	err    error
+}
+
+type McpToolsResult struct {
+	server string
+	tools  []mcp.Tool
+	err    error
 }
 
 func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
@@ -22,62 +36,175 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 		switch parts[1] {
 		case "add":
 			return t.commandMcpAdd()
-		case "remove", "rm":
-			return t.commandMcpRemove()
 		case "install":
 			return t.commandMcpInstall()
-		case "reconnect":
-			return t.commandMcpReconnect()
+		}
+		if _, ok := mcpServerStatus(parts[1]); ok {
+			next, cmd := t.openMcpServerMenu(parts[1])
+			return next, cmd, true
 		}
 	}
 
+	list := mcpStatusList()
+	options := make([]string, 0, len(list)+2)
+	values := make([]string, 0, len(list)+2)
+	tails := make([]string, 0, len(list)+2)
+	maxName := 0
+	for _, s := range list {
+		maxName = max(maxName, len(s.Name))
+	}
+	for _, s := range list {
+		options = append(options, fmt.Sprintf("%-*s · %s ·", maxName, s.Name, s.Transport))
+		values = append(values, "server:"+s.Name)
+		tails = append(tails, mcpStateLabel(s))
+	}
+	options = append(options, "add", "install MCP config to other agents")
+	values = append(values, "add", "install")
+	tails = append(tails, "", "")
+
 	t.popup = &Popup{
-		kind:        popupSingleSelect,
-		title:       "MCP",
-		styledLines: mcpStatusLines(),
-		options:     []string{"add", "remove", "reconnect", "install MCP config to other agents"},
-		values:      []string{"add", "remove", "reconnect", "install"},
+		kind:       popupSingleSelect,
+		title:      "MCP",
+		options:    options,
+		optionTail: tails,
+		values:     values,
+		maxVisible: cmdSelectorMaxVisible,
 		onConfirm: func(chosen string) any {
-			return McpAction{action: chosen}
+			return McpMenuPick{value: chosen}
 		},
 	}
 	return t, nil, true
 }
 
-func mcpStatusLines() []string {
+func mcpStatusList() []mcp.ServerInfo {
 	m := mcp.Manager()
 	if m == nil {
 		return nil
 	}
-	list := m.Status("")
-	if len(list) == 0 {
-		return nil
-	}
-	maxName := 0
-	for _, s := range list {
-		if len(s.Name) > maxName {
-			maxName = len(s.Name)
-		}
-	}
-	lines := make([]string, len(list))
-	for i, s := range list {
-		prefix := fmt.Sprintf("  %-*s  %-5s  ", maxName, s.Name, s.Transport)
-		if s.Connected {
-			lines[i] = hintStyle.Render(prefix) + okayStyle.Render("● connected")
-		} else {
-			lines[i] = hintStyle.Render(prefix) + errorStyle.Render("○ disconnected")
-		}
-	}
-	return lines
+	return m.Status("")
 }
 
-func (t TUI) commandMcpReconnect() (TUI, tea.Cmd, bool) {
-	return t, func() tea.Msg {
-		m := mcp.Manager()
-		if m == nil {
-			return McpReconnectDone{err: fmt.Errorf("no MCP manager")}
+func mcpServerStatus(name string) (mcp.ServerInfo, bool) {
+	for _, s := range mcpStatusList() {
+		if s.Name == name {
+			return s, true
 		}
-		err := m.Reconnect(context.Background(), "")
-		return McpReconnectDone{err: err}
-	}, true
+	}
+	return mcp.ServerInfo{}, false
+}
+
+func mcpStateLabel(s mcp.ServerInfo) string {
+	switch {
+	case !s.Connected:
+		return errorStyle.Render("disconnected")
+	case s.Error != "":
+		return warnStyle.Render("tools unavailable")
+	default:
+		return okayStyle.Render("connected")
+	}
+}
+
+func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
+	info, ok := mcpServerStatus(name)
+	if !ok {
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] mcp server %q not found", name)) + "\n")
+	}
+
+	subtitle := fmt.Sprintf("%s · %s", info.Transport, mcpStateLabel(info))
+	if info.Error != "" {
+		subtitle = fmt.Sprintf("%s\n%s", subtitle, errorStyle.Render(info.Error))
+	}
+
+	options := []string{"tools · list registered tools", "reconnect", "remove"}
+	values := []string{"tools", "reconnect", "remove"}
+
+	cfg, err := mcp.Load()
+	if err == nil && cfg.Servers[name].IsOAuth() {
+		oauth := []string{"login · browser oauth", "client · set oauth client id / secret"}
+		options = append(oauth, options...)
+		values = append([]string{"login", "client"}, values...)
+	}
+
+	t.popup = &Popup{
+		kind:     popupSingleSelect,
+		title:    "MCP · " + name,
+		subtitle: subtitle,
+		options:  options,
+		values:   values,
+		onConfirm: func(chosen string) any {
+			return McpServerAction{server: name, action: chosen}
+		},
+	}
+	return t, nil
+}
+
+func (t TUI) runMcpMenuPick(value string) (TUI, tea.Cmd) {
+	switch value {
+	case "add":
+		next, cmd, _ := t.commandMcpAdd()
+		return next, cmd
+	case "install":
+		next, cmd, _ := t.commandMcpInstall()
+		return next, cmd
+	}
+	if name, ok := strings.CutPrefix(value, "server:"); ok {
+		return t.openMcpServerMenu(name)
+	}
+	return t, nil
+}
+
+func (t TUI) runMcpServerAction(msg McpServerAction) (TUI, tea.Cmd) {
+	switch msg.action {
+	case "login":
+		return t.startMcpLogin(msg.server)
+	case "client":
+		return t.openMcpClientID(msg.server)
+	case "remove":
+		return t.runMcpRemove(msg.server)
+	case "reconnect":
+		return t.reconnectMcpServer(msg.server)
+	case "tools":
+		return t.listMcpTools(msg.server)
+	}
+	return t, nil
+}
+
+func (t TUI) reconnectMcpServer(name string) (TUI, tea.Cmd) {
+	return t, func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return McpReconnectDone{server: name, err: mcp.Manager().ReconnectServer(ctx, name)}
+	}
+}
+
+func (t TUI) listMcpTools(name string) (TUI, tea.Cmd) {
+	return t, func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		tools, err := mcp.Manager().Tools(ctx, name)
+		return McpToolsResult{server: name, tools: tools, err: err}
+	}
+}
+
+func (t TUI) runMcpToolsResult(msg McpToolsResult) (TUI, tea.Cmd) {
+	if msg.err != nil {
+		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s tools: %v", msg.server, msg.err)) + "\n")
+	}
+	if len(msg.tools) == 0 {
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s exposes no tools", msg.server)) + "\n")
+	}
+
+	maxName := 0
+	for _, tool := range msg.tools {
+		maxName = max(maxName, len(tool.Name))
+	}
+	lines := make([]string, 0, len(msg.tools)+1)
+	lines = append(lines, hintStyle.Render(fmt.Sprintf("⎯ %s · %d tools", msg.server, len(msg.tools))))
+	for _, tool := range msg.tools {
+		summary, _, _ := strings.Cut(strings.TrimSpace(tool.Description), "\n")
+		lines = append(lines, fmt.Sprintf("  %s  %s",
+			whiteStyle.Render(fmt.Sprintf("%-*s", maxName, tool.Name)),
+			hintStyle.Render(summary)))
+	}
+	return t, tea.Println(strings.Join(lines, "\n") + "\n")
 }

@@ -200,6 +200,9 @@ func (t TUI) viewPopup() string {
 			} else {
 				line = hintStyle.Render(opt)
 			}
+			if i < len(p.optionTail) && p.optionTail[i] != "" {
+				line += " " + p.optionTail[i]
+			}
 			body = append(body, marker+line)
 		}
 		if windowed {
@@ -277,7 +280,11 @@ func (t TUI) viewPopup() string {
 			}
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("enter re-open browser · esc cancel"))
+		if p.oauth != nil && p.oauth.mcpServer != "" {
+			body = append(body, hintStyle.Render("enter re-open browser · p paste redirect URL · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("enter re-open browser · esc cancel"))
+		}
 	}
 
 	if len(p.questions) > 1 {

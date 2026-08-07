@@ -27,7 +27,7 @@ type sdkClient struct {
 }
 
 func newClient(ctx context.Context, name string, cfg ServerConfig, onToolsChanged func()) (Client, error) {
-	transport, err := cfg.Expand().toTransport()
+	transport, err := cfg.Expand().toTransport(name)
 	if err != nil {
 		return nil, fmt.Errorf("server %q: %w", name, err)
 	}
