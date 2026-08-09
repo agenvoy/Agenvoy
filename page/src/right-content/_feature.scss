@@ -1,0 +1,66 @@
+@use "md-render";
+
+@mixin styles {
+  section.feature {
+    position: absolute;
+    display: none;
+    flex-flow: column;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: scroll;
+
+    header {
+      z-index: 10;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-flow: row;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 1rem;
+      padding: 0 1rem;
+      width: 100%;
+      height: 2.5rem;
+      overflow: scroll;
+
+      @each $name in (Rules, Knowledge, Notes, Skills, Schedule) {
+        &[data-selected="#{$name}"] a[name="#{$name}"],
+        &[data-selected="#{$name}"] button[name="#{$name}"] {
+          padding-top: 2px;
+          border-bottom: 2px solid var(--accent);
+          opacity: 1;
+        }
+      }
+
+      div {
+        flex-grow: 1;
+      }
+
+      a,
+      button {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        gap: 0.25rem;
+        color: #000;
+        opacity: 0.35;
+        text-decoration: none;
+
+        p {
+          font-size: small;
+          font-weight: 300;
+        }
+
+        span:not(.material-symbols-outlined) {
+          font-size: small;
+          font-weight: lighter;
+        }
+      }
+    }
+  }
+}

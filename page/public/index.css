@@ -39,6 +39,11 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   font-family: -apple-system, BlinkMacSystemFont, Inter, Vazirmatn, ui-sans-serif, system-ui, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif, Helvetica Neue, Arial, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 
 body {
@@ -48,6 +53,9 @@ body {
   height: 100vh;
   display: flex;
   flex-flow: row;
+}
+body[data-rendered="0"] * {
+  transition: none !important;
 }
 body section.left-tab {
   display: flex;
@@ -80,6 +88,7 @@ body section.left-tab {
   body section.left-tab header p {
     display: none;
   }
+  body section.left-tab header a,
   body section.left-tab header button {
     margin-left: 0.25rem;
     opacity: 0;
@@ -88,6 +97,7 @@ body section.left-tab {
     display: none;
     padding-top: 0;
   }
+  body section.left-tab section a p,
   body section.left-tab section div p {
     display: none;
   }
@@ -95,15 +105,13 @@ body section.left-tab {
     width: var(--width-left-tab);
     box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
   }
-  body section.left-tab[data-collapsed="0"] header {
-    padding: 0 0.5rem;
-  }
   body section.left-tab[data-collapsed="0"] header img {
     position: relative;
   }
   body section.left-tab[data-collapsed="0"] header p {
     display: block;
   }
+  body section.left-tab[data-collapsed="0"] header a,
   body section.left-tab[data-collapsed="0"] header button {
     opacity: 1;
   }
@@ -111,6 +119,7 @@ body section.left-tab {
     display: block;
     padding-top: 2.5rem;
   }
+  body section.left-tab[data-collapsed="0"] section a p,
   body section.left-tab[data-collapsed="0"] section div p {
     display: block;
   }
@@ -119,15 +128,13 @@ body section.left-tab {
   body section.left-tab {
     width: var(--width-left-tab);
   }
-  body section.left-tab header {
-    padding: 0 0.5rem;
-  }
   body section.left-tab header img {
     position: relative;
   }
   body section.left-tab header p {
     display: block;
   }
+  body section.left-tab header a,
   body section.left-tab header button {
     opacity: 1;
   }
@@ -135,6 +142,7 @@ body section.left-tab {
     display: block;
     padding-top: 2.5rem;
   }
+  body section.left-tab section a p,
   body section.left-tab section div p {
     display: block;
   }
@@ -154,6 +162,7 @@ body section.left-tab {
   body section.left-tab[data-collapsed="1"] header p {
     display: none;
   }
+  body section.left-tab[data-collapsed="1"] header a,
   body section.left-tab[data-collapsed="1"] header button {
     margin-left: 0.25rem;
     opacity: 0;
@@ -162,6 +171,7 @@ body section.left-tab {
     display: none;
     padding-top: 0;
   }
+  body section.left-tab[data-collapsed="1"] section a p,
   body section.left-tab[data-collapsed="1"] section div p {
     display: none;
   }
@@ -172,6 +182,7 @@ body section.left-tab header {
   flex-flow: row;
   align-items: center;
   gap: 0.25rem;
+  padding: 0 0.5rem;
   width: 100%;
   height: 2.5rem;
 }
@@ -209,6 +220,7 @@ body section.left-tab section[data-name]:not([data-name=""]):after {
   font-weight: 300;
   color: #b1b1b1;
 }
+body section.left-tab section a,
 body section.left-tab section div {
   position: relative;
   display: flex;
@@ -218,14 +230,19 @@ body section.left-tab section div {
   padding: 0 0.75rem;
   width: 100%;
   height: 2rem;
+  color: #000;
+  text-decoration: none;
   cursor: pointer;
 }
 @media (hover: hover) {
+  body section.left-tab section a:hover:before,
   body section.left-tab section div:hover:before {
     opacity: 1;
   }
 }
-body section.left-tab section div:before, body section.left-tab section div[data-selected="1"] {
+body section.left-tab section a:before, body section.left-tab section a[data-selected="1"],
+body section.left-tab section div:before,
+body section.left-tab section div[data-selected="1"] {
   content: "";
   z-index: 0;
   position: absolute;
@@ -238,6 +255,7 @@ body section.left-tab section div:before, body section.left-tab section div[data
   opacity: 0;
   transition: 0.2s;
 }
+body section.left-tab section a p,
 body section.left-tab section div p {
   z-index: 1;
   flex-grow: 1;
@@ -260,9 +278,15 @@ body section.right-content {
     width: calc(100% - var(--width-left-tab));
   }
 }
+body section.right-content[data-page=chat] section.chat {
+  display: flex;
+}
+body section.right-content[data-page=features] section.feature {
+  display: flex;
+}
 body section.right-content section.chat {
   position: absolute;
-  display: flex;
+  display: none;
   flex-flow: column;
   justify-content: center;
   align-items: center;
@@ -419,6 +443,15 @@ body section.right-content section.chat section.messages div.assistant > section
   line-height: 1.5rem;
   font-size: large;
   transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.assistant > section details .md-render {
+  margin: 0.5rem 0;
+  padding: 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--accent);
+}
+body section.right-content section.chat section.messages div.assistant > section details .md-render * {
+  color: #9f9f9f;
 }
 body section.right-content section.chat section.messages div.assistant > section .md-render {
   width: 100%;
@@ -697,12 +730,90 @@ body section.right-content section.chat div.input section button:not(.send):not(
   opacity: 0;
   transition: 0.2s;
 }
+body section.right-content section.feature {
+  position: absolute;
+  display: none;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+body section.right-content section.feature header {
+  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  width: 100%;
+  height: 2.5rem;
+  overflow: scroll;
+}
+body section.right-content section.feature header[data-selected=Rules] a[name=Rules], body section.right-content section.feature header[data-selected=Rules] button[name=Rules] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Knowledge] a[name=Knowledge], body section.right-content section.feature header[data-selected=Knowledge] button[name=Knowledge] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Notes] a[name=Notes], body section.right-content section.feature header[data-selected=Notes] button[name=Notes] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Skills] a[name=Skills], body section.right-content section.feature header[data-selected=Skills] button[name=Skills] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Schedule] a[name=Schedule], body section.right-content section.feature header[data-selected=Schedule] button[name=Schedule] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header div {
+  flex-grow: 1;
+}
+body section.right-content section.feature header a,
+body section.right-content section.feature header button {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0.25rem;
+  color: #000;
+  opacity: 0.35;
+  text-decoration: none;
+}
+body section.right-content section.feature header a p,
+body section.right-content section.feature header button p {
+  font-size: small;
+  font-weight: 300;
+}
+body section.right-content section.feature header a span:not(.material-symbols-outlined),
+body section.right-content section.feature header button span:not(.material-symbols-outlined) {
+  font-size: small;
+  font-weight: lighter;
+}
 
 button {
   background: transparent;
   border: none;
   outline: none;
   cursor: pointer;
+}
+button * {
+  pointer-events: none;
 }
 
 span.material-symbols-outlined {

@@ -40,6 +40,13 @@
     Segoe UI Emoji,
     Segoe UI Symbol,
     Noto Color Emoji;
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 body {
@@ -50,6 +57,10 @@ body {
   display: flex;
   flex-flow: row;
 
+  &[data-rendered="0"] * {
+    transition: none !important;
+  }
+
   @include left-tab.styles;
   @include right-content.styles;
 }
@@ -59,6 +70,10 @@ button {
   border: none;
   outline: none;
   cursor: pointer;
+
+  * {
+    pointer-events: none;
+  }
 }
 
 span.material-symbols-outlined {

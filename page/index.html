@@ -3,15 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,stacks"
     />
     <link rel="stylesheet" href="public/index.css" />
     <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.18/dist/QuickUI.js"></script>
+    <script src="public/utils.js"></script>
+    <script src="public/index.js"></script>
   </head>
-  <body id="app">
+  <body id="app" data-rendered="0">
+    <!---->
     <section class="left-tab" :data-collapsed="{{collapsed}}">
       <header>
         <img src="public/logo-min.svg" alt="Logo" />
@@ -21,22 +24,26 @@
         </button>
       </header>
       <section>
-        <div>
+        <a href="?">
           <span class="material-symbols-outlined"> add_comment </span>
           <p>New Chat</p>
-        </div>
-        <div>
+        </a>
+        <a href="?page=features&tab=Notes">
           <span class="material-symbols-outlined"> note_stack </span>
-          <p>Note</p>
-        </div>
-        <div>
+          <p>Notes</p>
+        </a>
+        <a href="?page=features&tab=Skills">
+          <span class="material-symbols-outlined"> docs </span>
+          <p>Skills</p>
+        </a>
+        <a href="?page=features&tab=Schedule">
           <span class="material-symbols-outlined"> schedule </span>
           <p>Schedule</p>
-        </div>
-        <div>
+        </a>
+        <a href="?page=features&tab=Rules">
           <span class="material-symbols-outlined"> stacks </span>
           <p>Features</p>
-        </div>
+        </a>
       </section>
       <section data-name="Chats">
         <div>
@@ -45,8 +52,10 @@
         </div>
       </section>
     </section>
-    <section class="right-content">
-      <section class="chat" data-id="adfasdfd">
+    <!---->
+    <section class="right-content" :data-page="{{params.page}}">
+      <!---->
+      <section class="chat" :data-id="{{params.chat}}">
         <header>
           <p></p>
           <div></div>
@@ -76,6 +85,9 @@
                   Reasoning
                   <span class="material-symbols-outlined"> keyboard_arrow_down </span>
                 </summary>
+                <section class="md-render">
+                  <span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>
+                </section>
               </details>
               <section class="md-render">
                 <span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>
@@ -116,51 +128,40 @@
           </section>
         </div>
       </section>
+      <!---->
+      <section class="feature">
+        <header :data-selected="{{params.tab}}">
+          <!-- name / prompt -->
+          <a href="?page=features&tab=Rules" name="Rules">
+            <span class="material-symbols-outlined"> deployed_code_account </span>
+            <p>Rules</p>
+            <span>0</span>
+          </a>
+          <!-- title / content / keyword -->
+          <a href="?page=features&tab=Knowledge" name="Knowledge">
+            <span class="material-symbols-outlined"> book_2 </span>
+            <p>Knowledge</p>
+            <span>0</span>
+          </a>
+          <!-- date / content -->
+          <a href="?page=features&tab=Notes" name="Notes">
+            <span class="material-symbols-outlined"> note_stack </span>
+            <p>Notes</p>
+            <span>0</span>
+          </a>
+          <a href="?page=features&tab=Skills" name="Skills">
+            <span class="material-symbols-outlined"> docs </span>
+            <p>Skills</p>
+            <span>0</span>
+          </a>
+          <a href="?page=features&tab=Schedule" name="Schedule">
+            <span class="material-symbols-outlined"> schedule </span>
+            <p>Schedule</p>
+            <span>0</span>
+          </a>
+          <div></div>
+        </header>
+      </section>
     </section>
-    <script>
-      const vw = document.documentElement.clientWidth;
-      const app = new QUI({
-        id: "app",
-        data: {
-          collapsed: vw < 768 ? "1" : "0",
-        },
-        event: {
-          show_tab: function () {
-            document.querySelector(".left-tab").dataset.collapsed =
-              document.querySelector(".left-tab").dataset.collapsed === "1" ? "0" : "1";
-          },
-          chat_input: function () {
-            this.nextElementSibling.textContent = this.value + "\n";
-          },
-        },
-        when: {
-          before_render: function () {
-            // 停止渲染
-          },
-          rendered: function () {
-            window.addEventListener("resize", function (e) {
-              const vw = document.documentElement.clientWidth;
-              const dom = document.querySelector(".left-tab");
-              if (dom.dataset.collapsed === "1" || vw >= 768) {
-                return;
-              }
-              dom.dataset.collapsed = "1";
-            });
-          },
-          before_update: function () {
-            // 停止更新
-          },
-          updated: function () {
-            // 已更新
-          },
-          before_destroy: function () {
-            // 停止銷毀
-          },
-          destroyed: function () {
-            // 已銷毀
-          },
-        },
-      });
-    </script>
   </body>
 </html>

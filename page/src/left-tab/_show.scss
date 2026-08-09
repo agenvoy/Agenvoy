@@ -1,7 +1,5 @@
 @mixin styles {
   header {
-    padding: 0 0.5rem;
-
     img {
       position: relative;
     }
@@ -10,6 +8,7 @@
       display: block;
     }
 
+    a,
     button {
       opacity: 1;
     }
@@ -21,6 +20,7 @@
       padding-top: 2.5rem;
     }
 
+    a p,
     div p {
       display: block;
     }
