@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
+    <link rel="stylesheet" href="public/index.css" />
+  </head>
+  <body>
+    <section class="left-tab" data-collapsed="0">
+      <header>
+        <img src="public/logo-min.svg" alt="Logo" />
+        <p>Agenvoy</p>
+        <button
+          type="button"
+          onclick="
+            document.querySelector('.left-tab').dataset.collapsed =
+              document.querySelector('.left-tab').dataset.collapsed === '1' ? '0' : '1'
+          "
+        >
+          <span class="material-symbols-outlined"> right_panel_close </span>
+        </button>
+      </header>
+      <section>
+        <div>
+          <span class="material-symbols-outlined"> add_comment </span>
+          <p>New Chat</p>
+        </div>
+        <div>
+          <span class="material-symbols-outlined"> note_stack </span>
+          <p>Note</p>
+        </div>
+        <div>
+          <span class="material-symbols-outlined"> schedule </span>
+          <p>Schedule</p>
+        </div>
+        <div>
+          <span class="material-symbols-outlined"> stacks </span>
+          <p>Features</p>
+        </div>
+      </section>
+      <section data-name="Chats">
+        <div>
+          <p>Features</p>
+          <span class="material-symbols-outlined"> more_horiz </span>
+        </div>
+      </section>
+    </section>
+    <section class="right-content">
+      <section class="chat" data-id="asdfasdfdsf">
+        <header>
+          <p></p>
+          <div></div>
+          <button type="button">
+            <span class="material-symbols-outlined"> chat_dashed </span>
+          </button>
+        </header>
+        <div class="logo">
+          <img src="public/logo-min.svg" alt="Logo" />
+          <p>Agenvoy</p>
+        </div>
+        <section class="messages">
+          <div class="user">
+            <p>asdfasfaf</p>
+            <footer>
+              <p>2026/08/08 - 11:02</p>
+              <span class="material-symbols-outlined"> content_copy </span>
+              <span class="material-symbols-outlined"> cached </span>
+            </footer>
+          </div>
+          <div class="assistant">
+            <img src="public/logo-min.svg" alt="Logo" />
+            <section>
+              <p>auto</p>
+              <details>
+                <summary>
+                  Reasoning
+                  <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+                </summary>
+              </details>
+              <section class="md-render">
+                <span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>
+              </section>
+              <footer>
+                <span class="material-symbols-outlined"> content_copy </span>
+                <span class="material-symbols-outlined"> cached </span>
+                <div>
+                  <span class="material-symbols-outlined"> arrow_upward_alt </span>
+                  <p>123</p>
+                </div>
+                <div>
+                  <span class="material-symbols-outlined"> arrow_downward_alt </span>
+                  <p>123</p>
+                </div>
+                <p>2026/08/08 - 11:02</p>
+              </footer>
+            </section>
+          </div>
+        </section>
+        <div class="input">
+          <label dir="auto">
+            <textarea
+              id="chat-input"
+              placeholder="How can I help you today?"
+              oninput="this.nextElementSibling.textContent = this.value + '\n'"
+            ></textarea>
+            <pre></pre>
+          </label>
+          <section>
+            <button type="button">
+              <span class="material-symbols-outlined"> add_2 </span>
+            </button>
+            <div></div>
+            <button class="model" type="button">
+              auto
+              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+            </button>
+            <button class="send" type="button">
+              <span class="material-symbols-outlined"> send </span>
+            </button>
+          </section>
+        </div>
+      </section>
+    </section>
+  </body>
+</html>

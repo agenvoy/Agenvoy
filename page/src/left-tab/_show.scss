@@ -1,0 +1,37 @@
+@mixin styles {
+  header {
+    justify-content: flex-start;
+    padding: 0 0.5rem;
+
+    img {
+      position: relative;
+    }
+
+    p {
+      display: block;
+    }
+
+    button {
+      opacity: 1;
+    }
+  }
+
+  section {
+    &[data-name]:not([data-name=""]) {
+      padding-top: 2.5rem;
+
+      &:after {
+        display: block;
+      }
+    }
+
+    div {
+      justify-content: flex-start;
+      padding: 0.75rem;
+
+      p {
+        display: block;
+      }
+    }
+  }
+}

@@ -1,0 +1,137 @@
+@use "collapsed";
+@use "show";
+
+* {
+  --width-left-tab: 16rem;
+  --width-left-tab-collaspse: 2.5rem;
+}
+
+@mixin styles {
+  section.left-tab {
+    display: flex;
+    flex-flow: column;
+    height: 100%;
+    background-color: #fafafa;
+
+    width: var(--width-left-tab-collaspse);
+
+    @media (max-width: 767.99px) {
+      z-index: 100;
+      position: absolute;
+      top: 0;
+      left: 0;
+
+      @include collapsed.styles;
+
+      &[data-collapsed="0"] {
+        width: var(--width-left-tab);
+        box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
+
+        @include show.styles;
+      }
+    }
+
+    @media (min-width: 768px) {
+      width: var(--width-left-tab);
+
+      @include show.styles;
+
+      &[data-collapsed="1"] {
+        @include collapsed.styles;
+      }
+    }
+
+    header {
+      position: relative;
+      display: flex;
+      flex-flow: row;
+      align-items: center;
+      gap: 0.25rem;
+      width: 100%;
+      height: 2.5rem;
+
+      img {
+        flex-grow: 0;
+        flex-shrink: 0;
+        padding: 0.25rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        opacity: 1;
+        transition: 0.2s;
+      }
+
+      p {
+        flex-grow: 1;
+        flex-shrink: 0;
+        line-height: 2rem;
+        font-size: small;
+        font-weight: 300;
+      }
+
+      button {
+        z-index: 1;
+        transition: 0.2s;
+      }
+    }
+
+    section {
+      position: relative;
+      display: flex;
+      flex-flow: column;
+
+      &[data-name]:not([data-name=""]) {
+        &:after {
+          content: attr(data-name);
+          position: absolute;
+          top: 1rem;
+          left: 0.75rem;
+          line-height: 1.5rem;
+          font-size: small;
+          font-weight: 300;
+          color: #b1b1b1;
+        }
+      }
+
+      div {
+        position: relative;
+        display: flex;
+        flex-flow: row;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        height: 2rem;
+        cursor: pointer;
+
+        @media (hover: hover) {
+          &:hover:before {
+            opacity: 1;
+          }
+        }
+
+        &:before,
+        &[data-selected="1"] {
+          content: "";
+          z-index: 0;
+          position: absolute;
+          top: 0rem;
+          left: 0.125rem;
+          width: calc(100% - 0.25rem);
+          height: 100%;
+          border-radius: 0.75rem;
+          background-color: #f1f1f1;
+          opacity: 0;
+          transition: 0.2s;
+        }
+
+        p {
+          z-index: 1;
+          flex-grow: 1;
+          flex-shrink: 0;
+          line-height: 2rem;
+          font-size: small;
+          font-weight: 300;
+        }
+      }
+    }
+  }
+}
