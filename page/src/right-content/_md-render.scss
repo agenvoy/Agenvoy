@@ -45,13 +45,12 @@
 
     .md-bold {
       color: var(--ink);
-      font-weight: 700;
+      font-weight: bold;
     }
 
     .md-line {
       display: block;
       line-height: 1.7;
-      color: #253146;
     }
 
     blockquote.md-quote {
@@ -107,7 +106,7 @@
       }
 
       th {
-        font-weight: 700;
+        font-weight: bold;
       }
 
       tbody tr:nth-child(2n-1) {

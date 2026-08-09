@@ -4,7 +4,28 @@
 }
 
 * {
+  --width-right-content: calc(100% - 2rem);
   --max-width-right-content: 64rem;
+}
+@media (min-width: 480px) {
+  * {
+    --width-right-content: calc(100% - 4rem);
+  }
+}
+@media (min-width: 768px) {
+  * {
+    --width-right-content: calc(100% - 8rem);
+  }
+}
+
+* {
+  --text-color: #253146;
+  --ink: #101e2b;
+  --mute: #999999;
+  --accent: #1461dc;
+  --line: #eaeaea;
+  --surface: #fafafa;
+  --surface-2: #f1f1f1;
 }
 
 * {
@@ -33,6 +54,7 @@ body section.left-tab {
   flex-flow: column;
   height: 100%;
   background-color: #fafafa;
+  transition: 0.2s;
   width: var(--width-left-tab-collaspse);
 }
 @media (max-width: 767.99px) {
@@ -41,10 +63,6 @@ body section.left-tab {
     position: absolute;
     top: 0;
     left: 0;
-  }
-  body section.left-tab header {
-    justify-content: center;
-    padding: 0;
   }
 }
 @media (max-width: 767.99px) and (hover: hover) {
@@ -63,17 +81,12 @@ body section.left-tab {
     display: none;
   }
   body section.left-tab header button {
+    margin-left: 0.25rem;
     opacity: 0;
   }
   body section.left-tab section[data-name]:not([data-name=""]) {
-    padding-top: 0;
-  }
-  body section.left-tab section[data-name]:not([data-name=""]):after {
     display: none;
-  }
-  body section.left-tab section div {
-    justify-content: center;
-    padding: 0;
+    padding-top: 0;
   }
   body section.left-tab section div p {
     display: none;
@@ -83,7 +96,6 @@ body section.left-tab {
     box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
   }
   body section.left-tab[data-collapsed="0"] header {
-    justify-content: flex-start;
     padding: 0 0.5rem;
   }
   body section.left-tab[data-collapsed="0"] header img {
@@ -96,14 +108,8 @@ body section.left-tab {
     opacity: 1;
   }
   body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) {
-    padding-top: 2.5rem;
-  }
-  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]):after {
     display: block;
-  }
-  body section.left-tab[data-collapsed="0"] section div {
-    justify-content: flex-start;
-    padding: 0.75rem;
+    padding-top: 2.5rem;
   }
   body section.left-tab[data-collapsed="0"] section div p {
     display: block;
@@ -114,7 +120,6 @@ body section.left-tab {
     width: var(--width-left-tab);
   }
   body section.left-tab header {
-    justify-content: flex-start;
     padding: 0 0.5rem;
   }
   body section.left-tab header img {
@@ -127,21 +132,11 @@ body section.left-tab {
     opacity: 1;
   }
   body section.left-tab section[data-name]:not([data-name=""]) {
-    padding-top: 2.5rem;
-  }
-  body section.left-tab section[data-name]:not([data-name=""]):after {
     display: block;
-  }
-  body section.left-tab section div {
-    justify-content: flex-start;
-    padding: 0.75rem;
+    padding-top: 2.5rem;
   }
   body section.left-tab section div p {
     display: block;
-  }
-  body section.left-tab[data-collapsed="1"] header {
-    justify-content: center;
-    padding: 0;
   }
 }
 @media (min-width: 768px) and (hover: hover) {
@@ -160,17 +155,12 @@ body section.left-tab {
     display: none;
   }
   body section.left-tab[data-collapsed="1"] header button {
+    margin-left: 0.25rem;
     opacity: 0;
   }
   body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) {
-    padding-top: 0;
-  }
-  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]):after {
     display: none;
-  }
-  body section.left-tab[data-collapsed="1"] section div {
-    justify-content: center;
-    padding: 0;
+    padding-top: 0;
   }
   body section.left-tab[data-collapsed="1"] section div p {
     display: none;
@@ -203,7 +193,6 @@ body section.left-tab header p {
 }
 body section.left-tab header button {
   z-index: 1;
-  transition: 0.2s;
 }
 body section.left-tab section {
   position: relative;
@@ -226,6 +215,7 @@ body section.left-tab section div {
   flex-flow: row;
   align-items: center;
   gap: 0.5rem;
+  padding: 0 0.75rem;
   width: 100%;
   height: 2rem;
   cursor: pointer;
@@ -255,6 +245,457 @@ body section.left-tab section div p {
   line-height: 2rem;
   font-size: small;
   font-weight: 300;
+}
+body section.right-content {
+  position: relative;
+  height: 100%;
+  background-color: white;
+  transition: 0.2s;
+  margin-left: var(--width-left-tab-collaspse);
+  width: calc(100% - var(--width-left-tab-collaspse));
+}
+@media (min-width: 768px) {
+  body section.right-content {
+    margin-left: 0;
+    width: calc(100% - var(--width-left-tab));
+  }
+}
+body section.right-content section.chat {
+  position: absolute;
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin-top: 0;
+  opacity: 0.03;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo img {
+  width: 16rem;
+  height: 16rem;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo p {
+  display: none;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) section.messages {
+  display: flex;
+}
+body section.right-content section.chat header {
+  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+  align-items: center;
+  padding: 0 1rem;
+  width: 100%;
+  height: 2.5rem;
+}
+body section.right-content section.chat header p {
+  font-size: medium;
+}
+body section.right-content section.chat header div {
+  flex-grow: 1;
+}
+body section.right-content section.chat div.logo {
+  z-index: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: -8rem;
+  padding-bottom: 1rem;
+  width: 100%;
+}
+body section.right-content section.chat div.logo img {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+body section.right-content section.chat div.logo p {
+  font-size: x-large;
+}
+body section.right-content section.chat section.messages {
+  z-index: 1;
+  display: none;
+  flex-flow: column;
+  flex-grow: 1;
+  padding-top: 2.5rem;
+  width: var(--width-right-content);
+  max-width: var(--max-width-right-content);
+}
+body section.right-content section.chat section.messages div.user {
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages div.user:hover footer {
+    opacity: 1;
+  }
+}
+body section.right-content section.chat section.messages div.user > p {
+  padding: 0.75rem 1rem;
+  background-color: #f8f8f8;
+  border-radius: 1rem;
+  color: #253146;
+}
+body section.right-content section.chat section.messages div.user footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.5rem;
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.user footer p {
+  font-size: small;
+  color: #999;
+}
+body section.right-content section.chat section.messages div.assistant {
+  display: flex;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+body section.right-content section.chat section.messages div.assistant img {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+body section.right-content section.chat section.messages div.assistant > section {
+  display: flex;
+  flex-flow: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-grow: 1;
+  gap: 0.25rem;
+  width: calc(100% - 2.5rem);
+}
+body section.right-content section.chat section.messages div.assistant > section details[open] summary span {
+  transform: rotate(180deg);
+}
+body section.right-content section.chat section.messages div.assistant > section details summary {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+  color: #999;
+  transition: 0.2s;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages div.assistant > section details summary:hover {
+    color: #000;
+  }
+}
+body section.right-content section.chat section.messages div.assistant > section details summary::-webkit-details-marker {
+  display: none;
+}
+body section.right-content section.chat section.messages div.assistant > section details summary span {
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  font-size: large;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render {
+  width: 100%;
+  padding-bottom: 0.25rem;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render * {
+  width: 100%;
+  color: var(--text-color);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h1,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h2,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h3,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h4,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h5,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
+  display: block;
+  padding: 1rem 0 0.5rem;
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h1 {
+  font-size: x-large;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h2 {
+  font-size: large;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h3 {
+  font-size: medium;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h4 {
+  font-size: small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h5 {
+  font-size: x-small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
+  font-size: xx-small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-bold {
+  color: var(--ink);
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-line {
+  display: block;
+  line-height: 1.7;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render blockquote.md-quote {
+  display: block;
+  margin: 4px 0;
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--accent);
+  color: var(--mute);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 10px 0;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-link:hover {
+  text-decoration: underline;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-file-img {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 4px 0;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table {
+  border-collapse: collapse;
+  white-space: normal;
+  width: max-content;
+  max-width: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th,
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table td {
+  border: 1px solid var(--line);
+  padding: 3px 10px;
+  text-align: left;
+  color: var(--ink);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th {
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table tbody tr:nth-child(2n-1) {
+  background: var(--surface);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list,
+body section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
+  display: block;
+  margin: 4px 0;
+  padding-left: 1.6em;
+  white-space: normal;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list {
+  list-style: disc;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
+  list-style: decimal;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-list li {
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code {
+  display: block;
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: "JetBrains Mono", monospace;
+  font-size: small;
+  color: var(--ink);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render code {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.92em;
+}
+body section.right-content section.chat section.messages div.assistant > section footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+body section.right-content section.chat section.messages div.assistant > section footer div {
+  display: flex;
+  align-items: center;
+}
+body section.right-content section.chat section.messages div.assistant > section footer div p {
+  font-size: small;
+}
+body section.right-content section.chat section.messages div.assistant > section footer p {
+  font-size: small;
+  color: #999;
+}
+body section.right-content section.chat div.input {
+  z-index: 1;
+  display: flex;
+  flex-flow: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  width: var(--width-right-content);
+  max-width: var(--max-width-right-content);
+  background-color: #fff;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1019607843), 0 4px 6px -4px rgba(0, 0, 0, 0.1019607843);
+}
+body section.right-content section.chat div.input:has(textarea:focus) {
+  padding: calc(1rem - 1px);
+  border: 1px solid #eaeaea;
+}
+body section.right-content section.chat div.input label {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 1.5rem;
+  line-height: 1.5rem;
+  max-height: 16rem;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+body section.right-content section.chat div.input label pre,
+body section.right-content section.chat div.input label textarea {
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+  min-height: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+body section.right-content section.chat div.input label pre {
+  display: block;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: transparent;
+  background-color: transparent;
+}
+body section.right-content section.chat div.input label textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  color: inherit;
+  overflow: hidden;
+  overflow: scroll;
+}
+body section.right-content section.chat div.input label textarea::placeholder {
+  color: rgb(103, 103, 103);
+}
+body section.right-content section.chat div.input section {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  height: 1rem;
+}
+body section.right-content section.chat div.input section > div {
+  flex-grow: 1;
+}
+body section.right-content section.chat div.input section button {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+body section.right-content section.chat div.input section button.send {
+  background-color: #000;
+  margin-top: -0.5rem;
+  margin-right: -0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+}
+body section.right-content section.chat div.input section button.send span {
+  color: #fff;
+}
+body section.right-content section.chat div.input section button.model {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1rem;
+}
+body section.right-content section.chat div.input section button:not(.send):not(.model) {
+  width: 1rem;
+  height: 1rem;
+}
+@media (hover: hover) {
+  body section.right-content section.chat div.input section button:not(.send):not(.model):hover:before {
+    opacity: 1;
+  }
+}
+body section.right-content section.chat div.input section button:not(.send):not(.model):before {
+  content: "";
+  z-index: 0;
+  position: absolute;
+  top: -0.5rem;
+  left: -0.5rem;
+  width: 2rem;
+  height: 2rem;
+  background-color: #f1f1f1;
+  border-radius: 50%;
+  opacity: 0;
+  transition: 0.2s;
 }
 
 button {
@@ -287,450 +728,6 @@ span.material-symbols-outlined {
   &:has(section.left-tab[data-collapsed="1"]) section.right-content {
     width: calc(100% - var(--width-left-tab-collaspse));
   }
-}
-section.right-content {
-  position: relative;
-  height: 100%;
-  background-color: white;
-  margin-left: var(--width-left-tab-collaspse);
-  width: calc(100% - var(--width-left-tab-collaspse));
-}
-@media (min-width: 768px) {
-  section.right-content {
-    width: calc(100% - var(--width-left-tab));
-  }
-}
-section.right-content section.chat {
-  position: absolute;
-  display: flex;
-  flex-flow: column;
-  justify-content: center;
-  align-items: center;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: scroll;
-}
-section.right-content section.chat[data-id]:not([data-id=""]) div.logo {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  margin-top: 0;
-  opacity: 0.03;
-}
-section.right-content section.chat[data-id]:not([data-id=""]) div.logo img {
-  width: 16rem;
-  height: 16rem;
-}
-section.right-content section.chat[data-id]:not([data-id=""]) div.logo p {
-  display: none;
-}
-section.right-content section.chat[data-id]:not([data-id=""]) section.messages {
-  display: flex;
-}
-section.right-content section.chat header {
-  z-index: 10;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  flex-flow: row;
-  justify-content: center;
-  align-items: center;
-  padding: 0 1rem;
-  width: 100%;
-  height: 2.5rem;
-}
-section.right-content section.chat header p {
-  font-size: medium;
-}
-section.right-content section.chat header div {
-  flex-grow: 1;
-}
-section.right-content section.chat div.logo {
-  z-index: 0;
-  display: flex;
-  flex-flow: row;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: -8rem;
-  padding-bottom: 1rem;
-  width: 100%;
-}
-section.right-content section.chat div.logo img {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-section.right-content section.chat div.logo p {
-  font-size: x-large;
-}
-section.right-content section.chat section.messages {
-  z-index: 1;
-  display: none;
-  flex-flow: column;
-  flex-grow: 1;
-  padding-top: 2.5rem;
-  width: calc(100% - 4rem);
-  max-width: var(--max-width-right-content);
-}
-section.right-content section.chat section.messages div.user {
-  display: flex;
-  flex-flow: column;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 0.5rem;
-  width: 100%;
-}
-@media (hover: hover) {
-  section.right-content section.chat section.messages div.user:hover footer {
-    opacity: 1;
-  }
-}
-section.right-content section.chat section.messages div.user > p {
-  padding: 0.75rem 1rem;
-  background-color: #f8f8f8;
-  border-radius: 1rem;
-  color: #253146;
-}
-section.right-content section.chat section.messages div.user footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-right: 0.5rem;
-  opacity: 0;
-  transition: 0.2s;
-}
-section.right-content section.chat section.messages div.user footer p {
-  font-size: small;
-  color: #999;
-}
-section.right-content section.chat section.messages div.assistant {
-  display: flex;
-  flex-flow: row;
-  justify-content: flex-start;
-  align-items: flex-start;
-  gap: 1rem;
-  width: 100%;
-}
-section.right-content section.chat section.messages div.assistant img {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-section.right-content section.chat section.messages div.assistant > section {
-  display: flex;
-  flex-flow: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  flex-grow: 1;
-  gap: 0.25rem;
-}
-section.right-content section.chat section.messages div.assistant > section details[open] summary span {
-  transform: rotate(180deg);
-}
-section.right-content section.chat section.messages div.assistant > section details summary {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-  color: #999;
-  transition: 0.2s;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
-@media (hover: hover) {
-  section.right-content section.chat section.messages div.assistant > section details summary:hover {
-    color: #000;
-  }
-}
-section.right-content section.chat section.messages div.assistant > section details summary::-webkit-details-marker {
-  display: none;
-}
-section.right-content section.chat section.messages div.assistant > section details summary span {
-  width: 1.5rem;
-  height: 1.5rem;
-  line-height: 1.5rem;
-  font-size: large;
-  transition: 0.2s;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render {
-  padding-bottom: 0.25rem;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h1,
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h2,
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h3,
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h4,
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h5,
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
-  display: block;
-  font-weight: 700;
-  padding: 1rem 0 0.5rem;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h1 {
-  font-size: 20px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h2 {
-  font-size: 17px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h3 {
-  font-size: 15px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h4 {
-  font-size: 13.5px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h5 {
-  font-size: 12.5px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
-  font-size: 12px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-bold {
-  color: var(--ink);
-  font-weight: 700;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-line {
-  display: block;
-  line-height: 1.7;
-  color: #253146;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render blockquote.md-quote {
-  display: block;
-  margin: 4px 0;
-  padding: 2px 0 2px 10px;
-  border-left: 3px solid var(--accent);
-  color: var(--mute);
-}
-section.right-content section.chat section.messages div.assistant > section .md-render hr {
-  border: none;
-  border-top: 1px solid var(--line);
-  margin: 10px 0;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-link {
-  color: var(--accent);
-  text-decoration: none;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-link:hover {
-  text-decoration: underline;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-file-img {
-  max-width: 100%;
-  max-height: 320px;
-  border-radius: 4px;
-  margin-top: 4px;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-table-wrap {
-  overflow-x: auto;
-  max-width: 100%;
-  margin: 4px 0;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render table.md-table {
-  border-collapse: collapse;
-  white-space: normal;
-  width: max-content;
-  max-width: none;
-  font-family: inherit;
-  font-size: inherit;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th,
-section.right-content section.chat section.messages div.assistant > section .md-render table.md-table td {
-  border: 1px solid var(--line);
-  padding: 3px 10px;
-  text-align: left;
-  color: var(--ink);
-}
-section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th {
-  font-weight: 700;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render table.md-table tbody tr:nth-child(2n-1) {
-  background: var(--surface);
-}
-section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list,
-section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
-  display: block;
-  margin: 4px 0;
-  padding-left: 1.6em;
-  white-space: normal;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list {
-  list-style: disc;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
-  list-style: decimal;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render .md-list li {
-  padding: 1px 0;
-  overflow-wrap: anywhere;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code {
-  display: block;
-  margin: 6px 0;
-  padding: 8px 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow-x: auto;
-  white-space: pre;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  color: var(--ink);
-}
-section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code code {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-}
-section.right-content section.chat section.messages div.assistant > section .md-render code {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.92em;
-}
-section.right-content section.chat section.messages div.assistant > section footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-section.right-content section.chat section.messages div.assistant > section footer div {
-  display: flex;
-  align-items: center;
-}
-section.right-content section.chat section.messages div.assistant > section footer div p {
-  font-size: small;
-}
-section.right-content section.chat section.messages div.assistant > section footer p {
-  font-size: small;
-  color: #999;
-}
-section.right-content section.chat div.input {
-  z-index: 1;
-  display: flex;
-  flex-flow: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  width: calc(100% - 4rem);
-  max-width: var(--max-width-right-content);
-  background-color: #fff;
-  border-radius: 1.25rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1019607843), 0 4px 6px -4px rgba(0, 0, 0, 0.1019607843);
-}
-section.right-content section.chat div.input:has(textarea:focus) {
-  padding: calc(1rem - 1px);
-  border: 1px solid #eaeaea;
-}
-section.right-content section.chat div.input label {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-height: 1.5rem;
-  line-height: 1.5rem;
-  max-height: 16rem;
-  font-family: inherit;
-  font-size: inherit;
-  letter-spacing: inherit;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-section.right-content section.chat div.input label pre,
-section.right-content section.chat div.input label textarea {
-  margin: 0;
-  padding: 0;
-  line-height: inherit;
-  min-height: inherit;
-  font-family: inherit;
-  font-size: inherit;
-  letter-spacing: inherit;
-}
-section.right-content section.chat div.input label pre {
-  display: block;
-  width: 100%;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  color: transparent;
-  background-color: transparent;
-}
-section.right-content section.chat div.input label textarea {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
-  resize: none;
-  border: none;
-  outline: none;
-  background-color: transparent;
-  color: inherit;
-  overflow: hidden;
-  overflow: scroll;
-}
-section.right-content section.chat div.input label textarea::placeholder {
-  color: rgb(103, 103, 103);
-}
-section.right-content section.chat div.input section {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  height: 1rem;
-}
-section.right-content section.chat div.input section > div {
-  flex-grow: 1;
-}
-section.right-content section.chat div.input section button {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-section.right-content section.chat div.input section button.send {
-  background-color: #000;
-  margin-top: -0.5rem;
-  margin-right: -0.5rem;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-}
-section.right-content section.chat div.input section button.send span {
-  color: #fff;
-}
-section.right-content section.chat div.input section button.model {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.25rem;
-  height: 1rem;
-}
-section.right-content section.chat div.input section button:not(.send):not(.model) {
-  width: 1rem;
-  height: 1rem;
-}
-@media (hover: hover) {
-  section.right-content section.chat div.input section button:not(.send):not(.model):hover:before {
-    opacity: 1;
-  }
-}
-section.right-content section.chat div.input section button:not(.send):not(.model):before {
-  content: "";
-  z-index: 0;
-  position: absolute;
-  top: -0.5rem;
-  left: -0.5rem;
-  width: 2rem;
-  height: 2rem;
-  background-color: #f1f1f1;
-  border-radius: 50%;
-  opacity: 0;
-  transition: 0.2s;
 }
 
 /*# sourceMappingURL=index.css.map */

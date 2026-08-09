@@ -1,8 +1,5 @@
 @mixin styles {
   header {
-    justify-content: center;
-    padding: 0;
-
     @media (hover: hover) {
       &:hover {
         img {
@@ -24,26 +21,19 @@
     }
 
     button {
+      margin-left: 0.25rem;
       opacity: 0;
     }
   }
 
   section {
     &[data-name]:not([data-name=""]) {
+      display: none;
       padding-top: 0;
-
-      &:after {
-        display: none;
-      }
     }
 
-    div {
-      justify-content: center;
-      padding: 0;
-
-      p {
-        display: none;
-      }
+    div p {
+      display: none;
     }
   }
 }

@@ -12,6 +12,7 @@
     flex-flow: column;
     height: 100%;
     background-color: #fafafa;
+    transition: 0.2s;
 
     width: var(--width-left-tab-collaspse);
 
@@ -70,7 +71,6 @@
 
       button {
         z-index: 1;
-        transition: 0.2s;
       }
     }
 
@@ -98,6 +98,7 @@
         flex-flow: row;
         align-items: center;
         gap: 0.5rem;
+        padding: 0 0.75rem;
         width: 100%;
         height: 2rem;
         cursor: pointer;

@@ -9,19 +9,14 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     />
     <link rel="stylesheet" href="public/index.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.18/dist/QuickUI.js"></script>
   </head>
-  <body>
-    <section class="left-tab" data-collapsed="0">
+  <body id="app">
+    <section class="left-tab" :data-collapsed="{{collapsed}}">
       <header>
         <img src="public/logo-min.svg" alt="Logo" />
         <p>Agenvoy</p>
-        <button
-          type="button"
-          onclick="
-            document.querySelector('.left-tab').dataset.collapsed =
-              document.querySelector('.left-tab').dataset.collapsed === '1' ? '0' : '1'
-          "
-        >
+        <button type="button" @click="show_tab">
           <span class="material-symbols-outlined"> right_panel_close </span>
         </button>
       </header>
@@ -51,7 +46,7 @@
       </section>
     </section>
     <section class="right-content">
-      <section class="chat" data-id="asdfasdfdsf">
+      <section class="chat" data-id="adfasdfd">
         <header>
           <p></p>
           <div></div>
@@ -103,11 +98,7 @@
         </section>
         <div class="input">
           <label dir="auto">
-            <textarea
-              id="chat-input"
-              placeholder="How can I help you today?"
-              oninput="this.nextElementSibling.textContent = this.value + '\n'"
-            ></textarea>
+            <textarea id="chat-input" placeholder="How can I help you today?" @input="chat_input"></textarea>
             <pre></pre>
           </label>
           <section>
@@ -126,5 +117,50 @@
         </div>
       </section>
     </section>
+    <script>
+      const vw = document.documentElement.clientWidth;
+      const app = new QUI({
+        id: "app",
+        data: {
+          collapsed: vw < 768 ? "1" : "0",
+        },
+        event: {
+          show_tab: function () {
+            document.querySelector(".left-tab").dataset.collapsed =
+              document.querySelector(".left-tab").dataset.collapsed === "1" ? "0" : "1";
+          },
+          chat_input: function () {
+            this.nextElementSibling.textContent = this.value + "\n";
+          },
+        },
+        when: {
+          before_render: function () {
+            // 停止渲染
+          },
+          rendered: function () {
+            window.addEventListener("resize", function (e) {
+              const vw = document.documentElement.clientWidth;
+              const dom = document.querySelector(".left-tab");
+              if (dom.dataset.collapsed === "1" || vw >= 768) {
+                return;
+              }
+              dom.dataset.collapsed = "1";
+            });
+          },
+          before_update: function () {
+            // 停止更新
+          },
+          updated: function () {
+            // 已更新
+          },
+          before_destroy: function () {
+            // 停止銷毀
+          },
+          destroyed: function () {
+            // 已銷毀
+          },
+        },
+      });
+    </script>
   </body>
 </html>

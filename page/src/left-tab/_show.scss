@@ -1,6 +1,5 @@
 @mixin styles {
   header {
-    justify-content: flex-start;
     padding: 0 0.5rem;
 
     img {
@@ -18,20 +17,12 @@
 
   section {
     &[data-name]:not([data-name=""]) {
+      display: block;
       padding-top: 2.5rem;
-
-      &:after {
-        display: block;
-      }
     }
 
-    div {
-      justify-content: flex-start;
-      padding: 0.75rem;
-
-      p {
-        display: block;
-      }
+    div p {
+      display: block;
     }
   }
 }
