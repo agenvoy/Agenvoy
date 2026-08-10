@@ -1,5 +1,9 @@
 @use "md-render";
 
+body[data-rendered="1"] section.right-content section.chat {
+  display: flex;
+}
+
 @mixin styles {
   section.chat {
     position: absolute;

@@ -29,10 +29,20 @@
 
   section {
     &[data-name]:not([data-name=""]) {
-      display: none;
-      padding-top: 0;
+      &:after,
+      a,
+      div {
+        display: none;
+      }
     }
 
+    a p,
+    div p {
+      display: none;
+    }
+  }
+
+  footer {
     a p,
     div p {
       display: none;

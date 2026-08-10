@@ -29,14 +29,6 @@
       width: calc(100% - var(--width-left-tab));
     }
 
-    &[data-page="chat"] section.chat {
-      display: flex;
-    }
-
-    &[data-page="features"] section.feature {
-      display: flex;
-    }
-
     @include chat.styles;
     @include feature.styles;
   }

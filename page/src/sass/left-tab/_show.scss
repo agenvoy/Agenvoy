@@ -16,8 +16,14 @@
 
   section {
     &[data-name]:not([data-name=""]) {
-      display: block;
-      padding-top: 2.5rem;
+      &:after {
+        display: block;
+      }
+
+      a,
+      div {
+        display: flex;
+      }
     }
 
     a p,

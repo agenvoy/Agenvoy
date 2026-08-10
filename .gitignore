@@ -20,3 +20,5 @@ dist/
 extensions/scripts/
 
 .tmp*
+
+node_modules/

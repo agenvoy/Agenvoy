@@ -6,16 +6,16 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,stacks"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,settings,stacks"
     />
     <link rel="stylesheet" href="public/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.18/dist/QuickUI.js"></script>
-    <script src="public/utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.20/dist/QuickUI.js"></script>
     <script src="public/index.js"></script>
   </head>
   <body id="app" data-rendered="0">
     <!---->
     <section class="left-tab" :data-collapsed="{{collapsed}}">
+      <!---->
       <header>
         <img src="public/logo-min.svg" alt="Logo" />
         <p>Agenvoy</p>
@@ -23,39 +23,27 @@
           <span class="material-symbols-outlined"> right_panel_close </span>
         </button>
       </header>
+      <!---->
       <section>
+        <a :for="(k, v) in left_tab" :href="{{v.href}}">
+          <span class="material-symbols-outlined"> {{v.icon}} </span>
+          <p>{{k}}</p>
+        </a>
+      </section>
+      <!---->
+      <section id="left-tab-chat-list" data-name="Chats"></section>
+      <!---->
+      <footer>
         <a href="?">
-          <span class="material-symbols-outlined"> add_comment </span>
-          <p>New Chat</p>
+          <span class="material-symbols-outlined"> settings </span>
+          <p>Config</p>
         </a>
-        <a href="?page=features&tab=Notes">
-          <span class="material-symbols-outlined"> note_stack </span>
-          <p>Notes</p>
-        </a>
-        <a href="?page=features&tab=Skills">
-          <span class="material-symbols-outlined"> docs </span>
-          <p>Skills</p>
-        </a>
-        <a href="?page=features&tab=Schedule">
-          <span class="material-symbols-outlined"> schedule </span>
-          <p>Schedule</p>
-        </a>
-        <a href="?page=features&tab=Rules">
-          <span class="material-symbols-outlined"> stacks </span>
-          <p>Features</p>
-        </a>
-      </section>
-      <section data-name="Chats">
-        <div>
-          <p>Features</p>
-          <span class="material-symbols-outlined"> more_horiz </span>
-        </div>
-      </section>
+      </footer>
     </section>
     <!---->
-    <section class="right-content" :data-page="{{params.page}}">
+    <section class="right-content">
       <!---->
-      <section class="chat" :data-id="{{params.chat}}">
+      <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}">
         <header>
           <p></p>
           <div></div>
@@ -63,51 +51,14 @@
             <span class="material-symbols-outlined"> chat_dashed </span>
           </button>
         </header>
+        <!---->
         <div class="logo">
           <img src="public/logo-min.svg" alt="Logo" />
           <p>Agenvoy</p>
         </div>
-        <section class="messages">
-          <div class="user">
-            <p>asdfasfaf</p>
-            <footer>
-              <p>2026/08/08 - 11:02</p>
-              <span class="material-symbols-outlined"> content_copy </span>
-              <span class="material-symbols-outlined"> cached </span>
-            </footer>
-          </div>
-          <div class="assistant">
-            <img src="public/logo-min.svg" alt="Logo" />
-            <section>
-              <p>auto</p>
-              <details>
-                <summary>
-                  Reasoning
-                  <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-                </summary>
-                <section class="md-render">
-                  <span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>
-                </section>
-              </details>
-              <section class="md-render">
-                <span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>
-              </section>
-              <footer>
-                <span class="material-symbols-outlined"> content_copy </span>
-                <span class="material-symbols-outlined"> cached </span>
-                <div>
-                  <span class="material-symbols-outlined"> arrow_upward_alt </span>
-                  <p>123</p>
-                </div>
-                <div>
-                  <span class="material-symbols-outlined"> arrow_downward_alt </span>
-                  <p>123</p>
-                </div>
-                <p>2026/08/08 - 11:02</p>
-              </footer>
-            </section>
-          </div>
-        </section>
+        <!---->
+        <section id="right-content-chat-messages" class="messages"></section>
+        <!---->
         <div class="input">
           <label dir="auto">
             <textarea id="chat-input" placeholder="How can I help you today?" @input="chat_input"></textarea>
@@ -129,34 +80,11 @@
         </div>
       </section>
       <!---->
-      <section class="feature">
+      <section :elif="params.page == features" class="feature">
         <header :data-selected="{{params.tab}}">
-          <!-- name / prompt -->
-          <a href="?page=features&tab=Rules" name="Rules">
-            <span class="material-symbols-outlined"> deployed_code_account </span>
-            <p>Rules</p>
-            <span>0</span>
-          </a>
-          <!-- title / content / keyword -->
-          <a href="?page=features&tab=Knowledge" name="Knowledge">
-            <span class="material-symbols-outlined"> book_2 </span>
-            <p>Knowledge</p>
-            <span>0</span>
-          </a>
-          <!-- date / content -->
-          <a href="?page=features&tab=Notes" name="Notes">
-            <span class="material-symbols-outlined"> note_stack </span>
-            <p>Notes</p>
-            <span>0</span>
-          </a>
-          <a href="?page=features&tab=Skills" name="Skills">
-            <span class="material-symbols-outlined"> docs </span>
-            <p>Skills</p>
-            <span>0</span>
-          </a>
-          <a href="?page=features&tab=Schedule" name="Schedule">
-            <span class="material-symbols-outlined"> schedule </span>
-            <p>Schedule</p>
+          <a :for="(k, v) in feature" :href="?page=features&tab={{k}}" :name="{{k}}">
+            <span class="material-symbols-outlined"> {{v}} </span>
+            <p>{{k}}</p>
             <span>0</span>
           </a>
           <div></div>

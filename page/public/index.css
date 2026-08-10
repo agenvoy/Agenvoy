@@ -3,6 +3,14 @@
   --width-left-tab-collaspse: 2.5rem;
 }
 
+body[data-rendered="1"] section.right-content section.chat {
+  display: flex;
+}
+
+body[data-rendered="1"] section.right-content section.feature {
+  display: flex;
+}
+
 * {
   --width-right-content: calc(100% - 2rem);
   --max-width-right-content: 64rem;
@@ -93,12 +101,17 @@ body section.left-tab {
     margin-left: 0.25rem;
     opacity: 0;
   }
-  body section.left-tab section[data-name]:not([data-name=""]) {
+  body section.left-tab section[data-name]:not([data-name=""]):after,
+  body section.left-tab section[data-name]:not([data-name=""]) a,
+  body section.left-tab section[data-name]:not([data-name=""]) div {
     display: none;
-    padding-top: 0;
   }
   body section.left-tab section a p,
   body section.left-tab section div p {
+    display: none;
+  }
+  body section.left-tab footer a p,
+  body section.left-tab footer div p {
     display: none;
   }
   body section.left-tab[data-collapsed="0"] {
@@ -115,9 +128,12 @@ body section.left-tab {
   body section.left-tab[data-collapsed="0"] header button {
     opacity: 1;
   }
-  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) {
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]):after {
     display: block;
-    padding-top: 2.5rem;
+  }
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) a,
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) div {
+    display: flex;
   }
   body section.left-tab[data-collapsed="0"] section a p,
   body section.left-tab[data-collapsed="0"] section div p {
@@ -138,9 +154,12 @@ body section.left-tab {
   body section.left-tab header button {
     opacity: 1;
   }
-  body section.left-tab section[data-name]:not([data-name=""]) {
+  body section.left-tab section[data-name]:not([data-name=""]):after {
     display: block;
-    padding-top: 2.5rem;
+  }
+  body section.left-tab section[data-name]:not([data-name=""]) a,
+  body section.left-tab section[data-name]:not([data-name=""]) div {
+    display: flex;
   }
   body section.left-tab section a p,
   body section.left-tab section div p {
@@ -167,12 +186,17 @@ body section.left-tab {
     margin-left: 0.25rem;
     opacity: 0;
   }
-  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) {
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]):after,
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) a,
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) div {
     display: none;
-    padding-top: 0;
   }
   body section.left-tab[data-collapsed="1"] section a p,
   body section.left-tab[data-collapsed="1"] section div p {
+    display: none;
+  }
+  body section.left-tab[data-collapsed="1"] footer a p,
+  body section.left-tab[data-collapsed="1"] footer div p {
     display: none;
   }
 }
@@ -209,6 +233,10 @@ body section.left-tab section {
   position: relative;
   display: flex;
   flex-flow: column;
+}
+body section.left-tab section[data-name]:not([data-name=""]) {
+  padding-top: 2.5rem;
+  flex-grow: 1;
 }
 body section.left-tab section[data-name]:not([data-name=""]):after {
   content: attr(data-name);
@@ -264,6 +292,50 @@ body section.left-tab section div p {
   font-size: small;
   font-weight: 300;
 }
+body section.left-tab footer a,
+body section.left-tab footer div {
+  position: relative;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  width: 100%;
+  height: 2rem;
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  body section.left-tab footer a:hover:before,
+  body section.left-tab footer div:hover:before {
+    opacity: 1;
+  }
+}
+body section.left-tab footer a:before, body section.left-tab footer a[data-selected="1"],
+body section.left-tab footer div:before,
+body section.left-tab footer div[data-selected="1"] {
+  content: "";
+  z-index: 0;
+  position: absolute;
+  top: 0rem;
+  left: 0.125rem;
+  width: calc(100% - 0.25rem);
+  height: 100%;
+  border-radius: 0.75rem;
+  background-color: #f1f1f1;
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.left-tab footer a p,
+body section.left-tab footer div p {
+  z-index: 1;
+  flex-grow: 1;
+  flex-shrink: 0;
+  line-height: 2rem;
+  font-size: small;
+  font-weight: 300;
+}
 body section.right-content {
   position: relative;
   height: 100%;
@@ -277,12 +349,6 @@ body section.right-content {
     margin-left: 0;
     width: calc(100% - var(--width-left-tab));
   }
-}
-body section.right-content[data-page=chat] section.chat {
-  display: flex;
-}
-body section.right-content[data-page=features] section.feature {
-  display: flex;
 }
 body section.right-content section.chat {
   position: absolute;
