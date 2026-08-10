@@ -22,3 +22,4 @@ extensions/scripts/
 .tmp*
 
 node_modules/
+page/package-lock.json

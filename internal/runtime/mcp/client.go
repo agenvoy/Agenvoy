@@ -16,6 +16,18 @@ type Client interface {
 	Close() error
 }
 
+type SessionError struct {
+	Err error
+}
+
+func (e *SessionError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *SessionError) Unwrap() error {
+	return e.Err
+}
+
 type Tool struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
@@ -52,7 +64,7 @@ func newClient(ctx context.Context, name string, cfg ServerConfig, onToolsChange
 func (c *sdkClient) List(ctx context.Context) ([]Tool, error) {
 	res, err := c.session.ListTools(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("tools/list: %w", err)
+		return nil, &SessionError{Err: fmt.Errorf("tools/list: %w", err)}
 	}
 
 	list := make([]Tool, 0, len(res.Tools))
@@ -77,7 +89,7 @@ func (c *sdkClient) Call(ctx context.Context, name string, args map[string]any) 
 
 	res, err := c.session.CallTool(ctx, &mcpsdk.CallToolParams{Name: name, Arguments: args})
 	if err != nil {
-		return "", fmt.Errorf("tools/call %q: %w", name, err)
+		return "", &SessionError{Err: fmt.Errorf("tools/call %q: %w", name, err)}
 	}
 
 	var sb strings.Builder

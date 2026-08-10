@@ -15,7 +15,7 @@ const (
 	MaxBytes = 1 << 20 // 1 MiB
 )
 
-func (t Tool) getDef(server string, client Client) (toolRegister.Def, bool) {
+func (t Tool) getDef(server string, m *MCP) (toolRegister.Def, bool) {
 	params := map[string]any{
 		"type":       "object",
 		"properties": map[string]any{},
@@ -48,7 +48,7 @@ func (t Tool) getDef(server string, client Client) (toolRegister.Def, bool) {
 				}
 			}
 
-			out, err := client.Call(ctx, toolName, argMap)
+			out, err := m.Call(ctx, server, toolName, argMap)
 			if err != nil {
 				return "", err
 			}
