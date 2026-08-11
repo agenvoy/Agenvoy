@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	timestampHeaderRegex   = regexp.MustCompile(`\A\s*-{3,}\n(?:[^\n]*\n)*?-{3,}\n`)
+	timestampHeaderRegex   = regexp.MustCompile(`\A\s*-{3,}\n(?:(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)[^\n]*\n)+-{3,}\n`)
 	contextMetaLineRegex   = regexp.MustCompile(`\A\s*(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)\s*[:：][^\n]*\n?`)
 	summaryBlockRegex      = regexp.MustCompile(`(?s)<summary>\s*[\s\S]*?\s*</summary>|\[summary\]\s*[\s\S]*?\s*\[/summary\]`)
 	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
