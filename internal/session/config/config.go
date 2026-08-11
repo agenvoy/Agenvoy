@@ -27,7 +27,6 @@ type Config struct {
 	LineEnabled      bool          `json:"line_enabled"`
 	LineUsername     string        `json:"line_username"`
 	KuradbEnabled    bool          `json:"kuradb_enabled"`
-	WebuiPort        string        `json:"webui_port,omitempty"`
 	EnableVoice      bool          `json:"enable_voice"`
 	AdminChannel     string        `json:"admin_channel"`
 }

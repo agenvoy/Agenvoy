@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
@@ -13,8 +15,11 @@ import (
 )
 
 type MCP struct {
-	mu      sync.Mutex
-	clients map[string]Client
+	mu          sync.Mutex
+	reconnectMu sync.Mutex
+	clients     map[string]Client
+	lastError   map[string]string
+	toolsSum    map[string]string
 }
 
 var (
@@ -38,6 +43,7 @@ type ServerInfo struct {
 	Name      string
 	Transport string
 	Connected bool
+	Error     string
 }
 
 func New(ctx context.Context, sessionID string) (*MCP, error) {
@@ -47,7 +53,9 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 	}
 
 	mcp := &MCP{
-		clients: map[string]Client{},
+		clients:   map[string]Client{},
+		lastError: map[string]string{},
+		toolsSum:  map[string]string{},
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
@@ -64,16 +72,14 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 }
 
 func (m *MCP) Status(sessionID string) []ServerInfo {
-	if m == nil {
-		return nil
-	}
 	cfg, err := Load()
 	if err != nil {
 		return nil
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	if m != nil {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+	}
 
 	list := make([]ServerInfo, 0, len(cfg.Servers))
 	for _, name := range slices.Sorted(maps.Keys(cfg.Servers)) {
@@ -82,12 +88,12 @@ func (m *MCP) Status(sessionID string) []ServerInfo {
 		if s.Expand().IsHTTP() {
 			transport = "streamable-http"
 		}
-		_, connected := m.clients[name]
-		list = append(list, ServerInfo{
-			Name:      name,
-			Transport: transport,
-			Connected: connected,
-		})
+		info := ServerInfo{Name: name, Transport: transport}
+		if m != nil {
+			_, info.Connected = m.clients[name]
+			info.Error = m.lastError[name]
+		}
+		list = append(list, info)
 	}
 	return list
 }
@@ -152,6 +158,8 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 		_ = c.Close()
 	}
 	m.clients = map[string]Client{}
+	m.lastError = map[string]string{}
+	m.toolsSum = map[string]string{}
 	m.mu.Unlock()
 
 	toolRegister.RemoveByPrefix("mcp__")
@@ -176,6 +184,123 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 
 	m.RegisterAll(ctx)
 	return nil
+}
+
+func (m *MCP) ReconnectServer(ctx context.Context, name string) error {
+	if m == nil {
+		return fmt.Errorf("no MCP manager")
+	}
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	server, ok := cfg.Servers[name]
+	if !ok {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	m.Disconnect(name)
+
+	client, err := newClient(ctx, name, server, m.refresher(name))
+	if err != nil {
+		m.mu.Lock()
+		m.lastError[name] = err.Error()
+		m.mu.Unlock()
+		return err
+	}
+
+	m.mu.Lock()
+	m.clients[name] = client
+	m.mu.Unlock()
+
+	m.refresh(ctx, name)
+	return nil
+}
+
+func (m *MCP) Disconnect(name string) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	if client, ok := m.clients[name]; ok {
+		_ = client.Close()
+		delete(m.clients, name)
+	}
+	delete(m.lastError, name)
+	delete(m.toolsSum, name)
+	m.mu.Unlock()
+
+	toolRegister.RemoveByPrefix("mcp__" + name + "__")
+}
+
+func (m *MCP) Tools(ctx context.Context, name string) ([]Tool, error) {
+	if m == nil {
+		return nil, fmt.Errorf("no MCP manager")
+	}
+	m.mu.Lock()
+	client, ok := m.clients[name]
+	m.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("server %q is not connected", name)
+	}
+	return client.List(ctx)
+}
+
+func (m *MCP) Call(ctx context.Context, server, tool string, args map[string]any) (string, error) {
+	if m == nil {
+		return "", fmt.Errorf("no MCP manager")
+	}
+
+	m.mu.Lock()
+	client, ok := m.clients[server]
+	m.mu.Unlock()
+	if !ok {
+		return "", fmt.Errorf("server %q is not connected", server)
+	}
+
+	out, err := client.Call(ctx, tool, args)
+	var sessionErr *SessionError
+	if err == nil || !errors.As(err, &sessionErr) {
+		return out, err
+	}
+	if ctx.Err() != nil {
+		return "", err
+	}
+
+	slog.Warn("mcp session lost, reconnecting",
+		slog.String("server", server),
+		slog.String("tool", tool),
+		slog.String("error", err.Error()))
+
+	client, reconnectErr := m.renewClient(ctx, server, client)
+	if reconnectErr != nil {
+		return "", fmt.Errorf("%w (reconnect %q: %v)", err, server, reconnectErr)
+	}
+	return client.Call(ctx, tool, args)
+}
+
+func (m *MCP) renewClient(ctx context.Context, server string, stale Client) (Client, error) {
+	m.reconnectMu.Lock()
+	defer m.reconnectMu.Unlock()
+
+	m.mu.Lock()
+	current, ok := m.clients[server]
+	m.mu.Unlock()
+	if ok && current != stale {
+		return current, nil
+	}
+
+	if err := m.ReconnectServer(ctx, server); err != nil {
+		return nil, err
+	}
+
+	m.mu.Lock()
+	client, ok := m.clients[server]
+	m.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("server %q is not connected", server)
+	}
+	return client, nil
 }
 
 func (m *MCP) refresher(name string) func() {
@@ -203,6 +328,9 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 		slog.Warn("mcp refresh client.List",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
+		m.mu.Lock()
+		m.lastError[name] = err.Error()
+		m.mu.Unlock()
 		return
 	}
 
@@ -211,18 +339,20 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 	if m.clients[name] != client {
 		return
 	}
+	delete(m.lastError, name)
 
 	toolRegister.RemoveByPrefix("mcp__" + name + "__")
 	registered := 0
 	for _, tool := range tools {
-		def, ok := tool.getDef(name, client)
+		def, ok := tool.getDef(name, m)
 		if !ok {
 			continue
 		}
 		toolRegister.Regist(def)
 		registered++
 	}
-	slog.Info("mcp tools refreshed",
+	m.toolsSum[name] = toolsSignature(tools)
+	slog.Debug("mcp tools refreshed",
 		slog.String("server", name),
 		slog.Int("tools", registered))
 }
@@ -242,11 +372,13 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 			slog.Warn("client.List",
 				slog.String("server", name),
 				slog.String("error", err.Error()))
+			m.lastError[name] = err.Error()
 			continue
 		}
+		delete(m.lastError, name)
 
 		for _, tool := range tools {
-			def, ok := tool.getDef(name, client)
+			def, ok := tool.getDef(name, m)
 			if !ok {
 				slog.Warn("tool.getDef",
 					slog.String("server", name),
@@ -255,6 +387,7 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 			}
 			toolRegister.Regist(def)
 		}
+		m.toolsSum[name] = toolsSignature(tools)
 	}
 }
 

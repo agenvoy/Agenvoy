@@ -284,9 +284,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	lastInputTokens := 0
 	var shownReasoning []string
 	type sendOutcome struct {
-		resp *provider.Output
-		code int
-		err  error
+		resp        *provider.Output
+		code        int
+		err         error
+		textEmitted bool
+		reasoned    bool
 	}
 	sendFailCount := 0
 	timeoutRetryCount := 0
@@ -328,29 +330,39 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
+		sendDone := make(chan struct{})
 		go func() {
-			r, c, e := sendAgent.Send(sendCtx, assembled, exec.Tools, reasoning, fast.Mode())
-			resultCh <- sendOutcome{resp: r, code: c, err: e}
+			defer close(sendDone)
+			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(), events, &shownReasoning)
+			resultCh <- sendOutcome{resp: r, code: c, err: e, textEmitted: textEmitted, reasoned: reasoned}
 		}()
+		// * streamSend writes to events; the caller closes that channel as soon as
+		// * Execute returns, so every exit has to outlive the goroutine
+		stopSend := func() {
+			cancelSend()
+			<-sendDone
+		}
 
 		watchdog := time.NewTimer(UnresponsiveProbeInterval)
 		unresponsiveFailures := 0
 		var resp *provider.Output
 		var sendCode int
 		var err error
+		var textEmitted bool
+		var reasoned bool
 		switched := false
 	waitSend:
 		for {
 			select {
 			case <-execCtx.Done():
 				watchdog.Stop()
-				cancelSend()
+				stopSend()
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 				interactive.DeletePending(session.ID, exec.PendingTask)
 				keepPending = false
 				return execCtx.Err()
 			case out := <-resultCh:
-				resp, sendCode, err = out.resp, out.code, out.err
+				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
 				if utils.CheckAgentEndpointAlive(execCtx, data.Agent, HealthCheckTimeout) {
@@ -370,7 +382,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				next, nextName := nextAgent(execCtx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 				if next == nil {
 					watchdog.Stop()
-					cancelSend()
+					stopSend()
 					deadName := data.Agent.Name()
 					slog.Error("agent unresponsive, no healthy fallback; aborting",
 						slog.String("session", session.ID),
@@ -405,7 +417,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		watchdog.Stop()
 		if switched {
-			cancelSend()
+			stopSend()
 			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
 			if !compact.RawToolFallback(session, exec.PendingTask) {
 				session.ToolHistories = nil
@@ -419,7 +431,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		sendElapsed := time.Since(sendStart).Round(time.Second)
 		sendCtxErr := sendCtx.Err()
-		cancelSend()
+		stopSend()
 		if err != nil {
 			if execCtx.Err() != nil {
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
@@ -563,14 +575,22 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 		}
 
-		emitReasoning(events, choice.Message.ReasoningContent, &shownReasoning)
+		if reasoned {
+			markReasoningShown(choice.Message.ReasoningContent, &shownReasoning)
+		} else {
+			emitReasoning(events, choice.Message.ReasoningContent, &shownReasoning)
+		}
 		choice.Message.ReasoningContent = ""
 
 		if len(choice.Message.ToolCalls) > 0 {
 			emptyCount = 0
 			if text, ok := choice.Message.Content.(string); ok {
 				if stripped := StripModelResponse(text); stripped != "" && !isGuardrailRefusal(stripped) {
-					sendText(events, stripped)
+					if textEmitted {
+						events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+					} else {
+						sendText(events, stripped)
+					}
 				}
 			}
 			session, alreadyCall, err = toolCall(execCtx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
@@ -613,7 +633,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 
 			responseText := stripped
-			sendText(events, responseText)
+			if textEmitted {
+				events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+			} else {
+				sendText(events, responseText)
+			}
 
 			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)

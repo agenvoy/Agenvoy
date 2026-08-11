@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -346,16 +347,33 @@ func cmdDaemon() {
 		Handler: route,
 	}
 
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		slog.Error("net.Listen",
+			slog.String("addr", server.Addr),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	serveErr := make(chan error, 1)
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server.ListenAndServe",
-				slog.String("error", err.Error()))
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			serveErr <- err
+			return
 		}
+		serveErr <- nil
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case err := <-serveErr:
+		if err != nil {
+			slog.Error("server.Serve",
+				slog.String("error", err.Error()))
+		}
+	}
 	slog.Info("⎯ daemon shutting down")
 
 	discordMu.Lock()

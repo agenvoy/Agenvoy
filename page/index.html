@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agenvoy</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,settings,stacks"
+    />
+    <link rel="stylesheet" href="public/index.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.20/dist/QuickUI.js"></script>
+    <script src="public/index.js"></script>
+  </head>
+  <body id="app" data-rendered="0">
+    <!---->
+    <section class="left-tab" :data-collapsed="{{collapsed}}">
+      <!---->
+      <header>
+        <img src="public/logo-min.svg" alt="Logo" />
+        <p>Agenvoy</p>
+        <button type="button" @click="show_tab">
+          <span class="material-symbols-outlined"> right_panel_close </span>
+        </button>
+      </header>
+      <!---->
+      <section>
+        <a :for="(k, v) in left_tab" :href="{{v.href}}">
+          <span class="material-symbols-outlined"> {{v.icon}} </span>
+          <p>{{k}}</p>
+        </a>
+      </section>
+      <!---->
+      <section id="left-tab-chat-list" data-name="Chats"></section>
+      <!---->
+      <footer>
+        <a href="?">
+          <span class="material-symbols-outlined"> settings </span>
+          <p>Config</p>
+        </a>
+      </footer>
+    </section>
+    <!---->
+    <section class="right-content">
+      <!---->
+      <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}">
+        <header>
+          <p></p>
+          <div></div>
+          <button type="button">
+            <span class="material-symbols-outlined"> chat_dashed </span>
+          </button>
+        </header>
+        <!---->
+        <div class="logo">
+          <img src="public/logo-min.svg" alt="Logo" />
+          <p>Agenvoy</p>
+        </div>
+        <!---->
+        <section id="right-content-chat-messages" class="messages"></section>
+        <!---->
+        <div class="input">
+          <label dir="auto">
+            <textarea id="chat-input" placeholder="How can I help you today?" @input="chat_input"></textarea>
+            <pre></pre>
+          </label>
+          <section>
+            <button type="button">
+              <span class="material-symbols-outlined"> add_2 </span>
+            </button>
+            <div></div>
+            <button class="model" type="button">
+              auto
+              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+            </button>
+            <button class="send" type="button">
+              <span class="material-symbols-outlined"> send </span>
+            </button>
+          </section>
+        </div>
+      </section>
+      <!---->
+      <section :elif="params.page == features" class="feature">
+        <header :data-selected="{{params.tab}}">
+          <a :for="(k, v) in feature" :href="?page=features&tab={{k}}" :name="{{k}}">
+            <span class="material-symbols-outlined"> {{v}} </span>
+            <p>{{k}}</p>
+            <span>0</span>
+          </a>
+          <div></div>
+        </header>
+      </section>
+    </section>
+  </body>
+</html>

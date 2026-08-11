@@ -1,7 +1,10 @@
 package mcp
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,11 +21,13 @@ import (
 )
 
 type ServerConfig struct {
-	Command string            `json:"command,omitempty"`
-	Args    []string          `json:"args,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
-	URL     string            `json:"url,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
+	Command    string            `json:"command,omitempty"`
+	Args       []string          `json:"args,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`
+	URL        string            `json:"url,omitempty"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	Auth       string            `json:"auth,omitempty"`
+	ClientName string            `json:"oauth_client_name,omitempty"`
 }
 
 type Config struct {
@@ -58,8 +63,10 @@ func Save(cfg Config) error {
 
 func (c ServerConfig) Expand() ServerConfig {
 	out := ServerConfig{
-		Command: c.Command,
-		URL:     c.URL,
+		Command:    c.Command,
+		URL:        c.URL,
+		Auth:       c.Auth,
+		ClientName: c.ClientName,
 	}
 	if len(c.Args) > 0 {
 		out.Args = make([]string, len(c.Args))
@@ -101,13 +108,21 @@ func (c ServerConfig) IsStdio() bool {
 	return strings.TrimSpace(c.Command) != ""
 }
 
-func (c ServerConfig) toTransport() (mcpsdk.Transport, error) {
+func (c ServerConfig) IsOAuth() bool {
+	return strings.EqualFold(strings.TrimSpace(c.Auth), "oauth")
+}
+
+func (c ServerConfig) toTransport(name string) (mcpsdk.Transport, error) {
 	switch {
 	case c.IsHTTP():
-		return &mcpsdk.StreamableClientTransport{
+		transport := &mcpsdk.StreamableClientTransport{
 			Endpoint:   strings.TrimSpace(c.URL),
 			HTTPClient: headerClient(c.Headers),
-		}, nil
+		}
+		if c.IsOAuth() {
+			transport.OAuthHandler = &oauthHandler{name: name}
+		}
+		return transport, nil
 	case c.IsStdio():
 		cmd := exec.Command(c.Command, c.Args...)
 		cmd.Env = os.Environ()
@@ -145,5 +160,46 @@ func headerClient(headers map[string]string) *http.Client {
 	if len(headers) > 0 {
 		roundTripper = &headerRoundTripper{base: transport, headers: headers}
 	}
-	return &http.Client{Transport: roundTripper}
+	return &http.Client{Transport: &jsonrpcStatusRoundTripper{base: roundTripper}}
+}
+
+type jsonrpcStatusRoundTripper struct {
+	base http.RoundTripper
+}
+
+func (r *jsonrpcStatusRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := r.base.RoundTrip(req)
+	if err != nil || resp.StatusCode != http.StatusForbidden {
+		return resp, err
+	}
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		return resp, nil
+	}
+
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	resp.Body.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("read forbidden body: %w", readErr)
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(raw))
+	resp.ContentLength = int64(len(raw))
+
+	if isJSONRPCResult(raw) {
+		resp.StatusCode = http.StatusOK
+		resp.Status = "200 OK"
+	}
+	return resp, nil
+}
+
+func isJSONRPCResult(raw []byte) bool {
+	var dic map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &dic); err != nil {
+		return false
+	}
+	if _, ok := dic["error"]; ok {
+		return false
+	}
+	_, hasVersion := dic["jsonrpc"]
+	_, hasResult := dic["result"]
+	return hasVersion && hasResult
 }

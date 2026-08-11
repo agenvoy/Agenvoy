@@ -1,0 +1,35 @@
+@use "chat";
+@use "feature";
+
+* {
+  --width-right-content: calc(100% - 2rem);
+  --max-width-right-content: 64rem;
+
+  @media (min-width: 480px) {
+    --width-right-content: calc(100% - 4rem);
+  }
+
+  @media (min-width: 768px) {
+    --width-right-content: calc(100% - 8rem);
+  }
+}
+
+@mixin styles {
+  section.right-content {
+    position: relative;
+    height: 100%;
+    background-color: white;
+    transition: 0.2s;
+
+    margin-left: var(--width-left-tab-collaspse);
+    width: calc(100% - var(--width-left-tab-collaspse));
+
+    @media (min-width: 768px) {
+      margin-left: 0;
+      width: calc(100% - var(--width-left-tab));
+    }
+
+    @include chat.styles;
+    @include feature.styles;
+  }
+}

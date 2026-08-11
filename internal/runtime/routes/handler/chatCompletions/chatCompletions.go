@@ -18,11 +18,12 @@ var (
 )
 
 type Request struct {
-	Model         string             `json:"model"`
-	Messages      []provider.Message `json:"messages"`
-	Stream        bool               `json:"stream"`
-	workDir       string             `json:"-"`
-	systemPrompts []provider.Message `json:"-"`
+	Model           string             `json:"model"`
+	Messages        []provider.Message `json:"messages"`
+	Stream          bool               `json:"stream"`
+	ReasoningEffort string             `json:"reasoning_effort"`
+	workDir         string             `json:"-"`
+	systemPrompts   []provider.Message `json:"-"`
 }
 
 func ChatCompletions() gin.HandlerFunc {
@@ -37,6 +38,10 @@ func ChatCompletions() gin.HandlerFunc {
 		}
 
 		normalizeContent(req.Messages)
+
+		if _, ok := provider.ParseReasoning(req.ReasoningEffort); !ok {
+			req.ReasoningEffort = "medium"
+		}
 
 		workDir := extractWorkDirFromZed(req.Messages)
 		if workDir != "" {

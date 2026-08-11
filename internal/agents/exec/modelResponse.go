@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|background summary of prior discussion|Strict rules:|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
 	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
 	thinkOpenRegex         = regexp.MustCompile(`(?i)<think>`)
+	thinkCloseRegex        = regexp.MustCompile(`(?i)</think>`)
 )
 
 func splitThinkTag(s string) (think, rest string) {
@@ -64,15 +66,9 @@ func StripModelResponse(str string) string {
 			slog.String("dropped_head", head))
 	}
 	lines := strings.Split(str, "\n")
-	inFence := false
+	var fence internalUtils.FenceState
 	for i, line := range lines {
-		trimmed := strings.TrimLeft(line, " \t")
-		if strings.HasPrefix(trimmed, "```") {
-			inFence = !inFence
-		}
-		if !inFence {
-			lines[i] = trimmed
-		}
+		lines[i], _ = fence.Normalize(line)
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }

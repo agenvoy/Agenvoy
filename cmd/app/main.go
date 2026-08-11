@@ -132,6 +132,7 @@ func initMCP(ctx context.Context, sessionID string) *mcp.MCP {
 		return nil
 	}
 	manager.RegisterAll(ctx)
+	go manager.Watch(ctx)
 	return manager
 }
 

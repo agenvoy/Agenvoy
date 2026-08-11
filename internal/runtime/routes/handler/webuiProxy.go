@@ -13,13 +13,7 @@ import (
 
 func WebuiProxy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		port := webui.Port()
-		if port == "" {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-
-		target, err := url.Parse("http://127.0.0.1:" + port)
+		target, err := url.Parse(webui.URL)
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return

@@ -1,0 +1,34 @@
+@mixin styles {
+  header {
+    img {
+      position: relative;
+    }
+
+    p {
+      display: block;
+    }
+
+    a,
+    button {
+      opacity: 1;
+    }
+  }
+
+  section {
+    &[data-name]:not([data-name=""]) {
+      &:after {
+        display: block;
+      }
+
+      a,
+      div {
+        display: flex;
+      }
+    }
+
+    a p,
+    div p {
+      display: block;
+    }
+  }
+}

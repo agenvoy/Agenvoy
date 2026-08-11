@@ -32,6 +32,8 @@ func Append(sessionID, str string) {
 
 func Record(sessionID string, event agentTypes.Event) {
 	switch event.Type {
+	case agentTypes.EventTextDelta:
+		return
 	case agentTypes.EventText:
 		appendAssistant(sessionID, event)
 		return

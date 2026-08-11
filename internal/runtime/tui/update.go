@@ -59,6 +59,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t.runOAuthSuccess(msg)
 		case OAuthFailed:
 			return t.runOAuthFailed(msg)
+		case McpOAuthInfo:
+			return t.runMcpOAuthInfo(msg)
+		case McpOAuthDone:
+			return t.runMcpOAuthDone(msg)
+		case McpOAuthPaste:
+			return t.runMcpOAuthPaste(msg)
 		}
 		return t, nil
 	}
@@ -420,28 +426,23 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case McpAction:
-		switch msg.action {
-		case "add":
-			next, cmd, _ := t.commandMcpAdd()
-			return next, cmd
-		case "remove":
-			next, cmd, _ := t.commandMcpRemove()
-			return next, cmd
-		case "reconnect":
-			next, cmd, _ := t.commandMcpReconnect()
-			return next, cmd
-		case "install":
-			next, cmd, _ := t.commandMcpInstall()
-			return next, cmd
-		}
-		return t, nil
+	case McpMenuPick:
+		return t.runMcpMenuPick(msg.value)
+
+	case McpServerAction:
+		return t.runMcpServerAction(msg)
 
 	case McpReconnectDone:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] mcp reconnect: %v", msg.err)) + "\n")
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s reconnect: %v", msg.server, msg.err)) + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ mcp reconnected") + "\n")
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s reconnected", msg.server)) + "\n")
+
+	case McpToolsResult:
+		return t.runMcpToolsResult(msg)
+
+	case McpOAuthPaste:
+		return t.runMcpOAuthPaste(msg)
 
 	case McpInstallPick:
 		if msg.index < 0 || msg.index >= len(mcpInstallClients) {
@@ -455,9 +456,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s: %v", msg.client, msg.err)) + "\n")
 		}
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("✓ added agenvoy to %s (%s)", msg.client, msg.path)) + "\n")
-
-	case McpRemove:
-		return t.runMcpRemove(msg)
 
 	case McpAddName:
 		if msg.name == "" {
@@ -516,6 +514,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.method {
 		case "none":
 			return t.openMcpAddExtraHeaders()
+		case "oauth":
+			t.mcpAdd.auth = "oauth"
+			return t.openMcpAddExtraHeaders()
 		case "bearer":
 			return t.openMcpAddBearerToken()
 		case "apikey":
@@ -559,8 +560,33 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] mcp add: %v", msg.err)) + "\n")
 		}
-		next, cmd, _ := t.commandMcpReconnect()
+		if msg.oauth {
+			next, cmd := t.startMcpLogin(msg.name)
+			return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ mcp added: %s", msg.name))), cmd)
+		}
+		next, cmd := t.reconnectMcpServer(msg.name)
 		return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ mcp added: %s", msg.name))), cmd)
+
+	case McpClientID:
+		if msg.id == "" {
+			t.mcpClient = nil
+			return t, tea.Println(errorStyle.Render("[!] client id required") + "\n")
+		}
+		t.mcpClient.id = msg.id
+		return t.openMcpClientSecret()
+
+	case McpClientSecret:
+		t.mcpClient.secret = msg.secret
+		return t.openMcpClientRedirect()
+
+	case McpClientRedirect:
+		return t.runMcpClientSave(msg.uri)
+
+	case McpOAuthInfo:
+		return t.runMcpOAuthInfo(msg)
+
+	case McpOAuthDone:
+		return t.runMcpOAuthDone(msg)
 
 	case AllowSkillScopeSelect:
 		next, cmd := t.openAllowSkillPickerPopup(msg.scope)
@@ -1005,36 +1031,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case WebuiAction:
-		switch msg.action {
-		case "enable":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ webui deploying")+"\n"),
-				runWebuiExec("enable"),
-			)
-		case "disable":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ webui removing")+"\n"),
-				runWebuiExec("disable"),
-			)
+		progress, ok := map[string]string{
+			"enable":  "deploying",
+			"start":   "starting",
+			"stop":    "stopping",
+			"disable": "removing",
+		}[msg.action]
+		if !ok {
+			return t, nil
 		}
-		return t, nil
+		return t, tea.Sequence(
+			tea.Println(hintStyle.Render("⎯ webui "+progress)+"\n"),
+			runWebuiExec(msg.action),
+		)
 
 	case WebuiDone:
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui %s: %v", msg.action, msg.err)) + "\n")
 		}
-		if msg.action == "enable" {
-			port := webui.HostPort(webui.Engine())
-			if port == "" {
-				return t, tea.Println(errorStyle.Render("[!] webui enable: container has no published port") + "\n")
-			}
-			if err := webui.SavePort(port); err != nil {
-				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui save port: %v", err)) + "\n")
-			}
+		switch msg.action {
+		case "enable", "start":
 			return t, tea.Println(hintStyle.Render(
-				fmt.Sprintf("⎯ webui enabled · http://127.0.0.1:%s · proxied at /webui", port)) + "\n")
+				fmt.Sprintf("⎯ webui running · %s · proxied at /webui", webui.URL)) + "\n")
+		case "stop":
+			return t, tea.Println(hintStyle.Render("⎯ webui stopped · still deployed") + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ webui disabled") + "\n")
+		return t, tea.Println(hintStyle.Render("⎯ webui disabled · container and volume removed") + "\n")
 
 	case KuradbKeySubmit:
 		token := strings.TrimSpace(msg.token)
