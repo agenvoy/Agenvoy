@@ -105,19 +105,16 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		AllowAll:          allowAll,
 	}
 
-	oldHistory, maxHistory := sessionHistory.Get(sessionID)
-	if oldHistory == nil {
-		oldHistory = []provider.Message{}
-	}
-	if maxHistory == nil {
-		maxHistory = []provider.Message{}
-	}
+	oldRecords, maxRecords := sessionHistory.Get(sessionID)
+	oldHistory := sessionHistory.Messages(oldRecords)
+	maxHistory := sessionHistory.Messages(maxRecords)
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
-		time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, task)
+	sendAt := time.Now().UnixNano()
+	userText := task
+	prefixed := sessionHistory.WithPrefix(sessionHistory.Record{SendAt: sendAt}.Prefix(), userText)
 
 	histories := append([]provider.Message{}, oldHistory...)
-	histories = append(histories, provider.Message{Role: "user", Content: userText})
+	histories = append(histories, provider.Message{Role: "user", Content: prefixed})
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
@@ -127,9 +124,10 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		Tools:         []provider.Message{},
 		Histories:     histories,
 		BaseLen:       len(oldHistory),
-		UserInput:     provider.Message{Role: "user", Content: userText},
+		UserSendAt:    sendAt,
+		UserInput:     provider.Message{Role: "user", Content: prefixed},
 	}
-	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxHistory)); summary != "" {
+	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxRecords)); summary != "" {
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 

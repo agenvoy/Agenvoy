@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"time"
 
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 
@@ -62,7 +61,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		scanner.Scan()
 	}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, full)
+	userText := full
 	sessionLog.Append(sessionID, userText)
 
 	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, sessionID)
@@ -79,6 +78,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 		WorkDir:        workDir,
 		Content:        full,
 		Input:          userText,
+		Sender:         "user",
 		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		PendingTask:    taskHash,

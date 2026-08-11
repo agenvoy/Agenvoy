@@ -16,7 +16,7 @@
 
 ---
 
-The `當前時間:` prefix at the start of each message is the local timestamp (format `YYYY-MM-DD HH:mm:ss`) and can be used to judge message recency.
+Each message opens with a system-injected `sendAt: <YYYY-MM-DD HH:mm:ss>` line — the local send time, usable for recency judgment. Read it, never emit it: your reply starts with the answer itself.
 
 Host OS: {{.SystemOS}}
 Work directory: {{.WorkPath}}

@@ -12,7 +12,6 @@ import (
 	_ "image/png"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -87,32 +86,40 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	}
 
 	oldHistory, maxHistory := sessionHistory.Get(overrideID)
-	session.Histories = oldHistory
-	session.BaseLen = len(oldHistory)
+	session.Histories = sessionHistory.Messages(oldHistory)
+	session.BaseLen = len(session.Histories)
 
 	session.SystemPrompts = BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, overrideID, execData.AllowAll, execData.ExcludeSkills)
 	if summary := summary.GetPrompt(overrideID, OldestMessageTime(maxHistory)); summary != "" {
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
-	session.OldHistories = maxHistory
+	session.OldHistories = sessionHistory.Messages(maxHistory)
 	session.ToolHistories = []provider.Message{}
 
 	userText := strings.TrimSpace(execData.Input)
 	if userText == "" {
-		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), execData.WorkDir, trimInput)
+		userText = trimInput
 	}
 	histText := userText
 	if h := strings.TrimSpace(execData.HistoryContent); h != "" {
 		histText = h
 	}
+
+	session.Sender = execData.Sender
+	session.UserSendAt = time.Now().UnixNano()
+	prefix := sessionHistory.Record{
+		SendAt: session.UserSendAt,
+		Sender: session.Sender,
+	}.Prefix()
+
 	session.Histories = append(session.Histories, provider.Message{
 		Role:    "user",
-		Content: histText,
+		Content: sessionHistory.WithPrefix(prefix, histText),
 	})
 	session.UserInput = provider.Message{
 		Role:    "user",
-		Content: buildContent(userText, execData.ImageInputs, execData.FileInputs),
+		Content: sessionHistory.WithPrefix(prefix, buildContent(userText, execData.ImageInputs, execData.FileInputs)),
 	}
 	SaveUserInputHistory(ctx, overrideID, histText)
 
@@ -120,18 +127,10 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	return &session, nil
 }
 
-var msgTimeRegex = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
-
-func OldestMessageTime(histories []provider.Message) time.Time {
-	for _, m := range histories {
-		s, ok := m.Content.(string)
-		if !ok {
-			continue
-		}
-		if matches := msgTimeRegex.FindStringSubmatch(s); len(matches) > 1 {
-			if t, err := time.ParseInLocation("2006-01-02 15:04:05", matches[1], time.Local); err == nil {
-				return t
-			}
+func OldestMessageTime(histories []sessionHistory.Record) time.Time {
+	for _, record := range histories {
+		if record.SendAt > 0 {
+			return time.Unix(0, record.SendAt)
 		}
 	}
 	return time.Time{}

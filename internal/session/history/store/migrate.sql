@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS messages (
     session_id   TEXT    NOT NULL,
     send_at      INTEGER NOT NULL DEFAULT 0,
     role         TEXT    NOT NULL,
-    content      TEXT    NOT NULL
+    content      TEXT    NOT NULL,
+    sender       TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_session_send_at

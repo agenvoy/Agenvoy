@@ -28,7 +28,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
-	provider "github.com/pardnchiu/go-llm-router/core"
 	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
@@ -79,9 +78,12 @@ func recordChatter(in go_bot_telegram.Input, content string) {
 	if username == "" {
 		username = "unknown"
 	}
-	if err := sessionHistory.Append(sessionID, []provider.Message{
-		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
-	}); err != nil {
+	if err := sessionHistory.Append(sessionID, []sessionHistory.Record{{
+		Role:    "user",
+		Content: content,
+		SendAt:  time.Now().UnixNano(),
+		Sender:  username,
+	}}); err != nil {
 		slog.Warn("sessionHistory.Append (chatter)",
 			slog.Int64("chat", in.ChatID),
 			slog.String("error", err.Error()))
@@ -268,13 +270,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		routingSessionID = cs
 	}
 
-	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 chat ID: %d",
-		time.Now().Format("2006-01-02 15:04:05"),
-		workDir,
-		in.Username,
-		in.ChatID,
-	)
-	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
+	userText := content
 	sessionLog.Append(routingSessionID, userText)
 
 	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
@@ -303,6 +299,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		Skill:          matchedSkill,
 		Content:        content,
 		Input:          userText,
+		Sender:         in.Username,
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,

@@ -15,7 +15,6 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
@@ -27,8 +26,7 @@ type compactExchange struct {
 }
 
 var (
-	compactJSONRegex   = regexp.MustCompile(`\{[^{}]*"remove"\s*:\s*\[[^]]*\][^{}]*\}`)
-	metadataBlockRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
+	compactJSONRegex = regexp.MustCompile(`\{[^{}]*"remove"\s*:\s*\[[^]]*\][^{}]*\}`)
 )
 
 func SessionHistory(ctx context.Context, sessionID string) (int, error) {
@@ -86,7 +84,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	kept := make([]provider.Message, 0, len(old))
+	kept := make([]sessionHistory.Record, 0, len(old))
 	removed := 0
 	for i, ex := range exchanges {
 		if removeSet[i] {
@@ -108,17 +106,17 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	return removed, nil
 }
 
-func syncActionLog(sessionID string, messages []provider.Message) {
+func syncActionLog(sessionID string, messages []sessionHistory.Record) {
 	var keptContents []string
 	for _, msg := range messages {
 		if msg.Role == "user" {
-			keptContents = append(keptContents, historyStore.ExtractContent(msg.Content))
+			keptContents = append(keptContents, msg.Text())
 		}
 	}
 	sessionLog.RetainExchanges(sessionID, keptContents)
 }
 
-func groupExchanges(messages []provider.Message) []compactExchange {
+func groupExchanges(messages []sessionHistory.Record) []compactExchange {
 	var list []compactExchange
 	current := -1
 	for i, msg := range messages {
@@ -135,12 +133,12 @@ func groupExchanges(messages []provider.Message) []compactExchange {
 	return list
 }
 
-func preFilter(messages []provider.Message, exchanges []compactExchange) map[int]bool {
+func preFilter(messages []sessionHistory.Record, exchanges []compactExchange) map[int]bool {
 	removeSet := make(map[int]bool)
 	seen := make(map[string]bool)
 
 	for i := len(exchanges) - 1; i >= 0; i-- {
-		content := extractUserContent(messages[exchanges[i].start])
+		content := strings.TrimSpace(messages[exchanges[i].start].Text())
 		if content == "" || seen[content] {
 			removeSet[i] = true
 			continue
@@ -151,45 +149,13 @@ func preFilter(messages []provider.Message, exchanges []compactExchange) map[int
 	return removeSet
 }
 
-func extractUserContent(msg provider.Message) string {
-	content := historyStore.ExtractContent(msg.Content)
-	content = metadataBlockRegex.ReplaceAllString(content, "")
-	lines := strings.SplitN(content, "\n", 20)
-	start := 0
-	for start < len(lines) {
-		line := strings.TrimSpace(lines[start])
-		if line == "" || strings.HasPrefix(line, "當前時間:") || strings.HasPrefix(line, "工作目錄:") || strings.HasPrefix(line, "傳送者:") || strings.HasPrefix(line, "當前 ") {
-			start++
-			continue
-		}
-		break
-	}
-	if start >= len(lines) {
-		return ""
-	}
-	return strings.TrimSpace(strings.Join(lines[start:], "\n"))
-}
-
-func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []provider.Message, exchanges []compactExchange, indices []int) (map[int]bool, error) {
+func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []sessionHistory.Record, exchanges []compactExchange, indices []int) (map[int]bool, error) {
 	var sb strings.Builder
 	for _, i := range indices {
 		ex := exchanges[i]
 		fmt.Fprintf(&sb, "=== Exchange %d ===\n", i)
 		for _, msg := range messages[ex.start:ex.end] {
-			content := historyStore.ExtractContent(msg.Content)
-			if content == "" && len(msg.ToolCalls) > 0 {
-				var names []string
-				for _, tc := range msg.ToolCalls {
-					names = append(names, tc.Function.Name)
-				}
-				fmt.Fprintf(&sb, "[%s] <tool_calls: %s>\n", msg.Role, strings.Join(names, ", "))
-				continue
-			}
-			if msg.ToolCallID != "" {
-				fmt.Fprintf(&sb, "[tool] %s\n", go_pkg_utils.TruncateString(content, 200))
-				continue
-			}
-			fmt.Fprintf(&sb, "[%s] %s\n", msg.Role, go_pkg_utils.TruncateString(content, 500))
+			fmt.Fprintf(&sb, "[%s] %s\n", msg.Role, go_pkg_utils.TruncateString(msg.Text(), 500))
 		}
 		sb.WriteString("\n")
 	}

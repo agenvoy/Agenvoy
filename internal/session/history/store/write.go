@@ -2,17 +2,20 @@ package store
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
-	"time"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-var timestampRegex = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
+type Row struct {
+	SendAt  int64
+	Role    string
+	Content string
+	Sender  string
+}
 
-func Write(sessionID string, messages []provider.Message) error {
-	if conn == nil || len(messages) == 0 {
+func Write(sessionID string, list []Row) error {
+	if conn == nil || len(list) == 0 {
 		return nil
 	}
 
@@ -23,21 +26,20 @@ func Write(sessionID string, messages []provider.Message) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-	INSERT INTO messages (session_id, send_at, role, content)
-	VALUES (?, ?, ?, ?)`)
+	INSERT INTO messages (session_id, send_at, role, content, sender)
+	VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("sql.Tx Prepare [INSERT messages]: %w", err)
 	}
 	defer stmt.Close()
 
 	var lastTS int64
-	for _, msg := range messages {
-		content := ExtractContent(msg.Content)
-		if strings.TrimSpace(content) == "" {
+	for _, row := range list {
+		if strings.TrimSpace(row.Content) == "" {
 			continue
 		}
 
-		ts := ExtractTimestamp(content)
+		ts := row.SendAt
 		if ts == 0 && lastTS > 0 {
 			ts = lastTS + 1
 		}
@@ -45,7 +47,7 @@ func Write(sessionID string, messages []provider.Message) error {
 			lastTS = ts
 		}
 
-		if _, err := stmt.Exec(sessionID, ts, msg.Role, content); err != nil {
+		if _, err := stmt.Exec(sessionID, ts, row.Role, row.Content, row.Sender); err != nil {
 			return fmt.Errorf("sql.Stmt Exec: %w", err)
 		}
 	}
@@ -57,6 +59,15 @@ func ExtractContent(content any) string {
 	switch val := content.(type) {
 	case string:
 		return val
+
+	case []provider.ContentPart:
+		var parts []string
+		for _, part := range val {
+			if part.Type == "text" && part.Text != "" {
+				parts = append(parts, part.Text)
+			}
+		}
+		return strings.Join(parts, "\n")
 
 	case []any:
 		var parts []string
@@ -79,19 +90,6 @@ func ExtractContent(content any) string {
 		}
 		return fmt.Sprint(content)
 	}
-}
-
-func ExtractTimestamp(content string) int64 {
-	match := timestampRegex.FindStringSubmatch(content)
-	if len(match) < 2 {
-		return 0
-	}
-
-	t, err := time.ParseInLocation("2006-01-02 15:04:05", match[1], time.Local)
-	if err != nil {
-		return 0
-	}
-	return t.UnixNano()
 }
 
 func Clear(sessionID string) error {

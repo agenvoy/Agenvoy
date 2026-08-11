@@ -44,10 +44,10 @@ var (
 const Port = "17989"
 
 type RuntimeLimits struct {
-	MaxToolIterations   int    `json:"max_tool_iterations,omitempty"`
-	AgentSendTimeoutSec int    `json:"agent_send_timeout_seconds,omitempty"`
-	MaxHistoryMessages  int    `json:"max_history_messages,omitempty"`
-	MaxHistoryBytes     int    `json:"max_history_bytes,omitempty"`
+	MaxToolIterations   int `json:"max_tool_iterations,omitempty"`
+	AgentSendTimeoutSec int `json:"agent_send_timeout_seconds,omitempty"`
+	MaxHistoryMessages  int `json:"max_history_messages,omitempty"`
+	MaxHistoryBytes     int `json:"max_history_bytes,omitempty"`
 }
 
 func LoadRuntime() error {

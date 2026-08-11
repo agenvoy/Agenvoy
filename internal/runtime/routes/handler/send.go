@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -94,8 +93,7 @@ func Send() gin.HandlerFunc {
 			}
 
 			workDir, _ := os.UserHomeDir()
-			userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
-				time.Now().Format("2006-01-02 15:04:05"), workDir, trimContent)
+			userText := trimContent
 			if sessionID != "" {
 				sessionLog.Append(sessionID, userText)
 			}
@@ -178,9 +176,9 @@ func newSession(ctx context.Context, data exec.ExecuteMeta, sessionID string) (*
 	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.ExcludeSkills)
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
-	session.Histories = oldHistory
-	session.BaseLen = len(oldHistory)
-	session.OldHistories = maxHistory
+	session.Histories = sessionHistory.Messages(oldHistory)
+	session.BaseLen = len(session.Histories)
+	session.OldHistories = sessionHistory.Messages(maxHistory)
 
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
@@ -189,13 +187,20 @@ func newSession(ctx context.Context, data exec.ExecuteMeta, sessionID string) (*
 
 	userText := strings.TrimSpace(data.Input)
 	if userText == "" {
-		userText = fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
-			time.Now().Format("2006-01-02 15:04:05"), data.WorkDir, data.Content)
+		userText = strings.TrimSpace(data.Content)
 	}
-	session.UserInput = provider.Message{Role: "user", Content: userText}
+
+	session.Sender = data.Sender
+	session.UserSendAt = time.Now().UnixNano()
+	prefixed := sessionHistory.WithPrefix(sessionHistory.Record{
+		SendAt: session.UserSendAt,
+		Sender: session.Sender,
+	}.Prefix(), userText)
+
+	session.UserInput = provider.Message{Role: "user", Content: prefixed}
 	session.Histories = append(session.Histories, provider.Message{
 		Role:    "user",
-		Content: userText,
+		Content: prefixed,
 	})
 	exec.SaveUserInputHistory(ctx, sessionID, userText)
 

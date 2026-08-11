@@ -133,7 +133,11 @@ func keywordHandler(_ context.Context, sessionID, keyword, timeRange string, lim
 		sb.WriteString("[archive]\n")
 		for _, r := range reults {
 			tsStr := time.Unix(0, r.Timestamp).Format(time.RFC3339)
-			sb.WriteString(fmt.Sprintf("[%s · %s] %s\n", tsStr, r.Role, r.Content))
+			who := r.Role
+			if r.Sender != "" {
+				who = r.Role + " · " + r.Sender
+			}
+			sb.WriteString(fmt.Sprintf("[%s · %s] %s\n", tsStr, who, r.Content))
 		}
 	}
 
@@ -338,8 +342,9 @@ func decodeHit(key string, ts int64, val string) (historyHit, bool) {
 	if err := json.Unmarshal([]byte(val), &msg); err != nil {
 		return historyHit{}, false
 	}
-	if strings.TrimSpace(msg.Content) == "" {
+	content := strings.TrimSpace(sessionHistory.StripPrefix(msg.Content))
+	if content == "" {
 		return historyHit{}, false
 	}
-	return historyHit{Key: key, TS: ts, Role: msg.Role, Content: msg.Content}, true
+	return historyHit{Key: key, TS: ts, Role: msg.Role, Content: content}, true
 }
