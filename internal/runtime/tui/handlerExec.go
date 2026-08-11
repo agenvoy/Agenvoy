@@ -156,6 +156,9 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 	}()
 
 	for ev := range ch {
+		if ev.Type == agentTypes.EventTextDelta {
+			continue
+		}
 		send(agentEvent{event: ev})
 		switch ev.Type {
 		case agentTypes.EventDone, agentTypes.EventReasoning, agentTypes.EventText, agentTypes.EventToolCall, agentTypes.EventCompact:

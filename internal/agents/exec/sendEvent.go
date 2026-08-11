@@ -57,6 +57,14 @@ func emitReasoning(events chan<- agentTypes.Event, str string, shown *[]string) 
 	*shown = append(*shown, cur)
 }
 
+func markReasoningShown(str string, shown *[]string) {
+	cur := normalizeReasoning(str)
+	if cur == "" {
+		return
+	}
+	*shown = append(*shown, cur)
+}
+
 func normalizeReasoning(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }

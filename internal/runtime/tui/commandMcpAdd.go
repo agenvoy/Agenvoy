@@ -28,6 +28,7 @@ type mcpAddDraft struct {
 	url            string
 	headers        map[string]string
 	authHeaderName string
+	auth           string
 }
 
 type McpAddName struct {
@@ -83,8 +84,9 @@ type McpAddHeaders struct {
 }
 
 type McpAddSaved struct {
-	name string
-	err  error
+	name  string
+	oauth bool
+	err   error
 }
 
 func (t TUI) commandMcpAdd() (TUI, tea.Cmd, bool) {
@@ -198,11 +200,12 @@ func (t TUI) openMcpAddAuthMethod() (TUI, tea.Cmd) {
 		title: "Authentication",
 		options: []string{
 			"none    no auth",
+			"oauth   browser login · dynamic client registration",
 			"bearer  Authorization: Bearer token",
 			"api key custom header token",
 			"basic   Authorization: Basic token",
 		},
-		values: []string{"none", "bearer", "apikey", "basic"},
+		values: []string{"none", "oauth", "bearer", "apikey", "basic"},
 		onConfirm: func(chosen string) any {
 			return McpAddAuthMethod{method: chosen}
 		},
@@ -365,6 +368,7 @@ func (t TUI) finalizeMcpAdd() (TUI, tea.Cmd) {
 	case "streamable-http":
 		cfg.URL = d.url
 		cfg.Headers = d.headers
+		cfg.Auth = d.auth
 	}
 
 	existing, err := mcp.Load()
@@ -379,5 +383,5 @@ func (t TUI) finalizeMcpAdd() (TUI, tea.Cmd) {
 			return McpAddSaved{name: d.name, err: fmt.Errorf("mcp.Save: %w", err)}
 		}
 	}
-	return t, func() tea.Msg { return McpAddSaved{name: d.name} }
+	return t, func() tea.Msg { return McpAddSaved{name: d.name, oauth: cfg.IsOAuth()} }
 }

@@ -1,0 +1,51 @@
+@mixin styles {
+  header {
+    @media (hover: hover) {
+      &:hover {
+        img {
+          opacity: 0;
+        }
+
+        button {
+          opacity: 1;
+        }
+      }
+    }
+
+    img {
+      position: absolute;
+    }
+
+    p {
+      display: none;
+    }
+
+    a,
+    button {
+      margin-left: 0.25rem;
+      opacity: 0;
+    }
+  }
+
+  section {
+    &[data-name]:not([data-name=""]) {
+      &:after,
+      a,
+      div {
+        display: none;
+      }
+    }
+
+    a p,
+    div p {
+      display: none;
+    }
+  }
+
+  footer {
+    a p,
+    div p {
+      display: none;
+    }
+  }
+}

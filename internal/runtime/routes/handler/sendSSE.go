@@ -39,8 +39,7 @@ func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agent
 	flusher.Flush()
 
 	for event := range events {
-		if event.Type == agentTypes.EventToolConfirm && event.ReplyCh != nil {
-			event.ReplyCh <- true
+		if event.Type == agentTypes.EventText {
 			continue
 		}
 

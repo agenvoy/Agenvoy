@@ -123,8 +123,8 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 			if t := strings.TrimSpace(ev.Text); t != "" && !emitReasoningLine(t) {
 				return
 			}
-		case agentTypes.EventText:
-			if !emitContent(ev.Text + "\n") {
+		case agentTypes.EventTextDelta:
+			if !emitContent(ev.Text) {
 				return
 			}
 		case agentTypes.EventDone:

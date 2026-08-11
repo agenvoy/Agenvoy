@@ -1,0 +1,15 @@
+{
+  "name": "agenvoy-page",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "chokidar \"src/js/**/*.js\" --initial --command \"npm run build:js\"",
+    "build:js": "terser src/js/*.js --compress --mangle --output public/index.js",
+    "sass": "sass src/sass:public --watch --style=compressed --no-source-map"
+  },
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0",
+    "sass": "^1.93.2",
+    "terser": "^5.44.0"
+  }
+}

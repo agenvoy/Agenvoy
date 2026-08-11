@@ -38,6 +38,7 @@ type Popup struct {
 	diffLines   []string
 
 	options    []string
+	optionTail []string
 	values     []string
 	cursor     int
 	multi      map[int]bool
@@ -58,10 +59,11 @@ type Popup struct {
 }
 
 type oauthState struct {
-	provider string
-	url      string
-	userCode string
-	cancel   context.CancelFunc
+	provider  string
+	mcpServer string
+	url       string
+	userCode  string
+	cancel    context.CancelFunc
 }
 
 func (t TUI) closePopup() TUI {
@@ -113,6 +115,10 @@ func (t TUI) updateOAuthPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		if p.oauth.url != "" {
 			openBrowser(p.oauth.url)
+		}
+	case tea.KeyRunes:
+		if p.oauth.mcpServer != "" && strings.EqualFold(string(msg.Runes), "p") {
+			return t.openMcpOAuthPaste(p.oauth)
 		}
 	}
 	return t, nil

@@ -34,7 +34,7 @@ type Command struct {
 
 var commands = []Command{
 	{"model", "add / remove provider · pick session / dispatch / summary model"},
-	{"mcp", "add / remove / reconnect MCP server · global or session scope"},
+	{"mcp", "list MCP servers · add / install · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
 	{"dangerous", "remove-session / allow-skill / allow-cmd"},

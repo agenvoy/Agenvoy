@@ -17,6 +17,7 @@ func (e EventType) MarshalJSON() ([]byte, error) {
 
 var eventTypeByName = map[string]EventType{
 	"EventText":            EventText,
+	"EventTextDelta":       EventTextDelta,
 	"EventTextDone":        EventTextDone,
 	"EventSkillResult":     EventSkillResult,
 	"EventAgentSelect":     EventAgentSelect,
@@ -81,12 +82,15 @@ const (
 	EventUsageUpdate
 	EventUserInjected
 	EventCanceled
+	EventTextDelta
 )
 
 func (e EventType) String() string {
 	switch e {
 	case EventText:
 		return "EventText"
+	case EventTextDelta:
+		return "EventTextDelta"
 	case EventTextDone:
 		return "EventTextDone"
 	case EventSkillResult:
@@ -153,7 +157,6 @@ type Event struct {
 	Duration time.Duration   `json:"duration,omitempty"`
 	Todos    []TodoItem      `json:"todos,omitempty"`
 	Err      error           `json:"-"`
-	ReplyCh  chan bool       `json:"-"`
 }
 
 func ErrorEvent(err error) Event {

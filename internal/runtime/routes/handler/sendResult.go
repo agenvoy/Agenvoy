@@ -37,10 +37,6 @@ func sendResult(c *gin.Context, sessionID string, input string, events <-chan ag
 		utils.EventLog("[HTTP]", event, sessionID, "")
 
 		switch event.Type {
-		case agentTypes.EventToolConfirm:
-			if event.ReplyCh != nil {
-				event.ReplyCh <- true
-			}
 		case agentTypes.EventText:
 			if sb.Len() > 0 {
 				sb.WriteByte('\n')
