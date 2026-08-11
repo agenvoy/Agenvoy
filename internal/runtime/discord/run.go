@@ -25,7 +25,6 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	provider "github.com/pardnchiu/go-llm-router/core"
 	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 )
 
@@ -54,9 +53,12 @@ func recordChatter(in go_bot_discord.Input, content string) {
 	if username == "" {
 		username = "unknown"
 	}
-	if err := sessionHistory.Append(sessionID, []provider.Message{
-		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
-	}); err != nil {
+	if err := sessionHistory.Append(sessionID, []sessionHistory.Record{{
+		Role:    "user",
+		Content: content,
+		SendAt:  time.Now().UnixNano(),
+		Sender:  username,
+	}}); err != nil {
 		slog.Warn("sessionHistory.Append (chatter)",
 			slog.String("channel", channelName(in)),
 			slog.String("error", err.Error()))
@@ -217,14 +219,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetDiscordSession: %w", err)
 	}
 
-	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 channel: %s",
-		time.Now().Format("2006-01-02 15:04:05"),
-		workDir,
-		in.Username,
-		channelName(in),
-	)
-	userText := fmt.Sprintf("---\n%s\n---\n%s", header, content)
-	sessionLog.Append(discordSessionID, userText)
+	sessionLog.Append(discordSessionID, content)
 
 	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, discordSessionID)
 	if err != nil {
@@ -245,11 +240,12 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		WorkDir:        workDir,
 		Skill:          matchedSkill,
 		Content:        content,
-		Input:          userText,
+		Input:          content,
 		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 		ReplyMessageID: in.MessageID,
+		Sender:         in.Username,
 	}
 
 	sess, err := getSession(ctx, in, content, execData)

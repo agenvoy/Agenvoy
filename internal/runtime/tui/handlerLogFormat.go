@@ -9,12 +9,12 @@ import (
 	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-var userWrapperRe = regexp.MustCompile(`^---\n當前時間:[^\n]*\n(?:[^\n]+\n)*?---\n`)
 var cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 
 type parsedAction struct {
@@ -65,7 +65,7 @@ func renderActionLine(p parsedAction, width int) string {
 
 	switch p.kind {
 	case "user":
-		body = userWrapperRe.ReplaceAllString(body, "")
+		body = sessionHistory.StripPrefix(body)
 		if strings.Contains(body, "[Resumed Task") {
 			return ""
 		}

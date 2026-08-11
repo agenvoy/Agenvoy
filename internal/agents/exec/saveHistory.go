@@ -23,7 +23,8 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 	}
 
 	base := min(max(session.BaseLen, 0), len(session.Histories))
-	delta := make([]provider.Message, 0, len(session.Histories)-base)
+	now := time.Now().UnixNano()
+	delta := make([]sessionHistory.Record, 0, len(session.Histories)-base)
 	for _, message := range session.Histories[base:] {
 		if message.Role == "system" ||
 			message.Role == "tool" ||
@@ -33,7 +34,18 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 		if content, ok := message.Content.(string); ok && (strings.Contains(content, configs.PoisonRefusal) || strings.Contains(content, configs.GuardrailSentinel)) {
 			continue
 		}
-		delta = append(delta, message)
+
+		record := sessionHistory.Record{Role: message.Role, Content: message.Content, SendAt: now}
+		if content, ok := message.Content.(string); ok {
+			record.Content = sessionHistory.StripPrefix(content)
+		}
+		if message.Role == "user" {
+			record.Sender = session.Sender
+			if session.UserSendAt > 0 {
+				record.SendAt = session.UserSendAt
+			}
+		}
+		delta = append(delta, record)
 	}
 
 	if err := sessionHistory.Append(session.ID, delta); err != nil {
@@ -55,6 +67,9 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 }
 
 func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
+	if content, ok := msg.Content.(string); ok {
+		msg.Content = sessionHistory.StripPrefix(content)
+	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return

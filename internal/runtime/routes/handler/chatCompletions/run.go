@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -89,8 +90,10 @@ func buildStatelessSession(req Request, userInput, workDir string, scanner *runt
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
 
-	wrappedUser := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s",
-		time.Now().Format("2006-01-02 15:04:05"), workDir, userInput)
+	wrappedUser := sessionHistory.WithPrefix(
+		sessionHistory.Record{SendAt: time.Now().UnixNano()}.Prefix(),
+		userInput,
+	)
 
 	return &agentTypes.AgentSession{
 		SystemPrompts: systemPrompts,

@@ -10,12 +10,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var muMap sync.Map
 
-func Append(sessionID string, delta []provider.Message) error {
+func Append(sessionID string, delta []Record) error {
 	if sessionID == "" || len(delta) == 0 {
 		return nil
 	}
@@ -27,10 +26,11 @@ func Append(sessionID string, delta []provider.Message) error {
 
 	historyPath := filesystem.HistoryPath(sessionID)
 
-	latest, err := go_pkg_filesystem.ReadJSON[[]provider.Message](historyPath)
+	latest, err := go_pkg_filesystem.ReadJSON[[]Record](historyPath)
 	if err != nil {
 		latest = nil
 	}
+	latest = normalize(latest)
 	latest = append(latest, delta...)
 
 	raw, err := json.Marshal(latest)
@@ -42,13 +42,13 @@ func Append(sessionID string, delta []provider.Message) error {
 	}
 
 	if historyStore.IsReady() && !historyStore.IsExist(sessionID) && len(latest) > len(delta) {
-		if err := historyStore.Write(sessionID, latest); err != nil {
+		if err := historyStore.Write(sessionID, rows(latest)); err != nil {
 			slog.Warn("historyStore Write",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}
 	} else {
-		if err := historyStore.Write(sessionID, delta); err != nil {
+		if err := historyStore.Write(sessionID, rows(delta)); err != nil {
 			slog.Warn("historyStore Write",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
@@ -66,12 +66,13 @@ func ClearMutex(sessionID string) {
 	muMap.Delete(sessionID)
 }
 
-func Get(sessionID string) (old, max []provider.Message) {
+func Get(sessionID string) (old, max []Record) {
 	historyPath := filesystem.HistoryPath(sessionID)
-	oldHistory, err := go_pkg_filesystem.ReadJSON[[]provider.Message](historyPath)
+	oldHistory, err := go_pkg_filesystem.ReadJSON[[]Record](historyPath)
 	if err != nil {
 		return nil, nil
 	}
+	oldHistory = normalize(oldHistory)
 
 	maxHistory := oldHistory
 	if len(oldHistory) > filesystem.MaxHistoryMessages {

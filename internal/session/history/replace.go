@@ -9,10 +9,9 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func Replace(sessionID string, messages []provider.Message) error {
+func Replace(sessionID string, messages []Record) error {
 	if sessionID == "" {
 		return fmt.Errorf("session id is required")
 	}

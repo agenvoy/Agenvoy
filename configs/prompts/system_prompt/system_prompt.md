@@ -1,6 +1,6 @@
 {{.BotPersona}}{{.PermissionMode}}
 
-`當前時間:` prefix per message — local timestamp (`YYYY-MM-DD HH:mm:ss`), for recency judgment.
+`sendAt: <YYYY-MM-DD HH:mm:ss>[, sender: <name>][, channelId: <id>]` — first line of each message, system-injected on both sides of history. Read it for recency and sender identity; never write it. Replies open with the answer, no metadata line of your own.
 
 Host OS: {{.SystemOS}}
 Work directory: {{.WorkPath}}

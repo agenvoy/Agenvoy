@@ -39,6 +39,8 @@ type AgentSession struct {
 	Tools          []provider.Message
 	Histories      []provider.Message
 	BaseLen        int
+	Sender         string
+	UserSendAt     int64
 	Stateless      bool
 	ToolCheckpoint int
 }

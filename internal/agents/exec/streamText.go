@@ -4,19 +4,17 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"regexp"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
-	partialMarkers  = []string{"<think>", configs.GuardrailSentinel}
-	headerRuleRegex = regexp.MustCompile(`^-{3,}$`)
-	headerMetaRegex = regexp.MustCompile(`^(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)\s*[:：]`)
+	partialMarkers = []string{"<think>", configs.GuardrailSentinel}
 )
 
 func streamSend(
@@ -182,10 +180,7 @@ type lineEmitter struct {
 	line        strings.Builder
 	inThink     bool
 	fence       internalUtils.FenceState
-	inHeader    bool
 	headerDone  bool
-	replaying   bool
-	headerBuf   []string
 	headerBytes int
 	deltaHold   strings.Builder
 	sent        bool
@@ -238,29 +233,15 @@ func (e *lineEmitter) close() {
 		return
 	}
 	e.feed(e.raw.String())
-	e.flushHeader()
 	e.setRaw("")
 	if tail := e.line.String(); tail != "" {
 		e.line.Reset()
 		e.emit(tail)
 	}
-}
-
-func (e *lineEmitter) flushHeader() {
-	if !e.inHeader {
-		return
+	if !e.headerDone {
+		e.headerDone = true
+		e.releaseDelta()
 	}
-	buf := e.headerBuf
-	e.inHeader = false
-	e.headerDone = true
-	e.headerBuf = nil
-	e.headerBytes = 0
-	e.releaseDelta()
-	e.replaying = true
-	for _, line := range buf {
-		e.emit(line)
-	}
-	e.replaying = false
 }
 
 func (e *lineEmitter) releaseDelta() {
@@ -323,48 +304,25 @@ func (e *lineEmitter) header(line string) bool {
 	}
 
 	trimmed := strings.TrimSpace(line)
-	if !e.inHeader {
-		if trimmed == "" {
-			e.headerBytes += len(line) + 1
-			return true
-		}
-		if !headerRuleRegex.MatchString(trimmed) {
-			e.headerDone = true
-			e.releaseDelta()
-			return false
-		}
-		e.inHeader = true
-		e.headerBuf = append(e.headerBuf, line)
+	if trimmed == "" {
 		e.headerBytes += len(line) + 1
 		return true
 	}
 
-	if headerRuleRegex.MatchString(trimmed) {
-		e.inHeader = false
-		e.headerDone = true
-		e.headerBuf = nil
-		e.headerBytes += len(line) + 1
+	e.headerDone = true
+	if !sessionHistory.HasPrefix(trimmed) {
 		e.releaseDelta()
-		return true
-	}
-
-	if trimmed != "" && !headerMetaRegex.MatchString(trimmed) {
-		e.flushHeader()
 		return false
 	}
 
-	e.headerBuf = append(e.headerBuf, line)
 	e.headerBytes += len(line) + 1
+	e.releaseDelta()
 	return true
 }
 
 func (e *lineEmitter) normalize(line string) (string, bool) {
 	out, marker := e.fence.Normalize(line)
 	if marker || e.fence.InFence {
-		return out, true
-	}
-
-	if e.replaying {
 		return out, true
 	}
 

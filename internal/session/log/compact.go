@@ -7,6 +7,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 func RetainExchanges(sessionID string, keptRawContents []string) {
@@ -18,7 +19,7 @@ func RetainExchanges(sessionID string, keptRawContents []string) {
 
 	keepSet := make(map[string]bool, len(keptRawContents))
 	for _, c := range keptRawContents {
-		keepSet[flatten(strings.TrimSpace(c))] = true
+		keepSet[canonical(c)] = true
 	}
 
 	lines := strings.Split(text, "\n")
@@ -44,7 +45,7 @@ func RetainExchanges(sessionID string, keptRawContents []string) {
 
 	removeLine := make([]bool, len(lines))
 	for _, b := range blocks {
-		if !keepSet[b.userBody] {
+		if !keepSet[canonical(b.userBody)] {
 			for j := b.start; j < b.end; j++ {
 				removeLine[j] = true
 			}
@@ -66,6 +67,11 @@ func RetainExchanges(sessionID string, keptRawContents []string) {
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
+}
+
+func canonical(str string) string {
+	str = strings.ReplaceAll(str, ActionNewlineMarker, "\n")
+	return flatten(strings.TrimSpace(sessionHistory.StripPrefix(str)))
 }
 
 func extractKindBody(line, kind string) (string, bool) {
