@@ -9,10 +9,9 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func compact(sessionID, historyPath string, messages []provider.Message, currentBytes int) {
+func compact(sessionID, historyPath string, messages []Record, currentBytes int) {
 	if len(messages) < 4 {
 		return
 	}
@@ -109,12 +108,10 @@ func getTimestamp(key string) (int64, bool) {
 	return ts, true
 }
 
-func getStartAt(messages []provider.Message) int64 {
+func getStartAt(messages []Record) int64 {
 	for _, msg := range messages {
-		content := historyStore.ExtractContent(msg.Content)
-		ts := historyStore.ExtractTimestamp(content)
-		if ts > 0 {
-			return ts
+		if msg.SendAt > 0 {
+			return msg.SendAt
 		}
 	}
 	return 0

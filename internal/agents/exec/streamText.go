@@ -8,11 +8,14 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-var partialMarkers = []string{"<think>", configs.GuardrailSentinel}
+var (
+	partialMarkers = []string{"<think>", configs.GuardrailSentinel}
+)
 
 func streamSend(
 	ctx context.Context,
@@ -168,19 +171,20 @@ func consumeStream(stream <-chan provider.StreamEvent, events chan<- agentTypes.
 }
 
 type lineEmitter struct {
-	events    chan<- agentTypes.Event
-	kind      agentTypes.EventType
-	emitDelta bool
-
-	shown *[]string
-
-	seen    strings.Builder
-	raw     strings.Builder
-	line    strings.Builder
-	inThink bool
-	fence   internalUtils.FenceState
-	sent    bool
-	stopped bool
+	events      chan<- agentTypes.Event
+	kind        agentTypes.EventType
+	emitDelta   bool
+	shown       *[]string
+	seen        strings.Builder
+	raw         strings.Builder
+	line        strings.Builder
+	inThink     bool
+	fence       internalUtils.FenceState
+	headerDone  bool
+	headerBytes int
+	deltaHold   strings.Builder
+	sent        bool
+	stopped     bool
 }
 
 func (e *lineEmitter) write(delta string) {
@@ -234,6 +238,27 @@ func (e *lineEmitter) close() {
 		e.line.Reset()
 		e.emit(tail)
 	}
+	if !e.headerDone {
+		e.headerDone = true
+		e.releaseDelta()
+	}
+}
+
+func (e *lineEmitter) releaseDelta() {
+	if !e.emitDelta {
+		return
+	}
+	rest := e.deltaHold.String()
+	e.deltaHold.Reset()
+	if e.headerBytes >= len(rest) {
+		e.headerBytes = 0
+		return
+	}
+	rest = rest[e.headerBytes:]
+	e.headerBytes = 0
+	if rest != "" {
+		e.events <- agentTypes.Event{Type: agentTypes.EventTextDelta, Text: rest}
+	}
 }
 
 func (e *lineEmitter) feed(text string) {
@@ -242,7 +267,11 @@ func (e *lineEmitter) feed(text string) {
 	}
 
 	if e.emitDelta {
-		e.events <- agentTypes.Event{Type: agentTypes.EventTextDelta, Text: text}
+		if e.headerDone {
+			e.events <- agentTypes.Event{Type: agentTypes.EventTextDelta, Text: text}
+		} else {
+			e.deltaHold.WriteString(text)
+		}
 	}
 
 	e.line.WriteString(text)
@@ -258,6 +287,9 @@ func (e *lineEmitter) feed(text string) {
 }
 
 func (e *lineEmitter) emit(line string) {
+	if e.header(line) {
+		return
+	}
 	line, ok := e.normalize(line)
 	if !ok || e.duplicate(line) {
 		return
@@ -266,9 +298,28 @@ func (e *lineEmitter) emit(line string) {
 	e.sent = true
 }
 
-// * StripModelResponse restarts its fence tracking on every call, so feeding it
-// * one line at a time would trim the indentation of every code line and drop
-// * the blank ones. Fenced lines bypass it entirely.
+func (e *lineEmitter) header(line string) bool {
+	if e.headerDone {
+		return false
+	}
+
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		e.headerBytes += len(line) + 1
+		return true
+	}
+
+	e.headerDone = true
+	if !sessionHistory.HasPrefix(trimmed) {
+		e.releaseDelta()
+		return false
+	}
+
+	e.headerBytes += len(line) + 1
+	e.releaseDelta()
+	return true
+}
+
 func (e *lineEmitter) normalize(line string) (string, bool) {
 	out, marker := e.fence.Normalize(line)
 	if marker || e.fence.InFence {

@@ -57,7 +57,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		routingInput = "use " + hint + " " + trimInput
 	}
 
-	userText := fmt.Sprintf("---\n當前時間: %s\n工作目錄: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), workDir, trimInput)
+	userText := trimInput
 	sessionLog.Append(sessionOverride, userText)
 
 	executeStart := time.Now()

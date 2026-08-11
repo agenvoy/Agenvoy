@@ -28,6 +28,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -55,6 +56,7 @@ type ExecuteMeta struct {
 	PendingTask       string
 	ReplyMessageID    string
 	HistoryContent    string
+	Sender            string
 }
 
 type (
@@ -639,7 +641,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				sendText(events, responseText)
 			}
 
-			choice.Message.Content = fmt.Sprintf("---\n當前時間: %s\n---\n%s", time.Now().Format("2006-01-02 15:04:05"), stripped)
+			choice.Message.Content = sessionHistory.WithPrefix(
+				sessionHistory.Record{SendAt: time.Now().UnixNano()}.Prefix(),
+				stripped,
+			)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
 
 			if err := saveNewHistory(execCtx, choice, session); err != nil {

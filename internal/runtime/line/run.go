@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	go_bot_line "github.com/pardnchiu/go-bot/line"
@@ -17,7 +18,6 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
-	provider "github.com/pardnchiu/go-llm-router/core"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -88,9 +88,12 @@ func recordChatter(in go_bot_line.Input, content string) {
 	if username == "" {
 		username = "unknown"
 	}
-	if err := sessionHistory.Append(sessionID, []provider.Message{
-		{Role: "user", Content: fmt.Sprintf("%s: %s", username, content)},
-	}); err != nil {
+	if err := sessionHistory.Append(sessionID, []sessionHistory.Record{{
+		Role:    "user",
+		Content: content,
+		SendAt:  time.Now().UnixNano(),
+		Sender:  username,
+	}}); err != nil {
 		slog.Warn("sessionHistory.Append (chatter)",
 			slog.String("source", sourceName(in)),
 			slog.String("error", err.Error()))
@@ -237,6 +240,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		WorkDir:        workDir,
 		Content:        content,
 		AllowAll:       true,
+		Sender:         sourceName(in),
 	}
 
 	sess, err := getSession(ctx, in, content, execData)

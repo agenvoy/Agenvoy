@@ -31,32 +31,39 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 	}
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
-	sess.Histories = oldHistory
-	sess.BaseLen = len(oldHistory)
+	sess.Histories = sessionHistory.Messages(oldHistory)
+	sess.BaseLen = len(sess.Histories)
 
 	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
 		sess.SummaryMessage = provider.Message{Role: "assistant", Content: summary}
 	}
 
-	sess.OldHistories = maxHistory
+	sess.OldHistories = sessionHistory.Messages(maxHistory)
 	sess.ToolHistories = []provider.Message{}
 
-	header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n來源: LINE %s",
-		time.Now().Format("2006-01-02 15:04:05"),
-		data.WorkDir,
-		sourceName(in),
-		in.SourceType,
-	)
-	userText := fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
+	userText := strings.TrimSpace(data.Input)
+	if userText == "" {
+		userText = strings.TrimSpace(content)
+	}
+
+	sess.Sender = strings.TrimSpace(in.Username)
+	if sess.Sender == "" {
+		sess.Sender = strings.TrimSpace(data.Sender)
+	}
+	sess.UserSendAt = time.Now().UnixNano()
+	prefix := sessionHistory.Record{
+		SendAt: sess.UserSendAt,
+		Sender: sess.Sender,
+	}.Prefix()
 
 	sess.Histories = append(sess.Histories, provider.Message{
 		Role:    "user",
-		Content: userText,
+		Content: sessionHistory.WithPrefix(prefix, userText),
 	})
 	sess.UserInput = provider.Message{
 		Role:    "user",
-		Content: userText,
+		Content: sessionHistory.WithPrefix(prefix, userText),
 	}
 	sessionLog.Append(sessionID, userText)
 	exec.SaveUserInputHistory(ctx, sessionID, userText)

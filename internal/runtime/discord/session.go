@@ -30,39 +30,44 @@ func getSession(ctx context.Context, in go_bot_discord.Input, content string, da
 	}
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
-	sess.Histories = oldHistory
-	sess.BaseLen = len(oldHistory)
+	sess.Histories = sessionHistory.Messages(oldHistory)
+	sess.BaseLen = len(sess.Histories)
 
 	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
 		sess.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
-	sess.OldHistories = maxHistory
+	sess.OldHistories = sessionHistory.Messages(maxHistory)
 	sess.ToolHistories = []provider.Message{}
 
 	userText := strings.TrimSpace(data.Input)
 	if userText == "" {
-		header := fmt.Sprintf("當前時間: %s\n工作目錄: %s\n傳送者: %s\n當前 channel: %s",
-			time.Now().Format("2006-01-02 15:04:05"),
-			data.WorkDir,
-			in.Username,
-			channelName(in),
-		)
-		userText = fmt.Sprintf("---\n%s\n---\n%s", header, strings.TrimSpace(content))
+		userText = strings.TrimSpace(content)
 	}
 
 	histText := userText
 	if h := strings.TrimSpace(data.HistoryContent); h != "" {
 		histText = h
 	}
+
+	sess.Sender = strings.TrimSpace(in.Username)
+	if sess.Sender == "" {
+		sess.Sender = strings.TrimSpace(data.Sender)
+	}
+	sess.UserSendAt = time.Now().UnixNano()
+	prefix := sessionHistory.Record{
+		SendAt: sess.UserSendAt,
+		Sender: sess.Sender,
+	}.Prefix()
+
 	sess.Histories = append(sess.Histories, provider.Message{
 		Role:    "user",
-		Content: histText,
+		Content: sessionHistory.WithPrefix(prefix, histText),
 	})
 	sess.UserInput = provider.Message{
 		Role:    "user",
-		Content: userText,
+		Content: sessionHistory.WithPrefix(prefix, userText),
 	}
 	exec.SaveUserInputHistory(ctx, sessionID, histText)
 
