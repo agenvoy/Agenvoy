@@ -6,10 +6,7 @@ import (
 
 func drainEvents(events <-chan agentTypes.Event) {
 	go func() {
-		for ev := range events {
-			if ev.Type == agentTypes.EventToolConfirm && ev.ReplyCh != nil {
-				ev.ReplyCh <- true
-			}
+		for range events {
 		}
 	}()
 }
