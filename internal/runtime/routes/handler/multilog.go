@@ -71,9 +71,15 @@ func StreamMultiLog() gin.HandlerFunc {
 
 		var subs []*pubsub.Subscriber
 
+		replay := c.DefaultQuery("replay", "1") != "0"
+
 		for _, sid := range sids {
 			if raw, err := json.Marshal(newConnectedFrame(sid)); err == nil {
 				fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
+			}
+
+			if !replay {
+				continue
 			}
 
 			for _, ev := range sessionLog.RecentEvents(sid, 512) {

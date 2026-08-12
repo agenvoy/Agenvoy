@@ -14,7 +14,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
-	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
@@ -64,7 +63,6 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 
 	geminiStt.Register()
 	chatbotTool.Register()
-	kuradbTool.Register()
 
 	if !runtime.IsCurrent() {
 		if err := newDaemon(); err != nil {

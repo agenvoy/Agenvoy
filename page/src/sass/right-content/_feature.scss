@@ -32,7 +32,7 @@ body[data-rendered="1"] section.right-content section.feature {
       height: 2.5rem;
       overflow: scroll;
 
-      @each $name in (Rules, Knowledge, Notes, Skills, Schedule) {
+      @each $name in (Rules, Knowledge, Skills, Schedule) {
         &[data-selected="#{$name}"] a[name="#{$name}"],
         &[data-selected="#{$name}"] button[name="#{$name}"] {
           padding-top: 2px;
@@ -51,7 +51,7 @@ body[data-rendered="1"] section.right-content section.feature {
         align-items: center;
         height: 100%;
         gap: 0.25rem;
-        color: #000;
+        color: var(--black);
         opacity: 0.35;
         text-decoration: none;
 

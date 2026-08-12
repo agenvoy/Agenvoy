@@ -11,7 +11,6 @@ import (
 	"time"
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -111,6 +110,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
+		defer markRunning(session.ID)()
 		defer ClearSteer(session.ID)
 
 		original := events
@@ -214,10 +214,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		assignBindingSkill(session, data.Skill)
 	}
 
-	if !go_pkg_filesystem_reader.Exists(filesystem.KuradbEndpointPath) {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"list_rag", "search_rag")
-	}
 	cfg, _ := config.Load()
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")

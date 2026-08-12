@@ -17,6 +17,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
@@ -53,7 +54,8 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 		return
 	}
 
-	interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
 }
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")

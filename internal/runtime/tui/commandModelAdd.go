@@ -13,7 +13,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
@@ -337,12 +336,6 @@ func (t TUI) runModelAddAPIKeySubmit(key string) (TUI, tea.Cmd) {
 	if err := keychain.Set(envKey, key); err != nil {
 		t.modelAdd = nil
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
-	}
-	if envKey == "OPENAI_API_KEY" {
-		if err := kuradb.SyncOpenAIKey(key); err != nil {
-			t.modelAdd = nil
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb SyncOpenAIKey: %v", err)) + "\n")
-		}
 	}
 	if err := config.SaveKey(envKey); err != nil {
 		t.modelAdd = nil

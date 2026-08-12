@@ -42,6 +42,8 @@ var eventTypeByName = map[string]EventType{
 	"EventUsageUpdate":     EventUsageUpdate,
 	"EventUserInjected":    EventUserInjected,
 	"EventCanceled":        EventCanceled,
+	"EventSuggest":         EventSuggest,
+	"EventPending":         EventPending,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -83,6 +85,8 @@ const (
 	EventUserInjected
 	EventCanceled
 	EventTextDelta
+	EventSuggest
+	EventPending
 )
 
 func (e EventType) String() string {
@@ -139,6 +143,10 @@ func (e EventType) String() string {
 		return "EventUserInjected"
 	case EventCanceled:
 		return "EventCanceled"
+	case EventSuggest:
+		return "EventSuggest"
+	case EventPending:
+		return "EventPending"
 	default:
 		return "EventUnknown"
 	}
@@ -156,6 +164,7 @@ type Event struct {
 	Usage    *provider.Usage `json:"usage,omitempty"`
 	Duration time.Duration   `json:"duration,omitempty"`
 	Todos    []TodoItem      `json:"todos,omitempty"`
+	Suggests []string        `json:"suggests,omitempty"`
 	Err      error           `json:"-"`
 }
 

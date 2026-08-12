@@ -32,6 +32,7 @@ type Request struct {
 	Model        string   `json:"model,omitempty"`
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 	Persist      bool     `json:"persist,omitempty"`
+	Chat         bool     `json:"chat,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
 	AllowAll     *bool    `json:"allow_all,omitempty"`
 }
@@ -51,10 +52,22 @@ func Send() gin.HandlerFunc {
 		sessionID := req.SessionID
 		if sessionID == "" {
 			prefix := "temp-"
-			if req.Persist {
+			switch {
+			case req.Chat:
+				prefix = "chat-"
+			case req.Persist:
 				prefix = "http-"
 			}
 			sessionID = prefix + utils.UUID()
+		}
+
+		if exec.IsRunning(sessionID) {
+			exec.AppendSteer(sessionID, req.Content)
+			c.JSON(http.StatusOK, gin.H{
+				"session_id": sessionID,
+				"steer":      true,
+			})
+			return
 		}
 
 		allowAll := true
@@ -64,7 +77,7 @@ func Send() gin.HandlerFunc {
 
 		events := make(chan agentTypes.Event, 64)
 		execCtx := context.WithoutCancel(c.Request.Context())
-		wrapped := pubsub.Wrap(execCtx, sessionID, events, 64)
+		wrapped := withFollowup(execCtx, sessionID, pubsub.Wrap(execCtx, sessionID, events, 64))
 
 		go func() {
 			defer close(wrapped)

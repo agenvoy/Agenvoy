@@ -145,6 +145,19 @@ func splitOptStyle(s string) (head, tail string) {
 	return s, ""
 }
 
+func renderPopupTabs(p *Popup) string {
+	cells := make([]string, len(p.tabs))
+	for i, tab := range p.tabs {
+		label := strings.TrimSuffix(tab, "-")
+		if i == p.tabIdx {
+			cells[i] = systemStyle.Render("[" + label + "]")
+			continue
+		}
+		cells[i] = hintStyle.Render(" " + label + " ")
+	}
+	return strings.Join(cells, " ")
+}
+
 func (t TUI) viewPopup() string {
 	width := t.width
 	if width < 20 {
@@ -160,6 +173,9 @@ func (t TUI) viewPopup() string {
 		body = append(body, textStyle.Render(p.subtitle))
 	}
 	body = append(body, p.styledLines...)
+	if len(p.tabs) > 1 {
+		body = append(body, "", "  "+renderPopupTabs(p))
+	}
 	diffWidth := max(width-6, 20)
 	for _, dl := range p.diffLines {
 		switch {
@@ -209,7 +225,11 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+		if len(p.tabs) > 1 {
+			body = append(body, hintStyle.Render("↑/↓ select · ←/→ filter · enter confirm · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+		}
 
 	case popupMultiSelect:
 		total := len(p.options)

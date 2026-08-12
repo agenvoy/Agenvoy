@@ -11,7 +11,7 @@
     display: flex;
     flex-flow: column;
     height: 100%;
-    background-color: #fafafa;
+    background-color: var(--gray);
     transition: 0.2s;
 
     width: var(--width-left-tab-collaspse);
@@ -92,7 +92,7 @@
           line-height: 1.5rem;
           font-size: small;
           font-weight: 300;
-          color: #b1b1b1;
+          color: var(--gray-3);
         }
       }
 
@@ -102,11 +102,11 @@
         display: flex;
         flex-flow: row;
         align-items: center;
-        gap: 0.5rem;
+        gap: 1rem;
         padding: 0 0.75rem;
         width: 100%;
         height: 2rem;
-        color: #000;
+        color: var(--black);
         text-decoration: none;
         cursor: pointer;
 
@@ -116,8 +116,7 @@
           }
         }
 
-        &:before,
-        &[data-selected="1"] {
+        &:before {
           content: "";
           z-index: 0;
           position: absolute;
@@ -126,18 +125,26 @@
           width: calc(100% - 0.25rem);
           height: 100%;
           border-radius: 0.75rem;
-          background-color: #f1f1f1;
+          background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
+        }
+
+        &[data-selected="1"]:before {
+          opacity: 1;
         }
 
         p {
           z-index: 1;
           flex-grow: 1;
-          flex-shrink: 0;
+          flex-shrink: 1;
+          min-width: 0;
           line-height: 2rem;
           font-size: small;
           font-weight: 300;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
         }
       }
     }
@@ -153,7 +160,7 @@
         padding: 0 0.75rem;
         width: 100%;
         height: 2rem;
-        color: #000;
+        color: var(--black);
         text-decoration: none;
         cursor: pointer;
 
@@ -163,8 +170,7 @@
           }
         }
 
-        &:before,
-        &[data-selected="1"] {
+        &:before {
           content: "";
           z-index: 0;
           position: absolute;
@@ -173,9 +179,13 @@
           width: calc(100% - 0.25rem);
           height: 100%;
           border-radius: 0.75rem;
-          background-color: #f1f1f1;
+          background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
+        }
+
+        &[data-selected="1"]:before {
+          opacity: 1;
         }
 
         p {

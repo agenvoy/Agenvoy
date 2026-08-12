@@ -50,10 +50,8 @@ var toolDisplayName = map[string]string{
 	"search_error_history": "Search Error",
 	"search_google_news":   "Search News",
 	"search_web":           "Search Web",
-	"search_rag":           "Search RAG",
 	"search_files":         "Search Files",
 	"search_tools":         "Search Tools",
-	"list_rag":             "List RAG",
 	"list_files":           "List Files",
 	"list_tools":           "List Tools",
 	"list_chatbot":         "List Chat",
@@ -299,28 +297,6 @@ func FormatToolArgs(name, raw, cwd string) string {
 		if s := pick("symptom", "cause", "action"); s != "" {
 			return s
 		}
-
-	case "search_rag":
-		db := pick("db")
-		mode := pick("mode")
-		q := pick("q", "query")
-		if q == "" {
-			break
-		}
-		var parts []string
-		if db != "" {
-			parts = append(parts, db)
-		}
-		if mode != "" {
-			parts = append(parts, mode)
-		}
-		parts = append(parts, fmt.Sprintf("%q", q))
-		if limit, ok := dic["limit"]; ok {
-			if n, ok := limit.(float64); ok && n > 0 {
-				parts = append(parts, fmt.Sprintf("[%d]", int(n)))
-			}
-		}
-		return strings.Join(parts, " ")
 
 	case "search_error_history", "search_chat_history":
 		if s := pick("keyword", "query"); s != "" {

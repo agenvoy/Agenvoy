@@ -24,7 +24,6 @@ type Config struct {
 	DiscordUsername  string        `json:"discord_username"`
 	TelegramEnabled  bool          `json:"telegram_enabled"`
 	TelegramUsername string        `json:"telegram_username"`
-	KuradbEnabled    bool          `json:"kuradb_enabled"`
 	EnableVoice      bool          `json:"enable_voice"`
 	AdminChannel     string        `json:"admin_channel"`
 }

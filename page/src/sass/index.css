@@ -1,0 +1,1178 @@
+* {
+  --width-left-tab: 16rem;
+  --width-left-tab-collaspse: 2.5rem;
+}
+
+body[data-rendered="1"] section.right-content section.chat {
+  display: flex;
+}
+
+@keyframes todo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+body[data-rendered="1"] section.right-content section.feature {
+  display: flex;
+}
+
+* {
+  --width-right-content: calc(100% - 2rem);
+  --max-width-right-content: 64rem;
+}
+@media (min-width: 480px) {
+  * {
+    --width-right-content: calc(100% - 4rem);
+  }
+}
+@media (min-width: 768px) {
+  * {
+    --width-right-content: calc(100% - 8rem);
+  }
+}
+
+* {
+  --text-color: #253146;
+  --ink: #101e2b;
+  --black: #000000;
+  --accent: #1461dc;
+  --gray: #fafafa;
+  --gray-2: #f1f1f1;
+  --gray-3: #999999;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  flex-grow: 0;
+  flex-shrink: 0;
+  letter-spacing: 0.25px;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: -apple-system, BlinkMacSystemFont, Inter, Vazirmatn, ui-sans-serif, system-ui, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif, Helvetica Neue, Arial, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-flow: row;
+}
+body[data-rendered="0"] * {
+  transition: none !important;
+}
+body section.left-tab {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+  background-color: var(--gray);
+  transition: 0.2s;
+  width: var(--width-left-tab-collaspse);
+}
+@media (max-width: 767.99px) {
+  body section.left-tab {
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+@media (max-width: 767.99px) and (hover: hover) {
+  body section.left-tab header:hover img {
+    opacity: 0;
+  }
+  body section.left-tab header:hover button {
+    opacity: 1;
+  }
+}
+@media (max-width: 767.99px) {
+  body section.left-tab header img {
+    position: absolute;
+  }
+  body section.left-tab header p {
+    display: none;
+  }
+  body section.left-tab header a,
+  body section.left-tab header button {
+    margin-left: 0.25rem;
+    opacity: 0;
+  }
+  body section.left-tab section[data-name]:not([data-name=""]):after,
+  body section.left-tab section[data-name]:not([data-name=""]) a,
+  body section.left-tab section[data-name]:not([data-name=""]) div {
+    display: none;
+  }
+  body section.left-tab section a p,
+  body section.left-tab section div p {
+    display: none;
+  }
+  body section.left-tab footer a p,
+  body section.left-tab footer div p {
+    display: none;
+  }
+  body section.left-tab[data-collapsed="0"] {
+    width: var(--width-left-tab);
+    box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
+  }
+  body section.left-tab[data-collapsed="0"] header img {
+    position: relative;
+  }
+  body section.left-tab[data-collapsed="0"] header p {
+    display: block;
+  }
+  body section.left-tab[data-collapsed="0"] header a,
+  body section.left-tab[data-collapsed="0"] header button {
+    opacity: 1;
+  }
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]):after {
+    display: block;
+  }
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) a,
+  body section.left-tab[data-collapsed="0"] section[data-name]:not([data-name=""]) div {
+    display: flex;
+  }
+  body section.left-tab[data-collapsed="0"] section a p,
+  body section.left-tab[data-collapsed="0"] section div p {
+    display: block;
+  }
+}
+@media (min-width: 768px) {
+  body section.left-tab {
+    width: var(--width-left-tab);
+  }
+  body section.left-tab header img {
+    position: relative;
+  }
+  body section.left-tab header p {
+    display: block;
+  }
+  body section.left-tab header a,
+  body section.left-tab header button {
+    opacity: 1;
+  }
+  body section.left-tab section[data-name]:not([data-name=""]):after {
+    display: block;
+  }
+  body section.left-tab section[data-name]:not([data-name=""]) a,
+  body section.left-tab section[data-name]:not([data-name=""]) div {
+    display: flex;
+  }
+  body section.left-tab section a p,
+  body section.left-tab section div p {
+    display: block;
+  }
+}
+@media (min-width: 768px) and (hover: hover) {
+  body section.left-tab[data-collapsed="1"] header:hover img {
+    opacity: 0;
+  }
+  body section.left-tab[data-collapsed="1"] header:hover button {
+    opacity: 1;
+  }
+}
+@media (min-width: 768px) {
+  body section.left-tab[data-collapsed="1"] header img {
+    position: absolute;
+  }
+  body section.left-tab[data-collapsed="1"] header p {
+    display: none;
+  }
+  body section.left-tab[data-collapsed="1"] header a,
+  body section.left-tab[data-collapsed="1"] header button {
+    margin-left: 0.25rem;
+    opacity: 0;
+  }
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]):after,
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) a,
+  body section.left-tab[data-collapsed="1"] section[data-name]:not([data-name=""]) div {
+    display: none;
+  }
+  body section.left-tab[data-collapsed="1"] section a p,
+  body section.left-tab[data-collapsed="1"] section div p {
+    display: none;
+  }
+  body section.left-tab[data-collapsed="1"] footer a p,
+  body section.left-tab[data-collapsed="1"] footer div p {
+    display: none;
+  }
+}
+body section.left-tab header {
+  position: relative;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  width: 100%;
+  height: 2.5rem;
+}
+body section.left-tab header img {
+  flex-grow: 0;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  opacity: 1;
+  transition: 0.2s;
+}
+body section.left-tab header p {
+  flex-grow: 1;
+  flex-shrink: 0;
+  line-height: 2rem;
+  font-size: small;
+  font-weight: 300;
+}
+body section.left-tab header button {
+  z-index: 1;
+}
+body section.left-tab section {
+  position: relative;
+  display: flex;
+  flex-flow: column;
+}
+body section.left-tab section[data-name]:not([data-name=""]) {
+  padding-top: 2.5rem;
+  flex-grow: 1;
+}
+body section.left-tab section[data-name]:not([data-name=""]):after {
+  content: attr(data-name);
+  position: absolute;
+  top: 1rem;
+  left: 0.75rem;
+  line-height: 1.5rem;
+  font-size: small;
+  font-weight: 300;
+  color: var(--gray-3);
+}
+body section.left-tab section a,
+body section.left-tab section div {
+  position: relative;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 0.75rem;
+  width: 100%;
+  height: 2rem;
+  color: var(--black);
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  body section.left-tab section a:hover:before,
+  body section.left-tab section div:hover:before {
+    opacity: 1;
+  }
+}
+body section.left-tab section a:before,
+body section.left-tab section div:before {
+  content: "";
+  z-index: 0;
+  position: absolute;
+  top: 0rem;
+  left: 0.125rem;
+  width: calc(100% - 0.25rem);
+  height: 100%;
+  border-radius: 0.75rem;
+  background-color: var(--gray-2);
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.left-tab section a[data-selected="1"]:before,
+body section.left-tab section div[data-selected="1"]:before {
+  opacity: 1;
+}
+body section.left-tab section a p,
+body section.left-tab section div p {
+  z-index: 1;
+  flex-grow: 1;
+  flex-shrink: 1;
+  min-width: 0;
+  line-height: 2rem;
+  font-size: small;
+  font-weight: 300;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+body section.left-tab footer a,
+body section.left-tab footer div {
+  position: relative;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  width: 100%;
+  height: 2rem;
+  color: var(--black);
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  body section.left-tab footer a:hover:before,
+  body section.left-tab footer div:hover:before {
+    opacity: 1;
+  }
+}
+body section.left-tab footer a:before,
+body section.left-tab footer div:before {
+  content: "";
+  z-index: 0;
+  position: absolute;
+  top: 0rem;
+  left: 0.125rem;
+  width: calc(100% - 0.25rem);
+  height: 100%;
+  border-radius: 0.75rem;
+  background-color: var(--gray-2);
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.left-tab footer a[data-selected="1"]:before,
+body section.left-tab footer div[data-selected="1"]:before {
+  opacity: 1;
+}
+body section.left-tab footer a p,
+body section.left-tab footer div p {
+  z-index: 1;
+  flex-grow: 1;
+  flex-shrink: 0;
+  line-height: 2rem;
+  font-size: small;
+  font-weight: 300;
+}
+body section.right-content {
+  position: relative;
+  height: 100%;
+  background-color: white;
+  transition: 0.2s;
+  margin-left: var(--width-left-tab-collaspse);
+  width: calc(100% - var(--width-left-tab-collaspse));
+}
+@media (min-width: 768px) {
+  body section.right-content {
+    margin-left: 0;
+    width: calc(100% - var(--width-left-tab));
+  }
+}
+body section.right-content section.chat {
+  position: absolute;
+  display: none;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin-top: 0;
+  opacity: 0.03;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo img {
+  width: 16rem;
+  height: 16rem;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) div.logo p {
+  display: none;
+}
+body section.right-content section.chat[data-id]:not([data-id=""]) section.messages {
+  display: flex;
+}
+body section.right-content section.chat header {
+  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+  align-items: center;
+  padding: 0 1rem;
+  width: 100%;
+  height: 2.5rem;
+}
+body section.right-content section.chat header p {
+  font-size: medium;
+}
+body section.right-content section.chat header div {
+  flex-grow: 1;
+}
+body section.right-content section.chat div.logo {
+  z-index: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: -8rem;
+  padding-bottom: 1rem;
+  width: 100%;
+}
+body section.right-content section.chat div.logo img {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+body section.right-content section.chat div.logo p {
+  font-size: x-large;
+}
+body section.right-content section.chat section.messages {
+  z-index: 1;
+  display: none;
+  flex-flow: column;
+  flex-grow: 1;
+  flex-shrink: 1;
+  padding: 2.5rem 0 33.3333333333vh;
+  max-height: calc(100% - 5.25rem);
+  overflow-y: scroll;
+  width: var(--width-right-content);
+  max-width: var(--max-width-right-content);
+}
+body section.right-content section.chat section.messages div.user {
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages div.user:hover footer {
+    opacity: 1;
+  }
+}
+body section.right-content section.chat section.messages div.user > p {
+  padding: 0.75rem 1rem;
+  background-color: var(--gray-2);
+  border-radius: 1rem;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+body section.right-content section.chat section.messages div.user footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.5rem;
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.user footer p {
+  font-size: small;
+  color: var(--gray-3);
+}
+body section.right-content section.chat section.messages div.user footer button {
+  display: flex;
+  align-items: center;
+  height: 1rem;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.user footer button:active {
+  transform: scale(0.98);
+  opacity: 0.5;
+}
+body section.right-content section.chat section.messages pre.source {
+  display: none;
+}
+body section.right-content section.chat section.messages div.assistant:not(:last-child) section.suggests {
+  display: none;
+}
+body section.right-content section.chat section.messages div.assistant {
+  display: flex;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+body section.right-content section.chat section.messages div.assistant img {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+body section.right-content section.chat section.messages div.assistant > section {
+  display: flex;
+  flex-flow: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-grow: 1;
+  gap: 0.25rem;
+  width: calc(100% - 2.5rem);
+}
+body section.right-content section.chat section.messages div.assistant > section details[open] summary span {
+  transform: rotate(180deg);
+}
+body section.right-content section.chat section.messages div.assistant > section details summary {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+  color: var(--gray-3);
+  transition: 0.2s;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages div.assistant > section details summary:hover {
+    color: var(--black);
+  }
+}
+body section.right-content section.chat section.messages div.assistant > section details summary::-webkit-details-marker {
+  display: none;
+}
+body section.right-content section.chat section.messages div.assistant > section details summary span {
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  font-size: large;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.assistant > section details .md-render {
+  margin: 0.5rem 0;
+  padding: 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--gray-3);
+}
+body section.right-content section.chat section.messages div.assistant > section details .md-render * {
+  color: var(--gray-3) !important;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render {
+  width: 100%;
+  padding-bottom: 0.25rem;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render * {
+  width: 100%;
+  color: var(--text-color);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h1,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h2,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h3,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h4,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h5,
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
+  display: block;
+  padding: 1rem 0 0.5rem;
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h1 {
+  font-size: x-large;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h2 {
+  font-size: large;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h3 {
+  font-size: medium;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h4 {
+  font-size: small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h5 {
+  font-size: x-small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-h6 {
+  font-size: xx-small;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-bold {
+  color: var(--ink);
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-line {
+  display: block;
+  line-height: 1.7;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render blockquote.md-quote {
+  display: block;
+  margin: 4px 0;
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--accent);
+  color: var(--gray-3);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render hr {
+  border: none;
+  border-top: 1px solid var(--gray-2);
+  margin: 1rem 0 1.5rem;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-link:hover {
+  text-decoration: underline;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-file-img {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 4px 0;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table {
+  border-collapse: collapse;
+  white-space: normal;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th,
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table td {
+  width: auto;
+  border: 1px solid var(--gray-2);
+  padding: 3px 10px;
+  text-align: left;
+  color: var(--ink);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table th {
+  font-weight: bold;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render table.md-table tbody tr:nth-child(2n-1) {
+  background: var(--gray);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list,
+body section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
+  display: block;
+  margin: 4px 0;
+  padding-left: 1.6em;
+  white-space: normal;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ul.md-list {
+  list-style: disc;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render ol.md-list {
+  list-style: decimal;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render .md-list li {
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code {
+  display: block;
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: var(--gray);
+  border: 1px solid var(--gray-2);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: "JetBrains Mono", monospace;
+  font-size: small;
+  color: var(--ink);
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render pre.md-code code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+body section.right-content section.chat section.messages div.assistant > section .md-render code {
+  background: var(--gray);
+  border: 1px solid var(--gray-2);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.92em;
+}
+body section.right-content section.chat section.messages div.assistant > section footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+body section.right-content section.chat section.messages div.assistant > section footer div {
+  display: flex;
+  align-items: center;
+}
+body section.right-content section.chat section.messages div.assistant > section footer div p {
+  font-size: small;
+}
+body section.right-content section.chat section.messages div.assistant > section footer p {
+  font-size: small;
+  color: var(--gray-3);
+}
+body section.right-content section.chat section.messages div.assistant > section footer button {
+  display: flex;
+  align-items: center;
+  height: 1rem;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages div.assistant > section footer button:active {
+  transform: scale(0.98);
+  opacity: 0.5;
+}
+body section.right-content section.chat section.messages div.assistant > section section.suggests {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+body section.right-content section.chat section.messages div.assistant > section section.suggests button {
+  padding: 0.375rem 0.75rem;
+  max-width: 100%;
+  font-size: small;
+  text-align: left;
+  color: var(--gray-3);
+  background-color: transparent;
+  border: 1px solid var(--gray-2);
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages div.assistant > section section.suggests button:hover {
+    color: var(--ink);
+    border-color: var(--accent);
+  }
+}
+body section.right-content section.chat section.messages div.assistant > section section.suggests button:active {
+  transform: scale(0.98);
+}
+body section.right-content section.chat section.messages section.todo {
+  order: 1;
+  display: none;
+  flex-flow: column;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.5rem 2.5rem;
+  padding: 0.75rem 1rem;
+  width: calc(100% - 2.5rem);
+  background-color: #fff;
+  border: 1px solid var(--gray-2);
+  border-radius: 1.25rem;
+}
+body section.right-content section.chat section.messages section.todo:has(div[data-status]) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.todo div[data-status] {
+  display: flex;
+  flex-flow: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: small;
+  line-height: 1.5rem;
+  color: var(--gray-3);
+}
+body section.right-content section.chat section.messages section.todo div[data-status] span {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  font-size: 1.125rem;
+  color: var(--gray-3);
+}
+body section.right-content section.chat section.messages section.todo div[data-status] p {
+  flex-grow: 1;
+  overflow-wrap: break-word;
+}
+body section.right-content section.chat section.messages section.todo div[data-status][data-status=completed] p {
+  text-decoration: line-through;
+}
+body section.right-content section.chat section.messages section.todo div[data-status][data-status=completed] span {
+  color: var(--accent);
+}
+body section.right-content section.chat section.messages section.todo div[data-status][data-status=in_progress] {
+  color: var(--ink);
+}
+body section.right-content section.chat section.messages section.todo div[data-status][data-status=in_progress] span {
+  color: var(--accent);
+  animation: todo-spin 1.5s linear infinite;
+}
+body section.right-content section.chat section.messages section.pending {
+  order: 2;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1rem 0 1rem 2.5rem;
+  width: 100%;
+}
+body section.right-content section.chat section.messages section.pending[data-index="0"] > div:nth-child(1) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="1"] > div:nth-child(2) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="2"] > div:nth-child(3) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="3"] > div:nth-child(4) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="4"] > div:nth-child(5) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="5"] > div:nth-child(6) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="6"] > div:nth-child(7) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="7"] > div:nth-child(8) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="8"] > div:nth-child(9) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending[data-index="9"] > div:nth-child(10) {
+  display: flex;
+}
+body section.right-content section.chat section.messages section.pending div {
+  display: none;
+  flex-flow: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 1.25rem;
+  border: 1px solid var(--gray-2);
+}
+body section.right-content section.chat section.messages section.pending div strong {
+  font-size: small;
+  line-height: 1.5rem;
+}
+body section.right-content section.chat section.messages section.pending div p {
+  font-size: small;
+  font-weight: 300;
+  line-height: 1.5rem;
+  color: var(--gray-3);
+  white-space: pre-wrap;
+}
+body section.right-content section.chat section.messages section.pending div textarea,
+body section.right-content section.chat section.messages section.pending div input[type=text],
+body section.right-content section.chat section.messages section.pending div input[type=password] {
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  font: inherit;
+  font-size: small;
+  line-height: 1.5rem;
+  color: var(--ink);
+  background-color: var(--gray);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  resize: vertical;
+}
+body section.right-content section.chat section.messages section.pending div textarea:focus,
+body section.right-content section.chat section.messages section.pending div input[type=text]:focus,
+body section.right-content section.chat section.messages section.pending div input[type=password]:focus {
+  outline: none;
+  border-color: var(--accent);
+  background-color: #fff;
+}
+body section.right-content section.chat section.messages section.pending div label.option {
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  font-size: small;
+  line-height: 1.5rem;
+  border: 1px solid var(--gray-2);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages section.pending div label.option input {
+  margin: 0;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  body section.right-content section.chat section.messages section.pending div label.option:hover {
+    background-color: var(--gray);
+  }
+}
+body section.right-content section.chat section.messages section.pending div label.option:has(input:checked) {
+  background-color: var(--gray);
+}
+body section.right-content section.chat section.messages section.pending div footer {
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+body section.right-content section.chat section.messages section.pending div footer p {
+  flex-grow: 1;
+}
+body section.right-content section.chat section.messages section.pending div footer button {
+  padding: 0.375rem 1rem;
+  font-size: small;
+  color: var(--gray-3);
+  background-color: transparent;
+  border: 1px solid var(--gray-2);
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+body section.right-content section.chat section.messages section.pending div footer button.submit {
+  color: #fff;
+  background-color: var(--ink);
+  border-color: var(--ink);
+}
+body section.right-content section.chat section.messages section.pending div footer button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+body section.right-content section.chat section.messages section.pending div footer:active button {
+  transform: scale(0.98);
+}
+body section.right-content section.chat div.input {
+  z-index: 1;
+  position: sticky;
+  bottom: 1.5rem;
+  display: flex;
+  flex-flow: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  width: var(--width-right-content);
+  max-width: var(--max-width-right-content);
+  background-color: #fff;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1019607843), 0 4px 6px -4px rgba(0, 0, 0, 0.1019607843);
+}
+body section.right-content section.chat div.input:has(textarea:focus) {
+  padding: calc(1rem - 1px);
+  border: 1px solid var(--gray-2);
+}
+body section.right-content section.chat div.input label {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 1.5rem;
+  line-height: 1.5rem;
+  max-height: 16rem;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+body section.right-content section.chat div.input label pre,
+body section.right-content section.chat div.input label textarea {
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+  min-height: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+body section.right-content section.chat div.input label pre {
+  display: block;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: transparent;
+  background-color: transparent;
+}
+body section.right-content section.chat div.input label textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  color: inherit;
+  overflow: hidden;
+  overflow: scroll;
+}
+body section.right-content section.chat div.input label textarea::placeholder {
+  color: var(--gray-3);
+}
+body section.right-content section.chat div.input section {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  height: 1rem;
+}
+body section.right-content section.chat div.input section > div {
+  flex-grow: 1;
+}
+body section.right-content section.chat div.input section button {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+body section.right-content section.chat div.input section button.send {
+  background-color: var(--black);
+  margin-top: -0.5rem;
+  margin-right: -0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+}
+body section.right-content section.chat div.input section button.send span {
+  color: #fff;
+}
+body section.right-content section.chat div.input section button.model {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1rem;
+}
+body section.right-content section.chat div.input section button:not(.send):not(.model) {
+  width: 1rem;
+  height: 1rem;
+}
+@media (hover: hover) {
+  body section.right-content section.chat div.input section button:not(.send):not(.model):hover:before {
+    opacity: 1;
+  }
+}
+body section.right-content section.chat div.input section button:not(.send):not(.model):before {
+  content: "";
+  z-index: 0;
+  position: absolute;
+  top: -0.5rem;
+  left: -0.5rem;
+  width: 2rem;
+  height: 2rem;
+  background-color: var(--gray-2);
+  border-radius: 50%;
+  opacity: 0;
+  transition: 0.2s;
+}
+body section.right-content section.feature {
+  position: absolute;
+  display: none;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+body section.right-content section.feature header {
+  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  width: 100%;
+  height: 2.5rem;
+  overflow: scroll;
+}
+body section.right-content section.feature header[data-selected=Rules] a[name=Rules], body section.right-content section.feature header[data-selected=Rules] button[name=Rules] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Knowledge] a[name=Knowledge], body section.right-content section.feature header[data-selected=Knowledge] button[name=Knowledge] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Notes] a[name=Notes], body section.right-content section.feature header[data-selected=Notes] button[name=Notes] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Skills] a[name=Skills], body section.right-content section.feature header[data-selected=Skills] button[name=Skills] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header[data-selected=Schedule] a[name=Schedule], body section.right-content section.feature header[data-selected=Schedule] button[name=Schedule] {
+  padding-top: 2px;
+  border-bottom: 2px solid var(--accent);
+  opacity: 1;
+}
+body section.right-content section.feature header div {
+  flex-grow: 1;
+}
+body section.right-content section.feature header a,
+body section.right-content section.feature header button {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0.25rem;
+  color: var(--black);
+  opacity: 0.35;
+  text-decoration: none;
+}
+body section.right-content section.feature header a p,
+body section.right-content section.feature header button p {
+  font-size: small;
+  font-weight: 300;
+}
+body section.right-content section.feature header a span:not(.material-symbols-outlined),
+body section.right-content section.feature header button span:not(.material-symbols-outlined) {
+  font-size: small;
+  font-weight: lighter;
+}
+
+button {
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+button * {
+  pointer-events: none;
+}
+
+span.material-symbols-outlined {
+  z-index: 1;
+  width: 1rem;
+  height: 1rem;
+  line-height: 1rem;
+  text-align: center;
+  font-size: medium;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  section.left-tab {
+    width: var(--width-left-tab);
+  }
+  section.right-content {
+    width: calc(100% - var(--width-left-tab));
+  }
+  &:has(section.left-tab[data-collapsed="1"]) section.left-tab {
+    width: var(--width-left-tab-collaspse);
+  }
+  &:has(section.left-tab[data-collapsed="1"]) section.right-content {
+    width: calc(100% - var(--width-left-tab-collaspse));
+  }
+}
+
+/*# sourceMappingURL=index.css.map */

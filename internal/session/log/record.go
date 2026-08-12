@@ -30,6 +30,15 @@ func Append(sessionID, str string) {
 	appendAction(sessionID, withTimestamp("user", flatten(str)))
 }
 
+func Steer(sessionID, str string) {
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return
+	}
+	flushAssistant(sessionID, agentTypes.Event{})
+	appendAction(sessionID, withTimestamp("steer", flatten(str)))
+}
+
 func Record(sessionID string, event agentTypes.Event) {
 	switch event.Type {
 	case agentTypes.EventTextDelta:

@@ -33,10 +33,6 @@ func Pub(sessionID string, event agentTypes.Event) {
 		return
 	}
 
-	if event.Type == agentTypes.EventTextDelta {
-		return
-	}
-
 	mu.RLock()
 	list := subs[sessionID]
 	mu.RUnlock()
