@@ -43,6 +43,7 @@ var eventTypeByName = map[string]EventType{
 	"EventUserInjected":    EventUserInjected,
 	"EventCanceled":        EventCanceled,
 	"EventSuggest":         EventSuggest,
+	"EventPending":         EventPending,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -85,6 +86,7 @@ const (
 	EventCanceled
 	EventTextDelta
 	EventSuggest
+	EventPending
 )
 
 func (e EventType) String() string {
@@ -143,6 +145,8 @@ func (e EventType) String() string {
 		return "EventCanceled"
 	case EventSuggest:
 		return "EventSuggest"
+	case EventPending:
+		return "EventPending"
 	default:
 		return "EventUnknown"
 	}
