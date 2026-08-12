@@ -80,7 +80,7 @@ func prompt(needTitle bool) string {
 	rule := ""
 	if needTitle {
 		shape = `{"title": "<3-6 words>", "follow_ups": ["<2-8 words>", "<2-8 words>", "<2-8 words>"]}`
-		rule = "- `title`: names what the whole conversation is about, not just the last turn.\n"
+		rule = "- `title`: always English regardless of the conversation language; names what the whole conversation is about, not just the last turn.\n"
 	}
 
 	return strings.TrimSpace(strings.NewReplacer(
