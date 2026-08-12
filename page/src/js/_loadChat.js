@@ -1,36 +1,96 @@
-function LoadChats() {
-  const chat_list = [
-    {
-      id: "123",
-      title: "Chat 1",
-    },
-  ];
-
-  for (let i = 0; i < chat_list.length; i++) {
-    document
-      .getElementById("left-tab-chat-list")
-      .appendChild(
-        _("a", { href: GetLink({ page: "chat", chat: chat_list[i].id }) }, [
-          _("p", chat_list[i].title),
-          _("span.material-symbols-outlined", "more_horiz"),
-        ]),
-      );
+async function loadChatList() {
+  const dom = $("#left-tab-chat-list");
+  if (!dom) {
+    return;
   }
-}
 
-function LoadChat(list) {
-  const dom = document.getElementById("right-content-chat-messages");
+  let list = [];
+  try {
+    const response = await fetch(`${API}/v1/sessions`);
+    list = (await response.json()).sessions || [];
+  } catch (err) {
+    console.error("loadChatList", err);
+    return;
+  }
 
-  for (let i = 0; i < list.length; i++) {
-    if (list[i].rule === "user") {
-      dom.appendChild(chatRuleUser(list[i]));
-    } else if (list[i].rule === "assistant") {
-      dom.appendChild(chatRuleAssistant(list[i]));
+  dom.innerHTML = "";
+  for (const e of list) {
+    if (!e.id.startsWith("http-")) {
+      continue;
     }
+    dom.appendChild(chatListItem(e.id, e.name || e.id));
   }
 }
 
-function chatRuleUser(item) {
+function chatListItem(sessionId, title) {
+  return _(
+    "a",
+    {
+      "data-id": sessionId,
+      "data-selected": sessionId === currentSessionId ? 1 : 0,
+      href: getLink({ page: "chat", chat: sessionId }),
+    },
+    [_("p", title), _("span.material-symbols-outlined", "more_horiz")],
+  );
+}
+
+function renameChat(sessionId, title) {
+  if (!sessionId || !title) {
+    return;
+  }
+
+  const label = $(`#left-tab-chat-list [data-id="${sessionId}"] p`);
+  if (label) {
+    label.textContent = title;
+  }
+}
+
+async function loadChat(sessionId) {
+  const dom = $("#right-content-chat-messages");
+  if (!dom || !sessionId) {
+    return;
+  }
+
+  let content = "";
+  try {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/action`);
+    if (!response.ok) {
+      return;
+    }
+    content = (await response.json()).content || "";
+  } catch (err) {
+    console.error("loadChat", err);
+    return;
+  }
+
+  dom.innerHTML = "";
+  const items = parseActionLog(content);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.pending && item.rule === "assistant" && i === items.length - 1) {
+      streamDom = newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content });
+      continue;
+    }
+
+    dom.appendChild(item.rule === "user" ? newUserItem(item) : newAssisatantItem(item));
+  }
+  scrollToBottom(true);
+}
+
+function assistantFooter(meta) {
+  const children = [_("span.material-symbols-outlined", "content_copy"), _("span.material-symbols-outlined", "cached")];
+  if (meta.input) {
+    children.push(_("div", [_("span.material-symbols-outlined", "arrow_upward_alt"), _("p", meta.input)]));
+  }
+  if (meta.output) {
+    children.push(_("div", [_("span.material-symbols-outlined", "arrow_downward_alt"), _("p", meta.output)]));
+  }
+  children.push(_("p", meta.send_at || ""));
+  return _("footer", children);
+}
+
+function newUserItem(item) {
   return _("div.user", [
     _("p", item.content),
     _("footer", [
@@ -41,23 +101,23 @@ function chatRuleUser(item) {
   ]);
 }
 
-function chatRuleAssistant(item) {
-  return _("div.assistant", [
-    _("img", "public/logo-min.svg"),
-    _("section", [
-      _("p", item.meta.model),
+function newAssisatantItem(item) {
+  const body = [_("p", item.meta.model || "")];
+
+  if (item.Reasoning) {
+    body.push(
       _("details", [
         _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-        _("section.md-render", `<span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>`),
+        _("section.md-render", renderMarkdownHTML(item.Reasoning)),
       ]),
-      _("section.md-render", `<span class="md-line">我不確定你想表達什麼。請重新輸入問題或需求。</span>`),
-      _("footer", [
-        _("span.material-symbols-outlined", "content_copy"),
-        _("span.material-symbols-outlined", "cached"),
-        _("div", [_("span.material-symbols-outlined", "arrow_upward_alt"), _("p", item.meta.input)]),
-        _("div", [_("span.material-symbols-outlined", "arrow_downward_alt"), _("p", item.meta.output)]),
-        _("p", item.meta.send_at),
-      ]),
-    ]),
-  ]);
+    );
+  }
+
+  if (item.content) {
+    body.push(_("section.md-render", renderMarkdownHTML(item.content)));
+  }
+
+  body.push(assistantFooter(item.meta));
+
+  return _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);
 }

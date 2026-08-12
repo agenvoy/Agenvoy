@@ -1,27 +1,27 @@
-const LeftTab = {
+const leftTab = {
   "New Chat": {
     icon: "add_comment",
-    href: GetLink({ page: "chat" }),
+    href: getLink({ page: "chat" }),
   },
   Nodes: {
     icon: "note_stack",
-    href: GetLink({ page: "features", tab: "Nodes" }),
+    href: getLink({ page: "features", tab: "Nodes" }),
   },
   Skills: {
     icon: "docs",
-    href: GetLink({ page: "features", tab: "Skills" }),
+    href: getLink({ page: "features", tab: "Skills" }),
   },
   Schedule: {
     icon: "schedule",
-    href: GetLink({ page: "features", tab: "Schedule" }),
+    href: getLink({ page: "features", tab: "Schedule" }),
   },
   Features: {
     icon: "stacks",
-    href: GetLink({ page: "features", tab: "Rules" }),
+    href: getLink({ page: "features", tab: "Rules" }),
   },
 };
 
-const Feature = {
+const feature = {
   Rules: "deployed_code_account",
   Knowledge: "book_2",
   Notes: "note_stack",
@@ -29,7 +29,7 @@ const Feature = {
   Schedule: "schedule",
 };
 
-function GetLink(params) {
+function getLink(params) {
   let path = "?";
   if (params.page) {
     path += `page=${params.page}`;

@@ -1,6 +1,7 @@
 const CONFIG_KEY = "webui_config";
+const AUTO_SCROLL_SLACK = 96;
 
-function PraseURL() {
+function praseURL() {
   const url = new URL(window.location.href);
   const params = {};
   for (const [key, value] of url.searchParams) {
@@ -9,7 +10,7 @@ function PraseURL() {
   return params;
 }
 
-function WriteConfig(config) {
+function writeConfig(config) {
   try {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
   } catch (err) {
@@ -17,7 +18,7 @@ function WriteConfig(config) {
   }
 }
 
-function ReadConfig() {
+function readConfig() {
   let config = null;
 
   try {
@@ -32,8 +33,8 @@ function ReadConfig() {
   }
 
   if (config.left_tab_collapsed !== "1" && config.left_tab_collapsed !== "0") {
-    config.left_tab_collapsed = vw < 768 ? "1" : "0";
-    WriteConfig(config);
+    config.left_tab_collapsed = document.documentElement.clientWidth < 768 ? "1" : "0";
+    writeConfig(config);
   }
   return config;
 }

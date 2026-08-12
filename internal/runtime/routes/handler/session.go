@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -40,7 +42,12 @@ func ListSessions() gin.HandlerFunc {
 			return
 		}
 
-		list := make([]SessionInfo, 0, len(dirs))
+		type entry struct {
+			info     SessionInfo
+			activeAt time.Time
+		}
+
+		entries := make([]entry, 0, len(dirs))
 		for _, dir := range dirs {
 			sid := dir.Name
 			if strings.HasPrefix(sid, ".") || sid == "jarvis" {
@@ -71,18 +78,44 @@ func ListSessions() gin.HandlerFunc {
 				status.Active = []configStatus.Task{}
 			}
 
-			list = append(list, SessionInfo{
-				ID:      sid,
-				Name:    name,
-				State:   status.State,
-				Model:   model,
-				Active:  status.Active,
-				EndedAt: status.EndedAt,
+			entries = append(entries, entry{
+				info: SessionInfo{
+					ID:      sid,
+					Name:    name,
+					State:   status.State,
+					Model:   model,
+					Active:  status.Active,
+					EndedAt: status.EndedAt,
+				},
+				activeAt: lastActiveAt(sid),
 			})
+		}
+
+		// newest first: the sidebar reads top-down and the session just used belongs there
+		slices.SortStableFunc(entries, func(a, b entry) int {
+			return b.activeAt.Compare(a.activeAt)
+		})
+
+		list := make([]SessionInfo, 0, len(entries))
+		for _, e := range entries {
+			list = append(list, e.info)
 		}
 
 		c.JSON(http.StatusOK, gin.H{"sessions": list})
 	}
+}
+
+// * os.Stat retained: only ModTime() is needed and go-pkg's reader formats it to the
+// * minute, which is too coarse to order sessions touched in the same minute
+func lastActiveAt(sessionID string) time.Time {
+	if info, err := os.Stat(filesystem.ActionLogPath(sessionID)); err == nil {
+		return info.ModTime()
+	}
+	// never ran: fall back to when the session directory itself was last written
+	if info, err := os.Stat(filesystem.SessionDir(sessionID)); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
 }
 
 func CreateSession() gin.HandlerFunc {

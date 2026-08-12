@@ -9,7 +9,8 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,settings,stacks"
     />
     <link rel="stylesheet" href="public/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.20/dist/QuickUI.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
+    <script src="https://cloud.pardn.io/nanomd-pre-test.js"></script>
     <script src="public/index.js"></script>
   </head>
   <body id="app" data-rendered="0">
@@ -43,7 +44,7 @@
     <!---->
     <section class="right-content">
       <!---->
-      <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}">
+      <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}" @wheel="chat_wheel">
         <header>
           <p></p>
           <div></div>
@@ -61,7 +62,12 @@
         <!---->
         <div class="input">
           <label dir="auto">
-            <textarea id="chat-input" placeholder="How can I help you today?" @input="chat_input"></textarea>
+            <textarea
+              id="chat-input"
+              placeholder="How can I help you today?"
+              @input="chat_input"
+              @keydown="chat_keydown"
+            ></textarea>
             <pre></pre>
           </label>
           <section>
@@ -73,7 +79,7 @@
               auto
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </button>
-            <button class="send" type="button">
+            <button class="send" type="button" @click="send_click">
               <span class="material-symbols-outlined"> send </span>
             </button>
           </section>

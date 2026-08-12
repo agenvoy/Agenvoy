@@ -89,7 +89,9 @@ body[data-rendered="1"] section.right-content section.chat {
       display: none;
       flex-flow: column;
       flex-grow: 1;
-      padding-top: 2.5rem;
+      padding: 2.5rem 0 calc(100vh / 3);
+      max-height: calc(100% - 5.25rem);
+      overflow-y: scroll;
       width: var(--width-right-content);
       max-width: var(--max-width-right-content);
 
@@ -130,6 +132,10 @@ body[data-rendered="1"] section.right-content section.chat {
       }
 
       div.assistant {
+        &:not(:last-child) section.suggests {
+          display: none;
+        }
+
         display: flex;
         flex-flow: row;
         justify-content: flex-start;
@@ -223,16 +229,53 @@ body[data-rendered="1"] section.right-content section.chat {
               color: #999;
             }
           }
+
+          section.suggests {
+            display: flex;
+            flex-flow: row wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            width: 100%;
+
+            button {
+              padding: 0.375rem 0.75rem;
+              max-width: 100%;
+              font-size: small;
+              text-align: left;
+              color: #666;
+              background-color: transparent;
+              border: 1px solid var(--line);
+              border-radius: 1rem;
+              cursor: pointer;
+              transition: 0.2s;
+
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+
+              @media (hover: hover) {
+                &:hover {
+                  color: var(--ink);
+                  border-color: var(--accent);
+                }
+              }
+
+              &:active {
+                transform: scale(0.98);
+              }
+            }
+          }
         }
       }
     }
 
     div.input {
       z-index: 1;
+      position: sticky;
+      bottom: 1.5rem;
       display: flex;
       flex-flow: column;
       gap: 0.75rem;
-      margin-bottom: 1.5rem;
       padding: 1rem;
       width: var(--width-right-content);
       max-width: var(--max-width-right-content);

@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const config = ReadConfig();
-  let params = PraseURL();
+  const config = readConfig();
+  let params = praseURL();
 
   if (params.page == null) {
     params.page = "chat";
@@ -13,29 +13,66 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("config", config);
   console.log("params", params);
 
+  function submit() {
+    const dom = $("#chat-input");
+    const content = dom.value;
+    dom.value = "";
+    dom.nextElementSibling.textContent = "\n";
+    send(content);
+  }
+
+  function wheelDelta(e, target) {
+    if (e.deltaMode === 1) return e.deltaY * 16;
+    if (e.deltaMode === 2) return e.deltaY * target.clientHeight;
+    return e.deltaY;
+  }
+
   const app = new QUI({
     id: "app",
     data: {
       params: params,
       collapsed: config.left_tab_collapsed,
-      left_tab: LeftTab,
-      feature: Feature,
+      left_tab: leftTab,
+      feature: feature,
     },
     event: {
       show_tab: function () {
-        const dom = document.querySelector(".left-tab");
+        const dom = $(".left-tab");
         const collapsed = dom.dataset.collapsed === "1" ? "0" : "1";
         dom.dataset.collapsed = collapsed;
         config.left_tab_collapsed = collapsed;
-        WriteConfig(config);
-      },
-      chat_input: function () {
-        this.nextElementSibling.textContent = this.value + "\n";
+        writeConfig(config);
       },
       feature_tab_click: function (e) {
         const header = e.target.closest("header");
         const name = e.target.name;
         header.dataset.selected = name;
+      },
+      chat_input: function () {
+        this.nextElementSibling.textContent = this.value + "\n";
+      },
+      chat_keydown: function (e) {
+        if (e.key !== "Enter" || e.shiftKey || e.isComposing) {
+          return;
+        }
+        e.preventDefault();
+        submit();
+      },
+      send_click: function () {
+        submit();
+      },
+      chat_wheel: function (e) {
+        const dom = $("#right-content-chat-messages");
+        if (dom.contains(e.target) || dom.scrollHeight <= dom.clientHeight) {
+          return;
+        }
+
+        const box = e.target.closest("textarea");
+        if (box && box.scrollHeight > box.clientHeight) {
+          return;
+        }
+        dom.scrollTop += wheelDelta(e, dom);
+        e.preventDefault();
       },
     },
     when: {
@@ -49,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         window.addEventListener("resize", function (e) {
           const vw = document.documentElement.clientWidth;
-          const dom = document.querySelector(".left-tab");
+          const dom = $(".left-tab");
 
           let timer;
           clearTimeout(timer);
@@ -65,30 +102,10 @@ document.addEventListener("DOMContentLoaded", function () {
           dom.dataset.collapsed = "1";
         });
 
-        LoadChats();
-
-        if (params.page == "chat" && params.chat != null) {
-          LoadChat([
-            {
-              rule: "user",
-              content: "asdfasfaf",
-              meta: {
-                send_at: "2026-08-08 11:02",
-              },
-            },
-            {
-              rule: "assistant",
-              Reasoning: "我不確定你想表達什麼。請重新輸入問題或需求。",
-              content: "我不確定你想表達什麼。請重新輸入問題或需求。",
-              meta: {
-                model: "auto",
-                send_at: "2026-08-08 11:02",
-                input: "12k",
-                output: "12k",
-              },
-            },
-          ]);
-        }
+        setSession(params.chat || "");
+        subscribe(params.chat || "");
+        loadChatList();
+        loadChat(params.chat || "");
       },
       before_update: function () {
         // 停止更新

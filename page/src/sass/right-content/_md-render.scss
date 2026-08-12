@@ -93,12 +93,14 @@
       border-collapse: collapse;
       white-space: normal;
       width: max-content;
+      min-width: 100%;
       max-width: none;
       font-family: inherit;
       font-size: inherit;
 
       th,
       td {
+        width: auto;
         border: 1px solid var(--line);
         padding: 3px 10px;
         text-align: left;
