@@ -64,7 +64,7 @@ func renderActionLine(p parsedAction, width int) string {
 	body := strings.ReplaceAll(p.body, sessionLog.ActionNewlineMarker, "\n")
 
 	switch p.kind {
-	case "user":
+	case "user", "steer":
 		body = sessionHistory.StripPrefix(body)
 		if strings.Contains(body, "[Resumed Task") {
 			return ""

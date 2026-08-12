@@ -110,6 +110,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
+		defer markRunning(session.ID)()
 		defer ClearSteer(session.ID)
 
 		original := events

@@ -61,6 +61,15 @@ func Send() gin.HandlerFunc {
 			sessionID = prefix + utils.UUID()
 		}
 
+		if exec.IsRunning(sessionID) {
+			exec.AppendSteer(sessionID, req.Content)
+			c.JSON(http.StatusOK, gin.H{
+				"session_id": sessionID,
+				"steer":      true,
+			})
+			return
+		}
+
 		allowAll := true
 		if req.AllowAll != nil {
 			allowAll = *req.AllowAll
