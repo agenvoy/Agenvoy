@@ -64,7 +64,7 @@ func Send() gin.HandlerFunc {
 
 		events := make(chan agentTypes.Event, 64)
 		execCtx := context.WithoutCancel(c.Request.Context())
-		wrapped := pubsub.Wrap(execCtx, sessionID, events, 64)
+		wrapped := withFollowup(execCtx, sessionID, pubsub.Wrap(execCtx, sessionID, events, 64))
 
 		go func() {
 			defer close(wrapped)
