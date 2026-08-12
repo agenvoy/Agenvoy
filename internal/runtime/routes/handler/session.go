@@ -91,7 +91,6 @@ func ListSessions() gin.HandlerFunc {
 			})
 		}
 
-		// newest first: the sidebar reads top-down and the session just used belongs there
 		slices.SortStableFunc(entries, func(a, b entry) int {
 			return b.activeAt.Compare(a.activeAt)
 		})
@@ -105,13 +104,10 @@ func ListSessions() gin.HandlerFunc {
 	}
 }
 
-// * os.Stat retained: only ModTime() is needed and go-pkg's reader formats it to the
-// * minute, which is too coarse to order sessions touched in the same minute
 func lastActiveAt(sessionID string) time.Time {
 	if info, err := os.Stat(filesystem.ActionLogPath(sessionID)); err == nil {
 		return info.ModTime()
 	}
-	// never ran: fall back to when the session directory itself was last written
 	if info, err := os.Stat(filesystem.SessionDir(sessionID)); err == nil {
 		return info.ModTime()
 	}

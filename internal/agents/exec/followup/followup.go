@@ -76,10 +76,10 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 }
 
 func prompt(needTitle bool) string {
-	shape := `{"follow_ups": ["<2-8 words>", "<2-8 words>", "<2-8 words>"]}`
+	shape := `{"follow_ups": ["<user's next message, 2-8 words>", "<user's next message, 2-8 words>", "<user's next message, 2-8 words>"]}`
 	rule := ""
 	if needTitle {
-		shape = `{"title": "<3-6 words>", "follow_ups": ["<2-8 words>", "<2-8 words>", "<2-8 words>"]}`
+		shape = `{"title": "<3-6 words>", "follow_ups": ["<user's next message, 2-8 words>", "<user's next message, 2-8 words>", "<user's next message, 2-8 words>"]}`
 		rule = "- `title`: always English regardless of the conversation language; names what the whole conversation is about, not just the last turn.\n"
 	}
 
