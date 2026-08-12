@@ -10,6 +10,7 @@ const SKIP_EVENTS = [
   "EventToolResult",
   "EventUserInput",
   "EventUsageUpdate",
+  "EventPending",
 ];
 let currentSessionId = "";
 let streamDom = null;
@@ -27,22 +28,36 @@ async function send(content) {
   }
 
   const fresh = currentSessionId !== sessionId;
+  const model = ensureModel();
   setSession(sessionId);
   subscribe(sessionId);
   if (fresh) {
     prependChat(sessionId, content);
+    saveSessionModel(sessionId, model);
   }
 
   const dom = $("#right-content-chat-messages");
-  dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
-  streamDom = newStreamItem();
+  clearPending();
+  if (streamDom) {
+    appendUserText(dom, content);
+  } else {
+    dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
+    streamDom = newStreamItem();
+    clearTodo();
+  }
   scrollToBottom(true);
 
   try {
     const response = await fetch(`${API}/v1/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: content, sse: false, session_id: sessionId, persist: true }),
+      body: JSON.stringify({
+        content: content,
+        sse: false,
+        session_id: sessionId,
+        persist: true,
+        model: model === "auto" ? "" : model,
+      }),
     });
     if (!response.ok) {
       renderEvent(streamDom, { type: "EventError", text: `HTTP ${response.status}` });
@@ -54,6 +69,26 @@ async function send(content) {
   }
 }
 
+function appendUserText(dom, content) {
+  const bubbles = dom.querySelectorAll("div.user");
+  const bubble = bubbles[bubbles.length - 1];
+  if (!bubble) {
+    dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
+    return;
+  }
+
+  const mark = steerMark(sendAt(), content, bubble.dataset.steered !== "1");
+  bubble.dataset.steered = "1";
+  const text = bubble.querySelector("p");
+  if (text) {
+    text.textContent += mark;
+  }
+  const source = bubble.querySelector("pre.source");
+  if (source) {
+    source.textContent += mark;
+  }
+}
+
 async function ensureSessionId() {
   if (currentSessionId) {
     return currentSessionId;
@@ -62,7 +97,7 @@ async function ensureSessionId() {
   const response = await fetch(`${API}/v1/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prefix: "http-" }),
+    body: JSON.stringify({ prefix: "chat-" }),
   });
   const sessionId = (await response.json()).session_id || "";
   if (!sessionId) {
@@ -119,10 +154,9 @@ function sendAt() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-// TODO: 要補上 todo 區塊
-function eventSkip(ev) {
-  const type = ev.type || "";
-  if (ev.source || (type === "EventToolCall" && ev.tool_name === "write_todo")) {
+function eventSkip(event) {
+  const type = event.type || "";
+  if (event.source || (type === "EventToolCall" && event.tool_name === "write_todo")) {
     return true;
   }
   return SKIP_EVENTS.includes(type);
@@ -141,8 +175,9 @@ function newStreamItem(init) {
 
   const model = _("p", init.model || "…");
   const answer = _("section.md-render");
+  const source = sourceBox(init.text || "");
   const footer = _("footer");
-  const body = _("section", [model, think, answer, footer]);
+  const body = _("section", [model, think, answer, source, footer]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
 
   $("#right-content-chat-messages").appendChild(dom);
@@ -153,6 +188,7 @@ function newStreamItem(init) {
     think: think,
     reasoning: reasoning,
     answer: answer,
+    source: source,
     footer: footer,
     text: init.text || "",
     streamed: false,

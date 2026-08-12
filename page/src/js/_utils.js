@@ -38,3 +38,34 @@ function readConfig() {
   }
   return config;
 }
+
+function sourceBox(text) {
+  return _("pre.source", { textContent: text || "" });
+}
+
+function copyBtn() {
+  const dom = _("button", [_("span.material-symbols-outlined", "content_copy")]);
+  dom.addEventListener("click", function () {
+    const bubble = dom.closest("div.assistant, div.user");
+    const source = bubble && bubble.querySelector("pre.source");
+    if (!source || !navigator.clipboard) {
+      return;
+    }
+    navigator.clipboard.writeText(source.textContent).catch((err) => console.error("copy", err));
+  });
+  return dom;
+}
+
+function bindSelectPicker() {
+  document.addEventListener("click", function (e) {
+    const label = e.target.closest("label:has(select)");
+    if (!label || e.target.tagName === "SELECT") {
+      return;
+    }
+
+    const dom = label.querySelector("select");
+    if (dom && typeof dom.showPicker === "function") {
+      dom.showPicker();
+    }
+  });
+}

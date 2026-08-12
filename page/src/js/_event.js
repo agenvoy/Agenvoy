@@ -8,8 +8,8 @@ function renderEvent(view, event) {
 
   if (type === "EventTextDelta") {
     view.streamed = true;
-    view.text += event.text || "";
-    render(view.answer, view.text);
+    view.text += resumeMark(view) + (event.text || "");
+    renderAnswer(view);
     return;
   }
 
@@ -17,9 +17,10 @@ function renderEvent(view, event) {
     if (view.streamed) {
       return;
     }
-    view.text += (view.textStarted ? "\n" : "") + (event.text || "");
+    const join = view.textStarted ? "\n" : "";
+    view.text += resumeMark(view) + join + (event.text || "");
     view.textStarted = true;
-    render(view.answer, view.text);
+    renderAnswer(view);
     return;
   }
 
@@ -39,6 +40,7 @@ function renderEvent(view, event) {
     const usage = event.usage || {};
     const footer = assistantFooter({
       send_at: sendAt(),
+      duration: compactDuration(event.duration),
       input: compactToken(usage.input_tokens),
       output: compactToken(usage.output_tokens),
     });
@@ -51,6 +53,19 @@ function renderEvent(view, event) {
   renderReasoning(view, formatEvent(event));
 }
 
+function renderAnswer(view) {
+  view.source.textContent = view.text;
+  render(view.answer, view.text);
+}
+
+function resumeMark(view) {
+  if (!view.resumed) {
+    return "";
+  }
+  view.resumed = false;
+  return "\n\n---\n\n";
+}
+
 function renderReasoning(view, line) {
   line = (line || "").trim();
   if (!line) {
@@ -58,6 +73,7 @@ function renderReasoning(view, line) {
   }
   view.trace += (view.trace ? "\n\n" : "") + line;
   view.think.hidden = false;
+  view.resumed = Boolean(view.text);
   render(view.reasoning, view.trace);
 }
 

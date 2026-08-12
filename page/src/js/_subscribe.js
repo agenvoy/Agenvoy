@@ -31,17 +31,31 @@ function subscribe(sessionId) {
   };
 }
 
-function parseEvent(ev) {
-  if (eventSkip(ev)) {
+function parseEvent(event) {
+  if (event.type === "EventPending") {
+    loadPending(subscribedSession);
+    return;
+  }
+
+  if (eventSkip(event)) {
+    return;
+  }
+
+  if (event.type === "EventTodoUpdate") {
+    renderTodo(event.todos || []);
     return;
   }
 
   if (!streamDom) {
-    if (ev.type === "EventDone") return;
+    if (event.type === "EventDone") return;
     streamDom = newStreamItem();
   }
 
-  renderEvent(streamDom, ev);
+  renderEvent(streamDom, event);
 
-  if (ev.type === "EventDone") streamDom = null;
+  if (event.type === "EventDone") {
+    streamDom = null;
+    clearTodo();
+    loadPending(subscribedSession);
+  }
 }

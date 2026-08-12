@@ -1,4 +1,4 @@
-async function loadChatList() {
+async function renderChatList() {
   const dom = $("#left-tab-chat-list");
   if (!dom) {
     return;
@@ -15,7 +15,7 @@ async function loadChatList() {
 
   dom.innerHTML = "";
   for (const e of list) {
-    if (!e.id.startsWith("http-")) {
+    if (!e.id.startsWith("chat-")) {
       continue;
     }
     dom.appendChild(chatListItem(e.id, e.name || e.id));
@@ -45,7 +45,7 @@ function renameChat(sessionId, title) {
   }
 }
 
-async function loadChat(sessionId) {
+async function renderChat(sessionId) {
   const dom = $("#right-content-chat-messages");
   if (!dom || !sessionId) {
     return;
@@ -63,13 +63,18 @@ async function loadChat(sessionId) {
     return;
   }
 
-  dom.innerHTML = "";
+  for (const bubble of dom.querySelectorAll(":scope > div.user, :scope > div.assistant")) {
+    bubble.remove();
+  }
+
   const items = parseActionLog(content);
+  clearTodo();
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.rule === "assistant" && i === items.length - 1) {
       streamDom = newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content });
+      renderTodo(item.todos);
       continue;
     }
 
@@ -79,7 +84,10 @@ async function loadChat(sessionId) {
 }
 
 function assistantFooter(meta) {
-  const children = [_("span.material-symbols-outlined", "content_copy"), _("span.material-symbols-outlined", "cached")];
+  const children = [copyBtn()];
+  if (meta.duration) {
+    children.push(_("p", meta.duration));
+  }
   if (meta.input) {
     children.push(_("div", [_("span.material-symbols-outlined", "arrow_upward_alt"), _("p", meta.input)]));
   }
@@ -91,14 +99,16 @@ function assistantFooter(meta) {
 }
 
 function newUserItem(item) {
-  return _("div.user", [
+  const dom = _("div.user", [
     _("p", item.content),
-    _("footer", [
-      _("p", item.meta.send_at),
-      _("span.material-symbols-outlined", "content_copy"),
-      _("span.material-symbols-outlined", "cached"),
-    ]),
+    sourceBox(item.content),
+    _("footer", [_("p", item.meta.send_at), copyBtn()]),
   ]);
+
+  if (item.steered) {
+    dom.dataset.steered = "1";
+  }
+  return dom;
 }
 
 function newAssisatantItem(item) {
@@ -117,6 +127,7 @@ function newAssisatantItem(item) {
     body.push(_("section.md-render", renderMarkdownHTML(item.content)));
   }
 
+  body.push(sourceBox(item.content));
   body.push(assistantFooter(item.meta));
 
   return _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);

@@ -398,7 +398,7 @@ body[data-rendered="1"] section.right-content section.chat {
           flex-grow: 1;
         }
 
-        label.model {
+        label {
           display: flex;
           flex-flow: row;
           align-items: center;
@@ -406,7 +406,32 @@ body[data-rendered="1"] section.right-content section.chat {
           height: 1rem;
           cursor: pointer;
 
+          &.rule select {
+            direction: ltr;
+            text-align: left;
+            text-align-last: left;
+
+            option {
+              direction: ltr;
+              text-align: left;
+            }
+          }
+
+          &.model select {
+            direction: rtl;
+            text-align: right;
+            text-align-last: right;
+
+            option {
+              direction: ltr;
+              text-align: right;
+            }
+          }
+
           select {
+            field-sizing: content;
+            width: auto;
+            max-width: 12rem;
             height: 1rem;
             padding: 0;
             font: inherit;
@@ -417,14 +442,6 @@ body[data-rendered="1"] section.right-content section.chat {
             border: none;
             outline: none;
             cursor: pointer;
-            direction: rtl;
-            text-align: right;
-            text-align-last: right;
-
-            option {
-              direction: ltr;
-              text-align: right;
-            }
           }
         }
 

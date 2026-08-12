@@ -6,9 +6,11 @@ document.addEventListener("DOMContentLoaded", function () {
     params.page = "chat";
   }
 
-  if (params.chat == null) {
-    params.chat = "";
+  if (params.chat != null && !CHAT_ID.test(params.chat || "")) {
+    window.location.href = getLink({ page: params.page });
+    return;
   }
+  params.chat = params.chat || "";
 
   console.log("config", config);
   console.log("params", params);
@@ -74,6 +76,13 @@ document.addEventListener("DOMContentLoaded", function () {
         dom.scrollTop += wheelDelta(e, dom);
         e.preventDefault();
       },
+      model_change: function (e) {
+        const model = e.target.value;
+        if (!model || !currentSessionId) {
+          return;
+        }
+        saveSessionModel(currentSessionId, model);
+      },
     },
     when: {
       before_render: function () {
@@ -102,10 +111,16 @@ document.addEventListener("DOMContentLoaded", function () {
           dom.dataset.collapsed = "1";
         });
 
-        setSession(params.chat || "");
-        subscribe(params.chat || "");
-        loadChatList();
-        loadChat(params.chat || "");
+        bindSelectPicker();
+        renderChatList();
+
+        if (params.page === "chat") {
+          setSession(params.chat);
+          subscribe(params.chat);
+          getModelList(params.chat);
+          renderChat(params.chat);
+          loadPending(params.chat);
+        }
       },
       before_update: function () {
         // 停止更新
