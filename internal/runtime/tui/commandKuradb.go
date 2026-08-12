@@ -1,24 +1,18 @@
 package tui
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
 type KuradbAction struct {
 	action string
-}
-
-type KuradbKeySubmit struct {
-	token string
 }
 
 type KuradbDone struct {
@@ -29,29 +23,17 @@ type KuradbDone struct {
 func (t TUI) commandKuradb(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
 		switch parts[1] {
-		case "enable", "disable", "update", "start", "stop":
+		case "setup", "update", "reconnect":
 			action := parts[1]
 			return t, func() tea.Msg { return KuradbAction{action: action} }, true
 		}
 	}
 
-	installed := kuradb.IsInstalled()
-
-	var options []string
-	if !installed {
-		options = []string{"enable"}
-	} else {
-		options = []string{"update", "disable"}
-		if kuradb.IsRunning() {
-			options = append(options, "stop")
-		} else {
-			options = append(options, "start")
-		}
-	}
+	options := kuradbActions()
 	t.popup = &Popup{
 		kind:        popupSingleSelect,
 		title:       "KuraDB",
-		styledLines: kuradbStatus(installed),
+		styledLines: kuradbStatus(),
 		options:     options,
 		values:      options,
 		onConfirm: func(chosen string) any {
@@ -61,144 +43,117 @@ func (t TUI) commandKuradb(parts []string) (TUI, tea.Cmd, bool) {
 	return t, nil, true
 }
 
-func kuradbStatus(installed bool) []string {
-	if !installed {
+func kuradbActions() []string {
+	if !kuradb.Installed() {
+		return []string{"setup"}
+	}
+	name, registered := kuradb.Registered()
+	if !registered {
+		return []string{"setup", "update"}
+	}
+	if info, ok := mcpServerStatus(name); !ok || !info.Connected {
+		return []string{"reconnect", "update"}
+	}
+	return []string{"update"}
+}
+
+func kuradbStatus() []string {
+	prefix := hintStyle.Render("  kura  ")
+
+	name, registered := kuradb.Registered()
+	if !registered {
+		if kuradb.Installed() {
+			return []string{prefix + errorStyle.Render("○ installed · not registered in mcp.json")}
+		}
+		return []string{prefix + errorStyle.Render("○ not installed")}
+	}
+
+	info, ok := mcpServerStatus(name)
+	switch {
+	case !ok:
+		return []string{prefix + errorStyle.Render("○ registered · no client")}
+	case !info.Connected:
+		lines := []string{prefix + errorStyle.Render("○ "+name+" · disconnected")}
+		if info.Error != "" {
+			lines = append(lines, hintStyle.Render("         ")+errorStyle.Render(info.Error))
+		}
+		return lines
+	case info.Error != "":
+		return []string{prefix + warnStyle.Render("● "+name+" · tools unavailable")}
+	default:
+		return []string{prefix + okayStyle.Render("● "+name+" · connected")}
+	}
+}
+
+func connectError() error {
+	name, registered := kuradb.Registered()
+	if !registered {
+		return fmt.Errorf("not registered in mcp.json")
+	}
+	info, ok := mcpServerStatus(name)
+	switch {
+	case !ok || !info.Connected:
+		if ok && info.Error != "" {
+			return fmt.Errorf("%s did not connect: %s", name, info.Error)
+		}
+		return fmt.Errorf("%s did not connect", name)
+	default:
 		return nil
 	}
-	version := "unknown"
-	if v, err := kuradb.Version(); err == nil && v != "" {
-		version = v
-	}
-	prefix := hintStyle.Render(fmt.Sprintf("  kura %s  ", version))
-	if kuradb.IsRunning() {
-		status := "● running"
-		if endpoint, err := filesystem.GetKuradbEndpoint(); err == nil && endpoint != "" {
-			status += " (" + endpoint + ")"
-		}
-		return []string{prefix + okayStyle.Render(status)}
-	}
-	return []string{prefix + errorStyle.Render("○ stopped")}
 }
 
-func (t TUI) openKuradbKeyPrompt() (TUI, tea.Cmd) {
-	t.popup = &Popup{
-		kind:     popupText,
-		title:    "KuraDB · OPENAI_API_KEY",
-		input:    newPopupInput("", false),
-		subtitle: "required for embedding (text-embedding-3-small) · Enter to submit · Esc to cancel",
-		onConfirm: func(value string) any {
-			return KuradbKeySubmit{token: strings.TrimSpace(value)}
-		},
+func reconnectUntilUp(sessionID string) error {
+	var err error
+	for attempt := range 2 {
+		if attempt > 0 {
+			time.Sleep(time.Second)
+		}
+		if err = kuradb.Reconnect(context.Background(), sessionID); err != nil {
+			continue
+		}
+		if err = connectError(); err == nil {
+			return nil
+		}
 	}
-	return t, nil
+	return err
 }
 
-func runKuradbEnableExec() tea.Cmd {
-	script := fmt.Sprintf(`set -e
-curl -fsSL %s | bash
-kura add agenvoy 2>/dev/null || true
-`, kuradb.InstallURL)
-
-	cmd := exec.Command("bash", "-c", script)
-	cmd.Env = os.Environ()
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		if err != nil {
-			return KuradbDone{action: "enable", err: fmt.Errorf("install script: %w", err)}
-		}
-		if !kuradb.IsInstalled() {
-			return KuradbDone{action: "enable", err: fmt.Errorf("kura binary not at %s after install", kuradb.BinaryPath)}
-		}
-		cfg, err := config.Load()
-		if err != nil {
-			return KuradbDone{action: "enable", err: fmt.Errorf("session.Load: %w", err)}
-		}
-		cfg.KuradbEnabled = true
-		if err := config.Save(cfg); err != nil {
-			return KuradbDone{action: "enable", err: fmt.Errorf("session.Save: %w", err)}
-		}
-		return KuradbDone{action: "enable"}
-	})
-}
-
-func runKuradbUpdateExec() tea.Cmd {
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		cfg.KuradbEnabled = false
-		if err := config.Save(cfg); err != nil {
-			return func() tea.Msg {
-				return KuradbDone{action: "update", err: fmt.Errorf("session.Save(stop): %w", err)}
+func runKuradbSetup(sessionID string) tea.Cmd {
+	if kuradb.Installed() {
+		return func() tea.Msg {
+			if err := kuradb.Register(context.Background(), sessionID); err != nil {
+				return KuradbDone{action: "setup", err: err}
 			}
+			return KuradbDone{action: "setup", err: connectError()}
 		}
 	}
-
-	script := fmt.Sprintf(`set -e
-curl -fsSL %s | bash
-kura add agenvoy 2>/dev/null || true
-`, kuradb.InstallURL)
-
-	cmd := exec.Command("bash", "-c", script)
-	cmd.Env = os.Environ()
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		if err != nil {
-			if kuradb.IsInstalled() {
-				if cfg, lerr := config.Load(); lerr == nil && cfg != nil {
-					cfg.KuradbEnabled = true
-					_ = config.Save(cfg)
-				}
-			}
-			return KuradbDone{action: "update", err: fmt.Errorf("install script: %w", err)}
-		}
-		if !kuradb.IsInstalled() {
-			return KuradbDone{action: "update", err: fmt.Errorf("kura binary not at %s after install", kuradb.BinaryPath)}
-		}
-		cfg, err := config.Load()
-		if err != nil {
-			return KuradbDone{action: "update", err: fmt.Errorf("session.Load: %w", err)}
-		}
-		cfg.KuradbEnabled = true
-		if err := config.Save(cfg); err != nil {
-			return KuradbDone{action: "update", err: fmt.Errorf("session.Save: %w", err)}
-		}
-		return KuradbDone{action: "update"}
-	})
+	return runKuradbScript("setup", sessionID, false)
 }
 
-func startKuradb() tea.Cmd {
-	cmd := exec.Command(kuradb.BinaryPath)
-	cmd.Env = os.Environ()
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		if err != nil {
-			return KuradbDone{action: "start", err: fmt.Errorf("kura: %w", err)}
-		}
-		return KuradbDone{action: "start"}
-	})
+func runKuradbUpdate(sessionID string) tea.Cmd {
+	return runKuradbScript("update", sessionID, true)
 }
 
-func stopKuradb() tea.Cmd {
-	cmd := exec.Command(kuradb.BinaryPath, "stop")
-	cmd.Env = os.Environ()
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		if err != nil {
-			return KuradbDone{action: "stop", err: fmt.Errorf("kura stop: %w", err)}
-		}
-		return KuradbDone{action: "stop"}
-	})
+func runKuradbReconnect(sessionID string) tea.Cmd {
+	return func() tea.Msg {
+		return KuradbDone{action: "reconnect", err: reconnectUntilUp(sessionID)}
+	}
 }
 
-func runKuradbDisableExec() tea.Cmd {
-	cmd := exec.Command("sudo", "rm", "-f", kuradb.BinaryPath)
-	cmd.Env = os.Environ()
+func runKuradbScript(action, sessionID string, force bool) tea.Cmd {
+	script := fmt.Sprintf("set -e\ncurl -fsSL %s | bash", kuradb.InstallURL)
+	if force {
+		script += " -s -- --force"
+	}
+
+	cmd := exec.Command("bash", "-c", script+"\n")
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
-			return KuradbDone{action: "disable", err: fmt.Errorf("rm %s: %w", kuradb.BinaryPath, err)}
+			return KuradbDone{action: action, err: fmt.Errorf("kuradb.sh: %w", err)}
 		}
-		cfg, err := config.Load()
-		if err != nil {
-			return KuradbDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
+		if err := kuradb.Register(context.Background(), sessionID); err != nil {
+			return KuradbDone{action: action, err: err}
 		}
-		cfg.KuradbEnabled = false
-		if err := config.Save(cfg); err != nil {
-			return KuradbDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
-		}
-		return KuradbDone{action: "disable"}
+		return KuradbDone{action: action, err: reconnectUntilUp(sessionID)}
 	})
 }

@@ -136,7 +136,11 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 }
 
 func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []provider.Message {
-	return []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+	if section := mcpInstructionsSection(); section != "" {
+		prompts = append(prompts, provider.Message{Role: "system", Content: section})
+	}
+	return prompts
 }
 
 func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) string {

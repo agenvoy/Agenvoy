@@ -27,6 +27,9 @@ var SummaryPrompt string
 //go:embed prompts/summary_context.md
 var SummaryContext string
 
+//go:embed prompts/followup.md
+var FollowupPrompt string
+
 //go:embed prompts/system_prompt/system_prompt.md
 var SystemPrompt string
 

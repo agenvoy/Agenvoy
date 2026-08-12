@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -47,9 +46,6 @@ var (
 	SessionsTrashDir        string
 	AllowSkillGlobalPath    string
 	PromptsDir              string
-	KuradbDir               string
-	KuradbEndpointPath      string
-	KuradbUIDPath           string
 
 	WorkAgenvoyDir     string
 	WorkAPIToolsDir    string
@@ -117,10 +113,6 @@ func Init() error {
 		SessionsTrashDir = filepath.Join(SessionsDir, ".Trash")
 		AllowSkillGlobalPath = filepath.Join(AgenvoyDir, "allow_skill")
 		PromptsDir = filepath.Join(AgenvoyDir, "prompts")
-
-		KuradbDir = filepath.Join(homeDir, ".config", "kuradb")
-		KuradbEndpointPath = filepath.Join(KuradbDir, "endpoint")
-		KuradbUIDPath = filepath.Join(KuradbDir, "runtime.uid")
 
 		WorkAgenvoyDir = filepath.Join(workDir, ".config", projectName)
 		WorkAPIToolsDir = filepath.Join(WorkAgenvoyDir, "tools", "api")
@@ -215,22 +207,6 @@ func ScheduleSkillDir(name string) string {
 
 func ScheduleSkillPath(name string) string {
 	return filepath.Join(ScheduleSkillDir(name), "SKILL.md")
-}
-
-func GetKuradbEndpoint() (string, error) {
-	path := KuradbEndpointPath
-	if !go_pkg_filesystem_reader.Exists(path) {
-		return "", fmt.Errorf("endpoint file not found: %s", path)
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("os.ReadFile %s: %w", path, err)
-	}
-	url := strings.TrimSpace(string(raw))
-	if url == "" {
-		return "", fmt.Errorf("endpoint file %s is empty", path)
-	}
-	return url, nil
 }
 
 func TrashDir(src, trashBase, name string) (string, error) {
