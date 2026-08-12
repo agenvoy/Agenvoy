@@ -6,7 +6,7 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,right_panel_close,schedule,send,settings,stacks"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,check_circle,checklist,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,more_horiz,note_stack,progress_activity,radio_button_unchecked,right_panel_close,schedule,send,settings,stacks"
     />
     <link rel="stylesheet" href="public/index.css" />
     <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
@@ -58,7 +58,12 @@
           <p>Agenvoy</p>
         </div>
         <!---->
-        <section id="right-content-chat-messages" class="messages"></section>
+        <section id="right-content-chat-messages" class="messages">
+          <!---->
+          <section id="right-content-chat-todo" class="todo"></section>
+          <!---->
+          <section id="right-content-chat-pending" class="pending" data-index="0"></section>
+        </section>
         <!---->
         <div class="input">
           <label dir="auto">
@@ -75,10 +80,12 @@
               <span class="material-symbols-outlined"> add_2 </span>
             </button>
             <div></div>
-            <button class="model" type="button">
-              auto
+            <label class="model">
+              <select id="chat-model">
+                <option value="auto">auto</option>
+              </select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-            </button>
+            </label>
             <button class="send" type="button" @click="send_click">
               <span class="material-symbols-outlined"> send </span>
             </button>

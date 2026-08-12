@@ -1,10 +1,14 @@
 @mixin styles {
   .md-render {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding-bottom: 0.25rem;
+    overflow-wrap: anywhere;
 
     * {
       width: 100%;
+      max-width: 100%;
       color: var(--text-color);
     }
 
@@ -101,6 +105,7 @@
       th,
       td {
         width: auto;
+        max-width: none;
         border: 1px solid var(--gray-2);
         padding: 3px 10px;
         text-align: left;
