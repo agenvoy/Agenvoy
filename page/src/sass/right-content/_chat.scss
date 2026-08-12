@@ -1,7 +1,15 @@
 @use "md-render";
+@use "pending";
+@use "todo";
 
 body[data-rendered="1"] section.right-content section.chat {
   display: flex;
+}
+
+@keyframes todo-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @mixin styles {
@@ -89,6 +97,7 @@ body[data-rendered="1"] section.right-content section.chat {
       display: none;
       flex-flow: column;
       flex-grow: 1;
+      flex-shrink: 1;
       padding: 2.5rem 0 calc(100vh / 3);
       max-height: calc(100% - 5.25rem);
       overflow-y: scroll;
@@ -111,9 +120,11 @@ body[data-rendered="1"] section.right-content section.chat {
 
         > p {
           padding: 0.75rem 1rem;
-          background-color: #f8f8f8;
+          background-color: var(--gray-2);
           border-radius: 1rem;
-          color: #253146;
+          color: var(--text-color);
+          white-space: pre-wrap;
+          overflow-wrap: break-word;
         }
 
         footer {
@@ -126,9 +137,25 @@ body[data-rendered="1"] section.right-content section.chat {
 
           p {
             font-size: small;
-            color: #999;
+            color: var(--gray-3);
+          }
+
+          button {
+            display: flex;
+            align-items: center;
+            height: 1rem;
+            transition: 0.2s;
+
+            &:active {
+              transform: scale(0.98);
+              opacity: 0.5;
+            }
           }
         }
+      }
+
+      pre.source {
+        display: none;
       }
 
       div.assistant {
@@ -168,7 +195,7 @@ body[data-rendered="1"] section.right-content section.chat {
               align-items: center;
               gap: 0.25rem;
               list-style: none;
-              color: #999;
+              color: var(--gray-3);
               transition: 0.2s;
               cursor: pointer;
 
@@ -179,7 +206,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
               @media (hover: hover) {
                 &:hover {
-                  color: #000;
+                  color: var(--black);
                 }
               }
 
@@ -200,10 +227,10 @@ body[data-rendered="1"] section.right-content section.chat {
               margin: 0.5rem 0;
               padding: 0;
               padding-left: 1rem;
-              border-left: 2px solid var(--accent);
+              border-left: 2px solid var(--gray-3);
 
               * {
-                color: #9f9f9f;
+                color: var(--gray-3) !important;
               }
             }
           }
@@ -226,7 +253,19 @@ body[data-rendered="1"] section.right-content section.chat {
 
             p {
               font-size: small;
-              color: #999;
+              color: var(--gray-3);
+            }
+
+            button {
+              display: flex;
+              align-items: center;
+              height: 1rem;
+              transition: 0.2s;
+
+              &:active {
+                transform: scale(0.98);
+                opacity: 0.5;
+              }
             }
           }
 
@@ -242,9 +281,9 @@ body[data-rendered="1"] section.right-content section.chat {
               max-width: 100%;
               font-size: small;
               text-align: left;
-              color: #666;
+              color: var(--gray-3);
               background-color: transparent;
-              border: 1px solid var(--line);
+              border: 1px solid var(--gray-2);
               border-radius: 1rem;
               cursor: pointer;
               transition: 0.2s;
@@ -267,6 +306,9 @@ body[data-rendered="1"] section.right-content section.chat {
           }
         }
       }
+
+      @include todo.styles;
+      @include pending.styles;
     }
 
     div.input {
@@ -287,7 +329,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
       &:has(textarea:focus) {
         padding: calc(1rem - 1px);
-        border: 1px solid #eaeaea;
+        border: 1px solid var(--gray-2);
       }
 
       label {
@@ -340,7 +382,7 @@ body[data-rendered="1"] section.right-content section.chat {
           overflow: scroll;
 
           &::placeholder {
-            color: rgb(103, 103, 103);
+            color: var(--gray-3);
           }
         }
       }
@@ -362,7 +404,7 @@ body[data-rendered="1"] section.right-content section.chat {
           align-items: center;
 
           &.send {
-            background-color: #000;
+            background-color: var(--black);
             margin-top: -0.5rem;
             margin-right: -0.5rem;
             width: 2rem;
@@ -400,7 +442,7 @@ body[data-rendered="1"] section.right-content section.chat {
               left: -0.5rem;
               width: 2rem;
               height: 2rem;
-              background-color: #f1f1f1;
+              background-color: var(--gray-2);
               border-radius: 50%;
               opacity: 0;
               transition: 0.2s;

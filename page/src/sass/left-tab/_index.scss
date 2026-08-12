@@ -11,7 +11,7 @@
     display: flex;
     flex-flow: column;
     height: 100%;
-    background-color: #fafafa;
+    background-color: var(--gray);
     transition: 0.2s;
 
     width: var(--width-left-tab-collaspse);
@@ -92,7 +92,7 @@
           line-height: 1.5rem;
           font-size: small;
           font-weight: 300;
-          color: #b1b1b1;
+          color: var(--gray-3);
         }
       }
 
@@ -106,7 +106,7 @@
         padding: 0 0.75rem;
         width: 100%;
         height: 2rem;
-        color: #000;
+        color: var(--black);
         text-decoration: none;
         cursor: pointer;
 
@@ -125,7 +125,7 @@
           width: calc(100% - 0.25rem);
           height: 100%;
           border-radius: 0.75rem;
-          background-color: #f1f1f1;
+          background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
         }
@@ -160,7 +160,7 @@
         padding: 0 0.75rem;
         width: 100%;
         height: 2rem;
-        color: #000;
+        color: var(--black);
         text-decoration: none;
         cursor: pointer;
 
@@ -179,7 +179,7 @@
           width: calc(100% - 0.25rem);
           height: 100%;
           border-radius: 0.75rem;
-          background-color: #f1f1f1;
+          background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
         }
