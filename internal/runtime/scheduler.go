@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 )
 
 type Runner func(ctx context.Context, sessionID, skillName string) (string, error)
@@ -86,6 +87,24 @@ func addDefaultCrons() {
 	}
 	if _, err := st.cron.Add("0 0,6,12,18 * * *", record.CleanDownloadTrash); err != nil {
 		slog.Warn("cron cleanDownloadTrash",
+			slog.String("error", err.Error()))
+	}
+
+	record.CleanStoreTemp()
+	if _, err := st.cron.Add("0 4 * * *", record.CleanStoreTemp); err != nil {
+		slog.Warn("cron cleanStoreTemp",
+			slog.String("error", err.Error()))
+	}
+
+	pruneFileHistory := func() {
+		if err := historyStore.PruneFile(context.Background()); err != nil {
+			slog.Warn("historyStore.PruneFile",
+				slog.String("error", err.Error()))
+		}
+	}
+	pruneFileHistory()
+	if _, err := st.cron.Add("0 4 * * *", pruneFileHistory); err != nil {
+		slog.Warn("cron pruneFileHistory",
 			slog.String("error", err.Error()))
 	}
 }
@@ -209,7 +228,7 @@ func reload() error {
 			if hasMore {
 				return
 			}
-			if err := skill.TrashSchedule(context.Background(), entryCopy.Skill); err != nil {
+			if err := skill.TrashSchedule(context.Background(), entryCopy.Skill, historyStore.Meta{SessionID: entryCopy.SessionID}); err != nil {
 				slog.Warn("filesystem.TrashScheduleSkill",
 					slog.String("session", entryCopy.SessionID),
 					slog.String("error", err.Error()))

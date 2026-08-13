@@ -29,3 +29,25 @@ CREATE TRIGGER IF NOT EXISTS trigger_messages_after_delete AFTER DELETE ON messa
     INSERT INTO messages_fts5(messages_fts5, rowid, role, content)
     VALUES ('delete', old.id, old.role, old.content);
 END;
+CREATE TABLE IF NOT EXISTS file_history (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    dir        TEXT    NOT NULL,
+    name       TEXT    NOT NULL,
+    action     TEXT    NOT NULL,
+    content    BLOB,
+    hash       TEXT    NOT NULL DEFAULT '',
+    size       INTEGER NOT NULL DEFAULT 0,
+    truncated  INTEGER NOT NULL DEFAULT 0,
+    trash_path TEXT,
+    session_id TEXT    NOT NULL DEFAULT '',
+    task_id    TEXT    NOT NULL DEFAULT '',
+    tool       TEXT    NOT NULL DEFAULT '',
+    changed_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fh_unique ON file_history(dir, name, changed_at, task_id, session_id);
+
+CREATE INDEX IF NOT EXISTS idx_fh_path    ON file_history(dir, name, changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fh_dir     ON file_history(dir, changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fh_time    ON file_history(changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fh_session ON file_history(session_id, changed_at DESC);

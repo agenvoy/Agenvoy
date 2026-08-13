@@ -39,7 +39,7 @@ require (
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
+	github.com/aymanbagabas/go-udiff v0.4.1
 	github.com/bwmarrin/discordgo v0.29.0 // direct
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect

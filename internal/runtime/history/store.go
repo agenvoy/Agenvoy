@@ -1,43 +1,33 @@
-package store
+package historyStore
 
 import (
 	_ "embed"
 	"fmt"
-	"sync"
 
-	go_sqlkit "github.com/pardnchiu/go-sqlkit"
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
 //go:embed migrate.sql
 var migrateSQL string
 
-var (
-	once sync.Once
-	conn *go_sqlkit_core.Connector
-)
+var conn *go_sqlkit_core.Connector
 
-func New(dbPath string) error {
-	var initErr error
-	once.Do(func() {
-		c, err := go_sqlkit.New(go_sqlkit_core.Config{Target: go_sqlkit_core.SQLite, Path: dbPath})
-		if err != nil {
-			initErr = fmt.Errorf("github.com/pardnchiu/go-sqlkit New: %w", err)
-			return
-		}
-		if _, err := c.Exec(migrateSQL); err != nil {
-			c.Close()
-			initErr = fmt.Errorf("sql.DB Exec [migrate]: %w", err)
-			return
-		}
-		if err := syncColumns(c); err != nil {
-			c.Close()
-			initErr = err
-			return
-		}
-		conn = c
-	})
-	return initErr
+func New() error {
+	c := filesystem.DB()
+	if c == nil {
+		return fmt.Errorf("internal/filesystem: OpenDB has not run")
+	}
+	if _, err := c.Exec(migrateSQL); err != nil {
+		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
+	}
+	if err := syncColumns(c); err != nil {
+		return err
+	}
+
+	conn = c
+	return nil
 }
 
 func syncColumns(c *go_sqlkit_core.Connector) error {
@@ -83,11 +73,9 @@ func syncColumns(c *go_sqlkit_core.Connector) error {
 	return nil
 }
 
+// Close lets go of the shared connection without closing it.
 func Close() {
-	if conn == nil {
-		return
-	}
-	conn.Close()
+	conn = nil
 }
 
 func IsReady() bool {

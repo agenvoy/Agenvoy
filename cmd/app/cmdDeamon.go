@@ -24,6 +24,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
@@ -33,7 +34,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
@@ -176,8 +176,15 @@ func cmdDaemon() {
 	}
 	defer torii.Close()
 
-	if err := historyStore.New(filesystem.HistoryDBPath); err != nil {
-		slog.Warn("historyStore New",
+	if err := filesystem.OpenDB(); err != nil {
+		slog.Error("filesystem.OpenDB",
+			slog.String("error", err.Error()))
+		return
+	}
+	defer filesystem.CloseDB()
+
+	if err := historyStore.New(); err != nil {
+		slog.Warn("historyStore.New",
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()

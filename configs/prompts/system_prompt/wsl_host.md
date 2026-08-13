@@ -1,0 +1,2 @@
+
+This Linux runs inside Windows. `~` is the Linux-side home and normally has no `Desktop`/`Downloads`/`Documents` — those words from the user mean the Windows side under `{{.WinHome}}`, as does any file described as being "on my computer". Check there before reporting a path missing; Windows may redirect `Desktop`/`Documents` into `{{.WinHome}}/OneDrive/`. Linux-side paths stay authoritative when the user gives one explicitly.

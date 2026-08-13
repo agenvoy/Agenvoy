@@ -48,6 +48,9 @@ var PermissionSingleConfirm string
 //go:embed prompts/system_prompt/subagent_charter.md
 var SubagentCharter string
 
+//go:embed prompts/system_prompt/wsl_host.md
+var WSLHost string
+
 // * Prompts > systemPrompt > Chatbot
 
 //go:embed prompts/system_prompt/chatbot/telegram_system_prompt.md

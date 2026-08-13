@@ -62,6 +62,7 @@ func New() *gin.Engine {
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
 	r.GET("/v1/file/open", localhostOnly(), handler.OpenFile())
+	r.GET("/v1/file/locate", localhostOnly(), handler.LocateFile())
 
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 	r.DELETE("/v1/key", localhostOnly(), handler.DeleteKey())

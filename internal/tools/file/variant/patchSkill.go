@@ -42,7 +42,7 @@ Use for targeted edits; write_skill for full rewrite.`,
 			},
 			"required": []string{"path", "old_string", "new_string"},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Path       string `json:"path"`
 				OldString  string `json:"old_string"`
@@ -69,11 +69,12 @@ Use for targeted edits; write_skill for full rewrite.`,
 				return "", fmt.Errorf("path must stay within skills dir")
 			}
 
+			change := capture(absPath)
 			if err := patch(absPath, params.OldString, params.NewString, params.ReplaceAll); err != nil {
 				return "", err
 			}
+			record(ctx, e, change, "", "patch_skill")
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, false)
 			return fmt.Sprintf("updated: %s", absPath), nil
 		},
 	})

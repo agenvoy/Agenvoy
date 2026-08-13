@@ -7,8 +7,8 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
 func compact(sessionID, historyPath string, messages []Record, currentBytes int) {
