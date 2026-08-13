@@ -53,7 +53,6 @@ Use when a skill is obsolete or must be rebuilt; recoverable via restore_revisio
 				return "", err
 			}
 
-			filesystem.GitAutoCommit(ctx, filesystem.GitSkills, "trash", name)
 			return fmt.Sprintf("trashed: %s", dir), nil
 		},
 	})

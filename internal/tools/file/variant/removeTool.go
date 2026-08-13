@@ -53,7 +53,6 @@ Use when a tool is obsolete or must be rebuilt; recoverable via restore_revision
 				return "", err
 			}
 
-			filesystem.GitAutoCommit(ctx, filesystem.GitTools, "trash", name)
 			return fmt.Sprintf("trashed: %s", dir), nil
 		},
 	})

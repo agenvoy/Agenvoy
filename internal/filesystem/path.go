@@ -29,7 +29,6 @@ var (
 	SystemToolsDir          string
 	ExtensionAPIToolsDir    string
 	ExtensionScriptToolsDir string
-	ToolGitignorePath       string
 	ScriptToolTrashDir      string
 	ErrorsDir               string
 	TasksPath               string
@@ -37,8 +36,6 @@ var (
 	TelegramAuthPath        string
 	DiscordAuthPath         string
 	SkillsDir               string
-	SkillGitDir             string
-	SkillGitignorePath      string
 	SystemSkillsDir         string
 	ScheduleSkillsDir       string
 	ScheduleSkillTrashDir   string
@@ -93,7 +90,6 @@ func Init() error {
 		SystemToolsDir = filepath.Join(ToolsDir, ".system")
 		ExtensionAPIToolsDir = filepath.Join(ToolsDir, ".extension", "api")
 		ExtensionScriptToolsDir = filepath.Join(ToolsDir, ".extension", "script")
-		ToolGitignorePath = filepath.Join(ToolsDir, ".gitignore")
 		ScriptToolTrashDir = filepath.Join(ScriptToolsDir, ".Trash")
 		ErrorsDir = filepath.Join(AgenvoyDir, "errors")
 		TasksPath = filepath.Join(AgenvoyDir, "tasks.json")
@@ -102,8 +98,6 @@ func Init() error {
 		DiscordAuthPath = filepath.Join(AgenvoyDir, ".discord")
 
 		SkillsDir = filepath.Join(AgenvoyDir, "skills")
-		SkillGitDir = filepath.Join(SkillsDir, ".git")
-		SkillGitignorePath = filepath.Join(SkillsDir, ".gitignore")
 		SystemSkillsDir = filepath.Join(SkillsDir, ".system")
 		ScheduleSkillsDir = filepath.Join(SkillsDir, "scheduler")
 		ScheduleSkillTrashDir = filepath.Join(ScheduleSkillsDir, ".Trash")

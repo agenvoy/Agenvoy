@@ -74,7 +74,6 @@ Use in Capability Gap flow; patch_tool for string replacement, test_tool to veri
 				return "", fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile [%s]: %w", target, err)
 			}
 
-			filesystem.GitAutoCommit(ctx, filesystem.GitTools, "add", name)
 			return fmt.Sprintf("created: %s", target), nil
 		},
 	})

@@ -98,7 +98,6 @@ Use to fix a broken tool after test_tool failure; write_tool for full rewrite.`,
 				return "", err
 			}
 
-			filesystem.GitAutoCommit(ctx, filesystem.GitTools, "update", name)
 			return fmt.Sprintf("updated: %s", target), nil
 		},
 	})

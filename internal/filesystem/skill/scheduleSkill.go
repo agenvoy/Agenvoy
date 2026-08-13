@@ -33,6 +33,5 @@ func TrashSchedule(ctx context.Context, name string) error {
 		return err
 	}
 
-	filesystem.GitAutoCommit(ctx, filesystem.GitSkills, "trash", name)
 	return nil
 }

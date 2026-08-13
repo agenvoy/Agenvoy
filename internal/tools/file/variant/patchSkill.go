@@ -73,7 +73,6 @@ Use for targeted edits; write_skill for full rewrite.`,
 				return "", err
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, false)
 			return fmt.Sprintf("updated: %s", absPath), nil
 		},
 	})

@@ -62,7 +62,6 @@ Use for new skill files or full rewrites; patch_skill for targeted edits.`,
 				return "", fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile [%s]: %w", absPath, err)
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, true)
 			return fmt.Sprintf("created: %s", absPath), nil
 		},
 	})

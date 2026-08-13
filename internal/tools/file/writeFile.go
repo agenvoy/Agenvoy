@@ -109,8 +109,6 @@ The result reports the file's real byte count, line count and first/last lines â
 				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)
-
 			return writeReceipt(isNew, absPath, content) + unrecorded, nil
 		},
 	})

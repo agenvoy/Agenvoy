@@ -160,7 +160,6 @@ really contains rather than what it is assumed to contain.`,
 				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, false)
 			return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
 		},
 	})
