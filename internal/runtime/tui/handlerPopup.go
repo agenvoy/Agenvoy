@@ -163,16 +163,8 @@ func linuxOpenCommand(link string) *exec.Cmd {
 	return nil
 }
 
-func isWSL() bool {
-	raw, err := os.ReadFile("/proc/version")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(raw)), "microsoft")
-}
-
 func wslBrowserPath() string {
-	if !isWSL() {
+	if !utils.IsWSL() {
 		return ""
 	}
 	candidates := []string{

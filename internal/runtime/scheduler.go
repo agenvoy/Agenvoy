@@ -95,6 +95,18 @@ func addDefaultCrons() {
 		slog.Warn("cron cleanStoreTemp",
 			slog.String("error", err.Error()))
 	}
+
+	pruneFileHistory := func() {
+		if err := historyStore.PruneFile(context.Background()); err != nil {
+			slog.Warn("historyStore.PruneFile",
+				slog.String("error", err.Error()))
+		}
+	}
+	pruneFileHistory()
+	if _, err := st.cron.Add("0 4 * * *", pruneFileHistory); err != nil {
+		slog.Warn("cron pruneFileHistory",
+			slog.String("error", err.Error()))
+	}
 }
 
 func AddSystemCron(spec string, fn func()) error {

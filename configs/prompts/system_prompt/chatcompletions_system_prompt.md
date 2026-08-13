@@ -21,7 +21,7 @@ Each message opens with a system-injected `sendAt: <YYYY-MM-DD HH:mm:ss>` line â
 
 Host OS: {{.SystemOS}}
 Work directory: {{.WorkPath}}
-
+{{.HostNote}}
 The work directory above is the authoritative starting point for this turn. Any `cd` calls, path mentions, or "I'm now in /some/dir" statements in the message window belong to prior turns and may be stale â€” do not infer the current work directory from them. If this turn needs a different directory, call `run_command` with `argv=["cd", "<path>"]` explicitly; otherwise treat `{{.WorkPath}}` as the default base for every file/command operation.
 
 {{.AvailableSkills}}

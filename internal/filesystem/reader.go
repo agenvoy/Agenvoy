@@ -115,6 +115,13 @@ func sliceChunks(chunks []go_pkg_filesystem_parser.Chunk, path string, offset, l
 }
 
 func sliceLines(text, path string, offset, limit int) string {
+	if text == "" {
+		return fmt.Sprintf("%s is empty", path)
+	}
+	if offset <= 1 && limit >= maxReadSize {
+		return text
+	}
+
 	var sb strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(text))
 	scanner.Buffer(make([]byte, maxReadSize), maxReadSize)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func registOpenFile() {
@@ -92,7 +92,7 @@ func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, err
 }
 
 func linuxOpenCmd(ctx context.Context, target string) (string, []string, error) {
-	if isWSL() {
+	if utils.IsWSL() {
 		if winPath, err := wslToWindowsPath(ctx, target); err == nil {
 			if bin, lookErr := exec.LookPath("cmd.exe"); lookErr == nil {
 				return bin, []string{"/c", "start", "", winPath}, nil
@@ -118,12 +118,4 @@ func wslToWindowsPath(ctx context.Context, path string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
-}
-
-func isWSL() bool {
-	raw, err := os.ReadFile("/proc/version")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(raw)), "microsoft")
 }

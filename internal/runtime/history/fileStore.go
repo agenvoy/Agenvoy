@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-const keepPerPath = 24
+const (
+	keepPerPath = 32
+	keepFor     = 7 * 24 * time.Hour
+)
 
 func insert(ctx context.Context, c Change, meta Meta) error {
 	var content any
@@ -41,19 +44,24 @@ func insert(ctx context.Context, c Change, meta Meta) error {
 		return fmt.Errorf("sql.DB ExecContext [INSERT file_history]: %w", err)
 	}
 
-	return prune(ctx, c.dir, c.name)
+	return nil
 }
 
-func prune(ctx context.Context, dir, name string) error {
+func PruneFile(ctx context.Context) error {
+	if conn == nil {
+		return nil
+	}
+
 	if _, err := conn.ExecContext(ctx, `
 	DELETE FROM file_history
 	WHERE id IN (
-		SELECT id FROM file_history
-		WHERE dir = ? AND name = ?
-		ORDER BY changed_at DESC, id DESC
-		LIMIT -1 OFFSET ?
-	)
-	`, dir, name, keepPerPath); err != nil {
+		SELECT id FROM (
+			SELECT id, changed_at,
+				ROW_NUMBER() OVER (PARTITION BY dir, name ORDER BY changed_at DESC, id DESC) AS seq
+			FROM file_history
+		)
+		WHERE seq > ? AND changed_at < ?
+	)`, keepPerPath, time.Now().Add(-keepFor).UnixNano()); err != nil {
 		return fmt.Errorf("sql.DB ExecContext [DELETE file_history]: %w", err)
 	}
 	return nil

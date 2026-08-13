@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	goRuntime "runtime"
 	"slices"
 	"strings"
 
@@ -65,7 +64,7 @@ func mcpInstructionsSection() string {
 }
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) string {
-	systemOS := goRuntime.GOOS
+	systemOS := host().os
 	var extraSection string
 	if extra := strings.TrimSpace(extraSystemPrompt); extra != "" {
 		extraSection = "---\n\n## Additional Instructions\n\n" + extra + "\n\n---\n\n"
@@ -105,6 +104,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	return strings.NewReplacer(
 		"{{.SystemOS}}", systemOS,
 		"{{.WorkPath}}", workDir,
+		"{{.HostNote}}", hostNoteSection(),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
@@ -129,8 +129,9 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	}
 
 	return strings.NewReplacer(
-		"{{.SystemOS}}", goRuntime.GOOS,
+		"{{.SystemOS}}", host().os,
 		"{{.WorkPath}}", workDir,
+		"{{.HostNote}}", hostNoteSection(),
 		"{{.AvailableSkills}}", skillsSection,
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }

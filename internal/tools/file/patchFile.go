@@ -57,7 +57,7 @@ really contains rather than what it is assumed to contain.`,
 							},
 							"insert_string": map[string]any{
 								"type":        "string",
-								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string/new_string.",
+								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string.",
 							},
 							"row": map[string]any{
 								"type":        "integer",
@@ -136,12 +136,16 @@ really contains rather than what it is assumed to contain.`,
 				return ra > 0 && rb == 0
 			})
 
+			before := content
 			for _, i := range order {
 				updated, err := applyTarget(content, params.Targets[i], absPath)
 				if err != nil {
 					return "", fmt.Errorf("targets[%d]: %w", i, err)
 				}
 				content = updated
+			}
+			if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
+				return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
 			}
 
 			if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
@@ -176,8 +180,8 @@ type patchTarget struct {
 func applyTarget(content string, target patchTarget, absPath string) (string, error) {
 	switch {
 	case target.InsertString != "":
-		if target.OldString != "" || target.NewString != "" {
-			return "", fmt.Errorf("insert_string cannot be combined with old_string/new_string")
+		if target.OldString != "" {
+			return "", fmt.Errorf("insert_string cannot be combined with old_string")
 		}
 		if target.Row <= 0 {
 			return "", fmt.Errorf("row is required when insert_string is set")
@@ -205,8 +209,8 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 		case target.Row > 0:
 			return replaceAtRow(content, search, new, target.Row)
 		default:
-			if n := strings.Count(content, search); n > 1 {
-				return "", fmt.Errorf("%s occurs %d times in %s; set replace_all or specify row to disambiguate", old, n, absPath)
+			if rows := rowsOf(content, search); len(rows) > 1 {
+				return "", fmt.Errorf("%s occurs on rows %v of %s; set row to one of them or replace_all", old, rows, absPath)
 			}
 			return strings.Replace(content, search, new, 1), nil
 		}
@@ -230,7 +234,20 @@ func replaceAtRow(content, search, new string, row int) (string, error) {
 		}
 		idx = pos + 1
 	}
-	return "", fmt.Errorf("no match for %q at row %d", search, row)
+	return "", fmt.Errorf("no match for %q at row %d; it is on rows %v", search, row, rowsOf(content, search))
+}
+
+func rowsOf(content, search string) []int {
+	var rows []int
+	for idx := 0; ; {
+		i := strings.Index(content[idx:], search)
+		if i < 0 {
+			return rows
+		}
+		pos := idx + i
+		rows = append(rows, strings.Count(content[:pos], "\n")+1)
+		idx = pos + 1
+	}
 }
 
 func insertAtRow(content, insert string, row int) (string, error) {
