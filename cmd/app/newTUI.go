@@ -14,11 +14,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
@@ -55,8 +55,15 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 	}
 	defer torii.Close()
 
-	if err := historyStore.New(filesystem.HistoryDBPath); err != nil {
-		slog.Warn("historyStore.Init",
+	if err := filesystem.OpenDB(); err != nil {
+		slog.Error("filesystem.OpenDB",
+			slog.String("error", err.Error()))
+		return
+	}
+	defer filesystem.CloseDB()
+
+	if err := historyStore.New(); err != nil {
+		slog.Warn("historyStore.New",
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()

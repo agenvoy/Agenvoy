@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -127,14 +127,14 @@ func normalize(list []Record) []Record {
 	return list
 }
 
-func rows(list []Record) []historyStore.Row {
-	out := make([]historyStore.Row, 0, len(list))
+func rows(list []Record) []historyStore.Message {
+	out := make([]historyStore.Message, 0, len(list))
 	for _, r := range list {
 		content := r.Text()
 		if strings.TrimSpace(content) == "" {
 			continue
 		}
-		out = append(out, historyStore.Row{
+		out = append(out, historyStore.Message{
 			SendAt:  r.SendAt,
 			Role:    r.Role,
 			Content: content,

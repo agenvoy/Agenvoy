@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -84,6 +86,13 @@ The result reports the file's real byte count, line count and first/last lines â
 				return "", fmt.Errorf("file too large (%d bytes, max 1 MB)", info.Size())
 			}
 
+			change, err := historyStore.Capture(absPath)
+			if err != nil {
+				slog.Warn("historyStore.Capture",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+			}
+
 			if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
 				if denied.IsPermission(err) {
 					denied.Register(e.SessionID, absPath)
@@ -92,9 +101,17 @@ The result reports the file's real byte count, line count and first/last lines â
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 			}
 
+			var unrecorded string
+			if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "write_file"}); err != nil {
+				slog.Warn("historyStore.Record",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
+			}
+
 			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)
 
-			return writeReceipt(isNew, absPath, content), nil
+			return writeReceipt(isNew, absPath, content) + unrecorded, nil
 		},
 	})
 }

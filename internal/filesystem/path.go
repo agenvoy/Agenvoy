@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ var (
 	McpPath                 string
 	StoreDir                string
 	HistoryDBPath           string
+	StoreTempDir            string
 	SessionsDir             string
 	ToolsDir                string
 	APIToolsDir             string
@@ -60,7 +62,8 @@ var (
 )
 
 const (
-	projectName = "agenvoy"
+	projectName      = "agenvoy"
+	TrashStampLayout = "20060102_150405.000"
 )
 
 func Init() error {
@@ -82,6 +85,7 @@ func Init() error {
 
 		StoreDir = filepath.Join(AgenvoyDir, ".store")
 		HistoryDBPath = filepath.Join(StoreDir, "history.db")
+		StoreTempDir = filepath.Join(StoreDir, "temp")
 		SessionsDir = filepath.Join(AgenvoyDir, "sessions")
 		ToolsDir = filepath.Join(AgenvoyDir, "tools")
 		APIToolsDir = filepath.Join(ToolsDir, "api")
@@ -207,6 +211,77 @@ func ScheduleSkillDir(name string) string {
 
 func ScheduleSkillPath(name string) string {
 	return filepath.Join(ScheduleSkillDir(name), "SKILL.md")
+}
+
+func CopyToStoreTemp(src string) (string, error) {
+	dst, err := storeTempPath(src)
+	if err != nil {
+		return "", err
+	}
+	if err := CopyPath(src, dst); err != nil {
+		return "", fmt.Errorf("CopyPath [%s → %s]: %w", src, dst, err)
+	}
+	return dst, nil
+}
+
+func MoveToStoreTemp(src string) (string, error) {
+	dst, err := storeTempPath(src)
+	if err != nil {
+		return "", err
+	}
+	if err := go_pkg_filesystem.Move(src, dst); err != nil {
+		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem Move [%s → %s]: %w", src, dst, err)
+	}
+	return dst, nil
+}
+
+func storeTempPath(src string) (string, error) {
+	if StoreTempDir == "" {
+		return "", fmt.Errorf("filesystem.Init has not run: no trash directory to move %s into", src)
+	}
+
+	mirrored := filepath.Join(StoreTempDir, strings.TrimPrefix(src, string(filepath.Separator)))
+	ext := filepath.Ext(mirrored)
+	base := strings.TrimSuffix(mirrored, ext)
+
+	stamp := time.Now().Format(TrashStampLayout)
+	dst := fmt.Sprintf("%s_%s%s", base, stamp, ext)
+	if !go_pkg_filesystem_reader.Exists(dst) {
+		return dst, nil
+	}
+	return fmt.Sprintf("%s_%s_%d%s", base, stamp, time.Now().UnixNano(), ext), nil
+}
+
+func CopyPath(src, dst string) error {
+	if !go_pkg_filesystem_reader.IsDir(src) {
+		return go_pkg_filesystem.Copy(src, dst)
+	}
+
+	return filepath.WalkDir(src, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return fmt.Errorf("filepath.Rel: %w", err)
+		}
+		target := filepath.Join(dst, rel)
+
+		if entry.IsDir() {
+			if err := go_pkg_filesystem.CheckDir(target, true); err != nil {
+				return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", target, err)
+			}
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		if err := go_pkg_filesystem.Copy(path, target); err != nil {
+			return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem Copy [%s → %s]: %w", path, target, err)
+		}
+		return nil
+	})
 }
 
 func TrashDir(src, trashBase, name string) (string, error) {

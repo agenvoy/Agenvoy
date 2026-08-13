@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
@@ -101,12 +102,7 @@ func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 }
 
 func moveToTrash(ctx context.Context, e *toolTypes.Executor, args []string) (string, error) {
-	trashPath := filepath.Join(e.WorkDir, ".Trash")
-	if err := go_pkg_filesystem.CheckDir(trashPath, true); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.CheckDir .Trash: %w", err)
-	}
-
-	var moved []string
+	var moved, failed, unrecorded []string
 	for _, arg := range args {
 		if err := ctx.Err(); err != nil {
 			return "", fmt.Errorf("moveToTrash cancelled: %w", err)
@@ -114,21 +110,41 @@ func moveToTrash(ctx context.Context, e *toolTypes.Executor, args []string) (str
 		if strings.HasPrefix(arg, "-") {
 			continue
 		}
-		src := filepath.Join(e.WorkDir, filepath.Clean(arg))
-		name := filepath.Base(arg)
-		dst := filepath.Join(trashPath, name)
 
-		if go_pkg_filesystem_reader.Exists(dst) {
-			ext := filepath.Ext(name)
-			dst = filepath.Join(trashPath, fmt.Sprintf("%s_%s%s",
-				strings.TrimSuffix(name, ext),
-				time.Now().Format("20060102_150405"),
-				ext))
+		src, err := go_pkg_filesystem.AbsPath(e.WorkDir, arg, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+		if err != nil {
+			failed = append(failed, fmt.Sprintf("%s (%v)", arg, err))
+			continue
 		}
 
-		if err := os.Rename(src, dst); err == nil {
-			moved = append(moved, arg)
+		dst, err := filesystem.MoveToStoreTemp(src)
+		if err != nil {
+			failed = append(failed, fmt.Sprintf("%s (%v)", arg, err))
+			continue
+		}
+
+		moved = append(moved, src)
+		if err := historyStore.RecordDelete(ctx, src, dst, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "rm"}); err != nil {
+			slog.Warn("historyStore.RecordDelete",
+				slog.String("path", src),
+				slog.String("error", err.Error()))
+			unrecorded = append(unrecorded, fmt.Sprintf("%s now at %s (%v)", src, dst, err))
 		}
 	}
-	return fmt.Sprintf("Successfully moved to .Trash: %s", strings.Join(moved, ", ")), nil
+
+	switch {
+	case len(moved) == 0 && len(failed) == 0:
+		return "", fmt.Errorf("rm requires a path to remove")
+	case len(moved) == 0:
+		return "", fmt.Errorf("rm removed nothing: %s", strings.Join(failed, "; "))
+	}
+
+	report := fmt.Sprintf("moved to %s: %s", filesystem.StoreTempDir, strings.Join(moved, ", "))
+	if len(failed) > 0 {
+		report += "\nnot removed: " + strings.Join(failed, "; ")
+	}
+	if len(unrecorded) > 0 {
+		report += "\nnot recorded, so restore_file_history will not find these: " + strings.Join(unrecorded, "; ")
+	}
+	return report, nil
 }

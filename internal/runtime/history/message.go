@@ -1,4 +1,4 @@
-package store
+package historyStore
 
 import (
 	"fmt"
@@ -7,14 +7,14 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-type Row struct {
+type Message struct {
 	SendAt  int64
 	Role    string
 	Content string
 	Sender  string
 }
 
-func Write(sessionID string, list []Row) error {
+func Write(sessionID string, list []Message) error {
 	if conn == nil || len(list) == 0 {
 		return nil
 	}

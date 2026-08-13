@@ -88,6 +88,12 @@ func addDefaultCrons() {
 		slog.Warn("cron cleanDownloadTrash",
 			slog.String("error", err.Error()))
 	}
+
+	record.CleanStoreTemp()
+	if _, err := st.cron.Add("0 4 * * *", record.CleanStoreTemp); err != nil {
+		slog.Warn("cron cleanStoreTemp",
+			slog.String("error", err.Error()))
+	}
 }
 
 func AddSystemCron(spec string, fn func()) error {

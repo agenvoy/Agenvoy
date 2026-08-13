@@ -10,11 +10,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 

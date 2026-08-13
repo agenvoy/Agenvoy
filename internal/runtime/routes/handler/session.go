@@ -15,12 +15,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
 type SessionInfo struct {

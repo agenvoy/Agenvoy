@@ -16,6 +16,8 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/fetchPage"
+	_ "github.com/pardnchiu/agenvoy/internal/tools/history/action"
+	_ "github.com/pardnchiu/agenvoy/internal/tools/history/file"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/revision"
 )
 

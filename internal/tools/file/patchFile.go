@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -120,6 +122,7 @@ really contains rather than what it is assumed to contain.`,
 				}
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
 			}
+			change := historyStore.CaptureContent(absPath, content)
 
 			order := make([]int, len(params.Targets))
 			for i := range order {
@@ -149,8 +152,16 @@ really contains rather than what it is assumed to contain.`,
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 			}
 
+			var unrecorded string
+			if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "patch_file"}); err != nil {
+				slog.Warn("historyStore.Record",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
+			}
+
 			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, false)
-			return fmt.Sprintf("successfully updated %s", absPath), nil
+			return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
 		},
 	})
 }

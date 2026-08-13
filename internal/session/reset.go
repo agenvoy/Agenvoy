@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
 func Reset(sessionID string) (int, error) {
