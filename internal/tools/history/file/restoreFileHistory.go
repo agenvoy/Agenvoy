@@ -15,24 +15,34 @@ func registRestoreFileHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name: "restore_file_history",
 		Description: `
-Undoes one task: every file it touched goes back to how it stood before it ran.
-Use for 還原 / 復原 / 撤銷剛剛的修改 / 改回上一版, once the user has agreed to what read_file_history showed.
-Ids come from list_action_history or any list_file_history row.`,
+version puts one file back to a version the user picked; task_id undoes a whole task, or only the files named in paths.
+Use for 還原 / 復原 / 撤銷剛剛的修改 / 改回上一版 — never guess which version they meant: list_file_history, then ask_user with one option per version carrying its date, its objective and its task id, then restore what they chose.
+Versions come from list_file_history; task ids from either that or list_action_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
+				"version": map[string]any{
+					"type":        "integer",
+					"description": "The version to go back to, from a list_file_history row. Enough on its own — it names both the file and the state.",
+				},
 				"task_id": map[string]any{
 					"type":        "string",
-					"description": "Task to undo, from list_action_history or a list_file_history row. 'current' for the task running now.",
+					"description": "Undo a whole task instead, when no version is given: every file it touched, back to before it ran. 'current' for the task running now.",
 				},
-			},
-			"required": []string{
-				"task_id",
+				"paths": map[string]any{
+					"type":        "array",
+					"description": "Narrow a task_id undo to these files (e.g. '/abs/path/foo.go', '~/notes.md'). Omit to undo every file that task touched.",
+					"items": map[string]any{
+						"type": "string",
+					},
+				},
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				TaskID string `json:"task_id"`
+				Version int64    `json:"version"`
+				TaskID  string   `json:"task_id"`
+				Paths   []string `json:"paths"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
@@ -42,17 +52,49 @@ Ids come from list_action_history or any list_file_history row.`,
 			if taskID == "current" {
 				taskID = e.PendingTask
 			}
-			if taskID == "" {
-				return "", fmt.Errorf("task_id is required")
-			}
 
-			report, err := historyStore.Undo(ctx, historyStore.Filter{TaskID: taskID}, historyStore.Meta{
+			meta := historyStore.Meta{
 				SessionID: e.SessionID,
 				TaskID:    e.PendingTask,
 				Tool:      "restore_file_history",
-			})
-			if err != nil {
-				return "", fmt.Errorf("internal/runtime/history: Undo: %w", err)
+			}
+
+			switch {
+			case params.Version > 0:
+				out, err := historyStore.RestoreTo(ctx, params.Version, meta)
+				if err != nil {
+					return "", fmt.Errorf("internal/runtime/history: RestoreTo [%d]: %w", params.Version, err)
+				}
+				return out, nil
+			case taskID == "":
+				return "", fmt.Errorf("version or task_id is required")
+			}
+
+			filters := []historyStore.Filter{{TaskID: taskID}}
+			if len(params.Paths) > 0 {
+				filters = filters[:0]
+				for _, raw := range params.Paths {
+					path, err := absPath(e, raw)
+					if err != nil {
+						return "", err
+					}
+					filters = append(filters, historyStore.Filter{TaskID: taskID, Path: path})
+				}
+			}
+
+			var report []string
+			for _, filter := range filters {
+				lines, err := historyStore.Undo(ctx, filter, meta)
+				if err != nil {
+					return "", fmt.Errorf("internal/runtime/history: Undo: %w", err)
+				}
+				if len(lines) == 0 {
+					if filter.Path != "" {
+						report = append(report, fmt.Sprintf("%s was not changed by task %s", filter.Path, taskID))
+					}
+					continue
+				}
+				report = append(report, lines...)
 			}
 			if len(report) == 0 {
 				return fmt.Sprintf("task %s changed no files, so there is nothing to undo", taskID), nil

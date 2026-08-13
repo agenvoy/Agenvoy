@@ -9,11 +9,15 @@ import (
 	"time"
 
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-const maxHistoryRows = 24
+const (
+	maxHistoryRows = 24
+	defaultRows    = 3
+)
 
 func registListFileHistory() {
 	toolRegister.Regist(toolRegister.Def{
@@ -21,15 +25,15 @@ func registListFileHistory() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `
-Every recorded change to a file, newest first, with the task behind each one.
-Use for 這個檔案動過幾次 / 什麼時候改的 / 剛剛動了哪些檔案, and to pick a version before restoring.
-Timestamps and task ids only — the content itself is read_file_history.`,
+Recorded changes to a file, newest first, each with the version it produced and what the user asked for at the time.
+Use for 這個檔案動過幾次 / 什麼時候改的 / 上一版是什麼, with task_id for 那個動作動了哪些檔案, and always before restoring: 還原 means asking the user which of these versions they mean.
+Timestamps and objectives only — the content itself is read_file_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"path": map[string]any{
 					"type":        "string",
-					"description": "One file (e.g. '/Users/me/notes.md', '~/notes.md', 'src/main.go'). Omit for the most recent changes to any file.",
+					"description": "The file to look back over (e.g. '/Users/me/notes.md', '~/notes.md', 'src/main.go'). Omit with task_id to see every file that task changed.",
 				},
 				"task_id": map[string]any{
 					"type":        "string",
@@ -45,7 +49,8 @@ Timestamps and task ids only — the content itself is read_file_history.`,
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Rows to return, newest first. Never above 24; defaults to 3, or to 24 with from/to.",
+					"description": "Rows to return, newest first. Never above 24.",
+					"default":     defaultRows,
 				},
 			},
 		},
@@ -79,10 +84,7 @@ Timestamps and task ids only — the content itself is read_file_history.`,
 
 			filter.Limit = min(params.Limit, maxHistoryRows)
 			if filter.Limit <= 0 {
-				filter.Limit = 3
-				if filter.From > 0 || filter.To > 0 {
-					filter.Limit = maxHistoryRows
-				}
+				filter.Limit = defaultRows
 			}
 
 			list, err := historyStore.List(ctx, filter)
@@ -96,12 +98,14 @@ Timestamps and task ids only — the content itself is read_file_history.`,
 			out := make([]map[string]any, 0, len(list))
 			for _, row := range list {
 				item := map[string]any{
+					"version":    row.ID,
 					"path":       filepath.Join(row.Dir, row.Name),
 					"action":     row.Action,
 					"size":       row.Size,
 					"tool":       row.Tool,
 					"session_id": row.SessionID,
 					"task_id":    row.TaskID,
+					"objective":  actionHistory.Objective(row.SessionID, row.TaskID),
 					"changed_at": time.Unix(0, row.ChangedAt).Format(historyStore.TimeLayout),
 				}
 				if reason := row.RestoreBlock(); reason != "" {

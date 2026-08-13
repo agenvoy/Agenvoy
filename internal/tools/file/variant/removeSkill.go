@@ -19,7 +19,7 @@ func registRemoveSkill() {
 		Name: "remove_skill",
 		Description: `
 Move a skill directory to ~/.config/agenvoy/skills/.Trash/.
-Use when a skill is obsolete or must be rebuilt; recoverable via restore_revision.`,
+Use when a skill is obsolete or must be rebuilt; the directory is kept in .Trash.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -30,7 +30,7 @@ Use when a skill is obsolete or must be rebuilt; recoverable via restore_revisio
 			},
 			"required": []string{"name"},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Name string `json:"name"`
 			}
@@ -48,10 +48,11 @@ Use when a skill is obsolete or must be rebuilt; recoverable via restore_revisio
 				return "", fmt.Errorf("skill %q does not exist", name)
 			}
 
-			_, err := filesystem.TrashDir(dir, filesystem.SkillTrashDir, name)
+			trashPath, err := filesystem.TrashDir(dir, filesystem.SkillTrashDir, name)
 			if err != nil {
 				return "", err
 			}
+			recordRemoval(ctx, e, dir, trashPath, "remove_skill")
 
 			return fmt.Sprintf("trashed: %s", dir), nil
 		},

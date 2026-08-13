@@ -70,9 +70,11 @@ Use in Capability Gap flow; patch_tool for string replacement, test_tool to veri
 			default:
 				return "", fmt.Errorf("tag must be 'json', 'script', or 'api', got %q", params.Tag)
 			}
+			change := capture(target)
 			if err := go_pkg_filesystem.WriteFile(target, params.Content, 0644); err != nil {
 				return "", fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile [%s]: %w", target, err)
 			}
+			record(ctx, e, change, params.Content, "write_tool")
 
 			return fmt.Sprintf("created: %s", target), nil
 		},

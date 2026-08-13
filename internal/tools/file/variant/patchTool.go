@@ -94,9 +94,11 @@ Use to fix a broken tool after test_tool failure; write_tool for full rewrite.`,
 			default:
 				return "", fmt.Errorf("tag must be 'json', 'script', or 'api', got %q", params.Tag)
 			}
+			change := capture(target)
 			if err := patch(target, params.OldString, params.NewString, params.ReplaceAll); err != nil {
 				return "", err
 			}
+			record(ctx, e, change, "", "patch_tool")
 
 			return fmt.Sprintf("updated: %s", target), nil
 		},

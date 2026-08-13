@@ -65,8 +65,33 @@ func entries(e *toolTypes.Executor) ([]entry, error) {
 	if e == nil || e.SessionID == "" {
 		return nil, fmt.Errorf("no session: task history is recorded per session")
 	}
+	return entriesOf(e.SessionID)
+}
 
-	dir := filesystem.TaskHistoryDir(e.SessionID)
+func Objective(sessionID, taskID string) string {
+	if sessionID == "" || taskID == "" {
+		return ""
+	}
+
+	list, err := entriesOf(sessionID)
+	if err != nil {
+		return ""
+	}
+	for _, item := range list {
+		if item.taskID != taskID {
+			continue
+		}
+		r, err := load(item.path)
+		if err != nil {
+			return ""
+		}
+		return r.Objective
+	}
+	return ""
+}
+
+func entriesOf(sessionID string) ([]entry, error) {
+	dir := filesystem.TaskHistoryDir(sessionID)
 	if !go_pkg_filesystem_reader.IsDir(dir) {
 		return nil, nil
 	}

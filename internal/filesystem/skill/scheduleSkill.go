@@ -3,9 +3,11 @@ package skill
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
@@ -23,15 +25,22 @@ func GetSchedule(name string) (string, error) {
 	return strings.TrimSpace(bodyRegex.ReplaceAllString(result, "")), nil
 }
 
-func TrashSchedule(ctx context.Context, name string) error {
+func TrashSchedule(ctx context.Context, name string, meta historyStore.Meta) error {
 	dir := filesystem.ScheduleSkillDir(name)
 	if !go_pkg_filesystem_reader.IsDir(dir) {
 		return nil
 	}
 
-	if _, err := filesystem.TrashDir(dir, filesystem.ScheduleSkillTrashDir, name); err != nil {
+	trashPath, err := filesystem.TrashDir(dir, filesystem.ScheduleSkillTrashDir, name)
+	if err != nil {
 		return err
 	}
 
+	meta.Tool = "remove_schedule"
+	if err := historyStore.RecordDelete(ctx, dir, trashPath, meta); err != nil {
+		slog.Warn("historyStore.RecordDelete",
+			slog.String("path", dir),
+			slog.String("error", err.Error()))
+	}
 	return nil
 }

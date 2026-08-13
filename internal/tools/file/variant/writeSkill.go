@@ -36,7 +36,7 @@ Use for new skill files or full rewrites; patch_skill for targeted edits.`,
 			},
 			"required": []string{"path", "content"},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Path    string `json:"path"`
 				Content string `json:"content"`
@@ -58,9 +58,11 @@ Use for new skill files or full rewrites; patch_skill for targeted edits.`,
 				return "", fmt.Errorf("path must stay within skills dir")
 			}
 
+			change := capture(absPath)
 			if err := go_pkg_filesystem.WriteFile(absPath, params.Content, 0644); err != nil {
 				return "", fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile [%s]: %w", absPath, err)
 			}
+			record(ctx, e, change, params.Content, "write_skill")
 
 			return fmt.Sprintf("created: %s", absPath), nil
 		},

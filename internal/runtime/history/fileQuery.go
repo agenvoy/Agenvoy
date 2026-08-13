@@ -11,7 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
-var errNotFound = errors.New("revision not found")
+var errNotFound = errors.New("no such change")
 
 const TimeLayout = "2006-01-02 15:04:05"
 

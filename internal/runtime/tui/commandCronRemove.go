@@ -9,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 )
 
 type CronRemoveSelect struct {
@@ -51,7 +52,7 @@ func (t TUI) runCronRemove(skills []string) (TUI, tea.Cmd) {
 			lines = append(lines, hintStyle.Render(fmt.Sprintf("⎯ not found: %s", skillName)))
 			continue
 		}
-		if err := skill.TrashSchedule(context.Background(), skillName); err != nil {
+		if err := skill.TrashSchedule(context.Background(), skillName, historyStore.Meta{SessionID: t.currentSessionID}); err != nil {
 			lines = append(lines, errorStyle.Render(fmt.Sprintf("[!] %s trash: %v", skillName, err)))
 			continue
 		}
