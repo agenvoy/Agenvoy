@@ -82,6 +82,12 @@ func New() *gin.Engine {
 	r.GET("/v1/mcp/health", localhostOnly(), handler.McpHealth())
 	r.POST("/v1/mcp/reconnect", localhostOnly(), handler.McpReconnect())
 
+	r.GET("/v1/rules", localhostOnly(), handler.ListRules())
+	r.GET("/v1/rule/*name", localhostOnly(), handler.GetRule())
+	r.POST("/v1/rule", localhostOnly(), handler.CreateRule())
+	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRule())
+	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRule())
+
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 
 	r.GET("/v1/cron", localhostOnly(), handler.ListCrons())

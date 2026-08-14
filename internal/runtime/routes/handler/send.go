@@ -2,13 +2,17 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	"github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -34,6 +38,8 @@ type Request struct {
 	Persist      bool     `json:"persist,omitempty"`
 	Chat         bool     `json:"chat,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
+	WorkDir      string   `json:"work_dir,omitempty"`
+	Skill        string   `json:"skill,omitempty"`
 	AllowAll     *bool    `json:"allow_all,omitempty"`
 }
 
@@ -94,10 +100,23 @@ func Send() gin.HandlerFunc {
 			var matchedSkill *skill.Skill
 			var skillResult agentTypes.Event
 			if scanner != nil {
-				if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
+				if name := req.Skill; name != "" {
+					if slices.Contains(tools.TUIOnlySkills, name) {
+						wrapped <- agentTypes.ErrorEvent(fmt.Errorf("skill %q is not available here", name))
+						return
+					}
+					matchedSkill = scanner.Lookup(name)
+					if matchedSkill == nil {
+						wrapped <- agentTypes.ErrorEvent(fmt.Errorf("skill %q not found", name))
+						return
+					}
+				} else if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
 					matchedSkill = m
 					trimContent = strings.TrimSpace(effective)
-					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(m.Name)}
+				}
+
+				if matchedSkill != nil {
+					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(matchedSkill.Name)}
 					wrapped <- skillResult
 					if sessionID != "" {
 						sessionLog.Record(sessionID, skillResult)
@@ -106,6 +125,16 @@ func Send() gin.HandlerFunc {
 			}
 
 			workDir, _ := os.UserHomeDir()
+			if dir := strings.TrimSpace(req.WorkDir); dir != "" {
+				if resolved, err := go_pkg_filesystem.RealPath(dir); err == nil && go_pkg_filesystem_reader.IsDir(resolved) {
+					workDir = resolved
+				} else {
+					wrapped <- agentTypes.Event{
+						Type: agentTypes.EventExecError,
+						Text: fmt.Sprintf("work_dir %q is not a directory, using %s", dir, workDir),
+					}
+				}
+			}
 			userText := trimContent
 			if sessionID != "" {
 				sessionLog.Append(sessionID, userText)
