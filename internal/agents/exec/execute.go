@@ -89,8 +89,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		execCtx = context.WithValue(execCtx, parentWorkDirKey{}, data.WorkDir)
 	}
 
-	// * pushCtx keeps the values but not the cancellation: push hooks still fire
-	// * after the turn is canceled
 	pushCtx := execCtx
 	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
@@ -330,8 +328,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(), events, &shownReasoning)
 			resultCh <- sendOutcome{resp: r, code: c, err: e, textEmitted: textEmitted, reasoned: reasoned}
 		}()
-		// * streamSend writes to events; the caller closes that channel as soon as
-		// * Execute returns, so every exit has to outlive the goroutine
+
 		stopSend := func() {
 			cancelSend()
 			<-sendDone

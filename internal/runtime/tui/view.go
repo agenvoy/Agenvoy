@@ -201,7 +201,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-10, 20)
+		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
@@ -242,7 +242,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-14, 20)
+		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			cursor := "  "

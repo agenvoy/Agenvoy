@@ -195,7 +195,7 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 			return "", fmt.Errorf("no edit needed")
 		}
 		if !strings.Contains(content, old) {
-			return "", fmt.Errorf("%s is not found in %s", old, absPath)
+			return "", anchorNotFound(content, old, absPath)
 		}
 
 		search := old
@@ -218,6 +218,34 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 	default:
 		return "", fmt.Errorf("either old_string or insert_string is required")
 	}
+}
+
+func anchorNotFound(content, old, absPath string) error {
+	head := ""
+	for line := range strings.SplitSeq(old, "\n") {
+		if strings.TrimSpace(line) != "" {
+			head = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	lines := strings.Split(content, "\n")
+	var near []string
+	if head != "" {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == head || strings.Contains(line, head) {
+				near = append(near, fmt.Sprintf("row %d is %q", i+1, line))
+				if len(near) == 5 {
+					break
+				}
+			}
+		}
+	}
+
+	if len(near) == 0 {
+		return fmt.Errorf("%q is not found in %s and nothing there resembles it; the file holds %d lines — re-read it and build the anchor from its current bytes", old, absPath, len(lines))
+	}
+	return fmt.Errorf("%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
 }
 
 func replaceAtRow(content, search, new string, row int) (string, error) {
@@ -259,6 +287,9 @@ func insertAtRow(content, insert string, row int) (string, error) {
 	if row < 1 || row > lineCount+1 {
 		return "", fmt.Errorf("row %d out of range (file has %d lines)", row, lineCount)
 	}
+
+	insert = strings.TrimSuffix(insert, "\n")
+	insert = strings.TrimSuffix(insert, "\r")
 
 	idx := row - 1
 	out := make([]string, 0, len(lines)+1)

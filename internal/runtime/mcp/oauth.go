@@ -20,6 +20,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 const (
@@ -215,10 +216,7 @@ func (h *oauthHandler) TokenSource(ctx context.Context) (oauth2.TokenSource, err
 func (h *oauthHandler) Authorize(ctx context.Context, req *http.Request, resp *http.Response) error {
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-	detail := strings.TrimSpace(string(raw))
-	if len(detail) > 512 {
-		detail = detail[:512] + "…"
-	}
+	detail := go_pkg_utils.TruncateString(strings.TrimSpace(string(raw)), 512)
 	if detail != "" {
 		detail = " · " + detail
 	}

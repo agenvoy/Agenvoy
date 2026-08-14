@@ -30,8 +30,6 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 	return prompts
 }
 
-// * the channel prompt carries the rules that apply every turn; {{.ChatbotFormat}} is where its platform's full
-// * formatting reference lands, so a tg-/dc- session never has to fetch it before it can answer correctly.
 func channelSystemPrompt(sessionID string) string {
 	var template, format string
 	switch {
