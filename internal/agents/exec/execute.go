@@ -49,6 +49,7 @@ type ExecuteMeta struct {
 	FileInputs        []string
 	ExcludeTools      []string
 	ExcludeSkills     []string
+	ClientTools       []provider.Tool
 	ExtraSystemPrompt string
 	Reasoning         string
 	AllowAll          bool
@@ -254,6 +255,16 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		for name := range excluded {
 			delete(exec.StubTools, name)
 		}
+	}
+
+	clientTools := make(map[string]bool, len(data.ClientTools))
+	for _, t := range data.ClientTools {
+		name := strings.TrimSpace(t.Function.Name)
+		if name == "" {
+			continue
+		}
+		clientTools[name] = true
+		exec.Tools = append(exec.Tools, t)
 	}
 
 	limit := filesystem.MaxToolIterations
@@ -584,6 +595,26 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					}
 				}
 			}
+			if len(clientTools) > 0 {
+				var handoff []provider.ToolCall
+				for _, call := range choice.Message.ToolCalls {
+					if clientTools[strings.TrimSpace(call.Function.Name)] {
+						handoff = append(handoff, call)
+					}
+				}
+				if len(handoff) > 0 {
+					events <- agentTypes.Event{Type: agentTypes.EventClientToolCall, ClientToolCalls: handoff}
+					events <- agentTypes.Event{
+						Type:     agentTypes.EventDone,
+						Model:    data.Agent.Name(),
+						Usage:    &usage,
+						Duration: time.Since(execStart),
+					}
+					keepPending = false
+					return nil
+				}
+			}
+
 			session, alreadyCall, err = toolCall(execCtx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
 				if errors.Is(err, ErrAskUserInterrupted) {

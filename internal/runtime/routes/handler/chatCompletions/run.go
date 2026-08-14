@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -56,14 +54,21 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	if workDir == "" {
 		workDir, _ = os.UserHomeDir()
 	}
+
+	excludeTools := []string{"*"}
+	if req.agentMode {
+		excludeTools = tools.TUIOnlyTools
+	}
+
 	data := exec.ExecuteMeta{
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        trimContent,
 		Reasoning:      req.ReasoningEffort,
-		ExcludeTools:   tools.TUIOnlyTools,
+		ExcludeTools:   excludeTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
+		ClientTools:    req.Tools,
 		AllowAll:       true,
 	}
 
@@ -75,7 +80,10 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 }
 
 func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner, excludeSkills []string) *agentTypes.AgentSession {
-	systemPrompts := exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills)
+	var systemPrompts []provider.Message
+	if req.agentMode {
+		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills)
+	}
 	systemPrompts = append(systemPrompts, req.systemPrompts...)
 
 	lastUserIdx := -1
@@ -90,18 +98,13 @@ func buildStatelessSession(req Request, userInput, workDir string, scanner *runt
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
 
-	wrappedUser := sessionHistory.WithPrefix(
-		sessionHistory.Record{SendAt: time.Now().UnixNano()}.Prefix(),
-		userInput,
-	)
-
 	return &agentTypes.AgentSession{
 		SystemPrompts: systemPrompts,
 		OldHistories:  oldHistories,
 		Histories:     append([]provider.Message{}, oldHistories...),
 		ToolHistories: []provider.Message{},
 		Tools:         []provider.Message{},
-		UserInput:     provider.Message{Role: "user", Content: wrappedUser},
+		UserInput:     provider.Message{Role: "user", Content: userInput},
 		Stateless:     true,
 	}
 }

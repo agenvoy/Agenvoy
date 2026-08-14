@@ -1,6 +1,7 @@
 package chatCompletions
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -22,9 +23,13 @@ type Request struct {
 	Messages        []provider.Message `json:"messages"`
 	Stream          bool               `json:"stream"`
 	ReasoningEffort string             `json:"reasoning_effort"`
+	Tools           []provider.Tool    `json:"tools"`
 	workDir         string             `json:"-"`
 	systemPrompts   []provider.Message `json:"-"`
+	agentMode       bool               `json:"-"`
 }
+
+const AgentHeader = "X-Agenvoy-Agent"
 
 func ChatCompletions() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -35,6 +40,11 @@ func ChatCompletions() gin.HandlerFunc {
 				"type":    "invalid_request_error",
 			}})
 			return
+		}
+
+		switch strings.ToLower(strings.TrimSpace(c.GetHeader(AgentHeader))) {
+		case "1", "true", "yes":
+			req.agentMode = true
 		}
 
 		normalizeContent(req.Messages)
@@ -181,10 +191,14 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 	var textBuf strings.Builder
 	var usage provider.Usage
 	var streamErr error
+	var clientCalls []provider.ToolCall
 	for ev := range events {
 		switch ev.Type {
 		case agentTypes.EventText:
 			textBuf.WriteString(ev.Text)
+
+		case agentTypes.EventClientToolCall:
+			clientCalls = append(clientCalls, ev.ClientToolCalls...)
 
 		case agentTypes.EventDone:
 			if ev.Usage != nil {
@@ -199,6 +213,17 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 		c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"message": streamErr.Error(), "type": "upstream_error"}})
 		return
 	}
+
+	message := gin.H{"role": "assistant", "content": textBuf.String()}
+	finish := "stop"
+	if len(clientCalls) > 0 {
+		message = gin.H{"role": "assistant", "content": nil, "tool_calls": toolCallPayload(clientCalls)}
+		if text := strings.TrimSpace(textBuf.String()); text != "" {
+			message["content"] = text
+		}
+		finish = "tool_calls"
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":      id,
 		"object":  "chat.completion",
@@ -206,8 +231,8 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 		"model":   model,
 		"choices": []gin.H{{
 			"index":         0,
-			"message":       gin.H{"role": "assistant", "content": textBuf.String()},
-			"finish_reason": "stop",
+			"message":       message,
+			"finish_reason": finish,
 		}},
 		"usage": gin.H{
 			"prompt_tokens":     usage.Input + usage.CacheRead,
@@ -218,4 +243,28 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 			},
 		},
 	})
+}
+
+func toolCallPayload(calls []provider.ToolCall) []gin.H {
+	out := make([]gin.H, 0, len(calls))
+	for i, call := range calls {
+		id := call.ID
+		if id == "" {
+			id = fmt.Sprintf("call_%s", utils.UUID())
+		}
+		kind := call.Type
+		if kind == "" {
+			kind = "function"
+		}
+		out = append(out, gin.H{
+			"index": i,
+			"id":    id,
+			"type":  kind,
+			"function": gin.H{
+				"name":      call.Function.Name,
+				"arguments": call.Function.Arguments,
+			},
+		})
+	}
+	return out
 }
