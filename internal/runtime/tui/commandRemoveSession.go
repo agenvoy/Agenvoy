@@ -43,9 +43,67 @@ func (t TUI) commandRemoveSession() (TUI, tea.Cmd, bool) {
 		return false
 	})
 
-	options := make([]string, len(sessions))
-	values := make([]string, len(sessions))
-	for i, s := range sessions {
+	popup := &Popup{
+		kind:       popupMultiSelect,
+		title:      "Select sessions to remove",
+		maxVisible: cmdSelectorMaxVisible,
+		tabs:       sessionTabs(sessions),
+		multi:      make(map[int]bool),
+	}
+
+	picked := map[string]bool{}
+	harvest := func(p *Popup) {
+		for i, on := range p.multi {
+			if i >= len(p.values) {
+				continue
+			}
+			if on {
+				picked[p.values[i]] = true
+				continue
+			}
+			delete(picked, p.values[i])
+		}
+	}
+
+	popup.onTab = func(p *Popup) {
+		harvest(p)
+		fillRemoveOptions(p, sessions, currentSID)
+		p.multi = make(map[int]bool, len(p.values))
+		for i, id := range p.values {
+			if picked[id] {
+				p.multi[i] = true
+			}
+		}
+	}
+	popup.onTab(popup)
+
+	popup.onConfirm = func(string) any {
+		harvest(popup)
+		ids := make([]string, 0, len(picked))
+		for _, s := range sessions {
+			if picked[s.id] {
+				ids = append(ids, s.id)
+			}
+		}
+		return RemoveSessionPick{chosen: strings.Join(ids, "\x1F")}
+	}
+
+	t.popup = popup
+	return t, nil, true
+}
+
+func fillRemoveOptions(p *Popup, sessions []Session, currentSID string) {
+	tab := ""
+	if p.tabIdx > 0 && p.tabIdx < len(p.tabs) {
+		tab = p.tabs[p.tabIdx]
+	}
+
+	options := make([]string, 0, len(sessions))
+	values := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		if tab != "" && !strings.HasPrefix(s.id, tab) {
+			continue
+		}
 		short := utils.ShortenSessionID(s.id)
 		label := short
 		if s.name != "" && s.name != s.id {
@@ -54,21 +112,13 @@ func (t TUI) commandRemoveSession() (TUI, tea.Cmd, bool) {
 		if s.id == currentSID {
 			label += " · (current)"
 		}
-		options[i] = label
-		values[i] = s.id
+		options = append(options, label)
+		values = append(values, s.id)
 	}
 
-	t.popup = &Popup{
-		kind:    popupMultiSelect,
-		title:   "Select sessions to remove (space toggle · enter confirm)",
-		options: options,
-		values:  values,
-		multi:   make(map[int]bool),
-		onConfirm: func(chosen string) any {
-			return RemoveSessionPick{chosen: chosen}
-		},
-	}
-	return t, nil, true
+	p.options = options
+	p.values = values
+	p.cursor = 0
 }
 
 func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {

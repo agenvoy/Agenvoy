@@ -267,7 +267,11 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		if len(p.tabs) > 1 {
+			body = append(body, hintStyle.Render("↑/↓ move · ←/→ filter · space toggle · enter confirm · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		}
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))
