@@ -34,7 +34,13 @@ async function send(content) {
   if (fresh) {
     prependChat(sessionId, content);
     saveSessionModel(sessionId, model);
+    adoptChatConfig(sessionId);
   }
+
+  const chat = readChatConfig(sessionId);
+
+  const picked = skill;
+  clearSkill();
 
   const dom = $("#right-content-chat-messages");
   clearPending();
@@ -57,6 +63,10 @@ async function send(content) {
         session_id: sessionId,
         persist: true,
         model: model === "auto" ? "" : model,
+        system_prompt: rule,
+        knowledge: chat.knowledge,
+        work_dir: chat.work_dir,
+        skill: picked,
       }),
     });
     if (!response.ok) {

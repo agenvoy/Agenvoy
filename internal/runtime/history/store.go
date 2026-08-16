@@ -73,7 +73,6 @@ func syncColumns(c *go_sqlkit_core.Connector) error {
 	return nil
 }
 
-// Close lets go of the shared connection without closing it.
 func Close() {
 	conn = nil
 }

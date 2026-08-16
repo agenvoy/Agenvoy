@@ -63,6 +63,26 @@ document.addEventListener("DOMContentLoaded", function () {
       send_click: function () {
         submit();
       },
+      harness_click: function (e) {
+        const dom = e.target.closest("button");
+        if (!dom) return;
+
+        const on = dom.dataset.selected == null;
+        const mark = function (state) {
+          if (state) {
+            dom.dataset.selected = "1";
+          } else {
+            delete dom.dataset.selected;
+          }
+          config.harness_enable = state;
+          writeConfig(config);
+        };
+
+        mark(on);
+        toggleVoice(on).catch(function () {
+          mark(false);
+        });
+      },
       chat_wheel: function (e) {
         const dom = $("#right-content-chat-messages");
         if (dom.contains(e.target) || dom.scrollHeight <= dom.clientHeight) {
@@ -75,6 +95,36 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         dom.scrollTop += wheelDelta(e, dom);
         e.preventDefault();
+      },
+      workdir_pick: function () {
+        openWorkDirPrompt();
+      },
+      skill_pick: function () {
+        openSkillPicker();
+      },
+      knowledge_pick: function () {
+        openKnowledgePicker();
+      },
+      rule_save: function () {
+        saveFeature("rule");
+      },
+      rule_reset: function () {
+        resetFeature("rule");
+      },
+      rule_delete: function () {
+        deleteEditing("rule");
+      },
+      knowledge_save: function () {
+        saveFeature("knowledge");
+      },
+      knowledge_reset: function () {
+        resetFeature("knowledge");
+      },
+      knowledge_delete: function () {
+        deleteEditing("knowledge");
+      },
+      rule_change: function (e) {
+        selectRule(e.target.value);
       },
       model_change: function (e) {
         const model = e.target.value;
@@ -112,14 +162,50 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         bindSelectPicker();
+        bindInputDrop();
+        bindChatMenu();
         renderChatList();
 
         if (params.page === "chat") {
+          if (!params.chat) {
+            clearChatDraft();
+          }
           setSession(params.chat);
           subscribe(params.chat);
           getModelList(params.chat);
+          getRuleList();
+          renderKnowledgeMark();
+          renderWorkDirMark();
           renderChat(params.chat);
           loadPending(params.chat);
+
+          const harness = $("section.chat button.harness");
+          if (config.harness_enable) {
+            if (harness) {
+              harness.dataset.selected = "1";
+            }
+            initVoice().catch(function () {
+              if (harness) {
+                delete harness.dataset.selected;
+              }
+              config.harness_enable = false;
+              writeConfig(config);
+            });
+          }
+        }
+
+        if (params.page === "features") {
+          const kind = { Rules: "rule", Knowledge: "knowledge" }[params.tab];
+          if (kind) {
+            resetFeature(kind);
+            renderFeature(kind);
+          }
+
+          for (const name of Object.keys(FEATURE_SPEC)) {
+            if (name !== kind) {
+              countFeature(name);
+            }
+          }
         }
       },
       before_update: function () {

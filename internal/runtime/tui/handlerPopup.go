@@ -290,6 +290,12 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyDown:
 		p.cursor = (p.cursor + 1) % len(p.options)
 
+	case tea.KeyLeft:
+		p.switchTab(-1)
+
+	case tea.KeyRight:
+		p.switchTab(1)
+
 	case tea.KeySpace:
 		p.multi[p.cursor] = !p.multi[p.cursor]
 

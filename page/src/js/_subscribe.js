@@ -57,5 +57,6 @@ function parseEvent(event) {
     streamDom = null;
     clearTodo();
     loadPending(subscribedSession);
+    voiceAnnounce();
   }
 }

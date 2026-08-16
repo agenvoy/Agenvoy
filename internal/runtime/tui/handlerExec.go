@@ -66,7 +66,7 @@ func (b *subagentLive) render(name string, width int) string {
 	sb.WriteString(hintStyle.Render(header))
 	for _, line := range b.lines {
 		sb.WriteByte('\n')
-		sb.WriteString(hintStyle.Render(go_pkg_utils.TruncateString("    ⎿  "+line, max(width-4, 24))))
+		sb.WriteString(hintStyle.Render(go_pkg_utils.TruncateString("    ⎿  "+line, max(width-4, 32))))
 	}
 	return sb.String()
 }

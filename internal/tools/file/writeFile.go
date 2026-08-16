@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
@@ -114,19 +115,6 @@ The result reports the file's real byte count, line count and first/last lines �
 	})
 }
 
-// writeReceipt reports what actually landed on disk.
-//
-// A successful write has its content argument elided from history immediately,
-// so on the next turn the model sees its own tool_call carrying the elision
-// marker where the content used to be. Reading that as "the file now holds a
-// placeholder", it rewrites — and that rewrite is elided too, so the marker
-// comes straight back and the rewrite repeats without end. Telling the model
-// not to do this in prose loses against what it appears to see itself having
-// sent; a receipt it can check does not, because the size, line count and real
-// first/last lines cannot come from a placeholder.
-//
-// * os.Stat retained: the on-disk size is the authoritative number here, and
-// go-pkg exposes no accessor for it.
 func writeReceipt(isNew bool, path, content string) string {
 	verb := "updated"
 	if isNew {
@@ -151,9 +139,5 @@ func excerptLine(line string) string {
 	if line == "" {
 		return "(blank)"
 	}
-	runes := []rune(line)
-	if len(runes) > 120 {
-		return string(runes[:120]) + "…"
-	}
-	return line
+	return go_pkg_utils.TruncateString(line, 128)
 }

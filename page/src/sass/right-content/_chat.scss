@@ -98,7 +98,7 @@ body[data-rendered="1"] section.right-content section.chat {
       flex-flow: column;
       flex-grow: 1;
       flex-shrink: 1;
-      padding: 2.5rem 0 calc(100vh / 3);
+      padding: 2.5rem 0 8rem;
       max-height: calc(100% - 5.25rem);
       overflow-y: scroll;
       width: var(--width-right-content);
@@ -120,6 +120,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
         > p {
           padding: 0.75rem 1rem;
+          max-width: 80%;
           background-color: var(--gray-2);
           border-radius: 1rem;
           color: var(--text-color);
@@ -161,6 +162,16 @@ body[data-rendered="1"] section.right-content section.chat {
       div.assistant {
         &:not(:last-child) section.suggests {
           display: none;
+        }
+
+        &:last-child > section footer {
+          opacity: 1;
+        }
+
+        @media (hover: hover) {
+          &:hover > section footer {
+            opacity: 1;
+          }
         }
 
         display: flex;
@@ -241,6 +252,7 @@ body[data-rendered="1"] section.right-content section.chat {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            opacity: 0;
 
             div {
               display: flex;
@@ -284,7 +296,7 @@ body[data-rendered="1"] section.right-content section.chat {
               text-align: left;
               color: var(--gray-3);
               background-color: transparent;
-              border: 1px solid var(--gray-2);
+              border: 1px solid var(--gray-3);
               border-radius: 1rem;
               cursor: pointer;
               transition: 0.2s;
@@ -315,25 +327,104 @@ body[data-rendered="1"] section.right-content section.chat {
     div.input {
       z-index: 1;
       position: sticky;
-      bottom: 1.5rem;
+      bottom: 1rem;
       display: flex;
       flex-flow: column;
       gap: 0.75rem;
-      padding: 1rem;
+      padding: 1.5rem;
       width: var(--width-right-content);
       max-width: var(--max-width-right-content);
       background-color: #fff;
       border-radius: 1.25rem;
-      box-shadow:
-        0 10px 15px -3px #0000001a,
-        0 4px 6px -4px #0000001a;
+      overflow: hidden;
 
-      &:has(textarea:focus) {
+      &[data-voice="1"] {
+        &::before {
+          opacity: 1;
+        }
+
+        > span {
+          padding: calc(1rem - 1px);
+          border: 1px solid var(--gray-2);
+        }
+      }
+
+      &::before {
+        content: "";
+        position: absolute;
+        width: 150%;
+        aspect-ratio: 1 / 1;
+        background-image: conic-gradient(
+          #5575d9,
+          #dfa0d380,
+          #dfa0d333,
+          transparent,
+          #dfa0d333,
+          #dfa0d380,
+          #5575d9,
+          #dfa0d380,
+          #dfa0d333,
+          #dfa0d300,
+          #dfa0d333,
+          #dfa0d380,
+          #5575d9
+        );
+        filter: blur(2rem);
+        left: calc(-100% / 2);
+        top: calc(-100% / 2);
+        animation: animate 4s linear infinite;
+        transition: 0.2s;
+        opacity: 0;
+      }
+
+      &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 1rem;
+        box-shadow:
+          inset 0 0 0.25rem 0.25rem #fff,
+          inset 0 0 0.5rem 0.25rem #ffffff80;
+      }
+
+      @keyframes animate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      &:has(textarea:focus) > span,
+      &:has(textarea[data-dragging]) > span {
         padding: calc(1rem - 1px);
         border: 1px solid var(--gray-2);
       }
 
+      &:has(textarea[data-dragging]) {
+        border-style: dashed;
+      }
+
+      > span {
+        z-index: 10;
+        position: absolute;
+        display: block;
+        inset: 0.375rem;
+        background-color: #fff;
+        border-radius: calc(1rem - 0.125rem);
+        box-shadow:
+          0 6px 8px -2px #0000001a,
+          0 4px 6px -4px #0000001a;
+      }
+
       > label {
+        z-index: 10;
         position: relative;
         display: block;
         width: 100%;
@@ -389,6 +480,7 @@ body[data-rendered="1"] section.right-content section.chat {
       }
 
       section {
+        z-index: 10;
         display: flex;
         gap: 1rem;
         width: 100%;
@@ -472,6 +564,11 @@ body[data-rendered="1"] section.right-content section.chat {
               &:hover:before {
                 opacity: 1;
               }
+            }
+
+            &[data-selected]:before {
+              opacity: 1;
+              background-color: var(--gray-2);
             }
 
             &:before {

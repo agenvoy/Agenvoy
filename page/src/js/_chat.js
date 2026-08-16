@@ -23,15 +23,86 @@ async function renderChatList() {
 }
 
 function chatListItem(sessionId, title) {
+  const remove = _("button", { type: "button", class: "remove" }, [
+    _("span.material-symbols-outlined", "delete"),
+    _("p", "Delete"),
+  ]);
+  remove.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeChatMenu();
+    if (confirm(`Delete "${title}"?`)) {
+      deleteChat(sessionId);
+    }
+  });
+
+  const menu = _("div.menu", [remove]);
+  menu.dataset.show = "0";
+
+  const more = _("button", { type: "button", class: "more" }, [_("span.material-symbols-outlined", "more_horiz")]);
+  more.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openChatMenu(menu);
+  });
+
   return _(
-    "a",
+    "div",
     {
       "data-id": sessionId,
       "data-selected": sessionId === currentSessionId ? 1 : 0,
-      href: getLink({ page: "chat", chat: sessionId }),
     },
-    [_("p", title), _("span.material-symbols-outlined", "more_horiz")],
+    [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title), more, menu],
   );
+}
+
+function closeChatMenu() {
+  for (const dom of document.querySelectorAll('#left-tab-chat-list [data-show="1"]')) {
+    dom.dataset.show = "0";
+  }
+}
+
+function openChatMenu(menu) {
+  closeChatMenu();
+  menu.dataset.show = "1";
+}
+
+function bindChatMenu() {
+  document.addEventListener("click", closeChatMenu);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      closeChatMenu();
+    }
+  });
+}
+
+async function deleteChat(sessionId) {
+  try {
+    const response = await fetch(`${API}/v1/session`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+      return;
+    }
+  } catch (err) {
+    console.error("deleteChat", err);
+    alert(err.message || "failed");
+    return;
+  }
+
+  const row = document.querySelector(`#left-tab-chat-list [data-id="${sessionId}"]`);
+  if (row) {
+    row.remove();
+  }
+
+  const open = new URL(window.location.href).searchParams.get("chat") || "";
+  if (sessionId === currentSessionId || sessionId === open) {
+    window.location.href = getLink({ page: "chat" });
+  }
 }
 
 function renameChat(sessionId, title) {
@@ -39,7 +110,7 @@ function renameChat(sessionId, title) {
     return;
   }
 
-  const label = $(`#left-tab-chat-list [data-id="${sessionId}"] p`);
+  const label = document.querySelector(`#left-tab-chat-list [data-id="${sessionId}"] > a`);
   if (label) {
     label.textContent = title;
   }

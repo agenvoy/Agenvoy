@@ -9,7 +9,7 @@ body[data-rendered="1"] section.right-content section.feature {
     position: absolute;
     display: none;
     flex-flow: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     top: 0;
     left: 0;
@@ -63,6 +63,212 @@ body[data-rendered="1"] section.right-content section.feature {
         span:not(.material-symbols-outlined) {
           font-size: small;
           font-weight: lighter;
+        }
+      }
+    }
+
+    section.editor {
+      display: flex;
+      flex-flow: row;
+      align-items: flex-start;
+      gap: 1.5rem;
+      margin-top: 2.5rem;
+      padding: 1.5rem 1rem 3rem;
+      width: 100%;
+
+      @media (max-width: 767.99px) {
+        flex-flow: column;
+        align-items: stretch;
+        gap: 1rem;
+      }
+
+      div.side {
+        display: flex;
+        flex-flow: column;
+        gap: 0.5rem;
+        width: 16rem;
+        flex-shrink: 0;
+
+        @media (max-width: 767.99px) {
+          width: 100%;
+        }
+
+        > button.new {
+          display: flex;
+          flex-flow: row;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.625rem 0.75rem;
+          border-radius: 0.5rem;
+          background-color: var(--gray);
+          color: var(--gray-3);
+          transition: 0.2s;
+
+          @media (hover: hover) {
+            &:hover {
+              background-color: var(--gray-2);
+              color: var(--ink);
+            }
+          }
+
+          p {
+            font-size: small;
+          }
+        }
+      }
+
+      div.list {
+        display: flex;
+        flex-flow: column;
+        gap: 0.5rem;
+
+        div.card {
+          position: relative;
+          display: flex;
+          flex-flow: column;
+          gap: 0.125rem;
+          padding: 0.625rem 0.75rem;
+          border-radius: 0.5rem;
+          background-color: var(--gray);
+          cursor: pointer;
+          transition: 0.2s;
+
+          @media (hover: hover) {
+            &:hover {
+              background-color: var(--gray-2);
+            }
+
+            &:hover > button {
+              opacity: 0.35;
+            }
+          }
+
+          > strong {
+            font-size: small;
+            font-weight: 500;
+            color: var(--ink);
+          }
+
+          > p {
+            font-size: 0.75rem;
+            font-weight: 300;
+            color: var(--gray-3);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          > button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            color: var(--gray-3);
+            transition: 0.2s;
+
+            @media (hover: hover) {
+              &:hover {
+                opacity: 1 !important;
+                color: var(--ink);
+              }
+            }
+          }
+        }
+      }
+
+      form {
+        display: flex;
+        flex-flow: column;
+        gap: 0.75rem;
+        flex-grow: 1;
+        min-width: 0;
+
+        input,
+        textarea {
+          padding: 0.625rem 0.75rem;
+          width: 100%;
+          font: inherit;
+          font-size: small;
+          line-height: 1.5;
+          color: var(--text-color);
+          background-color: var(--gray);
+          border: 1px solid var(--gray-2);
+          border-radius: 0.5rem;
+          outline: none;
+          resize: none;
+          transition: 0.2s;
+
+          &::placeholder {
+            color: var(--gray-3);
+          }
+
+          &:focus {
+            background-color: white;
+          }
+        }
+
+        textarea {
+          field-sizing: content;
+          min-height: 4rem;
+        }
+
+        &[data-editing="1"] footer {
+          order: -1;
+
+          > button.remove {
+            display: block;
+          }
+        }
+
+        footer {
+          display: flex;
+          flex-flow: row;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 0.5rem;
+
+          > button.remove {
+            display: none;
+          }
+
+          > button {
+            padding: 0.375rem 0.875rem;
+            font-size: small;
+            border-radius: 0.375rem;
+            color: var(--gray-3);
+            transition: 0.2s;
+
+            @media (hover: hover) {
+              &:hover {
+                color: var(--ink);
+              }
+            }
+
+            &.remove {
+              color: var(--error);
+
+              @media (hover: hover) {
+                &:hover {
+                  color: var(--error-2);
+                }
+              }
+            }
+
+            &.submit {
+              background-color: var(--black);
+              color: white;
+
+              @media (hover: hover) {
+                &:hover {
+                  color: white;
+                  opacity: 0.85;
+                }
+              }
+            }
+          }
         }
       }
     }

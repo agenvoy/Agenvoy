@@ -1,6 +1,3 @@
-// go_ast.go — AST analyzer for Go projects.
-// Invoked by analyze_go.py via `go run go_ast.go <project_root>`.
-// Outputs JSON: { functions, issues, max_nesting_depth }.
 package main
 
 import (
@@ -386,8 +383,6 @@ func stmtDepth(stmt ast.Stmt, current int) int {
 }
 
 func checkDiscardedReturn(fset *token.FileSet, assign *ast.AssignStmt, rel string, result *Result) {
-	// Only flag the narrow form `_ = f()`. Multi-return requires type info to
-	// decide correctly and is deferred to staticcheck / errcheck.
 	if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
 		return
 	}

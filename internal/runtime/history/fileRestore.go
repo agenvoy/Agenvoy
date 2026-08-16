@@ -135,9 +135,6 @@ func RestoreTo(ctx context.Context, id int64, meta Meta) (string, error) {
 		return "", fmt.Errorf("sql.Row Scan [SELECT file_history]: %w", err)
 	}
 
-	// The bytes come from the row that replaced this state, but the caller asked
-	// for this version and has to read that back — naming the other row's
-	// timestamp here reads as having restored the wrong one.
 	line, wrote, err := restore(ctx, nextID, meta)
 	if err != nil {
 		return "", err

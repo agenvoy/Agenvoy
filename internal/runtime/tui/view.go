@@ -201,7 +201,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-10, 20)
+		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
@@ -242,7 +242,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-14, 20)
+		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			cursor := "  "
@@ -267,7 +267,11 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		if len(p.tabs) > 1 {
+			body = append(body, hintStyle.Render("↑/↓ move · ←/→ filter · space toggle · enter confirm · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		}
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))

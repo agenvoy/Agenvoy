@@ -6,12 +6,14 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,check_circle,checklist,construction,content_copy,deployed_code_account,docs,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,schedule,send,settings"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,check_circle,checklist,construction,content_copy,delete,deployed_code_account,docs,folder,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings"
     />
     <link rel="stylesheet" href="public/index.css" />
     <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
-    <script src="https://cloud.pardn.io/nanomd-pre-test.js"></script>
+
     <script src="public/index.js"></script>
+    <script src="https://cloud.pardn.io/nanomd-pre-test-v1.js"></script>
+    <script src="https://cloud.pardn.io/voice.js"></script>
   </head>
   <body id="app" data-rendered="0">
     <!---->
@@ -35,7 +37,7 @@
       <section id="left-tab-chat-list" data-name="Chats"></section>
       <!---->
       <footer>
-        <a href="?">
+        <a href="https://web.agenvoy.com/config?tab=models" target="_blank" rel="noreferrer">
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
         </a>
@@ -65,7 +67,8 @@
           <section id="right-content-chat-pending" class="pending" data-index="0"></section>
         </section>
         <!---->
-        <div class="input">
+        <div class="input" data-voice="0">
+          <span></span>
           <label dir="auto">
             <textarea
               id="chat-input"
@@ -77,16 +80,19 @@
           </label>
           <section>
             <label class="rule">
-              <select @change="model_change">
+              <select id="chat-rule" @change="rule_change">
                 <option value="">default</option>
               </select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
-            <button type="button">
+            <button class="knowledge" type="button" @click="knowledge_pick">
               <span class="material-symbols-outlined"> book_2 </span>
             </button>
-            <button type="button">
+            <button class="skill" type="button" @click="skill_pick">
               <span class="material-symbols-outlined"> lightbulb_2 </span>
+            </button>
+            <button class="work-dir" type="button" @click="workdir_pick">
+              <span class="material-symbols-outlined"> folder </span>
             </button>
             <div></div>
             <label class="model">
@@ -95,6 +101,9 @@
               </select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
+            <button class="harness" type="button" @click="harness_click">
+              <span class="material-symbols-outlined"> robot_2 </span>
+            </button>
             <button class="send" type="button" @click="send_click">
               <span class="material-symbols-outlined"> send </span>
             </button>
@@ -111,6 +120,42 @@
           </a>
           <div></div>
         </header>
+
+        <section :if="params.tab == Rules" class="editor">
+          <div class="side">
+            <button type="button" class="new" @click="rule_reset">
+              <span class="material-symbols-outlined"> add_2 </span>
+              <p>new</p>
+            </button>
+            <div class="list" id="rule-list"></div>
+          </div>
+          <form id="rule-form">
+            <input id="rule-title" type="text" placeholder="Name this rule" />
+            <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
+            <footer>
+              <button type="button" class="remove" @click="rule_delete">delete</button>
+              <button type="button" class="submit" @click="rule_save">save</button>
+            </footer>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Knowledge" class="editor">
+          <div class="side">
+            <button type="button" class="new" @click="knowledge_reset">
+              <span class="material-symbols-outlined"> add_2 </span>
+              <p>new</p>
+            </button>
+            <div class="list" id="knowledge-list"></div>
+          </div>
+          <form id="knowledge-form">
+            <input id="knowledge-title" type="text" placeholder="Name this knowledge" />
+            <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
+            <footer>
+              <button type="button" class="remove" @click="knowledge_delete">delete</button>
+              <button type="button" class="submit" @click="knowledge_save">save</button>
+            </footer>
+          </form>
+        </section>
       </section>
     </section>
   </body>

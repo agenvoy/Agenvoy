@@ -7,7 +7,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 var (
@@ -44,6 +43,10 @@ func isGuardrailRefusal(content string) bool {
 }
 
 func StripModelResponse(str string) string {
+	return strings.TrimSpace(stripModelArtifacts(str))
+}
+
+func stripModelArtifacts(str string) string {
 	str = sessionHistory.StripPrefix(str)
 	str = summaryBlockRegex.ReplaceAllString(str, "")
 	if loc := summaryLeakMarkerRegex.FindStringIndex(str); loc != nil {
@@ -57,10 +60,5 @@ func StripModelResponse(str string) string {
 			slog.Int("dropped_chars", len(dropped)),
 			slog.String("dropped_head", head))
 	}
-	lines := strings.Split(str, "\n")
-	var fence internalUtils.FenceState
-	for i, line := range lines {
-		lines[i], _ = fence.Normalize(line)
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
+	return str
 }

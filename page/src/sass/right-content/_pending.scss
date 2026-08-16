@@ -78,12 +78,12 @@
 
         @media (hover: hover) {
           &:hover {
-            background-color: var(--gray);
+            background-color: var(--gray-2);
           }
         }
 
         &:has(input:checked) {
-          background-color: var(--gray);
+          background-color: var(--gray-2);
         }
       }
 

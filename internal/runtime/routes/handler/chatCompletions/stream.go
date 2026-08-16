@@ -59,6 +59,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 	ctx := c.Request.Context()
 	var usage provider.Usage
 	var streamErr error
+	var clientCalls []provider.ToolCall
 
 	emitContent := func(str string) bool {
 		if str == "" {
@@ -127,6 +128,8 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 			if !emitContent(ev.Text) {
 				return
 			}
+		case agentTypes.EventClientToolCall:
+			clientCalls = append(clientCalls, ev.ClientToolCalls...)
 		case agentTypes.EventDone:
 			if ev.Usage != nil {
 				usage = *ev.Usage
@@ -138,10 +141,14 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		}
 	}
 
-	if streamErr != nil {
+	switch {
+	case streamErr != nil:
 		errChunk := []gin.H{{"index": 0, "delta": gin.H{"content": "\n[error] " + streamErr.Error()}, "finish_reason": "stop"}}
 		writeChunk(errChunk, nil)
-	} else {
+	case len(clientCalls) > 0:
+		writeChunk([]gin.H{{"index": 0, "delta": gin.H{"tool_calls": toolCallPayload(clientCalls)}}}, nil)
+		writeChunk([]gin.H{{"index": 0, "delta": gin.H{}, "finish_reason": "tool_calls"}}, nil)
+	default:
 		writeChunk([]gin.H{{"index": 0, "delta": gin.H{}, "finish_reason": "stop"}}, nil)
 	}
 

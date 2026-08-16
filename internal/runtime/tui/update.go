@@ -197,7 +197,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			raw := t.textarea.Value()
-			// * content is trimmed for dispatch decisions only; raw reaches the agent verbatim
 			content := strings.TrimSpace(raw)
 			if content == "" {
 				return t, nil
@@ -242,8 +241,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
-		// * a turn that ends without EventDone (ask_user popup, panic, abandoned tool) leaves the
-		// * live area populated; clear it here so the next turn cannot resurrect finished rows
 		t.toolBuf, t.toolCount = nil, 0
 		t.subCount, t.subActive = 0, 0
 		t.subBuf, t.subOrder = nil, nil
@@ -1176,7 +1173,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// * a dropped file arrives as a paste; quote it before the textarea sees it so spaces survive as one path
 	if key, ok := msg.(tea.KeyMsg); ok && key.Paste {
 		if quoted, ok := quoteDroppedPaths(string(key.Runes)); ok {
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(quoted), Paste: true}
