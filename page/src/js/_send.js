@@ -34,6 +34,7 @@ async function send(content) {
   if (fresh) {
     prependChat(sessionId, content);
     saveSessionModel(sessionId, model);
+    saveChatRule(sessionId);
   }
 
   const dom = $("#right-content-chat-messages");
@@ -57,6 +58,7 @@ async function send(content) {
         session_id: sessionId,
         persist: true,
         model: model === "auto" ? "" : model,
+        system_prompt: rule,
       }),
     });
     if (!response.ok) {

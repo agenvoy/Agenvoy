@@ -63,6 +63,20 @@ document.addEventListener("DOMContentLoaded", function () {
       send_click: function () {
         submit();
       },
+      harness_click: function (e) {
+        const dom = e.target.closest("button");
+        if (!dom) return;
+
+        const on = dom.dataset.selected == null;
+        if (on) {
+          dom.dataset.selected = "1";
+        } else {
+          delete dom.dataset.selected;
+        }
+        config.harness_enable = on;
+        writeConfig(config);
+        toggleVoice(on);
+      },
       chat_wheel: function (e) {
         const dom = $("#right-content-chat-messages");
         if (dom.contains(e.target) || dom.scrollHeight <= dom.clientHeight) {
@@ -75,6 +89,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         dom.scrollTop += wheelDelta(e, dom);
         e.preventDefault();
+      },
+      rule_change: function (e) {
+        selectRule(e.target.value);
       },
       model_change: function (e) {
         const model = e.target.value;
@@ -112,14 +129,24 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         bindSelectPicker();
+        bindInputDrop();
         renderChatList();
 
         if (params.page === "chat") {
           setSession(params.chat);
           subscribe(params.chat);
           getModelList(params.chat);
+          getRuleList();
           renderChat(params.chat);
           loadPending(params.chat);
+
+          const harness = $("section.chat button.harness");
+          if (harness && config.harness_enable) {
+            harness.dataset.selected = "1";
+          }
+          if (config.harness_enable) {
+            initVoice();
+          }
         }
       },
       before_update: function () {
