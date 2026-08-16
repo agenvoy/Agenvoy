@@ -144,6 +144,30 @@ func reloadTelegram(attempt int) {
 	telegramBot = bot
 }
 
+func loopbackListeners(port string) ([]net.Listener, error) {
+	var listeners []net.Listener
+	var firstErr error
+
+	for _, host := range []string{"127.0.0.1", "[::1]"} {
+		listener, err := net.Listen("tcp", host+":"+port)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			slog.Warn("net.Listen",
+				slog.String("addr", host+":"+port),
+				slog.String("error", err.Error()))
+			continue
+		}
+		listeners = append(listeners, listener)
+	}
+
+	if len(listeners) == 0 {
+		return nil, firstErr
+	}
+	return listeners, nil
+}
+
 func cmdDaemon() {
 	installDaemonSlog()
 	tuiHash.New()
@@ -254,22 +278,24 @@ func cmdDaemon() {
 		Handler: route,
 	}
 
-	listener, err := net.Listen("tcp", server.Addr)
+	listeners, err := loopbackListeners(filesystem.Port)
 	if err != nil {
 		slog.Error("net.Listen",
-			slog.String("addr", server.Addr),
+			slog.String("port", filesystem.Port),
 			slog.String("error", err.Error()))
 		return
 	}
 
-	serveErr := make(chan error, 1)
-	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			serveErr <- err
-			return
-		}
-		serveErr <- nil
-	}()
+	serveErr := make(chan error, len(listeners))
+	for _, listener := range listeners {
+		go func(l net.Listener) {
+			if err := server.Serve(l); err != nil && err != http.ErrServerClosed {
+				serveErr <- err
+				return
+			}
+			serveErr <- nil
+		}(listener)
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

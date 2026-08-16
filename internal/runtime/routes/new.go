@@ -3,6 +3,7 @@ package routes
 import (
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -20,9 +21,8 @@ func New() *gin.Engine {
 
 	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
 
-	webuiProxy := handler.WebuiProxy()
-	r.Any("/webui", localhostOnly(), webuiProxy)
-	r.Any("/webui/*path", localhostOnly(), webuiProxy)
+	pageIndex := registPage(r)
+
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
 
@@ -126,7 +126,7 @@ func New() *gin.Engine {
 			}})
 			return
 		}
-		webuiProxy(c)
+		pageIndex(c)
 	})
 
 	return r
@@ -137,18 +137,33 @@ var allowedOrigins = map[string]bool{
 	"https://agenvoy-board.pardn.workers.dev": true,
 }
 
+func allowOrigin(origin string) bool {
+	if allowedOrigins[origin] {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	switch parsed.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
+}
+
 func cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if allowedOrigins[origin] {
+		if origin := c.GetHeader("Origin"); origin != "" && allowOrigin(origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Content-Type")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, "+completionsHandler.AgentHeader)
 			c.Header("Access-Control-Allow-Private-Network", "true")
-			if c.Request.Method == http.MethodOptions {
-				c.AbortWithStatus(http.StatusNoContent)
-				return
-			}
+		}
+		c.Header("Vary", "Origin")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
 		}
 		c.Next()
 	}
