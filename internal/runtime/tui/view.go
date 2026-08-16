@@ -145,6 +145,19 @@ func splitOptStyle(s string) (head, tail string) {
 	return s, ""
 }
 
+func renderPopupTabs(p *Popup) string {
+	cells := make([]string, len(p.tabs))
+	for i, tab := range p.tabs {
+		label := strings.TrimSuffix(tab, "-")
+		if i == p.tabIdx {
+			cells[i] = systemStyle.Render("[" + label + "]")
+			continue
+		}
+		cells[i] = hintStyle.Render(" " + label + " ")
+	}
+	return strings.Join(cells, " ")
+}
+
 func (t TUI) viewPopup() string {
 	width := t.width
 	if width < 20 {
@@ -160,6 +173,9 @@ func (t TUI) viewPopup() string {
 		body = append(body, textStyle.Render(p.subtitle))
 	}
 	body = append(body, p.styledLines...)
+	if len(p.tabs) > 1 {
+		body = append(body, "", "  "+renderPopupTabs(p))
+	}
 	diffWidth := max(width-6, 20)
 	for _, dl := range p.diffLines {
 		switch {
@@ -185,7 +201,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-10, 20)
+		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
@@ -209,7 +225,11 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+		if len(p.tabs) > 1 {
+			body = append(body, hintStyle.Render("↑/↓ select · ←/→ filter · enter confirm · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+		}
 
 	case popupMultiSelect:
 		total := len(p.options)
@@ -222,7 +242,7 @@ func (t TUI) viewPopup() string {
 		if windowed {
 			start, end = windowRange(p.cursor, total, visible)
 		}
-		maxLine := max(width-14, 20)
+		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			cursor := "  "
@@ -247,7 +267,11 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
-		body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		if len(p.tabs) > 1 {
+			body = append(body, hintStyle.Render("↑/↓ move · ←/→ filter · space toggle · enter confirm · esc cancel"))
+		} else {
+			body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+		}
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))

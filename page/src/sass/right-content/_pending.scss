@@ -1,0 +1,129 @@
+@mixin styles {
+  section.pending {
+    order: 2;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 1rem 0 1rem 2.5rem;
+    width: 100%;
+
+    @for $i from 1 through 10 {
+      &[data-index="#{$i - 1}"] > div:nth-child(#{$i}) {
+        display: flex;
+      }
+    }
+
+    div {
+      display: none;
+      flex-flow: column;
+      gap: 0.5rem;
+      padding: 1rem;
+      width: 100%;
+      background-color: #fff;
+      border-radius: 1.25rem;
+      border: 1px solid var(--gray-2);
+
+      strong {
+        font-size: small;
+        line-height: 1.5rem;
+      }
+      p {
+        font-size: small;
+        font-weight: 300;
+        line-height: 1.5rem;
+        color: var(--gray-3);
+        white-space: pre-wrap;
+      }
+
+      textarea,
+      input[type="text"],
+      input[type="password"] {
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        font: inherit;
+        font-size: small;
+        line-height: 1.5rem;
+        color: var(--ink);
+        background-color: var(--gray);
+        border: 1px solid transparent;
+        border-radius: 0.75rem;
+        resize: vertical;
+
+        &:focus {
+          outline: none;
+          border-color: var(--accent);
+          background-color: #fff;
+        }
+      }
+
+      label.option {
+        display: flex;
+        flex-flow: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        font-size: small;
+        line-height: 1.5rem;
+        border: 1px solid var(--gray-2);
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: 0.2s;
+
+        input {
+          margin: 0;
+          cursor: pointer;
+        }
+
+        @media (hover: hover) {
+          &:hover {
+            background-color: var(--gray-2);
+          }
+        }
+
+        &:has(input:checked) {
+          background-color: var(--gray-2);
+        }
+      }
+
+      footer {
+        display: flex;
+        flex-flow: row;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+
+        p {
+          flex-grow: 1;
+        }
+
+        button {
+          padding: 0.375rem 1rem;
+          font-size: small;
+          color: var(--gray-3);
+          background-color: transparent;
+          border: 1px solid var(--gray-2);
+          border-radius: 1rem;
+          cursor: pointer;
+          transition: 0.2s;
+
+          &.submit {
+            color: #fff;
+            background-color: var(--ink);
+            border-color: var(--ink);
+          }
+
+          &:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+          }
+        }
+
+        &:active button {
+          transform: scale(0.98);
+        }
+      }
+    }
+  }
+}

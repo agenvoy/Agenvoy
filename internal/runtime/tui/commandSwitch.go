@@ -105,9 +105,60 @@ func listSessions() []Session {
 		})
 	}
 	sort.Slice(results, func(i, j int) bool {
+		if a, b := sessionRank(results[i].id), sessionRank(results[j].id); a != b {
+			return a < b
+		}
 		return results[i].id < results[j].id
 	})
 	return results
+}
+
+func sessionRank(sessionID string) int {
+	switch sessionPrefix(sessionID) {
+	case "cli-":
+		return 0
+	case "tg-":
+		return 1
+	case "dc-":
+		return 2
+	case "chat-":
+		return 4
+	case "temp-":
+		return 5
+	default:
+		return 3
+	}
+}
+
+func sessionPrefix(sessionID string) string {
+	head, _, ok := strings.Cut(sessionID, "-")
+	if !ok {
+		return sessionID
+	}
+	return head + "-"
+}
+
+func sessionTabs(sessions []Session) []string {
+	seen := map[string]bool{}
+	prefixes := make([]string, 0, len(sessions))
+	for _, e := range sessions {
+		prefix := sessionPrefix(e.id)
+		if seen[prefix] {
+			continue
+		}
+		seen[prefix] = true
+		prefixes = append(prefixes, prefix)
+	}
+	sort.Slice(prefixes, func(i, j int) bool {
+		if a, b := sessionRank(prefixes[i]), sessionRank(prefixes[j]); a != b {
+			return a < b
+		}
+		return prefixes[i] < prefixes[j]
+	})
+	if len(prefixes) < 2 {
+		return nil
+	}
+	return append([]string{"all"}, prefixes...)
 }
 
 func popupSwitch(sid string) *Popup {
@@ -120,22 +171,48 @@ func popupSwitch(sid string) *Popup {
 		if sessions[j].id == sid && sessions[i].id != sid {
 			return false
 		}
-		return sessions[i].id < sessions[j].id
+		return false
 	})
 
-	shorts := make([]string, len(sessions))
+	popup := &Popup{
+		kind:       popupSingleSelect,
+		title:      "Switch session",
+		maxVisible: cmdSelectorMaxVisible,
+		tabs:       sessionTabs(sessions),
+	}
+	popup.onTab = func(p *Popup) {
+		fillSwitchOptions(p, sessions, sid)
+	}
+	popup.onTab(popup)
+	return popup
+}
+
+func fillSwitchOptions(p *Popup, sessions []Session, sid string) {
+	tab := ""
+	if p.tabIdx > 0 && p.tabIdx < len(p.tabs) {
+		tab = p.tabs[p.tabIdx]
+	}
+
+	list := make([]Session, 0, len(sessions))
+	for _, e := range sessions {
+		if tab == "" || strings.HasPrefix(e.id, tab) {
+			list = append(list, e)
+		}
+	}
+
+	shorts := make([]string, len(list))
 	sidMax := 0
-	for i, e := range sessions {
+	for i, e := range list {
 		shorts[i] = utils.ShortenSessionID(e.id)
 		if n := len(shorts[i]); n > sidMax {
 			sidMax = n
 		}
 	}
 
-	names := make([]string, 0, len(sessions)+1)
-	sids := make([]string, 0, len(sessions)+1)
+	names := make([]string, 0, len(list)+1)
+	sids := make([]string, 0, len(list)+1)
 	cursor := 0
-	for i, e := range sessions {
+	for i, e := range list {
 		padded := shorts[i]
 		if len(padded) < sidMax {
 			padded += strings.Repeat(" ", sidMax-len(padded))
@@ -155,12 +232,7 @@ func popupSwitch(sid string) *Popup {
 	names = append(names, "(new session)")
 	sids = append(sids, "")
 
-	return &Popup{
-		kind:       popupSingleSelect,
-		title:      "Switch session",
-		options:    names,
-		values:     sids,
-		cursor:     cursor,
-		maxVisible: cmdSelectorMaxVisible,
-	}
+	p.options = names
+	p.values = sids
+	p.cursor = cursor
 }

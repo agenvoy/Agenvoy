@@ -17,6 +17,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
@@ -53,7 +54,8 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 		return
 	}
 
-	interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
 }
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
@@ -203,22 +205,24 @@ func truncateWriteArgs(argsJSON string) string {
 		return argsJSON
 	}
 	const omitted = "[ARGUMENT ELIDED FROM HISTORY TO SAVE CONTEXT — NOT THE FILE'S CONTENT. The full text was sent and written to disk successfully. Do NOT re-write this file to restore it.]"
-	for _, field := range []string{"content", "old_string", "new_string"} {
-		if _, ok := m[field]; ok {
-			m[field] = omitted
-		}
-	}
+	const maxKeptAnchor = 2 << 10
+
+	dics := []map[string]any{m}
 	if targets, ok := m["targets"].([]any); ok {
 		for _, t := range targets {
-			tm, ok := t.(map[string]any)
-			if !ok {
-				continue
+			if tm, ok := t.(map[string]any); ok {
+				dics = append(dics, tm)
 			}
-			for _, field := range []string{"old_string", "new_string"} {
-				if _, ok := tm[field]; ok {
-					tm[field] = omitted
-				}
+		}
+	}
+	for _, dic := range dics {
+		for _, field := range []string{"content", "new_string"} {
+			if _, ok := dic[field]; ok {
+				dic[field] = omitted
 			}
+		}
+		if str, ok := dic["old_string"].(string); ok && len(str) > maxKeptAnchor {
+			dic["old_string"] = omitted
 		}
 	}
 	out, err := json.Marshal(m)

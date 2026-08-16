@@ -42,6 +42,9 @@ var eventTypeByName = map[string]EventType{
 	"EventUsageUpdate":     EventUsageUpdate,
 	"EventUserInjected":    EventUserInjected,
 	"EventCanceled":        EventCanceled,
+	"EventSuggest":         EventSuggest,
+	"EventPending":         EventPending,
+	"EventClientToolCall":  EventClientToolCall,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -83,6 +86,9 @@ const (
 	EventUserInjected
 	EventCanceled
 	EventTextDelta
+	EventSuggest
+	EventPending
+	EventClientToolCall
 )
 
 func (e EventType) String() string {
@@ -139,24 +145,32 @@ func (e EventType) String() string {
 		return "EventUserInjected"
 	case EventCanceled:
 		return "EventCanceled"
+	case EventSuggest:
+		return "EventSuggest"
+	case EventPending:
+		return "EventPending"
+	case EventClientToolCall:
+		return "EventClientToolCall"
 	default:
 		return "EventUnknown"
 	}
 }
 
 type Event struct {
-	Type     EventType       `json:"type"`
-	Source   string          `json:"source,omitempty"`
-	Text     string          `json:"text,omitempty"`
-	ToolName string          `json:"tool_name,omitempty"`
-	ToolArgs string          `json:"tool_args,omitempty"`
-	ToolID   string          `json:"tool_id,omitempty"`
-	Result   string          `json:"result,omitempty"`
-	Model    string          `json:"model,omitempty"`
-	Usage    *provider.Usage `json:"usage,omitempty"`
-	Duration time.Duration   `json:"duration,omitempty"`
-	Todos    []TodoItem      `json:"todos,omitempty"`
-	Err      error           `json:"-"`
+	Type            EventType           `json:"type"`
+	Source          string              `json:"source,omitempty"`
+	Text            string              `json:"text,omitempty"`
+	ToolName        string              `json:"tool_name,omitempty"`
+	ToolArgs        string              `json:"tool_args,omitempty"`
+	ToolID          string              `json:"tool_id,omitempty"`
+	Result          string              `json:"result,omitempty"`
+	Model           string              `json:"model,omitempty"`
+	Usage           *provider.Usage     `json:"usage,omitempty"`
+	Duration        time.Duration       `json:"duration,omitempty"`
+	Todos           []TodoItem          `json:"todos,omitempty"`
+	Suggests        []string            `json:"suggests,omitempty"`
+	ClientToolCalls []provider.ToolCall `json:"client_tool_calls,omitempty"`
+	Err             error               `json:"-"`
 }
 
 func ErrorEvent(err error) Event {

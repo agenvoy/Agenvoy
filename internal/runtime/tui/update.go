@@ -197,7 +197,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			raw := t.textarea.Value()
-			// * content is trimmed for dispatch decisions only; raw reaches the agent verbatim
 			content := strings.TrimSpace(raw)
 			if content == "" {
 				return t, nil
@@ -242,8 +241,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
-		// * a turn that ends without EventDone (ask_user popup, panic, abandoned tool) leaves the
-		// * live area populated; clear it here so the next turn cannot resurrect finished rows
 		t.toolBuf, t.toolCount = nil, 0
 		t.subCount, t.subActive = 0, 0
 		t.subBuf, t.subOrder = nil, nil
@@ -997,38 +994,38 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
 
 	case KuradbAction:
+		sid := strings.TrimSpace(t.currentSessionID)
 		switch msg.action {
-		case "enable":
-			if strings.TrimSpace(keychain.Get("OPENAI_API_KEY")) == "" {
-				next, cmd := t.openKuradbKeyPrompt()
-				return next, cmd
-			}
+		case "setup":
 			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb installing")+"\n"),
-				runKuradbEnableExec(),
-			)
-		case "disable":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb removing")+"\n"),
-				runKuradbDisableExec(),
+				tea.Println(hintStyle.Render("⎯ kuradb setup")+"\n"),
+				runKuradbSetup(sid),
 			)
 		case "update":
 			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb updating")+"\n"),
-				runKuradbUpdateExec(),
+				tea.Println(hintStyle.Render("⎯ kuradb updating · rebuild + reconnect")+"\n"),
+				runKuradbUpdate(sid),
 			)
-		case "start":
+		case "reconnect":
 			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb starting")+"\n"),
-				startKuradb(),
-			)
-		case "stop":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb stopping")+"\n"),
-				stopKuradb(),
+				tea.Println(hintStyle.Render("⎯ kuradb reconnecting")+"\n"),
+				runKuradbReconnect(sid),
 			)
 		}
 		return t, nil
+
+	case KuradbDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb %s: %v", msg.action, msg.err)) + "\n")
+		}
+		name, _ := kuradb.Registered()
+		switch msg.action {
+		case "update":
+			return t, tea.Println(hintStyle.Render("⎯ kuradb updated · "+name+" connected") + "\n")
+		case "reconnect":
+			return t, tea.Println(hintStyle.Render("⎯ kuradb reconnected · "+name) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render("⎯ kuradb registered · "+name+" connected") + "\n")
 
 	case WebuiAction:
 		progress, ok := map[string]string{
@@ -1057,25 +1054,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(hintStyle.Render("⎯ webui stopped · still deployed") + "\n")
 		}
 		return t, tea.Println(hintStyle.Render("⎯ webui disabled · container and volume removed") + "\n")
-
-	case KuradbKeySubmit:
-		token := strings.TrimSpace(msg.token)
-		if token == "" {
-			return t, tea.Println(errorStyle.Render("[!] kuradb enable: OPENAI_API_KEY is required") + "\n")
-		}
-		if err := keychain.Set("OPENAI_API_KEY", token); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb keychain.Set: %v", err)) + "\n")
-		}
-		if err := kuradb.SyncOpenAIKey(token); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb SyncOpenAIKey: %v", err)) + "\n")
-		}
-		if err := config.SaveKey("OPENAI_API_KEY"); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb session.SaveKey: %v", err)) + "\n")
-		}
-		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ kuradb installing")+"\n"),
-			runKuradbEnableExec(),
-		)
 
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
@@ -1108,28 +1086,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err := keychain.Set(msg.key, msg.value); err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set %s: %v", msg.key, err)) + "\n")
 		}
-		if msg.key == "OPENAI_API_KEY" {
-			if err := kuradb.SyncOpenAIKey(msg.value); err != nil {
-				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb SyncOpenAIKey: %v", err)) + "\n")
-			}
-		}
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s updated", msg.key)) + "\n")
-
-	case KuradbDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb %s: %v", msg.action, msg.err)) + "\n")
-		}
-		switch msg.action {
-		case "start":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb started") + "\n")
-		case "stop":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb stopped") + "\n")
-		}
-		hint := fmt.Sprintf("⎯ kuradb %sd · daemon reloading", msg.action)
-		if msg.action == "enable" {
-			hint += " · restart agen to load RAG tools"
-		}
-		return t, tea.Println(hintStyle.Render(hint) + "\n")
 
 	case DispatcherSelect:
 		next, cmd := t.runDispatcherSelect(msg.name)
@@ -1252,7 +1209,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// * a dropped file arrives as a paste; quote it before the textarea sees it so spaces survive as one path
 	if key, ok := msg.(tea.KeyMsg); ok && key.Paste {
 		if quoted, ok := quoteDroppedPaths(string(key.Runes)); ok {
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(quoted), Paste: true}

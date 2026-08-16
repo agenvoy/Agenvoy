@@ -27,6 +27,9 @@ var SummaryPrompt string
 //go:embed prompts/summary_context.md
 var SummaryContext string
 
+//go:embed prompts/followup.md
+var FollowupPrompt string
+
 //go:embed prompts/system_prompt/system_prompt.md
 var SystemPrompt string
 
@@ -44,6 +47,9 @@ var PermissionSingleConfirm string
 
 //go:embed prompts/system_prompt/subagent_charter.md
 var SubagentCharter string
+
+//go:embed prompts/system_prompt/wsl_host.md
+var WSLHost string
 
 // * Prompts > systemPrompt > Chatbot
 

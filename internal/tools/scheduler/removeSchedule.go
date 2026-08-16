@@ -8,6 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -31,7 +32,7 @@ func registRemoveSchedule() {
 			},
 			"required": []string{"target", "skill_name"},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Target    string `json:"target"`
 				SkillName string `json:"skill_name"`
@@ -65,7 +66,7 @@ func registRemoveSchedule() {
 			if removed == 0 {
 				return fmt.Sprintf("no %s found for skill %q", kind, skillName), nil
 			}
-			if err := skill.TrashSchedule(ctx, skillName); err != nil {
+			if err := skill.TrashSchedule(ctx, skillName, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask}); err != nil {
 				return "", fmt.Errorf("TrashScheduleSkill: %w", err)
 			}
 			return fmt.Sprintf("removed %d %s(s) for skill %q and moved skill to .Trash", removed, kind, skillName), nil

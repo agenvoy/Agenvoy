@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -25,8 +24,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
-	kuradbTool "github.com/pardnchiu/agenvoy/internal/runtime/kuradb/tool"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/line"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
@@ -37,7 +35,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
@@ -63,10 +60,6 @@ var (
 	lastLineEnabled bool
 	lastLineSecret  string
 	lastLineToken   string
-
-	kuradbMu          sync.Mutex
-	kuradbCancel      context.CancelFunc
-	lastKuradbEnabled bool
 )
 
 func reloadDiscord(attempt int) {
@@ -194,51 +187,28 @@ func reloadLine() {
 	lineBot = bot
 }
 
-func reloadKuradb() {
-	newEnabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		newEnabled = cfg.KuradbEnabled
-	}
+func loopbackListeners(port string) ([]net.Listener, error) {
+	var listeners []net.Listener
+	var firstErr error
 
-	kuradbMu.Lock()
-	defer kuradbMu.Unlock()
-
-	if newEnabled == lastKuradbEnabled {
-		return
-	}
-
-	if kuradbCancel != nil {
-		kuradbCancel()
-		kuradbCancel = nil
-	}
-	lastKuradbEnabled = newEnabled
-
-	openaiKey := strings.TrimSpace(keychain.Get("OPENAI_API_KEY"))
-	if !newEnabled || !kuradb.IsInstalled() || openaiKey == "" {
-		return
-	}
-
-	kuradb.SyncOpenAIKey(openaiKey)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	kuradbCancel = cancel
-
-	go kuradb.Health(ctx, disableKuradb)
-}
-
-func disableKuradb() {
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		cfg.KuradbEnabled = false
-		if err := config.Save(cfg); err != nil {
-			slog.Warn("session.Save",
+	for _, host := range []string{"127.0.0.1", "[::1]"} {
+		listener, err := net.Listen("tcp", host+":"+port)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			slog.Warn("net.Listen",
+				slog.String("addr", host+":"+port),
 				slog.String("error", err.Error()))
+			continue
 		}
+		listeners = append(listeners, listener)
 	}
-	if err := kuradb.Remove(); err != nil {
-		slog.Warn("kuradb.Remove",
-			slog.String("error", err.Error()))
+
+	if len(listeners) == 0 {
+		return nil, firstErr
 	}
-	reloadKuradb()
+	return listeners, nil
 }
 
 func cmdDaemon() {
@@ -273,15 +243,21 @@ func cmdDaemon() {
 	}
 	defer torii.Close()
 
-	if err := historyStore.New(filesystem.HistoryDBPath); err != nil {
-		slog.Warn("historyStore New",
+	if err := filesystem.OpenDB(); err != nil {
+		slog.Error("filesystem.OpenDB",
+			slog.String("error", err.Error()))
+		return
+	}
+	defer filesystem.CloseDB()
+
+	if err := historyStore.New(); err != nil {
+		slog.Warn("historyStore.New",
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()
 
 	geminiStt.Register()
 	chatbotTool.Register()
-	kuradbTool.Register()
 
 	if _, err := runtime.Init(); err != nil {
 		if errors.Is(err, runtime.ErrAlreadyRunning) {
@@ -338,7 +314,6 @@ func cmdDaemon() {
 	reloadDiscord(0)
 	reloadTelegram(0)
 	reloadLine()
-	reloadKuradb()
 	monitor.Start(context.Background())
 
 	route := routes.New()
@@ -347,22 +322,24 @@ func cmdDaemon() {
 		Handler: route,
 	}
 
-	listener, err := net.Listen("tcp", server.Addr)
+	listeners, err := loopbackListeners(filesystem.Port)
 	if err != nil {
 		slog.Error("net.Listen",
-			slog.String("addr", server.Addr),
+			slog.String("port", filesystem.Port),
 			slog.String("error", err.Error()))
 		return
 	}
 
-	serveErr := make(chan error, 1)
-	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			serveErr <- err
-			return
-		}
-		serveErr <- nil
-	}()
+	serveErr := make(chan error, len(listeners))
+	for _, listener := range listeners {
+		go func(l net.Listener) {
+			if err := server.Serve(l); err != nil && err != http.ErrServerClosed {
+				serveErr <- err
+				return
+			}
+			serveErr <- nil
+		}(listener)
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -394,12 +371,6 @@ func cmdDaemon() {
 		lineBot = nil
 	}
 	lineMu.Unlock()
-	kuradbMu.Lock()
-	if kuradbCancel != nil {
-		kuradbCancel()
-		kuradbCancel = nil
-	}
-	kuradbMu.Unlock()
 	if server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_ = server.Shutdown(ctx)
@@ -459,7 +430,6 @@ func watchConfig(ctx context.Context) func() {
 				reloadDiscord(0)
 				reloadTelegram(0)
 				reloadLine()
-				reloadKuradb()
 			case err, ok := <-w.Errors:
 				if !ok {
 					return

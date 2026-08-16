@@ -1,11 +1,16 @@
 package variant
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
@@ -16,6 +21,39 @@ func Register() {
 	registWriteSkill()
 	registPatchSkill()
 	registRemoveSkill()
+}
+
+func capture(path string) historyStore.Change {
+	change, err := historyStore.Capture(path)
+	if err != nil {
+		slog.Warn("historyStore.Capture",
+			slog.String("path", path),
+			slog.String("error", err.Error()))
+	}
+	return change
+}
+
+func record(ctx context.Context, e *toolTypes.Executor, change historyStore.Change, created, tool string) {
+	if err := historyStore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
+		slog.Warn("historyStore.Record",
+			slog.String("tool", tool),
+			slog.String("error", err.Error()))
+	}
+}
+
+func recordRemoval(ctx context.Context, e *toolTypes.Executor, path, trashPath, tool string) {
+	if err := historyStore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
+		slog.Warn("historyStore.RecordDelete",
+			slog.String("path", path),
+			slog.String("error", err.Error()))
+	}
+}
+
+func metaOf(e *toolTypes.Executor, tool string) historyStore.Meta {
+	if e == nil {
+		return historyStore.Meta{Tool: tool}
+	}
+	return historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}
 }
 
 func patch(path, old, new string, replaceAll bool) error {

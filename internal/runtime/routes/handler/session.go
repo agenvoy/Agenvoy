@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -13,12 +15,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	historyStore "github.com/pardnchiu/agenvoy/internal/session/history/store"
 )
 
 type SessionInfo struct {
@@ -40,7 +42,12 @@ func ListSessions() gin.HandlerFunc {
 			return
 		}
 
-		list := make([]SessionInfo, 0, len(dirs))
+		type entry struct {
+			info     SessionInfo
+			activeAt time.Time
+		}
+
+		entries := make([]entry, 0, len(dirs))
 		for _, dir := range dirs {
 			sid := dir.Name
 			if strings.HasPrefix(sid, ".") || sid == "jarvis" {
@@ -71,18 +78,40 @@ func ListSessions() gin.HandlerFunc {
 				status.Active = []configStatus.Task{}
 			}
 
-			list = append(list, SessionInfo{
-				ID:      sid,
-				Name:    name,
-				State:   status.State,
-				Model:   model,
-				Active:  status.Active,
-				EndedAt: status.EndedAt,
+			entries = append(entries, entry{
+				info: SessionInfo{
+					ID:      sid,
+					Name:    name,
+					State:   status.State,
+					Model:   model,
+					Active:  status.Active,
+					EndedAt: status.EndedAt,
+				},
+				activeAt: lastActiveAt(sid),
 			})
+		}
+
+		slices.SortStableFunc(entries, func(a, b entry) int {
+			return b.activeAt.Compare(a.activeAt)
+		})
+
+		list := make([]SessionInfo, 0, len(entries))
+		for _, e := range entries {
+			list = append(list, e.info)
 		}
 
 		c.JSON(http.StatusOK, gin.H{"sessions": list})
 	}
+}
+
+func lastActiveAt(sessionID string) time.Time {
+	if info, err := os.Stat(filesystem.ActionLogPath(sessionID)); err == nil {
+		return info.ModTime()
+	}
+	if info, err := os.Stat(filesystem.SessionDir(sessionID)); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
 }
 
 func CreateSession() gin.HandlerFunc {

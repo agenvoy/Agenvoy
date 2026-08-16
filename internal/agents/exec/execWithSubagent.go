@@ -229,7 +229,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			slog.Warn("subagent partial output discarded",
 				slog.String("session", sessionID),
 				slog.String("model", agent.Name()),
-				slog.String("output", go_pkg_utils.TruncateString(str, 2000)))
+				slog.String("output", go_pkg_utils.TruncateString(str, 2048)))
 		}
 		return "", fmt.Errorf("subagent %s failed: %w.%s", agent.Name(), err, retryHint)
 	}

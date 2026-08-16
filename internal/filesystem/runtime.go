@@ -13,8 +13,6 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 )
 
-// * Runtime limits, loaded once from ~/.config/agenvoy/config.json `limits` section.
-// * Defaults below are the only fallback; env vars are no longer read.
 var (
 	LinePort              = "16722"
 	MaxToolIterations     = 128

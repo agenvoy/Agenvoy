@@ -47,8 +47,6 @@ func (h *tuiSlogHandler) Handle(_ context.Context, r slog.Record) error {
 		entry.Attrs = append(entry.Attrs, a)
 		return true
 	})
-	// * async send: handler may be invoked from bubbletea event loop (Update path)
-	// * synchronous prog.Send would block on msgs channel and deadlock the loop
 	go send(entry)
 	return nil
 }

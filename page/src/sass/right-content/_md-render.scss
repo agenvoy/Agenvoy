@@ -1,10 +1,14 @@
 @mixin styles {
   .md-render {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding-bottom: 0.25rem;
+    overflow-wrap: anywhere;
 
     * {
       width: 100%;
+      max-width: 100%;
       color: var(--text-color);
     }
 
@@ -58,13 +62,13 @@
       margin: 4px 0;
       padding: 2px 0 2px 10px;
       border-left: 3px solid var(--accent);
-      color: var(--mute);
+      color: var(--gray-3);
     }
 
     hr {
       border: none;
-      border-top: 1px solid var(--line);
-      margin: 10px 0;
+      border-top: 1px solid var(--gray-2);
+      margin: 1rem 0 1.5rem;
     }
 
     .md-link {
@@ -93,13 +97,16 @@
       border-collapse: collapse;
       white-space: normal;
       width: max-content;
+      min-width: 100%;
       max-width: none;
       font-family: inherit;
       font-size: inherit;
 
       th,
       td {
-        border: 1px solid var(--line);
+        width: auto;
+        max-width: none;
+        border: 1px solid var(--gray-2);
         padding: 3px 10px;
         text-align: left;
         color: var(--ink);
@@ -110,7 +117,7 @@
       }
 
       tbody tr:nth-child(2n-1) {
-        background: var(--surface);
+        background: var(--gray);
       }
     }
 
@@ -139,8 +146,8 @@
       display: block;
       margin: 6px 0;
       padding: 8px 12px;
-      background: var(--surface-2);
-      border: 1px solid var(--line);
+      background: var(--gray);
+      border: 1px solid var(--gray-2);
       border-radius: 6px;
       overflow-x: auto;
       white-space: pre;
@@ -157,12 +164,44 @@
     }
 
     code {
-      background: var(--surface-2);
-      border: 1px solid var(--line);
+      background: var(--gray);
+      border: 1px solid var(--gray-2);
       border-radius: 3px;
       padding: 1px 4px;
       font-family: "JetBrains Mono", monospace;
       font-size: 0.92em;
+    }
+  }
+
+  details .md-render {
+    font-size: 14px;
+
+    .md-h1 {
+      font-size: 22px;
+    }
+
+    .md-h2 {
+      font-size: 16px;
+    }
+
+    .md-h3 {
+      font-size: 14px;
+    }
+
+    .md-h4 {
+      font-size: 11px;
+    }
+
+    .md-h5 {
+      font-size: 8px;
+    }
+
+    .md-h6 {
+      font-size: 7px;
+    }
+
+    pre.md-code {
+      font-size: 11px;
     }
   }
 }

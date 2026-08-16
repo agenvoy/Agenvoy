@@ -4,13 +4,57 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
-var steerMap sync.Map
+var (
+	steerMap   sync.Map
+	runningMap sync.Map
+	runningMu  sync.Mutex
+)
 
 type steerEntry struct {
 	mu   sync.Mutex
 	list []string
+}
+
+type runningEntry struct {
+	count int
+}
+
+func markRunning(sessionID string) func() {
+	if sessionID == "" {
+		return func() {}
+	}
+	v, _ := runningMap.LoadOrStore(sessionID, &runningEntry{})
+	e := v.(*runningEntry)
+	runningMu.Lock()
+	e.count++
+	runningMu.Unlock()
+
+	return func() {
+		runningMu.Lock()
+		e.count--
+		done := e.count <= 0
+		runningMu.Unlock()
+		if done {
+			runningMap.Delete(sessionID)
+		}
+	}
+}
+
+func IsRunning(sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	v, ok := runningMap.Load(sessionID)
+	if !ok {
+		return false
+	}
+	runningMu.Lock()
+	defer runningMu.Unlock()
+	return v.(*runningEntry).count > 0
 }
 
 func AppendSteer(sessionID, text string) {
@@ -19,6 +63,7 @@ func AppendSteer(sessionID, text string) {
 	e.mu.Lock()
 	e.list = append(e.list, text)
 	e.mu.Unlock()
+	sessionLog.Steer(sessionID, text)
 }
 
 func getSteer(sessionID string) []string {

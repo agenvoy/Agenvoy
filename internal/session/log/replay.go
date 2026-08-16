@@ -48,7 +48,7 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 	body := strings.ReplaceAll(m[4], ActionNewlineMarker, "\n")
 
 	switch kind {
-	case "user":
+	case "user", "steer":
 		body = metaWrapRegex.ReplaceAllString(body, "")
 		if strings.Contains(body, "[Resumed Task") {
 			return agentTypes.Event{}, false

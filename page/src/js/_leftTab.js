@@ -1,35 +1,25 @@
-const LeftTab = {
-  "New Chat": {
-    icon: "add_comment",
-    href: GetLink({ page: "chat" }),
-  },
-  Nodes: {
-    icon: "note_stack",
-    href: GetLink({ page: "features", tab: "Nodes" }),
-  },
-  Skills: {
-    icon: "docs",
-    href: GetLink({ page: "features", tab: "Skills" }),
-  },
-  Schedule: {
-    icon: "schedule",
-    href: GetLink({ page: "features", tab: "Schedule" }),
-  },
-  Features: {
-    icon: "stacks",
-    href: GetLink({ page: "features", tab: "Rules" }),
-  },
-};
-
-const Feature = {
+const feature = {
   Rules: "deployed_code_account",
   Knowledge: "book_2",
-  Notes: "note_stack",
-  Skills: "docs",
-  Schedule: "schedule",
+  // Skills: "lightbulb_2",
+  // Schedule: "schedule",
 };
 
-function GetLink(params) {
+const leftTab = {
+  "New Chat": {
+    icon: "add_comment",
+    href: getLink({ page: "chat" }),
+  },
+};
+
+for (const name of Object.keys(feature)) {
+  leftTab[name] = {
+    icon: feature[name],
+    href: getLink({ page: "features", tab: name }),
+  };
+}
+
+function getLink(params) {
   let path = "?";
   if (params.page) {
     path += `page=${params.page}`;

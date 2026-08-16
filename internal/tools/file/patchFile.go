@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -55,7 +57,7 @@ really contains rather than what it is assumed to contain.`,
 							},
 							"insert_string": map[string]any{
 								"type":        "string",
-								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string/new_string.",
+								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string.",
 							},
 							"row": map[string]any{
 								"type":        "integer",
@@ -120,6 +122,7 @@ really contains rather than what it is assumed to contain.`,
 				}
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
 			}
+			change := historyStore.CaptureContent(absPath, content)
 
 			order := make([]int, len(params.Targets))
 			for i := range order {
@@ -133,12 +136,16 @@ really contains rather than what it is assumed to contain.`,
 				return ra > 0 && rb == 0
 			})
 
+			before := content
 			for _, i := range order {
 				updated, err := applyTarget(content, params.Targets[i], absPath)
 				if err != nil {
 					return "", fmt.Errorf("targets[%d]: %w", i, err)
 				}
 				content = updated
+			}
+			if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
+				return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
 			}
 
 			if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
@@ -149,8 +156,15 @@ really contains rather than what it is assumed to contain.`,
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, false)
-			return fmt.Sprintf("successfully updated %s", absPath), nil
+			var unrecorded string
+			if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "patch_file"}); err != nil {
+				slog.Warn("historyStore.Record",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
+			}
+
+			return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
 		},
 	})
 }
@@ -166,8 +180,8 @@ type patchTarget struct {
 func applyTarget(content string, target patchTarget, absPath string) (string, error) {
 	switch {
 	case target.InsertString != "":
-		if target.OldString != "" || target.NewString != "" {
-			return "", fmt.Errorf("insert_string cannot be combined with old_string/new_string")
+		if target.OldString != "" {
+			return "", fmt.Errorf("insert_string cannot be combined with old_string")
 		}
 		if target.Row <= 0 {
 			return "", fmt.Errorf("row is required when insert_string is set")
@@ -181,7 +195,7 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 			return "", fmt.Errorf("no edit needed")
 		}
 		if !strings.Contains(content, old) {
-			return "", fmt.Errorf("%s is not found in %s", old, absPath)
+			return "", anchorNotFound(content, old, absPath)
 		}
 
 		search := old
@@ -195,8 +209,8 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 		case target.Row > 0:
 			return replaceAtRow(content, search, new, target.Row)
 		default:
-			if n := strings.Count(content, search); n > 1 {
-				return "", fmt.Errorf("%s occurs %d times in %s; set replace_all or specify row to disambiguate", old, n, absPath)
+			if rows := rowsOf(content, search); len(rows) > 1 {
+				return "", fmt.Errorf("%s occurs on rows %v of %s; set row to one of them or replace_all", old, rows, absPath)
 			}
 			return strings.Replace(content, search, new, 1), nil
 		}
@@ -204,6 +218,34 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 	default:
 		return "", fmt.Errorf("either old_string or insert_string is required")
 	}
+}
+
+func anchorNotFound(content, old, absPath string) error {
+	head := ""
+	for line := range strings.SplitSeq(old, "\n") {
+		if strings.TrimSpace(line) != "" {
+			head = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	lines := strings.Split(content, "\n")
+	var near []string
+	if head != "" {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == head || strings.Contains(line, head) {
+				near = append(near, fmt.Sprintf("row %d is %q", i+1, line))
+				if len(near) == 5 {
+					break
+				}
+			}
+		}
+	}
+
+	if len(near) == 0 {
+		return fmt.Errorf("%q is not found in %s and nothing there resembles it; the file holds %d lines — re-read it and build the anchor from its current bytes", old, absPath, len(lines))
+	}
+	return fmt.Errorf("%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
 }
 
 func replaceAtRow(content, search, new string, row int) (string, error) {
@@ -220,7 +262,20 @@ func replaceAtRow(content, search, new string, row int) (string, error) {
 		}
 		idx = pos + 1
 	}
-	return "", fmt.Errorf("no match for %q at row %d", search, row)
+	return "", fmt.Errorf("no match for %q at row %d; it is on rows %v", search, row, rowsOf(content, search))
+}
+
+func rowsOf(content, search string) []int {
+	var rows []int
+	for idx := 0; ; {
+		i := strings.Index(content[idx:], search)
+		if i < 0 {
+			return rows
+		}
+		pos := idx + i
+		rows = append(rows, strings.Count(content[:pos], "\n")+1)
+		idx = pos + 1
+	}
 }
 
 func insertAtRow(content, insert string, row int) (string, error) {
@@ -232,6 +287,9 @@ func insertAtRow(content, insert string, row int) (string, error) {
 	if row < 1 || row > lineCount+1 {
 		return "", fmt.Errorf("row %d out of range (file has %d lines)", row, lineCount)
 	}
+
+	insert = strings.TrimSuffix(insert, "\n")
+	insert = strings.TrimSuffix(insert, "\r")
 
 	idx := row - 1
 	out := make([]string, 0, len(lines)+1)

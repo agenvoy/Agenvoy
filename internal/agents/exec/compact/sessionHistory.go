@@ -155,7 +155,7 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []s
 		ex := exchanges[i]
 		fmt.Fprintf(&sb, "=== Exchange %d ===\n", i)
 		for _, msg := range messages[ex.start:ex.end] {
-			fmt.Fprintf(&sb, "[%s] %s\n", msg.Role, go_pkg_utils.TruncateString(msg.Text(), 500))
+			fmt.Fprintf(&sb, "[%s] %s\n", msg.Role, go_pkg_utils.TruncateString(msg.Text(), 512))
 		}
 		sb.WriteString("\n")
 	}

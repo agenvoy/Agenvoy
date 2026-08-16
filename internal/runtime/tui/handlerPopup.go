@@ -44,6 +44,10 @@ type Popup struct {
 	multi      map[int]bool
 	maxVisible int
 
+	tabs   []string
+	tabIdx int
+	onTab  func(p *Popup)
+
 	input          textarea.Model
 	multiline      bool
 	skipWithReason bool
@@ -159,16 +163,8 @@ func linuxOpenCommand(link string) *exec.Cmd {
 	return nil
 }
 
-func isWSL() bool {
-	raw, err := os.ReadFile("/proc/version")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(raw)), "microsoft")
-}
-
 func wslBrowserPath() string {
-	if !isWSL() {
+	if !utils.IsWSL() {
 		return ""
 	}
 	candidates := []string{
@@ -234,6 +230,12 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyDown:
 		p.cursor = (p.cursor + 1) % len(p.options)
 
+	case tea.KeyLeft:
+		p.switchTab(-1)
+
+	case tea.KeyRight:
+		p.switchTab(1)
+
 	case tea.KeyEsc:
 		if p.pendingId == "" {
 			t = t.closePopup()
@@ -271,6 +273,14 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return t, nil
 }
 
+func (p *Popup) switchTab(step int) {
+	if len(p.tabs) < 2 || p.onTab == nil {
+		return
+	}
+	p.tabIdx = (p.tabIdx + step + len(p.tabs)) % len(p.tabs)
+	p.onTab(p)
+}
+
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
 	switch msg.Type {
@@ -279,6 +289,12 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyDown:
 		p.cursor = (p.cursor + 1) % len(p.options)
+
+	case tea.KeyLeft:
+		p.switchTab(-1)
+
+	case tea.KeyRight:
+		p.switchTab(1)
 
 	case tea.KeySpace:
 		p.multi[p.cursor] = !p.multi[p.cursor]

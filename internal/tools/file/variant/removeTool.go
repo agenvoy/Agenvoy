@@ -19,7 +19,7 @@ func registRemoveTool() {
 		Name: "remove_tool",
 		Description: `
 Move a script tool directory to ~/.config/agenvoy/tools/script/.Trash/.
-Use when a tool is obsolete or must be rebuilt; recoverable via restore_revision.`,
+Use when a tool is obsolete or must be rebuilt; the directory is kept in .Trash.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -48,12 +48,12 @@ Use when a tool is obsolete or must be rebuilt; recoverable via restore_revision
 				return "", fmt.Errorf("tool %q does not exist", name)
 			}
 
-			_, err := filesystem.TrashDir(dir, filesystem.ScriptToolTrashDir, name)
+			trashPath, err := filesystem.TrashDir(dir, filesystem.ScriptToolTrashDir, name)
 			if err != nil {
 				return "", err
 			}
+			recordRemoval(ctx, e, dir, trashPath, "remove_tool")
 
-			filesystem.GitAutoCommit(ctx, filesystem.GitTools, "trash", name)
 			return fmt.Sprintf("trashed: %s", dir), nil
 		},
 	})

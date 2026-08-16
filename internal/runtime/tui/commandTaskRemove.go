@@ -8,6 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 )
 
 type TaskRemoveSelect struct {
@@ -71,7 +72,7 @@ func (t TUI) runTaskRemove(skillName string) (TUI, tea.Cmd) {
 	if removed == 0 {
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ no task found for %s", skillName)) + "\n")
 	}
-	if err := skill.TrashSchedule(context.Background(), skillName); err != nil {
+	if err := skill.TrashSchedule(context.Background(), skillName, historyStore.Meta{SessionID: t.currentSessionID}); err != nil {
 		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] TrashScheduleSkill: %v", err)) + "\n")
 	}
 	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ removed task: %s · skill trashed", skillName)) + "\n")

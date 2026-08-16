@@ -143,6 +143,6 @@ func PutFile() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"sha256": sum})
+		c.JSON(http.StatusOK, gin.H{"sha256": sum, "path": absPath})
 	}
 }

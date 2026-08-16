@@ -136,10 +136,6 @@ type autoSubmit struct {
 	input string
 }
 
-// chainSingleShotSubmit appends an autoSubmit emit to the cmd returned by a
-// session-pick handler. Single-shot suppresses the picker's own ClearScreen +
-// header reprint (so `prior` is usually nil), but we still tea.Sequence to be
-// safe in case future picker paths add silent housekeeping cmds.
 func chainSingleShotSubmit(prior tea.Cmd, input string) tea.Cmd {
 	submit := func() tea.Msg { return autoSubmit{input: strings.TrimSpace(input)} }
 	if prior == nil {

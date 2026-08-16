@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	goRuntime "runtime"
 	"slices"
 	"strings"
 
@@ -31,8 +30,6 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 	return prompts
 }
 
-// * the channel prompt carries the rules that apply every turn; {{.ChatbotFormat}} is where its platform's full
-// * formatting reference lands, so a tg-/dc- session never has to fetch it before it can answer correctly.
 func channelSystemPrompt(sessionID string) string {
 	var template, format string
 	switch {
@@ -68,7 +65,7 @@ func mcpInstructionsSection() string {
 }
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) string {
-	systemOS := goRuntime.GOOS
+	systemOS := host().os
 	var extraSection string
 	if extra := strings.TrimSpace(extraSystemPrompt); extra != "" {
 		extraSection = "---\n\n## Additional Instructions\n\n" + extra + "\n\n---\n\n"
@@ -108,6 +105,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	return strings.NewReplacer(
 		"{{.SystemOS}}", systemOS,
 		"{{.WorkPath}}", workDir,
+		"{{.HostNote}}", hostNoteSection(),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
@@ -132,14 +130,19 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	}
 
 	return strings.NewReplacer(
-		"{{.SystemOS}}", goRuntime.GOOS,
+		"{{.SystemOS}}", host().os,
 		"{{.WorkPath}}", workDir,
+		"{{.HostNote}}", hostNoteSection(),
 		"{{.AvailableSkills}}", skillsSection,
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
 func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []provider.Message {
-	return []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+	if section := mcpInstructionsSection(); section != "" {
+		prompts = append(prompts, provider.Message{Role: "system", Content: section})
+	}
+	return prompts
 }
 
 func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) string {

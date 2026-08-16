@@ -3,6 +3,7 @@ package routes
 import (
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -20,9 +21,8 @@ func New() *gin.Engine {
 
 	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
 
-	webuiProxy := handler.WebuiProxy()
-	r.Any("/webui", localhostOnly(), webuiProxy)
-	r.Any("/webui/*path", localhostOnly(), webuiProxy)
+	pageIndex := registPage(r)
+
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
 
@@ -62,6 +62,8 @@ func New() *gin.Engine {
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
 	r.GET("/v1/file/open", localhostOnly(), handler.OpenFile())
+	r.GET("/v1/file/locate", localhostOnly(), handler.LocateFile())
+	r.GET("/v1/workdir", localhostOnly(), handler.CheckWorkDir())
 
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 	r.DELETE("/v1/key", localhostOnly(), handler.DeleteKey())
@@ -81,6 +83,20 @@ func New() *gin.Engine {
 	r.GET("/v1/mcp/health", localhostOnly(), handler.McpHealth())
 	r.POST("/v1/mcp/reconnect", localhostOnly(), handler.McpReconnect())
 
+	r.GET("/v1/rules", localhostOnly(), handler.ListRules())
+	r.GET("/v1/rule/*name", localhostOnly(), handler.GetRule())
+	r.POST("/v1/rule", localhostOnly(), handler.CreateRule())
+	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRule())
+	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRule())
+
+	r.GET("/v1/knowledges", localhostOnly(), handler.ListKnowledges())
+	r.GET("/v1/knowledge/*name", localhostOnly(), handler.GetKnowledge())
+	r.POST("/v1/knowledge", localhostOnly(), handler.CreateKnowledge())
+	r.PATCH("/v1/knowledge", localhostOnly(), handler.UpdateKnowledge())
+	r.DELETE("/v1/knowledge", localhostOnly(), handler.DeleteKnowledge())
+
+	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
+
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 
 	r.GET("/v1/cron", localhostOnly(), handler.ListCrons())
@@ -90,9 +106,6 @@ func New() *gin.Engine {
 	r.GET("/v1/task", localhostOnly(), handler.ListTasks())
 	r.DELETE("/v1/task", localhostOnly(), handler.DeleteTask())
 	r.POST("/v1/task/run", localhostOnly(), handler.RunTask())
-
-	r.GET("/v1/kuradb", localhostOnly(), handler.GetKuradbSetting())
-	r.POST("/v1/kuradb", localhostOnly(), handler.SetKuradbSetting())
 
 	r.GET("/v1/allowlist/cmd", localhostOnly(), handler.ListAllowCmd())
 	r.POST("/v1/allowlist/cmd", localhostOnly(), handler.AddAllowCmd())
@@ -113,7 +126,7 @@ func New() *gin.Engine {
 			}})
 			return
 		}
-		webuiProxy(c)
+		pageIndex(c)
 	})
 
 	return r
@@ -124,18 +137,33 @@ var allowedOrigins = map[string]bool{
 	"https://agenvoy-board.pardn.workers.dev": true,
 }
 
+func allowOrigin(origin string) bool {
+	if allowedOrigins[origin] {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	switch parsed.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
+}
+
 func cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if allowedOrigins[origin] {
+		if origin := c.GetHeader("Origin"); origin != "" && allowOrigin(origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Content-Type")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, "+completionsHandler.AgentHeader)
 			c.Header("Access-Control-Allow-Private-Network", "true")
-			if c.Request.Method == http.MethodOptions {
-				c.AbortWithStatus(http.StatusNoContent)
-				return
-			}
+		}
+		c.Header("Vary", "Origin")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
 		}
 		c.Next()
 	}

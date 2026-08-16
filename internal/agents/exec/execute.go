@@ -11,7 +11,6 @@ import (
 	"time"
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -50,6 +49,7 @@ type ExecuteMeta struct {
 	FileInputs        []string
 	ExcludeTools      []string
 	ExcludeSkills     []string
+	ClientTools       []provider.Tool
 	ExtraSystemPrompt string
 	Reasoning         string
 	AllowAll          bool
@@ -90,8 +90,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		execCtx = context.WithValue(execCtx, parentWorkDirKey{}, data.WorkDir)
 	}
 
-	// * pushCtx keeps the values but not the cancellation: push hooks still fire
-	// * after the turn is canceled
 	pushCtx := execCtx
 	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
@@ -111,6 +109,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
 		defer sessionManager.RemoveConcurrent(session.ID)
+		defer markRunning(session.ID)()
 		defer ClearSteer(session.ID)
 
 		original := events
@@ -214,10 +213,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		assignBindingSkill(session, data.Skill)
 	}
 
-	if !go_pkg_filesystem_reader.Exists(filesystem.KuradbEndpointPath) {
-		data.ExcludeTools = append(data.ExcludeTools,
-			"list_rag", "search_rag")
-	}
 	cfg, _ := config.Load()
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
@@ -264,6 +259,16 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		for name := range excluded {
 			delete(exec.StubTools, name)
 		}
+	}
+
+	clientTools := make(map[string]bool, len(data.ClientTools))
+	for _, t := range data.ClientTools {
+		name := strings.TrimSpace(t.Function.Name)
+		if name == "" {
+			continue
+		}
+		clientTools[name] = true
+		exec.Tools = append(exec.Tools, t)
 	}
 
 	limit := filesystem.MaxToolIterations
@@ -338,8 +343,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(), events, &shownReasoning)
 			resultCh <- sendOutcome{resp: r, code: c, err: e, textEmitted: textEmitted, reasoned: reasoned}
 		}()
-		// * streamSend writes to events; the caller closes that channel as soon as
-		// * Execute returns, so every exit has to outlive the goroutine
+
 		stopSend := func() {
 			cancelSend()
 			<-sendDone
@@ -595,6 +599,26 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					}
 				}
 			}
+			if len(clientTools) > 0 {
+				var handoff []provider.ToolCall
+				for _, call := range choice.Message.ToolCalls {
+					if clientTools[strings.TrimSpace(call.Function.Name)] {
+						handoff = append(handoff, call)
+					}
+				}
+				if len(handoff) > 0 {
+					events <- agentTypes.Event{Type: agentTypes.EventClientToolCall, ClientToolCalls: handoff}
+					events <- agentTypes.Event{
+						Type:     agentTypes.EventDone,
+						Model:    data.Agent.Name(),
+						Usage:    &usage,
+						Duration: time.Since(execStart),
+					}
+					keepPending = false
+					return nil
+				}
+			}
+
 			session, alreadyCall, err = toolCall(execCtx, exec, choice, session, events, allowAll, alreadyCall, &turnAllowAll)
 			if err != nil {
 				if errors.Is(err, ErrAskUserInterrupted) {

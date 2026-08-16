@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
@@ -170,12 +169,6 @@ func AddProviderKey() gin.HandlerFunc {
 		if err := config.SaveKey(envKey); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
-		}
-		if envKey == "OPENAI_API_KEY" {
-			if err := kuradb.SyncOpenAIKey(key); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
 		}
 
 		if prov == "cloudflare" {

@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -84,6 +87,13 @@ The result reports the file's real byte count, line count and first/last lines â
 				return "", fmt.Errorf("file too large (%d bytes, max 1 MB)", info.Size())
 			}
 
+			change, err := historyStore.Capture(absPath)
+			if err != nil {
+				slog.Warn("historyStore.Capture",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+			}
+
 			if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
 				if denied.IsPermission(err) {
 					denied.Register(e.SessionID, absPath)
@@ -92,26 +102,19 @@ The result reports the file's real byte count, line count and first/last lines â
 				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 			}
 
-			filesystem.GitAutoCommitByPath(ctx, filesystem.GitSkills, absPath, isNew)
+			var unrecorded string
+			if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "write_file"}); err != nil {
+				slog.Warn("historyStore.Record",
+					slog.String("path", absPath),
+					slog.String("error", err.Error()))
+				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
+			}
 
-			return writeReceipt(isNew, absPath, content), nil
+			return writeReceipt(isNew, absPath, content) + unrecorded, nil
 		},
 	})
 }
 
-// writeReceipt reports what actually landed on disk.
-//
-// A successful write has its content argument elided from history immediately,
-// so on the next turn the model sees its own tool_call carrying the elision
-// marker where the content used to be. Reading that as "the file now holds a
-// placeholder", it rewrites â€” and that rewrite is elided too, so the marker
-// comes straight back and the rewrite repeats without end. Telling the model
-// not to do this in prose loses against what it appears to see itself having
-// sent; a receipt it can check does not, because the size, line count and real
-// first/last lines cannot come from a placeholder.
-//
-// * os.Stat retained: the on-disk size is the authoritative number here, and
-// go-pkg exposes no accessor for it.
 func writeReceipt(isNew bool, path, content string) string {
 	verb := "updated"
 	if isNew {
@@ -136,9 +139,5 @@ func excerptLine(line string) string {
 	if line == "" {
 		return "(blank)"
 	}
-	runes := []rune(line)
-	if len(runes) > 120 {
-		return string(runes[:120]) + "â€¦"
-	}
-	return line
+	return go_pkg_utils.TruncateString(line, 128)
 }

@@ -130,6 +130,24 @@ func ReplaceDefault(sessionID, name string) {
 	writeBotFile(sessionID, bot)
 }
 
+func NeedTitle(sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	bot := read(sessionID)
+	return bot.Name == "" || bot.Name == sessionID
+}
+
+func SetTitle(sessionID, title string) error {
+	title = strings.TrimSpace(title)
+	if title == "" || !NeedTitle(sessionID) {
+		return nil
+	}
+	bot := read(sessionID)
+	bot.Name = title
+	return writeBotFile(sessionID, bot)
+}
+
 func Save(sessionID, name, body string, force bool) error {
 	if sessionID == "" {
 		return fmt.Errorf("sessionID is required")
