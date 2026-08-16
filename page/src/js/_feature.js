@@ -4,15 +4,15 @@ const RULE_TEMPLATE = `# Role
 
 ## Always
 
-- 
+-
 
 ## Never
 
-- 
+-
 
 ## Output
 
-- 
+-
 `;
 
 const KNOWLEDGE_TEMPLATE = `# <topic>
@@ -23,11 +23,11 @@ const KNOWLEDGE_TEMPLATE = `# <topic>
 
 ## Details
 
-- 
+-
 
 ## Source
 
-- 
+-
 `;
 
 const FEATURE_SPEC = {
@@ -55,6 +55,31 @@ function featureError(text) {
   alert(text);
 }
 
+const FEATURE_TAB = { rule: "Rules", knowledge: "Knowledge" };
+
+function featureCount(kind, total) {
+  const tab = FEATURE_TAB[kind];
+  const dom = tab && $(`section.feature header a[name="${tab}"] span:not(.material-symbols-outlined)`);
+  if (dom) {
+    dom.textContent = total;
+  }
+}
+
+async function countFeature(kind) {
+  const spec = FEATURE_SPEC[kind];
+  if (!spec) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API}${spec.list}`);
+    if (response.ok) {
+      featureCount(kind, ((await response.json())[spec.key] || []).length);
+    }
+  } catch (err) {
+    console.error("countFeature", err);
+  }
+}
+
 async function renderFeature(kind) {
   const spec = FEATURE_SPEC[kind];
   const dom = featureDom(kind);
@@ -71,6 +96,8 @@ async function renderFeature(kind) {
   } catch (err) {
     console.error("renderFeature", err);
   }
+
+  featureCount(kind, items.length);
 
   dom.list.innerHTML = "";
 
@@ -180,7 +207,7 @@ async function saveFeature(kind) {
 
 async function deleteFeature(kind, name) {
   const spec = FEATURE_SPEC[kind];
-  if (!spec || !confirm(`Delete ${name}?`)) {
+  if (!spec || !confirm(`Delete "${name}"?`)) {
     return;
   }
 

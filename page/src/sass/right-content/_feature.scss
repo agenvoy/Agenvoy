@@ -248,11 +248,11 @@ body[data-rendered="1"] section.right-content section.feature {
             }
 
             &.remove {
-              color: #d64545;
+              color: var(--error);
 
               @media (hover: hover) {
                 &:hover {
-                  color: #b02f2f;
+                  color: var(--error-2);
                 }
               }
             }

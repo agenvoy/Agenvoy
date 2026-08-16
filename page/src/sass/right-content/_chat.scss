@@ -98,7 +98,7 @@ body[data-rendered="1"] section.right-content section.chat {
       flex-flow: column;
       flex-grow: 1;
       flex-shrink: 1;
-      padding: 2.5rem 0 calc(100vh / 3);
+      padding: 2.5rem 0 8rem;
       max-height: calc(100% - 5.25rem);
       overflow-y: scroll;
       width: var(--width-right-content);

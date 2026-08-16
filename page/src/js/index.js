@@ -68,14 +68,20 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!dom) return;
 
         const on = dom.dataset.selected == null;
-        if (on) {
-          dom.dataset.selected = "1";
-        } else {
-          delete dom.dataset.selected;
-        }
-        config.harness_enable = on;
-        writeConfig(config);
-        toggleVoice(on);
+        const mark = function (state) {
+          if (state) {
+            dom.dataset.selected = "1";
+          } else {
+            delete dom.dataset.selected;
+          }
+          config.harness_enable = state;
+          writeConfig(config);
+        };
+
+        mark(on);
+        toggleVoice(on).catch(function () {
+          mark(false);
+        });
       },
       chat_wheel: function (e) {
         const dom = $("#right-content-chat-messages");
@@ -92,6 +98,9 @@ document.addEventListener("DOMContentLoaded", function () {
       },
       workdir_pick: function () {
         openWorkDirPrompt();
+      },
+      skill_pick: function () {
+        openSkillPicker();
       },
       knowledge_pick: function () {
         openKnowledgePicker();
@@ -154,6 +163,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         bindSelectPicker();
         bindInputDrop();
+        bindChatMenu();
         renderChatList();
 
         if (params.page === "chat") {
@@ -170,11 +180,17 @@ document.addEventListener("DOMContentLoaded", function () {
           loadPending(params.chat);
 
           const harness = $("section.chat button.harness");
-          if (harness && config.harness_enable) {
-            harness.dataset.selected = "1";
-          }
           if (config.harness_enable) {
-            initVoice();
+            if (harness) {
+              harness.dataset.selected = "1";
+            }
+            initVoice().catch(function () {
+              if (harness) {
+                delete harness.dataset.selected;
+              }
+              config.harness_enable = false;
+              writeConfig(config);
+            });
           }
         }
 
@@ -183,6 +199,12 @@ document.addEventListener("DOMContentLoaded", function () {
           if (kind) {
             resetFeature(kind);
             renderFeature(kind);
+          }
+
+          for (const name of Object.keys(FEATURE_SPEC)) {
+            if (name !== kind) {
+              countFeature(name);
+            }
           }
         }
       },

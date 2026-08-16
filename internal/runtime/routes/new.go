@@ -95,6 +95,8 @@ func New() *gin.Engine {
 	r.PATCH("/v1/knowledge", localhostOnly(), handler.UpdateKnowledge())
 	r.DELETE("/v1/knowledge", localhostOnly(), handler.DeleteKnowledge())
 
+	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
+
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 
 	r.GET("/v1/cron", localhostOnly(), handler.ListCrons())

@@ -1,8 +1,8 @@
 const feature = {
   Rules: "deployed_code_account",
   Knowledge: "book_2",
-  Skills: "lightbulb_2",
-  Schedule: "schedule",
+  // Skills: "lightbulb_2",
+  // Schedule: "schedule",
 };
 
 const leftTab = {

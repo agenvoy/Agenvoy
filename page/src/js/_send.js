@@ -39,6 +39,9 @@ async function send(content) {
 
   const chat = readChatConfig(sessionId);
 
+  const picked = skill;
+  clearSkill();
+
   const dom = $("#right-content-chat-messages");
   clearPending();
   if (streamDom) {
@@ -63,6 +66,7 @@ async function send(content) {
         system_prompt: rule,
         knowledge: chat.knowledge,
         work_dir: chat.work_dir,
+        skill: picked,
       }),
     });
     if (!response.ok) {
