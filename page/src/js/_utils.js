@@ -44,8 +44,10 @@ function readConfig() {
   return config;
 }
 
+const CHAT_DRAFT = "new";
+
 function readChatConfig(chatId) {
-  const entry = (readConfig().chat || {})[chatId] || {};
+  const entry = (readConfig().chat || {})[chatId || CHAT_DRAFT] || {};
   return {
     rule: typeof entry.rule === "string" ? entry.rule : "",
     knowledge: typeof entry.knowledge === "string" ? entry.knowledge : "",
@@ -54,12 +56,30 @@ function readChatConfig(chatId) {
 }
 
 function writeChatConfig(chatId, patch) {
-  if (!chatId) {
-    return;
-  }
+  const key = chatId || CHAT_DRAFT;
   const config = readConfig();
   config.chat = config.chat || {};
-  config.chat[chatId] = Object.assign(readChatConfig(chatId), patch);
+  config.chat[key] = Object.assign(readChatConfig(key), patch);
+  writeConfig(config);
+}
+
+function clearChatDraft() {
+  const config = readConfig();
+  if (!config.chat || !config.chat[CHAT_DRAFT]) {
+    return;
+  }
+  delete config.chat[CHAT_DRAFT];
+  writeConfig(config);
+}
+
+function adoptChatConfig(chatId) {
+  const config = readConfig();
+  const draft = (config.chat || {})[CHAT_DRAFT];
+  if (!chatId || !draft) {
+    return;
+  }
+  config.chat[chatId] = Object.assign(readChatConfig(chatId), draft);
+  delete config.chat[CHAT_DRAFT];
   writeConfig(config);
 }
 

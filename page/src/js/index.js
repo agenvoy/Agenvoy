@@ -90,6 +90,30 @@ document.addEventListener("DOMContentLoaded", function () {
         dom.scrollTop += wheelDelta(e, dom);
         e.preventDefault();
       },
+      workdir_pick: function () {
+        openWorkDirPrompt();
+      },
+      knowledge_pick: function () {
+        openKnowledgePicker();
+      },
+      rule_save: function () {
+        saveFeature("rule");
+      },
+      rule_reset: function () {
+        resetFeature("rule");
+      },
+      rule_delete: function () {
+        deleteEditing("rule");
+      },
+      knowledge_save: function () {
+        saveFeature("knowledge");
+      },
+      knowledge_reset: function () {
+        resetFeature("knowledge");
+      },
+      knowledge_delete: function () {
+        deleteEditing("knowledge");
+      },
       rule_change: function (e) {
         selectRule(e.target.value);
       },
@@ -133,10 +157,15 @@ document.addEventListener("DOMContentLoaded", function () {
         renderChatList();
 
         if (params.page === "chat") {
+          if (!params.chat) {
+            clearChatDraft();
+          }
           setSession(params.chat);
           subscribe(params.chat);
           getModelList(params.chat);
           getRuleList();
+          renderKnowledgeMark();
+          renderWorkDirMark();
           renderChat(params.chat);
           loadPending(params.chat);
 
@@ -146,6 +175,14 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           if (config.harness_enable) {
             initVoice();
+          }
+        }
+
+        if (params.page === "features") {
+          const kind = { Rules: "rule", Knowledge: "knowledge" }[params.tab];
+          if (kind) {
+            resetFeature(kind);
+            renderFeature(kind);
           }
         }
       },

@@ -56,8 +56,3 @@ async function selectRule(name) {
   rule = content;
   writeChatConfig(currentSessionId, { rule: name });
 }
-
-function saveChatRule(chatId) {
-  const dom = $("#chat-rule");
-  writeChatConfig(chatId, { rule: dom ? dom.value : "" });
-}

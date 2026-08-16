@@ -63,6 +63,7 @@ func New() *gin.Engine {
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
 	r.GET("/v1/file/open", localhostOnly(), handler.OpenFile())
 	r.GET("/v1/file/locate", localhostOnly(), handler.LocateFile())
+	r.GET("/v1/workdir", localhostOnly(), handler.CheckWorkDir())
 
 	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 	r.DELETE("/v1/key", localhostOnly(), handler.DeleteKey())
@@ -87,6 +88,12 @@ func New() *gin.Engine {
 	r.POST("/v1/rule", localhostOnly(), handler.CreateRule())
 	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRule())
 	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRule())
+
+	r.GET("/v1/knowledges", localhostOnly(), handler.ListKnowledges())
+	r.GET("/v1/knowledge/*name", localhostOnly(), handler.GetKnowledge())
+	r.POST("/v1/knowledge", localhostOnly(), handler.CreateKnowledge())
+	r.PATCH("/v1/knowledge", localhostOnly(), handler.UpdateKnowledge())
+	r.DELETE("/v1/knowledge", localhostOnly(), handler.DeleteKnowledge())
 
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 

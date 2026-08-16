@@ -296,7 +296,7 @@ body[data-rendered="1"] section.right-content section.chat {
               text-align: left;
               color: var(--gray-3);
               background-color: transparent;
-              border: 1px solid var(--gray-2);
+              border: 1px solid var(--gray-3);
               border-radius: 1rem;
               cursor: pointer;
               transition: 0.2s;
@@ -568,6 +568,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
             &[data-selected]:before {
               opacity: 1;
+              background-color: var(--gray-2);
             }
 
             &:before {
