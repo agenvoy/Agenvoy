@@ -184,12 +184,17 @@ document.addEventListener("DOMContentLoaded", function () {
             if (harness) {
               harness.dataset.selected = "1";
             }
-            initVoice().catch(function () {
-              if (harness) {
-                delete harness.dataset.selected;
-              }
-              config.harness_enable = false;
-              writeConfig(config);
+            initVoice().catch(function (err) {
+              console.error("voice: start deferred to the first gesture", err?.message || err);
+              document.addEventListener(
+                "pointerdown",
+                function () {
+                  initVoice().catch(function (retry) {
+                    console.error("voice", retry?.message || retry);
+                  });
+                },
+                { once: true },
+              );
             });
           }
         }
