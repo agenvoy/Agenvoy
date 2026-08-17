@@ -35,7 +35,21 @@ function renderEvent(view, event) {
     return;
   }
 
+  if (type === "EventCanceled") {
+    view.stop?.remove();
+    view.think.open = false;
+    const canceled = assistantFooter({
+      send_at: sendAt(),
+      canceled: true,
+      duration: compactDuration(event.duration),
+    });
+    view.footer.replaceWith(canceled);
+    view.footer = canceled;
+    return;
+  }
+
   if (type === "EventDone") {
+    view.stop?.remove();
     view.think.open = false;
     const usage = event.usage || {};
     const footer = assistantFooter({

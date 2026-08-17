@@ -86,6 +86,19 @@ function parseActionLog(content) {
         pending.meta.send_at = sendAt;
         break;
 
+      case "canceled": {
+        pending = pending || logItem(sendAt);
+
+        const meta = formatDone(body);
+        pending.meta.model = meta.model || pending.meta.model;
+        pending.meta.duration = meta.duration;
+        pending.meta.send_at = sendAt;
+        pending.meta.canceled = sendAt;
+        pending.finished = true;
+        close();
+        break;
+      }
+
       case "done": {
         pending = pending || logItem(sendAt);
 
