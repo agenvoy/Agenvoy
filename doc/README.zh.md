@@ -5,12 +5,18 @@
 </p>
 
 <p align="center">
-  <strong>可自行建立、測試並重用工具的本機 AI Agent</strong>
+  <strong>台灣自研的開源 AI Agent Harness — 自行建立、測試並重用工具</strong>
 </p>
 
 <p align="center">
-  Agenvoy 跑在你的電腦上，能處理多步驟工作、搜尋本機檔案、排程重複任務，<br>
-  並透過 MCP 把工具庫提供給其他 Agent 使用。
+  單一 Go binary，自架在你自己的電腦上：處理多步驟工作、搜尋本機檔案、排程重複任務，<br>
+  並透過 MCP 把沙箱工具庫分享給 Claude Code、Codex 等 Agent。
+</p>
+
+<p align="center">
+<a href="https://trendshift.io/repositories/41899?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-41899" target="_blank" rel="noopener noreferrer">
+<img src="https://trendshift.io/api/badge/trendshift/repositories/41899/daily?language=Go" alt="agenvoy%2FAgenvoy | Trendshift" width="250" height="55"/>
+</a>
 </p>
 
 <p align="center">
@@ -24,10 +30,10 @@
 
 ## 為什麼是 Agenvoy
 
-- **缺工具時，不會停在原地，而是直接建立**
-- **同一套沙箱工具庫可在 Agenvoy、Claude Code、Codex 等 Agent 間共用**
-- **支援排程、記憶與檔案搜尋，可執行本機工作流**
-- **既可當 Agent 應用，也可作為 MCP server**
+- **工具自我擴充** — 缺工具時直接建立，不會停在原地
+- **一套沙箱工具庫** — 可在 Agenvoy、Claude Code、Codex 等 Agent 間共用
+- **自架執行** — 排程、記憶與檔案搜尋全跑在你自己的機器上
+- **Agent 應用 + MCP 伺服器** — 同一個 binary 兩者兼具
 
 ## 你可以用它做什麼
 
@@ -51,6 +57,7 @@
 > 每天早上 8 點回報台積電股價
 >
 > Agent 會確認：
+>
 > - 要推送到哪裡
 > - 你想要什麼格式
 > - 何時執行
@@ -112,6 +119,7 @@
 > Agenvoy 也是一個 MCP server。
 >
 > Claude Code、Codex、OpenCode 與其他 AI Agent 連上後，可以：
+>
 > - 使用你所有的沙箱工具
 > - 在缺工具時自動建立新工具
 > - 讓所有 Agent 共用同一套工具
@@ -160,29 +168,29 @@
 
 Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI 工作流：
 
-- 想要在本機執行、同時保有安全邊界的人
+- 想自架 AI Agent、同時保有沙箱安全邊界的人
 - 想在多個 Agent 間重用工具的團隊
 - 需要把自動化、檔案搜尋與定期報告整合在一起的使用者
 
-***
+---
 
 ## 核心能力
 
-| 能力 | 說明 |
-| :- | :- |
-| 自動工具生成 | 缺工具時自行建立並保存 |
-| 自我排程 | 一句話建立定時任務 |
-| 長期記憶 | 保留重要資訊與上下文 |
-| 檔案搜尋 | 從本機檔案回答問題 |
-| Sub-Agent | 多 Agent 協作 |
-| MCP client | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新） |
-| MCP server | 讓任何 MCP 相容 Agent 使用你的沙箱工具 |
-| 推理指引 | 透過 `reasoning_guide(topic=...)` 按需載入規則 |
-| Tool Market | 分享與安裝工具 |
-| 語音轉錄 | 音訊與影片轉文字 |
-| 自我改進 | 執行失敗後自動修正 |
+| 能力         | 說明                                                |
+| :----------- | :-------------------------------------------------- |
+| 自動工具生成 | 缺工具時自行建立並保存                              |
+| 自我排程     | 一句話建立定時任務                                  |
+| 長期記憶     | 保留重要資訊與上下文                                |
+| 檔案搜尋     | 從本機檔案回答問題                                  |
+| Sub-Agent    | 多 Agent 協作                                       |
+| MCP client   | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新） |
+| MCP server   | 讓任何 MCP 相容 Agent 使用你的沙箱工具              |
+| 推理指引     | 透過 `reasoning_guide(topic=...)` 按需載入規則      |
+| Tool Market  | 分享與安裝工具                                      |
+| 語音轉錄     | 音訊與影片轉文字                                    |
+| 自我改進     | 執行失敗後自動修正                                  |
 
-***
+---
 
 ## Web 儀表板
 
@@ -206,7 +214,7 @@ Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI �
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 ```
 
-***
+---
 
 ## 開發者建議
 
@@ -219,24 +227,24 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
   - OpenAI ChatGPT Plus（$20/月）
   - SuperGrok（$30/月）
 
-***
+---
 
 ## 與其他工具相比
 
-| | **Agenvoy** | OpenClaw | Hermes-agent |
-|---|---|---|---|
-| 安裝方式 | 一行指令，單一 binary | pnpm monorepo | pip + docker |
-| 多模型 | 自動選擇 | 手動切換 | 手動切換 |
-| 對話 UI | 按鈕 / 選單 / modal | 純文字 | 純文字 |
-| 會自行建立缺失工具 | ✅ | ❌ | ⚠️ 僅 skill |
-| 可跨 Agent 共用工具 | ✅ | ❌ | ❌ |
-| 可作為 MCP server | ✅ | ❌ | ❌ |
-| 聊天驗證 | 6 碼驗證碼 | 人工核准 | 人工核准 |
-| 跨 session 推送 | ✅ | ❌ | ⚠️ 有限 |
-| 檔案搜尋 | 語意 + 關鍵字 | 僅聊天記憶 | 僅聊天記憶 |
-| 本機排程工作流 | ✅ | ❌ | ⚠️ 有限 |
+|                     | **Agenvoy**           | OpenClaw      | Hermes-agent |
+| ------------------- | --------------------- | ------------- | ------------ |
+| 安裝方式            | 一行指令，單一 binary | pnpm monorepo | pip + docker |
+| 多模型              | 自動選擇              | 手動切換      | 手動切換     |
+| 對話 UI             | 按鈕 / 選單 / modal   | 純文字        | 純文字       |
+| 會自行建立缺失工具  | ✅                    | ❌            | ⚠️ 僅 skill  |
+| 可跨 Agent 共用工具 | ✅                    | ❌            | ❌           |
+| 可作為 MCP server   | ✅                    | ❌            | ❌           |
+| 聊天驗證            | 6 碼驗證碼            | 人工核准      | 人工核准     |
+| 跨 session 推送     | ✅                    | ❌            | ⚠️ 有限      |
+| 檔案搜尋            | 語意 + 關鍵字         | 僅聊天記憶    | 僅聊天記憶   |
+| 本機排程工作流      | ✅                    | ❌            | ⚠️ 有限      |
 
-***
+---
 
 ## 文件
 
@@ -257,16 +265,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 本專案以 [Apache License 2.0](../LICENSE) 授權。
 
-## 社群貢獻者
-
-<a href="https://github.com/pardnchiu/Agenvoy/issues/3">
-  <img src="https://github.com/Azetry.png" width="40" height="40" alt="Azetry" style="border-radius:50%" />
-</a>
-<a href="https://github.com/pardnchiu/agenvoy/issues/49">
-  <img src="https://github.com/oceanasd.png" width="40" height="40" alt="oceanasd" style="border-radius:50%" />
-</a>
-
-## Contributor
+## Author
 
 歡迎 [開 issue](https://github.com/pardnchiu/agenvoy/issues/new) 分享想法。
 
@@ -274,6 +273,6 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
   <img src="https://contrib.rocks/image?repo=pardnchiu/agenvoy&cache_bust=2026-05-12" alt="Agenvoy contributors" />
 </a>
 
-***
+---
 
 ©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)

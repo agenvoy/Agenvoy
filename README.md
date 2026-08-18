@@ -5,12 +5,19 @@
 </p>
 
 <p align="center">
-  <strong>A local AI agent that can build, test, and reuse its own tools</strong>
+  <strong>Self-hosted AI agent harness that builds, tests, and reuses its own tools</strong>
 </p>
 
 <p align="center">
-  Agenvoy runs on your machine, handles multi-step work, searches local files, schedules recurring tasks,<br>
-  and exposes its tool library to other agents through MCP.
+  Open source, single Go binary. Runs on your own machine, handles multi-step work, searches local files,<br>
+  schedules recurring tasks, and shares its sandboxed tool library with Claude Code, Codex,<br>
+  and any other MCP client.
+</p>
+
+<p align="center">
+<a href="https://trendshift.io/repositories/41899?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-41899" target="_blank" rel="noopener noreferrer">
+<img src="https://trendshift.io/api/badge/trendshift/repositories/41899/daily?language=Go" alt="agenvoy%2FAgenvoy | Trendshift" width="250" height="55"/>
+</a>
 </p>
 
 <p align="center">
@@ -24,10 +31,10 @@
 
 ## Why Agenvoy
 
-- **Build missing tools instead of stopping**
-- **Share one sandboxed tool library across Agenvoy, Claude Code, Codex, and more**
-- **Run local workflows with scheduling, memory, and file search**
-- **Use it as both an agent app and an MCP server**
+- **Self-extending tools** — builds the missing tool instead of stopping
+- **One sandboxed tool library** — shared across Agenvoy, Claude Code, Codex, and more
+- **Self-hosted execution** — scheduling, memory, and file search on your own machine
+- **Agent app and MCP server** — the same binary is both
 
 ## What you can do with it
 
@@ -51,6 +58,7 @@
 > Report TSMC stock price every morning at 8am
 >
 > The agent asks:
+>
 > - Where to push results
 > - What format you want
 > - When to run
@@ -112,6 +120,7 @@
 > Agenvoy is also an MCP server.
 >
 > Claude Code, Codex, OpenCode, and other AI agents can connect and:
+>
 > - Use all your sandboxed tools
 > - Auto-build new tools when none exist
 > - Share every tool across all agents
@@ -160,29 +169,29 @@
 
 Agenvoy is for developers, technical operators, and AI-heavy workflows that need more than chat:
 
-- People who want local execution with guardrails
+- People who want a self-hosted agent with sandbox guardrails
 - Teams that want reusable tools across agents
 - Users who need automation, file search, and scheduled reporting in one place
 
-***
+---
 
 ## Core capabilities
 
-| Capability | Description |
-| :- | :- |
-| Auto tool generation | Builds and saves tools when they're missing |
-| Self-scheduling | Create cron jobs with a single sentence |
-| Long-term memory | Retains key info and context |
-| File search | Answers from your local files |
-| Sub-Agent | Multi-agent collaboration |
-| MCP client | Connect to external MCP services via official go-sdk (live tool refresh) |
-| MCP server | Expose sandboxed tools to any MCP-compatible agent |
-| Reasoning guides | On-demand rules via `reasoning_guide(topic=...)` |
-| Tool Market | Share and install tools |
-| Transcription | Audio and video to text |
-| Self-improvement | Auto-fixes after execution failures |
+| Capability           | Description                                                              |
+| :------------------- | :----------------------------------------------------------------------- |
+| Auto tool generation | Builds and saves tools when they're missing                              |
+| Self-scheduling      | Create cron jobs with a single sentence                                  |
+| Long-term memory     | Retains key info and context                                             |
+| File search          | Answers from your local files                                            |
+| Sub-Agent            | Multi-agent collaboration                                                |
+| MCP client           | Connect to external MCP services via official go-sdk (live tool refresh) |
+| MCP server           | Expose sandboxed tools to any MCP-compatible agent                       |
+| Reasoning guides     | On-demand rules via `reasoning_guide(topic=...)`                         |
+| Tool Market          | Share and install tools                                                  |
+| Transcription        | Audio and video to text                                                  |
+| Self-improvement     | Auto-fixes after execution failures                                      |
 
-***
+---
 
 ## Web Dashboard
 
@@ -206,7 +215,7 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 ```
 
-***
+---
 
 ## Developer Recommendations
 
@@ -219,24 +228,24 @@ A cost-effective model setup to get started:
   - OpenAI ChatGPT Plus ($20/mo)
   - SuperGrok ($30/mo)
 
-***
+---
 
 ## How it compares
 
-| | **Agenvoy** | OpenClaw | Hermes-agent |
-|---|---|---|---|
-| Install | One command, single binary | pnpm monorepo | pip + docker |
-| Multi-model | Auto-picks | Manual switch | Manual switch |
-| Chat UI | Buttons / menus / modals | Text only | Text only |
-| Builds missing tools | ✅ | ❌ | ⚠️ Skill only |
-| Shares tools across agents | ✅ | ❌ | ❌ |
-| Works as MCP server | ✅ | ❌ | ❌ |
-| Chat verification | 6-digit code | Manual approval | Manual approval |
-| Cross-session push | ✅ | ❌ | ⚠️ Limited |
-| File search | Semantic + keyword | Chat memory only | Chat memory only |
-| Scheduled local workflows | ✅ | ❌ | ⚠️ Limited |
+|                            | **Agenvoy**                | OpenClaw         | Hermes-agent     |
+| -------------------------- | -------------------------- | ---------------- | ---------------- |
+| Install                    | One command, single binary | pnpm monorepo    | pip + docker     |
+| Multi-model                | Auto-picks                 | Manual switch    | Manual switch    |
+| Chat UI                    | Buttons / menus / modals   | Text only        | Text only        |
+| Builds missing tools       | ✅                         | ❌               | ⚠️ Skill only    |
+| Shares tools across agents | ✅                         | ❌               | ❌               |
+| Works as MCP server        | ✅                         | ❌               | ❌               |
+| Chat verification          | 6-digit code               | Manual approval  | Manual approval  |
+| Cross-session push         | ✅                         | ❌               | ⚠️ Limited       |
+| File search                | Semantic + keyword         | Chat memory only | Chat memory only |
+| Scheduled local workflows  | ✅                         | ❌               | ⚠️ Limited       |
 
-***
+---
 
 ## Docs
 
@@ -257,16 +266,7 @@ Full documentation at **[agenvoy.com/docs](https://agenvoy.com/docs/)**
 
 This project is licensed under the [Apache License 2.0](LICENSE).
 
-## Community Contributors
-
-<a href="https://github.com/pardnchiu/Agenvoy/issues/3">
-  <img src="https://github.com/Azetry.png" width="40" height="40" alt="Azetry" style="border-radius:50%" />
-</a>
-<a href="https://github.com/pardnchiu/agenvoy/issues/49">
-  <img src="https://github.com/oceanasd.png" width="40" height="40" alt="oceanasd" style="border-radius:50%" />
-</a>
-
-## Contributor
+## Author
 
 Just [open an issue](https://github.com/pardnchiu/agenvoy/issues/new) to share an idea.
 
@@ -274,6 +274,6 @@ Just [open an issue](https://github.com/pardnchiu/agenvoy/issues/new) to share a
   <img src="https://contrib.rocks/image?repo=pardnchiu/agenvoy&cache_bust=2026-05-12" alt="Agenvoy contributors" />
 </a>
 
-***
+---
 
 ©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)
