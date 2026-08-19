@@ -109,7 +109,13 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if toolName == "read_files" && isSensitiveReadFile(toolArgs) {
 		return true
 	}
-	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
+	if turnAllowAll {
+		return false
+	}
+	if isDestructiveMode(toolArgs) {
+		return true
+	}
+	if toolRegister.IsReadOnly(toolName) {
 		return false
 	}
 	if isReadOnlyMode(toolArgs) {
@@ -128,6 +134,21 @@ var readOnlyModes = map[string]bool{
 	"list":   true,
 	"read":   true,
 	"search": true,
+}
+
+var destructiveModes = map[string]bool{
+	"remove":  true,
+	"restore": true,
+}
+
+func isDestructiveMode(toolArgs string) bool {
+	var p struct {
+		Mode string `json:"mode"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return destructiveModes[strings.TrimSpace(p.Mode)]
 }
 
 func isReadOnlyMode(toolArgs string) bool {
@@ -210,12 +231,10 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 }
 
 var isWriteLikeTool = map[string]bool{
-	"write_file":  true,
-	"patch_file":  true,
-	"write_skill": true,
-	"patch_skill": true,
-	"write_tool":  true,
-	"patch_tool":  true,
+	"write_file": true,
+	"patch_file": true,
+	"edit_skill": true,
+	"edit_tool":  true,
 }
 
 func truncateWriteArgs(argsJSON string) string {
@@ -252,10 +271,8 @@ func truncateWriteArgs(argsJSON string) string {
 }
 
 var checkpointClearableTool = map[string]bool{
-	"list_files":   true,
-	"glob_files":   true,
-	"search_files": true,
-	"run_command":  true,
+	"find_files":  true,
+	"run_command": true,
 }
 
 func hasCompletedTodo(argsJSON string) bool {
@@ -386,7 +403,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if exec.StubTools[toolName] || activatedInBatch[toolName] {
 			if exec.StubTools[toolName] {
 				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
-				if _, err := toolRegister.Dispatch(ctx, exec, "tools", activateArgs); err != nil {
+				if _, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs); err != nil {
 					slog.Warn("stub tool activation failed",
 						slog.String("name", toolName),
 						slog.String("error", err.Error()))

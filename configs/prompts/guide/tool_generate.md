@@ -8,7 +8,7 @@
 | Files | tool.json + script.py | single <name>.json |
 | Directory | ~/.config/agenvoy/tools/script/<name>/ | ~/.config/agenvoy/tools/api/ |
 | Registered as | script_<name> | api_<name> |
-| write_tool tags | tag="json" + tag="script" | tag="api" |
+| edit_tool(mode=write) tags | tag="json" + tag="script" | tag="api" |
 
 ## Naming
 snake_case, no prefix (runtime adds `script_` or `api_` automatically).
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
 ### Script tool checklist
 1. tool.json is valid JSON; every entry in "required" exists in "properties"
-2. "name" in tool.json matches the directory name passed to write_tool
+2. "name" in tool.json matches the directory name passed to edit_tool(mode=write)
 3. Script reads stdin JSON as first action: json.loads(sys.stdin.read() or "{}")
 4. All success paths output JSON via json.dumps()
 5. All error paths write stderr + exit non-zero
@@ -241,19 +241,19 @@ if __name__ == "__main__":
 **Step 2 — Choose type and create:**
 
 *API tool* (single endpoint, no computation):
-4. `write_tool(name, tag="api", content)` = full <name>.json
+4. `edit_tool(mode=write, name, tag="api", content)` = full <name>.json
 
 *Script tool* (multi-step, computation, complex logic):
-4a. `write_tool(name, tag="json", content)` = full tool.json
-4b. `write_tool(name, tag="script", content)` = full script.py
+4a. `edit_tool(mode=write, name, tag="json", content)` = full tool.json
+4b. `edit_tool(mode=write, name, tag="script", content)` = full script.py
 
 **Step 3 — Test and fix (script tools only):**
 5. `test_tool(name, input)` with JSON string matching the tool's parameters
-6. If step 5 fails: `patch_tool(name, tag, old_string, new_string)` → re-test (max 3 retries)
+6. If step 5 fails: `edit_tool(mode=patch, name, tag, old_string, new_string)` → re-test (max 3 retries)
 
 **Step 4 — Answer:**
 7. Call the new tool to answer the user's original request
 
 All steps are tool calls. Text output only at the final step. `name` without prefix (runtime adds it). Auth-required APIs: script tools use `get_key()`, API tools set `auth.env` + `store_secret` if key missing.
 
-**Fallback:** if `tools(mode=search)` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.
+**Fallback:** if `find_edit_tool(mode=search)` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.

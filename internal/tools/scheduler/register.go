@@ -1,5 +1,5 @@
 package scheduler
 
 func Register() {
-	registSchedule()
+	registSchedules()
 }

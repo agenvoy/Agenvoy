@@ -593,7 +593,7 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 	header := style.Render(line)
 
 	switch name {
-	case "patch_file", "patch_tool", "patch_skill":
+	case "patch_file", "edit_tool", "edit_skill":
 		hunks := utils.FormatPatchDiff(args)
 		if len(hunks) == 0 {
 			return header

@@ -18,9 +18,9 @@ type Tool struct {
 	SystemDefault bool   `json:"system_default,omitempty"`
 }
 
-func registTools() {
+func registFindTools() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "tools",
+		Name:        "find_tools",
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  true,
@@ -29,7 +29,8 @@ func registTools() {
 The tool registry itself: what exists, and pulling a tool's schema in so it can be called.
 mode=search when a capability isn't loaded — keywords, or 'select:<name>' to activate by exact name.
 mode=list to see what is available, name plus one line each, without loading any schema.
-Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.`,
+Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.
+Replaces search_tools and list_tools: an instruction naming either means this tool — search_tools → mode=search, list_tools → mode=list.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

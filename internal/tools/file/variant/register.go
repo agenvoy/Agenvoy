@@ -14,13 +14,9 @@ import (
 )
 
 func Register() {
-	registWriteTool()
-	registPatchTool()
+	registEditSkill()
+	registEditTool()
 	registTestTool()
-	registRemoveTool()
-	registWriteSkill()
-	registPatchSkill()
-	registRemoveSkill()
 }
 
 func capture(path string) historyStore.Change {

@@ -165,7 +165,7 @@ func Execute(ctx context.Context, e *toolTypes.Executor, name string, args json.
 
 	if e.StubTools[name] {
 		activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + name})
-		if _, err := toolRegister.Dispatch(ctx, e, "tools", activateArgs); err != nil {
+		if _, err := toolRegister.Dispatch(ctx, e, "find_tools", activateArgs); err != nil {
 			slog.Warn("stub tool activation failed",
 				slog.String("name", name),
 				slog.String("error", err.Error()))

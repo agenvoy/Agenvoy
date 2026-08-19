@@ -1,6 +1,6 @@
 package toolSearcher
 
 func Register() {
-	registTools()
+	registFindTools()
 	registRunSkill()
 }

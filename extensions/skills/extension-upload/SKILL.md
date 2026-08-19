@@ -22,7 +22,7 @@ Fixed source root:
 SCRIPT_ROOT=~/.config/agenvoy/tools/script
 ```
 
-`list_files` lists all first-level subdirectories under `SCRIPT_ROOT` (non-recursive). **Skip names starting with `.` or `_`.**
+`find_files(mode=list)` lists all first-level subdirectories under `SCRIPT_ROOT` (non-recursive). **Skip names starting with `.` or `_`.**
 
 Branch by input:
 
@@ -35,7 +35,7 @@ Branch by candidate count:
 
 | Count | Action |
 |---|---|
-| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `write_tool`" |
+| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `edit_tool(mode=write)`" |
 | 1 | Use that directory as `extension_dir` directly; report "auto-selected `<basename>`" |
 | ≥ 2 | `ask_user` singleSelect listing all candidates; user picks one as `extension_dir` |
 
@@ -47,7 +47,7 @@ Branch by candidate count:
 
 ### 1. Read the directory
 
-`list_files` enumerates every file under `extension_dir` (relative paths, recursive).
+`find_files(mode=list, recursive=true)` enumerates every file under `extension_dir` (relative paths).
 
 **Collect into `raw_files`, excluding:**
 - `.DS_Store`, `Thumbs.db`, `.git*`

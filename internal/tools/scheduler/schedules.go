@@ -10,9 +10,9 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func registSchedule() {
+func registSchedules() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "schedule",
+		Name: "schedules",
 		Description: `
 Scheduled runs bound to a scheduler skill: what is queued (list), moving one to a new time (patch), cancelling one (remove).
 mode=write is an internal binding step of the scheduler-skill-creator flow — never call it directly; the skill_name it needs carries a hash only that flow produces, so a hand-made one always fails.

@@ -26,7 +26,7 @@ Edit a file that already exists — the default for every change to something on
 regions it touches.
 Replaces text matched exactly, disambiguates which occurrence by 1-based line number (row), or inserts new lines at
 a row. Batch every region of one file into a single call rather than repeating the tool.
-write_file only for a file's first version or a deliberate full rewrite; patch_skill for skill files.
+write_file only for a file's first version or a deliberate full rewrite; edit_skill(mode=patch) for skill files.
 Read the file first: anchors have to match its current bytes exactly, so the edit is built against what the file
 really contains rather than what it is assumed to contain.`,
 		Parameters: map[string]any{

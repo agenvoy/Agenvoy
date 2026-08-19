@@ -64,25 +64,32 @@ func FormatToolEvent(name, raw string) string {
 			return s
 		}
 
-	case "list_files":
-		dirs, ok := argMap["dirs"].([]any)
-		if !ok || len(dirs) == 0 {
+	case "find_files":
+		queries, ok := argMap["queries"].([]any)
+		if !ok || len(queries) == 0 {
 			break
 		}
-		labels := make([]string, 0, len(dirs))
-		for _, d := range dirs {
-			dm, ok := d.(map[string]any)
+		labels := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
 			if !ok {
 				continue
 			}
-			dir, _ := dm["dir"].(string)
+			dir, _ := qm["dir"].(string)
+			dir = strings.TrimSpace(dir)
 			if dir == "" {
 				dir = "."
 			}
-			if r, ok := dm["recursive"].(bool); ok && r {
-				dir += " (recursive)"
+			loc := dir
+			if fp, _ := qm["file_pattern"].(string); strings.TrimSpace(fp) != "" {
+				loc = strings.TrimRight(dir, "/") + "/" + fp
 			}
-			labels = append(labels, dir)
+			if pat, _ := qm["pattern"].(string); strings.TrimSpace(pat) != "" {
+				loc += " [" + pat + "]"
+			} else if r, ok := qm["recursive"].(bool); ok && r {
+				loc += " (recursive)"
+			}
+			labels = append(labels, loc)
 		}
 		if len(labels) > 0 {
 			return strings.Join(labels, ", ")
@@ -105,25 +112,6 @@ func FormatToolEvent(name, raw string) string {
 		}
 		if len(paths) > 0 {
 			return strings.Join(paths, ", ")
-		}
-
-	case "glob_files":
-		queries, ok := argMap["queries"].([]any)
-		if !ok || len(queries) == 0 {
-			break
-		}
-		patterns := make([]string, 0, len(queries))
-		for _, q := range queries {
-			qm, ok := q.(map[string]any)
-			if !ok {
-				continue
-			}
-			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
-				patterns = append(patterns, p)
-			}
-		}
-		if len(patterns) > 0 {
-			return strings.Join(patterns, ", ")
 		}
 
 	case "write_file", "patch_file":
@@ -167,7 +155,7 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "schedule":
+	case "schedules":
 		skill := arg("skill_name")
 		t := arg("time")
 		if skill != "" && t != "" {

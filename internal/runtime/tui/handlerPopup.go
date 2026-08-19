@@ -451,7 +451,7 @@ func newPopup(id string, req runtime.Request) *Popup {
 			sudoActive: sudo.IsActive(),
 		}
 		switch req.ToolName {
-		case "patch_file", "patch_tool", "patch_skill":
+		case "patch_file", "edit_tool", "edit_skill":
 			hunks := utils.FormatPatchDiff(req.ToolArgs)
 			remaining := 32
 			for i, h := range hunks {
