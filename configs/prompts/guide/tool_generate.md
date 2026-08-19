@@ -14,7 +14,7 @@
 snake_case, no prefix (runtime adds `script_` or `api_` automatically).
 Verb + noun pattern: calculate_rsi, fetch_weather, deduplicate_csv.
 Avoid generic verbs: process_*, handle_*, manage_*, execute_*, perform_*, dispatch_*, do_*, run_* (unless the verb IS the literal action, e.g. run_command).
-If a same-domain tool already exists, match its verb and suffix shape — don't mix analyze_* into a fetch_* cluster, don't invent a new suffix vocabulary for the same concept (read_error / remember_error / search_error_memory is three shapes for one idea — pick one).
+If a same-domain tool already exists, match its verb and suffix shape — don't mix analyze_* into a fetch_* cluster, don't invent a new suffix vocabulary for the same concept (read_error / remember_error / search_error_memory would be three shapes for one idea — pick one).
 
 ## Description
 Exactly 3 lines, 60-200 chars total. No filler ("This tool allows you to…", "Use this when needed…"), no **bold**, no output-schema dump, no implementation detail (call-contract stuff belongs in parameter descriptions, not here).

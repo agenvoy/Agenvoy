@@ -112,6 +112,9 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
 		return false
 	}
+	if isReadOnlyMode(toolArgs) {
+		return false
+	}
 	if toolName == "send_http_request" && isGet(toolArgs) {
 		return false
 	}
@@ -119,6 +122,22 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 		return false
 	}
 	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+}
+
+var readOnlyModes = map[string]bool{
+	"list":   true,
+	"read":   true,
+	"search": true,
+}
+
+func isReadOnlyMode(toolArgs string) bool {
+	var p struct {
+		Mode string `json:"mode"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return readOnlyModes[strings.TrimSpace(p.Mode)]
 }
 
 func hasDangerousGitFlag(args []string) bool {
@@ -481,7 +500,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if s.state != slotReady {
 			continue
 		}
-		if toolRegister.IsFireAndForget(s.name) {
+		if toolRegister.IsBackground(s.name) {
 			go runToolExec(ctx, exec, s, events)
 			s.result = "ok"
 			s.state = slotDispatched
@@ -571,6 +590,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		events <- agentTypes.Event{
 			Type:     agentTypes.EventToolResult,
 			ToolName: s.name,
+			ToolArgs: s.args,
 			ToolID:   s.id,
 			Result:   result,
 		}

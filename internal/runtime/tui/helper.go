@@ -35,13 +35,13 @@ func activityVerb(activity string) string {
 		case "run_command":
 			return "Running"
 
-		case "search_web", "search_google_news", "search_error_history", "chat_history":
+		case "search_web", "search_google_news", "error_history", "chat_history":
 			return "Searching"
 
 		case "fetch_page":
 			return "Fetching"
 
-		case "invoke_subagent":
+		case "subagent":
 			return "Delegating"
 
 		case "list_files", "glob_files", "search_files":
@@ -49,9 +49,6 @@ func activityVerb(activity string) string {
 
 		case "calculate":
 			return "Calculating"
-
-		case "remember_error":
-			return "Remembering"
 
 		case "run_skill":
 			return "Activating skill"

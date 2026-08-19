@@ -25,7 +25,7 @@ func registChatHistory() {
 		Description: `
 What this session already did: finished task runs — what each was asked for, every tool it called with what came back, the reply it ended on — and the messages themselves.
 Use for 最近做了什麼 / 之前處理過這個嗎 / 那次到底做了什麼 / 那個工具回了什麼 / 我們之前聊過什麼 / 你記得我說過的X嗎.
-檔案被改成什麼 → file_history; 把檔案改回去 → restore_file; 失敗過什麼 → search_error_history.`,
+檔案被改成什麼 → file_history; 把檔案改回去 → restore_file; 失敗過什麼 → error_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

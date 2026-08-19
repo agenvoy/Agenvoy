@@ -219,7 +219,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.activity = "tool: " + ev.ToolName
 			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
-				if ev.ToolName == "invoke_subagent" {
+				if utils.IsSubagentInvoke(ev.ToolName, ev.ToolArgs) {
 					t.subCount++
 					t.subActive++
 				} else {
@@ -253,13 +253,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventToolResult:
 		if ev.Source != "" {
-			if ev.ToolName == "invoke_subagent" {
+			if ev.ToolName == "subagent" {
 				t.dropSubagent(ev.Source)
 			}
 			return t, nil
 		}
 
-		if ev.ToolName == "invoke_subagent" {
+		if utils.IsSubagentInvoke(ev.ToolName, ev.ToolArgs) {
 			t.subActive = max(t.subActive-1, 0)
 			if t.subActive == 0 {
 				t.subBuf, t.subOrder = nil, nil

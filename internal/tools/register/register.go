@@ -22,16 +22,16 @@ type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, 
 const DefaultToolTimeout = time.Minute
 
 type Def struct {
-	Name          string
-	Description   string
-	Parameters    map[string]any
-	Handler       Handler
-	AlwaysAllow   bool
-	AlwaysLoad    bool
-	Concurrent    bool
-	FireAndForget bool
-	SystemUse     bool
-	Timeout       time.Duration
+	Name        string
+	Description string
+	Parameters  map[string]any
+	Handler     Handler
+	AlwaysAllow bool
+	AlwaysLoad  bool
+	Concurrent  bool
+	Background  bool
+	SystemUse   bool
+	Timeout     time.Duration
 }
 
 var mu sync.RWMutex
@@ -43,7 +43,7 @@ var builtinNames []string
 var readOnlySet = map[string]bool{}
 var alwaysLoadSet = map[string]bool{}
 var concurrentSet = map[string]bool{}
-var fireAndForgetSet = map[string]bool{}
+var backgroundSet = map[string]bool{}
 var systemUseSet = map[string]bool{}
 var timeoutMap = map[string]time.Duration{}
 
@@ -83,8 +83,8 @@ func Regist(d Def) {
 	if d.Concurrent {
 		concurrentSet[d.Name] = true
 	}
-	if d.FireAndForget {
-		fireAndForgetSet[d.Name] = true
+	if d.Background {
+		backgroundSet[d.Name] = true
 	}
 	if d.SystemUse {
 		systemUseSet[d.Name] = true
@@ -110,7 +110,7 @@ func RemoveByPrefix(prefix string) {
 			delete(readOnlySet, name)
 			delete(alwaysLoadSet, name)
 			delete(concurrentSet, name)
-			delete(fireAndForgetSet, name)
+			delete(backgroundSet, name)
 			delete(systemUseSet, name)
 			delete(timeoutMap, name)
 		}
@@ -174,10 +174,10 @@ func IsConcurrent(name string) bool {
 	return concurrentSet[name]
 }
 
-func IsFireAndForget(name string) bool {
+func IsBackground(name string) bool {
 	mu.RLock()
 	defer mu.RUnlock()
-	return fireAndForgetSet[name]
+	return backgroundSet[name]
 }
 
 func IsSystemUse(name string) bool {

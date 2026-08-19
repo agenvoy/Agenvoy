@@ -47,37 +47,35 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_error_history": "Search Error",
-	"search_google_news":   "Search News",
-	"search_web":           "Search Web",
-	"search_files":         "Search Files",
-	"search_tools":         "Search Tools",
-	"list_files":           "List Files",
-	"list_tools":           "List Tools",
-	"list_chatbot":         "List Chat",
-	"list_schedule":        "List Schedule",
-	"read_files":           "Read",
-	"write_file":           "Write",
-	"patch_file":           "Patch",
-	"glob_files":           "Glob",
-	"fetch_page":           "Fetch",
-	"run_command":          "Run",
-	"run_skill":            "Skill",
-	"calculate":            "Calc",
-	"download_file":        "Download",
-	"write_todo":           "Plan",
-	"invoke_subagent":      "Subagent",
-	"chat_history":         "Chat",
-	"file_history":         "History",
-	"restore_file":         "Restore",
-	"read_error":           "Read",
-	"remember_error":       "Remember",
-	"send_to_chatbot":      "Send",
-	"send_http_request":    "Request",
-	"transcribe_media":     "Transcribe",
-	"add_schedule":         "Add Schedule",
-	"patch_schedule":       "Patch Schedule",
-	"remove_schedule":      "Remove Schedule",
+	"search_google_news": "Search News",
+	"search_web":         "Search Web",
+	"search_files":       "Search Files",
+	"search_tools":       "Search Tools",
+	"list_files":         "List Files",
+	"list_tools":         "List Tools",
+	"list_chatbot":       "List Chat",
+	"list_schedule":      "List Schedule",
+	"read_files":         "Read",
+	"write_file":         "Write",
+	"patch_file":         "Patch",
+	"glob_files":         "Glob",
+	"fetch_page":         "Fetch",
+	"run_command":        "Run",
+	"run_skill":          "Skill",
+	"calculate":          "Calc",
+	"download_file":      "Download",
+	"write_todo":         "Plan",
+	"subagent":           "Subagent",
+	"chat_history":       "Chat",
+	"file_history":       "History",
+	"restore_file":       "Restore",
+	"error_history":      "Error",
+	"send_to_chatbot":    "Send",
+	"send_http_request":  "Request",
+	"transcribe_media":   "Transcribe",
+	"add_schedule":       "Add Schedule",
+	"patch_schedule":     "Patch Schedule",
+	"remove_schedule":    "Remove Schedule",
 }
 
 func IsPlugTool(name string) bool {
@@ -93,6 +91,23 @@ func PlugToolBaseName(name string) string {
 		}
 	}
 	return name
+}
+
+func IsSubagentInvoke(name, raw string) bool {
+	if name != "subagent" {
+		return false
+	}
+	var dic struct {
+		Mode string `json:"mode"`
+		Task string `json:"task"`
+	}
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &dic)
+	}
+	if mode := strings.TrimSpace(dic.Mode); mode != "" {
+		return mode == "invoke"
+	}
+	return strings.TrimSpace(dic.Task) != ""
 }
 
 func ToolName(name string) string {
@@ -151,7 +166,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 		return PlugToolBaseName(name) + " " + raw
 	}
 	switch name {
-	case "invoke_subagent":
+	case "subagent":
 		label := pick("name", "session_id")
 		if label == "" {
 			label = "subagent"
@@ -294,12 +309,12 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return s
 		}
 
-	case "remember_error":
-		if s := pick("symptom", "cause", "action"); s != "" {
+	case "error_history":
+		if s := pick("keyword", "hash", "symptom", "action"); s != "" {
 			return s
 		}
 
-	case "search_error_history", "chat_history":
+	case "chat_history":
 		if s := pick("keyword", "query"); s != "" {
 			return s
 		}

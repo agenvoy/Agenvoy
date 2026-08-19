@@ -44,7 +44,7 @@ func FormatToolEvent(name, raw string) string {
 	}
 
 	switch name {
-	case "invoke_subagent":
+	case "subagent":
 		val := arg("name", "session_id")
 		if val == "" {
 			val = "subagent"
@@ -157,12 +157,12 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "remember_error":
-		if val := arg("symptom", "cause", "action"); val != "" {
+	case "error_history":
+		if val := arg("keyword", "hash", "symptom", "action"); val != "" {
 			return val
 		}
 
-	case "search_error_history", "chat_history":
+	case "chat_history":
 		if val := arg("keyword", "query"); val != "" {
 			return val
 		}
