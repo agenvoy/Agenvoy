@@ -208,7 +208,10 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, tea.Println("\n" + line)
 
 	case agentTypes.EventToolCall:
-		if ev.ToolName != "" && !toolRegister.IsSystemUse(ev.ToolName) {
+		if ev.ToolName != "" && toolRegister.IsSystemUse(ev.ToolName) {
+			return t, nil
+		}
+		if ev.ToolName != "" {
 			if ev.Source != "" {
 				t.trackSubagent(ev.Source, toolActivity(ev, t.cwd)).tools++
 				return t, nil

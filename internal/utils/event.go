@@ -162,7 +162,7 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "search_error_history", "search_chat_history":
+	case "search_error_history", "chat_history":
 		if val := arg("keyword", "query"); val != "" {
 			return val
 		}

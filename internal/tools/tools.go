@@ -144,7 +144,7 @@ func moveToTrash(ctx context.Context, e *toolTypes.Executor, args []string) (str
 		report += "\nnot removed: " + strings.Join(failed, "; ")
 	}
 	if len(unrecorded) > 0 {
-		report += "\nnot recorded, so restore_file_history will not find these: " + strings.Join(unrecorded, "; ")
+		report += "\nnot recorded, so restore_file will not find these: " + strings.Join(unrecorded, "; ")
 	}
 	return report, nil
 }

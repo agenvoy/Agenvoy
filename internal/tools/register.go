@@ -21,7 +21,6 @@ import (
 )
 
 func init() {
-	registSearchConversationHistory()
 	registReasoningGuide()
 
 	external.Register()

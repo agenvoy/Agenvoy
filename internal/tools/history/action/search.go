@@ -1,4 +1,4 @@
-package tools
+package actionHistory
 
 import (
 	"context"
@@ -13,9 +13,7 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type historyHit struct {
@@ -28,6 +26,9 @@ type historyHit struct {
 const (
 	historyWindowBefore = 2
 	historyWindowAfter  = 1
+	defaultTimeRange    = "1d"
+	defaultSearchLimit  = 8
+	maxSearchLimit      = 32
 )
 
 var historyTimeRanges = map[string]time.Duration{
@@ -37,93 +38,33 @@ var historyTimeRanges = map[string]time.Duration{
 	"1y": 365 * 24 * time.Hour,
 }
 
-func registSearchConversationHistory() {
-	toolRegister.Regist(toolRegister.Def{
-		Name:        "search_chat_history",
-		AlwaysAllow: true,
-		Concurrent:  true,
-		SystemUse:   true,
-		Description: "Search this session's past messages. mode=keyword for exact match across full history; mode=semantic for meaning-based match. Use for prior conversation references, named entity lookups (call first, then search_web), or theme recall. Extract the core noun as keyword.",
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"keyword": map[string]any{
-					"type":        "string",
-					"description": "Search text (e.g. 'redis TTL', 'bwrap sandbox decision').",
-				},
-				"mode": map[string]any{
-					"type":        "string",
-					"description": "keyword: FTS across full history including archive. semantic: vector similarity in recent messages.",
-					"enum":        []string{"keyword", "semantic"},
-					"default":     "semantic",
-				},
-				"time_range": map[string]any{
-					"type":        "string",
-					"description": "Time window filter. Applies to both modes.",
-					"enum":        go_pkg_utils.GetKeys(historyTimeRanges),
-					"default":     "1d",
-				},
-				"limit": map[string]any{
-					"type":        "integer",
-					"description": "Hit cap per source. Output exceeds limit after context expansion.",
-					"enum":        []int{8, 16, 32},
-					"default":     8,
-				},
-			},
-			"required": []string{
-				"keyword",
-			},
-		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
-			var params struct {
-				Keyword   string `json:"keyword"`
-				Mode      string `json:"mode"`
-				TimeRange string `json:"time_range"`
-				Limit     int    `json:"limit"`
-				Query     string `json:"query"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
-			}
+func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, timeRange string, limit int) (string, error) {
+	if e.SessionID == "" {
+		return "", fmt.Errorf("session not exist")
+	}
 
-			sessionId := e.SessionID
-			if sessionId == "" {
-				return "", fmt.Errorf("session not exist")
-			}
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return "", fmt.Errorf("keyword is required when mode=search")
+	}
 
-			keyword := strings.TrimSpace(params.Keyword)
-			if keyword == "" {
-				keyword = params.Query
-			}
-			if keyword == "" {
-				return "", fmt.Errorf("keyword is required")
-			}
+	if match = strings.TrimSpace(match); match != "keyword" {
+		match = "semantic"
+	}
 
-			mode := strings.TrimSpace(params.Mode)
-			if mode != "keyword" {
-				mode = "semantic"
-			}
+	if _, ok := historyTimeRanges[strings.TrimSpace(timeRange)]; !ok {
+		timeRange = defaultTimeRange
+	}
 
-			timeRange := strings.TrimSpace(params.TimeRange)
-			switch timeRange {
-			case "1d", "7d", "1m", "1y":
-			default:
-				timeRange = "1d"
-			}
+	if limit <= 0 {
+		limit = defaultSearchLimit
+	}
+	limit = min(limit, maxSearchLimit)
 
-			limit := params.Limit
-			switch limit {
-			case 8, 16, 32:
-			default:
-				limit = 8
-			}
-
-			if mode == "keyword" {
-				return keywordHandler(ctx, sessionId, keyword, timeRange, limit)
-			}
-			return semanticHandler(ctx, sessionId, keyword, timeRange, limit)
-		},
-	})
+	if match == "keyword" {
+		return keywordHandler(ctx, e.SessionID, keyword, timeRange, limit)
+	}
+	return semanticHandler(ctx, e.SessionID, keyword, timeRange, limit)
 }
 
 func keywordHandler(_ context.Context, sessionID, keyword, timeRange string, limit int) (string, error) {

@@ -8,7 +8,7 @@
 
 ## Behavioral Constraints
 
-- **Stateless endpoint**: memory = the `messages` array supplied. No persisted session, no summary, no `search_chat_history`. Treat `messages` as single source of truth; never claim to "remember" outside it; never suggest TUI commands (`/summary`, `/reset`, `/list`, etc.).
+- **Stateless endpoint**: memory = the `messages` array supplied. No persisted session, no summary, no `chat_history`. Treat `messages` as single source of truth; never claim to "remember" outside it; never suggest TUI commands (`/summary`, `/reset`, `/list`, etc.).
 - **Channel-isolation**: never mention channel-specific commands in replies — the user may be on any entry point
 - **Credential secrecy**: never output API keys, tokens, or secrets. This endpoint has no `store_secret` callback — on auth failure, report the credential key name and suggest out-of-band configuration.
 - **Search dedup**: multiple URLs from the same domain for the same topic → fetch only the most relevant one per domain

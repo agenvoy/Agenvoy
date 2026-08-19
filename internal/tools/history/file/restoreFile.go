@@ -11,19 +11,19 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func registRestoreFileHistory() {
+func registRestoreFile() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "restore_file_history",
+		Name: "restore_file",
 		Description: `
-version puts one file back to a version the user picked; task_id undoes a whole task, or only the files named in paths.
-Use for 還原 / 復原 / 撤銷剛剛的修改 / 改回上一版 — never guess which version they meant: list_file_history, then ask_user with one option per version carrying its date, its objective and its task id, then restore what they chose.
-Versions come from list_file_history; task ids from either that or list_action_history.`,
+Puts files back to a recorded version: one version by id, or every file a task touched.
+Use for 還原 / 復原 / 撤銷剛剛的修改 / 改回上一版 — never guess which version they meant: file_history, then ask_user with one option per version carrying its date, its objective and its task id, then restore what they chose.
+Versions come from file_history; task ids from that or chat_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"version": map[string]any{
 					"type":        "integer",
-					"description": "The version to go back to, from a list_file_history row. Enough on its own — it names both the file and the state.",
+					"description": "The version to go back to, from a file_history row. Enough on its own — it names both the file and the state.",
 				},
 				"task_id": map[string]any{
 					"type":        "string",
@@ -56,7 +56,7 @@ Versions come from list_file_history; task ids from either that or list_action_h
 			meta := historyStore.Meta{
 				SessionID: e.SessionID,
 				TaskID:    e.PendingTask,
-				Tool:      "restore_file_history",
+				Tool:      "restore_file",
 			}
 
 			switch {

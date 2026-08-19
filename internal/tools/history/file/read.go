@@ -3,78 +3,39 @@ package fileHistory
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
-	udiff "github.com/aymanbagabas/go-udiff"
+	"github.com/aymanbagabas/go-udiff"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func registReadFileHistory() {
-	toolRegister.Regist(toolRegister.Def{
-		Name:        "read_file_history",
-		AlwaysAllow: true,
-		Concurrent:  true,
-		SystemUse:   true,
-		Description: `
-Each file's last recorded version, diffed against what is on disk now. Batch every path into one call.
-Use for 改了什麼 / 跟之前差在哪 / 誤刪的內容是什麼, and to show the user before restore_file_history writes.
-Only the newest version is here; older ones and their timestamps are in list_file_history.`,
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"paths": map[string]any{
-					"type":        "array",
-					"description": "Files to compare (e.g. '/abs/path/foo.go', '~/notes.md', 'relative/file.md').",
-					"items": map[string]any{
-						"type": "string",
-					},
-				},
-			},
-			"required": []string{
-				"paths",
-			},
-		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
-			var params struct {
-				Paths []string `json:"paths"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
-			}
-			if len(params.Paths) == 0 {
-				return "", fmt.Errorf("paths is required")
-			}
+func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, error) {
+	blocks := make([]string, 0, len(paths))
+	for _, raw := range paths {
+		path, err := absPath(e, raw)
+		if err != nil {
+			blocks = append(blocks, fmt.Sprintf("%s\n%v", raw, err))
+			continue
+		}
 
-			blocks := make([]string, 0, len(params.Paths))
-			for _, raw := range params.Paths {
-				path, err := absPath(e, raw)
-				if err != nil {
-					blocks = append(blocks, fmt.Sprintf("%s\n%v", raw, err))
-					continue
-				}
-
-				list, err := historyStore.Newest(ctx, historyStore.Filter{Path: path, Limit: 1})
-				if err != nil {
-					return "", fmt.Errorf("internal/runtime/history: Newest: %w", err)
-				}
-				if len(list) == 0 {
-					blocks = append(blocks, fmt.Sprintf("%s\nno recorded changes", path))
-					continue
-				}
-				blocks = append(blocks, describe(ctx, list[0]))
-			}
-			return strings.Join(blocks, "\n\n"), nil
-		},
-	})
+		list, err := historyStore.Newest(ctx, historyStore.Filter{Path: path, Limit: 1})
+		if err != nil {
+			return "", fmt.Errorf("internal/runtime/history: Newest: %w", err)
+		}
+		if len(list) == 0 {
+			blocks = append(blocks, fmt.Sprintf("%s\nno recorded changes", path))
+			continue
+		}
+		blocks = append(blocks, describe(ctx, list[0]))
+	}
+	return strings.Join(blocks, "\n\n"), nil
 }
 
 func describe(ctx context.Context, row historyStore.Row) string {

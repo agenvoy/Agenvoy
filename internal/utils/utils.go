@@ -47,7 +47,6 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_chat_history":  "Search Chat",
 	"search_error_history": "Search Error",
 	"search_google_news":   "Search News",
 	"search_web":           "Search Web",
@@ -68,11 +67,9 @@ var toolDisplayName = map[string]string{
 	"download_file":        "Download",
 	"write_todo":           "Plan",
 	"invoke_subagent":      "Subagent",
-	"list_action_history":  "Actions",
-	"read_action_history":  "Action",
-	"list_file_history":    "History",
-	"read_file_history":    "Diff",
-	"restore_file_history": "Restore",
+	"chat_history":         "Chat",
+	"file_history":         "History",
+	"restore_file":         "Restore",
 	"read_error":           "Read",
 	"remember_error":       "Remember",
 	"send_to_chatbot":      "Send",
@@ -302,7 +299,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return s
 		}
 
-	case "search_error_history", "search_chat_history":
+	case "search_error_history", "chat_history":
 		if s := pick("keyword", "query"); s != "" {
 			return s
 		}
