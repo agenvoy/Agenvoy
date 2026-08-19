@@ -52,7 +52,6 @@ var toolDisplayName = map[string]string{
 	"tools":            "Tools",
 	"list_files":       "List Files",
 	"list_chatbot":     "List Chat",
-	"list_schedule":    "List Schedule",
 	"read_files":       "Read",
 	"write_file":       "Write",
 	"patch_file":       "Patch",
@@ -71,9 +70,7 @@ var toolDisplayName = map[string]string{
 	"send_to_chatbot":  "Send",
 	"http_request":     "Request",
 	"transcribe_media": "Transcribe",
-	"add_schedule":     "Add Schedule",
-	"patch_schedule":   "Patch Schedule",
-	"remove_schedule":  "Remove Schedule",
+	"schedule":         "Schedule",
 }
 
 func IsPlugTool(name string) bool {
@@ -317,18 +314,13 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return s
 		}
 
-	case "add_schedule", "patch_schedule":
+	case "schedule":
 		skill := pick("skill_name")
 		t := pick("time")
 		if skill != "" && t != "" {
 			return fmt.Sprintf("%s %s", t, skill)
 		}
 		if skill != "" {
-			return skill
-		}
-
-	case "remove_schedule":
-		if skill := pick("skill_name"); skill != "" {
 			return skill
 		}
 

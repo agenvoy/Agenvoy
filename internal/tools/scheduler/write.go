@@ -1,0 +1,55 @@
+package scheduler
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
+	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+)
+
+func writeSchedule(e *toolTypes.Executor, target, when, skill string) (string, error) {
+	if !go_pkg_filesystem_reader.Exists(filesystem.ScheduleSkillPath(skill)) {
+		return "", fmt.Errorf("skill %q not found under %s. mode=write is an internal binding called by the scheduler-skill-creator skill flow. Run scheduler-skill-creator skill which generates a hashed skill name and binds time in one flow. Do not call mode=write with a hand-made name", skill, filesystem.ScheduleSkillPath(skill))
+	}
+
+	switch target {
+	case "task":
+		at, err := parseTime(when)
+		if err != nil {
+			return "", err
+		}
+		if !at.After(time.Now()) {
+			return "", fmt.Errorf("already gone: %s", at.Local().Format("2006-01-02 15:04:05"))
+		}
+		entry := runtime.TaskEntry{
+			At:        at.UTC(),
+			SessionID: strings.TrimSpace(e.SessionID),
+			Skill:     skill,
+		}
+		if err := runtime.AppendTask(entry); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("task scheduled: %s fires at %s",
+			skill, at.Local().Format("2006-01-02 15:04:05")), nil
+
+	case "cron":
+		expression := strings.TrimSpace(when)
+		if len(strings.Fields(expression)) != 5 {
+			return "", fmt.Errorf("expression must be 5 fields '{min} {hour} {dom} {mon} {dow}' (got %q)", expression)
+		}
+		entry := runtime.CronEntry{
+			Expression: expression,
+			SessionID:  strings.TrimSpace(e.SessionID),
+			Skill:      skill,
+		}
+		if err := runtime.AppendCron(entry); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("cron scheduled: %s for %s", expression, skill), nil
+	}
+	return "", fmt.Errorf("target must be 'task' or 'cron' (got %q)", target)
+}

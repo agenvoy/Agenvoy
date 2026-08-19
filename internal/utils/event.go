@@ -167,18 +167,13 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "add_schedule", "patch_schedule":
+	case "schedule":
 		skill := arg("skill_name")
 		t := arg("time")
 		if skill != "" && t != "" {
 			return fmt.Sprintf("%s %s", t, skill)
 		}
 		if skill != "" {
-			return skill
-		}
-
-	case "remove_schedule":
-		if skill := arg("skill_name"); skill != "" {
 			return skill
 		}
 

@@ -1,0 +1,99 @@
+package scheduler
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+)
+
+func registSchedule() {
+	toolRegister.Regist(toolRegister.Def{
+		Name: "schedule",
+		Description: `
+Scheduled runs bound to a scheduler skill: what is queued (list), moving one to a new time (patch), cancelling one (remove).
+mode=write is an internal binding step of the scheduler-skill-creator flow — never call it directly; the skill_name it needs carries a hash only that flow produces, so a hand-made one always fails.
+Test / dry-run request: find the skill name with mode=list, read_files its SKILL.md and run the steps here — never reply "run /sched-X in TUI".`,
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"mode": map[string]any{
+					"type":        "string",
+					"enum":        []string{"list", "patch", "remove", "write"},
+					"description": "list: what this session has queued. patch: move an existing entry to a new time. remove: cancel it and trash its skill. write: bind a new one, scheduler-skill-creator only. Omitted: list.",
+					"default":     "list",
+				},
+				"target": map[string]any{
+					"type":        "string",
+					"enum":        []string{"task", "cron", "all"},
+					"description": "task: one-shot fire time. cron: recurring 5-field expression. all: mode=list only.",
+					"default":     "all",
+				},
+				"skill_name": map[string]any{
+					"type":        "string",
+					"description": "Scheduler skill full name including its hash suffix (e.g. 'meeting-reminder-a3f9b2c1'), no 'scheduler-' prefix. Required for write, patch and remove.",
+				},
+				"time": map[string]any{
+					"type":        "string",
+					"description": "Required for write and patch. target=task: '+5m' / '+1h30m' (relative), '15:04' (today clock), '2006-01-02 15:04' (local datetime), or RFC3339. target=cron: 5-field expression '{min} {hour} {dom} {mon} {dow}'.",
+				},
+			},
+		},
+		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+			var params struct {
+				Mode      string `json:"mode"`
+				Target    string `json:"target"`
+				SkillName string `json:"skill_name"`
+				Time      string `json:"time"`
+			}
+			if len(args) > 0 {
+				if err := json.Unmarshal(args, &params); err != nil {
+					return "", fmt.Errorf("json.Unmarshal: %w", err)
+				}
+			}
+
+			mode := strings.ToLower(strings.TrimSpace(params.Mode))
+			if mode == "" {
+				mode = "list"
+			}
+			target := strings.ToLower(strings.TrimSpace(params.Target))
+			skill := strings.TrimSpace(params.SkillName)
+
+			if mode == "list" {
+				if target == "" {
+					target = "all"
+				}
+				if target != "task" && target != "cron" && target != "all" {
+					return "", fmt.Errorf("target must be 'task', 'cron', or 'all' (got %q)", target)
+				}
+				return listSchedule(e, target)
+			}
+
+			if skill == "" {
+				return "", fmt.Errorf("skill_name is required when mode=%s", mode)
+			}
+			if target != "task" && target != "cron" {
+				return "", fmt.Errorf("target must be 'task' or 'cron' when mode=%s (got %q)", mode, target)
+			}
+
+			switch mode {
+			case "write":
+				if strings.TrimSpace(params.Time) == "" {
+					return "", fmt.Errorf("time is required when mode=write")
+				}
+				return writeSchedule(e, target, params.Time, skill)
+			case "patch":
+				if strings.TrimSpace(params.Time) == "" {
+					return "", fmt.Errorf("time is required when mode=patch")
+				}
+				return patchSchedule(target, params.Time, skill)
+			case "remove":
+				return removeSchedule(ctx, e, target, skill)
+			}
+			return "", fmt.Errorf("unknown mode %q; available: list, patch, remove, write", mode)
+		},
+	})
+}
