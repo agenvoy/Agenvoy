@@ -29,6 +29,7 @@ func registReasoningGuide() {
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `[system-default]
 Full rule per topic — call before acting on any match:
 

@@ -12,6 +12,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -106,7 +107,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 				return
 			}
 		case agentTypes.EventToolCall:
-			if ev.ToolName == "" || ev.ToolName == "ask_user" || ev.ToolName == "store_secret" {
+			if ev.ToolName == "" || toolRegister.IsSystemUse(ev.ToolName) {
 				break
 			}
 			if !emitDedup("▸ " + formatToolLine(ev.ToolName, ev.ToolArgs)) {

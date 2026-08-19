@@ -15,6 +15,7 @@ func registReadActionHistory() {
 		Name:        "read_action_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `
 One task's whole run: every tool call with what it returned, what the user answered, and the reply it ended on.
 Use for 那次到底做了什麼 / 上次是怎麼解決的 / 那個工具回了什麼 / 當初為什麼那樣做.

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -19,7 +20,7 @@ import (
 )
 
 func FormatToolEvent(name, raw string) string {
-	if raw == "" {
+	if raw == "" || toolRegister.IsSystemUse(name) {
 		return ""
 	}
 

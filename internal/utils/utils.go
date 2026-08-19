@@ -12,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -117,7 +118,7 @@ func ToolName(name string) string {
 }
 
 func FormatToolArgs(name, raw, cwd string) string {
-	if raw == "" {
+	if raw == "" || toolRegister.IsSystemUse(name) {
 		return ""
 	}
 	var dic map[string]any

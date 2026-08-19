@@ -24,6 +24,7 @@ func registListFileHistory() {
 		Name:        "list_file_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `
 Recorded changes to a file, newest first, each with the version it produced and what the user asked for at the time.
 Use for 這個檔案動過幾次 / 什麼時候改的 / 上一版是什麼, with task_id for 那個動作動了哪些檔案, and always before restoring: 還原 means asking the user which of these versions they mean.

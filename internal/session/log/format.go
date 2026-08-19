@@ -1,12 +1,14 @@
 package sessionLog
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -32,6 +34,9 @@ func formatActionEvent(event agentTypes.Event) string {
 		return withTimestamp("thinking", flatten(str))
 
 	case agentTypes.EventToolCall:
+		if toolRegister.IsSystemUse(event.ToolName) {
+			return ""
+		}
 		body := event.ToolName
 		if display := utils.FormatToolEvent(event.ToolName, event.ToolArgs); display != "" {
 			body = fmt.Sprintf("%s %s", body, flatten(display))
@@ -44,6 +49,16 @@ func formatActionEvent(event agentTypes.Event) string {
 			status = "err"
 		}
 		return withTimestamp("tool_result", fmt.Sprintf("%s %s", event.ToolName, status))
+
+	case agentTypes.EventTodoUpdate:
+		if len(event.Todos) == 0 {
+			return ""
+		}
+		raw, err := json.Marshal(event.Todos)
+		if err != nil {
+			return ""
+		}
+		return withTimestamp("todo", string(raw))
 
 	case agentTypes.EventToolSkipped:
 		return withTimestamp("tool_skipped", event.ToolName)

@@ -42,6 +42,7 @@ func registSearchConversationHistory() {
 		Name:        "search_chat_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: "Search this session's past messages. mode=keyword for exact match across full history; mode=semantic for meaning-based match. Use for prior conversation references, named entity lookups (call first, then search_web), or theme recall. Extract the core noun as keyword.",
 		Parameters: map[string]any{
 			"type": "object",

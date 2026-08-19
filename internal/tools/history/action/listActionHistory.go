@@ -17,6 +17,7 @@ func registListActionHistory() {
 		Name:        "list_action_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `
 What each finished task actually ran: what it was asked for, which tools it called, and its task_id.
 Use for 最近做了什麼 / 上一個動作怎麼處理的 / 之前處理過這個嗎 — the run itself, not the conversation.

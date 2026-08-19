@@ -12,6 +12,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 const logHeartbeat = 25 * time.Second
@@ -43,6 +44,9 @@ func StreamSessionLog() gin.HandlerFunc {
 		}
 
 		for _, ev := range sessionLog.RecentEvents(sid, 512) {
+			if toolRegister.IsSystemUse(ev.ToolName) {
+				continue
+			}
 			raw, err := json.Marshal(ev)
 			if err != nil {
 				continue
@@ -64,6 +68,9 @@ func StreamSessionLog() gin.HandlerFunc {
 			case ev, ok := <-sub.Events():
 				if !ok {
 					return
+				}
+				if toolRegister.IsSystemUse(ev.ToolName) {
+					continue
 				}
 				raw, err := json.Marshal(ev)
 				if err != nil {

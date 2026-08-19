@@ -22,6 +22,7 @@ type todoInput struct {
 func registWriteTodo() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "write_todo",
+		SystemUse:   true,
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  false,

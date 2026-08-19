@@ -35,11 +35,13 @@ func registListTools() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "list_tools",
 		AlwaysAllow: true,
+		SystemUse:   true,
 		Concurrent:  true,
 		Description: `
 List available tools by name + one-line description.
 Read-only; does not load schemas.
 Pass mcp=true to show only MCP-exposed tools (builtin + script_/api_/ext_).
+System tools are omitted unless system=true.
 Use search_tools to also activate matching schemas.`,
 		Parameters: map[string]any{
 			"type": "object",
@@ -49,11 +51,17 @@ Use search_tools to also activate matching schemas.`,
 					"description": "When true, only list MCP-exposed tools: builtin + script_/api_/ext_ prefixed. Default false (list all).",
 					"default":     false,
 				},
+				"system": map[string]any{
+					"type":        "boolean",
+					"description": "When true, also list system tools used for internal bookkeeping. Default false.",
+					"default":     false,
+				},
 			},
 		},
 		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				MCP bool `json:"mcp"`
+				MCP    bool `json:"mcp"`
+				System bool `json:"system"`
 			}
 			if len(args) > 0 {
 				_ = json.Unmarshal(args, &params)
@@ -63,6 +71,9 @@ Use search_tools to also activate matching schemas.`,
 			for _, tool := range e.AllTools {
 				name := tool.Function.Name
 				if params.MCP && !isMCPExposed(name) {
+					continue
+				}
+				if !params.System && toolRegister.IsSystemUse(name) {
 					continue
 				}
 				list = append(list, Tool{

@@ -23,6 +23,7 @@ func registReadFileHistory() {
 		Name:        "read_file_history",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `
 Each file's last recorded version, diffed against what is on disk now. Batch every path into one call.
 Use for 改了什麼 / 跟之前差在哪 / 誤刪的內容是什麼, and to show the user before restore_file_history writes.

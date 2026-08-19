@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 const mergeBlockWait = 250 * time.Millisecond
@@ -83,6 +84,9 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 
 			for _, ev := range sessionLog.RecentEvents(sid, 512) {
+				if toolRegister.IsSystemUse(ev.ToolName) {
+					continue
+				}
 				te := taggedEvent{Session: sid, Event: ev}
 				if raw, err := json.Marshal(te); err == nil {
 					fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
@@ -99,6 +103,9 @@ func StreamMultiLog() gin.HandlerFunc {
 
 			go func(id string, s *pubsub.Subscriber) {
 				for ev := range s.Events() {
+					if toolRegister.IsSystemUse(ev.ToolName) {
+						continue
+					}
 					te := taggedEvent{Session: id, Event: ev}
 					select {
 					case merged <- te:

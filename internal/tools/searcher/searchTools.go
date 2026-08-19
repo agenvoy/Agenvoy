@@ -30,6 +30,7 @@ func registSearchTools() {
 Search tool registry by keyword (or 'select:<name>' for exact activation) and inject schemas.
 Use when a capability isn't loaded.
 Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same intent.`,
+		SystemUse: true,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

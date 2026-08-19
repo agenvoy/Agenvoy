@@ -12,6 +12,7 @@ import (
 	"github.com/muesli/reflow/wrap"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -440,8 +441,7 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		return "", false
 
 	case agentTypes.EventToolCall:
-		if ev.ToolName == "ask_user" || ev.ToolName == "store_secret" ||
-			ev.ToolName == "write_todo" {
+		if toolRegister.IsSystemUse(ev.ToolName) {
 			return "", false
 		}
 		bullet := "⏵"

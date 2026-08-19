@@ -30,6 +30,7 @@ type Def struct {
 	AlwaysLoad    bool
 	Concurrent    bool
 	FireAndForget bool
+	SystemUse     bool
 	Timeout       time.Duration
 }
 
@@ -43,6 +44,7 @@ var readOnlySet = map[string]bool{}
 var alwaysLoadSet = map[string]bool{}
 var concurrentSet = map[string]bool{}
 var fireAndForgetSet = map[string]bool{}
+var systemUseSet = map[string]bool{}
 var timeoutMap = map[string]time.Duration{}
 
 func Regist(d Def) {
@@ -84,6 +86,9 @@ func Regist(d Def) {
 	if d.FireAndForget {
 		fireAndForgetSet[d.Name] = true
 	}
+	if d.SystemUse {
+		systemUseSet[d.Name] = true
+	}
 	if d.Timeout > 0 {
 		timeoutMap[d.Name] = d.Timeout
 	}
@@ -106,6 +111,7 @@ func RemoveByPrefix(prefix string) {
 			delete(alwaysLoadSet, name)
 			delete(concurrentSet, name)
 			delete(fireAndForgetSet, name)
+			delete(systemUseSet, name)
 			delete(timeoutMap, name)
 		}
 	}
@@ -172,6 +178,12 @@ func IsFireAndForget(name string) bool {
 	mu.RLock()
 	defer mu.RUnlock()
 	return fireAndForgetSet[name]
+}
+
+func IsSystemUse(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return systemUseSet[name]
 }
 
 func GetTool(name string) *provider.Tool {

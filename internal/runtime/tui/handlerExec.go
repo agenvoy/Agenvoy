@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -207,8 +208,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, tea.Println("\n" + line)
 
 	case agentTypes.EventToolCall:
-		if ev.ToolName != "" && ev.ToolName != "ask_user" && ev.ToolName != "store_secret" &&
-			ev.ToolName != "write_todo" {
+		if ev.ToolName != "" && !toolRegister.IsSystemUse(ev.ToolName) {
 			if ev.Source != "" {
 				t.trackSubagent(ev.Source, toolActivity(ev, t.cwd)).tools++
 				return t, nil

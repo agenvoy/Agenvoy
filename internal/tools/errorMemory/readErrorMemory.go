@@ -17,6 +17,7 @@ func registReadErrorMemory() {
 		Name:        "read_error",
 		AlwaysAllow: true,
 		Concurrent:  true,
+		SystemUse:   true,
 		Description: `
 Fetch a prior tool error record by hash.
 Use when a tool returns "no data: {hash}" and the full context is needed.`,
