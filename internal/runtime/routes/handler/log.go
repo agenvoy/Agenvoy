@@ -47,7 +47,7 @@ func StreamSessionLog() gin.HandlerFunc {
 			if toolRegister.IsSystemUse(ev.ToolName) {
 				continue
 			}
-			raw, err := json.Marshal(ev)
+			raw, err := json.Marshal(toWire(ev))
 			if err != nil {
 				continue
 			}
@@ -72,7 +72,7 @@ func StreamSessionLog() gin.HandlerFunc {
 				if toolRegister.IsSystemUse(ev.ToolName) {
 					continue
 				}
-				raw, err := json.Marshal(ev)
+				raw, err := json.Marshal(toWire(ev))
 				if err != nil {
 					continue
 				}

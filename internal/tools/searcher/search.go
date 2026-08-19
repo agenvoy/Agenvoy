@@ -1,7 +1,6 @@
 package toolSearcher
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -9,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -20,81 +18,47 @@ type ToolMatch struct {
 	TotalTools int    `json:"total_tools"`
 }
 
-func registSearchTools() {
-	toolRegister.Regist(toolRegister.Def{
-		Name:        "search_tools",
-		AlwaysAllow: true,
-		AlwaysLoad:  true,
-		Concurrent:  true,
-		Description: `
-Search tool registry by keyword (or 'select:<name>' for exact activation) and inject schemas.
-Use when a capability isn't loaded.
-Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for same intent.`,
-		SystemUse: true,
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"query": map[string]any{
-					"type":        "string",
-					"description": `Keywords (all must match), or "select:<name>,<name>" for exact activation.`,
-				},
-			},
-			"required": []string{"query"},
-		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
-			if len(args) < 1 {
-				return "", fmt.Errorf("arguments are required")
-			}
+func searchTools(e *toolTypes.Executor, query string) (string, error) {
+	var matches []Tool
+	if name, ok := strings.CutPrefix(query, "select:"); ok {
+		matches = matchName(name, e.AllTools)
+	} else {
+		matches = matchKeyword(query, e.AllTools)
+	}
 
-			var params struct {
-				Query string `json:"query"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json Unmarshal: %w", err)
-			}
+	toolDic := make(map[string]provider.Tool, len(e.AllTools))
+	for _, tool := range e.AllTools {
+		toolDic[tool.Function.Name] = tool
+	}
 
-			var matches []Tool
-			if name, ok := strings.CutPrefix(params.Query, "select:"); ok {
-				matches = matchName(name, e.AllTools)
-			} else {
-				matches = matchKeyword(params.Query, e.AllTools)
-			}
+	e.ToolsMu.Lock()
+	for _, match := range matches {
+		if e.ExcludeTools[match.Name] {
+			continue
+		}
 
-			toolDic := make(map[string]provider.Tool, len(e.AllTools))
-			for _, tool := range e.AllTools {
-				toolDic[tool.Function.Name] = tool
-			}
+		full, ok := toolDic[match.Name]
+		if !ok {
+			continue
+		}
 
-			e.ToolsMu.Lock()
-			for _, match := range matches {
-				if e.ExcludeTools[match.Name] {
-					continue
-				}
+		if i := slices.IndexFunc(e.Tools, func(t provider.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
+			e.Tools = slices.Delete(e.Tools, i, i+1)
+		}
+		e.Tools = append(e.Tools, full)
+		delete(e.StubTools, match.Name)
+	}
+	e.ToolsMu.Unlock()
 
-				full, ok := toolDic[match.Name]
-				if !ok {
-					continue
-				}
-
-				if i := slices.IndexFunc(e.Tools, func(t provider.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
-					e.Tools = slices.Delete(e.Tools, i, i+1)
-				}
-				e.Tools = append(e.Tools, full)
-				delete(e.StubTools, match.Name)
-			}
-			e.ToolsMu.Unlock()
-
-			raw, err := json.Marshal(ToolMatch{
-				Injected:   matches,
-				Query:      params.Query,
-				TotalTools: len(e.AllTools),
-			})
-			if err != nil {
-				return "", fmt.Errorf("json Marshal: %w", err)
-			}
-			return string(raw), nil
-		},
+	raw, err := json.Marshal(ToolMatch{
+		Injected:   matches,
+		Query:      query,
+		TotalTools: len(e.AllTools),
 	})
+	if err != nil {
+		return "", fmt.Errorf("json Marshal: %w", err)
+	}
+	return string(raw), nil
 }
 
 func matchName(names string, tools []provider.Tool) []Tool {

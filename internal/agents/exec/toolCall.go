@@ -385,8 +385,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 		if exec.StubTools[toolName] || activatedInBatch[toolName] {
 			if exec.StubTools[toolName] {
-				activateArgs, _ := json.Marshal(map[string]any{"query": "select:" + toolName})
-				if _, err := toolRegister.Dispatch(ctx, exec, "search_tools", activateArgs); err != nil {
+				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
+				if _, err := toolRegister.Dispatch(ctx, exec, "tools", activateArgs); err != nil {
 					slog.Warn("stub tool activation failed",
 						slog.String("name", toolName),
 						slog.String("error", err.Error()))

@@ -256,4 +256,4 @@ if __name__ == "__main__":
 
 All steps are tool calls. Text output only at the final step. `name` without prefix (runtime adds it). Auth-required APIs: script tools use `get_key()`, API tools set `auth.env` + `store_secret` if key missing.
 
-**Fallback:** if `search_tools` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.
+**Fallback:** if `tools(mode=search)` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.

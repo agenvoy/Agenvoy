@@ -16,6 +16,7 @@ import (
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const mergeBlockWait = 250 * time.Millisecond
@@ -23,6 +24,24 @@ const mergeBlockWait = 250 * time.Millisecond
 type taggedEvent struct {
 	Session string `json:"session"`
 	agentTypes.Event
+	Display string `json:"tool_display,omitempty"`
+}
+
+type wireEvent struct {
+	agentTypes.Event
+	Display string `json:"tool_display,omitempty"`
+}
+
+func toWire(ev agentTypes.Event) wireEvent {
+	return wireEvent{Event: ev, Display: internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)}
+}
+
+func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
+	return taggedEvent{
+		Session: sessionID,
+		Event:   ev,
+		Display: internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs),
+	}
 }
 
 type connectedFrame struct {
@@ -87,7 +106,7 @@ func StreamMultiLog() gin.HandlerFunc {
 				if toolRegister.IsSystemUse(ev.ToolName) {
 					continue
 				}
-				te := taggedEvent{Session: sid, Event: ev}
+				te := toTagged(sid, ev)
 				if raw, err := json.Marshal(te); err == nil {
 					fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
 				}
@@ -106,7 +125,7 @@ func StreamMultiLog() gin.HandlerFunc {
 					if toolRegister.IsSystemUse(ev.ToolName) {
 						continue
 					}
-					te := taggedEvent{Session: id, Event: ev}
+					te := toTagged(id, ev)
 					select {
 					case merged <- te:
 						continue

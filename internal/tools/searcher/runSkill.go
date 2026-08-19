@@ -15,15 +15,15 @@ import (
 
 func registRunSkill() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "run_skill",
-		Description: `
-Load a named skill's reference material into the current turn.
-Use when the system prompt's '## Skills' lists a skill that fits, or when the user names a skill.
-Result is advisory — integrate what fits.`,
+		Name:        "run_skill",
 		SystemUse:   true,
 		AlwaysAllow: true,
 		AlwaysLoad:  true,
 		Concurrent:  false,
+		Description: `
+Load a named skill's reference material into the current turn.
+Use when the system prompt's '## Skills' lists a skill that fits, or when the user names a skill.
+Result is advisory — integrate what fits.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

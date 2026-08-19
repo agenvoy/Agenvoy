@@ -153,14 +153,14 @@ python3 scripts/init_scheduler_skill.py <short-name>
    - 「彙整 commit 訊息」→ `commit-generate`
    - 「跑程式碼 review」→ `code-reviewer`
 2. **逐個 `run_skill` 驗證**候選：activate 成功代表存在，body 改寫成 `任務：呼叫 /<skill-name> 觸發本任務`。失敗（skill 不存在）才往下一步。
-3. **無匹配 skill 時，`search_tools` 找 raw tool**：抽出步驟 1 任務的動詞，對每個動詞呼一次 `search_tools`。回傳的 tool name 才能寫進 body：
+3. **無匹配 skill 時，`tools(mode=search)` 找 raw tool**：抽出步驟 1 任務的動詞，對每個動詞呼一次。回傳的 tool name 才能寫進 body：
 
    ```
-   search_tools({"query": "fetch stock price", "max_results": 5})
-   search_tools({"query": "yahoo finance", "max_results": 5})
+   tools({"mode": "search", "query": "fetch stock price"})
+   tools({"mode": "search", "query": "yahoo finance"})
    ```
 
-4. **`search_tools` 也找不到**（例：使用者要求「打卡」但無此 tool 也無對應 skill）→ 回 `ask_user`：「目前環境沒有可完成 X 的 skill／tool，可以改成 Y 嗎？」。**禁止**寫不存在的 skill／tool name 進 body。
+4. **`tools(mode=search)` 也找不到**（例：使用者要求「打卡」但無此 tool 也無對應 skill）→ 回 `ask_user`：「目前環境沒有可完成 X 的 skill／tool，可以改成 Y 嗎？」。**禁止**寫不存在的 skill／tool name 進 body。
 
 **判定原則**：
 
@@ -313,4 +313,4 @@ description: 每 5 分鐘抓取台積電 2330.TW 即時股價並提醒。
 - **不**留 `[TODO: ...]` 佔位符在最終 skill —— 步驟 4 須把所有 TODO 替換為具體內容
 - **不**用任意預設值補齊時間 —— 缺時間就 `ask_user` 問清楚，不要「應該是 9 點」之類腦補
 - **不**跳過步驟 5 的 `add_schedule` —— skill 建立但沒綁時間 = 排程不會觸發
-- **不**在 body 引用未經 `search_tools` 確認存在的 tool name —— 觸發時 subagent 找不到 tool 會直接 abort，使用者拿不到結果也看不到錯誤原因
+- **不**在 body 引用未經 `tools(mode=search)` 確認存在的 tool name —— 觸發時 subagent 找不到 tool 會直接 abort，使用者拿不到結果也看不到錯誤原因
