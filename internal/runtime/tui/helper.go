@@ -35,7 +35,7 @@ func activityVerb(activity string) string {
 		case "run_command":
 			return "Running"
 
-		case "search_web", "search_google_news", "error_history", "chat_history":
+		case "search_web", "error_history", "chat_history":
 			return "Searching"
 
 		case "fetch_page":

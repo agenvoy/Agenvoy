@@ -20,9 +20,8 @@ type toolHistory struct {
 }
 
 var cacheable = map[string]bool{
-	"fetch_page":         true,
-	"search_google_news": true,
-	"search_web":         true,
+	"fetch_page": true,
+	"search_web": true,
 }
 
 func IsCacheable(name string) bool {

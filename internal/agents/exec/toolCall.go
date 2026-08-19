@@ -115,7 +115,7 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if isReadOnlyMode(toolArgs) {
 		return false
 	}
-	if toolName == "send_http_request" && isGet(toolArgs) {
+	if toolName == "http_request" && isGet(toolArgs) {
 		return false
 	}
 	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {

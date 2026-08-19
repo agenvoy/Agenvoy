@@ -131,7 +131,7 @@ func FormatToolEvent(name, raw string) string {
 			return val
 		}
 
-	case "search_web", "search_google_news":
+	case "search_web":
 		if val := arg("query", "keyword"); val != "" {
 			if timeRange := arg("time_range", "time"); timeRange != "" {
 				return fmt.Sprintf("%s (%s)", val, timeRange)

@@ -174,10 +174,10 @@ python3 scripts/init_scheduler_skill.py <short-name>
 
 | 任務類型 | 候選 skill（優先） | 候選 tool（退一步） |
 |---|---|---|
-| 比特幣行情／分析 | `bitcoin-lookup` | `search_web` / `search_google_news` → `fetch_page` |
-| 一般股價／財經 | （視 `## Skills` 是否有對應）| `search_web` / `search_google_news` → `fetch_page` |
-| HN／RSS 摘要 | （視是否有 digest skill）| `search_google_news` |
-| 網頁／API 抓取 | — | `fetch_page`／`send_http_request`／`api_*` |
+| 比特幣行情／分析 | `bitcoin-lookup` | `search_web` → `fetch_page` |
+| 一般股價／財經 | （視 `## Skills` 是否有對應）| `search_web` → `fetch_page` |
+| HN／RSS 摘要 | （視是否有 digest skill）| `search_web`（`source: news`）|
+| 網頁／API 抓取 | — | `fetch_page`／`http_request`／`api_*` |
 | 程式碼 review | `code-reviewer` | — |
 | Commit／版號 | `commit-generate`／`version-generate` | — |
 | 計算 | — | `calculator` |
@@ -193,7 +193,7 @@ python3 scripts/init_scheduler_skill.py <short-name>
 - `## 任務` ← 步驟 1 收集到的「行為細節」，引用**步驟 3.5 已確認存在**的 tool 名稱與參數
 - `## 輸出格式` ← 期望輸出形式
 
-**禁止**在 skill body 內加任何「推送到 channel」「呼叫 send_http_request 給 Discord」「呼叫 MCP discord tool」之類的 notify 指令 —— scheduler 觸發後 runtime 自動把輸出送回原 caller channel（Discord 來源送回原頻道、CLI／HTTP 來源送回 action.log）。Skill body 只需專注產出**任務結果文字**。
+**禁止**在 skill body 內加任何「推送到 channel」「呼叫 http_request 給 Discord」「呼叫 MCP discord tool」之類的 notify 指令 —— scheduler 觸發後 runtime 自動把輸出送回原 caller channel（Discord 來源送回原頻道、CLI／HTTP 來源送回 action.log）。Skill body 只需專注產出**任務結果文字**。
 
 ### 5. 綁定時間
 
@@ -239,11 +239,11 @@ scheduler 觸發後，runtime 會把 subagent 產出的最終文字自動送回 
 | `dc-*`（Discord） | 自動 `ChannelMessageSend` 回原頻道（含 ` - <skill 短名>` 標籤） |
 | `cli-*`／`http-*`／TUI 觸發 | 留在 session history／action.log，由 caller 端工具讀取 |
 
-**所以 skill body 不需要、也禁止**寫「推送到 channel」「呼叫 `send_http_request` 發 Discord webhook」「呼叫 MCP discord tool」之類的 notify 指令。寫了會在觸發時造成多餘的 token 與認證錯誤（subagent 沒 `DISCORD_BOT_TOKEN` 互動環境）。
+**所以 skill body 不需要、也禁止**寫「推送到 channel」「呼叫 `http_request` 發 Discord webhook」「呼叫 MCP discord tool」之類的 notify 指令。寫了會在觸發時造成多餘的 token 與認證錯誤（subagent 沒 `DISCORD_BOT_TOKEN` 互動環境）。
 
 ## Secret／API Key（skill body 引用 token 時必看）
 
-被觸發的 scheduler skill 跑在獨立 subagent，**不持有任何明文 secret**。若 body 內呼叫的 tool（如 `send_http_request`、自製 api_tool、script_tool）需要 API token：
+被觸發的 scheduler skill 跑在獨立 subagent，**不持有任何明文 secret**。若 body 內呼叫的 tool（如 `http_request`、自製 api_tool、script_tool）需要 API token：
 
 - **命名格式**：`{品牌}_API_KEY`（SCREAMING_SNAKE_CASE），例 `OPENAI_API_KEY`、`CODEX_API_KEY`、`POLYGON_API_KEY`、`STAGING_API_KEY`
 - **儲存位置**：macOS keychain 中 **service = `agenvoy`**、**account = key 名**，組合識別 `agenvoy.{key}`（例 `agenvoy.OPENAI_API_KEY`）
@@ -295,7 +295,7 @@ description: 每 5 分鐘抓取台積電 2330.TW 即時股價並提醒。
 
 ## 任務
 
-透過 `search_web` / `search_google_news` 找到 `2330.TW` 最新報價來源，再用 `fetch_page` 讀取結果。
+透過 `search_web` 找到 `2330.TW` 最新報價來源，再用 `fetch_page` 讀取結果。
 
 ## 輸出格式
 

@@ -5,17 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/pardnchiu/agenvoy/internal/tools/external/googleRSS"
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
-	googleRSS.Register()
 	searchWeb.Register()
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "send_http_request",
+		Name:        "http_request",
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: "Send an HTTP request (GET/POST/PUT/PATCH/DELETE) to any URL with optional multipart upload. Use when no dedicated api_* tool covers the endpoint; prefer fetch_page for human-readable HTML.",

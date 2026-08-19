@@ -22,7 +22,7 @@ Takes a packager-produced tarball, installs it as an extension visible to the ru
 
 #### 0.1 GET /list — fetch the catalog
 
-Call `send_http_request`:
+Call `http_request`:
 
 ```json
 {
@@ -60,7 +60,7 @@ User cancel → abort.
 
 #### 0.3 GET /download — pull the tar locally
 
-Call `download_file` (**not** `send_http_request` — binary doesn't belong in a string body):
+Call `download_file` (**not** `http_request` — binary doesn't belong in a string body):
 
 ```json
 {
@@ -253,7 +253,7 @@ rm -rf ~/.config/agenvoy/tools/.extension/.staging
 ## Forbidden
 
 - Never `ask_user` for a different registry endpoint in §0; the endpoint is fixed at `https://pkg.agenvoy.com`
-- Never fetch the tar binary via `send_http_request` in §0.3; binary belongs to `download_file` (cannot go through a string body)
+- Never fetch the tar binary via `http_request` in §0.3; binary belongs to `download_file` (cannot go through a string body)
 - Never skip the §0.3 sha256 comparison (when the response carries `sha256`); mismatch means the tar is corrupted or substituted
 - Never extract directly into the install path; always isolate through `.staging/`. Any failure in validation / deps / key steps must `rm -rf .staging`
 - Never `ask_user` to patch a missing manifest field in step 2; validation failure means the tarball is broken at the packager side — abort

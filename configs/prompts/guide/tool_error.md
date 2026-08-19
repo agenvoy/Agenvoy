@@ -15,7 +15,7 @@ When the failing tool is self-authored (`script_*` or `api_*`), repair it in pla
 1. Diagnose the error: runtime exception → tag=`script`; parameter/schema mismatch → tag=`json`; API tool definition (url/auth/endpoint) → tag=`api`.
 2. `patch_tool(name, tag, old_string, new_string)` to fix it.
 3. Retry the same tool call (counts toward the 3-attempt max).
-4. Do not fall back to `send_http_request`, `run_command curl ...`, `run_command python3 -c "..."`, or any other shortcut — repair the tool, never bypass it.
+4. Do not fall back to `http_request`, `run_command curl ...`, `run_command python3 -c "..."`, or any other shortcut — repair the tool, never bypass it.
 
 ## [RETRY_REQUIRED] responses
 
