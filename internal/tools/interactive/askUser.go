@@ -77,7 +77,6 @@ func registAskUser() {
 		Name:        "ask_user",
 		SystemUse:   true,
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
 		Description: "Ask the user one or more questions. Execution pauses until the user responds; a new turn resumes automatically with full context.",
 		Parameters: map[string]any{
 			"type": "object",

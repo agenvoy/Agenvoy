@@ -14,10 +14,10 @@ import (
 )
 
 func Register() {
-	registSubagent()
+	registSubagents()
 }
 
-func registSubagent() {
+func registSubagents() {
 	models := []string{}
 	for _, m := range exec.GetAgent() {
 		if m.Name != "" {
@@ -26,7 +26,7 @@ func registSubagent() {
 	}
 
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "subagent",
+		Name:        "subagents",
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,

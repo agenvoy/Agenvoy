@@ -253,7 +253,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventToolResult:
 		if ev.Source != "" {
-			if ev.ToolName == "subagent" {
+			if ev.ToolName == "subagents" {
 				t.dropSubagent(ev.Source)
 			}
 			return t, nil

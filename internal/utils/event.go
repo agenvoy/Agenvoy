@@ -44,7 +44,7 @@ func FormatToolEvent(name, raw string) string {
 	}
 
 	switch name {
-	case "subagent":
+	case "subagents":
 		val := arg("name", "session_id")
 		if val == "" {
 			val = "subagent"
@@ -114,7 +114,7 @@ func FormatToolEvent(name, raw string) string {
 			return strings.Join(paths, ", ")
 		}
 
-	case "write_file", "patch_file":
+	case "edit_file":
 		if val := arg("path", "pattern"); val != "" {
 			return val
 		}

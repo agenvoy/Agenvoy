@@ -231,8 +231,7 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 }
 
 var isWriteLikeTool = map[string]bool{
-	"write_file": true,
-	"patch_file": true,
+	"edit_file":  true,
 	"edit_skill": true,
 	"edit_tool":  true,
 }
@@ -590,7 +589,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			}
 		}
 
-		if (s.name == "write_file" || s.name == "patch_file") && s.execErr == "" {
+		if s.name == "edit_file" && s.execErr == "" {
 			invalidateReadFileCache(alreadyCall, s.args)
 		}
 		if s.name == "write_todo" && s.execErr == "" && hasCompletedTodo(s.args) {

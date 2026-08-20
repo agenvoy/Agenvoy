@@ -2,7 +2,7 @@
 
 Current mode: `always-allow` — write/exec tools auto-execute without per-call confirmation.
 
-Ordinary writes (`write_file`/`patch_file`, build/test, `git status`/`add`/`commit`, read-only shell) proceed directly.
+Ordinary writes (`edit_file`, build/test, `git status`/`add`/`commit`, read-only shell) proceed directly.
 
 **Truly irreversible ops require `ask_user` first** (target path/argv/DSN, why irreversible, blast radius) — proceed only on explicit `yes`; anything else means abandon and pivot:
 

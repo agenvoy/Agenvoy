@@ -52,18 +52,16 @@ var toolDisplayName = map[string]string{
 	"find_files":       "Find",
 	"list_chatbot":     "List Chat",
 	"read_files":       "Read",
-	"write_file":       "Write",
-	"patch_file":       "Patch",
+	"edit_file":        "Edit",
 	"fetch_page":       "Fetch",
 	"run_command":      "Run",
 	"run_skill":        "Skill",
 	"calculate":        "Calc",
 	"download_file":    "Download",
 	"write_todo":       "Plan",
-	"subagent":         "Subagent",
+	"subagents":        "Subagent",
 	"chat_history":     "Chat",
 	"file_history":     "History",
-	"restore_file":     "Restore",
 	"error_history":    "Error",
 	"send_to_chatbot":  "Send",
 	"http_request":     "Request",
@@ -87,7 +85,7 @@ func PlugToolBaseName(name string) string {
 }
 
 func IsSubagentInvoke(name, raw string) bool {
-	if name != "subagent" {
+	if name != "subagents" {
 		return false
 	}
 	var dic struct {
@@ -159,7 +157,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 		return PlugToolBaseName(name) + " " + raw
 	}
 	switch name {
-	case "subagent":
+	case "subagents":
 		label := pick("name", "session_id")
 		if label == "" {
 			label = "subagent"
@@ -230,7 +228,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return strings.Join(paths, ", ")
 		}
 
-	case "write_file", "patch_file":
+	case "edit_file":
 		if s := pick("path", "pattern"); s != "" {
 			return s
 		}

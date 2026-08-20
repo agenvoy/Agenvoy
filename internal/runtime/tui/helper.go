@@ -29,7 +29,7 @@ func activityVerb(activity string) string {
 		case "read_files":
 			return "Reading"
 
-		case "write_file", "patch_file":
+		case "edit_file":
 			return "Writing"
 
 		case "run_command":
@@ -41,7 +41,7 @@ func activityVerb(activity string) string {
 		case "fetch_page":
 			return "Fetching"
 
-		case "subagent":
+		case "subagents":
 			return "Delegating"
 
 		case "find_files":

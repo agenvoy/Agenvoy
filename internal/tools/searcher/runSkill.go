@@ -18,7 +18,6 @@ func registRunSkill() {
 		Name:        "run_skill",
 		SystemUse:   true,
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
 		Concurrent:  false,
 		Description: `
 Load a named skill's reference material into the current turn.

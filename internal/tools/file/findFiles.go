@@ -21,7 +21,6 @@ func registFindFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "find_files",
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
 		Concurrent:  true,
 		Description: `
 Locate files three ways: what a directory holds (list), which paths match a name pattern (glob), which files match a string in their content (search — grep by RE2 regex).

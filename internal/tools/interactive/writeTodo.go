@@ -24,7 +24,6 @@ func registWriteTodo() {
 		Name:        "write_todo",
 		SystemUse:   true,
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
 		Concurrent:  false,
 		Description: "Maintain a live task checklist the user watches in real time. Call it the moment work becomes multi-step (3+ steps), at the start or mid-task — no need to decide up front. Parallel counts too: N fanned-out searches/subagents = N steps; multi-source research and broad analysis (分析/研究/調查/比較/彙整/週報/盤前) MUST get a plan. Resend the ENTIRE ordered list every call (state is replaced, not merged); keep exactly one `in_progress`, and when a step is truly done flip it `completed` and set the next `in_progress` in the same call. While executing, keep the step set FIXED — change only `status`, never reword/reorder/split/merge/add/drop; if a step is wrong or missing, tell the user what changes and why before sending the revised list. Once all steps are `completed` and a new multi-step need arises, start a FRESH list for it (expected, not a revision). Skip single-step tasks, smalltalk, or anything one tool call resolves. Records progress only; never executes steps.",
 		Parameters: map[string]any{

@@ -5,7 +5,6 @@ import "github.com/pardnchiu/agenvoy/internal/tools/file/variant"
 func Register() {
 	registReadFiles()
 	registFindFiles()
-	registWriteFile()
-	registPatchFile()
+	registEditFile()
 	variant.Register()
 }

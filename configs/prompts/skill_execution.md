@@ -22,8 +22,8 @@ Skill instructions may reference tool names from other environments. Always map 
 | Bash / bash / Bash tool / bash 工具 / Shell / shell 工具 / Terminal / run shell | `run_command` | `{"argv": ["<binary>", "<arg1>", "<arg2>", ...]}` — pass command as argv array (no shell quoting needed). For pipes/redirects: `{"argv": ["sh", "-c", "<full shell command>"]}`. Do NOT use sh -c for a single command with no shell metacharacters — e.g. use `{"argv": ["git", "status"]}`, not `{"argv": ["sh", "-c", "git status"]}` |
 | AskUserQuestion / ask the user / prompt user / 詢問使用者 / 請使用者選擇 | `ask_user` | `{"questions": [{"question": "<prompt>", "options": ["<A>","<B>"], "multi_select": false}]}` — omit `options` for free-text; set `multi_select: true` for multi-choice |
 | Read file / open file / 讀取檔案 / 打開檔案 | `read_files` | `{"files": [{"path": "<absolute path preferred>"}]}` |
-| Write file / create file / 寫入檔案 / 建立檔案 | `write_file` | `{"path": "<absolute path preferred>", "content": "<full file content>"}` |
-| Edit file / modify file / patch / 修改檔案 / 編輯檔案 | `patch_file` | `{"path": "<absolute path preferred>", "targets": [{"old_string": "<exact text>", "new_string": "<replacement>"}]}` |
+| Write file / create file / 寫入檔案 / 建立檔案 | `edit_file` | `{"path": "<absolute path preferred>", "content": "<full file content>"}` |
+| Edit file / modify file / patch / 修改檔案 / 編輯檔案 | `edit_file` | `{"path": "<absolute path preferred>", "targets": [{"old_string": "<exact text>", "new_string": "<replacement>"}]}` |
 | Edit skill file / patch skill / 修改 skill 檔案 | `edit_skill` | `{"mode": "patch", "path": "<relative path under skills dir, e.g. my-skill/SKILL.md>", "old_string": "<exact text>", "new_string": "<replacement>"}` |
 | List files / 列出檔案 | `find_files` | `{"mode": "list", "queries": [{"dir": "<absolute directory path preferred>"}]}` |
 | Find files / glob / 搜尋檔案 | `find_files` | `{"mode": "glob", "queries": [{"pattern": "<glob pattern>"}]}` |

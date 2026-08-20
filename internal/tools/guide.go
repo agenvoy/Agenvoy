@@ -27,7 +27,6 @@ func registReasoningGuide() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "reasoning_guide",
 		AlwaysAllow: true,
-		AlwaysLoad:  true,
 		Concurrent:  true,
 		SystemUse:   true,
 		Description: `[system-default]
@@ -39,7 +38,7 @@ Full rule per topic — call before acting on any match:
 - market_analysis: stock/ETF/market analysis — assess macro, regional, industry, asset-specific layers, never single region.
 - targeted_read: file question needs only specific symbols/sections/keywords — search first, narrow read_files over whole-file read.
 - ask_user: missing target, vague scope, unclear spec, ambiguous time, scheduling without content, non-unique tool choice — resolve intent first.
-- subagent_dispatch: the same lookup repeating across 3+ entities, a lookup spanning 2+ source classes, a set just discovered that now needs per-entity work, a named session ("call X"/"呼叫 X"), or a reusable single subtask — read before any subagent(mode=invoke).
+- subagent_dispatch: the same lookup repeating across 3+ entities, a lookup spanning 2+ source classes, a set just discovered that now needs per-entity work, a named session ("call X"/"呼叫 X"), or a reusable single subtask — read before any subagents(mode=invoke).
 - write_todo: analysis/research task or complex multi-step task, no active Skill — decide checklist before write_todo.
 - html_render: producing a standalone HTML deliverable (report, dashboard, chart, map, 3D view) — settle libraries, breakpoints and visual direction before writing the file.`,
 		Parameters: map[string]any{

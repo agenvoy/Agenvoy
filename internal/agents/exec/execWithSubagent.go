@@ -85,8 +85,8 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 	// * collection-only charter: no nesting, no writes, no deliverable renderers
 	subagentExcludeBase := []string{
-		"subagent",
-		"write_file", "patch_file", "generate*",
+		"subagents",
+		"edit_file", "generate*",
 	}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
 
@@ -209,7 +209,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	passSubagentEvent(parentEvents, displayName, agentTypes.Event{
 		Type:     agentTypes.EventToolResult,
-		ToolName: "subagent",
+		ToolName: "subagents",
 	})
 
 	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", totalUsage.Input+totalUsage.CacheRead+totalUsage.CacheCreate, totalUsage.Output, totalUsage.CacheRead, totalUsage.CacheCreate)

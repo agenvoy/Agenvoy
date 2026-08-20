@@ -593,10 +593,10 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 	header := style.Render(line)
 
 	switch name {
-	case "patch_file", "edit_tool", "edit_skill":
+	case "edit_file", "edit_tool", "edit_skill":
 		hunks := utils.FormatPatchDiff(args)
 		if len(hunks) == 0 {
-			return header
+			return writeDiffLine(header, args, width)
 		}
 		var sb strings.Builder
 		sb.WriteString(header)
@@ -621,21 +621,23 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 		}
 		return sb.String()
 
-	case "write_file":
-		lines := utils.FormatWriteDiff(args)
-		if len(lines) == 0 {
-			return header
-		}
-		var sb strings.Builder
-		sb.WriteString(header)
-		for _, l := range lines[:min(len(lines), 16)] {
-			sb.WriteByte('\n')
-			sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
-		}
-		return sb.String()
 	}
 
 	return header
+}
+
+func writeDiffLine(header, args string, width int) string {
+	lines := utils.FormatWriteDiff(args)
+	if len(lines) == 0 {
+		return header
+	}
+	var sb strings.Builder
+	sb.WriteString(header)
+	for _, l := range lines[:min(len(lines), 16)] {
+		sb.WriteByte('\n')
+		sb.WriteString(diffNewStyle.Render(padToWidth("  + "+l, width)))
+	}
+	return sb.String()
 }
 
 func oneLine(s string) string {

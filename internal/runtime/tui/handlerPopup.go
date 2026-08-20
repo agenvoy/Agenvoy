@@ -451,8 +451,16 @@ func newPopup(id string, req runtime.Request) *Popup {
 			sudoActive: sudo.IsActive(),
 		}
 		switch req.ToolName {
-		case "patch_file", "edit_tool", "edit_skill":
+		case "edit_file", "edit_tool", "edit_skill":
 			hunks := utils.FormatPatchDiff(req.ToolArgs)
+			if len(hunks) == 0 {
+				for _, l := range utils.FormatWriteDiff(req.ToolArgs) {
+					p.diffLines = append(p.diffLines, "+ "+l)
+					if len(p.diffLines) >= 16 {
+						break
+					}
+				}
+			}
 			remaining := 32
 			for i, h := range hunks {
 				if remaining <= 0 {
@@ -469,11 +477,6 @@ func newPopup(id string, req runtime.Request) *Popup {
 					p.diffLines = append(p.diffLines, "+ "+rowLabel(h.Row, j)+l)
 					remaining--
 				}
-			}
-		case "write_file":
-			lines := utils.FormatWriteDiff(req.ToolArgs)
-			for _, l := range lines[:min(len(lines), 16)] {
-				p.diffLines = append(p.diffLines, "+ "+l)
 			}
 		}
 		return p
