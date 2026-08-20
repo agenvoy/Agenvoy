@@ -14,10 +14,9 @@ func Register() {
 		Name:        "calculate",
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `
-Evaluate one or more mathematical expressions — arithmetic, unit conversions, currency arithmetic.
-Fetch variable data via appropriate tool before passing in. Do not persist results to summary.
-Returns {expression: result}; failed expressions return an error string instead of failing the whole call.`,
+		Description: `Evaluates mathematical expressions — arithmetic, unit conversions, currency arithmetic — and returns {expression: result}.
+Use for 算一下 / 換算 / 這樣總共多少, and whenever a number would otherwise be worked out in the head.
+It computes, it does not look anything up: a rate, a price or any live figure comes from its own tool first and is passed in as a literal.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

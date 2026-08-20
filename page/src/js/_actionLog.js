@@ -73,6 +73,15 @@ function parseActionLog(content) {
         break;
       }
 
+      case "todo": {
+        pending = pending || logItem(sendAt);
+        const list = parseTodoLine(body);
+        if (list) {
+          pending.todos = list;
+        }
+        break;
+      }
+
       case "skill_result":
         pending = pending || logItem(sendAt);
         pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + "⏵ skill `" + body + "`";
@@ -134,6 +143,16 @@ function steerMark(sendAt, body, first) {
   return (first ? "\n===\n" : "\n") + sendAt + " - " + body;
 }
 
+function parseTodoLine(body) {
+  try {
+    const list = JSON.parse(body);
+    return Array.isArray(list) ? list : null;
+  } catch (err) {
+    console.error("parseTodoLine", err);
+    return null;
+  }
+}
+
 function parseTodoArgs(body) {
   if (!body.startsWith("write_todo ")) {
     return null;
@@ -148,16 +167,8 @@ function parseTodoArgs(body) {
 }
 
 function formatTool(body) {
-  const cut = body.indexOf(" ");
-  const name = cut === -1 ? body : body.slice(0, cut);
-  const args =
-    cut === -1
-      ? ""
-      : body
-          .slice(cut + 1)
-          .replace(/\s+/g, " ")
-          .slice(0, 120);
-  return `⏵ \`${name}\`${args ? " " + args : ""}`;
+  const label = body.replace(/\s+/g, " ").slice(0, 120);
+  return label ? `⏵ \`${label}\`` : "";
 }
 
 function formatDone(body) {

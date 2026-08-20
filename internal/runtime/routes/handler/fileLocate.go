@@ -24,10 +24,17 @@ func LocateFile() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "name must be a bare file name"})
 			return
 		}
-		size, err := strconv.ParseInt(c.Query("size"), 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
-			return
+		dir := c.Query("dir") == "1" || c.Query("dir") == "true"
+		children := c.QueryArray("child")
+
+		var size int64
+		if !dir {
+			parsed, err := strconv.ParseInt(c.Query("size"), 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
+				return
+			}
+			size = parsed
 		}
 		mtime, _ := strconv.ParseInt(c.Query("mtime"), 10, 64)
 
@@ -49,7 +56,7 @@ func LocateFile() gin.HandlerFunc {
 
 		deadline := time.Now().Add(locateBudget)
 		for _, root := range roots {
-			if paths := locateIn(root, skip, name, size, mtime, deadline); len(paths) > 0 {
+			if paths := locateIn(root, skip, name, size, mtime, dir, children, deadline); len(paths) > 0 {
 				c.JSON(http.StatusOK, gin.H{"paths": paths})
 				return
 			}
@@ -58,7 +65,7 @@ func LocateFile() gin.HandlerFunc {
 	}
 }
 
-func locateIn(root string, skip map[string]bool, name string, size, mtime int64, deadline time.Time) []string {
+func locateIn(root string, skip map[string]bool, name string, size, mtime int64, dir bool, children []string, deadline time.Time) []string {
 	var paths []string
 	filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -71,9 +78,18 @@ func locateIn(root string, skip map[string]bool, name string, size, mtime int64,
 			if path != root && (strings.HasPrefix(entry.Name(), ".") || skip[path] || go_pkg_filesystem.IsDenied(path)) {
 				return filepath.SkipDir
 			}
-			return nil
+			if !dir || path == root || entry.Name() != name {
+				return nil
+			}
+			if !holdsChildren(path, children) {
+				return nil
+			}
+			if !file.IsSensitivePath(path) {
+				paths = append(paths, path)
+			}
+			return filepath.SkipDir
 		}
-		if entry.Name() != name || !entry.Type().IsRegular() {
+		if dir || entry.Name() != name || !entry.Type().IsRegular() {
 			return nil
 		}
 		info, err := entry.Info()
@@ -86,6 +102,18 @@ func locateIn(root string, skip map[string]bool, name string, size, mtime int64,
 		return nil
 	})
 	return paths
+}
+
+func holdsChildren(dir string, children []string) bool {
+	for _, one := range children {
+		if one == "" || one != filepath.Base(one) {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(dir, one)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func sameMoment(at time.Time, ms int64) bool {

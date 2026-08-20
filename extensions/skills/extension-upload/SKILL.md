@@ -22,7 +22,7 @@ Fixed source root:
 SCRIPT_ROOT=~/.config/agenvoy/tools/script
 ```
 
-`list_files` lists all first-level subdirectories under `SCRIPT_ROOT` (non-recursive). **Skip names starting with `.` or `_`.**
+`find_files(mode=list)` lists all first-level subdirectories under `SCRIPT_ROOT` (non-recursive). **Skip names starting with `.` or `_`.**
 
 Branch by input:
 
@@ -35,7 +35,7 @@ Branch by candidate count:
 
 | Count | Action |
 |---|---|
-| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `write_tool`" |
+| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `edit_tool(mode=write)`" |
 | 1 | Use that directory as `extension_dir` directly; report "auto-selected `<basename>`" |
 | ≥ 2 | `ask_user` singleSelect listing all candidates; user picks one as `extension_dir` |
 
@@ -47,7 +47,7 @@ Branch by candidate count:
 
 ### 1. Read the directory
 
-`list_files` enumerates every file under `extension_dir` (relative paths, recursive).
+`find_files(mode=list, recursive=true)` enumerates every file under `extension_dir` (relative paths).
 
 **Collect into `raw_files`, excluding:**
 - `.DS_Store`, `Thumbs.db`, `.git*`
@@ -301,7 +301,7 @@ Fixed endpoint: `https://pkg.agenvoy.com/upload` (**do not** let the user change
 
 #### 8.1 First POST — trigger verification email
 
-Call `send_http_request`. **All four fields are required** (`url` / `method` / `content_type` / `body`); missing any one of them and the worker returns `multipart parse failed`:
+Call `http_request`. **All four fields are required** (`url` / `method` / `content_type` / `body`); missing any one of them and the worker returns `multipart parse failed`:
 
 ```json
 {
@@ -330,7 +330,7 @@ Call `send_http_request`. **All four fields are required** (`url` / `method` / `
 - Never put the manifest JSON into `files[]` (manifest is a text field, goes under `fields.manifest`)
 - Never put tar bytes into `fields` (tar is binary, goes under `files[].path` and is read from disk by the handler)
 
-Response is the `send_http_request` envelope: `{status_code, headers, body}`. **`status_code` is the only branching signal** — do not guess from the body string.
+Response is the `http_request` envelope: `{status_code, headers, body}`. **`status_code` is the only branching signal** — do not guess from the body string.
 
 | status_code | Expected body | Action |
 |---|---|---|
@@ -354,7 +354,7 @@ If blank or not 6 digits → re-prompt up to 3 times; abort with "verification c
 
 #### 8.3 Second POST with the code
 
-Call `send_http_request` — **same four-field structure as §8.1**, only difference is `fields` now also has `code`:
+Call `http_request` — **same four-field structure as §8.1**, only difference is `fields` now also has `code`:
 
 ```json
 {
@@ -440,11 +440,11 @@ Upload-stage failure (§8.1 / §8.2 / §8.3) → show `✅ packaged` plus `❌ p
 - Never change the §8 endpoint `https://pkg.agenvoy.com/upload`; do not `ask_user` for a URL or fall back to staging / custom domains
 - Never skip the first §8.1 POST (the one that triggers the email) and jump to §8.3 with a guessed code; the code must come from the worker email and be entered by the user
 - Never use `popupSecret` to collect the code in §8.2; the code is not a secret, expires in 60s, plaintext echo helps the user paste it
-- Never use `run_command` with `curl` / `wget`; uploads must use `send_http_request` with `content_type=multipart`, binary read from `files[].path`
-- Never simplify the §8 `send_http_request` payload — **all four fields (`url`/`method`/`content_type`/`body`) are required**, and `body` must contain both `fields` and `files`
+- Never use `run_command` with `curl` / `wget`; uploads must use `http_request` with `content_type=multipart`, binary read from `files[].path`
+- Never simplify the §8 `http_request` payload — **all four fields (`url`/`method`/`content_type`/`body`) are required**, and `body` must contain both `fields` and `files`
 - Never omit `content_type: "multipart"` (defaults to `json`, worker won't see multipart)
 - Never put manifest JSON into `files[]` (it's a text field, goes under `fields.manifest`); never put tar bytes into `fields` (binary goes under `files[].path` and the handler reads from disk)
-- Never guess `status_code`; use the `send_http_request` envelope `status_code` as the only branch signal
+- Never guess `status_code`; use the `http_request` envelope `status_code` as the only branch signal
 - Never auto-bump version and re-POST after 409 / 422; both codes signal "user-side mistake" — go back through `/version-generate` or manual adjustment, then re-run the whole skill
 - Never upload tarball + manifest to any endpoint other than §8 (raw GitHub / S3 / any other worker variant)
 </content>

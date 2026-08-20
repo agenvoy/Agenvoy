@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,159 +13,95 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func registPatchFile() {
-	toolRegister.Regist(toolRegister.Def{
-		Name: "patch_file",
-		Description: `
-Edit a file that already exists — the default for every change to something on disk, however small or however many
-regions it touches.
-Replaces text matched exactly, disambiguates which occurrence by 1-based line number (row), or inserts new lines at
-a row. Batch every region of one file into a single call rather than repeating the tool.
-write_file only for a file's first version or a deliberate full rewrite; patch_skill for skill files.
-Read the file first: anchors have to match its current bytes exactly, so the edit is built against what the file
-really contains rather than what it is assumed to contain.`,
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"path": map[string]any{
-					"type":        "string",
-					"description": "File to edit (e.g. '/abs/path/foo.go', '~/notes.md', 'relative/file.md').",
-				},
-				"targets": map[string]any{
-					"type":        "array",
-					"description": "One or more edits. Each is either {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Targets carrying row apply highest row first, so line numbers stay valid against the original file even when other targets shift lines; the remaining targets then apply top to bottom against each other's output — order overlapping old_string targets accordingly.",
-					"items": map[string]any{
-						"type": "object",
-						"properties": map[string]any{
-							"old_string": map[string]any{
-								"type":        "string",
-								"description": "Exact string to replace, including indentation. Must be unique unless replace_all is true or row is given. Omit when using insert_string.",
-							},
-							"new_string": map[string]any{
-								"type":        "string",
-								"description": "Replacement string. Empty string deletes old_string. Combine with row to delete only the occurrence on that line, leaving other occurrences of old_string untouched. Ignored when insert_string is set.",
-							},
-							"replace_all": map[string]any{
-								"type":        "boolean",
-								"description": "If true, replace all occurrences (e.g. when renaming a variable). Defaults to false.",
-								"default":     false,
-							},
-							"insert_string": map[string]any{
-								"type":        "string",
-								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string.",
-							},
-							"row": map[string]any{
-								"type":        "integer",
-								"description": "1-based line number. With old_string: disambiguates which occurrence to edit when old_string is not unique. With insert_string: the line insert_string is inserted before.",
-							},
-						},
-					},
-				},
-			},
-			"required": []string{
-				"path",
-				"targets",
-			},
-		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
-			var params struct {
-				Path    string        `json:"path"`
-				Targets []patchTarget `json:"targets"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
-			}
-			if len(params.Targets) == 0 {
-				return "", fmt.Errorf("targets is required")
-			}
+func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, targets []patchTarget) (string, error) {
+	if len(targets) == 0 {
+		return "", fmt.Errorf("targets is required when mode=patch")
+	}
 
-			baseDir := e.WorkDir
-			if baseDir == "" {
-				baseDir = filesystem.DownloadDir
-			}
+	baseDir := e.WorkDir
+	if baseDir == "" {
+		baseDir = filesystem.DownloadDir
+	}
 
-			path := strings.TrimSpace(params.Path)
-			absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
-			if err != nil {
-				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
-			}
-			if absPath == "" {
-				return "", fmt.Errorf("path or name is required")
-			}
+	path := strings.TrimSpace(path0)
+	absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	if err != nil {
+		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+	}
+	if absPath == "" {
+		return "", fmt.Errorf("path or name is required")
+	}
 
-			if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-				return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
-			}
+	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
+		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
+	}
 
-			info, err := os.Stat(absPath)
-			if err != nil {
-				if denied.IsPermission(err) {
-					denied.Register(e.SessionID, absPath)
-					return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
-				}
-				return "", fmt.Errorf("os.Stat: %w", err)
-			}
-			if info.Size() > maxReadSize {
-				return "", fmt.Errorf("file too large (%d bytes, max 1 MB)", info.Size())
-			}
+	info, err := os.Stat(absPath)
+	if err != nil {
+		if denied.IsPermission(err) {
+			denied.Register(e.SessionID, absPath)
+			return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
+		}
+		return "", fmt.Errorf("os.Stat: %w", err)
+	}
+	if info.Size() > maxReadSize {
+		return "", fmt.Errorf("file too large (%d bytes, max 1 MB)", info.Size())
+	}
 
-			content, err := go_pkg_filesystem.ReadText(absPath)
-			if err != nil {
-				if denied.IsPermission(err) {
-					denied.Register(e.SessionID, absPath)
-					return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
-				}
-				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
-			}
-			change := historyStore.CaptureContent(absPath, content)
+	content, err := go_pkg_filesystem.ReadText(absPath)
+	if err != nil {
+		if denied.IsPermission(err) {
+			denied.Register(e.SessionID, absPath)
+			return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
+		}
+		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
+	}
+	change := historyStore.CaptureContent(absPath, content)
 
-			order := make([]int, len(params.Targets))
-			for i := range order {
-				order[i] = i
-			}
-			sort.SliceStable(order, func(a, b int) bool {
-				ra, rb := params.Targets[order[a]].Row, params.Targets[order[b]].Row
-				if ra > 0 && rb > 0 {
-					return ra > rb
-				}
-				return ra > 0 && rb == 0
-			})
-
-			before := content
-			for _, i := range order {
-				updated, err := applyTarget(content, params.Targets[i], absPath)
-				if err != nil {
-					return "", fmt.Errorf("targets[%d]: %w", i, err)
-				}
-				content = updated
-			}
-			if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
-				return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
-			}
-
-			if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
-				if denied.IsPermission(err) {
-					denied.Register(e.SessionID, absPath)
-					return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
-				}
-				return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
-			}
-
-			var unrecorded string
-			if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "patch_file"}); err != nil {
-				slog.Warn("historyStore.Record",
-					slog.String("path", absPath),
-					slog.String("error", err.Error()))
-				unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
-			}
-
-			return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
-		},
+	order := make([]int, len(targets))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		ra, rb := targets[order[a]].Row, targets[order[b]].Row
+		if ra > 0 && rb > 0 {
+			return ra > rb
+		}
+		return ra > 0 && rb == 0
 	})
+
+	before := content
+	for _, i := range order {
+		updated, err := applyTarget(content, targets[i], absPath)
+		if err != nil {
+			return "", fmt.Errorf("targets[%d]: %w", i, err)
+		}
+		content = updated
+	}
+	if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
+		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
+	}
+
+	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
+		if denied.IsPermission(err) {
+			denied.Register(e.SessionID, absPath)
+			return "", fmt.Errorf("permission denied: %s (recorded; further edits under this path will be skipped)", absPath)
+		}
+		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
+	}
+
+	var unrecorded string
+	if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
+		slog.Warn("historyStore.Record",
+			slog.String("path", absPath),
+			slog.String("error", err.Error()))
+		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
+	}
+
+	return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
 }
 
 type patchTarget struct {

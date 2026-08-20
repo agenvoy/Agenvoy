@@ -147,6 +147,14 @@ function setSession(sessionId) {
   history.replaceState({}, "", url);
 }
 
+function atBottom() {
+  const dom = $("#right-content-chat-messages");
+  if (!dom) {
+    return false;
+  }
+  return dom.scrollHeight - dom.scrollTop - dom.clientHeight <= AUTO_SCROLL_SLACK;
+}
+
 function scrollToBottom(force) {
   const dom = $("#right-content-chat-messages");
   if (!dom || dom.scrollHeight < dom.clientHeight) {
@@ -225,6 +233,7 @@ function newStreamItem(init) {
     footer: footer,
     stop: stop,
     text: init.text || "",
+    answered: false,
     streamed: false,
     textStarted: Boolean(init.text),
     trace: init.trace || "",
@@ -239,6 +248,9 @@ function newStreamItem(init) {
 }
 
 function render(dom, markdown) {
+  const stick = atBottom();
   dom.innerHTML = renderMarkdownHTML(markdown);
-  scrollToBottom();
+  if (stick) {
+    scrollToBottom(true);
+  }
 }

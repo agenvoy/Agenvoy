@@ -119,7 +119,7 @@ If the user asks for something and no other tool here can handle it (weather, pr
 call this to get instructions for building a new tool on the fly.
 Do NOT say 'I cannot' or 'no tool available' — always build one instead.
 Covers both script tools (Python, multi-step) and API tools (single JSON, declarative REST).
-After reading the guide: write_tool -> test_tool (script only) -> call the new tool to answer.`,
+After reading the guide: edit_tool(mode=write) -> test_tool (script only) -> call the new tool to answer.`,
 		InputSchema: emptySchema(),
 	})
 
@@ -133,10 +133,8 @@ After reading the guide: write_tool -> test_tool (script only) -> call the new t
 }
 
 var bridgedTools = []string{
-	"write_tool",
+	"edit_tool",
 	"test_tool",
-	"patch_tool",
-	"remove_tool",
 	"store_secret",
 }
 

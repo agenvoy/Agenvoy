@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/calculate"
-	"github.com/pardnchiu/agenvoy/internal/tools/errorMemory"
 	"github.com/pardnchiu/agenvoy/internal/tools/external"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -17,17 +16,16 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/tools/fetchPage"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/action"
+	_ "github.com/pardnchiu/agenvoy/internal/tools/history/error"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/file"
 )
 
 func init() {
-	registSearchConversationHistory()
 	registReasoningGuide()
 
 	external.Register()
 	fetchPage.Register()
 	file.Register()
-	errorMemory.Register()
 	toolScheduler.Register()
 	toolSearcher.Register()
 	interactive.Register()

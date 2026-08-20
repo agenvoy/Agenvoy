@@ -1,5 +1,5 @@
 const CONFIG_KEY = "webui_config";
-const AUTO_SCROLL_SLACK = 96;
+const AUTO_SCROLL_SLACK = 8;
 
 function praseURL() {
   const url = new URL(window.location.href);
@@ -179,26 +179,26 @@ function bindInputDrop() {
     }
 
     const paths = droppedPaths(e.dataTransfer);
-    const files = paths.length === 0 ? Array.from((e.dataTransfer && e.dataTransfer.files) || []) : [];
-    if (paths.length === 0 && files.length === 0) {
+    const entries = paths.length === 0 ? droppedEntries(e.dataTransfer) : [];
+    if (paths.length === 0 && entries.length === 0) {
       return;
     }
     e.preventDefault();
 
-    for (const file of files) {
+    for (const entry of entries) {
       try {
-        const found = await locateDropped(file);
+        const found = await locateDropped(entry);
         if (found.length === 0) {
-          alert(`can not find where [${file.name}] lives on this machine`);
+          alert(`can not find where [${entry.name}] lives on this machine`);
           continue;
         }
-        const path = found.length === 1 ? found[0] : pickPath(file.name, found);
+        const path = found.length === 1 ? found[0] : pickPath(entry.name, found);
         if (path) {
           paths.push(path);
         }
       } catch (err) {
         console.error("locateDropped", err);
-        alert(`failed to locate [${file.name}]：${err.message}`);
+        alert(`failed to locate [${entry.name}]：${err.message}`);
       }
     }
     if (paths.length > 0) {
@@ -207,12 +207,73 @@ function bindInputDrop() {
   });
 }
 
-async function locateDropped(file) {
-  const query = new URLSearchParams({
-    name: file.name,
-    size: file.size,
-    mtime: file.lastModified,
+function droppedEntries(transfer) {
+  const out = [];
+  for (const item of Array.from((transfer && transfer.items) || [])) {
+    if (item.kind !== "file") {
+      continue;
+    }
+    const entry = typeof item.webkitGetAsEntry === "function" ? item.webkitGetAsEntry() : null;
+    if (entry && entry.isDirectory) {
+      out.push({ name: entry.name, dir: true, entry: entry });
+      continue;
+    }
+    const file = item.getAsFile();
+    if (file) {
+      out.push({ name: file.name, dir: false, file: file });
+    }
+  }
+  if (out.length > 0) {
+    return out;
+  }
+  return Array.from((transfer && transfer.files) || []).map((file) => ({ name: file.name, dir: false, file: file }));
+}
+
+const DIR_FINGERPRINT_MAX = 24;
+
+function readEntryBatch(reader) {
+  return new Promise(function (resolve) {
+    reader.readEntries(resolve, function (err) {
+      console.error("readEntries", err);
+      resolve([]);
+    });
   });
+}
+
+async function directoryChildren(entry) {
+  if (!entry || typeof entry.createReader !== "function") {
+    return [];
+  }
+  const reader = entry.createReader();
+  const names = [];
+  for (;;) {
+    const batch = await readEntryBatch(reader);
+    if (batch.length === 0) {
+      return names;
+    }
+    for (const child of batch) {
+      names.push(child.name);
+      if (names.length >= DIR_FINGERPRINT_MAX) {
+        return names;
+      }
+    }
+  }
+}
+
+async function locateDropped(entry) {
+  let query;
+  if (entry.dir) {
+    query = new URLSearchParams({ name: entry.name, dir: "1" });
+    for (const child of await directoryChildren(entry.entry)) {
+      query.append("child", child);
+    }
+  } else {
+    query = new URLSearchParams({
+      name: entry.file.name,
+      size: entry.file.size,
+      mtime: entry.file.lastModified,
+    });
+  }
 
   const res = await fetch(`${API}/v1/file/locate?${query}`);
   const data = await res.json().catch(() => ({}));
@@ -224,7 +285,7 @@ async function locateDropped(file) {
 
 function pickPath(name, list) {
   const menu = list.map((p, i) => `${i + 1}. ${p}`).join("\n");
-  const answer = prompt(`${list.length} files match [${name}], enter a number:\n${menu}`, "1");
+  const answer = prompt(`${list.length} matches for [${name}], enter a number:\n${menu}`, "1");
   return list[Number(answer) - 1] || "";
 }
 

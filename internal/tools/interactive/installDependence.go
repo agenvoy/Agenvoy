@@ -18,13 +18,15 @@ func registInstallDependence() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "install_dependence",
 		AlwaysAllow: false,
-		Description: "Install a missing system binary cross-platform (TUI/CLI only). Skips if already in PATH. Never use run_command for package installs — sandbox blocks sudo. Language-level packages (pip/npm/cargo/gem) → output command for user to run manually.",
+		Description: `Installs a missing system binary, picking the platform's package manager. Skips silently if it is already in PATH.
+Use for 安裝 / command not found / 缺 ffmpeg 之類的執行檔.
+run_command cannot do this: the sandbox blocks sudo. Language-level packages (pip / npm / cargo / gem) are not installed here — print the command for the user to run.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"package": map[string]any{
 					"type":        "string",
-					"description": "Binary name to install (e.g. ffmpeg, yt-dlp). Single token, no flags or version pin.",
+					"description": "The binary name alone — 'ffmpeg', 'yt-dlp'. No flags, no version pin.",
 				},
 			},
 			"required": []string{"package"},
