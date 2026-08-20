@@ -290,13 +290,13 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | 工具 | 用途 |
 |---|---|
-| `read_files`、`list_files`、`glob_files`、`search_files` | 批次讀取、列舉與搜尋檔案 |
-| `write_file`、`patch_file` | 建立、完整覆寫或精準修改檔案 |
+| `read_files`、`find_files` | 批次讀取檔案；以目錄、glob 或內容定位檔案 |
+| `edit_file` | 建立、覆寫、精準修改、移除與還原檔案 |
 | `run_command` | 在 shell 驗證與 sandbox 約束下執行命令 |
 | `ask_user`、`write_todo` | 互動式輸入與多步驟進度追蹤 |
-| `search_tools` | 搜尋已註冊工具 |
+| `find_tools` | 搜尋／列出已註冊工具 |
 | `reasoning_guide` | 依 `topic` 取得完整推理規則（`tool_generate`、`tool_error`、`subagent_dispatch`、`html_render` 等） |
-| `invoke_subagent` | 委派單一子任務 |
+| `subagents` | 委派單一子任務 |
 
 ## 架構
 
