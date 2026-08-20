@@ -21,10 +21,9 @@ func registFileHistory() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		SystemUse:   true,
-		Description: `
-Recorded versions of files changed through the tools: when each changed, what the task was after, and what the content was.
-Use for 這個檔案動過幾次 / 什麼時候改的 / 上一版是什麼 / 改了什麼 / 跟之前差在哪 / 誤刪的內容是什麼.
-把檔案改回去 → edit_file(mode=restore); 那個動作跑了什麼 → chat_history.`,
+		Description: `Recorded versions of files the tools changed: when each changed, what the task was after, and what the content was.
+Use for 這個檔案動過幾次 / 上一版是什麼 / 跟之前差在哪 / 誤刪的內容是什麼.
+Putting a version back → edit_file(mode=restore); what a whole run did → chat_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

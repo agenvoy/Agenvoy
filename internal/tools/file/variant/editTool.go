@@ -14,26 +14,25 @@ func registEditTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_tool",
 		AlwaysAllow: true,
-		Description: `
-Edit the tools themselves: create or overwrite a definition file (write), fix an exact string inside one (patch), trash an obsolete one (remove).
-Replaces write_tool, patch_tool and remove_tool: an instruction naming any of those means this tool.
-The Capability Gap flow is write → test_tool (script only) → call the new tool. Finding or activating an existing tool is find_tools.`,
+		Description: `The tool definitions themselves: create or overwrite one (write), fix an exact string inside one (patch), trash an obsolete one (remove).
+Use for 建一個工具 / 修工具 / 這個工具壞了, and for write_tool / patch_tool / remove_tool.
+The build flow is write → test_tool → call it. Finding an existing tool → find_tools; skill files → edit_skill.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"write", "patch", "remove"},
-					"description": "write: full file content. patch: exact-string fix. remove: trash the tool directory — remove is never inferred, name it explicitly.",
+					"description": "write: a first version or a full replacement. patch: fixing a broken tool after test_tool failed. remove: trashes the directory, recoverable from .Trash. Omitted: content → write, old_string → patch; remove is never inferred.",
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "Snake_case name without the 'script_' prefix; the runtime adds it (e.g. 'ip_geolocation_lookup').",
+					"description": "Snake_case, no 'script_' prefix — the runtime adds it. e.g. 'ip_geolocation_lookup'.",
 				},
 				"tag": map[string]any{
 					"type":        "string",
 					"enum":        []string{"json", "script", "api"},
-					"description": "mode=write / mode=patch: which file. json = tool.json (schema), script = script.py (runtime), api = <name>.json (API tool definition).",
+					"description": "mode=write / mode=patch: which file — json = tool.json (schema), script = script.py (runtime), api = <name>.json (API tool).",
 				},
 				"content": map[string]any{
 					"type":        "string",

@@ -20,19 +20,19 @@ func registTestTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "test_tool",
 		AlwaysAllow: true,
-		Description: `
-Run a script tool's script.py with JSON input inside sandbox.
-Use after tools(mode=write) or tools(mode=patch) to verify before production use.`,
+		Description: `Runs a script tool's script.py in the sandbox with JSON on stdin and returns what it printed.
+Use for 測試工具 / 驗證 script, and after every edit_tool write or patch before the tool is used for real.
+It fails → edit_tool(mode=patch), then test again.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"name": map[string]any{
 					"type":        "string",
-					"description": "Snake_case name without 'script_' prefix (e.g. 'ip_geolocation_lookup').",
+					"description": "Snake_case, no 'script_' prefix — e.g. 'ip_geolocation_lookup'.",
 				},
 				"input": map[string]any{
 					"type":        "string",
-					"description": "JSON string fed as stdin to script.py (e.g. '{\"ip\":\"8.8.8.8\"}').",
+					"description": "JSON fed to script.py on stdin — '{\"ip\":\"8.8.8.8\"}'.",
 					"default":     "{}",
 				},
 			},

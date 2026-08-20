@@ -14,54 +14,52 @@ import (
 func registEditFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name: "edit_file",
-		Description: `
-Every change to a file on disk: create or wholesale replace one (write), edit regions of an existing one (patch), take one out of the way (remove), put a recorded version back (restore).
-patch is the default for anything that already exists — re-sending a whole file to change part of it throws away text that was already correct, and leaves the same edit to be made again. Read the file first: anchors must match its current bytes.
-remove never deletes: the file moves to the store temp dir and stays restorable, the same path run_command rm takes.
-Replaces write_file, patch_file and restore_file. Skill files go to edit_skill, tool definitions to edit_tool.`,
+		Description: `Every change to a file on disk: create or replace (write), edit regions (patch), move aside (remove), put a recorded version back (restore).
+Use for 寫檔 / 改這一段 / 刪掉這個檔 / 還原 / 改回上一版, and for write_file / patch_file / remove_file / restore_file / delete.
+Skill files → edit_skill; tool definitions → edit_tool; past versions → file_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"write", "patch", "remove", "restore"},
-					"description": "write: full content. patch: edit regions of an existing file. remove: move files out of the way, restorable. restore: put a recorded version back. remove and restore are never inferred — name them explicitly.",
+					"description": "write: a first version or a deliberate full replacement. patch: everything else — a whole-file rewrite throws away text that was already correct. remove: moves the file aside, still restorable. restore: put a recorded version back. Omitted: content → write, targets → patch; remove and restore are never inferred.",
 				},
 				"path": map[string]any{
 					"type":        "string",
-					"description": "mode=write / mode=patch: the file (e.g. '/abs/path/foo.go', '~/notes.md', 'relative/file.md'). Exports with no path given belong in ~/Downloads or ~/.config/agenvoy/download/.",
+					"description": "mode=write / mode=patch: the file — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'. Blank on write lands in ~/Downloads.",
 					"default":     "",
 				},
 				"content": map[string]any{
 					"type":        "string",
-					"description": "mode=write: the complete file content.",
+					"description": "mode=write: the complete file content, not a diff.",
 				},
 				"targets": map[string]any{
 					"type":        "array",
-					"description": "mode=patch: one or more edits to that file. Each is either {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Targets carrying row apply highest row first, so line numbers stay valid against the original file even when other targets shift lines; the remaining targets then apply top to bottom against each other's output — order overlapping old_string targets accordingly.",
+					"description": "mode=patch: the edits to that file — read_files it first so every anchor matches the current bytes. Each item is {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Items carrying row apply highest-row first so line numbers stay valid against the original; the rest then apply in listed order, so sequence overlapping old_string items yourself.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
 							"old_string": map[string]any{
 								"type":        "string",
-								"description": "Exact string to replace, including indentation. Must be unique unless replace_all is true or row is given. Omit when using insert_string.",
+								"description": "Exact text to replace, indentation included. Must be unique unless replace_all or row disambiguates. Omit with insert_string.",
 							},
 							"new_string": map[string]any{
 								"type":        "string",
-								"description": "Replacement string. Empty string deletes old_string. Combine with row to delete only the occurrence on that line, leaving other occurrences of old_string untouched. Ignored when insert_string is set.",
+								"description": "Replacement text; empty deletes old_string. With row, deletes only that line's occurrence. Ignored when insert_string is set.",
 							},
 							"replace_all": map[string]any{
 								"type":        "boolean",
-								"description": "If true, replace all occurrences (e.g. when renaming a variable). Defaults to false.",
+								"description": "Replace every occurrence instead of the single unique one — for renames.",
 								"default":     false,
 							},
 							"insert_string": map[string]any{
 								"type":        "string",
-								"description": "Text to insert as new, independent line(s) at row — not a replacement of that line, not prepended to it. The existing line at row (and everything after) shifts down. Requires row. Cannot combine with old_string.",
+								"description": "New line(s) inserted before row — the existing line shifts down, nothing is replaced. Requires row; cannot combine with old_string.",
 							},
 							"row": map[string]any{
 								"type":        "integer",
-								"description": "1-based line number. With old_string: disambiguates which occurrence to edit when old_string is not unique. With insert_string: the line insert_string is inserted before.",
+								"description": "1-based line number. With old_string: which occurrence to edit. With insert_string: the line to insert before.",
 							},
 						},
 					},
@@ -71,15 +69,15 @@ Replaces write_file, patch_file and restore_file. Skill files go to edit_skill, 
 					"items": map[string]any{
 						"type": "string",
 					},
-					"description": "mode=remove: the files to move out of the way. mode=restore: narrows a task_id undo to these files only.",
+					"description": "mode=remove: the files to move aside. mode=restore: limits a task_id undo to these files.",
 				},
 				"version": map[string]any{
 					"type":        "integer",
-					"description": "mode=restore: the version to go back to, from a file_history row. Enough on its own — it names both the file and the state.",
+					"description": "mode=restore: version id from a file_history row — enough on its own, it names both the file and the state.",
 				},
 				"task_id": map[string]any{
 					"type":        "string",
-					"description": "mode=restore: undo a whole task instead, when no version is given: every file it touched, back to before it ran. 'current' for the task running now.",
+					"description": "mode=restore: undo a whole task instead — every file it touched, back to before it ran. 'current' = the task running now. Either this or version is required.",
 				},
 			},
 		},

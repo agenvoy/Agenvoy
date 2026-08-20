@@ -24,19 +24,17 @@ var SudoStreamHook func(line string)
 
 func registRunCommand() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "run_command",
-		Description: `
-Run a binary with argv; returns combined stdout/stderr.
-Executes in the work directory. Use ['cd', '<path>'] to change the work directory for subsequent commands; the path is verified before switching.
-For pipes/redirects/shell expansion, pass argv=['sh','-c','<full shell command>'].
-Do NOT wrap a single command with no shell metacharacters (|, &&, >, *, ~) in sh -c — call it directly, e.g. ['git','status'] not ['sh','-c','git status'].
-Do not use this to read file contents (cat/head/tail/etc.) — use read_files instead.`,
+		Name:       "run_command",
+		AlwaysLoad: true,
+		Description: `Runs a binary in the work directory and returns its combined stdout/stderr.
+Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
+Reading a file → read_files; finding one → find_files; installing a system binary → install_dependence; opening one in an app → open_file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"argv": map[string]any{
 					"type":        "array",
-					"description": "Command as argv array. e.g. ['git','status'] or ['python3','script.py','--name','value with spaces']. For shell features use ['sh','-c','cmd | pipe'].",
+					"description": "The command as an argv array — ['git','status'], ['python3','script.py','--name','value with spaces']. Pipes, redirects and globbing need ['sh','-c','<full command>']; a plain command with no shell metacharacter (| && > * ~) is called directly, never wrapped in sh -c. ['cd','<path>'] switches the work directory for later calls, and the path is verified first.",
 					"items":       map[string]any{"type": "string"},
 					"minItems":    1,
 				},

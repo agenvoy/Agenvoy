@@ -39,16 +39,15 @@ func Register() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,
-		Description: `[system-default]
-Live web lookup: DuckDuckGo results and Google News headlines, both by default, returned as {"web":[…],"news":[…]}.
-Use for named entities, post-cutoff facts, versions, prices, 新聞 / 最新消息 / 現在怎麼樣了.
-Results are snippets — fetch_page on a result link for the full text. A URL already in hand goes straight to fetch_page.`,
+		Description: `[system-default] Live web lookup — DuckDuckGo results and Google News headlines together, returned as {"web":[…],"news":[…]}.
+Use for named entities, post-cutoff facts, versions, prices, 新聞 / 最新消息 / 現在怎麼樣了 / 查一下.
+Results are snippets: a result link worth citing → fetch_page. A URL already in hand → fetch_page directly.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"query": map[string]any{
 					"type":        "string",
-					"description": "Natural-language keywords, not a URL (e.g. 'React 19 release notes', 'TSMC earnings').",
+					"description": "Natural-language keywords, never a URL — 'React 19 release notes', 'TSMC earnings'.",
 				},
 				"source": map[string]any{
 					"type":        "string",

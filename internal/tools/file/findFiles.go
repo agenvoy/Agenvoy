@@ -21,39 +21,38 @@ func registFindFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "find_files",
 		AlwaysAllow: true,
+		AlwaysLoad:  true,
 		Concurrent:  true,
-		Description: `
-Locate files three ways: what a directory holds (list), which paths match a name pattern (glob), which files match a string in their content (search — grep by RE2 regex).
-Never guess a full path — find it here first, then read_files on what comes back.
-Batch every directory and pattern into one 'queries' call; glob and search merge and deduplicate their matches.
-Replaces list_files, glob_files and search_files: a skill or instruction naming any of those means this tool — list_files → mode=list, glob_files → mode=glob, search_files → mode=search.`,
+		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob), which files contain a string (search, grep by RE2 regex).
+Use for 找檔案 / 這個目錄有什麼 / 哪個檔案有這段, and for list_files / glob_files / search_files / grep.
+A path you are unsure of comes from here, never from a guess. Contents → read_files; past versions → file_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"list", "glob", "search"},
-					"description": "list: entries of each dir. glob: paths matching a filename pattern. search: files whose contents match a regex. Omitted: pattern with file_pattern selects search, pattern alone selects glob, neither selects list.",
+					"description": "list: entries of each dir. glob: paths matching a filename pattern. search: files whose contents match a regex. Omitted: pattern + file_pattern → search, pattern alone → glob, neither → list.",
 					"default":     "list",
 				},
 				"queries": map[string]any{
 					"type":        "array",
-					"description": "One or more lookups, run together.",
+					"description": "Every directory and pattern in one call rather than repeated calls; glob and search merge and deduplicate their matches.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
 							"dir": map[string]any{
 								"type":        "string",
-								"description": "Directory to work in (e.g. '.', '~/Desktop', '/abs/path'). Defaults to the current working directory.",
+								"description": "Directory to work in — '.', '~/Desktop', '/abs/path'.",
 								"default":     ".",
 							},
 							"pattern": map[string]any{
 								"type":        "string",
-								"description": "mode=glob: filename glob relative to dir ('**/*.go', '*.md'), no leading '/' or '~', and it must carry a literal — all-wildcard patterns are rejected. mode=search: RE2 regex matched per line ('func\\s+\\w+Handler', 'TODO:').",
+								"description": "mode=glob: filename glob relative to dir — '**/*.go', '*.md'; no leading '/' or '~', and it must carry a literal (all-wildcard is rejected). mode=search: RE2 regex matched per line — 'func\\s+\\w+Handler', 'TODO:'.",
 							},
 							"file_pattern": map[string]any{
 								"type":        "string",
-								"description": "mode=search: glob narrowing which files to scan (e.g. '**/*.go', 'configs/**/*.json').",
+								"description": "mode=search: glob narrowing which files to scan — '**/*.go', 'configs/**/*.json'.",
 								"default":     "**/*",
 							},
 							"recursive": map[string]any{

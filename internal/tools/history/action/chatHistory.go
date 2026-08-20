@@ -22,11 +22,9 @@ func registChatHistory() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		SystemUse:   true,
-		Description: `
-This session's own record — the action log: finished task runs with what each was asked for, every tool it called with what came back, the reply it ended on, plus the messages themselves.
-Use for 最近做了什麼 / 之前處理過這個嗎 / 那次到底做了什麼 / 那個工具回了什麼 / 上一個動作的 action log / 我們之前聊過什麼 / 你記得我說過的X嗎.
-This is the only way in: the records live under the daemon's own state directory, not in the workspace, so listing, globbing or opening files never reaches them.
-檔案被改成什麼 → file_history; 把檔案改回去 → edit_file(mode=restore); 失敗過什麼 → error_history.`,
+		Description: `This session's own record — the action log: what each finished run was asked for, every tool it called with what came back, the reply it ended on, and the messages themselves.
+Use for 最近做了什麼 / 之前處理過這個嗎 / 那次到底做了什麼 / 那個工具回了什麼 / 上一個動作的 action log / 我們之前聊過什麼.
+The records live in the daemon's own state directory, so listing, globbing or opening files never reaches them. File versions → file_history; failures → error_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -38,7 +36,7 @@ This is the only way in: the records live under the daemon's own state directory
 				},
 				"task_id": map[string]any{
 					"type":        "string",
-					"description": "Task id taken from a list row; required when mode=read.",
+					"description": "mode=read: task id taken from a list row; required.",
 				},
 				"keyword": map[string]any{
 					"type":        "string",

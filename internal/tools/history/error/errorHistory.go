@@ -28,17 +28,16 @@ func registErrorHistory() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		SystemUse:   true,
-		Description: `
-Tool failures kept across sessions: what broke, why, what was done about it, and whether that worked.
-mode=search before a 2nd retry when no error hint was injected — resolved means apply it, failed/abandoned means avoid it.
-mode=read when a tool returns "no data: {hash}". mode=write once a non-trivial fix is confirmed, a strategy is confirmed dead, or 3+ approaches are exhausted.`,
+		Description: `Tool failures kept across sessions: what broke, why, what was done about it, and whether that worked.
+Search it before a second retry when no error hint was injected, read one by hash when a tool answers "no data: {hash}", write once a non-trivial fix is confirmed or a strategy is confirmed dead.
+A past run's own steps → chat_history; the full recovery loop → reasoning_guide(topic=tool_error).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"search", "read", "write"},
-					"description": "search: past records by keyword. read: one record by hash. write: persist this error. Omitted: hash selects read, outcome selects write, otherwise search.",
+					"description": "search: past records by keyword — resolved means apply it, failed or abandoned means avoid it. read: one record by hash. write: persist this error. Omitted: hash → read, outcome → write, otherwise search.",
 					"default":     "search",
 				},
 				"keyword": map[string]any{

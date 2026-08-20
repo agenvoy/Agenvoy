@@ -19,10 +19,9 @@ func registRunSkill() {
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  false,
-		Description: `
-Load a named skill's reference material into the current turn.
-Use when the system prompt's '## Skills' lists a skill that fits, or when the user names a skill.
-Result is advisory — integrate what fits.`,
+		Description: `Loads a named skill's reference material into this turn.
+Use when '## Skills' lists one that fits the task, or when the user names a skill.
+What comes back is advisory: take the parts that fit, ignore the rest — it is reference, not a script to execute line by line. Changing a skill → edit_skill.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

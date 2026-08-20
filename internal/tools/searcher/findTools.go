@@ -25,33 +25,30 @@ func registFindTools() {
 		AlwaysLoad:  true,
 		Concurrent:  true,
 		SystemUse:   true,
-		Description: `
-The tool registry itself: what exists, and pulling a tool's schema in so it can be called.
-mode=search when a capability isn't loaded — keywords, or 'select:<name>' to activate by exact name.
-mode=list to see what is available, name plus one line each, without loading any schema.
-Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.
-Replaces search_tools and list_tools: an instruction naming either means this tool — search_tools → mode=search, list_tools → mode=list.`,
+		Description: `The tool registry: what exists (list), and pulling a tool's schema in so it can be called (search).
+Use for 有哪些工具 / 找工具 / 有沒有可以…的工具, and for search_tools / list_tools.
+A capability that seems missing comes from here before anything is built. Building one → edit_tool; running a script tool → test_tool.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"search", "list"},
-					"description": "search: match the registry and inject the schemas, needs query. list: names and one-line descriptions only. Omitted: query selects search, otherwise list.",
+					"description": "search: match the registry and inject the schemas. list: names and one-line descriptions only. Omitted: query → search, otherwise list.",
 					"default":     "search",
 				},
 				"query": map[string]any{
 					"type":        "string",
-					"description": `mode=search: keywords (all must match), or "select:<name>,<name>" for exact activation.`,
+					"description": `mode=search: keywords, all of which must match, or "select:<name>,<name>" to activate by exact name. Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.`,
 				},
 				"mcp": map[string]any{
 					"type":        "boolean",
-					"description": "mode=list: when true, only MCP-exposed tools — builtin + script_/api_/ext_ prefixed.",
+					"description": "mode=list: only MCP-exposed tools — builtin + script_/api_/ext_ prefixed.",
 					"default":     false,
 				},
 				"system": map[string]any{
 					"type":        "boolean",
-					"description": "mode=list: when true, also list system tools used for internal bookkeeping.",
+					"description": "mode=list: also list the system tools used for internal bookkeeping.",
 					"default":     false,
 				},
 			},

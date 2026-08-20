@@ -14,17 +14,16 @@ func registEditSkill() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_skill",
 		AlwaysAllow: true,
-		Description: `
-Edit the files under ~/.config/agenvoy/skills/: create or fully rewrite one (write), replace an exact string inside one (patch), move a whole skill directory to .Trash (remove).
-Replaces write_skill, patch_skill and remove_skill: an instruction naming any of those means this tool.
-Running a skill is run_skill; this one only changes what a skill contains.`,
+		Description: `The files under the skills directory: create or rewrite one (write), replace an exact string inside one (patch), trash a whole skill (remove).
+Use for 改 skill / 新增 skill / 這個 skill 要調整, and for write_skill / patch_skill / remove_skill.
+Running a skill → run_skill; ordinary files → edit_file; building a new skill from scratch → the skill-creator skill.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"write", "patch", "remove"},
-					"description": "write: full file content. patch: exact-string edit. remove: trash the whole skill directory. Omitted: content selects write, old_string selects patch, name alone selects remove.",
+					"description": "write: a first version or a full rewrite. patch: a targeted edit. remove: trashes the whole skill directory, recoverable from .Trash. Omitted: content → write, old_string → patch, name alone → remove.",
 				},
 				"path": map[string]any{
 					"type":        "string",

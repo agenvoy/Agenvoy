@@ -110,9 +110,10 @@ func matchKeyword(query string, tools []provider.Tool) []Tool {
 
 	dic := make(map[string]*regexp.Regexp, len(terms))
 	for _, term := range terms {
-		if _, ok := dic[term]; !ok {
-			dic[term] = regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(term) + `\b`)
+		if _, ok := dic[term]; ok || !isASCII(term) {
+			continue
 		}
+		dic[term] = regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(term) + `\b`)
 	}
 
 	type scored struct {
@@ -160,7 +161,7 @@ func matchKeyword(query string, tools []provider.Tool) []Tool {
 			if strings.Contains(name, term) {
 				score += 3
 				hit = true
-			} else if pat.MatchString(desc) {
+			} else if descHit(desc, term, pat) {
 				score += 4
 				hit = true
 			}
@@ -181,7 +182,7 @@ func matchKeyword(query string, tools []provider.Tool) []Tool {
 		candidates = append(candidates, scored{tool, score})
 	}
 
-	sort.Slice(candidates, func(i, j int) bool {
+	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].score > candidates[j].score
 	})
 
@@ -200,4 +201,20 @@ func matchKeyword(query string, tools []provider.Tool) []Tool {
 		})
 	}
 	return list
+}
+
+func isASCII(str string) bool {
+	for i := range len(str) {
+		if str[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+func descHit(desc, term string, pat *regexp.Regexp) bool {
+	if pat == nil {
+		return strings.Contains(desc, term)
+	}
+	return pat.MatchString(desc)
 }

@@ -30,23 +30,25 @@ func registSubagents() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
-		Description: "Run a subtask in its own session (mode=invoke), or list the named sessions available to run it (mode=list). For a SINGLE delegated subtask, `mode=list` first — if a listed role fits the task, `ask_user` whether to route there; on yes set `name` to that session's name, on no leave `name` EMPTY (temp). Set `name` verbatim also when the user explicitly delegates to a session (呼叫/請/找/call/ask/let X do Y — X is that name). Otherwise leave `name` EMPTY — never invent a descriptive label (e.g. 'market-news-24h'); an unmatched name resolves to nothing and the run becomes a temp session regardless. Broad PARALLEL fan-out skips the list check and stays anonymous (name empty). One call per distinct subtask — never duplicate the same task. At most 3 legs run concurrently; a 4th queues while its own timeout runs, so dispatch wide fan-outs in batches of 3. Result is prefixed `[subagent · <model> · session=<id> · usage: in=X out=Y cached=Z]` — that usage line is this subagent's total token cost (summed across its own tool-call loop); tally it across all fan-out calls when reporting your own turn's cost.",
+		Description: `Runs a subtask in its own session (invoke), or lists the named sessions available to run it (list).
+Use when the same lookup repeats across 3+ entities, spans 2+ source classes, or the user delegates by name (呼叫 X / 請 X / 找 X).
+One call per distinct subtask, at most three at a time — a fourth queues while its own timeout runs. The full dispatch protocol and the model ladder → reasoning_guide(topic=subagent_dispatch).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"invoke", "list"},
-					"description": "invoke: run the task in a subagent session, needs task. list: reusable named sessions with their roles, no other field. Omitted: task selects invoke, otherwise list.",
+					"description": "invoke: run the task in a subagent session. list: the reusable named sessions and their roles — run it first for a single delegated subtask, then ask_user whether to route there. Omitted: task → invoke, otherwise list.",
 					"default":     "invoke",
 				},
 				"task": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: self-contained task description for the subagent.",
+					"description": "mode=invoke: the subtask, written to stand on its own — the leg sees none of this conversation. Its result comes back prefixed [subagent · <model> · session=<id> · usage: …], and that usage line is the leg's whole token cost, to be tallied across every fan-out call when reporting this turn's cost.",
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: name of ANY existing (non-temp) session to reuse, matching its bot.md frontmatter `name`. Leave EMPTY for a fresh/anonymous subtask — never invent a descriptive label here; a non-matching name is ignored and the subtask runs as an unlabeled temp session. Resolves to its session_id; takes precedence over session_id when both are set.",
+					"description": "mode=invoke: an existing non-temp session to reuse, matching its bot.md frontmatter `name` — set it verbatim when the user delegates by name, otherwise leave EMPTY. Never invent a descriptive label: an unmatched name resolves to nothing and the run becomes a temp session anyway. Broad parallel fan-out stays anonymous. Takes precedence over session_id.",
 					"default":     "",
 				},
 				"session_id": map[string]any{
