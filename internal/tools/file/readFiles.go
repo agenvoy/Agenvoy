@@ -46,35 +46,32 @@ func registReadFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "read_files",
 		AlwaysAllow: true,
+		AlwaysLoad:  true,
 		Concurrent:  true,
-		Description: `
-Canonical way to read any file (text, PDF, DOCX, PPTX, CSV/TSV, or image) — prefer this over run_command/cat/head/tail.
-Reads the entire file by default (capped at 1MB); pass offset/limit only to page through a file that hits that cap.
-Batch multiple files into one 'files' call instead of separate calls.
-Must be called before patch_file (skip if already read this session).
-Also call after patch_file/write_file to verify the edit landed correctly.
-Returns a JSON object mapping each requested path to its content (or an error string for that path).`,
+		Description: `Canonical way to read any file — text, PDF, DOCX, PPTX, CSV/TSV or image — and the step that must precede edit_file(mode=patch) unless it was already read this session.
+Use for 讀檔 / 看一下這個檔案 / 這份 PDF 寫什麼, and for read_file / cat / head / tail.
+Each path maps to its content, or to an error string for that path. Locating a file → find_files; opening it in an app → open_file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"files": map[string]any{
 					"type":        "array",
-					"description": "One or more files to read.",
+					"description": "Every file in one call rather than repeated calls.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
 							"path": map[string]any{
 								"type":        "string",
-								"description": "File to read (e.g. '/abs/path/foo.go', '~/notes.md', 'relative/file.md').",
+								"description": "File to read — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'.",
 							},
 							"offset": map[string]any{
 								"type":        "integer",
-								"description": "1-based line (page for PDF, slide for PPTX, row for CSV). Defaults to 1.",
+								"description": "1-based line — page for PDF, slide for PPTX, row for CSV.",
 								"default":     1,
 							},
 							"limit": map[string]any{
 								"type":        "integer",
-								"description": "Lines (pages for PDF, slides for PPTX, rows for CSV) to read. Defaults to reading the whole file; set explicitly to page through large files.",
+								"description": "How many lines (pages, slides, rows) to read. Omit to read the whole file; set it only to page through one that hits the 1MB cap.",
 							},
 						},
 						"required": []string{

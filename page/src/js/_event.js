@@ -35,7 +35,21 @@ function renderEvent(view, event) {
     return;
   }
 
+  if (type === "EventCanceled") {
+    view.stop?.remove();
+    view.think.open = false;
+    const canceled = assistantFooter({
+      send_at: sendAt(),
+      canceled: true,
+      duration: compactDuration(event.duration),
+    });
+    view.footer.replaceWith(canceled);
+    view.footer = canceled;
+    return;
+  }
+
   if (type === "EventDone") {
+    view.stop?.remove();
     view.think.open = false;
     const usage = event.usage || {};
     const footer = assistantFooter({
@@ -56,6 +70,11 @@ function renderEvent(view, event) {
 function renderAnswer(view) {
   view.source.textContent = view.text;
   render(view.answer, view.text);
+  if (view.answered) {
+    return;
+  }
+  view.answered = true;
+  scrollToBottom(true);
 }
 
 function resumeMark(view) {
@@ -96,8 +115,8 @@ function formatEvent(event) {
   const type = event.type;
 
   if (type === "EventToolCall") {
-    const args = (event.tool_args || "").replace(/\s+/g, " ").slice(0, 120);
-    return `⏵ \`${event.tool_name || "tool"}\`${args ? " " + args : ""}`;
+    const label = (event.tool_display || "").replace(/\s+/g, " ").slice(0, 120);
+    return label ? `⏵ \`${label}\`` : "";
   }
 
   if (type === "EventToolSkipped") {

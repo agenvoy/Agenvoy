@@ -83,11 +83,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		return emitReasoningLine(line)
 	}
 	formatToolLine := func(name, args string) string {
-		arg := internalUtils.FormatToolEvent(name, args)
-		if arg == "" {
-			return name
-		}
-		return name + "  " + go_pkg_utils.TruncateString(arg, 128)
+		return go_pkg_utils.TruncateString(internalUtils.FormatToolEvent(name, args), 128)
 	}
 
 	for ev := range events {
@@ -106,10 +102,14 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 				return
 			}
 		case agentTypes.EventToolCall:
-			if ev.ToolName == "" || ev.ToolName == "ask_user" || ev.ToolName == "store_secret" {
+			if internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 				break
 			}
-			if !emitDedup("▸ " + formatToolLine(ev.ToolName, ev.ToolArgs)) {
+			line := formatToolLine(ev.ToolName, ev.ToolArgs)
+			if line == "" {
+				break
+			}
+			if !emitDedup("▸ " + line) {
 				return
 			}
 		case agentTypes.EventToolSkipped:

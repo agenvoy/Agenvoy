@@ -1,6 +1,7 @@
 package sessionLog
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -32,11 +33,11 @@ func formatActionEvent(event agentTypes.Event) string {
 		return withTimestamp("thinking", flatten(str))
 
 	case agentTypes.EventToolCall:
-		body := event.ToolName
-		if display := utils.FormatToolEvent(event.ToolName, event.ToolArgs); display != "" {
-			body = fmt.Sprintf("%s %s", body, flatten(display))
+		display := utils.FormatToolEvent(event.ToolName, event.ToolArgs)
+		if display == "" {
+			return ""
 		}
-		return withTimestamp("tool_call", body)
+		return withTimestamp("tool_call", flatten(display))
 
 	case agentTypes.EventToolResult:
 		status := "ok"
@@ -44,6 +45,16 @@ func formatActionEvent(event agentTypes.Event) string {
 			status = "err"
 		}
 		return withTimestamp("tool_result", fmt.Sprintf("%s %s", event.ToolName, status))
+
+	case agentTypes.EventTodoUpdate:
+		if len(event.Todos) == 0 {
+			return ""
+		}
+		raw, err := json.Marshal(event.Todos)
+		if err != nil {
+			return ""
+		}
+		return withTimestamp("todo", string(raw))
 
 	case agentTypes.EventToolSkipped:
 		return withTimestamp("tool_skipped", event.ToolName)

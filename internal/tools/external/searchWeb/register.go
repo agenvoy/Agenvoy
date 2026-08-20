@@ -4,18 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
-	"slices"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb/googleRSS"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-var timeRanges = []string{
-	"d", "w", "m", "y",
+var timeRanges = []string{"1h", "6h", "24h", "7d", "30d", "1y"}
+
+// * DuckDuckGo takes d/w/m/y, Google News RSS takes 1h..7d — one vocabulary maps onto both
+var (
+	webWindow = map[string]string{
+		"1h": "d", "6h": "d", "24h": "d", "7d": "w", "30d": "m", "1y": "y",
+	}
+	newsWindow = map[string]string{
+		"1h": "1h", "6h": "6h", "24h": "24h", "7d": "7d", "30d": "7d", "1y": "7d",
+	}
+)
+
+type searchResult struct {
+	Web       json.RawMessage `json:"web,omitempty"`
+	News      json.RawMessage `json:"news,omitempty"`
+	WebError  string          `json:"web_error,omitempty"`
+	NewsError string          `json:"news_error,omitempty"`
 }
 
 func Register() {
@@ -24,41 +39,55 @@ func Register() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,
-		Description: "[system-default] Web search via DuckDuckGo. Use for named entities, post-cutoff facts, versions, prices, news. Results are snippets. cdp=true forces browser fetch, auto-enabled on 202.",
+		Description: `[system-default] Live web lookup — DuckDuckGo results and Google News headlines together, returned as {"web":[…],"news":[…]}.
+Use for named entities, post-cutoff facts, versions, prices, 新聞 / 最新消息 / 現在怎麼樣了 / 查一下.
+Results are snippets: a result link worth citing → fetch_page. A URL already in hand → fetch_page directly.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"query": map[string]any{
 					"type":        "string",
-					"description": "Search keywords sent to DuckDuckGo Lite (top 10 results, Taiwan locale). Use natural-language keywords, not URLs. Example: 'React 19 release notes'.",
+					"description": "Natural-language keywords, never a URL — 'React 19 release notes', 'TSMC earnings'.",
+				},
+				"source": map[string]any{
+					"type":        "string",
+					"enum":        []string{"all", "web", "news"},
+					"description": "Which sources to hit. Keep all unless the question is only about one — web for documentation and general facts, news for headlines.",
+					"default":     "all",
 				},
 				"time_range": map[string]any{
 					"type":        "string",
-					"description": "Lookback window: d=past day, w=past week, m=past month, y=past year. Omit for no restriction. Use w for 最近/近期/本週, m for 本月. Default w.",
-					"default":     "w",
 					"enum":        timeRanges,
+					"description": "Lookback window, applied to both sources. Use 7d for 最近/近期/本週, 30d for 本月. News caps at 7d.",
+					"default":     "7d",
+				},
+				"ceid": map[string]any{
+					"type":        "string",
+					"description": "News edition (e.g. 'TW:zh-Hant', 'US:en').",
+					"default":     "TW:zh-Hant",
 				},
 				"cdp": map[string]any{
 					"type":        "boolean",
-					"description": "Force browser-based fetch via Chrome DevTools Protocol instead of HTTP POST. Slower but bypasses HTTP rate-limiting. Automatically enabled on HTTP 202.",
+					"description": "Force the browser-based web fetch instead of HTTP POST. Slower but bypasses rate-limiting; auto-enabled on HTTP 202.",
 					"default":     false,
 				},
 				"force": map[string]any{
 					"type":        "boolean",
-					"description": "Skip the cached-result lookup and re-search even if an identical call was made recently. Set true when the user explicitly asks to re-check/refresh results.",
+					"description": "Skip the cached-result lookup and search again. Set true when the user asks to re-check or refresh.",
 					"default":     false,
 				},
 			},
-			"required": []string{
-				"query",
-			},
+			"required": []string{"query"},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Query     string `json:"query"`
+				Source    string `json:"source"`
 				TimeRange string `json:"time_range"`
+				CEID      string `json:"ceid"`
 				CDP       bool   `json:"cdp"`
 				Force     bool   `json:"force"`
+				Keyword   string `json:"keyword"`
 				// avoid small agent like 4.1 be stupid to call with different parameter name
 				Q string `json:"q"`
 			}
@@ -72,21 +101,66 @@ func Register() {
 				}
 			}
 
-			query := strings.TrimSpace(params.Query)
-			if query == "" {
-				query = strings.TrimSpace(params.Q)
-			}
+			query := firstNonEmpty(params.Query, params.Keyword, params.Q)
 			if query == "" {
 				return "", fmt.Errorf("query is required")
 			}
 
-			// avoid small agent like 4.1 be stupid to call with not support value
-			timeRange := strings.TrimSpace(params.TimeRange)
-			if timeRange != "" && !slices.Contains(timeRanges, params.TimeRange) {
-				slog.Warn("invalid time_range, fallback to 'w'")
-				params.TimeRange = "w"
+			source := strings.TrimSpace(params.Source)
+			switch source {
+			case "web", "news":
+			default:
+				source = "all"
 			}
-			return handler(ctx, query, timeRange, params.CDP)
+
+			window := strings.TrimSpace(params.TimeRange)
+			if _, ok := webWindow[window]; !ok {
+				window = "7d"
+			}
+
+			var out searchResult
+			var wg sync.WaitGroup
+
+			if source != "news" {
+				wg.Go(func() {
+					raw, err := handler(ctx, query, webWindow[window], params.CDP)
+					if err != nil {
+						out.WebError = err.Error()
+						return
+					}
+					out.Web = json.RawMessage(raw)
+				})
+			}
+			if source != "web" {
+				wg.Go(func() {
+					raw, err := googleRSS.Search(ctx, query, newsWindow[window], params.CEID)
+					if err != nil {
+						out.NewsError = err.Error()
+						return
+					}
+					out.News = json.RawMessage(raw)
+				})
+			}
+			wg.Wait()
+
+			if out.WebError != "" && out.NewsError != "" {
+				return "", fmt.Errorf("web: %s; news: %s", out.WebError, out.NewsError)
+			}
+
+			raw, err := json.Marshal(out)
+			if err != nil {
+				return "", fmt.Errorf("json.Marshal: %w", err)
+			}
+			return string(raw), nil
 		},
 	})
+}
+
+func firstNonEmpty(list ...string) string {
+	for _, one := range list {
+		if s := strings.TrimSpace(one); s != "" {
+			return s
+		}
+	}
+	return ""
 }

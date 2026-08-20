@@ -31,7 +31,25 @@ function subscribe(sessionId) {
   };
 }
 
+let announceTimer = 0;
+let announced = false;
+
 function parseEvent(event) {
+  if (event.type === "EventTextDone") {
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () {
+      announceTimer = 0;
+      announced = true;
+      voiceAnnounce();
+    }, 300);
+    return;
+  }
+
+  if (announceTimer && event.type !== "EventDone") {
+    clearTimeout(announceTimer);
+    announceTimer = 0;
+  }
+
   if (event.type === "EventPending") {
     loadPending(subscribedSession);
     return;
@@ -47,16 +65,34 @@ function parseEvent(event) {
   }
 
   if (!streamDom) {
-    if (event.type === "EventDone") return;
+    if (event.type === "EventDone" || event.type === "EventCanceled") return;
     streamDom = newStreamItem();
+    announced = false;
   }
 
   renderEvent(streamDom, event);
+
+  if (event.type === "EventCanceled") {
+    streamDom = null;
+    clearTodo();
+    loadPending(subscribedSession);
+    clearTimeout(announceTimer);
+    announceTimer = 0;
+    announced = false;
+    return;
+  }
 
   if (event.type === "EventDone") {
     streamDom = null;
     clearTodo();
     loadPending(subscribedSession);
-    voiceAnnounce();
+    if (announceTimer) {
+      clearTimeout(announceTimer);
+      announceTimer = 0;
+    }
+    if (!announced) {
+      voiceAnnounce();
+    }
+    announced = false;
   }
 }

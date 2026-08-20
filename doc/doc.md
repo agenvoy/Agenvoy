@@ -264,13 +264,13 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Tool | Purpose |
 |---|---|
-| `read_files`, `list_files`, `glob_files`, `search_files` | Batch-read, list, and search files |
-| `write_file`, `patch_file` | Create, overwrite, or precisely edit files |
+| `read_files`, `find_files` | Batch-read files; locate them by directory, glob or content |
+| `edit_file` | Create, overwrite, precisely edit, remove or restore files |
 | `run_command` | Run commands under shell validation and sandbox constraints |
 | `ask_user`, `write_todo` | Interactive input and multi-step progress tracking |
-| `search_tools` | Search registered tools |
+| `find_tools` | Search / list registered tools |
 | `reasoning_guide` | Fetch full reasoning rules by `topic` (`tool_generate`, `tool_error`, `subagent_dispatch`, `html_render`, …) |
-| `invoke_subagent` | Delegate a single subtask |
+| `subagents` | Delegate a single subtask |
 
 ## Architecture
 

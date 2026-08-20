@@ -1,6 +1,7 @@
 package sessionLog
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strconv"
@@ -62,6 +63,12 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 		return agentTypes.Event{Type: agentTypes.EventTextDone, Text: body}, true
 	case "thinking":
 		return agentTypes.Event{Type: agentTypes.EventReasoning, Text: body}, true
+	case "todo":
+		var todos []agentTypes.TodoItem
+		if err := json.Unmarshal([]byte(body), &todos); err != nil || len(todos) == 0 {
+			return agentTypes.Event{}, false
+		}
+		return agentTypes.Event{Type: agentTypes.EventTodoUpdate, Todos: todos}, true
 	case "tool_call":
 		name, args, _ := strings.Cut(body, " ")
 		return agentTypes.Event{Type: agentTypes.EventToolCall, ToolName: name, ToolArgs: args}, true

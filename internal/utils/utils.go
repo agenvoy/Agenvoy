@@ -46,40 +46,26 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_chat_history":  "Search Chat",
-	"search_error_history": "Search Error",
-	"search_google_news":   "Search News",
-	"search_web":           "Search Web",
-	"search_files":         "Search Files",
-	"search_tools":         "Search Tools",
-	"list_files":           "List Files",
-	"list_tools":           "List Tools",
-	"list_chatbot":         "List Chat",
-	"list_schedule":        "List Schedule",
-	"read_files":           "Read",
-	"write_file":           "Write",
-	"patch_file":           "Patch",
-	"glob_files":           "Glob",
-	"fetch_page":           "Fetch",
-	"run_command":          "Run",
-	"run_skill":            "Skill",
-	"calculate":            "Calc",
-	"download_file":        "Download",
-	"write_todo":           "Plan",
-	"invoke_subagent":      "Subagent",
-	"list_action_history":  "Actions",
-	"read_action_history":  "Action",
-	"list_file_history":    "History",
-	"read_file_history":    "Diff",
-	"restore_file_history": "Restore",
-	"read_error":           "Read",
-	"remember_error":       "Remember",
-	"send_to_chatbot":      "Send",
-	"send_http_request":    "Request",
-	"transcribe_media":     "Transcribe",
-	"add_schedule":         "Add Schedule",
-	"patch_schedule":       "Patch Schedule",
-	"remove_schedule":      "Remove Schedule",
+	"search_web":       "Search Web",
+	"find_tools":       "Tools",
+	"find_files":       "Find",
+	"list_chatbot":     "List Chat",
+	"read_files":       "Read",
+	"edit_file":        "Edit",
+	"fetch_page":       "Fetch",
+	"run_command":      "Run",
+	"run_skill":        "Skill",
+	"calculate":        "Calc",
+	"download_file":    "Download",
+	"write_todo":       "Plan",
+	"subagents":        "Subagent",
+	"chat_history":     "Chat",
+	"file_history":     "History",
+	"error_history":    "Error",
+	"send_to_chatbot":  "Send",
+	"http_request":     "Request",
+	"transcribe_media": "Transcribe",
+	"schedules":        "Schedule",
 }
 
 func IsPlugTool(name string) bool {
@@ -95,6 +81,23 @@ func PlugToolBaseName(name string) string {
 		}
 	}
 	return name
+}
+
+func IsSubagentInvoke(name, raw string) bool {
+	if name != "subagents" {
+		return false
+	}
+	var dic struct {
+		Mode string `json:"mode"`
+		Task string `json:"task"`
+	}
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &dic)
+	}
+	if mode := strings.TrimSpace(dic.Mode); mode != "" {
+		return mode == "invoke"
+	}
+	return strings.TrimSpace(dic.Task) != ""
 }
 
 func ToolName(name string) string {
@@ -153,7 +156,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 		return PlugToolBaseName(name) + " " + raw
 	}
 	switch name {
-	case "invoke_subagent":
+	case "subagents":
 		label := pick("name", "session_id")
 		if label == "" {
 			label = "subagent"
@@ -171,25 +174,35 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return s
 		}
 
-	case "list_files":
-		dirs, ok := dic["dirs"].([]any)
-		if !ok || len(dirs) == 0 {
+	case "find_files":
+		queries, ok := dic["queries"].([]any)
+		if !ok || len(queries) == 0 {
 			break
 		}
-		labels := make([]string, 0, len(dirs))
-		for _, d := range dirs {
-			dm, ok := d.(map[string]any)
+		labels := make([]string, 0, len(queries))
+		for _, q := range queries {
+			qm, ok := q.(map[string]any)
 			if !ok {
 				continue
 			}
-			dir, _ := dm["dir"].(string)
+			dir, _ := qm["dir"].(string)
+			dir = strings.TrimSpace(dir)
 			if dir == "" {
 				dir = "."
 			}
-			if r, ok := dm["recursive"].(bool); ok && r {
-				dir += " (recursive)"
+			if isCwd(dir) {
+				dir = "./"
 			}
-			labels = append(labels, dir)
+			loc := dir
+			if fp, _ := qm["file_pattern"].(string); strings.TrimSpace(fp) != "" {
+				loc = strings.TrimRight(dir, "/") + "/" + fp
+			}
+			if pat, _ := qm["pattern"].(string); strings.TrimSpace(pat) != "" {
+				loc += " [" + pat + "]"
+			} else if r, ok := qm["recursive"].(bool); ok && r {
+				loc += " (recursive)"
+			}
+			labels = append(labels, loc)
 		}
 		if len(labels) > 0 {
 			return strings.Join(labels, ", ")
@@ -214,63 +227,12 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return strings.Join(paths, ", ")
 		}
 
-	case "glob_files":
-		queries, ok := dic["queries"].([]any)
-		if !ok || len(queries) == 0 {
-			break
-		}
-		patterns := make([]string, 0, len(queries))
-		for _, q := range queries {
-			qm, ok := q.(map[string]any)
-			if !ok {
-				continue
-			}
-			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
-				patterns = append(patterns, p)
-			}
-		}
-		if len(patterns) > 0 {
-			return strings.Join(patterns, ", ")
-		}
-
-	case "write_file", "patch_file":
+	case "edit_file":
 		if s := pick("path", "pattern"); s != "" {
 			return s
 		}
 
-	case "search_files":
-		queries, ok := dic["queries"].([]any)
-		if !ok || len(queries) == 0 {
-			break
-		}
-		labels := make([]string, 0, len(queries))
-		for _, q := range queries {
-			qm, ok := q.(map[string]any)
-			if !ok {
-				continue
-			}
-			dir, _ := qm["dir"].(string)
-			dir = strings.TrimSpace(dir)
-			if dir == "" {
-				dir = "."
-			}
-			if isCwd(dir) {
-				dir = "./"
-			}
-			loc := dir
-			if fp, _ := qm["file_pattern"].(string); strings.TrimSpace(fp) != "" {
-				loc = strings.TrimRight(dir, "/") + "/" + fp
-			}
-			if pat, _ := qm["pattern"].(string); pat != "" {
-				loc += " [" + pat + "]"
-			}
-			labels = append(labels, loc)
-		}
-		if len(labels) > 0 {
-			return strings.Join(labels, ", ")
-		}
-
-	case "search_web", "search_google_news":
+	case "search_web":
 		if q := pick("query", "keyword"); q != "" {
 			if tr := pick("time_range", "time"); tr != "" {
 				return fmt.Sprintf("%s [%s]", q, tr)
@@ -296,28 +258,23 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return s
 		}
 
-	case "remember_error":
-		if s := pick("symptom", "cause", "action"); s != "" {
+	case "error_history":
+		if s := pick("keyword", "hash", "symptom", "action"); s != "" {
 			return s
 		}
 
-	case "search_error_history", "search_chat_history":
+	case "chat_history":
 		if s := pick("keyword", "query"); s != "" {
 			return s
 		}
 
-	case "add_schedule", "patch_schedule":
+	case "schedules":
 		skill := pick("skill_name")
 		t := pick("time")
 		if skill != "" && t != "" {
 			return fmt.Sprintf("%s %s", t, skill)
 		}
 		if skill != "" {
-			return skill
-		}
-
-	case "remove_schedule":
-		if skill := pick("skill_name"); skill != "" {
 			return skill
 		}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const mergeBlockWait = 250 * time.Millisecond
@@ -22,6 +23,38 @@ const mergeBlockWait = 250 * time.Millisecond
 type taggedEvent struct {
 	Session string `json:"session"`
 	agentTypes.Event
+	Display string `json:"tool_display,omitempty"`
+}
+
+type wireEvent struct {
+	agentTypes.Event
+	Display string `json:"tool_display,omitempty"`
+}
+
+func skipEvent(ev agentTypes.Event) bool {
+	switch ev.Type {
+	case agentTypes.EventToolCall, agentTypes.EventToolResult, agentTypes.EventToolSkipped,
+		agentTypes.EventToolCallStart, agentTypes.EventToolCallText, agentTypes.EventToolCallEnd,
+		agentTypes.EventToolConfirm:
+		return internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs)
+	}
+	return false
+}
+
+func toWire(ev agentTypes.Event) wireEvent {
+	display := ""
+	if ev.Type == agentTypes.EventToolCall {
+		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
+	}
+	return wireEvent{Event: ev, Display: display}
+}
+
+func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
+	return taggedEvent{
+		Session: sessionID,
+		Event:   ev,
+		Display: toWire(ev).Display,
+	}
 }
 
 type connectedFrame struct {
@@ -83,7 +116,10 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 
 			for _, ev := range sessionLog.RecentEvents(sid, 512) {
-				te := taggedEvent{Session: sid, Event: ev}
+				if skipEvent(ev) {
+					continue
+				}
+				te := toTagged(sid, ev)
 				if raw, err := json.Marshal(te); err == nil {
 					fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
 				}
@@ -99,7 +135,10 @@ func StreamMultiLog() gin.HandlerFunc {
 
 			go func(id string, s *pubsub.Subscriber) {
 				for ev := range s.Events() {
-					te := taggedEvent{Session: id, Event: ev}
+					if skipEvent(ev) {
+						continue
+					}
+					te := toTagged(id, ev)
 					select {
 					case merged <- te:
 						continue

@@ -97,7 +97,7 @@ multiSelect: true
 | 只要 HTTPS | 剔除 `https != "Yes"` |
 | CORS 不重要 | runtime daemon 走 server-side 呼叫，不受 CORS 限制 — `cors` 欄位**不**作為過濾條件 |
 
-**已存在檢查**：對每個候選比對 `~/.config/agenvoy/tools/api/` 與 `extensions/apis/` 內已有檔案（用 `list_files`／`run_command` 跑 `ls`）— 同名／同 host 已存在則標註「⚠️ 已存在」並讓使用者決定是否重複註冊。
+**已存在檢查**：對每個候選比對 `~/.config/agenvoy/tools/api/` 與 `extensions/apis/` 內已有檔案（用 `find_files(mode=list)`／`run_command` 跑 `ls`）— 同名／同 host 已存在則標註「⚠️ 已存在」並讓使用者決定是否重複註冊。
 
 依**描述相關度**（LLM 判斷）+ HTTPS／免認證偏好排序，取 **≤ 5 個**候選。
 

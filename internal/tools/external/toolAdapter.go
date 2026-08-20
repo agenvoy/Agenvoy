@@ -5,20 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/pardnchiu/agenvoy/internal/tools/external/googleRSS"
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
-	googleRSS.Register()
 	searchWeb.Register()
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "send_http_request",
+		Name:        "http_request",
 		AlwaysAllow: false,
 		Concurrent:  true,
-		Description: "Send an HTTP request (GET/POST/PUT/PATCH/DELETE) to any URL with optional multipart upload. Use when no dedicated api_* tool covers the endpoint; prefer fetch_page for human-readable HTML.",
+		Description: `Sends one HTTP request to any URL and returns status, headers and body — GET through DELETE, multipart upload included.
+Use for 打 API / 呼叫端點 / POST 一份資料, when no api_* tool covers that endpoint.
+HTML meant to be read → fetch_page; a binary file → download_file; an endpoint you will call again → build an api_* tool with edit_tool.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

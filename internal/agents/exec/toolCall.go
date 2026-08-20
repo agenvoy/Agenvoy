@@ -109,16 +109,56 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if toolName == "read_files" && isSensitiveReadFile(toolArgs) {
 		return true
 	}
-	if turnAllowAll || toolRegister.IsReadOnly(toolName) {
+	if turnAllowAll {
 		return false
 	}
-	if toolName == "send_http_request" && isGet(toolArgs) {
+	if isDestructiveMode(toolArgs) {
+		return true
+	}
+	if toolRegister.IsReadOnly(toolName) {
+		return false
+	}
+	if isReadOnlyMode(toolArgs) {
+		return false
+	}
+	if toolName == "http_request" && isGet(toolArgs) {
 		return false
 	}
 	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {
 		return false
 	}
 	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+}
+
+var readOnlyModes = map[string]bool{
+	"list":   true,
+	"read":   true,
+	"search": true,
+}
+
+var destructiveModes = map[string]bool{
+	"remove":  true,
+	"restore": true,
+}
+
+func isDestructiveMode(toolArgs string) bool {
+	var p struct {
+		Mode string `json:"mode"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return destructiveModes[strings.TrimSpace(p.Mode)]
+}
+
+func isReadOnlyMode(toolArgs string) bool {
+	var p struct {
+		Mode string `json:"mode"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return readOnlyModes[strings.TrimSpace(p.Mode)]
 }
 
 func hasDangerousGitFlag(args []string) bool {
@@ -191,12 +231,9 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 }
 
 var isWriteLikeTool = map[string]bool{
-	"write_file":  true,
-	"patch_file":  true,
-	"write_skill": true,
-	"patch_skill": true,
-	"write_tool":  true,
-	"patch_tool":  true,
+	"edit_file":  true,
+	"edit_skill": true,
+	"edit_tool":  true,
 }
 
 func truncateWriteArgs(argsJSON string) string {
@@ -233,10 +270,8 @@ func truncateWriteArgs(argsJSON string) string {
 }
 
 var checkpointClearableTool = map[string]bool{
-	"list_files":   true,
-	"glob_files":   true,
-	"search_files": true,
-	"run_command":  true,
+	"find_files":  true,
+	"run_command": true,
 }
 
 func hasCompletedTodo(argsJSON string) bool {
@@ -366,8 +401,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 		if exec.StubTools[toolName] || activatedInBatch[toolName] {
 			if exec.StubTools[toolName] {
-				activateArgs, _ := json.Marshal(map[string]any{"query": "select:" + toolName})
-				if _, err := toolRegister.Dispatch(ctx, exec, "search_tools", activateArgs); err != nil {
+				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
+				if _, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs); err != nil {
 					slog.Warn("stub tool activation failed",
 						slog.String("name", toolName),
 						slog.String("error", err.Error()))
@@ -481,7 +516,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if s.state != slotReady {
 			continue
 		}
-		if toolRegister.IsFireAndForget(s.name) {
+		if toolRegister.IsBackground(s.name) {
 			go runToolExec(ctx, exec, s, events)
 			s.result = "ok"
 			s.state = slotDispatched
@@ -554,7 +589,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			}
 		}
 
-		if (s.name == "write_file" || s.name == "patch_file") && s.execErr == "" {
+		if s.name == "edit_file" && s.execErr == "" {
 			invalidateReadFileCache(alreadyCall, s.args)
 		}
 		if s.name == "write_todo" && s.execErr == "" && hasCompletedTodo(s.args) {
@@ -571,6 +606,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		events <- agentTypes.Event{
 			Type:     agentTypes.EventToolResult,
 			ToolName: s.name,
+			ToolArgs: s.args,
 			ToolID:   s.id,
 			Result:   result,
 		}

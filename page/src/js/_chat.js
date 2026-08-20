@@ -156,6 +156,9 @@ async function renderChat(sessionId) {
 
 function assistantFooter(meta) {
   const children = [copyBtn()];
+  if (meta.canceled) {
+    children.push(_("p.canceled", "canceled"));
+  }
   if (meta.duration) {
     children.push(_("p", meta.duration));
   }

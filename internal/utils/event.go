@@ -18,188 +18,319 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
+var eventLabel = map[string]string{
+	"read_files":            "File",
+	"run_command":           "Run",
+	"open_file":             "Open",
+	"download_file":         "Download",
+	"install_dependence":    "Install",
+	"search_web":            "Search",
+	"fetch_page":            "Fetch",
+	"http_request":          "Send",
+	"calculate":             "Calc",
+	"test_tool":             "Test",
+	"transcribe_media":      "Transcribe",
+	"send_to_chatbot":       "Push",
+	"list_chatbot":          "Chatbots",
+	"mcp__kura__search_rag": "RAG",
+	"mcp__kura__list_rag":   "RAG",
+}
+
+var hiddenEvent = map[string]bool{
+	"ask_user":            true,
+	"store_secret":        true,
+	"write_todo":          true,
+	"run_skill":           true,
+	"reasoning_guide":     true,
+	"find_tools":          true,
+	"chat_history":        true,
+	"error_history":       true,
+	"file_history":        true,
+	"mcp__kura__list_rag": true,
+	"schedules/list":      true,
+}
+
+func HideToolEvent(name, raw string) bool {
+	if name == "" {
+		return true
+	}
+	if hiddenEvent[name] {
+		return true
+	}
+	var argMap map[string]any
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &argMap)
+	}
+	return hiddenEvent[name+"/"+eventMode(name, argMap)]
+}
+
+var primaryArgKeys = []string{
+	"q", "query", "keyword", "input", "text", "prompt",
+	"symbol", "ticker", "db", "topic", "name", "url", "link", "path", "id",
+}
+
+var eventModeLabel = map[string]map[string]string{
+	"find_files": {"list": "Files", "glob": "Glob Files", "search": "Search Files"},
+	"edit_file":  {"write": "Write", "patch": "Edit", "remove": "Remove", "restore": "Restore"},
+	"schedules":  {"list": "Schedules", "patch": "Edit", "remove": "Remove", "write": "Write"},
+	"subagents":  {"invoke": "Subagents", "list": "Subagents"},
+	"edit_skill": {"write": "Write Skill", "patch": "Edit Skill", "remove": "Remove Skill"},
+	"edit_tool":  {"write": "Write Tool", "patch": "Edit Tool", "remove": "Remove Tool"},
+}
+
 func FormatToolEvent(name, raw string) string {
-	if raw == "" {
+	if name == "" || hiddenEvent[name] {
 		return ""
 	}
 
 	var argMap map[string]any
-	if err := json.Unmarshal([]byte(raw), &argMap); err != nil {
-		return raw
-	}
-	if len(argMap) == 0 {
-		return ""
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &argMap)
 	}
 
 	arg := func(keys ...string) string {
 		for _, key := range keys {
-			if aryVal, ok := argMap[key]; ok {
-				if str, ok := aryVal.(string); ok && strings.TrimSpace(str) != "" {
-					return str
+			if val, ok := argMap[key]; ok {
+				if str, ok := val.(string); ok && strings.TrimSpace(str) != "" {
+					return strings.TrimSpace(str)
 				}
 			}
 		}
 		return ""
 	}
 
+	mode := eventMode(name, argMap)
+	if hiddenEvent[name] || hiddenEvent[name+"/"+mode] {
+		return ""
+	}
+
+	label := eventLabel[name]
+	if dic, ok := eventModeLabel[name]; ok {
+		label = dic[mode]
+	}
+	if label == "" {
+		label = shortToolName(name)
+	}
+
+	return label + "(" + eventArgs(name, mode, raw, argMap, arg) + ")"
+}
+
+func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string) string) string {
 	switch name {
-	case "invoke_subagent":
-		val := arg("name", "session_id")
-		if val == "" {
-			val = "subagent"
-		}
-		if model := arg("model"); model != "" {
-			val = fmt.Sprintf("%s (%s)", val, model)
-		}
-
-		task := arg("task")
-		if task == "" {
-			return val
-		}
-		return fmt.Sprintf("%s: %s", val, strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(task))
-
-	case "run_skill":
-		if s := arg("skill", "name"); s != "" {
-			return s
-		}
-
-	case "list_files":
-		dirs, ok := argMap["dirs"].([]any)
-		if !ok || len(dirs) == 0 {
-			break
-		}
-		labels := make([]string, 0, len(dirs))
-		for _, d := range dirs {
-			dm, ok := d.(map[string]any)
-			if !ok {
-				continue
-			}
-			dir, _ := dm["dir"].(string)
-			if dir == "" {
-				dir = "."
-			}
-			if r, ok := dm["recursive"].(bool); ok && r {
-				dir += " (recursive)"
-			}
-			labels = append(labels, dir)
-		}
-		if len(labels) > 0 {
-			return strings.Join(labels, ", ")
-		}
+	case "find_files":
+		return joinQueries(argMap)
 
 	case "read_files":
-		files, ok := argMap["files"].([]any)
-		if !ok || len(files) == 0 {
-			break
-		}
-		paths := make([]string, 0, len(files))
-		for _, f := range files {
-			fm, ok := f.(map[string]any)
-			if !ok {
-				continue
-			}
-			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
-				paths = append(paths, p)
-			}
-		}
-		if len(paths) > 0 {
-			return strings.Join(paths, ", ")
-		}
+		return joinPaths(argMap)
 
-	case "glob_files":
-		queries, ok := argMap["queries"].([]any)
-		if !ok || len(queries) == 0 {
-			break
+	case "edit_file":
+		if path := arg("path"); path != "" {
+			return path
 		}
-		patterns := make([]string, 0, len(queries))
-		for _, q := range queries {
-			qm, ok := q.(map[string]any)
-			if !ok {
-				continue
-			}
-			if p, ok := qm["pattern"].(string); ok && strings.TrimSpace(p) != "" {
-				patterns = append(patterns, p)
-			}
+		if v, ok := argMap["version"].(float64); ok && v > 0 {
+			return fmt.Sprintf("version %d", int64(v))
 		}
-		if len(patterns) > 0 {
-			return strings.Join(patterns, ", ")
-		}
+		return arg("task_id")
 
-	case "write_file", "patch_file":
-		if val := arg("path", "pattern"); val != "" {
-			return val
-		}
+	case "schedules":
+		return arg("skill_name")
 
-	case "search_web", "search_google_news":
-		if val := arg("query", "keyword"); val != "" {
-			if timeRange := arg("time_range", "time"); timeRange != "" {
-				return fmt.Sprintf("%s (%s)", val, timeRange)
-			}
-			return val
+	case "subagents":
+		if mode != "invoke" {
+			return ""
 		}
-
-	case "fetch_yahoo_finance":
-		if val := arg("symbol"); val != "" {
-			if timeRange := arg("time_range"); timeRange != "" {
-				return fmt.Sprintf("%s (%s)", val, timeRange)
-			}
-			return val
+		if model := arg("model"); model != "" {
+			return model
 		}
-
-	case "fetch_page":
-		if val := arg("link", "url"); val != "" {
-			return val
-		}
-
-	case "calculate":
-		if val := arg("expression"); val != "" {
-			return val
-		}
-
-	case "remember_error":
-		if val := arg("symptom", "cause", "action"); val != "" {
-			return val
-		}
-
-	case "search_error_history", "search_chat_history":
-		if val := arg("keyword", "query"); val != "" {
-			return val
-		}
-
-	case "add_schedule", "patch_schedule":
-		skill := arg("skill_name")
-		t := arg("time")
-		if skill != "" && t != "" {
-			return fmt.Sprintf("%s %s", t, skill)
-		}
-		if skill != "" {
-			return skill
-		}
-
-	case "remove_schedule":
-		if skill := arg("skill_name"); skill != "" {
-			return skill
-		}
+		return arg("name", "session_id")
 
 	case "run_command":
-		var p struct {
-			Argv []string `json:"argv"`
+		return joinArgv(raw)
+
+	case "open_file":
+		return arg("path")
+
+	case "download_file":
+		return arg("url", "link")
+
+	case "install_dependence":
+		return arg("package")
+
+	case "fetch_page":
+		return arg("link", "url")
+
+	case "http_request":
+		url := arg("url")
+		if method := arg("method"); method != "" && url != "" {
+			return strings.ToUpper(method) + " " + url
 		}
-		if err := json.Unmarshal([]byte(raw), &p); err != nil || len(p.Argv) == 0 {
-			return raw
+		return url
+
+	case "search_web":
+		query := arg("query", "keyword")
+		if timeRange := arg("time_range", "time"); query != "" && timeRange != "" {
+			return query + " [" + timeRange + "]"
+		}
+		return query
+
+	case "calculate":
+		return joinStrings(argMap["expressions"])
+
+	case "run_skill":
+		return arg("skill", "name")
+
+	case "edit_skill":
+		return arg("path", "name")
+
+	case "edit_tool", "test_tool":
+		return arg("name")
+	}
+
+	if len(argMap) == 0 {
+		return ""
+	}
+	if value := arg(primaryArgKeys...); value != "" {
+		return value
+	}
+	return strings.Join(strings.Fields(raw), " ")
+}
+
+func eventMode(name string, argMap map[string]any) string {
+	if mode, ok := argMap["mode"].(string); ok && strings.TrimSpace(mode) != "" {
+		return strings.TrimSpace(mode)
+	}
+
+	switch name {
+	case "find_files":
+		mode := "list"
+		for _, one := range asList(argMap["queries"]) {
+			pattern, _ := one["pattern"].(string)
+			if strings.TrimSpace(pattern) == "" {
+				continue
+			}
+			if filePattern, _ := one["file_pattern"].(string); strings.TrimSpace(filePattern) != "" {
+				return "search"
+			}
+			mode = "glob"
+		}
+		return mode
+
+	case "edit_file":
+		if targets, ok := argMap["targets"].([]any); ok && len(targets) > 0 {
+			return "patch"
+		}
+		if content, _ := argMap["content"].(string); content != "" {
+			return "write"
 		}
 
-		parts := make([]string, len(p.Argv))
-		for i, arg := range p.Argv {
-			if arg == "" || strings.ContainsAny(arg, " \t\n\"'\\") {
-				parts[i] = strconv.Quote(arg)
-			} else {
-				parts[i] = arg
-			}
+	case "edit_skill", "edit_tool":
+		if content, _ := argMap["content"].(string); content != "" {
+			return "write"
 		}
-		return strings.Join(parts, " ")
+		if old, _ := argMap["old_string"].(string); old != "" {
+			return "patch"
+		}
+
+	case "subagents":
+		if task, _ := argMap["task"].(string); strings.TrimSpace(task) != "" {
+			return "invoke"
+		}
+		return "list"
+
+	case "schedules":
+		return "list"
 	}
-	return raw
+	return ""
+}
+
+func shortToolName(name string) string {
+	if rest, ok := strings.CutPrefix(name, "mcp__"); ok {
+		if _, tool, found := strings.Cut(rest, "__"); found && tool != "" {
+			return tool
+		}
+		return rest
+	}
+	if IsPlugTool(name) {
+		return PlugToolBaseName(name)
+	}
+	return name
+}
+
+func asList(value any) []map[string]any {
+	list, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, one := range list {
+		if dic, ok := one.(map[string]any); ok {
+			out = append(out, dic)
+		}
+	}
+	return out
+}
+
+func joinQueries(argMap map[string]any) string {
+	labels := make([]string, 0, 4)
+	for _, one := range asList(argMap["queries"]) {
+		dir, _ := one["dir"].(string)
+		if dir = strings.TrimSpace(dir); dir == "" {
+			dir = "."
+		}
+		loc := dir
+		if filePattern, _ := one["file_pattern"].(string); strings.TrimSpace(filePattern) != "" {
+			loc = strings.TrimRight(dir, "/") + "/" + strings.TrimSpace(filePattern)
+		}
+		if pattern, _ := one["pattern"].(string); strings.TrimSpace(pattern) != "" {
+			loc += " [" + strings.TrimSpace(pattern) + "]"
+		} else if recursive, ok := one["recursive"].(bool); ok && recursive {
+			loc += " (recursive)"
+		}
+		labels = append(labels, loc)
+	}
+	return strings.Join(labels, ", ")
+}
+
+func joinStrings(value any) string {
+	list, ok := value.([]any)
+	if !ok {
+		return ""
+	}
+	out := make([]string, 0, len(list))
+	for _, one := range list {
+		if str, ok := one.(string); ok && strings.TrimSpace(str) != "" {
+			out = append(out, strings.TrimSpace(str))
+		}
+	}
+	return strings.Join(out, ", ")
+}
+
+func joinPaths(argMap map[string]any) string {
+	paths := make([]string, 0, 4)
+	for _, one := range asList(argMap["files"]) {
+		if path, ok := one["path"].(string); ok && strings.TrimSpace(path) != "" {
+			paths = append(paths, strings.TrimSpace(path))
+		}
+	}
+	return strings.Join(paths, ", ")
+}
+
+func joinArgv(raw string) string {
+	var params struct {
+		Argv []string `json:"argv"`
+	}
+	if json.Unmarshal([]byte(raw), &params) != nil || len(params.Argv) == 0 {
+		return ""
+	}
+	parts := make([]string, len(params.Argv))
+	for i, one := range params.Argv {
+		if one == "" || strings.ContainsAny(one, " \t\n\"'\\") {
+			parts[i] = strconv.Quote(one)
+			continue
+		}
+		parts[i] = one
+	}
+	return strings.Join(parts, " ")
 }
 
 var footerPrefixKeep = map[string]bool{

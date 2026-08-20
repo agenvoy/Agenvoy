@@ -15,6 +15,24 @@ const SKIP_EVENTS = [
 let currentSessionId = "";
 let streamDom = null;
 
+async function stopRunning() {
+  if (!currentSessionId) return;
+
+  const base = `${API}/v1/session/${encodeURIComponent(currentSessionId)}`;
+  try {
+    const response = await fetch(`${base}/status`);
+    if (!response.ok) return;
+
+    const body = await response.json();
+    for (const task of body.active || []) {
+      if (!task.id) continue;
+      await fetch(`${base}/cancel/${encodeURIComponent(task.id)}`, { method: "POST" });
+    }
+  } catch (err) {
+    console.error("stopRunning", err);
+  }
+}
+
 async function send(content) {
   content = (content || "").trim();
   if (content === "") return;
@@ -129,6 +147,14 @@ function setSession(sessionId) {
   history.replaceState({}, "", url);
 }
 
+function atBottom() {
+  const dom = $("#right-content-chat-messages");
+  if (!dom) {
+    return false;
+  }
+  return dom.scrollHeight - dom.scrollTop - dom.clientHeight <= AUTO_SCROLL_SLACK;
+}
+
 function scrollToBottom(force) {
   const dom = $("#right-content-chat-messages");
   if (!dom || dom.scrollHeight < dom.clientHeight) {
@@ -187,7 +213,12 @@ function newStreamItem(init) {
   const answer = _("section.md-render");
   const source = sourceBox(init.text || "");
   const footer = _("footer");
-  const body = _("section", [model, think, answer, source, footer]);
+  const stop = _("button.stop", { type: "button" }, [
+    _("span.material-symbols-outlined", "stop"),
+    _("p", "cancel"),
+  ]);
+  stop.addEventListener("click", stopRunning);
+  const body = _("section", [model, think, answer, source, footer, stop]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
 
   $("#right-content-chat-messages").appendChild(dom);
@@ -200,7 +231,9 @@ function newStreamItem(init) {
     answer: answer,
     source: source,
     footer: footer,
+    stop: stop,
     text: init.text || "",
+    answered: false,
     streamed: false,
     textStarted: Boolean(init.text),
     trace: init.trace || "",
@@ -215,6 +248,9 @@ function newStreamItem(init) {
 }
 
 function render(dom, markdown) {
+  const stick = atBottom();
   dom.innerHTML = renderMarkdownHTML(markdown);
-  scrollToBottom();
+  if (stick) {
+    scrollToBottom(true);
+  }
 }

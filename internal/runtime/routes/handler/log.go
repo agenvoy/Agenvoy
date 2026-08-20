@@ -43,7 +43,10 @@ func StreamSessionLog() gin.HandlerFunc {
 		}
 
 		for _, ev := range sessionLog.RecentEvents(sid, 512) {
-			raw, err := json.Marshal(ev)
+			if skipEvent(ev) {
+				continue
+			}
+			raw, err := json.Marshal(toWire(ev))
 			if err != nil {
 				continue
 			}
@@ -65,7 +68,10 @@ func StreamSessionLog() gin.HandlerFunc {
 				if !ok {
 					return
 				}
-				raw, err := json.Marshal(ev)
+				if skipEvent(ev) {
+					continue
+				}
+				raw, err := json.Marshal(toWire(ev))
 				if err != nil {
 					continue
 				}

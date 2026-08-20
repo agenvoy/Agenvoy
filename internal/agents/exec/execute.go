@@ -32,7 +32,6 @@ import (
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -371,7 +370,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if utils.CheckAgentEndpointAlive(execCtx, data.Agent, HealthCheckTimeout) {
+				if checkAgentResponsive(execCtx, data.Agent, HealthCheckTimeout) {
 					unresponsiveFailures = 0
 					watchdog.Reset(UnresponsiveProbeInterval)
 					continue

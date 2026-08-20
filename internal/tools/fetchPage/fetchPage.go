@@ -80,7 +80,9 @@ func registFetchPage() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,
-		Description: "[system-default] Fetch a web page and return content (markdown/html/json). URL given → always this tool, never search_web. same_session=true for login-required sites. Mandatory on search/RSS result links for research tasks or when citing sources. Document research: no request limit — fetch page by page until complete. Set save=true to download the page to a local file (\"下載網頁\", \"存到本地\", \"寫成 md\"); omit save_to for auto-save to ~/Downloads. Request in the form \"open:[url]\" → always set headless=false.",
+		Description: `[system-default] Fetches one web page and returns its content as markdown, html or json.
+Use whenever a URL is already in hand — 讀這篇 / 這個連結寫什麼 / 下載網頁 / 存到本地 — and on any search or RSS result being cited. Document research has no request limit: page by page until complete.
+No URL yet → search_web; a binary file → download_file; an API endpoint → http_request.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
