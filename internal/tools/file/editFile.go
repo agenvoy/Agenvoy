@@ -27,7 +27,7 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				},
 				"path": map[string]any{
 					"type":        "string",
-					"description": "mode=write / mode=patch: the file — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'. Blank on write lands in ~/Downloads.",
+					"description": "The file this call acts on — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'. One file per call. Required for write, patch and remove; on restore it narrows a task_id undo to that one file. Blank on write lands in ~/Downloads.",
 					"default":     "",
 				},
 				"content": map[string]any{
@@ -64,13 +64,6 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 						},
 					},
 				},
-				"paths": map[string]any{
-					"type": "array",
-					"items": map[string]any{
-						"type": "string",
-					},
-					"description": "mode=remove: the files to move aside. mode=restore: limits a task_id undo to these files.",
-				},
 				"version": map[string]any{
 					"type":        "integer",
 					"description": "mode=restore: version id from a file_history row — enough on its own, it names both the file and the state.",
@@ -87,7 +80,6 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				Path    string        `json:"path"`
 				Content string        `json:"content"`
 				Targets []patchTarget `json:"targets"`
-				Paths   []string      `json:"paths"`
 				Version int64         `json:"version"`
 				TaskID  string        `json:"task_id"`
 			}
@@ -113,13 +105,17 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 			case "patch":
 				return patchFileTargets(ctx, e, params.Path, params.Targets)
 			case "remove":
-				paths := params.Paths
-				if len(paths) == 0 && strings.TrimSpace(params.Path) != "" {
-					paths = []string{params.Path}
+				path := strings.TrimSpace(params.Path)
+				if path == "" {
+					return "", fmt.Errorf("path is required when mode=remove")
 				}
-				return RemoveToTrash(ctx, e, paths, "edit_file")
+				return RemoveToTrash(ctx, e, []string{path}, "edit_file")
 			case "restore":
-				return fileHistory.Restore(ctx, e, params.Version, params.TaskID, params.Paths)
+				var narrow []string
+				if path := strings.TrimSpace(params.Path); path != "" {
+					narrow = []string{path}
+				}
+				return fileHistory.Restore(ctx, e, params.Version, params.TaskID, narrow)
 			}
 			return "", fmt.Errorf("unknown mode %q; available: write, patch, remove, restore", mode)
 		},

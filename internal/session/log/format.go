@@ -8,7 +8,6 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -34,14 +33,11 @@ func formatActionEvent(event agentTypes.Event) string {
 		return withTimestamp("thinking", flatten(str))
 
 	case agentTypes.EventToolCall:
-		if toolRegister.IsSystemUse(event.ToolName) {
+		display := utils.FormatToolEvent(event.ToolName, event.ToolArgs)
+		if display == "" {
 			return ""
 		}
-		body := event.ToolName
-		if display := utils.FormatToolEvent(event.ToolName, event.ToolArgs); display != "" {
-			body = fmt.Sprintf("%s %s", body, flatten(display))
-		}
-		return withTimestamp("tool_call", body)
+		return withTimestamp("tool_call", flatten(display))
 
 	case agentTypes.EventToolResult:
 		status := "ok"

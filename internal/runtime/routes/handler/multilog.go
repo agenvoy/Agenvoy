@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -32,15 +31,29 @@ type wireEvent struct {
 	Display string `json:"tool_display,omitempty"`
 }
 
+func skipEvent(ev agentTypes.Event) bool {
+	switch ev.Type {
+	case agentTypes.EventToolCall, agentTypes.EventToolResult, agentTypes.EventToolSkipped,
+		agentTypes.EventToolCallStart, agentTypes.EventToolCallText, agentTypes.EventToolCallEnd,
+		agentTypes.EventToolConfirm:
+		return internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs)
+	}
+	return false
+}
+
 func toWire(ev agentTypes.Event) wireEvent {
-	return wireEvent{Event: ev, Display: internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)}
+	display := ""
+	if ev.Type == agentTypes.EventToolCall {
+		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
+	}
+	return wireEvent{Event: ev, Display: display}
 }
 
 func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
 	return taggedEvent{
 		Session: sessionID,
 		Event:   ev,
-		Display: internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs),
+		Display: toWire(ev).Display,
 	}
 }
 
@@ -103,7 +116,7 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 
 			for _, ev := range sessionLog.RecentEvents(sid, 512) {
-				if toolRegister.IsSystemUse(ev.ToolName) {
+				if skipEvent(ev) {
 					continue
 				}
 				te := toTagged(sid, ev)
@@ -122,7 +135,7 @@ func StreamMultiLog() gin.HandlerFunc {
 
 			go func(id string, s *pubsub.Subscriber) {
 				for ev := range s.Events() {
-					if toolRegister.IsSystemUse(ev.ToolName) {
+					if skipEvent(ev) {
 						continue
 					}
 					te := toTagged(id, ev)

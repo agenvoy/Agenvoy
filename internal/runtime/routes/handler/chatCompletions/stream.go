@@ -12,7 +12,6 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -84,11 +83,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		return emitReasoningLine(line)
 	}
 	formatToolLine := func(name, args string) string {
-		arg := internalUtils.FormatToolEvent(name, args)
-		if arg == "" {
-			return name
-		}
-		return name + "  " + go_pkg_utils.TruncateString(arg, 128)
+		return go_pkg_utils.TruncateString(internalUtils.FormatToolEvent(name, args), 128)
 	}
 
 	for ev := range events {
@@ -107,10 +102,14 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 				return
 			}
 		case agentTypes.EventToolCall:
-			if ev.ToolName == "" || toolRegister.IsSystemUse(ev.ToolName) {
+			if internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 				break
 			}
-			if !emitDedup("▸ " + formatToolLine(ev.ToolName, ev.ToolArgs)) {
+			line := formatToolLine(ev.ToolName, ev.ToolArgs)
+			if line == "" {
+				break
+			}
+			if !emitDedup("▸ " + line) {
 				return
 			}
 		case agentTypes.EventToolSkipped:

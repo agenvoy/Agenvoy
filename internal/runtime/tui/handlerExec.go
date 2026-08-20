@@ -13,7 +13,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -208,7 +207,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, tea.Println("\n" + line)
 
 	case agentTypes.EventToolCall:
-		if ev.ToolName != "" && toolRegister.IsSystemUse(ev.ToolName) {
+		if utils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 			return t, nil
 		}
 		if ev.ToolName != "" {
