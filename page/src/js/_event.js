@@ -70,6 +70,11 @@ function renderEvent(view, event) {
 function renderAnswer(view) {
   view.source.textContent = view.text;
   render(view.answer, view.text);
+  if (view.answered) {
+    return;
+  }
+  view.answered = true;
+  scrollToBottom(true);
 }
 
 function resumeMark(view) {
@@ -110,8 +115,8 @@ function formatEvent(event) {
   const type = event.type;
 
   if (type === "EventToolCall") {
-    const args = (event.tool_args || "").replace(/\s+/g, " ").slice(0, 120);
-    return `⏵ \`${event.tool_name || "tool"}\`${args ? " " + args : ""}`;
+    const label = (event.tool_display || "").replace(/\s+/g, " ").slice(0, 120);
+    return label ? `⏵ \`${label}\`` : "";
   }
 
   if (type === "EventToolSkipped") {
