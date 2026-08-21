@@ -102,9 +102,6 @@ document.addEventListener("DOMContentLoaded", function () {
       skill_pick: function () {
         openSkillPicker();
       },
-      knowledge_pick: function () {
-        openKnowledgePicker();
-      },
       rule_save: function () {
         saveFeature("rule");
       },
@@ -174,7 +171,6 @@ document.addEventListener("DOMContentLoaded", function () {
           subscribe(params.chat);
           getModelList(params.chat);
           getRuleList();
-          renderKnowledgeMark();
           renderWorkDirMark();
           renderChat(params.chat);
           loadPending(params.chat);

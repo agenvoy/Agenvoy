@@ -75,6 +75,7 @@ body[data-rendered="1"] section.right-content section.feature {
       margin-top: 2.5rem;
       padding: 1.5rem 1rem 3rem;
       width: 100%;
+      min-width: 0;
 
       @media (max-width: 767.99px) {
         flex-flow: column;
@@ -183,13 +184,16 @@ body[data-rendered="1"] section.right-content section.feature {
         display: flex;
         flex-flow: column;
         gap: 0.75rem;
-        flex-grow: 1;
+        flex: 1 1 0;
         min-width: 0;
+        max-width: 100%;
 
         input,
         textarea {
           padding: 0.625rem 0.75rem;
           width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
           font: inherit;
           font-size: small;
           line-height: 1.5;
@@ -213,6 +217,8 @@ body[data-rendered="1"] section.right-content section.feature {
         textarea {
           field-sizing: content;
           min-height: 4rem;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
         }
 
         &[data-editing="1"] footer {
