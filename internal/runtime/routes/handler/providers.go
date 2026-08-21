@@ -18,6 +18,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/gemini"
 	"github.com/pardnchiu/go-llm-router/core/grok"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	"github.com/pardnchiu/go-llm-router/core/mistral"
 	"github.com/pardnchiu/go-llm-router/core/nvidia"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
@@ -43,6 +44,7 @@ var providerCatalog = []providerInfo{
 	{"grok-oauth", "Grok (xAI)", map[string]string{"oauth": "xAI subscription"}},
 	{"copilot", "GitHub Copilot", map[string]string{"oauth": "GitHub subscription"}},
 	{"deepseek", "DeepSeek", map[string]string{"api_key": "pay per token"}},
+	{"mistral", "Mistral", map[string]string{"api_key": "pay per token"}},
 	{"nvidia", "NVIDIA NIM", map[string]string{"api_key": "pay per token"}},
 	{"openrouter", "OpenRouter", map[string]string{"api_key": "pay per token"}},
 	{"cloudflare", "Cloudflare", map[string]string{"api_key": "Workers AI · API token + account ID"}},
@@ -289,6 +291,10 @@ func modelsFn(prov string) func(c *gin.Context, cfg provider.Config) ([]string, 
 	case "deepseek":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
 			return deepseek.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
+		}
+	case "mistral":
+		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
+			return mistral.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
 		}
 	case "nvidia":
 		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
