@@ -53,6 +53,13 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 		}
 		return provider.Config{APIKey: apiKey}, nil
 
+	case "mistral":
+		apiKey := go_pkg_keychain.Get("MISTRAL_API_KEY")
+		if apiKey == "" {
+			return provider.Config{}, fmt.Errorf("keychain.Get: MISTRAL_API_KEY is required")
+		}
+		return provider.Config{APIKey: apiKey}, nil
+
 	case "nvidia":
 		apiKey := go_pkg_keychain.Get("NVIDIA_API_KEY")
 		if apiKey == "" {

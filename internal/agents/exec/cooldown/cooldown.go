@@ -22,8 +22,9 @@ var (
 		"claude":     6,
 		"gemini":     7,
 		"nvidia":     8,
-		"openai":     9,
-		"compat":     10,
+		"mistral":    9,
+		"openai":     10,
+		"compat":     11,
 	}
 )
 

@@ -22,6 +22,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/gemini"
 	"github.com/pardnchiu/go-llm-router/core/grok"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	"github.com/pardnchiu/go-llm-router/core/mistral"
 	"github.com/pardnchiu/go-llm-router/core/nvidia"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
@@ -73,6 +74,7 @@ var modelAddProviders = []struct {
 	{"grok", "Grok            API key or xAI subscription"},
 	{"copilot", "Github Copilot  GitHub subscription"},
 	{"deepseek", "DeepSeek        API key"},
+	{"mistral", "Mistral         API key"},
 	{"nvidia", "NVIDIA NIM      API key"},
 	{"openrouter", "OpenRouter      API key"},
 	{"cloudflare", "Cloudflare      Workers AI · API token + account ID"},
@@ -756,6 +758,7 @@ var modelsProviders = map[string]func(context.Context, provider.Config, provider
 	"gemini":     gemini.Models,
 	"grok":       grok.Models,
 	"deepseek":   deepseek.Models,
+	"mistral":    mistral.Models,
 	"nvidia":     nvidia.Models,
 	"openrouter": openrouter.Models,
 }

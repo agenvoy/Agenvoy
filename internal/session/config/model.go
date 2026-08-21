@@ -14,6 +14,7 @@ var providerStaticKeys = []string{
 	"GROK_API_KEY",
 	"DEEPSEEK_API_KEY",
 	"NVIDIA_API_KEY",
+	"MISTRAL_API_KEY",
 }
 
 func UpsertCompat(provider, url string) error {

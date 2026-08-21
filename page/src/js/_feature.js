@@ -37,6 +37,7 @@ const FEATURE_SPEC = {
     item: "/v1/knowledge",
     key: "knowledges",
     template: KNOWLEDGE_TEMPLATE,
+    titleOptional: true,
   },
 };
 
@@ -168,7 +169,7 @@ async function saveFeature(kind) {
   }
 
   const name = dom.title.value.trim();
-  if (!name) {
+  if (!name && !spec.titleOptional) {
     featureError("name is required");
     return;
   }

@@ -262,15 +262,39 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 ## Tool Reference
 
-| Tool | Purpose |
-|---|---|
-| `read_files`, `find_files` | Batch-read files; locate them by directory, glob or content |
-| `edit_file` | Create, overwrite, precisely edit, remove or restore files |
-| `run_command` | Run commands under shell validation and sandbox constraints |
-| `ask_user`, `write_todo` | Interactive input and multi-step progress tracking |
-| `find_tools` | Search / list registered tools |
-| `reasoning_guide` | Fetch full reasoning rules by `topic` (`tool_generate`, `tool_error`, `subagent_dispatch`, `html_render`, …) |
-| `subagents` | Delegate a single subtask |
+25 tools ship in the registry; three more register only when their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
+
+| Group | Tool | Purpose |
+|---|---|---|
+| Tools | `find_tools` | Discover what exists and pull a tool's schema in (`mode=search\|list`) |
+| | `edit_tool` | Create, fix or trash a tool definition (`mode=write\|patch\|remove`) |
+| | `test_tool` | Run a script tool in the sandbox before it goes live |
+| Skills | `run_skill` | Load a named skill's reference material into the turn |
+| | `edit_skill` | Author the files under the skills directory (`mode=write\|patch\|remove`) |
+| Scheduling | `schedules` | Inspect, reschedule or cancel timed and recurring runs (`mode=list\|patch\|remove\|write`) |
+| Files | `find_files` | Locate by directory, name pattern or content (`mode=list\|glob\|search`) |
+| | `read_files` | Batch-read text, PDF, DOCX, PPTX, CSV or images |
+| | `edit_file` | Create, edit, move aside or restore a file (`mode=write\|patch\|remove\|restore`) |
+| | `file_history` | Recorded versions of every file the tools changed (`mode=list\|read`) |
+| Execution | `run_command` | Run a binary in the work directory under sandbox constraints |
+| | `open_file` | Hand a file to the OS default application |
+| | `download_file` | Fetch a binary asset to disk |
+| | `install_dependence` | Install a missing system binary |
+| Coordination | `subagents` | Delegate a subtask to its own session (`mode=invoke\|list`) |
+| | `write_todo` | Live checklist the user watches |
+| | `ask_user` | Pause and ask; the turn resumes on the answer |
+| Network | `search_web` | DuckDuckGo results and Google News headlines together |
+| | `fetch_page` | Full page content as markdown, html or json |
+| | `http_request` | Raw HTTP call, multipart upload included |
+| State | `chat_history` | This session's action log and messages (`mode=list\|read\|search`) |
+| | `error_history` | Tool failures kept across sessions (`mode=search\|read\|write`) |
+| | `reasoning_guide` | Full reasoning rules by `topic` |
+| Support | `calculate` | Arithmetic, unit and currency conversion |
+| | `store_secret` | Masked prompt, stored in the keychain |
+| Conditional | `transcribe_media` | Audio and video to text — needs `GEMINI_API_KEY` |
+| | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
+
+Only `find_tools`, `reasoning_guide`, `run_command`, `find_files` and `read_files` ship with full schemas. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload at roughly a third of the full registry.
 
 ## Architecture
 
