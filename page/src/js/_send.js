@@ -82,7 +82,6 @@ async function send(content) {
         persist: true,
         model: model === "auto" ? "" : model,
         system_prompt: rule,
-        knowledge: chat.knowledge,
         work_dir: chat.work_dir,
         skill: picked,
       }),

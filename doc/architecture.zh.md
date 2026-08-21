@@ -113,7 +113,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具都進入同一註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。檔案與命令操作在執行前會通過 denied path、allow rule、確認閘門、shell 驗證與 sandbox enforcement。推理規則透過單一 `reasoning_guide(topic=...)` 工具按需取得。
+內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。只有五個工具帶完整 schema 送出——`find_tools`、`reasoning_guide`、`run_command`、`find_files`、`read_files`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過拒絕路徑檢查、允許規則、確認閘門、shell 驗證與沙箱強制。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
 
 ```mermaid
 graph TB

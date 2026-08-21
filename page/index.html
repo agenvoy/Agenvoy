@@ -148,7 +148,12 @@
             <div class="list" id="knowledge-list"></div>
           </div>
           <form id="knowledge-form">
-            <input id="knowledge-title" type="text" placeholder="Name this knowledge" />
+            <input
+              id="knowledge-title"
+              type="text"
+              maxlength="32"
+              placeholder="Name this knowledge (defaults to the first line)"
+            />
             <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
             <footer>
               <button type="button" class="remove" @click="knowledge_delete">delete</button>

@@ -21,6 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	"github.com/pardnchiu/agenvoy/internal/knowledge"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
@@ -241,6 +242,7 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 		return
 	}
+	knowledge.Migrate()
 	defer torii.Close()
 
 	if err := filesystem.OpenDB(); err != nil {

@@ -1,35 +1,13 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/knowledge"
 )
-
-func knowledgePath(name string) (string, error) {
-	name = strings.TrimSpace(name)
-	name = strings.TrimSuffix(name, ".md")
-
-	switch {
-	case name == "":
-		return "", fmt.Errorf("name is required")
-	case strings.ContainsAny(name, `/\`):
-		return "", fmt.Errorf("name cannot contain a path separator")
-	case name == "." || name == "..":
-		return "", fmt.Errorf("name cannot be a path segment")
-	case strings.HasPrefix(name, "."):
-		return "", fmt.Errorf("name cannot start with a dot")
-	}
-	return filepath.Join(filesystem.KnowledgeDir, name+".md"), nil
-}
 
 type knowledgeBody struct {
 	Name    string `json:"name"`
@@ -38,30 +16,14 @@ type knowledgeBody struct {
 
 func ListKnowledges() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		dir := filesystem.KnowledgeDir
-		list := make([]gin.H, 0)
-		if !go_pkg_filesystem_reader.IsDir(dir) {
-			c.JSON(http.StatusOK, gin.H{"knowledges": list})
-			return
-		}
-
-		files, err := go_pkg_filesystem_reader.ListFiles(dir)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		for _, f := range files {
-			if !strings.HasSuffix(f.Name, ".md") || strings.HasPrefix(f.Name, ".") {
-				continue
-			}
-			path := filepath.Join(dir, f.Name)
-			entry := gin.H{"name": strings.TrimSuffix(f.Name, ".md")}
-			if info, err := os.Stat(path); err == nil {
-				entry["size"] = info.Size()
-				entry["updated_at"] = info.ModTime().Unix()
-			}
-			list = append(list, entry)
+		records := knowledge.List()
+		list := make([]gin.H, 0, len(records))
+		for _, record := range records {
+			list = append(list, gin.H{
+				"name":       record.Name,
+				"size":       len(record.Content),
+				"updated_at": record.UpdatedAt,
+			})
 		}
 		c.JSON(http.StatusOK, gin.H{"knowledges": list})
 	}
@@ -69,25 +31,17 @@ func ListKnowledges() gin.HandlerFunc {
 
 func GetKnowledge() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		path, err := knowledgePath(strings.TrimPrefix(c.Param("name"), "/"))
+		name, err := knowledge.Key(strings.TrimPrefix(c.Param("name"), "/"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if !go_pkg_filesystem_reader.Exists(path) {
+		record, ok := knowledge.Read(name)
+		if !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "knowledge not found"})
 			return
 		}
-
-		content, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"name":    strings.TrimSuffix(filepath.Base(path), ".md"),
-			"content": content,
-		})
+		c.JSON(http.StatusOK, gin.H{"name": record.Name, "content": record.Content})
 	}
 }
 
@@ -99,24 +53,20 @@ func CreateKnowledge() gin.HandlerFunc {
 			return
 		}
 
-		path, err := knowledgePath(body.Name)
+		name, err := knowledge.Name(body.Name, body.Content)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if go_pkg_filesystem_reader.Exists(path) {
+		if _, exists := knowledge.Read(name); exists {
 			c.JSON(http.StatusConflict, gin.H{"error": "knowledge already exists"})
 			return
 		}
-		if err := go_pkg_filesystem.CheckDir(filesystem.KnowledgeDir, true); err != nil {
+		if err := knowledge.Write(name, body.Content); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if err := go_pkg_filesystem.WriteFile(path, body.Content, 0644); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"name": strings.TrimSuffix(filepath.Base(path), ".md")})
+		c.JSON(http.StatusOK, gin.H{"name": name})
 	}
 }
 
@@ -131,40 +81,39 @@ func UpdateKnowledge() gin.HandlerFunc {
 			return
 		}
 
-		path, err := knowledgePath(body.Name)
+		name, err := knowledge.Key(body.Name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if !go_pkg_filesystem_reader.Exists(path) {
+		if _, exists := knowledge.Read(name); !exists {
 			c.JSON(http.StatusNotFound, gin.H{"error": "knowledge not found"})
 			return
 		}
 
-		target := path
+		target := name
 		if strings.TrimSpace(body.Rename) != "" {
-			target, err = knowledgePath(body.Rename)
+			target, err = knowledge.Name(body.Rename, body.Content)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if target != path && go_pkg_filesystem_reader.Exists(target) {
-				c.JSON(http.StatusConflict, gin.H{"error": "knowledge already exists"})
-				return
+			if target != name {
+				if _, exists := knowledge.Read(target); exists {
+					c.JSON(http.StatusConflict, gin.H{"error": "knowledge already exists"})
+					return
+				}
 			}
 		}
 
-		if err := go_pkg_filesystem.WriteFile(target, body.Content, 0644); err != nil {
+		if err := knowledge.Write(target, body.Content); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if target != path {
-			if err := go_pkg_filesystem.Remove(path); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
+		if target != name {
+			knowledge.Delete(name)
 		}
-		c.JSON(http.StatusOK, gin.H{"name": strings.TrimSuffix(filepath.Base(target), ".md")})
+		c.JSON(http.StatusOK, gin.H{"name": target})
 	}
 }
 
@@ -178,17 +127,17 @@ func DeleteKnowledge() gin.HandlerFunc {
 			}
 		}
 
-		path, err := knowledgePath(name)
+		key, err := knowledge.Key(name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if !go_pkg_filesystem_reader.Exists(path) {
+		if _, exists := knowledge.Read(key); !exists {
 			c.JSON(http.StatusNotFound, gin.H{"error": "knowledge not found"})
 			return
 		}
-		if err := go_pkg_filesystem.Remove(path); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if !knowledge.Delete(key) {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})

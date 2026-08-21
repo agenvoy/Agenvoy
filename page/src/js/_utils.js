@@ -50,7 +50,6 @@ function readChatConfig(chatId) {
   const entry = (readConfig().chat || {})[chatId || CHAT_DRAFT] || {};
   return {
     rule: typeof entry.rule === "string" ? entry.rule : "",
-    knowledge: typeof entry.knowledge === "string" ? entry.knowledge : "",
     work_dir: typeof entry.work_dir === "string" ? entry.work_dir : "",
   };
 }
@@ -95,7 +94,52 @@ function copyBtn() {
     if (!source || !navigator.clipboard) {
       return;
     }
-    navigator.clipboard.writeText(source.textContent).catch((err) => console.error("copy", err));
+
+    const icon = dom.querySelector("span");
+    navigator.clipboard
+      .writeText(source.textContent)
+      .then(() => {
+        icon.textContent = "check_circle";
+        setTimeout(() => (icon.textContent = "content_copy"), 1000);
+      })
+      .catch((err) => console.error("copy", err));
+  });
+  return dom;
+}
+
+function knowledgeBtn() {
+  const dom = _("button", [_("span.material-symbols-outlined", "book_2")]);
+  dom.addEventListener("click", async function () {
+    const bubble = dom.closest("div.assistant");
+    const source = bubble && bubble.querySelector("pre.source");
+    const content = source ? source.textContent.trim() : "";
+    const icon = dom.querySelector("span");
+    if (!content) {
+      return;
+    }
+
+    dom.disabled = true;
+    try {
+      // * name left empty: the server names the note after the content's first line, capped at 32
+      const response = await fetch(`${API}/v1/knowledge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content }),
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        alert(detail.error || `HTTP ${response.status}`);
+        return;
+      }
+
+      icon.textContent = "check_circle";
+      setTimeout(() => (icon.textContent = "book_2"), 1000);
+      countFeature("knowledge");
+    } catch (err) {
+      console.error("knowledgeBtn", err);
+    } finally {
+      dom.disabled = false;
+    }
   });
   return dom;
 }

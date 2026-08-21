@@ -18,6 +18,7 @@ import (
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/error"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/file"
+	_ "github.com/pardnchiu/agenvoy/internal/tools/knowledge"
 )
 
 func init() {

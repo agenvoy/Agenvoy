@@ -288,15 +288,39 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 ## 工具參考
 
-| 工具 | 用途 |
-|---|---|
-| `read_files`、`find_files` | 批次讀取檔案；以目錄、glob 或內容定位檔案 |
-| `edit_file` | 建立、覆寫、精準修改、移除與還原檔案 |
-| `run_command` | 在 shell 驗證與 sandbox 約束下執行命令 |
-| `ask_user`、`write_todo` | 互動式輸入與多步驟進度追蹤 |
-| `find_tools` | 搜尋／列出已註冊工具 |
-| `reasoning_guide` | 依 `topic` 取得完整推理規則（`tool_generate`、`tool_error`、`subagent_dispatch`、`html_render` 等） |
-| `subagents` | 委派單一子任務 |
+註冊表內建 25 個工具，另有 3 個在前置條件成立時才註冊。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
+
+| 分類 | 工具 | 用途 |
+|---|---|---|
+| 工具系統 | `find_tools` | 發現既有工具並載入其 schema（`mode=search\|list`） |
+| | `edit_tool` | 建立、修正或丟棄工具定義（`mode=write\|patch\|remove`） |
+| | `test_tool` | 上線前在沙箱內執行 script 工具 |
+| Skill | `run_skill` | 載入具名 skill 的參考素材 |
+| | `edit_skill` | 編寫 skills 目錄底下的檔案（`mode=write\|patch\|remove`） |
+| 排程 | `schedules` | 查詢、改期或取消定時與週期任務（`mode=list\|patch\|remove\|write`） |
+| 檔案 | `find_files` | 以目錄、檔名樣式或內容定位（`mode=list\|glob\|search`） |
+| | `read_files` | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片 |
+| | `edit_file` | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`） |
+| | `file_history` | 工具改過的每個檔案的版本紀錄（`mode=list\|read`） |
+| 執行環境 | `run_command` | 在工作目錄以沙箱約束執行二進位 |
+| | `open_file` | 以系統預設應用開啟檔案 |
+| | `download_file` | 下載二進位資產至磁碟 |
+| | `install_dependence` | 安裝缺少的系統執行檔 |
+| Agent 協調 | `subagents` | 將子任務委派到獨立 session（`mode=invoke\|list`） |
+| | `write_todo` | 使用者即時看得到的任務清單 |
+| | `ask_user` | 暫停提問，回答後自動續跑 |
+| 網路 | `search_web` | DuckDuckGo 結果與 Google News 標題一次取得 |
+| | `fetch_page` | 取得完整頁面內容（markdown／html／json） |
+| | `http_request` | 原始 HTTP 呼叫，含 multipart 上傳 |
+| 狀態 | `chat_history` | 本 session 的執行紀錄與對話（`mode=list\|read\|search`） |
+| | `error_history` | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`） |
+| | `reasoning_guide` | 依 `topic` 取得完整推理規則 |
+| 基礎支援 | `calculate` | 算術、單位與匯率換算 |
+| | `store_secret` | 遮蔽輸入並存入 keychain |
+| 條件註冊 | `transcribe_media` | 音訊／影片轉文字——需 `GEMINI_API_KEY` |
+| | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord |
+
+只有 `find_tools`、`reasoning_guide`、`run_command`、`find_files`、`read_files` 會帶完整 schema 送出；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 維持在完整註冊表的三分之一左右。
 
 ## 架構
 
