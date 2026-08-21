@@ -46,9 +46,11 @@ graph TB
     Update --> Installer[Official update script]
 ```
 
+The runtime currently supports 10 model providers, excluding the `compat` entry for local or custom endpoints.
+
 ## Execution Modes
 
-Agenvoy supports a process-local execution-mode toggle in the TUI. Press `Shift+F` while the input area is empty to switch between the default mode and fast mode; the header shows `[fast]` when enabled. The executor, dispatcher, summary, and related model calls pass the selected mode to `go-llm-router` v0.4.0. Supported provider backends can map `provider.ModeFast` to a faster service tier, while the default mode preserves normal provider behavior. The toggle is held in memory and is not persisted in `config.json`.
+Agenvoy supports a process-local execution-mode toggle in the TUI. Press `Shift+F` while the input area is empty to switch between the default mode and fast mode; the header shows `[fast]` when enabled. The executor, dispatcher, summary, and related model calls pass the selected mode to `go-llm-router` v0.5.1. Supported provider backends can map `provider.ModeFast` to a faster service tier, while the default mode preserves normal provider behavior. The toggle is held in memory and is not persisted in `config.json`.
 
 ```mermaid
 graph LR
@@ -58,7 +60,7 @@ graph LR
     State -->|Fast| Fast[provider.ModeFast]
     Default --> Calls[Executor / dispatcher / summary calls]
     Fast --> Calls
-    Calls --> Router[go-llm-router v0.4.0]
+    Calls --> Router[go-llm-router v0.5.1]
     Router --> Providers[Supported provider backends]
 ```
 
