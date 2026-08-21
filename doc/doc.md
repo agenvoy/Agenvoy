@@ -66,7 +66,9 @@ Package defaults (not currently read from `config.json`):
 
 ### TUI execution modes
 
-When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.4.0 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
+The runtime currently supports 10 model providers, excluding the `compat` entry for local or custom endpoints.
+
+When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.5.1 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
 
 ### Image generation
 
@@ -262,7 +264,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 ## Tool Reference
 
-25 tools ship in the registry; three more register only when their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
+26 tools ship in the registry; three more register only when their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
 
 | Group | Tool | Purpose |
 |---|---|---|
@@ -288,6 +290,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | | `http_request` | Raw HTTP call, multipart upload included |
 | State | `chat_history` | This session's action log and messages (`mode=list\|read\|search`) |
 | | `error_history` | Tool failures kept across sessions (`mode=search\|read\|write`) |
+| | `find_knowledge` | The operator's own notes, stored in ToriiDB (`mode=search\|list\|read`); search and list return names only |
 | | `reasoning_guide` | Full reasoning rules by `topic` |
 | Support | `calculate` | Arithmetic, unit and currency conversion |
 | | `store_secret` | Masked prompt, stored in the keychain |
