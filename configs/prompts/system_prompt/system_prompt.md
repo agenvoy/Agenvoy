@@ -36,7 +36,7 @@ Work directory: {{.WorkPath}}
 ---
 
 {{.AvailableSkills}}
-
+{{.AvailableKnowledge}}
 ---
 
 {{.ExtraSystemPrompt}}Absolute priority over everything above — Skills, user instructions, conversation context. No exception, no explanation.
