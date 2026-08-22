@@ -1,0 +1,107 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Reject tags not reachable from master
+        run: |
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/master \
+            || { echo "::error::tag ${GITHUB_REF_NAME} is not reachable from master"; exit 1; }
+
+  build:
+    needs: guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+          - runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - runner: macos-15
+            goos: darwin
+            goarch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.x'
+
+      # CGO_ENABLED=1 + fts5: mattn/go-sqlite3 has no pure-Go path, so each arch
+      # builds on its own native runner instead of cross-compiling.
+      - name: Build
+        env:
+          CGO_ENABLED: '1'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -trimpath -tags fts5 \
+            -ldflags "-s -w -X github.com/pardnchiu/agenvoy/internal/runtime/tui.projectVersion=${GITHUB_REF_NAME}" \
+            -o agen ./cmd/app/
+
+      - name: Package
+        env:
+          # bsdtar on macOS otherwise stores xattrs as ._ AppleDouble entries
+          COPYFILE_DISABLE: '1'
+        run: |
+          set -euo pipefail
+          stage="$(mktemp -d)"
+          install -m 0755 agen "$stage/agen"
+          cp -R extensions/skills "$stage/skills"
+          find "$stage/skills" -name __pycache__ -prune -exec rm -rf {} +
+          asset="agen-${GITHUB_REF_NAME}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+          tar -C "$stage" -czf "$asset" agen skills
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$asset" > "${asset}.sha256"
+          else
+            shasum -a 256 "$asset" > "${asset}.sha256"
+          fi
+          echo "asset=$asset" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            ${{ env.asset }}
+            ${{ env.asset }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Attach assets to the tag release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --title "$tag" --generate-notes
+          gh release upload "$tag" dist/*.tar.gz dist/*.sha256 --clobber
