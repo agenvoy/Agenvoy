@@ -6,7 +6,7 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,chat_dashed,check_circle,checklist,construction,content_copy,delete,deployed_code_account,docs,folder,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,check_circle,checklist,clear_all,cognition_2,compress,construction,content_copy,delete,deployed_code_account,docs,folder,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
     />
     <link
       rel="stylesheet"
@@ -42,9 +42,21 @@
         </a>
       </section>
       <!---->
-      <section id="left-tab-channel-list" data-name="Channels"></section>
+      <details class="group" open>
+        <summary>
+          Channels
+          <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+        </summary>
+        <section id="left-tab-channel-list"></section>
+      </details>
       <!---->
-      <section id="left-tab-chat-list" data-name="Chats"></section>
+      <details class="group" open>
+        <summary>
+          Chats
+          <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+        </summary>
+        <section id="left-tab-chat-list"></section>
+      </details>
       <!---->
       <footer>
         <a href="https://web.agenvoy.com/config?tab=models" target="_blank" rel="noreferrer">
@@ -60,8 +72,14 @@
         <header>
           <p></p>
           <div></div>
-          <button type="button">
-            <span class="material-symbols-outlined"> chat_dashed </span>
+          <button type="button" title="summary" @click="memory_summary">
+            <span class="material-symbols-outlined"> cognition_2 </span>
+          </button>
+          <button type="button" title="compact" @click="memory_compact">
+            <span class="material-symbols-outlined"> compress </span>
+          </button>
+          <button type="button" title="reset" @click="memory_reset">
+            <span class="material-symbols-outlined"> clear_all </span>
           </button>
         </header>
         <!---->
@@ -108,6 +126,10 @@
               <select id="chat-model" @change="model_change">
                 <option value="auto">auto</option>
               </select>
+              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+            </label>
+            <label class="model">
+              <select id="chat-reasoning" @change="reasoning_change"></select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
             <button class="harness" type="button" @click="harness_click">

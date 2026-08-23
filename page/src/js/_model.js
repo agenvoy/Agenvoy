@@ -71,3 +71,49 @@ async function getSessionModel(sessionId) {
     return "";
   }
 }
+
+async function getReasoningList(sessionId) {
+  const dom = $("#chat-reasoning");
+  if (!dom || !CHAT_ID.test(sessionId || "")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/reasoning`);
+    if (!response.ok) {
+      return;
+    }
+    const body = await response.json();
+    const levels = body.levels || [];
+    if (levels.length === 0) {
+      return;
+    }
+
+    dom.innerHTML = "";
+    for (const level of levels) {
+      dom.appendChild(_("option", { value: level }, level));
+    }
+    dom.value = body.reasoning || levels[0];
+  } catch (err) {
+    console.error("getReasoningList", err);
+  }
+}
+
+async function saveSessionReasoning(sessionId, level) {
+  if (!CHAT_ID.test(sessionId || "") || !level) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/reasoning`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasoning: level }),
+    });
+    if (!response.ok) {
+      console.error("saveSessionReasoning", response.status);
+    }
+  } catch (err) {
+    console.error("saveSessionReasoning", err);
+  }
+}

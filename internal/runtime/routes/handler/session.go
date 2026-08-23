@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -212,14 +211,18 @@ func CompactSession() gin.HandlerFunc {
 			return
 		}
 
-		go func() {
-			if _, err := compact.SessionHistory(context.Background(), sid); err != nil {
-				slog.Warn("handler.CompactSession",
-					slog.String("session", sid),
-					slog.String("error", err.Error()))
-			}
-		}()
-		c.JSON(http.StatusAccepted, gin.H{"ok": true, "started": true})
+		ctx, cancel := memoryCtx()
+		defer cancel()
+
+		removed, err := compact.SessionHistory(ctx, sid)
+		if err != nil {
+			slog.Warn("handler.CompactSession",
+				slog.String("session", sid),
+				slog.String("error", err.Error()))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed})
 	}
 }
 

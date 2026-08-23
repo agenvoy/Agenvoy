@@ -18,6 +18,7 @@ let localEcho = [];
 
 async function stopRunning() {
   if (!currentSessionId) return;
+  if (!confirm("Cancel this task?")) return;
 
   const base = `${API}/v1/session/${encodeURIComponent(currentSessionId)}`;
   try {
@@ -193,7 +194,7 @@ function sendAt() {
 
 function appendInboundUser(text) {
   text = (text || "").trim();
-  if (!text) {
+  if (!text || text.startsWith("[Resumed Task")) {
     return;
   }
   const i = localEcho.indexOf(text);
