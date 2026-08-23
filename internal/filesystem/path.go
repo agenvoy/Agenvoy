@@ -44,6 +44,7 @@ var (
 	DownloadTrashDir        string
 	SessionsTrashDir        string
 	AllowSkillGlobalPath    string
+	AllowToolGlobalPath     string
 	PromptsDir              string
 	KnowledgeDir            string
 
@@ -111,6 +112,7 @@ func Init() error {
 		DownloadTrashDir = filepath.Join(DownloadDir, ".Trash")
 		SessionsTrashDir = filepath.Join(SessionsDir, ".Trash")
 		AllowSkillGlobalPath = filepath.Join(AgenvoyDir, "allow_skill")
+		AllowToolGlobalPath = filepath.Join(AgenvoyDir, "allow_tool")
 		PromptsDir = filepath.Join(AgenvoyDir, "prompts")
 		KnowledgeDir = filepath.Join(AgenvoyDir, "knowledge")
 

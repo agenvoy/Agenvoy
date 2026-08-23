@@ -438,6 +438,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpToolsResult:
 		return t.runMcpToolsResult(msg)
 
+	case McpPermissionResult:
+		return t.runMcpPermissionResult(msg)
+
+	case McpPermissionPick:
+		return t.runMcpPermissionPick(msg)
+
 	case McpOAuthPaste:
 		return t.runMcpOAuthPaste(msg)
 
