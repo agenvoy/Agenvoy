@@ -72,6 +72,11 @@ async function getSessionModel(sessionId) {
   }
 }
 
+function ensureReasoning() {
+  const dom = $("#chat-reasoning");
+  return dom ? dom.value || "medium" : "medium";
+}
+
 async function getReasoningList(sessionId) {
   const dom = $("#chat-reasoning");
   if (!dom || !CHAT_ID.test(sessionId || "")) {

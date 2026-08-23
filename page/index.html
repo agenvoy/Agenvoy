@@ -129,7 +129,14 @@
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
             <label class="model">
-              <select id="chat-reasoning" @change="reasoning_change"></select>
+              <select id="chat-reasoning" @change="reasoning_change">
+                <option value="none">none</option>
+                <option value="low">low</option>
+                <option value="medium" selected>medium</option>
+                <option value="high">high</option>
+                <option value="xhigh">xhigh</option>
+                <option value="max">max</option>
+              </select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
             <button class="harness" type="button" @click="harness_click">

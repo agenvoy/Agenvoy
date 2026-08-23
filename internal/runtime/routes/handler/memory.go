@@ -110,7 +110,11 @@ func GetSessionReasoning() gin.HandlerFunc {
 			return
 		}
 		_, level := configBot.GetModel(sid)
-		c.JSON(http.StatusOK, gin.H{"reasoning": level, "levels": reasoningLevels()})
+		levels := reasoningLevels()
+		if !slices.Contains(levels, level) {
+			level = provider.ReasoningDefault.String()
+		}
+		c.JSON(http.StatusOK, gin.H{"reasoning": level, "levels": levels})
 	}
 }
 

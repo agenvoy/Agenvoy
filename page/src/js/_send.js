@@ -54,6 +54,7 @@ async function send(content) {
   if (fresh) {
     prependChat(sessionId, content);
     saveSessionModel(sessionId, model);
+    saveSessionReasoning(sessionId, ensureReasoning());
     adoptChatConfig(sessionId);
   }
 
