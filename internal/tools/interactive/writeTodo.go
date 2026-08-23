@@ -23,6 +23,7 @@ func registWriteTodo() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "write_todo",
 		SystemUse:   true,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `A task checklist the user watches update in real time.

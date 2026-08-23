@@ -77,6 +77,8 @@ func registFetchPage() {
 	toolRegister.Regist(toolRegister.Def{
 
 		Name:        "fetch_page",
+		SystemUse:   false,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,

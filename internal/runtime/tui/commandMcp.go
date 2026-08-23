@@ -115,8 +115,8 @@ func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 		subtitle = fmt.Sprintf("%s\n%s", subtitle, errorStyle.Render(info.Error))
 	}
 
-	options := []string{"tools · list registered tools", "reconnect", "remove"}
-	values := []string{"tools", "reconnect", "remove"}
+	options := []string{"tools · list registered tools", "permission · pick always-allowed tools", "reconnect", "remove"}
+	values := []string{"tools", "permission", "reconnect", "remove"}
 
 	cfg, err := mcp.Load()
 	if err == nil && cfg.Servers[name].IsOAuth() {
@@ -165,6 +165,8 @@ func (t TUI) runMcpServerAction(msg McpServerAction) (TUI, tea.Cmd) {
 		return t.reconnectMcpServer(msg.server)
 	case "tools":
 		return t.listMcpTools(msg.server)
+	case "permission":
+		return t.openMcpPermission(msg.server)
 	}
 	return t, nil
 }

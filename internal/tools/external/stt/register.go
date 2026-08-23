@@ -15,6 +15,8 @@ func Register() {
 
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "transcribe_media",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     5 * time.Minute,

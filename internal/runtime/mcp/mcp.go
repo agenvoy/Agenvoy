@@ -15,11 +15,12 @@ import (
 )
 
 type MCP struct {
-	mu          sync.Mutex
-	reconnectMu sync.Mutex
-	clients     map[string]Client
-	lastError   map[string]string
-	toolsSum    map[string]string
+	mu           sync.Mutex
+	reconnectMu  sync.Mutex
+	clients      map[string]Client
+	lastError    map[string]string
+	toolsSum     map[string]string
+	instructions map[string]string
 }
 
 var (
@@ -53,9 +54,10 @@ func New(ctx context.Context, sessionID string) (*MCP, error) {
 	}
 
 	mcp := &MCP{
-		clients:   map[string]Client{},
-		lastError: map[string]string{},
-		toolsSum:  map[string]string{},
+		clients:      map[string]Client{},
+		lastError:    map[string]string{},
+		toolsSum:     map[string]string{},
+		instructions: map[string]string{},
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
@@ -114,7 +116,13 @@ func (m *MCP) Instructions() map[string]string {
 
 	out := make(map[string]string, len(m.clients))
 	for _, name := range slices.Sorted(maps.Keys(m.clients)) {
-		if text := strings.TrimSpace(m.clients[name].Instructions()); text != "" {
+		text := strings.TrimSpace(m.clients[name].Instructions())
+		if text != "" {
+			m.instructions[name] = text
+		} else {
+			text = m.instructions[name]
+		}
+		if text != "" {
 			out[name] = text
 		}
 	}
@@ -228,6 +236,7 @@ func (m *MCP) Disconnect(name string) {
 	}
 	delete(m.lastError, name)
 	delete(m.toolsSum, name)
+	delete(m.instructions, name)
 	m.mu.Unlock()
 
 	toolRegister.RemoveByPrefix("mcp__" + name + "__")

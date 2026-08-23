@@ -33,3 +33,76 @@
     @include feature.styles;
   }
 }
+
+section.confirm {
+  order: 3;
+  display: flex;
+  flex-flow: column;
+  padding: 1rem 0 1rem 2.5rem;
+  width: 100%;
+
+  &:empty {
+    display: none;
+  }
+}
+
+div.tool-confirm {
+  display: flex;
+  flex-flow: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  width: 100%;
+  background-color: #fff;
+  border: 1px solid var(--gray-2);
+  border-radius: 1.25rem;
+
+  p.name {
+    font-size: small;
+    line-height: 1.5rem;
+    font-weight: 500;
+  }
+
+  pre.args {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    background-color: var(--gray);
+    border-radius: 0.75rem;
+    font-size: x-small;
+    line-height: 1.25rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  div.action {
+    display: flex;
+    flex-flow: row;
+    justify-content: flex-end;
+    gap: 0.5rem;
+
+    flex-wrap: wrap;
+
+    button {
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: small;
+      cursor: pointer;
+
+      &.approve {
+        background-color: var(--black);
+        color: #fff;
+      }
+
+      &.reject {
+        background-color: var(--gray-2);
+        color: var(--black);
+      }
+
+      &.abort {
+        background-color: transparent;
+        border: 1px solid var(--red-5, #d33);
+        color: var(--red-5, #d33);
+      }
+    }
+  }
+}

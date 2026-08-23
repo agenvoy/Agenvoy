@@ -130,6 +130,18 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         saveSessionModel(currentSessionId, model);
       },
+      reasoning_change: function (e) {
+        saveSessionReasoning(currentSessionId, e.target.value);
+      },
+      memory_summary: function () {
+        memorySummary();
+      },
+      memory_compact: function () {
+        memoryCompact();
+      },
+      memory_reset: function () {
+        memoryReset();
+      },
     },
     when: {
       before_render: function () {
@@ -170,6 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
           setSession(params.chat);
           subscribe(params.chat);
           getModelList(params.chat);
+          getReasoningList(params.chat);
           getRuleList();
           renderWorkDirMark();
           renderChat(params.chat);

@@ -27,6 +27,8 @@ func registSubagents() {
 
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "subagents",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,

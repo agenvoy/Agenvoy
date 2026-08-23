@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
@@ -57,6 +58,8 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
 	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
 }
+
+const confirmTimeout = 5 * time.Minute
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
@@ -419,12 +422,27 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			proceed := true
 			reason := ""
 			if runtime.HasListener(sessionData.ID) {
-				reply, err := runtime.Ask(ctx, runtime.Request{
+				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
+				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:      runtime.KindToolConfirm,
 					SessionID: sessionData.ID,
 					ToolName:  toolName,
 					ToolArgs:  toolArg,
 				})
+				cancelAsk()
+				if errors.Is(err, context.DeadlineExceeded) {
+					events <- agentTypes.Event{
+						Type:     agentTypes.EventToolSkipped,
+						ToolName: toolName,
+						ToolArgs: toolArg,
+						ToolID:   toolID,
+						Text:     "no answer within " + confirmTimeout.String() + "; task kept as pending",
+					}
+					if exec.CancelExecution != nil {
+						exec.CancelExecution()
+					}
+					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", confirmTimeout)
+				}
 				if err != nil {
 					proceed = false
 				} else {

@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -272,6 +273,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 
 	userText := content
 	sessionLog.Append(routingSessionID, userText)
+	pubsub.Pub(routingSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: userText})
 
 	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
 	if err != nil {
@@ -290,7 +292,9 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	}
 
 	agentName := strings.TrimSpace(agent.Name())
-	sessionLog.Record(routingSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
+	agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
+	sessionLog.Record(routingSessionID, agentResult)
+	pubsub.Pub(routingSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
 		Agent:          agent,
@@ -313,15 +317,17 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	utils.EventLog("[Telegram]", agentTypes.Event{}, sess.ID, content)
 
 	events := make(chan agentTypes.Event, 128)
+	// * tee into pubsub so the web view can stream this channel session live
+	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		execErr := exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
+		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
 		if execErr != nil {
 			slog.Warn("exec",
 				slog.String("session", sess.ID),
 				slog.String("error", execErr.Error()))
 		}
-		close(events)
+		close(wrapped)
 	}()
 
 	result := utils.FormatChatbotEvent(events, "[Telegram]", sess.ID, markStatus, func(toolName, text string) string {

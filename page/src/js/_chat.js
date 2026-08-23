@@ -1,5 +1,8 @@
+const CHANNEL_PREFIX = { "tg-": "fa-telegram", "dc-": "fa-discord" };
+
 async function renderChatList() {
   const dom = $("#left-tab-chat-list");
+  const channelDom = $("#left-tab-channel-list");
   if (!dom) {
     return;
   }
@@ -14,12 +17,40 @@ async function renderChatList() {
   }
 
   dom.innerHTML = "";
+  if (channelDom) {
+    channelDom.innerHTML = "";
+  }
   for (const e of list) {
-    if (!e.id.startsWith("chat-")) {
+    if (e.id.startsWith("chat-")) {
+      dom.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
-    dom.appendChild(chatListItem(e.id, e.name || e.id));
+    const icon = channelIcon(e.id);
+    if (icon && channelDom) {
+      channelDom.appendChild(channelListItem(e.id, e.name || e.id, icon));
+    }
   }
+}
+
+function channelIcon(sessionId) {
+  for (const prefix of Object.keys(CHANNEL_PREFIX)) {
+    if (sessionId.startsWith(prefix)) {
+      return CHANNEL_PREFIX[prefix];
+    }
+  }
+  return "";
+}
+
+function channelListItem(sessionId, title, icon) {
+  return _(
+    "a",
+    {
+      href: getLink({ page: "chat", chat: sessionId }),
+      "data-id": sessionId,
+      "data-selected": sessionId === currentSessionId ? 1 : 0,
+    },
+    [_("i", { class: `fa-brands ${icon}` }), _("p", title)],
+  );
 }
 
 function chatListItem(sessionId, title) {
@@ -192,13 +223,13 @@ function newAssisatantItem(item) {
     body.push(
       _("details", [
         _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-        _("section.md-render", renderMarkdownHTML(item.Reasoning)),
+        _("section.md-render", renderMarkdownHTML(channelText(item.Reasoning))),
       ]),
     );
   }
 
   if (item.content) {
-    body.push(_("section.md-render", renderMarkdownHTML(item.content)));
+    body.push(_("section.md-render", renderMarkdownHTML(channelText(item.content))));
   }
 
   body.push(sourceBox(item.content));

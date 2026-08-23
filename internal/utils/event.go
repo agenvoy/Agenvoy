@@ -32,7 +32,6 @@ var eventLabel = map[string]string{
 	"transcribe_media":      "Transcribe",
 	"send_to_chatbot":       "Push",
 	"list_chatbot":          "Chatbots",
-	"find_knowledge":        "Knowledge",
 	"mcp__kura__search_rag": "RAG",
 	"mcp__kura__list_rag":   "RAG",
 }
@@ -45,11 +44,11 @@ var hiddenEvent = map[string]bool{
 	"reasoning_guide":     true,
 	"find_tools":          true,
 	"chat_history":        true,
+	"find_knowledge":      true,
 	"error_history":       true,
 	"file_history":        true,
 	"mcp__kura__list_rag": true,
 	"schedules/list":      true,
-	"find_knowledge/list": true,
 }
 
 func HideToolEvent(name, raw string) bool {
@@ -178,12 +177,6 @@ func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string
 	case "calculate":
 		return joinStrings(argMap["expressions"])
 
-	case "find_knowledge":
-		if mode == "read" {
-			return arg("name")
-		}
-		return joinStrings(argMap["keywords"])
-
 	case "run_skill":
 		return arg("skill", "name")
 
@@ -248,14 +241,6 @@ func eventMode(name string, argMap map[string]any) string {
 	case "schedules":
 		return "list"
 
-	case "find_knowledge":
-		if keywords, ok := argMap["keywords"].([]any); ok && len(keywords) > 0 {
-			return "search"
-		}
-		if noteName, _ := argMap["name"].(string); strings.TrimSpace(noteName) != "" {
-			return "read"
-		}
-		return "list"
 	}
 	return ""
 }

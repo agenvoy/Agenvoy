@@ -26,10 +26,10 @@ var topicGuides = map[string]string{
 func registReasoningGuide() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "reasoning_guide",
-		AlwaysAllow: true,
-		AlwaysLoad:  true,
-		Concurrent:  true,
 		SystemUse:   true,
+		AlwaysLoad:  true,
+		AlwaysAllow: true,
+		Concurrent:  true,
 		Description: `[system-default]
 Full rule per topic — call before acting on any match:
 

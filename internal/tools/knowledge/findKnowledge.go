@@ -18,6 +18,8 @@ func init() {
 func registFindKnowledge() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "find_knowledge",
+		SystemUse:   true,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Notes the operator wrote — house rules, conventions, background this workspace assumes.

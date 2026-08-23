@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
-	"github.com/pardnchiu/agenvoy/internal/runtime/webui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -437,6 +436,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case McpToolsResult:
 		return t.runMcpToolsResult(msg)
+
+	case McpPermissionResult:
+		return t.runMcpPermissionResult(msg)
+
+	case McpPermissionPick:
+		return t.runMcpPermissionPick(msg)
 
 	case McpOAuthPaste:
 		return t.runMcpOAuthPaste(msg)
@@ -990,34 +995,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(hintStyle.Render("⎯ kuradb reconnected · "+name) + "\n")
 		}
 		return t, tea.Println(hintStyle.Render("⎯ kuradb registered · "+name+" connected") + "\n")
-
-	case WebuiAction:
-		progress, ok := map[string]string{
-			"enable":  "deploying",
-			"start":   "starting",
-			"stop":    "stopping",
-			"disable": "removing",
-		}[msg.action]
-		if !ok {
-			return t, nil
-		}
-		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ webui "+progress)+"\n"),
-			runWebuiExec(msg.action),
-		)
-
-	case WebuiDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] webui %s: %v", msg.action, msg.err)) + "\n")
-		}
-		switch msg.action {
-		case "enable", "start":
-			return t, tea.Println(hintStyle.Render(
-				fmt.Sprintf("⎯ webui running · %s · proxied at /webui", webui.URL)) + "\n")
-		case "stop":
-			return t, tea.Println(hintStyle.Render("⎯ webui stopped · still deployed") + "\n")
-		}
-		return t, tea.Println(hintStyle.Render("⎯ webui disabled · container and volume removed") + "\n")
 
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)

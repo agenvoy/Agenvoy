@@ -21,7 +21,10 @@ import (
 func registOpenFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "open_file",
+		SystemUse:   true,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
+		Concurrent:  false,
 		Description: `Hands a file to the OS default application — plays a video, shows an image, opens a PDF viewer.
 Use for 打開 / 播放 / 看一下這個檔案, and for open / xdg-open / start.
 run_command cannot do this: its sandbox has no route to the app-launch service. Reading the contents instead → read_files.`,
