@@ -12,7 +12,11 @@ import (
 
 func registSchedules() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "schedules",
+		Name:        "schedules",
+		SystemUse:   false,
+		AlwaysLoad:  false,
+		AlwaysAllow: false,
+		Concurrent:  false,
 		Description: `Scheduled runs bound to a scheduler skill: what is queued (list), moving one to a new time (patch), cancelling one (remove).
 Use for 有哪些排程 / 改時間 / 取消排程 / 那個定時任務還在嗎.
 Creating a schedule → the scheduler-skill-creator skill, never mode=write. A dry-run request → find the name with mode=list, read its SKILL.md and run the steps now; never answer "run /sched-X in the TUI".`,

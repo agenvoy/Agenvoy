@@ -18,9 +18,10 @@ const (
 func registFileHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "file_history",
+		SystemUse:   true,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		SystemUse:   true,
 		Description: `Recorded versions of files the tools changed: when each changed, what the task was after, and what the content was.
 Use for 這個檔案動過幾次 / 上一版是什麼 / 跟之前差在哪 / 誤刪的內容是什麼.
 Putting a version back → edit_file(mode=restore); what a whole run did → chat_history.`,

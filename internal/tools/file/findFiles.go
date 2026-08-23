@@ -20,8 +20,9 @@ type findQuery struct {
 func registFindFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "find_files",
-		AlwaysAllow: true,
+		SystemUse:   false,
 		AlwaysLoad:  true,
+		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob), which files contain a string (search, grep by RE2 regex).
 Use for 找檔案 / 這個目錄有什麼 / 哪個檔案有這段, and for list_files / glob_files / search_files / grep.

@@ -24,8 +24,11 @@ var SudoStreamHook func(line string)
 
 func registRunCommand() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:       "run_command",
-		AlwaysLoad: true,
+		Name:        "run_command",
+		SystemUse:   false,
+		AlwaysLoad:  true,
+		AlwaysAllow: false,
+		Concurrent:  false,
 		Description: `Runs a binary in the work directory and returns its combined stdout/stderr.
 Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
 Reading a file → read_files; finding one → find_files; installing a system binary → install_dependence; opening one in an app → open_file.`,

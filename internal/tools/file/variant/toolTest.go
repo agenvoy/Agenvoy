@@ -19,7 +19,10 @@ import (
 func registTestTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "test_tool",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
+		Concurrent:  true,
 		Description: `Runs a script tool's script.py in the sandbox with JSON on stdin and returns what it printed.
 Use for 測試工具 / 驗證 script, and after every edit_tool write or patch before the tool is used for real.
 It fails → edit_tool(mode=patch), then test again.`,

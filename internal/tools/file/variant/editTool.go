@@ -13,7 +13,10 @@ import (
 func registEditTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_tool",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
+		Concurrent:  false,
 		Description: `The tool definitions themselves: create or overwrite one (write), fix an exact string inside one (patch), trash an obsolete one (remove).
 Use for 建一個工具 / 修工具 / 這個工具壞了, and for write_tool / patch_tool / remove_tool.
 The build flow is write → test_tool → call it. Finding an existing tool → find_tools; skill files → edit_skill.`,
