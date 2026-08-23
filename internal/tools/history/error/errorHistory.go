@@ -25,9 +25,10 @@ func init() {
 func registErrorHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "error_history",
+		SystemUse:   true,
+		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		SystemUse:   true,
 		Description: `Tool failures kept across sessions: what broke, why, what was done about it, and whether that worked.
 Search it before a second retry when no error hint was injected, read one by hash when a tool answers "no data: {hash}", write once a non-trivial fix is confirmed or a strategy is confirmed dead.
 A past run's own steps → chat_history; the full recovery loop → reasoning_guide(topic=tool_error).`,

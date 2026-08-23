@@ -46,9 +46,11 @@ graph TB
     Update --> Installer[官方更新腳本]
 ```
 
+目前 runtime 支援 10 個模型供應商，不包含用於本機或自訂端點的 `compat` 項目。
+
 ## 執行模式
 
-Agenvoy 支援在 TUI 中切換只存在於目前行程的執行模式。當輸入區為空時按下 `Shift+F`，即可在預設模式與 fast mode 之間切換；啟用時標題列會顯示 `[fast]`。執行器、dispatcher、summary 與相關模型呼叫會將選定模式傳給 `go-llm-router` v0.4.0。支援的 provider backend 可將 `provider.ModeFast` 對應到更快速的服務層級；預設模式則維持一般 provider 行為。此切換狀態只保存在記憶體中，不會寫入 `config.json`。
+Agenvoy 支援在 TUI 中切換只存在於目前行程的執行模式。當輸入區為空時按下 `Shift+F`，即可在預設模式與 fast mode 之間切換；啟用時標題列會顯示 `[fast]`。執行器、dispatcher、summary 與相關模型呼叫會將選定模式傳給 `go-llm-router` v0.5.1。支援的 provider backend 可將 `provider.ModeFast` 對應到更快速的服務層級；預設模式則維持一般 provider 行為。此切換狀態只保存在記憶體中，不會寫入 `config.json`。
 
 ```mermaid
 graph LR
@@ -58,7 +60,7 @@ graph LR
     State -->|Fast| Fast[provider.ModeFast]
     Default --> Calls[執行器／dispatcher／summary 呼叫]
     Fast --> Calls
-    Calls --> Router[go-llm-router v0.4.0]
+    Calls --> Router[go-llm-router v0.5.1]
     Router --> Providers[支援的 provider backend]
 ```
 

@@ -47,7 +47,7 @@
       display: flex;
       flex-flow: row;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.5rem;
       padding: 0 0.5rem;
       width: 100%;
       height: 2.5rem;
@@ -75,26 +75,65 @@
       }
     }
 
+    details.group {
+      display: flex;
+      flex-flow: column;
+      flex-grow: 1;
+
+      &:has(> #left-tab-channel-list) {
+        flex-grow: 0;
+      }
+
+      &[open] > summary span {
+        transform: rotate(180deg);
+      }
+
+      > section {
+        flex-grow: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      > summary {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 1rem;
+        padding: 0 0.75rem;
+        height: 1.5rem;
+        line-height: 1.5rem;
+        list-style: none;
+        font-size: small;
+        font-weight: 300;
+        color: var(--gray-3);
+        cursor: pointer;
+        user-select: none;
+        transition: 0.2s;
+
+        &::-webkit-details-marker {
+          display: none;
+        }
+
+        @media (hover: hover) {
+          &:hover {
+            color: var(--black);
+          }
+        }
+
+        span {
+          width: 1.5rem;
+          height: 1.5rem;
+          line-height: 1.5rem;
+          font-size: large;
+          transition: 0.2s;
+        }
+      }
+    }
+
     section {
       position: relative;
       display: flex;
       flex-flow: column;
-
-      &[data-name]:not([data-name=""]) {
-        padding-top: 2.5rem;
-        flex-grow: 1;
-
-        &:after {
-          content: attr(data-name);
-          position: absolute;
-          top: 1rem;
-          left: 0.75rem;
-          line-height: 1.5rem;
-          font-size: small;
-          font-weight: 300;
-          color: var(--gray-3);
-        }
-      }
 
       > a,
       > div {
@@ -102,7 +141,7 @@
         display: flex;
         flex-flow: row;
         align-items: center;
-        gap: 1rem;
+        gap: 0.75rem;
         padding: 0 0.75rem;
         width: 100%;
         max-width: 100%;
@@ -218,7 +257,6 @@
                 color: var(--error-2);
               }
             }
-
           }
         }
       }

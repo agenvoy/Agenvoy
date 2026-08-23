@@ -13,7 +13,11 @@ import (
 
 func registEditFile() {
 	toolRegister.Regist(toolRegister.Def{
-		Name: "edit_file",
+		Name:        "edit_file",
+		SystemUse:   false,
+		AlwaysLoad:  true,
+		AlwaysAllow: false,
+		Concurrent:  false,
 		Description: `Every change to a file on disk: create or replace (write), edit regions (patch), move aside (remove), put a recorded version back (restore).
 Use for 寫檔 / 改這一段 / 刪掉這個檔 / 還原 / 改回上一版, and for write_file / patch_file / remove_file / restore_file / delete.
 Skill files → edit_skill; tool definitions → edit_tool; past versions → file_history.`,

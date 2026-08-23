@@ -17,18 +17,21 @@ type ToolRule struct {
 }
 
 func List(workDir string) []ToolRule {
-	if strings.TrimSpace(workDir) == "" {
-		return nil
+	rules := appendRules(make([]ToolRule, 0, 16), filesystem.AllowToolGlobalPath)
+	if strings.TrimSpace(workDir) != "" {
+		rules = appendRules(rules, filesystem.AllowToolPath(workDir))
 	}
-	path := filesystem.AllowToolPath(workDir)
+	return rules
+}
+
+func appendRules(rules []ToolRule, path string) []ToolRule {
 	if !go_pkg_filesystem_reader.Exists(path) {
-		return nil
+		return rules
 	}
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return nil
+		return rules
 	}
-	rules := make([]ToolRule, 0, 16)
 	for line := range strings.SplitSeq(text, "\n") {
 		entry := strings.TrimSpace(line)
 		if entry == "" || strings.HasPrefix(entry, "#") {

@@ -16,7 +16,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
@@ -108,7 +107,6 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.SystemOS}}", systemOS,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
-		"{{.LastTask}}", lastTaskSection(sessionID),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
@@ -122,24 +120,6 @@ func knowledgeSection() string {
 		return ""
 	}
 	return "\n## Knowledge\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_knowledge` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"
-}
-
-func lastTaskSection(sessionID string) string {
-	taskID, objective, used := actionHistory.Last(sessionID)
-	if taskID == "" {
-		return ""
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "Previous task `%s`", taskID)
-	if objective != "" {
-		fmt.Fprintf(&sb, ": %s", objective)
-	}
-	if len(used) > 0 {
-		fmt.Fprintf(&sb, " — ran %s", strings.Join(used, ", "))
-	}
-	sb.WriteString("\n")
-	return sb.String()
 }
 
 func buildPermissionModeSection(allowAll bool) string {

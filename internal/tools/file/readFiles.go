@@ -45,8 +45,9 @@ const (
 func registReadFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "read_files",
-		AlwaysAllow: true,
+		SystemUse:   false,
 		AlwaysLoad:  true,
+		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Canonical way to read any file — text, PDF, DOCX, PPTX, CSV/TSV or image — and the step that must precede edit_file(mode=patch) unless it was already read this session.
 Use for 讀檔 / 看一下這個檔案 / 這份 PDF 寫什麼, and for read_file / cat / head / tail.

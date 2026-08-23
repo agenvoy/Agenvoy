@@ -83,7 +83,9 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 ### TUI 執行模式
 
-當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.4.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
+目前 runtime 支援 10 個模型供應商，不包含用於本機或自訂端點的 `compat` 項目。
+
+當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### 圖像生成已移除
 
@@ -288,7 +290,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 ## 工具參考
 
-註冊表內建 25 個工具，另有 3 個在前置條件成立時才註冊。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
+註冊表內建 26 個工具，另有 3 個在前置條件成立時才註冊。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
 
 | 分類 | 工具 | 用途 |
 |---|---|---|
@@ -314,6 +316,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | | `http_request` | 原始 HTTP 呼叫，含 multipart 上傳 |
 | 狀態 | `chat_history` | 本 session 的執行紀錄與對話（`mode=list\|read\|search`） |
 | | `error_history` | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`） |
+| | `find_knowledge` | 操作者自己寫的筆記，存於 ToriiDB（`mode=search\|list\|read`）；search 與 list 只回名稱 |
 | | `reasoning_guide` | 依 `topic` 取得完整推理規則 |
 | 基礎支援 | `calculate` | 算術、單位與匯率換算 |
 | | `store_secret` | 遮蔽輸入並存入 keychain |

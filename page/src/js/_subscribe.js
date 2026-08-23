@@ -50,6 +50,16 @@ function parseEvent(event) {
     announceTimer = 0;
   }
 
+  if (event.type === "EventToolConfirm") {
+    renderToolConfirm(event);
+    return;
+  }
+
+  if (event.type === "EventUserInput") {
+    appendInboundUser(event.text);
+    return;
+  }
+
   if (event.type === "EventPending") {
     loadPending(subscribedSession);
     return;

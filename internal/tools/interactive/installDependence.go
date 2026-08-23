@@ -17,7 +17,10 @@ import (
 func registInstallDependence() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "install_dependence",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: false,
+		Concurrent:  false,
 		Description: `Installs a missing system binary, picking the platform's package manager. Skips silently if it is already in PATH.
 Use for 安裝 / command not found / 缺 ffmpeg 之類的執行檔.
 run_command cannot do this: the sandbox blocks sudo. Language-level packages (pip / npm / cargo / gem) are not installed here — print the command for the user to run.`,

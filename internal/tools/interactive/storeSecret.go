@@ -15,8 +15,11 @@ import (
 
 func registStoreSecret() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:      "store_secret",
-		SystemUse: true,
+		Name:        "store_secret",
+		SystemUse:   true,
+		AlwaysLoad:  false,
+		AlwaysAllow: false,
+		Concurrent:  false,
 		Description: `Asks the user for a secret with masked input and stores it in the keychain.
 Fires on an auth failure — missing key, 401, 403, expired token: take the key name from the error, call this, then re-invoke the tool that failed.
 A credential is never requested through ask_user and never appears in a message, a tool argument or a file. At most two rounds per tool per turn.`,

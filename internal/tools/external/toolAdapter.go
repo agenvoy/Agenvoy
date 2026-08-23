@@ -14,6 +14,8 @@ func Register() {
 	searchWeb.Register()
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "http_request",
+		SystemUse:   false,
+		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: `Sends one HTTP request to any URL and returns status, headers and body — GET through DELETE, multipart upload included.

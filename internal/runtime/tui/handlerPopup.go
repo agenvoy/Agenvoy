@@ -42,6 +42,7 @@ type Popup struct {
 	values     []string
 	cursor     int
 	multi      map[int]bool
+	onToggle   func(p *Popup, index int)
 	maxVisible int
 
 	tabs   []string
@@ -298,6 +299,9 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeySpace:
 		p.multi[p.cursor] = !p.multi[p.cursor]
+		if p.onToggle != nil {
+			p.onToggle(p, p.cursor)
+		}
 
 	case tea.KeyEsc:
 		if p.pendingId == "" {

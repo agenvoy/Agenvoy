@@ -90,23 +90,6 @@ func Objective(sessionID, taskID string) string {
 	return ""
 }
 
-func Last(sessionID string) (string, string, []string) {
-	if sessionID == "" {
-		return "", "", nil
-	}
-
-	list, err := entriesOf(sessionID)
-	if err != nil || len(list) == 0 {
-		return "", "", nil
-	}
-
-	r, err := load(list[0].path)
-	if err != nil {
-		return "", "", nil
-	}
-	return list[0].taskID, r.Objective, toolsUsed(r)
-}
-
 func entriesOf(sessionID string) ([]entry, error) {
 	dir := filesystem.TaskHistoryDir(sessionID)
 	if !go_pkg_filesystem_reader.IsDir(dir) {

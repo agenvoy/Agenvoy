@@ -17,8 +17,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -223,6 +225,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	if err != nil {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetLineSession: %w", err)
 	}
+	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
 
 	primary, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, sessionID)
 	if err != nil {
@@ -232,6 +235,13 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 				slog.String("error", sendErr.Error()))
 		}
 		return fmt.Errorf("ResolveAgent: %w", err)
+	}
+
+	if primary != nil {
+		agentName := strings.TrimSpace(primary.Name())
+		agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
+		sessionLog.Record(sessionID, agentResult)
+		pubsub.Pub(sessionID, agentResult)
 	}
 
 	execData := exec.ExecuteMeta{
@@ -250,14 +260,16 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	utils.EventLog("[LINE]", agentTypes.Event{}, sess.ID, content)
 
 	events := make(chan agentTypes.Event, 128)
+	// * tee into pubsub so the web view can stream this channel session live
+	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		if execErr := exec.Execute(execCtx, execData, sess, events, execData.AllowAll); execErr != nil {
+		if execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll); execErr != nil {
 			slog.Warn("exec",
 				slog.String("session", sess.ID),
 				slog.String("error", execErr.Error()))
 		}
-		close(events)
+		close(wrapped)
 	}()
 
 	result := utils.FormatChatbotEvent(events, "[LINE]", sess.ID, func(string) {}, func(toolName, text string) string {

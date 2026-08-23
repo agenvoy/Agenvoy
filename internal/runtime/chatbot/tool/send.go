@@ -25,6 +25,10 @@ import (
 func registSendToChatbot() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "send_to_chatbot",
+		SystemUse:   false,
+		AlwaysLoad:  false,
+		AlwaysAllow: false,
+		Concurrent:  true,
 		Description: sendToChatbotDescription(),
 		Parameters: map[string]any{
 			"type": "object",
@@ -114,6 +118,7 @@ func sendTelegram(ctx context.Context, chatIDStr, message string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("go-bot/telegram Send: %w", err)
 	}
+	recordOutbound(resolveChatbotSession("tg-", "chat_id", chatIDStr), message)
 
 	raw, err := json.Marshal(map[string]any{
 		"ok":         true,
@@ -145,6 +150,7 @@ func sendDiscord(ctx context.Context, channelID, message string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("go-bot/discord Send: %w", err)
 	}
+	recordOutbound(resolveChatbotSession("dc-", "channel_id", channelID), message)
 
 	raw, err := json.Marshal(map[string]any{
 		"ok":         true,

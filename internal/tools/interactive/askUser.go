@@ -76,7 +76,9 @@ func registAskUser() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "ask_user",
 		SystemUse:   true,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
+		Concurrent:  false,
 		Description: `Puts one or more questions to the user and stops there — execution pauses, and a new turn resumes automatically once they answer.
 Use when the target, scope, format or timing is not fixed by what they said, or when more than one tool would fit.
 A credential is never asked for here → store_secret.`,
