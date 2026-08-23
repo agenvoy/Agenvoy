@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools"
@@ -95,14 +96,15 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	}
 
 	events := make(chan agentTypes.Event, 128)
+	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		if execErr := exec.Execute(execCtx, execData, sess, events, false); execErr != nil {
+		if execErr := exec.Execute(execCtx, execData, sess, wrapped, false); execErr != nil {
 			slog.Warn("ask_user resume: exec",
 				slog.String("session", sessionID),
 				slog.String("error", execErr.Error()))
 		}
-		close(events)
+		close(wrapped)
 	}()
 
 	result := utils.FormatChatbotEvent(events, "[Telegram]", sess.ID, markStatus, func(toolName, text string) string {

@@ -8,12 +8,13 @@ const SKIP_EVENTS = [
   "EventToolCallText",
   "EventToolCallEnd",
   "EventToolResult",
-  "EventUserInput",
   "EventUsageUpdate",
   "EventPending",
 ];
 let currentSessionId = "";
 let streamDom = null;
+
+let localEcho = [];
 
 async function stopRunning() {
   if (!currentSessionId) return;
@@ -69,6 +70,7 @@ async function send(content) {
     streamDom = newStreamItem();
     clearTodo();
   }
+  localEcho.push(content);
   scrollToBottom(true);
 
   try {
@@ -189,6 +191,27 @@ function sendAt() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function appendInboundUser(text) {
+  text = (text || "").trim();
+  if (!text) {
+    return;
+  }
+  const i = localEcho.indexOf(text);
+  if (i !== -1) {
+    localEcho.splice(i, 1);
+    return;
+  }
+
+  const dom = $("#right-content-chat-messages");
+  if (!dom) {
+    return;
+  }
+  streamDom = null;
+  clearTodo();
+  dom.appendChild(newUserItem({ content: text, meta: { send_at: sendAt() } }));
+  scrollToBottom(true);
+}
+
 function eventSkip(event) {
   const type = event.type || "";
   if (event.source || (type === "EventToolCall" && event.tool_name === "write_todo")) {
@@ -212,10 +235,7 @@ function newStreamItem(init) {
   const answer = _("section.md-render");
   const source = sourceBox(init.text || "");
   const footer = _("footer");
-  const stop = _("button.stop", { type: "button" }, [
-    _("span.material-symbols-outlined", "stop"),
-    _("p", "cancel"),
-  ]);
+  const stop = _("button.stop", { type: "button" }, [_("span.material-symbols-outlined", "stop"), _("p", "cancel")]);
   stop.addEventListener("click", stopRunning);
   const body = _("section", [model, think, answer, source, footer, stop]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
@@ -248,7 +268,7 @@ function newStreamItem(init) {
 
 function render(dom, markdown) {
   const stick = atBottom();
-  dom.innerHTML = renderMarkdownHTML(markdown);
+  dom.innerHTML = renderMarkdownHTML(channelText(markdown));
   if (stick) {
     scrollToBottom(true);
   }

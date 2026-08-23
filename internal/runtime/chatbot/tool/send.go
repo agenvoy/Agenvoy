@@ -118,6 +118,7 @@ func sendTelegram(ctx context.Context, chatIDStr, message string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("go-bot/telegram Send: %w", err)
 	}
+	recordOutbound(resolveChatbotSession("tg-", "chat_id", chatIDStr), message)
 
 	raw, err := json.Marshal(map[string]any{
 		"ok":         true,
@@ -149,6 +150,7 @@ func sendDiscord(ctx context.Context, channelID, message string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("go-bot/discord Send: %w", err)
 	}
+	recordOutbound(resolveChatbotSession("dc-", "channel_id", channelID), message)
 
 	raw, err := json.Marshal(map[string]any{
 		"ok":         true,

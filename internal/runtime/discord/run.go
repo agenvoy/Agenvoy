@@ -19,6 +19,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -220,6 +221,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	}
 
 	sessionLog.Append(discordSessionID, content)
+	pubsub.Pub(discordSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
 
 	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, discordSessionID)
 	if err != nil {
@@ -232,7 +234,9 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	}
 
 	agentName := strings.TrimSpace(agent.Name())
-	sessionLog.Record(discordSessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName})
+	agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
+	sessionLog.Record(discordSessionID, agentResult)
+	pubsub.Pub(discordSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
 		Agent:          agent,
@@ -266,15 +270,16 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	markStatus("thinking…")
 
 	events := make(chan agentTypes.Event, 128)
+	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		execErr := exec.Execute(execCtx, execData, sess, events, execData.AllowAll)
+		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
 		if execErr != nil {
 			slog.Warn("exec",
 				slog.String("session", sess.ID),
 				slog.String("error", execErr.Error()))
 		}
-		close(events)
+		close(wrapped)
 	}()
 
 	result := utils.FormatChatbotEvent(events, "[Discord]", sess.ID, markStatus, func(toolName, text string) string {
