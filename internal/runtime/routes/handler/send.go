@@ -40,7 +40,6 @@ type Request struct {
 	SystemPrompt string   `json:"system_prompt,omitempty"`
 	WorkDir      string   `json:"work_dir,omitempty"`
 	Skill        string   `json:"skill,omitempty"`
-	AllowAll     *bool    `json:"allow_all,omitempty"`
 }
 
 func Send() gin.HandlerFunc {
@@ -80,11 +79,6 @@ func Send() gin.HandlerFunc {
 				"steer":      true,
 			})
 			return
-		}
-
-		allowAll := true
-		if req.AllowAll != nil {
-			allowAll = *req.AllowAll
 		}
 
 		events := make(chan agentTypes.Event, 64)
@@ -169,7 +163,6 @@ func Send() gin.HandlerFunc {
 				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
 				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
-				AllowAll:          allowAll,
 			}
 
 			if err := configBot.Save(sessionID, "", "", false); err != nil {
@@ -184,7 +177,7 @@ func Send() gin.HandlerFunc {
 				return
 			}
 
-			if err := exec.Execute(execCtx, data, session, wrapped, allowAll); err != nil {
+			if err := exec.Execute(execCtx, data, session, wrapped, data.AllowAll); err != nil {
 				wrapped <- agentTypes.ErrorEvent(err)
 				return
 			}

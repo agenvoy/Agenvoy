@@ -127,6 +127,15 @@ func StreamMultiLog() gin.HandlerFunc {
 		}
 		c.Writer.Flush()
 
+		for _, sid := range sids {
+			for _, ev := range OutstandingConfirms(sid) {
+				if raw, err := json.Marshal(toTagged(sid, ev)); err == nil {
+					fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
+				}
+			}
+		}
+		c.Writer.Flush()
+
 		merged := make(chan taggedEvent, 1024)
 		var fanInDropped atomic.Int64
 		for _, sid := range sids {

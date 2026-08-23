@@ -29,6 +29,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
+	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
@@ -273,6 +274,8 @@ func cmdDaemon() {
 	reloadDiscord(0)
 	reloadTelegram(0)
 	monitor.Start(context.Background())
+
+	handler.StartWebConfirm(context.Background())
 
 	route := routes.New()
 	server := &http.Server{

@@ -2,6 +2,12 @@
   section.pending {
     order: 2;
     display: flex;
+
+    // * clearPending empties it; without this the padding leaves a gap
+    &:empty {
+      display: none;
+    }
+
     justify-content: flex-start;
     align-items: flex-start;
     gap: 1.5rem;

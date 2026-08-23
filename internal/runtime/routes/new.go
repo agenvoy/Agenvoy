@@ -50,6 +50,7 @@ func New() *gin.Engine {
 	r.GET("/v1/session/:session_id/pending/:task_hash/questions", handler.GetSessionPendingQuestions())
 	r.POST("/v1/session/:session_id/pending/:task_hash/resume", handler.ResumeSessionPending())
 	r.DELETE("/v1/session/:session_id/pending/:task_hash", handler.DeleteSessionPending())
+	r.POST("/v1/session/:session_id/confirm/:request_id", handler.ResolveToolConfirm())
 	r.GET("/v1/session/:session_id/persona", localhostOnly(), handler.GetSessionPersona())
 	r.POST("/v1/session/:session_id/persona", localhostOnly(), handler.SetSessionPersona())
 	r.POST("/v1/session/:session_id/compact", localhostOnly(), handler.CompactSession())
