@@ -122,6 +122,8 @@ func New() *gin.Engine {
 	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
 	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())
 	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
+	r.GET("/v1/channel/admin", localhostOnly(), handler.GetAdminChannel())
+	r.POST("/v1/channel/admin", localhostOnly(), handler.SetAdminChannel())
 
 	r.NoRoute(localhostOnly(), func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/v1/") {
