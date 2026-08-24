@@ -5,7 +5,7 @@ const CHANNEL_SPEC = {
   line: { label: "LINE", path: "/v1/channel/line", secret: true },
 };
 
-let channelActive = "telegram";
+let channelActive = "admin";
 
 function channelDom() {
   return {
@@ -15,6 +15,7 @@ function channelDom() {
     token: $("#channel-token"),
     side: $("section.config div.side"),
     admin: $("#channel-admin"),
+    chats: $("#channel-chats"),
   };
 }
 
@@ -32,10 +33,6 @@ async function channelStatus() {
     console.error("channelStatus", err);
   }
   return {};
-}
-
-function channelPill(text) {
-  return _("span", text);
 }
 
 async function renderChannel() {
@@ -65,6 +62,7 @@ async function renderChannel() {
     dom.form.dataset.kind = channelActive;
   }
   if (channelActive === "admin") {
+    renderChannelChats("", false);
     renderAdminChannel();
     return;
   }
@@ -75,14 +73,12 @@ async function renderChannel() {
     title = state.username || "connecting…";
   }
 
+  const name = _("input", { type: "text" });
+  name.value = title;
+  name.readOnly = true;
+
   dom.status.innerHTML = "";
-  dom.status.appendChild(_("strong", title));
-  dom.status.appendChild(
-    _("div.pills", [
-      channelPill(state.enabled ? "enabled" : "disabled"),
-      channelPill(state.has_token ? "token set" : "no token"),
-    ]),
-  );
+  dom.status.appendChild(_("div.row", [name]));
 
   if (dom.form) {
     dom.form.dataset.enabled = state.enabled ? "1" : "0";
@@ -92,6 +88,73 @@ async function renderChannel() {
   }
   if (dom.secret) {
     dom.secret.value = "";
+  }
+  renderChannelChats(channelActive, state.enabled === true);
+}
+
+async function channelChats(kind) {
+  try {
+    const response = await fetch(`${API}/v1/channel/${encodeURIComponent(kind)}/chats`);
+    if (response.ok) {
+      return (await response.json()).chats || [];
+    }
+  } catch (err) {
+    console.error("channelChats", err);
+  }
+  return [];
+}
+
+async function revokeChannelChat(kind, chat) {
+  if (!confirm(`Revoke ${chat.name || chat.id}? It has to verify again to talk to the bot.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/channel/${encodeURIComponent(kind)}/chat`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: chat.id }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      channelError(detail.error || `HTTP ${response.status}`);
+      return;
+    }
+  } catch (err) {
+    console.error("revokeChannelChat", err);
+    channelError(err.message || "failed");
+    return;
+  }
+  renderChannel();
+}
+
+async function renderChannelChats(kind, enabled) {
+  const dom = channelDom();
+  if (!dom.chats) {
+    return;
+  }
+
+  dom.chats.innerHTML = "";
+  if (!enabled) {
+    delete dom.chats.dataset.open;
+    return;
+  }
+  dom.chats.dataset.open = "1";
+  dom.chats.appendChild(_("strong", "Authorized chats · verified once, allowed since"));
+
+  const chats = await channelChats(kind);
+  if (channelActive !== kind) {
+    return;
+  }
+  if (chats.length === 0) {
+    dom.chats.appendChild(_("p.empty", "none yet · message the bot and enter the verification code"));
+    return;
+  }
+
+  for (const chat of chats) {
+    const remove = _("button.remove", { type: "button" }, "revoke");
+    remove.addEventListener("click", () => revokeChannelChat(kind, chat));
+    dom.chats.appendChild(_("div.row", [_("p", `${chat.name || chat.id} · ${chat.id}`), remove]));
   }
 }
 
@@ -158,7 +221,9 @@ async function renderAdminChannel() {
   }
 
   if (current !== "" && !state.authorized) {
-    dom.admin.appendChild(adminChannelRow(current, "not in the authorized list · codes stay in the log", true, current));
+    dom.admin.appendChild(
+      adminChannelRow(current, "not in the authorized list · codes stay in the log", true, current),
+    );
   }
 
   if (chats.length === 0) {

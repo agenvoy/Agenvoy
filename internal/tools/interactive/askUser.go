@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +68,7 @@ type pendingMeta struct {
 	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
 	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
 	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
+	Files        []string              `json:"files,omitempty"`
 	Reply        string                `json:"reply,omitempty"`
 }
 
@@ -339,6 +341,24 @@ func ListPendingTasks(sessionID string) []string {
 	return hashes
 }
 
+func mergeFiles(existing, added []string) []string {
+	out := slices.Clone(existing)
+	for _, one := range added {
+		if one != "" && !slices.Contains(out, one) {
+			out = append(out, one)
+		}
+	}
+	return out
+}
+
+func LoadPendingFiles(sessionID, taskHash string) []string {
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return nil
+	}
+	return meta.Files
+}
+
 type PendingInfo struct {
 	TaskHash     string
 	Objective    string
@@ -516,7 +536,7 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 	return msg.String(), sb.String(), nil
 }
 
-func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string) string {
+func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string, files []string) string {
 	taskHash := existingTaskHash
 	if taskHash == "" {
 		taskHash = go_pkg_utils.UUID()
@@ -526,11 +546,13 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 	var allResults []ToolResult
 	var messageID, model, reasoning string
 	var todos []agentTypes.TodoItem
+	allFiles := files
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
 		messageID = existing.MessageID
 		model = existing.Model
 		reasoning = existing.Reasoning
 		todos = existing.Todos
+		allFiles = mergeFiles(existing.Files, files)
 		seen := make(map[string]bool, len(toolResults))
 		for _, r := range toolResults {
 			if r.ID != "" {
@@ -555,6 +577,7 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		Completed:   completed,
 		NextSteps:   nextSteps,
 		Questions:   questions,
+		Files:       allFiles,
 		ToolResults: allResults,
 		Todos:       todos,
 	}); err != nil {

@@ -29,7 +29,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult) {
+func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("askUserInBackground panic recovered",
@@ -55,7 +55,7 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 		return
 	}
 
-	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash)
+	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
 	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
 }
 
@@ -555,7 +555,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 			toolResults := toolResults(sessionData)
 
-			go askUserInBackground(sessionData.ID, exec.PendingTask, slot.args, toolResults)
+			go askUserInBackground(sessionData.ID, exec.PendingTask, slot.args, toolResults, exec.EditedFiles())
 			if exec.CancelExecution != nil {
 				exec.CancelExecution()
 			}

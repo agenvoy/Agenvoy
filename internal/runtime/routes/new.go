@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	completionsHandler "github.com/pardnchiu/agenvoy/internal/runtime/routes/handler/chatCompletions"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func New() *gin.Engine {
@@ -25,6 +25,7 @@ func New() *gin.Engine {
 
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
+	r.GET("/v1/daemon/log", localhostOnly(), handler.StreamDaemonLog())
 
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
@@ -76,9 +77,11 @@ func New() *gin.Engine {
 	r.POST("/v1/keys", localhostOnly(), handler.SetKey())
 
 	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
+	r.GET("/v1/providers/usage", localhostOnly(), handler.ListProviderUsage())
 	r.GET("/v1/provider/:provider/check", localhostOnly(), handler.CheckProviderKey())
 	r.POST("/v1/provider/:provider/key", localhostOnly(), handler.AddProviderKey())
 	r.GET("/v1/provider/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
+	r.DELETE("/v1/provider/:provider/oauth", localhostOnly(), handler.ClearProviderOAuth())
 	r.GET("/v1/provider/:provider/models", localhostOnly(), handler.ListProviderModels())
 
 	r.GET("/v1/mcp", localhostOnly(), handler.ListMcpServers())
@@ -131,6 +134,8 @@ func New() *gin.Engine {
 	r.POST("/v1/channel/line", localhostOnly(), handler.SetLineChannel())
 	r.GET("/v1/channel/admin", localhostOnly(), handler.GetAdminChannel())
 	r.POST("/v1/channel/admin", localhostOnly(), handler.SetAdminChannel())
+	r.GET("/v1/channel/:channel/chats", localhostOnly(), handler.ListChannelChats())
+	r.DELETE("/v1/channel/:channel/chat", localhostOnly(), handler.DeleteChannelChat())
 
 	r.NoRoute(localhostOnly(), func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/v1/") {
@@ -185,15 +190,10 @@ func cors() gin.HandlerFunc {
 
 func localhostOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		host, _, err := net.SplitHostPort(c.Request.RemoteAddr)
-		if err != nil {
-			host = c.Request.RemoteAddr
-		}
-		switch host {
-		case "127.0.0.1", "::1":
-			c.Next()
-		default:
+		if !utils.IsLoopback(c.Request.RemoteAddr) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "localhost only", "type": "forbidden"}})
+			return
 		}
+		c.Next()
 	}
 }

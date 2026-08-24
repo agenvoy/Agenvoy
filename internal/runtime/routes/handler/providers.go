@@ -8,24 +8,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	provider "github.com/pardnchiu/go-llm-router/core"
-	"github.com/pardnchiu/go-llm-router/core/claude"
-	"github.com/pardnchiu/go-llm-router/core/cloudflare"
-	"github.com/pardnchiu/go-llm-router/core/copilot"
-	"github.com/pardnchiu/go-llm-router/core/deepseek"
-	"github.com/pardnchiu/go-llm-router/core/gemini"
-	"github.com/pardnchiu/go-llm-router/core/grok"
-	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
-	"github.com/pardnchiu/go-llm-router/core/mistral"
-	"github.com/pardnchiu/go-llm-router/core/nvidia"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
-	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
-	"github.com/pardnchiu/go-llm-router/core/openai"
-	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -132,6 +119,7 @@ func AddProviderKey() gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
+			DropUsageCache(prov)
 			c.JSON(http.StatusOK, gin.H{"ok": true})
 			return
 		}
@@ -172,6 +160,8 @@ func AddProviderKey() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		DropUsageCache(prov)
 
 		if prov == "cloudflare" {
 			if err := keychain.Set("CLOUDFLARE_ACCOUNT_ID", accountID); err != nil {
@@ -254,77 +244,45 @@ func ProviderOAuth() gin.HandlerFunc {
 			emit(gin.H{"done": true, "ok": false, "error": err.Error()})
 			return
 		}
+		DropUsageCache(prov)
 		emit(gin.H{"done": true, "ok": true})
 	}
 }
 
-func modelsFn(prov string) func(c *gin.Context, cfg provider.Config) ([]string, error) {
-	switch prov {
-	case "openai":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openai.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
+func ClearProviderOAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		prov := c.Param("provider")
+		p := findProvider(prov)
+		if p == nil || p.Methods["oauth"] == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support oauth"})
+			return
 		}
-	case "codex":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openaicodex.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
+
+		var err error
+		switch prov {
+		case "codex":
+			err = oauthCodex.ClearToken()
+		case "copilot":
+			err = oauthCopilot.ClearToken()
+		case "grok-oauth":
+			err = oauthGrokOauth.ClearToken()
 		}
-	case "claude":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return claude.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
-	case "gemini":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return gemini.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "grok":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return grok.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "grok-oauth":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return grokoauth.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "copilot":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return copilot.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "deepseek":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return deepseek.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "mistral":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return mistral.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "nvidia":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return nvidia.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "openrouter":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return openrouter.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	case "cloudflare":
-		return func(c *gin.Context, cfg provider.Config) ([]string, error) {
-			return cloudflare.Models(c.Request.Context(), cfg, provider.ModelFilter{TextOnly: true})
-		}
-	default:
-		return nil
+
+		DropUsageCache(prov)
+		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }
 
 func listModelsFor(c *gin.Context, credentialName string) {
-	fn := modelsFn(credentialName)
-	if fn == nil {
+	if !probe.Supports(probe.Provider(credentialName)) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support model listing"})
 		return
 	}
-	cfg, err := agentKeychain.Config(c.Request.Context(), credentialName)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-	ids, err := fn(c, cfg)
+	ids, err := probe.Models(c.Request.Context(), credentialName)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return

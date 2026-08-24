@@ -221,7 +221,7 @@ function newAssisatantItem(item) {
 
   if (item.Reasoning) {
     body.push(
-      _("details", [
+      _("details.reasoning", [
         _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
         _("section.md-render", renderMarkdownHTML(channelText(item.Reasoning))),
       ]),
@@ -233,6 +233,7 @@ function newAssisatantItem(item) {
   }
 
   body.push(sourceBox(item.content));
+  body.push(fileBox(item.files || []));
   body.push(assistantFooter(item.meta));
 
   return _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);

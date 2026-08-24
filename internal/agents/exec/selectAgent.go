@@ -18,7 +18,6 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -258,7 +257,7 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 		if cand == nil {
 			continue
 		}
-		if utils.CheckAgentEndpointAlive(ctx, cand, HealthCheckTimeout) {
+		if checkAgentResponsive(ctx, cand, HealthCheckTimeout) {
 			return cand, cand.Name()
 		}
 		if ctx.Err() == nil {

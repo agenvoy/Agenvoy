@@ -10,6 +10,7 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -18,6 +19,9 @@ import (
 func checkAgentResponsive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
 	url, apiKey := compatLivenessTarget(agent)
 	if url == "" {
+		if name := agentName(agent); probe.Supports(probe.Provider(name)) {
+			return probe.Alive(ctx, name, timeout)
+		}
 		return utils.CheckAgentEndpointAlive(ctx, agent, timeout)
 	}
 
@@ -31,6 +35,18 @@ func checkAgentResponsive(ctx context.Context, agent agentTypes.Agent, timeout t
 	client := &http.Client{Timeout: timeout}
 	_, status, err := go_pkg_http.GET[string](healthCtx, client, url, headers)
 	return err == nil && status == http.StatusOK
+}
+
+func agentName(agent agentTypes.Agent) string {
+	if agent == nil {
+		return ""
+	}
+	for name, a := range agents.Registry().Registry {
+		if a == agent {
+			return name
+		}
+	}
+	return ""
 }
 
 func compatLivenessTarget(agent agentTypes.Agent) (string, string) {

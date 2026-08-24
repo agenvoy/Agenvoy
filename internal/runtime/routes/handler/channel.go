@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -178,6 +180,89 @@ func GetAdminChannel() gin.HandlerFunc {
 			"authorized":    current != "" && authorized,
 			"chats":         chats,
 		})
+	}
+}
+
+func channelAuthPath(channel string) (path, prefix string, ok bool) {
+	switch channel {
+	case "telegram":
+		return filesystem.TelegramAuthPath, "tg", true
+	case "discord":
+		return filesystem.DiscordAuthPath, "dc", true
+	case "line":
+		return filesystem.LineAuthPath, "ln", true
+	}
+	return "", "", false
+}
+
+func ListChannelChats() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path, prefix, ok := channelAuthPath(strings.TrimSpace(c.Param("channel")))
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "channel must be telegram, discord or line"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"chats": adminChats(prefix, path)})
+	}
+}
+
+func DeleteChannelChat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path, _, ok := channelAuthPath(strings.TrimSpace(c.Param("channel")))
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "channel must be telegram, discord or line"})
+			return
+		}
+
+		var body struct {
+			ID string `json:"id"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		id := strings.TrimSpace(body.ID)
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+			return
+		}
+
+		if !go_pkg_filesystem_reader.Exists(path) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no authorized chat yet"})
+			return
+		}
+		text, err := go_pkg_filesystem.ReadText(path)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		kept := make([]string, 0, 8)
+		removed := 0
+		for line := range strings.SplitSeq(text, "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			if utils.ParseChatID(line) == id {
+				removed++
+				continue
+			}
+			kept = append(kept, strings.TrimRight(line, "\r"))
+		}
+		if removed == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "chat not authorized"})
+			return
+		}
+
+		out := ""
+		if len(kept) > 0 {
+			out = strings.Join(kept, "\n") + "\n"
+		}
+		if err := go_pkg_filesystem.WriteFile(path, out, 0644); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed})
 	}
 }
 

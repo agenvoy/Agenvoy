@@ -86,6 +86,47 @@ function sourceBox(text) {
   return _("pre.source", { textContent: text || "" });
 }
 
+function openAgenvoyFile(path) {
+  if (!path) {
+    return;
+  }
+  fetch(`${API}/v1/file/open?path=${encodeURIComponent(path)}`).catch((err) => console.error("openAgenvoyFile", err));
+}
+
+function fileBox(files) {
+  const list = _("ul");
+  const box = _("details.files", [
+    _("summary", ["Files", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
+    list,
+  ]);
+  box.open = true;
+  box.hidden = true;
+  renderFileBox(box, files);
+  return box;
+}
+
+function renderFileBox(box, files) {
+  if (!box) {
+    return;
+  }
+
+  const list = box.querySelector("ul");
+  list.innerHTML = "";
+  box.hidden = !Array.isArray(files) || files.length === 0;
+  if (box.hidden) {
+    return;
+  }
+
+  for (const path of files) {
+    const link = _("a", { href: path }, path);
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openAgenvoyFile(path);
+    });
+    list.appendChild(_("li", [link]));
+  }
+}
+
 function copyBtn() {
   const dom = _("button", [_("span.material-symbols-outlined", "content_copy")]);
   dom.addEventListener("click", function () {
