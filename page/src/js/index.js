@@ -231,6 +231,7 @@ document.addEventListener("DOMContentLoaded", function () {
           dom.dataset.collapsed = "1";
         });
 
+        subscribeDaemonLog();
         bindSelectPicker();
         bindInputDrop();
         bindChatMenu();

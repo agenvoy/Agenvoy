@@ -1,5 +1,6 @@
 @use "left-tab";
 @use "right-content";
+@use "toast";
 
 * {
   --text-color: #253146;
@@ -10,7 +11,10 @@
   --gray-2: #ececec;
   --gray-3: #999999;
   --okay: #2ea44f;
+  --warn: #6f4ed8;
+  --warn-bg: #f2eeff;
   --error: #d64545;
+  --error-bg: #fdeeee;
   --error-2: #b02f2f;
 }
 
@@ -66,6 +70,7 @@ body {
 
   @include left-tab.styles;
   @include right-content.styles;
+  @include toast.styles;
 }
 
 button {
