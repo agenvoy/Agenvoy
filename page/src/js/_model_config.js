@@ -2,6 +2,7 @@ const providerProbe = {};
 let modelView = "add";
 let modelProvider = "";
 let modelOpen = "";
+let modelAbort = null;
 let modelStream = null;
 const modelOAuth = { id: "", code: "", url: "" };
 
@@ -10,6 +11,7 @@ function modelDom() {
     form: $("#model-form"),
     list: $("#model-list"),
     catalog: $("#model-catalog"),
+    routing: $("#model-routing"),
     models: $("#model-models"),
   };
 }
@@ -142,6 +144,9 @@ async function probeProvider(prefix) {
     return providerProbe[prefix];
   }
   const result = await providerModelList(prefix);
+  if (result.aborted) {
+    return { aborted: true };
+  }
   providerProbe[prefix] = result.error ? { ok: false, error: result.error } : { ok: true, models: result };
   return providerProbe[prefix];
 }
@@ -179,9 +184,14 @@ async function renderModel() {
   const count = (prefix) => registered.filter((id) => modelPrefix(id) === prefix).length;
 
   dom.list.innerHTML = "";
-  const add = $('section.config div.side button[name="add-provider"]');
-  if (add) {
-    add.dataset.selected = modelView === "add" ? "1" : "0";
+  for (const [name, view] of [
+    ["add-provider", "add"],
+    ["routing", "routing"],
+  ]) {
+    const button = $(`section.config div.side button[name="${name}"]`);
+    if (button) {
+      button.dataset.selected = modelView === view ? "1" : "0";
+    }
   }
 
   for (const prefix of prefixes) {
@@ -203,17 +213,96 @@ async function renderModel() {
     renderProviderModels(modelProvider, registered);
     return;
   }
+  if (modelView === "routing") {
+    renderModelRouting(registered);
+    return;
+  }
   renderProviderCatalog(catalog, prefixes);
 }
 
+async function routingModel(kind) {
+  try {
+    const response = await fetch(`${API}/v1/model/${kind}`);
+    if (response.ok) {
+      return ((await response.json()) || {}).model || "";
+    }
+  } catch (err) {
+    console.error("routingModel", err);
+  }
+  return "";
+}
+
+async function saveRoutingModel(kind, model) {
+  try {
+    const response = await fetch(`${API}/v1/model/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      modelError(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveRoutingModel", err);
+    modelError(err.message || "failed");
+  }
+  renderModel();
+}
+
+function routingRow(label, kind, current, options) {
+  const select = _("select");
+  select.appendChild(_("option", { value: "" }, "auto · first registered model"));
+  for (const name of options) {
+    select.appendChild(_("option", { value: name }, name));
+  }
+  select.value = current;
+  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
+
+  return _("div.routing", [_("strong", label), select]);
+}
+
+async function renderModelRouting(registered) {
+  const dom = modelDom();
+  if (!dom.routing) {
+    return;
+  }
+
+  const [dispatcher, summary] = await Promise.all([routingModel("dispatcher"), routingModel("summary")]);
+  if (modelView !== "routing") {
+    return;
+  }
+
+  dom.routing.innerHTML = "";
+  dom.routing.dataset.open = "1";
+
+  if (registered.length === 0) {
+    dom.routing.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
+    return;
+  }
+
+  dom.routing.appendChild(routingRow("Dispatcher", "dispatcher", dispatcher, registered));
+  dom.routing.appendChild(routingRow("Summary", "summary", summary, registered));
+}
+
 function selectProvider(prefix) {
+  cancelModelFetch();
   modelView = "provider";
   modelProvider = prefix;
   modelOpen = "";
   renderModel();
 }
 
+function selectModelRouting() {
+  cancelModelFetch();
+  modelView = "routing";
+  modelProvider = "";
+  modelOpen = "";
+  renderModel();
+}
+
 function selectProviderAdd() {
+  cancelModelFetch();
   modelView = "add";
   modelProvider = "";
   modelOpen = "";
@@ -403,18 +492,38 @@ function startProviderOAuth(id) {
   };
 }
 
+function cancelModelFetch() {
+  if (modelAbort) {
+    modelAbort.abort();
+    modelAbort = null;
+  }
+}
+
 async function providerModelList(prefix) {
   const target = prefix.startsWith("compat[") ? "compat" : prefix;
+  const controller = new AbortController();
+  cancelModelFetch();
+  modelAbort = controller;
+
   try {
-    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(target)}/models`);
+    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(target)}/models`, {
+      signal: controller.signal,
+    });
     if (response.ok) {
       return (await response.json()).models || [];
     }
     const detail = await response.json().catch(() => ({}));
     return { error: detail.error || `HTTP ${response.status}` };
   } catch (err) {
+    if (err.name === "AbortError") {
+      return { aborted: true };
+    }
     console.error("providerModelList", err);
     return { error: err.message || "failed" };
+  } finally {
+    if (modelAbort === controller) {
+      modelAbort = null;
+    }
   }
 }
 
@@ -454,6 +563,10 @@ async function renderProviderModels(prefix, registered) {
   dom.models.appendChild(_("strong", `${prefix} · pick the models this agent can use`));
 
   const probe = await probeProvider(prefix);
+  if (probe.aborted || modelProvider !== prefix) {
+    return;
+  }
+
   if (!probe.ok) {
     const catalog = await providerCatalog();
     const failure = providerFailure(prefix, providerMethod(catalog, prefix), probe.error);

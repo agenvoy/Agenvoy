@@ -63,6 +63,10 @@
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
         </a>
+        <a href="/?page=config&tab=Model">
+          <span class="material-symbols-outlined"> settings </span>
+          <p>New Config (Building)</p>
+        </a>
       </footer>
     </section>
     <!---->
@@ -216,10 +220,15 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add provider</p>
             </button>
+            <button type="button" class="new" name="routing" @click="model_routing">
+              <span class="material-symbols-outlined"> checklist </span>
+              <p>Setting Models</p>
+            </button>
             <div class="list" id="model-list"></div>
           </div>
           <form id="model-form" data-view="add">
             <section class="tools" id="model-catalog"></section>
+            <section class="tools" id="model-routing"></section>
             <section class="tools" id="model-models"></section>
           </form>
         </section>
@@ -312,12 +321,7 @@
           <form id="channel-form" data-view="channel">
             <div class="status" id="channel-status"></div>
             <section class="tools" id="channel-admin"></section>
-            <input
-              id="channel-token"
-              type="password"
-              autocomplete="off"
-              placeholder="Bot token · required to enable"
-            />
+            <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
             <footer>
               <button type="button" class="remove" @click="channel_disable">disable</button>
               <button type="button" class="submit" @click="channel_enable">enable</button>

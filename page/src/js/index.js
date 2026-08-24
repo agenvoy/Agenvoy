@@ -152,6 +152,9 @@ document.addEventListener("DOMContentLoaded", function () {
       model_add: function () {
         selectProviderAdd();
       },
+      model_routing: function () {
+        selectModelRouting();
+      },
       mcp_reset: function () {
         resetMcp();
       },
