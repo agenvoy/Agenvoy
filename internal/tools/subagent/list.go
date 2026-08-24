@@ -9,7 +9,7 @@ import (
 )
 
 func listSessions() string {
-	list := session.ListNamedSessions()
+	list := session.ListSessions()
 	if len(list) == 0 {
 		return "no reusable named sessions — spawn a temp subagent (name empty)"
 	}

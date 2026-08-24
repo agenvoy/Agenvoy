@@ -6,6 +6,12 @@ document.addEventListener("DOMContentLoaded", function () {
     params.page = "chat";
   }
 
+  if (params.page == "config") {
+    const tabs = Object.keys(configTab);
+    const matched = tabs.find((name) => name.toLowerCase() === String(params.tab || "").toLowerCase());
+    params.tab = matched || tabs[0];
+  }
+
   if (params.chat != null && !CHAT_ID.test(params.chat || "")) {
     window.location.href = getLink({ page: params.page });
     return;
@@ -36,6 +42,7 @@ document.addEventListener("DOMContentLoaded", function () {
       collapsed: config.left_tab_collapsed,
       left_tab: leftTab,
       feature: feature,
+      configTab: configTab,
     },
     event: {
       show_tab: function () {
@@ -142,6 +149,63 @@ document.addEventListener("DOMContentLoaded", function () {
       memory_reset: function () {
         memoryReset();
       },
+      model_add: function () {
+        selectProviderAdd();
+      },
+      model_routing: function () {
+        selectModelRouting();
+      },
+      mcp_reset: function () {
+        resetMcp();
+      },
+      mcp_save: function () {
+        saveMcp();
+      },
+      mcp_delete: function () {
+        deleteEditingMcp();
+      },
+      mcp_reconnect: function () {
+        reconnectMcp();
+      },
+      mcp_login: function () {
+        startMcpLogin(mcpEditing);
+      },
+      mcp_logout: function () {
+        clearMcpOAuth(mcpEditing);
+      },
+      mcp_transport: function () {
+        mcpTransportChange();
+      },
+      mcp_auth: function () {
+        mcpAuthChange();
+      },
+      keychain_reset: function () {
+        resetKeychain();
+      },
+      keychain_save: function () {
+        saveKeychain();
+      },
+      keychain_delete: function () {
+        deleteEditingKeychain();
+      },
+      channel_telegram: function () {
+        selectChannel("telegram");
+      },
+      channel_discord: function () {
+        selectChannel("discord");
+      },
+      channel_line: function () {
+        selectChannel("line");
+      },
+      channel_admin: function () {
+        selectChannel("admin");
+      },
+      channel_enable: function () {
+        enableChannel();
+      },
+      channel_disable: function () {
+        disableChannel();
+      },
     },
     when: {
       before_render: function () {
@@ -208,17 +272,28 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         }
 
+        if (params.page === "config") {
+          if (params.tab === "Model") {
+            renderModel();
+          }
+          if (params.tab === "MCP") {
+            resetMcp();
+            renderMcp();
+          }
+          if (params.tab === "Keychain") {
+            resetKeychain();
+            renderKeychain();
+          }
+          if (params.tab === "Channel") {
+            renderChannel();
+          }
+        }
+
         if (params.page === "features") {
           const kind = { Rules: "rule", Knowledge: "knowledge" }[params.tab];
           if (kind) {
             resetFeature(kind);
             renderFeature(kind);
-          }
-
-          for (const name of Object.keys(FEATURE_SPEC)) {
-            if (name !== kind) {
-              countFeature(name);
-            }
           }
         }
       },

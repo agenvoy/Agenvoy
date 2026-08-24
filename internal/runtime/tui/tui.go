@@ -54,12 +54,8 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 	tools.WorkDirChangeHook = func(dir string) {
 		send(WorkDir{dir: dir})
 	}
-	tools.SudoStreamHook = func(line string) {
-		send(sudoStream{line: line})
-	}
 	defer func() {
 		tools.WorkDirChangeHook = nil
-		tools.SudoStreamHook = nil
 	}()
 
 	if !onceCall {

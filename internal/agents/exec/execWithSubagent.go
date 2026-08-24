@@ -271,7 +271,7 @@ func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentType
 func ensureSubagentSession(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
-		if idle := sessionManager.FindIdleTemp(); idle != "" {
+		if idle := sessionManager.FindTemp(); idle != "" {
 			if _, err := sessionManager.ResetAll(idle); err != nil {
 				slog.Warn("ensureSubagentSession ResetAll, opening a fresh session instead",
 					slog.String("session", idle),

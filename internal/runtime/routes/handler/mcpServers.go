@@ -18,7 +18,13 @@ func ListMcpServers() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"servers": cfg.Servers})
+		oauth := make(map[string]bool, len(cfg.Servers))
+		for name, server := range cfg.Servers {
+			if server.Expand().IsHTTP() {
+				oauth[name] = mcp.HasOAuth(name)
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"servers": cfg.Servers, "oauth": oauth})
 	}
 }
 

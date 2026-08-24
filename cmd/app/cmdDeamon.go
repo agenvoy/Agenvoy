@@ -38,7 +38,6 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -224,10 +223,6 @@ func cmdDaemon() {
 	}
 	if err := filesystem.LoadRuntime(); err != nil {
 		slog.Warn("filesystem.LoadRuntime",
-			slog.String("error", err.Error()))
-	}
-	if err := sudo.LoadFloor(); err != nil {
-		slog.Warn("sudo.LoadFloor",
 			slog.String("error", err.Error()))
 	}
 	if err := record.TrimLog(); err != nil {

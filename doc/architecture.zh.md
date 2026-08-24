@@ -46,7 +46,7 @@ graph TB
     Update --> Installer[官方更新腳本]
 ```
 
-目前 runtime 支援 10 個模型供應商，不包含用於本機或自訂端點的 `compat` 項目。
+目前 runtime 內建 10 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點。
 
 ## 執行模式
 
@@ -64,13 +64,9 @@ graph LR
     Router --> Providers[支援的 provider backend]
 ```
 
-## 圖像生成邊界
-
-圖像生成目前暫時不可用，等待 router 整合重新設計。原有的 `image2` 指令、`enable_image2` 設定旗標、`generate_image` 工具與註冊路徑已不再屬於 runtime；若需要圖像輸出，請使用外部整合。
-
 ## 模組：Daemon 與 HTTP API
 
-Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、工具呼叫、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server、cron/task 自動化、KuraDB 生命週期、指令／skill 白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。設定層的預期用戶端是一個獨立托管的 web dashboard（不在本 repo 內）。
+Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、工具呼叫、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server 與其 OAuth 登入、rule、知識、cron/task 自動化、指令／skill／工具白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。驅動設定層的 web dashboard 位於 `page/`，建置時嵌入二進位檔並由同一個 daemon 從 `/` 提供；開發時可用 `AGENVOY_PAGE_DIR` 改讀磁碟上的檔案。
 
 ```mermaid
 graph TB
@@ -84,10 +80,11 @@ graph TB
         Reload --> AgentInit
     end
     Routes --> ExecAPI[Agent 執行層 API<br/>send · chat/completions · 工具 · session · 模型 · SSE log]
-    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · cron/task · kuradb · 白名單 · torii 查閱]
+    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · rule/知識 · cron/task · 白名單 · torii 查閱]
+    Routes --> Page[內嵌 dashboard<br/>page/ 由 / 提供]
     ConfigAPI --> LocalGuard[localhostOnly 守衛]
     ExecAPI --> Client[CLI／TUI／遠端 Agent]
-    LocalGuard --> Dashboard[Web dashboard（獨立 repo）]
+    LocalGuard --> Page
 ```
 
 ## 模組：Agent 執行與路由
@@ -115,7 +112,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。只有五個工具帶完整 schema 送出——`find_tools`、`reasoning_guide`、`run_command`、`find_files`、`read_files`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過拒絕路徑檢查、允許規則、確認閘門、shell 驗證與沙箱強制。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
+內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過拒絕路徑檢查、允許規則、確認閘門、shell 驗證與沙箱強制。落在 `denied_map` 內的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
 
 ```mermaid
 graph TB
@@ -180,7 +177,7 @@ graph TB
 
 ## 模組：聊天與 MCP 整合
 
-Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
+Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。標記 `auth: oauth` 的 HTTP server 透過 `mcp.Login` 授權：daemon 會在 `localhost:17988` 開啟 loopback callback listener，供應商允許時執行動態 client 註冊，並將取得的 token 與 client id 存入作業系統 keychain。也可改用預先註冊的 client；瀏覽器連不到 listener 時可將 redirect URL 貼回。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
 
 ```mermaid
 graph TB
@@ -199,6 +196,9 @@ graph TB
         SDKClient --> Refresh[tools/list_changed 刷新]
         Refresh --> MCPTools
         SDKClient --> Instructions[Server instructions → system prompt]
+        OAuth[auth: oauth] --> Callback[Loopback listener :17988]
+        Callback --> Token[Token 與 client id 存入 keychain]
+        Token --> SDKClient
         ExternalClient[外部 MCP Client] --> LocalMCP[stdin JSON-RPC Server]
         LocalMCP --> Tools[本機工具註冊表]
     end
@@ -262,8 +262,10 @@ stateDiagram-v2
 ## 安全邊界
 
 - HTTP daemon 綁定 `127.0.0.1`；部分 endpoint 另有 localhost-only guard。
-- 檔案操作在執行前使用 denied path 與 sensitive-file 檢查。
-- 命令執行受 allow rule、AST-based shell validation 與 sandbox policy 限制。
+- 檔案操作一律走 `boundary.Resolve`，在執行前套用 denied path 與 sensitive-file 檢查。
+- 命令執行受 allow rule、AST-based shell validation 與作業系統層沙箱限制（macOS `sandbox-exec`、Linux `bwrap`）。
+- 受限路徑與白名單外指令不會直接被拒：它們會發出同時要求作業系統密碼的確認，核准綁定該 session 與該路徑或該執行檔。收不到密碼的通道（HTTP API、聊天機器人、subagent）會拿回 skipped。已無 elevated 或 `/sudo` 模式，改由逐次請求授權取代。
+- 需要寫入 `$HOME` 以外位置的指令改為宣告 `write_paths`，只有那幾個路徑會被綁進沙箱。
 - `run` 模式只略過該次 request 的確認，不會略過 sandbox 與 denied-path 保護。
 - 憑證透過作業系統 keychain integration 保存，不放在 repository 中。
 
@@ -273,16 +275,26 @@ stateDiagram-v2
 flowchart LR
     Config[~/.config/agenvoy/config.json] --> Limits[Runtime Limits]
     Config --> Sessions[Session Directories]
+    Sessions --> Bot[bot.json：名稱 · 模型 · reasoning · persona]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[Pending Metadata]
     Sessions --> Status[status.json：執行中任務與所屬 PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History Search]
+    Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 工具快取]
+    Torii --> SessionHist[db_1 session 對話]
+    Torii --> ErrorMemory[db_2 工具錯誤記憶]
+    Torii --> Knowledge[db_3 operator 知識]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]
+    Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rule]
+    Allow[allow_skill · allow_tool] --> Gate[確認機制]
+    Config --> CmdAllow[config.json white_list：指令白名單]
+    Schedule[crons.json · tasks.json] --> Scheduler[排程器]
+    Auth[.telegram · .discord] --> Channels[已授權對話]
 ```
 
-***
+---
 
 ©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)

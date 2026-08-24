@@ -134,7 +134,6 @@ function knowledgeBtn() {
 
       icon.textContent = "check_circle";
       setTimeout(() => (icon.textContent = "book_2"), 1000);
-      countFeature("knowledge");
     } catch (err) {
       console.error("knowledgeBtn", err);
     } finally {

@@ -6,10 +6,9 @@ import (
 	"log/slog"
 	"strings"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -23,7 +22,7 @@ func RemoveToTrash(ctx context.Context, e *toolTypes.Executor, paths []string, t
 			continue
 		}
 
-		src, err := go_pkg_filesystem.AbsPath(e.WorkDir, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+		src, err := boundary.Resolve(e.SessionID, e.WorkDir, one)
 		if err != nil {
 			failed = append(failed, fmt.Sprintf("%s (%v)", one, err))
 			continue

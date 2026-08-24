@@ -41,6 +41,7 @@ type Request struct {
 	SessionID   string
 	ToolName    string
 	ToolArgs    string
+	Restricted  []string
 	AskUser     *UserPayload
 	ExecProcess *ExecPayload
 	Ctx         context.Context
@@ -49,6 +50,7 @@ type Request struct {
 
 type Reply struct {
 	Approve   bool
+	Verified  bool
 	Skip      bool
 	Remember  bool
 	AllowTurn bool

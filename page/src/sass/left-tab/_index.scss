@@ -75,14 +75,16 @@
       }
     }
 
+    > section.chats {
+      flex-flow: column;
+      flex-grow: 1;
+      flex-shrink: 1;
+      overflow-y: scroll;
+    }
+
     details.group {
       display: flex;
       flex-flow: column;
-      flex-grow: 1;
-
-      &:has(> #left-tab-channel-list) {
-        flex-grow: 0;
-      }
 
       &[open] > summary span {
         transform: rotate(180deg);
@@ -90,8 +92,6 @@
 
       > section {
         flex-grow: 1;
-        min-height: 0;
-        overflow-y: auto;
       }
 
       > summary {
@@ -130,7 +130,7 @@
       }
     }
 
-    section {
+    section:not(.chats) {
       position: relative;
       display: flex;
       flex-flow: column;

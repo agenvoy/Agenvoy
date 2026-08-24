@@ -108,17 +108,11 @@ var ExcludeList []byte
 //go:embed jsons/white_list.json
 var WhiteList []byte
 
-//go:embed jsons/net_white_list.json
-var NetWhiteList []byte
-
 //go:embed jsons/read_only_command.json
 var ReadOnlyCommand []byte
 
 //go:embed jsons/tui_tools.json
 var TUITools []byte
-
-//go:embed jsons/never_open.json
-var NeverOpen []byte
 
 const (
 	PoisonRefusal     = "無法執行此操作"

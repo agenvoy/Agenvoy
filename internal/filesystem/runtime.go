@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -38,6 +41,7 @@ var (
 	WhiteListSystem []string
 	NetWhiteList    []string
 	ReadOnlyCommand []string
+	PathWhiteList   []string
 )
 
 const Port = "17989"
@@ -140,15 +144,12 @@ func LoadRuntime() error {
 		WhiteList = merge(WhiteList, user)
 	}
 
-	if err := json.Unmarshal(configs.NetWhiteList, &NetWhiteList); err != nil {
-		return fmt.Errorf("embedded net_white_list: %w", err)
-	}
 	if data, ok := raw["net_white_list"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
 			return fmt.Errorf("json.Unmarshal net_white_list: %w", err)
 		}
-		NetWhiteList = merge(NetWhiteList, user)
+		NetWhiteList = merge(nil, user)
 	}
 
 	if err := json.Unmarshal(configs.ReadOnlyCommand, &ReadOnlyCommand); err != nil {
@@ -160,6 +161,14 @@ func LoadRuntime() error {
 			return fmt.Errorf("json.Unmarshal read_only_command: %w", err)
 		}
 		ReadOnlyCommand = merge(ReadOnlyCommand, user)
+	}
+
+	if data, ok := raw["path_white_list"]; ok && len(data) > 0 {
+		var user []string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal path_white_list: %w", err)
+		}
+		PathWhiteList = normalizePathWhiteList(user)
 	}
 
 	deniedBytes, err := json.Marshal(DeniedMap)
@@ -193,6 +202,45 @@ func LoadRuntime() error {
 		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
 	}
 	return nil
+}
+
+func normalizePathWhiteList(list []string) []string {
+	home, homeErr := os.UserHomeDir()
+	seen := map[string]bool{}
+	out := make([]string, 0, len(list))
+	for _, one := range list {
+		one = strings.TrimSpace(one)
+		if one == "" {
+			continue
+		}
+		if one == "~" || strings.HasPrefix(one, "~/") {
+			if homeErr != nil {
+				slog.Warn("path_white_list entry dropped: home directory unknown",
+					slog.String("entry", one),
+					slog.String("error", homeErr.Error()))
+				continue
+			}
+			one = filepath.Join(home, one[1:])
+		}
+		if !filepath.IsAbs(one) {
+			slog.Warn("path_white_list entry dropped: not an absolute path",
+				slog.String("entry", one))
+			continue
+		}
+		resolved, err := go_pkg_filesystem.RealPath(one)
+		if err != nil {
+			slog.Warn("path_white_list entry dropped: cannot be resolved",
+				slog.String("entry", one),
+				slog.String("error", err.Error()))
+			continue
+		}
+		if seen[resolved] {
+			continue
+		}
+		seen[resolved] = true
+		out = append(out, resolved)
+	}
+	return out
 }
 
 func merge(base, extra []string) []string {

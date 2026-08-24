@@ -9,17 +9,8 @@ import (
 	toriidb "github.com/pardnchiu/ToriiDB/core/store"
 )
 
-type SetFlag = toriidb.SetFlag
-
 const (
-	SetDefault = toriidb.SetDefault
-	SetNX      = toriidb.SetNX
-	SetXX      = toriidb.SetXX
-)
-
-type Entry = toriidb.Entry
-
-const (
+	SetDefault    = toriidb.SetDefault
 	DBToolCache   = 0 // All tool cache
 	DBSessionHist = 1 // Session conversation
 	DBErrorMemory = 2 // Tool error

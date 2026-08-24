@@ -6,12 +6,9 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,check_circle,checklist,clear_all,cognition_2,compress,construction,content_copy,delete,deployed_code_account,docs,folder,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,cell_tower,check_circle,checklist,clear_all,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
     />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css"
-    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css"
@@ -42,26 +39,33 @@
         </a>
       </section>
       <!---->
-      <details class="group" open>
-        <summary>
-          Channels
-          <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-        </summary>
-        <section id="left-tab-channel-list"></section>
-      </details>
-      <!---->
-      <details class="group" open>
-        <summary>
-          Chats
-          <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-        </summary>
-        <section id="left-tab-chat-list"></section>
-      </details>
+      <section class="chats">
+        <!---->
+        <details class="group" open>
+          <summary>
+            Channels
+            <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+          </summary>
+          <section id="left-tab-channel-list"></section>
+        </details>
+        <!---->
+        <details class="group" open>
+          <summary>
+            Chats
+            <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+          </summary>
+          <section id="left-tab-chat-list"></section>
+        </details>
+      </section>
       <!---->
       <footer>
         <a href="https://web.agenvoy.com/config?tab=models" target="_blank" rel="noreferrer">
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
+        </a>
+        <a href="/?page=config&tab=Model">
+          <span class="material-symbols-outlined"> settings </span>
+          <p>New Config (Building)</p>
         </a>
       </footer>
     </section>
@@ -154,7 +158,6 @@
           <a :for="(k, v) in feature" :href="?page=features&tab={{k}}" :name="{{k}}">
             <span class="material-symbols-outlined"> {{v}} </span>
             <p>{{k}}</p>
-            <span>0</span>
           </a>
           <div></div>
         </header>
@@ -196,6 +199,137 @@
             <footer>
               <button type="button" class="remove" @click="knowledge_delete">delete</button>
               <button type="button" class="submit" @click="knowledge_save">save</button>
+            </footer>
+          </form>
+        </section>
+      </section>
+      <!---->
+      <section :elif="params.page == config" class="config">
+        <header :data-selected="{{params.tab}}">
+          <a :for="(k, v) in configTab" :href="?page=config&tab={{k}}" :name="{{k}}">
+            <span class="material-symbols-outlined"> {{v}} </span>
+            <p>{{k}}</p>
+          </a>
+          <div></div>
+        </header>
+
+        <section :if="params.tab == Model" class="editor">
+          <div class="side">
+            <button type="button" class="new" name="add-provider" @click="model_add">
+              <span class="material-symbols-outlined"> add_2 </span>
+              <p>Add provider</p>
+            </button>
+            <button type="button" class="new" name="routing" @click="model_routing">
+              <span class="material-symbols-outlined"> checklist </span>
+              <p>Setting Models</p>
+            </button>
+            <div class="list" id="model-list"></div>
+          </div>
+          <form id="model-form" data-view="add">
+            <section class="tools" id="model-catalog"></section>
+            <section class="tools" id="model-routing"></section>
+            <section class="tools" id="model-models"></section>
+          </form>
+        </section>
+
+        <section :elif="params.tab == MCP" class="editor">
+          <div class="side">
+            <button type="button" class="new" @click="mcp_reset">
+              <span class="material-symbols-outlined"> add_2 </span>
+              <p>new</p>
+            </button>
+            <div class="list" id="mcp-list"></div>
+          </div>
+          <form id="mcp-form" data-transport="stdio">
+            <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
+            <div class="row">
+              <select id="mcp-transport" @change="mcp_transport">
+                <option value="stdio">stdio · local command</option>
+                <option value="http">http · remote endpoint</option>
+              </select>
+              <select id="mcp-auth" @change="mcp_auth">
+                <option value="">header auth · or none</option>
+                <option value="oauth">oauth</option>
+              </select>
+            </div>
+            <div class="field" data-transport="stdio">
+              <input id="mcp-command" type="text" placeholder="Command, e.g. npx" />
+              <textarea id="mcp-args" rows="3" placeholder="Arguments · one per line"></textarea>
+              <textarea id="mcp-env" rows="3" placeholder="Environment · KEY=value per line"></textarea>
+            </div>
+            <div class="field" data-transport="http">
+              <input id="mcp-url" type="text" placeholder="https://example.com/mcp" />
+              <textarea
+                id="mcp-headers"
+                rows="3"
+                placeholder="Headers · Key: value per line · a bare Authorization value gets a Bearer prefix"
+              ></textarea>
+            </div>
+            <section class="oauth" id="mcp-oauth"></section>
+            <section class="tools" id="mcp-tools"></section>
+            <footer>
+              <button type="button" class="remove" @click="mcp_delete">delete</button>
+              <button type="button" @click="mcp_reconnect">reconnect</button>
+              <button type="button" id="mcp-login" @click="mcp_login">login</button>
+              <button type="button" id="mcp-logout" @click="mcp_logout">logout</button>
+              <button type="button" class="submit" @click="mcp_save">save</button>
+            </footer>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Keychain" class="editor">
+          <div class="side">
+            <button type="button" class="new" @click="keychain_reset">
+              <span class="material-symbols-outlined"> add_2 </span>
+              <p>new</p>
+            </button>
+            <div class="list" id="keychain-list"></div>
+          </div>
+          <form id="keychain-form">
+            <input id="keychain-name" type="text" maxlength="128" placeholder="Key name, e.g. GEMINI_API_KEY" />
+            <input
+              id="keychain-value"
+              type="password"
+              autocomplete="off"
+              placeholder="Value · stored in the OS keychain, never shown again"
+            />
+            <footer>
+              <button type="button" class="remove" @click="keychain_delete">delete</button>
+              <button type="button" class="submit" @click="keychain_save">save</button>
+            </footer>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Channel" class="editor">
+          <div class="side">
+            <button type="button" class="new" name="admin" @click="channel_admin">
+              <span class="material-symbols-outlined"> send </span>
+              <p>Admin Channel</p>
+            </button>
+            <button type="button" class="channel" name="telegram" @click="channel_telegram">
+              <i class="fa-brands fa-telegram"></i>
+              <p>Telegram</p>
+              <span class="state"></span>
+            </button>
+            <button type="button" class="channel" name="discord" @click="channel_discord">
+              <i class="fa-brands fa-discord"></i>
+              <p>Discord</p>
+              <span class="state"></span>
+            </button>
+            <button type="button" class="channel" name="line" @click="channel_line">
+              <i class="fa-brands fa-line"></i>
+              <p>LINE</p>
+              <span class="state"></span>
+            </button>
+          </div>
+          <form id="channel-form" data-view="channel" data-kind="telegram">
+            <div class="status" id="channel-status"></div>
+            <section class="tools" id="channel-admin"></section>
+            <input id="channel-secret" type="password" autocomplete="off" placeholder="Channel secret · required to enable" />
+            <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
+            <footer>
+              <button type="button" class="remove" @click="channel_disable">disable</button>
+              <button type="button" class="submit" @click="channel_enable">enable</button>
             </footer>
           </form>
         </section>
