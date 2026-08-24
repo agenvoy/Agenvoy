@@ -175,7 +175,7 @@
             <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
             <footer>
               <button type="button" class="remove" @click="rule_delete">delete</button>
-              <button type="button" class="submit" @click="rule_save">save</button>
+              <button type="button" class="submit" @click="rule_save">add</button>
             </footer>
           </form>
         </section>
@@ -198,7 +198,7 @@
             <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
             <footer>
               <button type="button" class="remove" @click="knowledge_delete">delete</button>
-              <button type="button" class="submit" @click="knowledge_save">save</button>
+              <button type="button" class="submit" @click="knowledge_save">add</button>
             </footer>
           </form>
         </section>
@@ -272,7 +272,7 @@
               <button type="button" @click="mcp_reconnect">reconnect</button>
               <button type="button" id="mcp-login" @click="mcp_login">login</button>
               <button type="button" id="mcp-logout" @click="mcp_logout">logout</button>
-              <button type="button" class="submit" @click="mcp_save">save</button>
+              <button type="button" class="submit" @click="mcp_save">add</button>
             </footer>
           </form>
         </section>
@@ -285,17 +285,23 @@
             </button>
             <div class="list" id="keychain-list"></div>
           </div>
-          <form id="keychain-form">
-            <input id="keychain-name" type="text" maxlength="128" placeholder="Key name, e.g. GEMINI_API_KEY" />
+          <form id="keychain-form" autocomplete="off">
+            <input
+              id="keychain-name"
+              type="text"
+              maxlength="128"
+              autocomplete="off"
+              placeholder="Key name, e.g. GEMINI_API_KEY"
+            />
             <input
               id="keychain-value"
               type="password"
-              autocomplete="off"
+              autocomplete="new-password"
               placeholder="Value · stored in the OS keychain, never shown again"
             />
             <footer>
               <button type="button" class="remove" @click="keychain_delete">delete</button>
-              <button type="button" class="submit" @click="keychain_save">save</button>
+              <button type="button" class="submit" @click="keychain_save">add</button>
             </footer>
           </form>
         </section>
@@ -317,8 +323,9 @@
               <span class="state"></span>
             </button>
           </div>
-          <form id="channel-form" data-view="channel">
+          <form id="channel-form" data-view="admin">
             <div class="status" id="channel-status"></div>
+            <section class="tools" id="channel-chats"></section>
             <section class="tools" id="channel-admin"></section>
             <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
             <footer>

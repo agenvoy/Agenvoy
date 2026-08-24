@@ -55,6 +55,19 @@ function parseActionLog(content) {
         pending.meta.model = body;
         break;
 
+      case "edited_files": {
+        pending = pending || logItem(sendAt);
+        try {
+          const files = JSON.parse(body);
+          if (Array.isArray(files)) {
+            pending.files = files;
+          }
+        } catch (err) {
+          console.error("parseActionLog edited_files", err);
+        }
+        break;
+      }
+
       case "thinking":
         pending = pending || logItem(sendAt);
         pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + body;
@@ -133,6 +146,7 @@ function logItem(sendAt) {
     rule: "assistant",
     content: "",
     Reasoning: "",
+    files: [],
     resumed: false,
     finished: false,
     meta: { model: "", send_at: sendAt },

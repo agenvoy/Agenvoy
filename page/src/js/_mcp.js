@@ -14,12 +14,22 @@ function mcpDom() {
     url: $("#mcp-url"),
     headers: $("#mcp-headers"),
     oauth: $("#mcp-oauth"),
+    submit: document.querySelector("#mcp-form button.submit"),
     tools: $("#mcp-tools"),
   };
 }
 
 function mcpError(text) {
   alert(text);
+}
+
+function markSelectedCard(list, name) {
+  if (!list) {
+    return;
+  }
+  for (const card of list.querySelectorAll("div.card")) {
+    card.dataset.selected = card.dataset.name === name ? "1" : "0";
+  }
 }
 
 function mcpLines(text) {
@@ -106,7 +116,11 @@ async function renderMcp() {
     const card = _("div.card", [_("strong", name), _("p", `${transport} · ${mark}`), remove]);
     card.dataset.name = name;
     card.dataset.state = flag;
-    card.addEventListener("click", () => openMcp(name));
+    card.dataset.selected = name === mcpEditing ? "1" : "0";
+    card.addEventListener("click", () => {
+      markSelectedCard(dom.list, name);
+      openMcp(name);
+    });
     dom.list.appendChild(card);
   }
 }
@@ -119,6 +133,7 @@ function fillMcpForm(name, server, authorized) {
 
   const transport = server.url ? "http" : "stdio";
   dom.name.value = name || "";
+  dom.name.readOnly = Boolean(name);
   dom.transport.value = transport;
   dom.auth.value = server.auth === "oauth" ? "oauth" : "";
   dom.command.value = server.command || "";
@@ -133,6 +148,9 @@ function fillMcpForm(name, server, authorized) {
     dom.form.dataset.editing = "1";
   } else {
     delete dom.form.dataset.editing;
+  }
+  if (dom.submit) {
+    dom.submit.textContent = name ? "save" : "add";
   }
   renderMcpOAuth(authorized);
   renderMcpTools(name);
@@ -150,6 +168,7 @@ async function openMcp(name) {
 
 function resetMcp() {
   closeMcpLogin();
+  markSelectedCard(mcpDom().list, "");
   fillMcpForm("", {}, false);
 }
 
@@ -226,9 +245,6 @@ async function saveMcp() {
     return;
   }
 
-  if (mcpEditing && mcpEditing !== name) {
-    await removeMcpServer(mcpEditing);
-  }
   await openMcp(name);
   renderMcp();
 }

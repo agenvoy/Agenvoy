@@ -1,4 +1,6 @@
 const providerProbe = {};
+let providerUsage = null;
+let providerUsageLoading = null;
 let modelView = "add";
 let modelProvider = "";
 let modelOpen = "";
@@ -75,26 +77,68 @@ function providerKeyName(id) {
   return `${id.toUpperCase()}_API_KEY`;
 }
 
-async function removeProviderKey(id) {
-  const key = providerKeyName(id);
-  if (!confirm(`Delete ${key}?`)) {
+function providerKeyNames(id) {
+  if (id === "cloudflare") {
+    return ["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_GATEWAY_ID"];
+  }
+  return [providerKeyName(id)];
+}
+
+async function deleteKey(key) {
+  try {
+    const response = await fetch(`${API}/v1/key?key=${encodeURIComponent(key)}`, { method: "DELETE" });
+    if (!response.ok && response.status !== 404) {
+      const detail = await response.json().catch(() => ({}));
+      console.error("deleteKey", key, detail.error || response.status);
+    }
+  } catch (err) {
+    console.error("deleteKey", key, err);
+  }
+}
+
+async function deleteProvider(prefix) {
+  const catalog = await providerCatalog();
+  const method = providerMethod(catalog, prefix);
+  const target = method === "oauth" ? "its stored login" : providerKeyNames(prefix).join(", ");
+  if (!confirm(`Remove ${prefix}? Its registered models and ${target} are deleted.`)) {
     return;
   }
 
-  try {
-    const response = await fetch(`${API}/v1/key?key=${encodeURIComponent(key)}`, { method: "DELETE" });
-    if (!response.ok) {
-      const detail = await response.json().catch(() => ({}));
-      modelError(detail.error || `HTTP ${response.status}`);
-      return;
+  await saveProviderModels(prefix, []).catch((err) => console.error("deleteProvider models", err));
+
+  if (method === "oauth") {
+    try {
+      const response = await fetch(`${API}/v1/provider/${encodeURIComponent(prefix)}/oauth`, { method: "DELETE" });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        modelError(detail.error || `HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.error("deleteProvider oauth", err);
     }
-  } catch (err) {
-    console.error("removeProviderKey", err);
-    modelError(err.message || "failed");
+  } else {
+    for (const key of providerKeyNames(prefix)) {
+      await deleteKey(key);
+    }
+  }
+
+  delete providerProbe[prefix];
+  providerUsage = null;
+  selectProviderAdd();
+}
+
+async function removeProviderKey(id) {
+  const keys = providerKeyNames(id);
+  if (!confirm(`Delete ${keys.join(", ")}?`)) {
     return;
+  }
+
+  for (const key of keys) {
+    await deleteKey(key);
   }
 
   delete providerProbe[id];
+  providerUsage = null;
   selectProviderAdd();
 }
 
@@ -120,6 +164,68 @@ async function registeredModels() {
     console.error("registeredModels", err);
   }
   return [];
+}
+
+function fetchProviderUsage() {
+  if (providerUsage) {
+    return Promise.resolve(providerUsage);
+  }
+  if (providerUsageLoading) {
+    return providerUsageLoading;
+  }
+
+  providerUsageLoading = fetch(`${API}/v1/providers/usage`)
+    .then((response) => (response.ok ? response.json() : { usage: {} }))
+    .then((body) => {
+      providerUsage = body.usage || {};
+      return providerUsage;
+    })
+    .catch((err) => {
+      console.error("fetchProviderUsage", err);
+      return {};
+    })
+    .finally(() => {
+      providerUsageLoading = null;
+    });
+  return providerUsageLoading;
+}
+
+function applyUsageBadges(usage) {
+  const dom = modelDom();
+  if (!dom.list) {
+    return;
+  }
+
+  for (const card of dom.list.querySelectorAll("div.card")) {
+    const existing = card.querySelector("span.quota");
+    if (existing) {
+      existing.remove();
+    }
+    const quota = usageLabel((usage || {})[card.dataset.name]);
+    if (!quota) {
+      continue;
+    }
+    const badge = _("span.quota", quota.text);
+    badge.dataset.state = quota.state;
+    card.insertBefore(badge, card.querySelector("button"));
+  }
+}
+
+function usageLabel(entry) {
+  if (!entry || entry.value === undefined) {
+    return null;
+  }
+  if (entry.kind === "balance") {
+    return { text: `$${entry.value.toFixed(2)}`, state: entry.value > 0 ? "on" : "error" };
+  }
+  const value = Math.round(entry.value);
+  let state = "on";
+  if (value < 20) {
+    state = "error";
+  } else if (value < 50) {
+    state = "warn";
+  }
+  return { text: `${value}%`, state: state };
 }
 
 async function storedKeys() {
@@ -158,6 +264,7 @@ async function renderModel() {
   }
 
   const [catalog, registered, keys] = await Promise.all([providerCatalog(), registeredModels(), storedKeys()]);
+  const usage = providerUsage;
 
   const active = [];
   for (const provider of catalog) {
@@ -173,9 +280,7 @@ async function renderModel() {
   }
 
   const order = catalog.map((provider) => provider.id);
-  const prefixes = order
-    .filter((id) => active.includes(id))
-    .concat(active.filter((id) => !order.includes(id)));
+  const prefixes = order.filter((id) => active.includes(id)).concat(active.filter((id) => !order.includes(id)));
 
   const label = {};
   for (const provider of catalog) {
@@ -196,14 +301,31 @@ async function renderModel() {
 
   for (const prefix of prefixes) {
     const total = count(prefix);
-    const card = _("div.card", [
-      _("strong", label[prefix] || prefix),
-      _("p", `${total} model${total === 1 ? "" : "s"}`),
-    ]);
+    const children = [_("strong", label[prefix] || prefix), _("p", `${total} model${total === 1 ? "" : "s"}`)];
+
+    const quota = usageLabel((usage || {})[prefix]);
+    if (quota) {
+      const badge = _("span.quota", quota.text);
+      badge.dataset.state = quota.state;
+      children.push(badge);
+    }
+
+    const remove = _("button", { type: "button" }, [_("span.material-symbols-outlined", "delete")]);
+    remove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteProvider(prefix);
+    });
+    children.push(remove);
+
+    const card = _("div.card", children);
     card.dataset.name = prefix;
     card.dataset.selected = modelView === "provider" && prefix === modelProvider ? "1" : "0";
     card.addEventListener("click", () => selectProvider(prefix));
     dom.list.appendChild(card);
+  }
+
+  if (!providerUsage) {
+    fetchProviderUsage().then(applyUsageBadges);
   }
 
   if (dom.form) {
@@ -310,13 +432,12 @@ function selectProviderAdd() {
 }
 
 function providerDetails(provider, method, added) {
-  const pills = [_("span", method)];
-  if (added) {
-    pills.push(_("span", "added"));
-  }
+  const pill = _("span", method);
+  pill.dataset.method = method;
 
-  const summary = _("summary", [_("strong", provider.label), _("div.pills", pills)]);
-  const details = _("details.provider", [summary, providerCredentialForm(provider, method)]);
+  const summary = _("summary", [_("strong", provider.label), _("div.pills", [pill])]);
+  const details = _("details.provider", [summary, providerCredentialForm(provider, method, added)]);
+  details.dataset.added = added ? "1" : "0";
   details.open = modelOpen === provider.id;
   details.addEventListener("toggle", () => {
     modelOpen = details.open ? provider.id : "";
@@ -333,13 +454,28 @@ function renderProviderCatalog(catalog, added) {
   dom.catalog.innerHTML = "";
   dom.catalog.dataset.open = "1";
 
-  for (const provider of catalog) {
+  const append = (provider) => {
     const method = Object.keys(provider.methods || {})[0] || "";
     dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
+  };
+
+  for (const provider of catalog.filter((item) => !added.includes(item.id))) {
+    append(provider);
+  }
+
+  const done = catalog.filter((item) => added.includes(item.id));
+  if (done.length === 0) {
+    return;
+  }
+  dom.catalog.appendChild(_("strong.group", "Added"));
+  for (const provider of done) {
+    append(provider);
   }
 }
 
-function providerCredentialForm(provider, method) {
+function providerCredentialForm(provider, method, added) {
+  const submitLabel = added ? "renew" : method === "oauth" ? "login" : "add";
+
   if (method === "oauth") {
     if (modelOAuth.id === provider.id && modelOAuth.code) {
       return _("div.row", [_("p", "enter this code in the browser"), codeButton(modelOAuth.code)]);
@@ -347,7 +483,7 @@ function providerCredentialForm(provider, method) {
     if (modelOAuth.id === provider.id) {
       return _("div.row", [_("p", "waiting for the browser…")]);
     }
-    const start = _("button.submit", { type: "button" }, "start login");
+    const start = _("button.submit", { type: "button" }, submitLabel);
     start.addEventListener("click", () => startProviderOAuth(provider.id));
     return _("div.row", [_("p", "browser login · the daemon waits for the callback"), start]);
   }
@@ -356,7 +492,7 @@ function providerCredentialForm(provider, method) {
     const name = _("input", { type: "text", placeholder: "Name, e.g. ollama" });
     const url = _("input", { type: "text", placeholder: "http://127.0.0.1:11434/v1" });
     const key = _("input", { type: "password", placeholder: "API key · optional" });
-    const save = _("button.submit", { type: "button" }, "save");
+    const save = _("button.submit", { type: "button" }, submitLabel);
     save.addEventListener("click", () =>
       saveProviderKey(provider.id, { name: name.value.trim(), url: url.value.trim(), api_key: key.value.trim() }),
     );
@@ -368,7 +504,7 @@ function providerCredentialForm(provider, method) {
   if (provider.id === "cloudflare") {
     const account = _("input", { type: "text", placeholder: "Account ID" });
     const gateway = _("input", { type: "text", placeholder: "AI Gateway ID · optional" });
-    const saveCf = _("button.submit", { type: "button" }, "save");
+    const saveCf = _("button.submit", { type: "button" }, submitLabel);
     saveCf.addEventListener("click", () =>
       saveProviderKey(provider.id, {
         api_key: key.value.trim(),
@@ -379,7 +515,7 @@ function providerCredentialForm(provider, method) {
     return _("div.field", [key, account, _("div.row", [gateway, saveCf])]);
   }
 
-  const save = _("button.submit", { type: "button" }, "save");
+  const save = _("button.submit", { type: "button" }, submitLabel);
   save.addEventListener("click", () => saveProviderKey(provider.id, { api_key: key.value.trim() }));
   return _("div.row", [key, save]);
 }
@@ -418,6 +554,7 @@ async function saveProviderKey(id, body) {
   modelOpen = "";
   const prefix = id === "compat" ? `compat[${body.name}]` : id;
   delete providerProbe[prefix];
+  providerUsage = null;
   selectProvider(prefix);
 }
 
@@ -482,6 +619,7 @@ function startProviderOAuth(id) {
     }
     modelOpen = "";
     delete providerProbe[id];
+    providerUsage = null;
     selectProvider(id);
   };
   modelStream.onerror = function () {
@@ -558,9 +696,12 @@ async function renderProviderModels(prefix, registered) {
     return;
   }
 
+  const remove = _("button.remove", { type: "button" }, "delete");
+  remove.addEventListener("click", () => deleteProvider(prefix));
+
   dom.models.innerHTML = "";
   dom.models.dataset.open = "1";
-  dom.models.appendChild(_("strong", `${prefix} · pick the models this agent can use`));
+  dom.models.appendChild(_("div.row", [_("strong", `${prefix} · pick the models this agent can use`), remove]));
 
   const probe = await probeProvider(prefix);
   if (probe.aborted || modelProvider !== prefix) {
@@ -595,9 +736,7 @@ async function renderProviderModels(prefix, registered) {
   }
   const available = probe.models;
 
-  const active = (registered || [])
-    .filter((id) => modelPrefix(id) === prefix)
-    .map((id) => id.slice(prefix.length + 1));
+  const active = (registered || []).filter((id) => modelPrefix(id) === prefix).map((id) => id.slice(prefix.length + 1));
   const names = available.slice().sort();
   for (const name of active) {
     if (!names.includes(name)) {

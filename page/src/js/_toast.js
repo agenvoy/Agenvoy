@@ -1,4 +1,5 @@
 const TOAST_MAX = 32;
+const TOAST_IGNORE = [/^pending resume via web\b/];
 const TOAST_LEVEL = { WARN: "warn", ERROR: "error" };
 
 let toastStream = null;
@@ -15,10 +16,7 @@ function pushToast(level, text, time) {
 
   const close = _("button", { type: "button" }, [_("span.material-symbols-outlined", "close")]);
 
-  const item = _("div.item", [
-    _("header", [_("span", time || ""), close]),
-    _("p", text),
-  ]);
+  const item = _("div.item", [_("header", [_("span", time || ""), close]), _("p", text)]);
   item.dataset.level = TOAST_LEVEL[level] || "info";
   close.addEventListener("click", () => item.remove());
 
@@ -44,6 +42,9 @@ function subscribeDaemonLog() {
       return;
     }
     if (!event.text || event.level === "DEBUG") {
+      return;
+    }
+    if (TOAST_IGNORE.some((pattern) => pattern.test(event.text))) {
       return;
     }
     pushToast(event.level || "INFO", event.text, event.time);

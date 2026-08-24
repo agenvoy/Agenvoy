@@ -226,7 +226,7 @@ function newStreamItem(init) {
   init = init || {};
 
   const reasoning = _("section.md-render");
-  const think = _("details", [
+  const think = _("details.reasoning", [
     _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
     reasoning,
   ]);
@@ -236,10 +236,11 @@ function newStreamItem(init) {
   const model = _("p", init.model || "…");
   const answer = _("section.md-render");
   const source = sourceBox(init.text || "");
+  const files = fileBox([]);
   const footer = _("footer");
   const stop = _("button.stop", { type: "button" }, [_("span.material-symbols-outlined", "stop"), _("p", "cancel")]);
   stop.addEventListener("click", stopRunning);
-  const body = _("section", [model, think, answer, source, footer, stop]);
+  const body = _("section", [model, think, answer, source, files, footer, stop]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
 
   $("#right-content-chat-messages").appendChild(dom);
@@ -251,6 +252,7 @@ function newStreamItem(init) {
     reasoning: reasoning,
     answer: answer,
     source: source,
+    files: files,
     footer: footer,
     stop: stop,
     text: init.text || "",
