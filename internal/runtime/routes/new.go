@@ -87,6 +87,10 @@ func New() *gin.Engine {
 	r.GET("/v1/mcp/status", localhostOnly(), handler.McpStatus())
 	r.GET("/v1/mcp/health", localhostOnly(), handler.McpHealth())
 	r.POST("/v1/mcp/reconnect", localhostOnly(), handler.McpReconnect())
+	r.GET("/v1/mcp/oauth", localhostOnly(), handler.McpOAuthLogin())
+	r.POST("/v1/mcp/oauth/callback", localhostOnly(), handler.McpOAuthCallback())
+	r.POST("/v1/mcp/oauth/client", localhostOnly(), handler.McpOAuthClient())
+	r.DELETE("/v1/mcp/oauth", localhostOnly(), handler.McpOAuthClear())
 
 	r.GET("/v1/rules", localhostOnly(), handler.ListRules())
 	r.GET("/v1/rule/*name", localhostOnly(), handler.GetRule())
@@ -116,6 +120,8 @@ func New() *gin.Engine {
 	r.POST("/v1/allowlist/cmd", localhostOnly(), handler.AddAllowCmd())
 	r.GET("/v1/allowlist/skill", localhostOnly(), handler.ListAllowSkill())
 	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())
+	r.GET("/v1/allowlist/tool", localhostOnly(), handler.ListAllowTool())
+	r.POST("/v1/allowlist/tool", localhostOnly(), handler.SetAllowTool())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 
