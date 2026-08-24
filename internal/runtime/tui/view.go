@@ -11,7 +11,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -47,10 +46,7 @@ func (t TUI) viewIdle() string {
 	}
 
 	var confirmMode string
-	if sudo.IsActive() {
-		remain := sudo.RemainingSeconds()
-		confirmMode = errorStyle.Render(fmt.Sprintf(" [SUDO/%dm]", remain/60)) + hintStyle.Render(" "+t.shortCwd())
-	} else if t.allowAll {
+	if t.allowAll {
 		confirmMode = errorStyle.Render(" [auto]") + hintStyle.Render(" "+t.shortCwd())
 	} else {
 		confirmMode = okayStyle.Render(" [safe]") + hintStyle.Render(" "+t.shortCwd())
@@ -168,7 +164,11 @@ func (t TUI) viewPopup() string {
 		return ""
 	}
 
-	body := []string{whiteStyle.Render("⏺ " + p.title)}
+	head := whiteStyle.Render("⏺ " + p.title)
+	if len(p.restricted) > 0 {
+		head = errorStyle.Render("⚠ " + p.title)
+	}
+	body := []string{head}
 	if p.subtitle != "" {
 		body = append(body, textStyle.Render(p.subtitle))
 	}

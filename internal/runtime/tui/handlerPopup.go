@@ -13,7 +13,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -52,7 +51,6 @@ type Popup struct {
 	input          textarea.Model
 	multiline      bool
 	skipWithReason bool
-	sudoActive     bool
 	restricted     []string
 
 	questions   []runtime.Question
@@ -203,7 +201,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		var reply runtime.Reply
 		switch {
 		case chosen == "Yes":
-			if len(p.restricted) > 0 && !sudo.IsVerified() {
+			if len(p.restricted) > 0 {
 				id := p.pendingId
 				t = t.closePopup()
 				if sudoCached() {
@@ -452,14 +450,6 @@ func newPopup(id string, req runtime.Request) *Popup {
 			"No",
 			"Abort task",
 		}
-		if sudo.IsActive() {
-			options = []string{
-				"Yes",
-				"Yes  allow this turn",
-				"No",
-				"Abort task",
-			}
-		}
 		if len(req.Restricted) > 0 {
 			options = []string{
 				"Yes",
@@ -473,21 +463,18 @@ func newPopup(id string, req runtime.Request) *Popup {
 			title:      fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
 			subtitle:   display,
 			options:    options,
-			sudoActive: sudo.IsActive(),
 			restricted: req.Restricted,
 		}
 		if len(req.Restricted) > 0 {
-			p.title = fmt.Sprintf("Run %s outside the allowed paths?", utils.ToolName(req.ToolName))
+			p.title = fmt.Sprintf("Run %s outside the allow list?", utils.ToolName(req.ToolName))
 			for _, one := range req.Restricted {
-				p.styledLines = append(p.styledLines, warnStyle.Render("  ⚠ "+one))
+				p.styledLines = append(p.styledLines, warnStyle.Render("⚠ "+one))
 			}
-			switch {
-			case sudo.IsVerified():
-				p.styledLines = append(p.styledLines, hintStyle.Render("  verified within the last hour — no password needed"))
-			case sudoCached():
-				p.styledLines = append(p.styledLines, hintStyle.Render("  sudo credentials still cached — no password needed"))
-			default:
-				p.styledLines = append(p.styledLines, hintStyle.Render("  system password required — you will be prompted after Yes"))
+			p.styledLines = append(p.styledLines, "")
+			if sudoCached() {
+				p.styledLines = append(p.styledLines, okayStyle.Render("sudo credentials still valid — no password needed"))
+			} else {
+				p.styledLines = append(p.styledLines, userStyle.Render("system password required — you will be prompted after Yes"))
 			}
 		}
 		switch req.ToolName {

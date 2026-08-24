@@ -19,7 +19,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
@@ -331,6 +330,15 @@ func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
 	sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
 }
 
+func restrictedList(paths, commands []string) []string {
+	out := make([]string, 0, len(paths)+len(commands))
+	out = append(out, paths...)
+	for _, one := range commands {
+		out = append(out, "command: "+one)
+	}
+	return out
+}
+
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
 		Files []struct {
@@ -423,11 +431,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
-		restrictedPaths := boundary.Restricted(exec.WorkDir, toolName, toolArg)
+		restrictedPaths := boundary.Restricted(exec.SessionID, exec.WorkDir, toolName, toolArg)
+		restrictedCmds := tools.RestrictedCommands(exec.AllowedCommand, toolName, toolArg)
+		restricted := len(restrictedPaths) > 0 || len(restrictedCmds) > 0
 
-		if !allowAll && (len(restrictedPaths) > 0 || toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll)) {
+		if !allowAll && (restricted || toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll)) {
 			proceed := true
 			approved := false
+			verified := false
 			reason := ""
 			if runtime.HasListener(sessionData.ID) {
 				askCtx := ctx
@@ -440,7 +451,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					SessionID:  sessionData.ID,
 					ToolName:   toolName,
 					ToolArgs:   toolArg,
-					Restricted: restrictedPaths,
+					Restricted: restrictedList(restrictedPaths, restrictedCmds),
 				})
 				cancelAsk()
 				if !isTUISession(sessionData.ID) && errors.Is(err, context.DeadlineExceeded) {
@@ -461,8 +472,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				} else {
 					proceed = reply.Approve
 					approved = reply.Approve
+					verified = reply.Verified
 					reason = reply.Reason
-					if reply.Approve && reply.Remember && !sudo.IsActive() {
+					if reply.Approve && reply.Remember {
 						if err = allowTool.Append(exec.WorkDir, toolName, toolArg); err != nil {
 							slog.Warn("appendAllowListRule",
 								slog.String("session", sessionData.ID),
@@ -474,10 +486,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					}
 				}
 			}
-			if approved && len(restrictedPaths) > 0 && !sudo.IsVerified() {
+			if approved && restricted && !verified {
 				proceed = false
 				approved = false
-				reason = fmt.Sprintf("restricted path needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedPaths, ", "))
+				reason = fmt.Sprintf("this needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedList(restrictedPaths, restrictedCmds), ", "))
 			}
 			if !proceed {
 				message := "Skipped by user"
@@ -497,6 +509,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			}
 			if approved {
 				boundary.Grant(exec.SessionID, restrictedPaths...)
+				tools.GrantCommands(exec.SessionID, restrictedCmds)
 			}
 		}
 

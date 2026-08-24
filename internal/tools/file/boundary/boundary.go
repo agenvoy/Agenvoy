@@ -111,7 +111,7 @@ func Resolve(sessionID, baseDir, path string) (string, error) {
 	return restricted, nil
 }
 
-func Restricted(workDir, toolName, toolArgs string) []string {
+func Restricted(sessionID, workDir, toolName, toolArgs string) []string {
 	list := rawPaths(toolName, toolArgs)
 	if len(list) == 0 {
 		return nil
@@ -130,7 +130,7 @@ func Restricted(workDir, toolName, toolArgs string) []string {
 		}
 
 		abs, err := resolveRaw(base, one)
-		if err != nil || seen[abs] || isWhitelisted(abs) {
+		if err != nil || seen[abs] || isWhitelisted(abs) || isGranted(sessionID, abs) {
 			continue
 		}
 
@@ -138,6 +138,37 @@ func Restricted(workDir, toolName, toolArgs string) []string {
 		out = append(out, abs)
 	}
 	return out
+}
+
+func WriteBinds(sessionID, baseDir string, list []string) ([]string, error) {
+	seen := map[string]bool{}
+	var out []string
+	for _, one := range list {
+		one = strings.TrimSpace(one)
+		if one == "" {
+			continue
+		}
+		if !filepath.IsAbs(one) && !strings.HasPrefix(one, "~") {
+			return nil, fmt.Errorf("write_paths needs absolute paths, got %q", one)
+		}
+		if _, err := go_pkg_filesystem.AbsPath(baseDir, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); err == nil {
+			continue
+		}
+
+		abs, err := resolveRaw(baseDir, one)
+		if err != nil {
+			return nil, fmt.Errorf("write_paths %q: %w", one, err)
+		}
+		if !isGranted(sessionID, abs) && !isWhitelisted(abs) {
+			return nil, fmt.Errorf("write path %s was not approved — it has to be approved in this call's prompt or listed in path_white_list; retrying without that changes nothing", abs)
+		}
+		if seen[abs] {
+			continue
+		}
+		seen[abs] = true
+		out = append(out, abs)
+	}
+	return out, nil
 }
 
 func baseDir(toolName, workDir string) string {
@@ -197,6 +228,15 @@ func rawPaths(toolName, toolArgs string) []string {
 			return nil
 		}
 		return append([]string{p.Path}, p.Paths...)
+
+	case "run_command":
+		var p struct {
+			WritePaths []string `json:"write_paths"`
+		}
+		if json.Unmarshal([]byte(toolArgs), &p) != nil {
+			return nil
+		}
+		return p.WritePaths
 
 	case "fetch_page":
 		var p struct {

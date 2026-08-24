@@ -136,15 +136,12 @@ func LoadRuntime() error {
 		WhiteList = merge(WhiteList, user)
 	}
 
-	if err := json.Unmarshal(configs.NetWhiteList, &NetWhiteList); err != nil {
-		return fmt.Errorf("embedded net_white_list: %w", err)
-	}
 	if data, ok := raw["net_white_list"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
 			return fmt.Errorf("json.Unmarshal net_white_list: %w", err)
 		}
-		NetWhiteList = merge(NetWhiteList, user)
+		NetWhiteList = merge(nil, user)
 	}
 
 	if err := json.Unmarshal(configs.ReadOnlyCommand, &ReadOnlyCommand); err != nil {

@@ -50,6 +50,7 @@ type Request struct {
 
 type Reply struct {
 	Approve   bool
+	Verified  bool
 	Skip      bool
 	Remember  bool
 	AllowTurn bool
