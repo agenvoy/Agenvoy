@@ -6,10 +6,9 @@ import (
 	"strings"
 	"time"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -32,9 +31,9 @@ func absPath(e *toolTypes.Executor, path string) (string, error) {
 		baseDir = filesystem.DownloadDir
 	}
 
-	abs, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	abs, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+		return "", fmt.Errorf("boundary.Resolve: %w", err)
 	}
 	return filepath.Clean(abs), nil
 }

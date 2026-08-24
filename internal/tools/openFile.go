@@ -9,10 +9,8 @@ import (
 	"strings"
 	"time"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -57,16 +55,12 @@ func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, err
 		baseDir = filesystem.DownloadDir
 	}
 
-	absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	absPath, err := boundary.Resolve(sessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", err)
+		return "", fmt.Errorf("boundary.Resolve: %w", err)
 	}
 	if absPath == "" {
 		return "", fmt.Errorf("path is required")
-	}
-
-	if parent, ok := denied.Hit(sessionID, absPath); ok {
-		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
 	}
 
 	var cmd *exec.Cmd
@@ -87,9 +81,6 @@ func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, err
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if denied.IsPermission(err) {
-			denied.Register(sessionID, absPath)
-		}
 		return fmt.Sprintf("%s\nError: %s", string(output), err.Error()), nil
 	}
 

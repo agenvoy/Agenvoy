@@ -10,20 +10,22 @@ import (
 var (
 	concurrentMu    sync.Mutex
 	concurrentSlots = make(map[string]chan struct{})
-	claimed         = make(map[string]bool)
+	concurrentMap   = make(map[string]bool)
 )
 
 func ClaimIdle(sessionID string) bool {
 	concurrentMu.Lock()
 	defer concurrentMu.Unlock()
-	if claimed[sessionID] {
+
+	if concurrentMap[sessionID] {
 		return false
 	}
+
 	slot, ok := concurrentSlots[sessionID]
 	if ok && len(slot) > 0 {
 		return false
 	}
-	claimed[sessionID] = true
+	concurrentMap[sessionID] = true
 	return true
 }
 
@@ -32,7 +34,7 @@ func AddConcurrent(ctx context.Context, sessionID string) error {
 		return nil
 	}
 	concurrentMu.Lock()
-	delete(claimed, sessionID)
+	delete(concurrentMap, sessionID)
 	slot, ok := concurrentSlots[sessionID]
 	if !ok {
 		slot = make(chan struct{}, filesystem.MaxSessionTasks)
@@ -53,7 +55,7 @@ func RemoveConcurrent(sessionID string) {
 		return
 	}
 	concurrentMu.Lock()
-	delete(claimed, sessionID)
+	delete(concurrentMap, sessionID)
 	slot, ok := concurrentSlots[sessionID]
 	concurrentMu.Unlock()
 	if !ok {

@@ -20,9 +20,10 @@ type NeverOpenConfig struct {
 }
 
 var (
-	Floor     NeverOpenConfig
-	active    atomic.Bool
-	expiresAt atomic.Int64
+	Floor      NeverOpenConfig
+	active     atomic.Bool
+	expiresAt  atomic.Int64
+	verifiedAt atomic.Int64
 )
 
 func LoadFloor() error {
@@ -41,6 +42,7 @@ func Activate() {
 func Deactivate() {
 	active.Store(false)
 	expiresAt.Store(0)
+	verifiedAt.Store(0)
 	slog.Warn("sudo mode deactivated")
 }
 
@@ -55,6 +57,18 @@ func IsActive() bool {
 		return false
 	}
 	return true
+}
+
+func Verify() {
+	verifiedAt.Store(time.Now().Add(ttlDuration).Unix())
+	slog.Warn("restricted path verified")
+}
+
+func IsVerified() bool {
+	if IsActive() {
+		return true
+	}
+	return time.Now().Unix() < verifiedAt.Load()
 }
 
 func Refresh() {

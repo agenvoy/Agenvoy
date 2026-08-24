@@ -1058,6 +1058,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Quit
 
+	case RestrictedAuthDone:
+		if msg.err != nil {
+			runtime.Resolve(msg.pendingID, runtime.Reply{
+				Approve: false,
+				Reason:  "system password verification failed",
+			})
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] restricted path: %v", msg.err)) + "\n")
+		}
+		sudo.Verify()
+		runtime.Resolve(msg.pendingID, runtime.Reply{Approve: true})
+		if msg.cached {
+			return t, tea.Println(warnStyle.Render("⚠ restricted path approved on cached sudo credentials — verified for 60m") + "\n")
+		}
+		return t, tea.Println(warnStyle.Render("⚠ restricted path approved — verified for 60m") + "\n")
+
 	case SudoAuthDone:
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] sudo: %v", msg.err)) + "\n")

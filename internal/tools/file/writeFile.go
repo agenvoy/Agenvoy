@@ -12,7 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
-	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -23,9 +23,9 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	}
 
 	path := strings.TrimSpace(path0)
-	absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	absPath, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+		return "", fmt.Errorf("boundary.Resolve: %w", err)
 	}
 	if absPath == "" {
 		return "", fmt.Errorf("path is required")
@@ -36,17 +36,9 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 		return "", fmt.Errorf("content is required")
 	}
 
-	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
-	}
-
 	info, err := os.Stat(absPath)
 	isNew := os.IsNotExist(err)
 	if err != nil && !isNew {
-		if denied.IsPermission(err) {
-			denied.Register(e.SessionID, absPath)
-			return "", fmt.Errorf("permission denied: %s (recorded; further writes under this path will be skipped)", absPath)
-		}
 		return "", fmt.Errorf("os.Stat: %w", err)
 	}
 	if !isNew && info.Size() > maxReadSize {
@@ -61,10 +53,6 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	}
 
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
-		if denied.IsPermission(err) {
-			denied.Register(e.SessionID, absPath)
-			return "", fmt.Errorf("permission denied: %s (recorded; further writes under this path will be skipped)", absPath)
-		}
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
 

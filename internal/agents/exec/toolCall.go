@@ -22,6 +22,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
@@ -60,6 +61,10 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 }
 
 const confirmTimeout = 5 * time.Minute
+
+func isTUISession(sessionID string) bool {
+	return strings.HasPrefix(strings.TrimSpace(sessionID), "cli-")
+}
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
@@ -418,19 +423,27 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
-		if !allowAll && toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll) {
+		restrictedPaths := boundary.Restricted(exec.WorkDir, toolName, toolArg)
+
+		if !allowAll && (len(restrictedPaths) > 0 || toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll)) {
 			proceed := true
+			approved := false
 			reason := ""
 			if runtime.HasListener(sessionData.ID) {
-				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
+				askCtx := ctx
+				cancelAsk := func() {}
+				if !isTUISession(sessionData.ID) {
+					askCtx, cancelAsk = context.WithTimeout(ctx, confirmTimeout)
+				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
-					Kind:      runtime.KindToolConfirm,
-					SessionID: sessionData.ID,
-					ToolName:  toolName,
-					ToolArgs:  toolArg,
+					Kind:       runtime.KindToolConfirm,
+					SessionID:  sessionData.ID,
+					ToolName:   toolName,
+					ToolArgs:   toolArg,
+					Restricted: restrictedPaths,
 				})
 				cancelAsk()
-				if errors.Is(err, context.DeadlineExceeded) {
+				if !isTUISession(sessionData.ID) && errors.Is(err, context.DeadlineExceeded) {
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventToolSkipped,
 						ToolName: toolName,
@@ -447,6 +460,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					proceed = false
 				} else {
 					proceed = reply.Approve
+					approved = reply.Approve
 					reason = reply.Reason
 					if reply.Approve && reply.Remember && !sudo.IsActive() {
 						if err = allowTool.Append(exec.WorkDir, toolName, toolArg); err != nil {
@@ -459,6 +473,11 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 						*turnAllowAll = true
 					}
 				}
+			}
+			if approved && len(restrictedPaths) > 0 && !sudo.IsVerified() {
+				proceed = false
+				approved = false
+				reason = fmt.Sprintf("restricted path needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedPaths, ", "))
 			}
 			if !proceed {
 				message := "Skipped by user"
@@ -475,6 +494,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				slots[i].state = slotSkipped
 				slots[i].preMsg = message
 				continue
+			}
+			if approved {
+				boundary.Grant(exec.SessionID, restrictedPaths...)
 			}
 		}
 
@@ -567,7 +589,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 	for i := range slots {
 		s := &slots[i]
-
 		switch s.state {
 		case slotCached:
 			for _, url := range s.imageURLs {

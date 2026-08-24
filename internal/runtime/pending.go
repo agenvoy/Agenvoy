@@ -41,6 +41,7 @@ type Request struct {
 	SessionID   string
 	ToolName    string
 	ToolArgs    string
+	Restricted  []string
 	AskUser     *UserPayload
 	ExecProcess *ExecPayload
 	Ctx         context.Context

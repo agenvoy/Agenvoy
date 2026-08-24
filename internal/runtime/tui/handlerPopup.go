@@ -53,6 +53,7 @@ type Popup struct {
 	multiline      bool
 	skipWithReason bool
 	sudoActive     bool
+	restricted     []string
 
 	questions   []runtime.Question
 	questionIdx int
@@ -202,6 +203,19 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		var reply runtime.Reply
 		switch {
 		case chosen == "Yes":
+			if len(p.restricted) > 0 && !sudo.IsVerified() {
+				id := p.pendingId
+				t = t.closePopup()
+				if sudoCached() {
+					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
+				}
+				return t, tea.Sequence(
+					tea.Println(warnStyle.Render("⎯ restricted path: system password required")+"\n"),
+					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
+						return RestrictedAuthDone{pendingID: id, err: err}
+					}),
+				)
+			}
 			reply = runtime.Reply{Approve: true}
 		case strings.HasPrefix(chosen, "Yes  don't ask again"):
 			reply = runtime.Reply{Approve: true, Remember: true}
@@ -446,6 +460,13 @@ func newPopup(id string, req runtime.Request) *Popup {
 				"Abort task",
 			}
 		}
+		if len(req.Restricted) > 0 {
+			options = []string{
+				"Yes",
+				"No",
+				"Abort task",
+			}
+		}
 		p := &Popup{
 			pendingId:  id,
 			kind:       popupConfirm,
@@ -453,6 +474,21 @@ func newPopup(id string, req runtime.Request) *Popup {
 			subtitle:   display,
 			options:    options,
 			sudoActive: sudo.IsActive(),
+			restricted: req.Restricted,
+		}
+		if len(req.Restricted) > 0 {
+			p.title = fmt.Sprintf("Run %s outside the allowed paths?", utils.ToolName(req.ToolName))
+			for _, one := range req.Restricted {
+				p.styledLines = append(p.styledLines, warnStyle.Render("  ⚠ "+one))
+			}
+			switch {
+			case sudo.IsVerified():
+				p.styledLines = append(p.styledLines, hintStyle.Render("  verified within the last hour — no password needed"))
+			case sudoCached():
+				p.styledLines = append(p.styledLines, hintStyle.Render("  sudo credentials still cached — no password needed"))
+			default:
+				p.styledLines = append(p.styledLines, hintStyle.Render("  system password required — you will be prompted after Yes"))
+			}
 		}
 		switch req.ToolName {
 		case "edit_file", "edit_tool", "edit_skill":
