@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	completionsHandler "github.com/pardnchiu/agenvoy/internal/runtime/routes/handler/chatCompletions"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func New() *gin.Engine {
@@ -189,15 +189,10 @@ func cors() gin.HandlerFunc {
 
 func localhostOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		host, _, err := net.SplitHostPort(c.Request.RemoteAddr)
-		if err != nil {
-			host = c.Request.RemoteAddr
-		}
-		switch host {
-		case "127.0.0.1", "::1":
-			c.Next()
-		default:
+		if !utils.IsLoopback(c.Request.RemoteAddr) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "localhost only", "type": "forbidden"}})
+			return
 		}
+		c.Next()
 	}
 }

@@ -11,7 +11,9 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/auth"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const webSessionPrefix = "chat-"
@@ -43,6 +45,17 @@ func OutstandingConfirms(sessionID string) []agentTypes.Event {
 		out = append(out, event)
 	}
 	return out
+}
+
+func restrictedOf(requestID string) []string {
+	outstandingMu.Lock()
+	defer outstandingMu.Unlock()
+	for _, ids := range outstanding {
+		if event, ok := ids[requestID]; ok {
+			return event.Restricted
+		}
+	}
+	return nil
 }
 
 func untrackConfirm(requestID string) {
@@ -88,10 +101,11 @@ func emitWebConfirms() {
 			continue
 		}
 		event := agentTypes.Event{
-			Type:     agentTypes.EventToolConfirm,
-			ToolName: req.ToolName,
-			ToolArgs: req.ToolArgs,
-			ToolID:   id,
+			Type:       agentTypes.EventToolConfirm,
+			ToolName:   req.ToolName,
+			ToolArgs:   req.ToolArgs,
+			ToolID:     id,
+			Restricted: req.Restricted,
 		}
 		trackConfirm(req.SessionID, id, event)
 		pubsub.Pub(req.SessionID, event)
@@ -112,6 +126,7 @@ func ResolveToolConfirm() gin.HandlerFunc {
 			AllowTurn bool   `json:"allow_turn,omitempty"`
 			Abort     bool   `json:"abort,omitempty"`
 			Reason    string `json:"reason,omitempty"`
+			Password  string `json:"password,omitempty"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -123,12 +138,29 @@ func ResolveToolConfirm() gin.HandlerFunc {
 			return
 		}
 
+		approve := body.Approve && !body.Abort
+		restricted := restrictedOf(requestID)
+		verified := false
+
+		if approve && len(restricted) > 0 {
+			if !internalUtils.IsLoopback(c.Request.RemoteAddr) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "restricted approvals must come from this machine"})
+				return
+			}
+			if err := auth.Verify(c.Request.Context(), body.Password); err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error(), "restricted": restricted})
+				return
+			}
+			verified = true
+		}
+
 		untrackConfirm(requestID)
 		reply := runtime.Reply{
-			Approve:   body.Approve && !body.Abort,
+			Approve:   approve,
 			Remember:  body.Remember,
 			AllowTurn: body.AllowTurn,
 			Reason:    strings.TrimSpace(body.Reason),
+			Verified:  verified,
 		}
 		if body.Abort {
 			reply.Error = errors.New("user stopped")
