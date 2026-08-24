@@ -133,6 +133,8 @@ func New() *gin.Engine {
 	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
 	r.GET("/v1/channel/admin", localhostOnly(), handler.GetAdminChannel())
 	r.POST("/v1/channel/admin", localhostOnly(), handler.SetAdminChannel())
+	r.GET("/v1/channel/:channel/chats", localhostOnly(), handler.ListChannelChats())
+	r.DELETE("/v1/channel/:channel/chat", localhostOnly(), handler.DeleteChannelChat())
 
 	r.NoRoute(localhostOnly(), func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/v1/") {
