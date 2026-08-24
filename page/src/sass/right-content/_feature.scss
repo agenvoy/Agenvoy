@@ -128,6 +128,10 @@ body[data-rendered="1"] section.right-content section.feature {
         flex-flow: column;
         gap: 0.5rem;
 
+        div.card[data-selected="1"] {
+          background-color: var(--gray-2);
+        }
+
         div.card {
           position: relative;
           display: flex;
@@ -216,6 +220,8 @@ body[data-rendered="1"] section.right-content section.feature {
 
           &:focus {
             background-color: white;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(20, 97, 220, 0.15);
           }
         }
 
