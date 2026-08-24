@@ -46,7 +46,7 @@ graph TB
     Update --> Installer[Official update script]
 ```
 
-The runtime currently supports 10 model providers, excluding the `compat` entry for local or custom endpoints.
+The runtime ships 10 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints.
 
 ## Execution Modes
 
@@ -64,13 +64,9 @@ graph LR
     Router --> Providers[Supported provider backends]
 ```
 
-## Image Generation Boundary
-
-Image generation is temporarily unavailable while the router integration is being redesigned. The former `image2` command, `enable_image2` configuration flag, `generate_image` tool, and registration path are no longer part of the runtime. Use an external integration when image output is required.
-
 ## Module: Daemon and HTTP API
 
-The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, tool calls, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers, cron/task automation, KuraDB lifecycle, command/skill allowlists, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. A separate web dashboard (hosted independently, not part of this repo) is the intended client for the config tier.
+The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, tool calls, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers and their OAuth logins, rules, knowledge, cron/task automation, command/skill/tool allowlists, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. The web dashboard that drives the config tier lives in `page/`, is embedded into the binary at build time, and is served from `/` by the same daemon; `AGENVOY_PAGE_DIR` swaps the embedded copy for files on disk during development.
 
 ```mermaid
 graph TB
@@ -84,10 +80,11 @@ graph TB
         Reload --> AgentInit
     end
     Routes --> ExecAPI[Agent-execution API<br/>send · chat/completions · tools · sessions · models · SSE logs]
-    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · cron/task · kuradb · allowlists · torii inspection]
+    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · rules/knowledge · cron/task · allowlists · torii inspection]
+    Routes --> Page[Embedded dashboard<br/>page/ served at /]
     ConfigAPI --> LocalGuard[localhostOnly guard]
     ExecAPI --> Client[CLI / TUI / remote agents]
-    LocalGuard --> Dashboard[Web dashboard, separate repo]
+    LocalGuard --> Page
 ```
 
 ## Module: Agent Execution and Routing
@@ -115,7 +112,7 @@ graph TB
 
 ## Module: Tool Registry and Sandbox
 
-Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Only five tools ship with full schemas — `find_tools`, `reasoning_guide`, `run_command`, `find_files`, `read_files`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through denied-path checks, allow rules, confirmation gates, shell validation, and sandbox enforcement. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
+Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through denied-path checks, allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths inside `denied_map` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
 
 ```mermaid
 graph TB
@@ -157,7 +154,7 @@ graph TB
 
 ## Module: Task Lifecycle, Concurrency, and Cancellation
 
-Every execution registers itself in `status.json` — and registers its cancel function — *before* competing for a per-session concurrency slot, so a task queued behind the limit stays observable and cancellable instead of blocking invisibly. Each task records the PID of the process running it; any reader that finds a task whose PID is no longer alive treats it as stale and clears it, so a killed or crashed process cannot leave a session permanently marked online.
+Every execution registers itself in `status.json` — and registers its cancel function — _before_ competing for a per-session concurrency slot, so a task queued behind the limit stays observable and cancellable instead of blocking invisibly. Each task records the PID of the process running it; any reader that finds a task whose PID is no longer alive treats it as stale and clears it, so a killed or crashed process cannot leave a session permanently marked online.
 
 Concurrency is per session (`MaxSessionTasks`, defaulting to four times the CPU count). Sessions never block or cancel one another, and exceeding the limit queues a task rather than rejecting it.
 
@@ -180,7 +177,7 @@ graph TB
 
 ## Module: Chat and MCP Integrations
 
-Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
+Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. HTTP servers marked `auth: oauth` authorize through `mcp.Login`: the daemon opens a loopback callback listener on `localhost:17988`, performs dynamic client registration when the provider allows it, and stores the resulting token and client id in the OS keychain. A pre-registered client can be supplied instead, and the redirect URL can be pasted back when the browser cannot reach the listener. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
 
 ```mermaid
 graph TB
@@ -199,6 +196,9 @@ graph TB
         SDKClient --> Refresh[tools/list_changed refresh]
         Refresh --> MCPTools
         SDKClient --> Instructions[Server instructions → system prompt]
+        OAuth[auth: oauth] --> Callback[Loopback listener :17988]
+        Callback --> Token[Token + client id in keychain]
+        Token --> SDKClient
         ExternalClient[External MCP client] --> LocalMCP[stdin JSON-RPC server]
         LocalMCP --> Tools[Local tool registry]
     end
@@ -262,8 +262,10 @@ stateDiagram-v2
 ## Security Boundaries
 
 - The HTTP daemon binds to `127.0.0.1`; selected endpoints apply an additional localhost-only guard.
-- File operations use denied-path and sensitive-file checks before execution.
-- Command execution is subject to allow rules, AST-based shell validation, and sandbox policies.
+- File operations resolve through `boundary.Resolve`, which applies denied-path and sensitive-file checks before execution.
+- Command execution is subject to allow rules, AST-based shell validation, and OS-level sandbox policies (`sandbox-exec` on macOS, `bwrap` on Linux).
+- Restricted paths and non-allowlisted commands are not refused outright: they raise a confirmation that also requires the operating-system password, and the grant is bound to that session plus that specific path or binary. Channels that cannot collect a password — HTTP API, chat bots, subagents — receive the call back as skipped. There is no elevated or `/sudo` mode; per-request authorization replaced it.
+- A command that must write outside `$HOME` declares `write_paths`, and only those paths are bound into the sandbox.
 - `run` mode bypasses confirmation only for its request; sandbox and denied-path protections still apply.
 - Credentials are stored through the operating-system keychain integration, not in the repository.
 
@@ -273,16 +275,26 @@ stateDiagram-v2
 flowchart LR
     Config[~/.config/agenvoy/config.json] --> Limits[Runtime limits]
     Config --> Sessions[Session directories]
+    Sessions --> Bot[bot.json: name · model · reasoning · persona]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[pending metadata]
     Sessions --> Status[status.json: active tasks and owning PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History search]
+    Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 tool cache]
+    Torii --> SessionHist[db_1 session conversation]
+    Torii --> ErrorMemory[db_2 tool-error memory]
+    Torii --> Knowledge[db_3 operator knowledge]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP clients]
     Tools[~/.config/agenvoy/tools] --> Registry[Tool registry]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill scanner]
+    Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rules]
+    Allow[allow_skill · allow_tool] --> Gate[Confirmation gate]
+    Config --> CmdAllow[config.json white_list: command allowlist]
+    Schedule[crons.json · tasks.json] --> Scheduler[Scheduler]
+    Auth[.telegram · .discord] --> Channels[Authorized chats]
 ```
 
-***
+---
 
 ©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)

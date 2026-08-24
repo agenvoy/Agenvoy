@@ -7,9 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func GetChannelStatus() gin.HandlerFunc {
@@ -53,6 +56,102 @@ func SetDiscordChannel() gin.HandlerFunc {
 				cfg.DiscordUsername = ""
 			}
 		})
+	}
+}
+
+type adminChat struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+}
+
+func adminChats(prefix, path string) []adminChat {
+	entries := utils.ListChats(path)
+	list := make([]adminChat, 0, len(entries))
+	for _, e := range entries {
+		list = append(list, adminChat{
+			Value: prefix + "@" + e.ID,
+			Type:  prefix,
+			ID:    e.ID,
+			Name:  e.Name,
+		})
+	}
+	return list
+}
+
+func GetAdminChannel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if cfg == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "config is empty"})
+			return
+		}
+
+		current := strings.TrimSpace(cfg.AdminChannel)
+		chats := append(
+			adminChats("tg", filesystem.TelegramAuthPath),
+			adminChats("dc", filesystem.DiscordAuthPath)...,
+		)
+
+		authorized := false
+		for _, chat := range chats {
+			if chat.Value == current {
+				authorized = true
+				break
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"admin_channel": current,
+			"authorized":    current != "" && authorized,
+			"chats":         chats,
+		})
+	}
+}
+
+func SetAdminChannel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Value *string `json:"value"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if body.Value == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "value is required; send an empty string to clear"})
+			return
+		}
+
+		value := strings.TrimSpace(*body.Value)
+		if value != "" {
+			if _, _, ok := exec.ParseAdminChannel(value); !ok {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "value must be tg@<chatID> or dc@<channelID>, or empty to clear"})
+				return
+			}
+		}
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if cfg == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "config is empty"})
+			return
+		}
+
+		cfg.AdminChannel = value
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "admin_channel": value})
 	}
 }
 

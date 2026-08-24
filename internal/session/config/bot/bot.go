@@ -2,6 +2,8 @@ package configBot
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -24,54 +26,75 @@ var (
 )
 
 type Bot struct {
-	Name      string
-	Model     string
-	Reasoning string
-	Body      string
+	Name      string `json:"name"`
+	Model     string `json:"model,omitempty"`
+	Reasoning string `json:"reasoning,omitempty"`
+	Body      string `json:"body"`
 }
 
 func read(sessionID string) Bot {
 	if sessionID == "" {
 		return Bot{}
 	}
-	data, err := go_pkg_filesystem.ReadText(filesystem.BotPath(sessionID))
+
+	path := filesystem.BotPath(sessionID)
+	if !go_pkg_filesystem_reader.Exists(path) {
+		return migrate(sessionID)
+	}
+
+	bot, err := go_pkg_filesystem.ReadJSON[Bot](path)
+	if err != nil {
+		slog.Warn("bot.json read",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+		return Bot{}
+	}
+	return bot
+}
+
+func migrate(sessionID string) Bot {
+	legacy := filesystem.LegacyBotPath(sessionID)
+	if !go_pkg_filesystem_reader.Exists(legacy) {
+		return Bot{}
+	}
+
+	data, err := go_pkg_filesystem.ReadText(legacy)
 	if err != nil {
 		return Bot{}
 	}
-	m := frontmatterRegex.FindStringSubmatch(data)
-	if len(m) < 3 {
-		return Bot{Body: strings.TrimSpace(data)}
+
+	bot := Bot{Body: strings.TrimSpace(data)}
+	if m := frontmatterRegex.FindStringSubmatch(data); len(m) >= 3 {
+		bot.Body = strings.TrimSpace(m[2])
+		for _, fm := range fieldRegex.FindAllStringSubmatch(m[1], -1) {
+			switch fm[1] {
+			case "name":
+				bot.Name = strings.TrimSpace(fm[2])
+			case "model":
+				bot.Model = strings.TrimSpace(fm[2])
+			case "reasoning":
+				bot.Reasoning = strings.TrimSpace(fm[2])
+			}
+		}
 	}
 
-	bot := Bot{Body: strings.TrimSpace(m[2])}
-	for _, fm := range fieldRegex.FindAllStringSubmatch(m[1], -1) {
-		switch fm[1] {
-		case "name":
-			bot.Name = strings.TrimSpace(fm[2])
-		case "model":
-			bot.Model = strings.TrimSpace(fm[2])
-		case "reasoning":
-			bot.Reasoning = strings.TrimSpace(fm[2])
-		}
+	if err := writeBotFile(sessionID, bot); err != nil {
+		slog.Warn("bot.md migrate",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+		return bot
+	}
+	if err := os.Remove(legacy); err != nil {
+		slog.Warn("bot.md remove",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
 	}
 	return bot
 }
 
 func writeBotFile(sessionID string, bot Bot) error {
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "name: %s\n", bot.Name)
-	if bot.Model != "" {
-		fmt.Fprintf(&sb, "model: %s\n", bot.Model)
-	}
-	if bot.Reasoning != "" {
-		fmt.Fprintf(&sb, "reasoning: %s\n", bot.Reasoning)
-	}
-	sb.WriteString("---\n")
-	sb.WriteString(bot.Body)
-
-	if err := go_pkg_filesystem.WriteFile(filesystem.BotPath(sessionID), sb.String(), 0644); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+	if err := go_pkg_filesystem.WriteJSON(filesystem.BotPath(sessionID), bot, true); err != nil {
+		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
 	}
 	return nil
 }
@@ -159,10 +182,15 @@ func Save(sessionID, name, body string, force bool) error {
 		body = configs.DefaultSessionPrompt
 	}
 
-	path := filesystem.BotPath(sessionID)
-	if !force && go_pkg_filesystem_reader.Exists(path) {
+	current := read(sessionID)
+	if !force && go_pkg_filesystem_reader.Exists(filesystem.BotPath(sessionID)) {
 		return nil
 	}
 
-	return writeBotFile(sessionID, Bot{Name: name, Body: body})
+	return writeBotFile(sessionID, Bot{
+		Name:      name,
+		Model:     current.Model,
+		Reasoning: current.Reasoning,
+		Body:      body,
+	})
 }

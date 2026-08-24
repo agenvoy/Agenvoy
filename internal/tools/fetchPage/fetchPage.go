@@ -17,6 +17,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -176,9 +177,9 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				if p == "" {
 					p = defaultDownloadPath(link)
 				} else {
-					abs, absErr := go_pkg_filesystem.AbsPath(filesystem.DownloadDir, p, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+					abs, absErr := boundary.Resolve(e.SessionID, filesystem.DownloadDir, p)
 					if absErr != nil {
-						return "", fmt.Errorf("go_pkg_filesystem.AbsPath: %w", absErr)
+						return "", fmt.Errorf("boundary.Resolve: %w", absErr)
 					}
 					p = abs
 				}

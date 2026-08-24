@@ -17,7 +17,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -1058,12 +1057,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Quit
 
-	case SudoAuthDone:
+	case RestrictedAuthDone:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] sudo: %v", msg.err)) + "\n")
+			runtime.Resolve(msg.pendingID, runtime.Reply{
+				Approve: false,
+				Reason:  "system password verification failed",
+			})
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] restricted path: %v", msg.err)) + "\n")
 		}
-		sudo.Activate()
-		return t, tea.Println(warnStyle.Render("⚠ sudo mode activated — expires in 60m") + "\n")
+		runtime.Resolve(msg.pendingID, runtime.Reply{Approve: true, Verified: true})
+		if msg.cached {
+			return t, nil
+		}
+		return t, tea.Println(warnStyle.Render("⚠ restricted path approved") + "\n")
 
 	case LogDone:
 		if msg.err != nil {
@@ -1111,13 +1117,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		)
-
-	case sudoStream:
-		t.toolBuf = append(t.toolBuf, hintStyle.Render("  "+msg.line))
-		if len(t.toolBuf) > 16 {
-			t.toolBuf = t.toolBuf[len(t.toolBuf)-16:]
-		}
-		return t, nil
 
 	case tailLine:
 		if t.onceCall {

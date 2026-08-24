@@ -156,6 +156,11 @@ func StatusPath(sessionID string) string {
 }
 
 func BotPath(sessionID string) string {
+	return filepath.Join(SessionDir(sessionID), "bot.json")
+}
+
+// DELETE will deprecate, use bot.json replacement
+func LegacyBotPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "bot.md")
 }
 

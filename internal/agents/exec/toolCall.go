@@ -19,9 +19,9 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
@@ -60,6 +60,10 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 }
 
 const confirmTimeout = 5 * time.Minute
+
+func isTUISession(sessionID string) bool {
+	return strings.HasPrefix(strings.TrimSpace(sessionID), "cli-")
+}
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
@@ -326,6 +330,15 @@ func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
 	sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
 }
 
+func restrictedList(paths, commands []string) []string {
+	out := make([]string, 0, len(paths)+len(commands))
+	out = append(out, paths...)
+	for _, one := range commands {
+		out = append(out, "command: "+one)
+	}
+	return out
+}
+
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
 		Files []struct {
@@ -418,19 +431,30 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
-		if !allowAll && toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll) {
+		restrictedPaths := boundary.Restricted(exec.SessionID, exec.WorkDir, toolName, toolArg)
+		restrictedCmds := tools.RestrictedCommands(exec.AllowedCommand, toolName, toolArg)
+		restricted := len(restrictedPaths) > 0 || len(restrictedCmds) > 0
+
+		if !allowAll && (restricted || toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll)) {
 			proceed := true
+			approved := false
+			verified := false
 			reason := ""
 			if runtime.HasListener(sessionData.ID) {
-				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
+				askCtx := ctx
+				cancelAsk := func() {}
+				if !isTUISession(sessionData.ID) {
+					askCtx, cancelAsk = context.WithTimeout(ctx, confirmTimeout)
+				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
-					Kind:      runtime.KindToolConfirm,
-					SessionID: sessionData.ID,
-					ToolName:  toolName,
-					ToolArgs:  toolArg,
+					Kind:       runtime.KindToolConfirm,
+					SessionID:  sessionData.ID,
+					ToolName:   toolName,
+					ToolArgs:   toolArg,
+					Restricted: restrictedList(restrictedPaths, restrictedCmds),
 				})
 				cancelAsk()
-				if errors.Is(err, context.DeadlineExceeded) {
+				if !isTUISession(sessionData.ID) && errors.Is(err, context.DeadlineExceeded) {
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventToolSkipped,
 						ToolName: toolName,
@@ -447,8 +471,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					proceed = false
 				} else {
 					proceed = reply.Approve
+					approved = reply.Approve
+					verified = reply.Verified
 					reason = reply.Reason
-					if reply.Approve && reply.Remember && !sudo.IsActive() {
+					if reply.Approve && reply.Remember {
 						if err = allowTool.Append(exec.WorkDir, toolName, toolArg); err != nil {
 							slog.Warn("appendAllowListRule",
 								slog.String("session", sessionData.ID),
@@ -459,6 +485,11 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 						*turnAllowAll = true
 					}
 				}
+			}
+			if approved && restricted && !verified {
+				proceed = false
+				approved = false
+				reason = fmt.Sprintf("this needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedList(restrictedPaths, restrictedCmds), ", "))
 			}
 			if !proceed {
 				message := "Skipped by user"
@@ -475,6 +506,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				slots[i].state = slotSkipped
 				slots[i].preMsg = message
 				continue
+			}
+			if approved {
+				boundary.Grant(exec.SessionID, restrictedPaths...)
+				tools.GrantCommands(exec.SessionID, restrictedCmds)
 			}
 		}
 
@@ -567,7 +602,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 	for i := range slots {
 		s := &slots[i]
-
 		switch s.state {
 		case slotCached:
 			for _, url := range s.imageURLs {

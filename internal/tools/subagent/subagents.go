@@ -50,7 +50,7 @@ One call per distinct subtask, at most three at a time — a fourth queues while
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: an existing non-temp session to reuse, matching its bot.md frontmatter `name` — set it verbatim when the user delegates by name, otherwise leave EMPTY. Never invent a descriptive label: an unmatched name resolves to nothing and the run becomes a temp session anyway. Broad parallel fan-out stays anonymous. Takes precedence over session_id.",
+					"description": "mode=invoke: an existing non-temp session to reuse, matching its `bot.json` `name` — set it verbatim when the user delegates by name, otherwise leave EMPTY. Never invent a descriptive label: an unmatched name resolves to nothing and the run becomes a temp session anyway. Broad parallel fan-out stays anonymous. Takes precedence over session_id.",
 					"default":     "",
 				},
 				"session_id": map[string]any{

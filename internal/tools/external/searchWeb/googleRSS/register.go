@@ -33,7 +33,3 @@ func Search(ctx context.Context, keyword, timeRange, ceid string) (string, error
 	}
 	return handler(ctx, keyword, timeRange, ceid, geo, lang)
 }
-
-func TimeRanges() []string {
-	return slices.Clone(timeRanges)
-}

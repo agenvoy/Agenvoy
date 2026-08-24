@@ -12,6 +12,12 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
+type NamedSession struct {
+	SessionID string
+	Name      string
+	Role      string
+}
+
 func New(prefix string) (string, error) {
 	uuid := go_pkg_utils.UUID()
 	if uuid == "" {
@@ -27,7 +33,7 @@ func New(prefix string) (string, error) {
 	return sessionID, nil
 }
 
-func FindIdleTemp() string {
+func FindTemp() string {
 	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
 	if err != nil {
 		return ""
@@ -44,13 +50,7 @@ func FindIdleTemp() string {
 	return ""
 }
 
-type NamedSession struct {
-	SessionID string
-	Name      string
-	Role      string
-}
-
-func ListNamedSessions() []NamedSession {
+func ListSessions() []NamedSession {
 	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
 	if err != nil {
 		return nil

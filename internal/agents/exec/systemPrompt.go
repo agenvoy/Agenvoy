@@ -19,6 +19,10 @@ import (
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
+// * a raw literal cannot hold the backticks this text needs, so it stays an
+// * interpreted string — kept in one place instead of duplicated per caller.
+const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+
 func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
@@ -73,10 +77,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = "## Skills\n\n" +
-			"**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n" +
-			"`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n" +
-			list
+		skillsSection = skillsHeader + list
 	}
 
 	personaSection := ""
@@ -129,10 +130,7 @@ func buildPermissionModeSection(allowAll bool) string {
 func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) string {
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = "## Skills\n\n" +
-			"**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n" +
-			"`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n" +
-			list
+		skillsSection = skillsHeader + list
 	}
 
 	return strings.NewReplacer(

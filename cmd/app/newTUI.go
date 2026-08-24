@@ -21,7 +21,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
@@ -39,10 +38,6 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 	}
 	if err := filesystem.LoadRuntime(); err != nil {
 		slog.Warn("filesystem.LoadRuntime",
-			slog.String("error", err.Error()))
-	}
-	if err := sudo.LoadFloor(); err != nil {
-		slog.Warn("sudo.LoadFloor",
 			slog.String("error", err.Error()))
 	}
 	if err := config.BackfillKeys(); err != nil {

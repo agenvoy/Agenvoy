@@ -8,10 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/tools/file/denied"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -124,16 +122,12 @@ Each path maps to its content, or to an error string for that path. Locating a f
 }
 
 func readOne(ctx context.Context, e *toolTypes.Executor, baseDir, path string, offset, limit int) (string, error) {
-	absPath, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	absPath, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: AbsPath: %w", err)
+		return "", fmt.Errorf("boundary.Resolve: %w", err)
 	}
 	if absPath == "" {
 		return "", fmt.Errorf("path is required")
-	}
-
-	if parent, ok := denied.Hit(e.SessionID, absPath); ok {
-		return "", fmt.Errorf("permission denied: %s is under previously rejected %s; not retried", absPath, parent)
 	}
 
 	offset = max(offset, 1)
@@ -141,10 +135,5 @@ func readOne(ctx context.Context, e *toolTypes.Executor, baseDir, path string, o
 	if limit == 0 {
 		limit = defaultReadLimit
 	}
-	out, err := filesystem.ReadFile(ctx, absPath, offset, limit)
-	if err != nil && denied.IsPermission(err) {
-		denied.Register(e.SessionID, absPath)
-		return "", fmt.Errorf("permission denied: %s (recorded; further reads under this path will be skipped)", absPath)
-	}
-	return out, err
+	return filesystem.ReadFile(ctx, absPath, offset, limit)
 }

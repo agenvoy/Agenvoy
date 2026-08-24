@@ -1,26 +1,24 @@
 package tools
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log/slog"
-	"os/exec"
+	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
-
-var SudoStreamHook func(line string)
 
 func registRunCommand() {
 	toolRegister.Regist(toolRegister.Def{
@@ -41,78 +39,69 @@ Reading a file → read_files; finding one → find_files; installing a system b
 					"items":       map[string]any{"type": "string"},
 					"minItems":    1,
 				},
+				"write_paths": map[string]any{
+					"type":        "array",
+					"description": "Absolute paths outside $HOME this command has to write to — ['/opt/homebrew'] for brew upgrade, ['/usr/local'] for a system install. The sandbox only allows writes under $HOME, so a command touching anything else fails with a permission error that looks like a file ownership problem and is not one. Each path needs the user's approval on this call, or an entry in path_white_list. Paths under $HOME need not be listed.",
+					"items":       map[string]any{"type": "string"},
+				},
 			},
 			"required": []string{"argv"},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				Argv []string `json:"argv"`
+				Argv       []string `json:"argv"`
+				WritePaths []string `json:"write_paths"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-			return runCommand(ctx, e, params.Argv)
+			return runCommand(ctx, e, params.Argv, params.WritePaths)
 		},
 	})
 }
 
-func runCommand(ctx context.Context, e *toolTypes.Executor, argv []string) (string, error) {
+const deniedHint = "run_command can never reach this path, with or without approval — retrying any shell command that names it fails the same way. find_files and read_files can reach it after the user approves a prompt; use those."
+
+func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string) (string, error) {
 	if len(argv) == 0 {
 		return "", fmt.Errorf("run_command requires a non-empty 'argv' array, e.g. [\"git\", \"status\"]")
 	}
 
-	elevated := sudo.IsActive()
-
 	joined := strings.Join(argv, " ")
 
-	if elevated {
-		sudo.Refresh()
-		if blocked, hit := sudo.HitFloor(joined); hit {
-			return "", fmt.Errorf("access denied (floor): %s", blocked)
+	for _, dir := range filesystem.DeniedMap.Dirs {
+		if strings.Contains(joined, "/"+dir+"/") || strings.Contains(joined, "/"+dir) || strings.Contains(joined, dir+"/") {
+			return "", fmt.Errorf("access denied: %s. %s", dir, deniedHint)
 		}
-		slog.Warn("sudo exec",
-			slog.String("session", e.SessionID),
-			slog.String("command", joined))
-	} else {
-		for _, dir := range filesystem.DeniedMap.Dirs {
-			if strings.Contains(joined, "/"+dir+"/") || strings.Contains(joined, "/"+dir) || strings.Contains(joined, dir+"/") {
-				return "", fmt.Errorf("access denied: %s", dir)
-			}
-		}
-		for _, f := range filesystem.DeniedMap.Files {
-			if strings.Contains(joined, f) {
-				return "", fmt.Errorf("access denied: %s", f)
-			}
+	}
+	for _, f := range filesystem.DeniedMap.Files {
+		if strings.Contains(joined, f) {
+			return "", fmt.Errorf("access denied: %s. %s", f, deniedHint)
 		}
 	}
 
 	binary := filepath.Base(argv[0])
+	allowed := allowedWithGrants(e.SessionID, e.AllowedCommand)
 
-	if !elevated && binary != argv[0] {
+	if binary != argv[0] {
 		return "", fmt.Errorf("failed to run command: %q must be a bare command name (%q), not a path", argv[0], binary)
 	}
 
 	if (binary == "sh" || binary == "bash") && len(argv) >= 3 && argv[1] == "-c" {
-		if !elevated && !e.AllowedCommand[binary] {
+		if !allowed[binary] {
 			return "", fmt.Errorf("failed to run command: %s is not allowed", binary)
 		}
 		if strings.TrimSpace(argv[2]) == "" {
 			return "", fmt.Errorf("%s -c requires a non-empty command string", binary)
 		}
-		if elevated {
-			if err := validateShellScriptFloor(argv[2]); err != nil {
-				return "", err
-			}
-		} else {
-			if err := validateShellScript(argv[2], e.AllowedCommand); err != nil {
-				return "", err
-			}
+		if err := validateShellScript(argv[2], allowed); err != nil {
+			return "", err
 		}
 	} else {
 		if binary == "cd" {
 			return changeWorkDir(e, argv[1:])
 		}
-		if !elevated && !e.AllowedCommand[binary] {
+		if !allowed[binary] {
 			return "", fmt.Errorf("failed to run command: %s is not allowed", binary)
 		}
 		if binary == "rm" {
@@ -123,9 +112,18 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv []string) (stri
 	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
 
+	binds, err := boundary.WriteBinds(e.SessionID, e.WorkDir, writePaths)
+	if err != nil {
+		return "", err
+	}
 	var sandboxOpt *go_pkg_sandbox.Option
-	if elevated {
-		sandboxOpt = &go_pkg_sandbox.Option{AllowAll: true}
+	if len(binds) > 0 {
+		sandboxOpt = &go_pkg_sandbox.Option{
+			MinimalBinds: &go_pkg_sandbox.BindSpec{
+				WriteScope: go_pkg_sandbox.WriteHome,
+				ReadWrite:  binds,
+			},
+		}
 	}
 
 	cmd, err := go_pkg_sandbox.Wrap(ctx, argv[0], argv[1:], e.WorkDir, sandboxOpt)
@@ -133,53 +131,98 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv []string) (stri
 		return "", fmt.Errorf("sandbox.Wrap: %w", err)
 	}
 
-	if elevated && SudoStreamHook != nil {
-		return runCommandStreaming(cmd)
-	}
-
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Sprintf("%s\nError: %s", string(output), err.Error()), nil
+		return fmt.Sprintf("%s\nError: %s%s", string(output), err.Error(), sandboxWriteHint(string(output), binds)), nil
 	}
 
 	return string(output), nil
 }
 
-func runCommandStreaming(cmd *exec.Cmd) (string, error) {
-	pr, pw := io.Pipe()
-	cmd.Stdout = pw
-	cmd.Stderr = pw
+const sandboxWriteAdvice = `
 
-	var sb strings.Builder
-	var scanErr error
-	done := make(chan struct{})
+[agenvoy] the sandbox only allows writes under %s, which is why these read as unwritable: %s. They are writable outside the sandbox, so ownership is not the problem — do not run chown or chmod and do not ask the user to. Re-run this exact command with write_paths: [%s] and the user gets one prompt to approve those paths.`
 
-	go func() {
-		defer close(done)
-		scanner := bufio.NewScanner(pr)
-		scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
-		for scanner.Scan() {
-			line := scanner.Text()
-			sb.WriteString(line)
-			sb.WriteByte('\n')
-			if hook := SudoStreamHook; hook != nil {
-				hook(line)
-			}
-		}
-		scanErr = scanner.Err()
-	}()
+var permissionMarkers = []string{
+	"not writable", "permission denied", "operation not permitted",
+	"read-only file system", "eacces",
+}
 
-	err := cmd.Run()
-	pw.Close()
-	<-done
+var absPathPattern = regexp.MustCompile(`(^|[\s"'(])(/[A-Za-z0-9._@+\-/]{2,})`)
 
-	if scanErr != nil {
-		sb.WriteString(fmt.Sprintf("\n[output truncated: %s]\n", scanErr.Error()))
+func sandboxWriteHint(output string, bound []string) string {
+	lower := strings.ToLower(output)
+	if !slices.ContainsFunc(permissionMarkers, func(m string) bool { return strings.Contains(lower, m) }) {
+		return ""
 	}
 
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Sprintf("%s\nError: %s", sb.String(), err.Error()), nil
+		return ""
 	}
 
-	return sb.String(), nil
+	seen := map[string]bool{}
+	var list []string
+	for _, match := range absPathPattern.FindAllStringSubmatch(output, -1) {
+		one := strings.TrimRight(match[2], ".,:;)")
+		if one == "" || seen[one] || strings.HasPrefix(one, home) {
+			continue
+		}
+		if slices.ContainsFunc(bound, func(b string) bool { return one == b || strings.HasPrefix(one, b+"/") }) {
+			continue
+		}
+		seen[one] = true
+		list = append(list, one)
+	}
+
+	list = shortestRoots(list)
+	if len(list) == 0 {
+		return ""
+	}
+
+	quoted := make([]string, 0, len(list))
+	for _, one := range list {
+		quoted = append(quoted, strconv.Quote(one))
+	}
+	return fmt.Sprintf(sandboxWriteAdvice, home, strings.Join(list, ", "), strings.Join(quoted, ", "))
+}
+
+func shortestRoots(list []string) []string {
+	for range 4 {
+		reduced := collapseOnce(list)
+		if len(reduced) == len(list) {
+			break
+		}
+		list = reduced
+	}
+	if len(list) > 5 {
+		list = list[:5]
+	}
+	return list
+}
+
+func collapseOnce(list []string) []string {
+	slices.SortFunc(list, func(a, b string) int { return len(a) - len(b) })
+
+	siblings := map[string]int{}
+	for _, one := range list {
+		parent := filepath.Dir(one)
+		if strings.Count(parent, "/") >= 2 {
+			siblings[parent]++
+		}
+	}
+
+	seen := map[string]bool{}
+	var out []string
+	for _, one := range list {
+		if parent := filepath.Dir(one); siblings[parent] > 1 {
+			one = parent
+		}
+		if seen[one] || slices.ContainsFunc(out, func(kept string) bool { return strings.HasPrefix(one, kept+"/") }) {
+			continue
+		}
+		seen[one] = true
+		out = append(out, one)
+	}
+	return out
 }
