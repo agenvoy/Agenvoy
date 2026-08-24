@@ -48,6 +48,12 @@ function renderEvent(view, event) {
     return;
   }
 
+  if (type === "EventFileChanged") {
+    view.changedFiles = event.files || [];
+    renderFileBox(view.files, view.changedFiles);
+    return;
+  }
+
   if (type === "EventDone") {
     view.stop?.remove();
     view.think.open = false;

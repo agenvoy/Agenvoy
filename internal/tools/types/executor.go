@@ -3,6 +3,8 @@ package toolTypes
 import (
 	"context"
 	"encoding/json"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -34,4 +36,36 @@ type Executor struct {
 	SkillScanner    *runtime.SkillScanner
 	CancelExecution context.CancelFunc
 	PendingTask     string
+	filesMu         sync.Mutex
+	filesEdited     []string
+}
+
+func (e *Executor) RecordFile(path string) {
+	if e == nil || strings.TrimSpace(path) == "" {
+		return
+	}
+	e.filesMu.Lock()
+	defer e.filesMu.Unlock()
+	if slices.Contains(e.filesEdited, path) {
+		return
+	}
+	e.filesEdited = append(e.filesEdited, path)
+}
+
+func (e *Executor) SeedFiles(paths []string) {
+	if e == nil {
+		return
+	}
+	for _, one := range paths {
+		e.RecordFile(one)
+	}
+}
+
+func (e *Executor) EditedFiles() []string {
+	if e == nil {
+		return nil
+	}
+	e.filesMu.Lock()
+	defer e.filesMu.Unlock()
+	return slices.Clone(e.filesEdited)
 }

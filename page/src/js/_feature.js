@@ -49,11 +49,25 @@ function featureDom(kind) {
     list: $(`#${kind}-list`),
     title: $(`#${kind}-title`),
     content: $(`#${kind}-content`),
+    submit: document.querySelector(`#${kind}-form button.submit`),
   };
 }
 
 function featureError(text) {
   alert(text);
+}
+
+function markFeatureMode(dom, editing) {
+  if (dom.form) {
+    if (editing) {
+      dom.form.dataset.editing = "1";
+    } else {
+      delete dom.form.dataset.editing;
+    }
+  }
+  if (dom.submit) {
+    dom.submit.textContent = editing ? "save" : "add";
+  }
 }
 
 async function renderFeature(kind) {
@@ -90,7 +104,11 @@ async function renderFeature(kind) {
       remove,
     ]);
     card.dataset.name = item.name;
-    card.addEventListener("click", () => openFeature(kind, item.name));
+    card.dataset.selected = item.name === featureEditing[kind] ? "1" : "0";
+    card.addEventListener("click", () => {
+      markSelectedCard(dom.list, item.name);
+      openFeature(kind, item.name);
+    });
     dom.list.appendChild(card);
   }
 }
@@ -118,7 +136,7 @@ async function openFeature(kind, name) {
     dom.title.value = body.name || "";
     dom.content.value = body.content || "";
     featureEditing[kind] = body.name || "";
-    if (dom.form) dom.form.dataset.editing = "1";
+    markFeatureMode(dom, true);
   } catch (err) {
     console.error("openFeature", err);
     featureError(err.message || "failed");
@@ -130,8 +148,9 @@ function resetFeature(kind) {
   const dom = featureDom(kind);
   if (dom.title) dom.title.value = "";
   if (dom.content) dom.content.value = spec ? spec.template : "";
-  if (dom.form) delete dom.form.dataset.editing;
+  markFeatureMode(dom, false);
   featureEditing[kind] = "";
+  markSelectedCard(dom.list, "");
 }
 
 async function saveFeature(kind) {
@@ -170,7 +189,7 @@ async function saveFeature(kind) {
       return;
     }
     featureEditing[kind] = ((await response.json()) || {}).name || name;
-    if (dom.form) dom.form.dataset.editing = "1";
+    markFeatureMode(dom, true);
   } catch (err) {
     console.error("saveFeature", err);
     featureError(err.message || "failed");

@@ -33,23 +33,37 @@ type Bot struct {
 }
 
 func read(sessionID string) Bot {
+	bot, _ := readBot(sessionID)
+	return bot
+}
+
+func readBot(sessionID string) (Bot, bool) {
 	if sessionID == "" {
-		return Bot{}
+		return Bot{}, true
 	}
 
 	path := filesystem.BotPath(sessionID)
 	if !go_pkg_filesystem_reader.Exists(path) {
-		return migrate(sessionID)
+		return migrate(sessionID), true
 	}
 
 	bot, err := go_pkg_filesystem.ReadJSON[Bot](path)
-	if err != nil {
+	if err == nil {
+		return bot, true
+	}
+
+	broken := path + ".invalid"
+	if renameErr := os.Rename(path, broken); renameErr != nil {
 		slog.Warn("bot.json read",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
-		return Bot{}
+		return Bot{}, false
 	}
-	return bot
+	slog.Warn("bot.json unreadable, parked",
+		slog.String("session", sessionID),
+		slog.String("moved_to", broken),
+		slog.String("error", err.Error()))
+	return migrate(sessionID), true
 }
 
 func migrate(sessionID string) Bot {
@@ -121,7 +135,10 @@ func SetModel(sessionID, model, reasoning string) {
 	if sessionID == "" {
 		return
 	}
-	bot := read(sessionID)
+	bot, ok := readBot(sessionID)
+	if !ok {
+		return
+	}
 	if model != "" {
 		bot.Model = model
 	}
@@ -145,7 +162,10 @@ func ReplaceDefault(sessionID, name string) {
 	if sessionID == "" || name == "" {
 		return
 	}
-	bot := read(sessionID)
+	bot, ok := readBot(sessionID)
+	if !ok {
+		return
+	}
 	if bot.Name != "" && !strings.HasPrefix(bot.Name, "tg-") && !strings.HasPrefix(bot.Name, "dc-") {
 		return
 	}
@@ -166,7 +186,10 @@ func SetTitle(sessionID, title string) error {
 	if title == "" || !NeedTitle(sessionID) {
 		return nil
 	}
-	bot := read(sessionID)
+	bot, ok := readBot(sessionID)
+	if !ok {
+		return fmt.Errorf("bot record for %s is unreadable; refusing to overwrite it", sessionID)
+	}
 	bot.Name = title
 	return writeBotFile(sessionID, bot)
 }
@@ -182,7 +205,10 @@ func Save(sessionID, name, body string, force bool) error {
 		body = configs.DefaultSessionPrompt
 	}
 
-	current := read(sessionID)
+	current, ok := readBot(sessionID)
+	if !ok {
+		return fmt.Errorf("bot record for %s is unreadable; refusing to overwrite it", sessionID)
+	}
 	if !force && go_pkg_filesystem_reader.Exists(filesystem.BotPath(sessionID)) {
 		return nil
 	}

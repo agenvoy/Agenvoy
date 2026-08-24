@@ -76,6 +76,16 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp("error", body)
 
+	case agentTypes.EventFileChanged:
+		if len(event.Files) == 0 {
+			return ""
+		}
+		raw, err := json.Marshal(event.Files)
+		if err != nil {
+			return ""
+		}
+		return withTimestamp("edited_files", string(raw))
+
 	case agentTypes.EventDone:
 		parts := []string{event.Model}
 		if event.Duration > 0 {

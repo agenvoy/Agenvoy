@@ -6,6 +6,7 @@ function keychainDom() {
     list: $("#keychain-list"),
     name: $("#keychain-name"),
     value: $("#keychain-value"),
+    submit: document.querySelector("#keychain-form button.submit"),
   };
 }
 
@@ -46,7 +47,11 @@ async function renderKeychain() {
 
     const card = _("div.card", [_("strong", key), _("p", "stored"), remove]);
     card.dataset.name = key;
-    card.addEventListener("click", () => openKeychain(key));
+    card.dataset.selected = key === keychainEditing ? "1" : "0";
+    card.addEventListener("click", () => {
+      markSelectedCard(dom.list, key);
+      openKeychain(key);
+    });
     dom.list.appendChild(card);
   }
 }
@@ -62,6 +67,9 @@ function openKeychain(key) {
   dom.value.value = "";
   dom.value.placeholder = "New value · replaces the stored one";
   dom.form.dataset.editing = "1";
+  if (dom.submit) {
+    dom.submit.textContent = "save";
+  }
   keychainEditing = key;
 }
 
@@ -76,7 +84,11 @@ function resetKeychain() {
   dom.value.value = "";
   dom.value.placeholder = "Value · stored in the OS keychain, never shown again";
   delete dom.form.dataset.editing;
+  if (dom.submit) {
+    dom.submit.textContent = "add";
+  }
   keychainEditing = "";
+  markSelectedCard(dom.list, "");
 }
 
 async function saveKeychain() {

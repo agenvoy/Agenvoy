@@ -77,6 +77,8 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
 
+	e.RecordFile(absPath)
+
 	var unrecorded string
 	if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
 		slog.Warn("historyStore.Record",

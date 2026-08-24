@@ -44,6 +44,10 @@ func Close() {
 	}
 }
 
+func Ready() bool {
+	return instance != nil
+}
+
 func DB(idx int) *toriidb.Session {
 	session := instance.Session()
 	if err := session.Select(idx); err != nil {
