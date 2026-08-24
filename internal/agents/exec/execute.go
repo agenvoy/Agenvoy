@@ -186,12 +186,19 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
 
+	emitChangedFiles := func() {
+		if files := exec.EditedFiles(); len(files) > 0 {
+			events <- agentTypes.Event{Type: agentTypes.EventFileChanged, Files: files}
+		}
+	}
+
 	exec.CancelExecution = execCancel
 
 	keepPending := true
 	if !session.Stateless && session.ID != "" {
 		if data.PendingTask != "" {
 			exec.PendingTask = data.PendingTask
+			exec.SeedFiles(interactive.LoadPendingFiles(session.ID, data.PendingTask))
 		} else {
 			objective := data.Content
 			if objective == "" {
@@ -390,6 +397,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						slog.String("name", deadName))
 					msg := fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName)
 					sendText(events, msg)
+					emitChangedFiles()
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    deadName,
@@ -458,6 +466,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						slog.Int("attempts", sendFailCount))
 					msg := fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName)
 					sendText(events, msg)
+					emitChangedFiles()
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    modelName,
@@ -532,6 +541,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()))
 			sendText(events, userMsg)
+			emitChangedFiles()
 			events <- agentTypes.Event{
 				Type:     agentTypes.EventDone,
 				Model:    modelName,
@@ -603,6 +613,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				if len(handoff) > 0 {
 					events <- agentTypes.Event{Type: agentTypes.EventClientToolCall, ClientToolCalls: handoff}
+					emitChangedFiles()
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventDone,
 						Model:    data.Agent.Name(),
@@ -647,6 +658,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			if isGuardrailRefusal(stripped) {
 				sendText(events, configs.PoisonRefusal)
+				emitChangedFiles()
 				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
@@ -691,6 +703,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			return fmt.Errorf("unexpected content type: %T", choice.Message.Content)
 		}
 
+		emitChangedFiles()
 		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 
 		keepPending = false
@@ -720,12 +733,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
 				sendText(events, configs.PoisonRefusal)
+				emitChangedFiles()
 				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
 			sendText(events, summaryStripped)
+			emitChangedFiles()
 			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false

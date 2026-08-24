@@ -45,6 +45,7 @@ var eventTypeByName = map[string]EventType{
 	"EventSuggest":         EventSuggest,
 	"EventPending":         EventPending,
 	"EventClientToolCall":  EventClientToolCall,
+	"EventFileChanged":     EventFileChanged,
 }
 
 func (e *EventType) UnmarshalJSON(data []byte) error {
@@ -89,6 +90,7 @@ const (
 	EventSuggest
 	EventPending
 	EventClientToolCall
+	EventFileChanged
 )
 
 func (e EventType) String() string {
@@ -127,6 +129,8 @@ func (e EventType) String() string {
 		return "EventSummaryGenerate"
 	case EventDone:
 		return "EventDone"
+	case EventFileChanged:
+		return "EventFileChanged"
 	case EventUserInput:
 		return "EventUserInput"
 	case EventDaemonLog:
@@ -169,6 +173,7 @@ type Event struct {
 	Duration        time.Duration       `json:"duration,omitempty"`
 	Todos           []TodoItem          `json:"todos,omitempty"`
 	Suggests        []string            `json:"suggests,omitempty"`
+	Files           []string            `json:"files,omitempty"`
 	ClientToolCalls []provider.ToolCall `json:"client_tool_calls,omitempty"`
 	Err             error               `json:"-"`
 }
