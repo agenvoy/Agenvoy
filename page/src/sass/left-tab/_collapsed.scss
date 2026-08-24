@@ -27,6 +27,10 @@
     }
   }
 
+  > section.chats > details {
+    display: none;
+  }
+
   section {
     &[data-name]:not([data-name=""]) {
       &:after,
