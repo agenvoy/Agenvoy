@@ -167,7 +167,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 				content,
 				nil, nil,
 				wrapped,
-				true,
+				interactive.LoadPendingAllowAll(sid, taskHash),
 				workDir,
 				sid,
 				taskHash,

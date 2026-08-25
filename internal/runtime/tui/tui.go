@@ -44,6 +44,7 @@ type ResumeExec struct {
 	Content        string
 	PendingTask    string
 	HistoryContent string
+	AllowAll       bool
 }
 
 func Run(ctx context.Context) error {
@@ -62,6 +63,7 @@ func Run(ctx context.Context) error {
 	defer restoreSlog()
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
+		allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
 		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 		if err != nil {
 			slog.Debug("ask_user resume: pending already consumed",
@@ -69,7 +71,7 @@ func Run(ctx context.Context) error {
 				slog.String("task_hash", taskHash))
 			return
 		}
-		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history})
+		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history, AllowAll: allowAll})
 	})
 
 	go newPendingChannel(ctx)

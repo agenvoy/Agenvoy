@@ -22,6 +22,7 @@ import (
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
+	allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
 	full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 	if err != nil {
 		channelID, chErr := sessionDiscord.GetChannel(sessionID)
@@ -102,7 +103,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		if execErr := exec.Execute(execCtx, execData, sess, wrapped, false); execErr != nil {
+		if execErr := exec.Execute(execCtx, execData, sess, wrapped, allowAll); execErr != nil {
 			slog.Debug("ask_user resume: exec",
 				slog.String("session", sessionID),
 				slog.String("error", execErr.Error()))

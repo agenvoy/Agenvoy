@@ -70,6 +70,7 @@ type pendingMeta struct {
 	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
 	Files        []string              `json:"files,omitempty"`
 	Reply        string                `json:"reply,omitempty"`
+	AllowAll     bool                  `json:"allow_all,omitempty"`
 }
 
 var pendingMu sync.Mutex
@@ -263,16 +264,27 @@ func CleanupPending(sessionID, taskHash string) {
 	}
 }
 
-func CreateExecPending(sessionID, objective, messageID string) string {
+func CreateExecPending(sessionID, objective, messageID string, allowAll bool) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
 	model, reasoning := configBot.GetModel(sessionID)
-	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning}); err != nil {
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning, AllowAll: allowAll}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
 	return taskHash
+}
+
+func LoadPendingAllowAll(sessionID, taskHash string) bool {
+	if taskHash == "" {
+		return false
+	}
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return false
+	}
+	return meta.AllowAll
 }
 
 func LoadPendingMessageID(sessionID, taskHash string) string {
@@ -546,8 +558,10 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 	var allResults []ToolResult
 	var messageID, model, reasoning string
 	var todos []agentTypes.TodoItem
+	var allowAll bool
 	allFiles := files
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+		allowAll = existing.AllowAll
 		messageID = existing.MessageID
 		model = existing.Model
 		reasoning = existing.Reasoning
@@ -580,6 +594,7 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		Files:       allFiles,
 		ToolResults: allResults,
 		Todos:       todos,
+		AllowAll:    allowAll,
 	}); err != nil {
 		slog.Warn("SaveAndEnqueueAskUser: writePending", slog.String("error", err.Error()))
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
-	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -61,10 +60,9 @@ type ExecuteMeta struct {
 }
 
 type (
-	allowAllCtxKey    struct{}
-	allowListRulesKey struct{}
-	parentEventsKey   struct{}
-	parentWorkDirKey  struct{}
+	allowAllCtxKey   struct{}
+	parentEventsKey  struct{}
+	parentWorkDirKey struct{}
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
@@ -78,10 +76,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	execCtx = context.WithValue(execCtx, allowAllCtxKey{}, allowAll)
-
-	if !allowAll {
-		execCtx = context.WithValue(execCtx, allowListRulesKey{}, allowTool.List(data.WorkDir))
-	}
 
 	if events != nil {
 		execCtx = context.WithValue(execCtx, parentEventsKey{}, events)
@@ -209,7 +203,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, allowAll)
 		}
 		defer func() {
 			if !keepPending {
