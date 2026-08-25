@@ -29,7 +29,7 @@ func Clean() {
 		if strings.HasPrefix(entry.Name(), "temp-") {
 			if now.Sub(latestModTime(sessionDir)) > 30*time.Minute {
 				if err := os.RemoveAll(sessionDir); err != nil {
-					slog.Warn("os RemoveAll",
+					slog.Debug("os RemoveAll",
 						slog.String("dir", entry.Name()),
 						slog.String("error", err.Error()))
 				}
@@ -69,7 +69,7 @@ func latestModTime(dir string) time.Time {
 		}
 		info, err := d.Info()
 		if err != nil {
-			slog.Warn("DirEntry Info",
+			slog.Debug("DirEntry Info",
 				slog.String("entry", d.Name()),
 				slog.String("error", err.Error()))
 			return nil

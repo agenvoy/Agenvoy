@@ -176,7 +176,7 @@ func (t TUI) runMcpOAuthDone(msg McpOAuthDone) (TUI, tea.Cmd) {
 		next, cmd := t.reconnectMcpServer(msg.name)
 		return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · oauth authorized", msg.name))), cmd)
 	case errors.Is(msg.err, context.Canceled):
-		return t, tea.Println(hintStyle.Render("⎯ oauth cancelled") + "\n")
+		return t, nil
 	case errors.Is(msg.err, context.DeadlineExceeded):
 		return t, tea.Println(warnStyle.Render("⎯ oauth timed out") + "\n")
 	}

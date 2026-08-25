@@ -52,14 +52,14 @@ func CleanStoreTemp() {
 		return nil
 	})
 	if err != nil {
-		slog.Warn("filepath.WalkDir",
+		slog.Debug("filepath.WalkDir",
 			slog.String("dir", root),
 			slog.String("error", err.Error()))
 	}
 
 	for _, path := range expired {
 		if err := os.RemoveAll(path); err != nil {
-			slog.Warn("os.RemoveAll",
+			slog.Debug("os.RemoveAll",
 				slog.String("path", path),
 				slog.String("error", err.Error()))
 		}
@@ -84,7 +84,7 @@ func pruneEmptyTempDirs(root string) {
 			continue
 		}
 		if err := os.Remove(dir); err != nil {
-			slog.Warn("os.Remove",
+			slog.Debug("os.Remove",
 				slog.String("path", dir),
 				slog.String("error", err.Error()))
 		}

@@ -79,7 +79,7 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 			return strings.TrimSpace(stdout.String()), nil
 
 		case <-ticker.C:
-			slog.Warn("running",
+			slog.Debug("running",
 				slog.String("name", key),
 				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), timeoutSec)))
 		}

@@ -113,7 +113,7 @@ func newActionTailer(ctx context.Context, sid string) {
 			if !ok {
 				return
 			}
-			slog.Warn("tail watcher error",
+			slog.Debug("tail watcher error",
 				slog.String("session", sid),
 				slog.String("error", err.Error()))
 		case <-pollTicker.C:
@@ -159,7 +159,7 @@ func drainNew(path string, lastSize int64) int64 {
 		})
 	}
 	if err := scanner.Err(); err != nil {
-		slog.Warn("scanner error in drainNew",
+		slog.Debug("scanner error in drainNew",
 			slog.String("error", err.Error()))
 	}
 	return current

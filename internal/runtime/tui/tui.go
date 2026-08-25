@@ -44,10 +44,11 @@ type ResumeExec struct {
 	Content        string
 	PendingTask    string
 	HistoryContent string
+	AllowAll       bool
 }
 
-func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
-	prog := tea.NewProgram(newModel(ctx, userInput, onceCall, allowAll), tea.WithContext(ctx), tea.WithoutSignalHandler())
+func Run(ctx context.Context) error {
+	prog := tea.NewProgram(newModel(ctx), tea.WithContext(ctx), tea.WithoutSignalHandler())
 	program.Store(prog)
 	defer program.Store(nil)
 
@@ -58,20 +59,19 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 		tools.WorkDirChangeHook = nil
 	}()
 
-	if !onceCall {
-		restoreSlog := installSlogTUI(ctx)
-		defer restoreSlog()
-	}
+	restoreSlog := installSlogTUI(ctx)
+	defer restoreSlog()
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
+		allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
 		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 		if err != nil {
-			slog.Warn("ask_user resume: pending already consumed",
+			slog.Debug("ask_user resume: pending already consumed",
 				slog.String("session", sessionID),
 				slog.String("task_hash", taskHash))
 			return
 		}
-		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history})
+		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history, AllowAll: allowAll})
 	})
 
 	go newPendingChannel(ctx)

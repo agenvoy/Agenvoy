@@ -22,7 +22,7 @@ func (t TUI) commandLog() (TUI, tea.Cmd, bool) {
 
 	pager := strings.TrimSpace(os.Getenv("PAGER"))
 	if pager == "" {
-		pager = "less -Rf +G"
+		pager = "less -Rf +F"
 	}
 	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s %q", pager, path))
 	cmd.Env = os.Environ()

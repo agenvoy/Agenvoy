@@ -342,6 +342,19 @@ async function renderModel() {
   renderProviderCatalog(catalog, prefixes);
 }
 
+async function imageGenerator() {
+  try {
+    const response = await fetch(`${API}/v1/model/image`);
+    if (response.ok) {
+      const body = (await response.json()) || {};
+      return { model: body.model || "", options: body.options || [] };
+    }
+  } catch (err) {
+    console.error("imageGenerator", err);
+  }
+  return { model: "", options: [] };
+}
+
 async function routingModel(kind) {
   try {
     const response = await fetch(`${API}/v1/model/${kind}`);
@@ -384,13 +397,29 @@ function routingRow(label, kind, current, options) {
   return _("div.routing", [_("strong", label), select]);
 }
 
+function imageRow(current, added) {
+  const select = _("select");
+  select.appendChild(_("option", { value: "" }, "off"));
+  for (const id of added) {
+    select.appendChild(_("option", { value: id }, id));
+  }
+  select.value = added.includes(current) ? current : "";
+  select.addEventListener("change", () => saveRoutingModel("image", select.value));
+
+  return _("div.routing", [_("strong", "Image"), select]);
+}
+
 async function renderModelRouting(registered) {
   const dom = modelDom();
   if (!dom.routing) {
     return;
   }
 
-  const [dispatcher, summary] = await Promise.all([routingModel("dispatcher"), routingModel("summary")]);
+  const [dispatcher, summary, image] = await Promise.all([
+    routingModel("dispatcher"),
+    routingModel("summary"),
+    imageGenerator(),
+  ]);
   if (modelView !== "routing") {
     return;
   }
@@ -405,6 +434,7 @@ async function renderModelRouting(registered) {
 
   dom.routing.appendChild(routingRow("Dispatcher", "dispatcher", dispatcher, registered));
   dom.routing.appendChild(routingRow("Summary", "summary", summary, registered));
+  dom.routing.appendChild(imageRow(image.model, image.options));
 }
 
 function selectProvider(prefix) {

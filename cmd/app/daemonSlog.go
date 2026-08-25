@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 )
 
@@ -25,6 +26,10 @@ func (h *daemonSlogHandler) Enabled(ctx context.Context, l slog.Level) bool {
 }
 
 func (h *daemonSlogHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level < slog.LevelInfo {
+		return h.base.Handle(ctx, r)
+	}
+
 	var sb strings.Builder
 	sb.WriteString(r.Message)
 	r.Attrs(func(a slog.Attr) bool {
@@ -68,6 +73,33 @@ func installDaemonSlog() {
 		}()
 	})
 
-	base := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
+	writer := &daemonLogWriter{}
+	if stat, err := os.Stderr.Stat(); err == nil {
+		writer.size = stat.Size()
+	}
+
+	base := slog.NewTextHandler(writer, &slog.HandlerOptions{Level: slog.LevelDebug})
 	slog.SetDefault(slog.New(&daemonSlogHandler{base: base}))
+}
+
+type daemonLogWriter struct {
+	mu   sync.Mutex
+	size int64
+}
+
+func (w *daemonLogWriter) Write(raw []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	n, err := os.Stderr.Write(raw)
+	w.size += int64(n)
+	if w.size <= record.MaxLogSize {
+		return n, err
+	}
+	if record.TrimLog() == nil {
+		if stat, statErr := os.Stderr.Stat(); statErr == nil {
+			w.size = stat.Size()
+		}
+	}
+	return n, err
 }

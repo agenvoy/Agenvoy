@@ -34,7 +34,7 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 
 	chatIDStr, err := sessionTelegram.GetChat(id)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/agenvoy/internal/session GetChatID",
+		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChatID",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return

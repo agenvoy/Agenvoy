@@ -48,7 +48,7 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 
 	model := strings.TrimSpace(params.Model)
 	if model != "" && !slices.Contains(models, model) {
-		slog.Warn("invalid model, fallback to auto-select",
+		slog.Debug("invalid model, fallback to auto-select",
 			slog.String("session", sessionID))
 		model = ""
 	}

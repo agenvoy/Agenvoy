@@ -75,7 +75,7 @@ func (s *Subscriber) send(event agentTypes.Event) {
 
 func (s *Subscriber) countDrop(event agentTypes.Event) {
 	n := s.dropped.Add(1)
-	slog.Warn("pubsub subscriber overflow, event dropped",
+	slog.Debug("pubsub subscriber overflow, event dropped",
 		slog.String("session", s.sessionID),
 		slog.String("event", event.Type.String()),
 		slog.Int("buffer", cap(s.channel)),

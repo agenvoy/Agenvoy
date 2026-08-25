@@ -70,6 +70,7 @@ type pendingMeta struct {
 	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
 	Files        []string              `json:"files,omitempty"`
 	Reply        string                `json:"reply,omitempty"`
+	AllowAll     bool                  `json:"allow_all,omitempty"`
 }
 
 var pendingMu sync.Mutex
@@ -218,7 +219,7 @@ func FinalizePending(sessionID, taskHash, reply string) {
 	}
 	meta.Reply = reply
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-		slog.Warn("FinalizePending",
+		slog.Debug("FinalizePending",
 			slog.String("session", sessionID),
 			slog.String("error", writeErr.Error()))
 	}
@@ -244,7 +245,7 @@ func CleanupPending(sessionID, taskHash string) {
 
 	histDir := filesystem.TaskHistoryDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(histDir, true); err != nil {
-		slog.Warn("CleanupPending CheckDir",
+		slog.Debug("CleanupPending CheckDir",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		os.Remove(src)
@@ -254,7 +255,7 @@ func CleanupPending(sessionID, taskHash string) {
 	ts := time.Now().Format("2006-01-02-15-04")
 	dst := filepath.Join(histDir, fmt.Sprintf("%s-%s.json", ts, taskHash))
 	if err := os.Rename(src, dst); err != nil {
-		slog.Warn("CleanupPending rename",
+		slog.Debug("CleanupPending rename",
 			slog.String("src", src),
 			slog.String("dst", dst),
 			slog.String("error", err.Error()))
@@ -263,16 +264,27 @@ func CleanupPending(sessionID, taskHash string) {
 	}
 }
 
-func CreateExecPending(sessionID, objective, messageID string) string {
+func CreateExecPending(sessionID, objective, messageID string, allowAll bool) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
 	model, reasoning := configBot.GetModel(sessionID)
-	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning}); err != nil {
+	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning, AllowAll: allowAll}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
 	return taskHash
+}
+
+func LoadPendingAllowAll(sessionID, taskHash string) bool {
+	if taskHash == "" {
+		return false
+	}
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return false
+	}
+	return meta.AllowAll
 }
 
 func LoadPendingMessageID(sessionID, taskHash string) string {
@@ -299,7 +311,7 @@ func RecordToolAttempt(sessionID, taskHash string, attempt ToolAttempt) {
 	}
 	meta.ToolAttempts = []ToolAttempt{attempt}
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-		slog.Warn("RecordToolAttempt", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+		slog.Debug("RecordToolAttempt", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
 	}
 }
 
@@ -322,7 +334,7 @@ func AppendToolResult(sessionID, taskHash string, result ToolResult) {
 	meta.ToolResults = append(meta.ToolResults, result)
 	meta.ToolAttempts = nil
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-		slog.Warn("AppendToolResult", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+		slog.Debug("AppendToolResult", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
 	}
 }
 
@@ -525,7 +537,7 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		}
 		meta.Questions = nil
 		if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-			slog.Warn("LoadResumeMessage: move answered questions",
+			slog.Debug("LoadResumeMessage: move answered questions",
 				slog.String("session", sessionID),
 				slog.String("task_hash", taskHash),
 				slog.String("error", writeErr.Error()))
@@ -546,8 +558,10 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 	var allResults []ToolResult
 	var messageID, model, reasoning string
 	var todos []agentTypes.TodoItem
+	var allowAll bool
 	allFiles := files
 	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+		allowAll = existing.AllowAll
 		messageID = existing.MessageID
 		model = existing.Model
 		reasoning = existing.Reasoning
@@ -580,6 +594,7 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 		Files:       allFiles,
 		ToolResults: allResults,
 		Todos:       todos,
+		AllowAll:    allowAll,
 	}); err != nil {
 		slog.Warn("SaveAndEnqueueAskUser: writePending", slog.String("error", err.Error()))
 	}

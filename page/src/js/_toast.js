@@ -1,5 +1,4 @@
 const TOAST_MAX = 32;
-const TOAST_IGNORE = [/^pending resume via web\b/];
 const TOAST_LEVEL = { WARN: "warn", ERROR: "error" };
 
 let toastStream = null;
@@ -31,9 +30,6 @@ function pushToast(level, text, time) {
 
 function daemonLogToast(level, text, time) {
   if (!text || level === "DEBUG") {
-    return;
-  }
-  if (TOAST_IGNORE.some((pattern) => pattern.test(text))) {
     return;
   }
   pushToast(level || "INFO", text, time || nowClock());

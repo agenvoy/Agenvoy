@@ -155,7 +155,7 @@ func (l *Listener[CID, MID]) emit(ctx context.Context) {
 func (l *Listener[CID, MID]) sendPrompt(ctx context.Context, id string, req Request) {
 	chatID, err := l.transport.LookupChatID(req.SessionID)
 	if err != nil {
-		slog.Warn("connector.LookupChatID",
+		slog.Debug("connector.LookupChatID",
 			slog.String("prefix", l.prefix),
 			slog.String("session", req.SessionID),
 			slog.String("error", err.Error()))
@@ -261,7 +261,7 @@ func (l *Listener[CID, MID]) OnCallback(ctx context.Context, chatID CID, msgID M
 	state := l.cur[chatID]
 	if state == nil {
 		l.mu.Unlock()
-		slog.Warn("connector.OnCallback miss (no state)",
+		slog.Debug("connector.OnCallback miss (no state)",
 			slog.String("prefix", l.prefix),
 			slog.Any("chat", chatID),
 			slog.Any("msg", msgID))
@@ -270,7 +270,7 @@ func (l *Listener[CID, MID]) OnCallback(ctx context.Context, chatID CID, msgID M
 	if state.message != msgID {
 		expected := state.message
 		l.mu.Unlock()
-		slog.Warn("connector.OnCallback miss (msg mismatch)",
+		slog.Debug("connector.OnCallback miss (msg mismatch)",
 			slog.String("prefix", l.prefix),
 			slog.Any("chat", chatID),
 			slog.Any("got_msg", msgID),
@@ -324,7 +324,7 @@ func (l *Listener[CID, MID]) OnText(ctx context.Context, chatID CID, msgID MID, 
 	l.mu.Unlock()
 
 	if err := l.delete(ctx, chatID, msgID); err != nil {
-		slog.Warn("connector.Delete user reply",
+		slog.Debug("connector.Delete user reply",
 			slog.String("prefix", l.prefix),
 			slog.String("chat", state.chatName),
 			slog.Bool("secret", secret),
@@ -341,7 +341,7 @@ func (l *Listener[CID, MID]) deletePrompt(ctx context.Context, state *active[CID
 		return
 	}
 	if err := l.delete(ctx, state.chatID, state.message); err != nil {
-		slog.Warn("connector.Delete prompt",
+		slog.Debug("connector.Delete prompt",
 			slog.String("prefix", l.prefix),
 			slog.String("chat", state.chatName),
 			slog.String("error", err.Error()))

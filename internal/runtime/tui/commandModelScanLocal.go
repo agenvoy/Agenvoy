@@ -218,7 +218,7 @@ func (t TUI) runModelScanLocalResult(msg ModelScanLocalResult) (TUI, tea.Cmd) {
 
 func (t TUI) runModelScanLocalPick(chosen string) (TUI, tea.Cmd) {
 	if chosen == "" {
-		return t, tea.Println(hintStyle.Render("⎯ no models selected") + "\n")
+		return t, nil
 	}
 
 	cfg, err := config.Load()

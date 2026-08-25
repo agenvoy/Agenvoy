@@ -46,9 +46,6 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if id == t.currentSessionID {
-		if t.onceCall {
-			return t, nil
-		}
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ already on: %s", utils.ShortenSessionID(id))) + "\n")
 	}
 	previous := t.currentSessionID
@@ -56,9 +53,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	t.currentSessionName, _ = configBot.Get(id)
 	t.inputHistory = loadInputHistory(id)
 	t.inputHistoryIdx = -1
-	if !t.onceCall {
-		t = t.restartTailer()
-	}
+	t = t.restartTailer()
 
 	t.tokens = 0
 	t.lastIn = 0
@@ -67,10 +62,6 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	t.lastCacheCreate = 0
 	t.currentModel = ""
 	t.activity = ""
-
-	if t.onceCall {
-		return t, nil
-	}
 
 	switchLines := []string{hintStyle.Render(fmt.Sprintf("⎯ switched to: %s", utils.ShortenSessionID(id)))}
 	if previous != "" && previous != id {

@@ -56,7 +56,7 @@ func stripModelArtifacts(str string) string {
 			head = head[:120]
 		}
 		str = strings.TrimRight(str[:loc[0]], " \t\n\r#")
-		slog.Warn("StripModelResponse summary leak stripped",
+		slog.Debug("StripModelResponse summary leak stripped",
 			slog.Int("dropped_chars", len(dropped)),
 			slog.String("dropped_head", head))
 	}

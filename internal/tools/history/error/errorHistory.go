@@ -150,7 +150,7 @@ A past run's own steps → chat_history; the full recovery loop → reasoning_gu
 				saveCtx := context.WithoutCancel(ctx)
 				go func() {
 					if _, err := memory.Save(saveCtx, e.SessionID, record); err != nil {
-						slog.Warn("error_history: memory.Save",
+						slog.Debug("error_history: memory.Save",
 							slog.String("tool", record.ToolName),
 							slog.String("error", err.Error()))
 					}

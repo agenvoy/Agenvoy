@@ -38,7 +38,7 @@ func TrashSchedule(ctx context.Context, name string, meta historyStore.Meta) err
 
 	meta.Tool = "schedules"
 	if err := historyStore.RecordDelete(ctx, dir, trashPath, meta); err != nil {
-		slog.Warn("historyStore.RecordDelete",
+		slog.Debug("historyStore.RecordDelete",
 			slog.String("path", dir),
 			slog.String("error", err.Error()))
 	}

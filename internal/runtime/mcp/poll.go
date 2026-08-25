@@ -68,7 +68,7 @@ func (m *MCP) poll(ctx context.Context) {
 				return
 			}
 
-			slog.Warn("mcp poll session lost, reconnecting",
+			slog.Debug("mcp poll session lost, reconnecting",
 				slog.String("server", name),
 				slog.String("error", err.Error()))
 

@@ -164,7 +164,7 @@ Merge it into the previous summary per the rules above and return exactly one <s
 		}
 	}
 
-	slog.Warn("generateSmmary: unparseable",
+	slog.Debug("generateSmmary: unparseable",
 		slog.String("session", agentTypes.SessionIDFrom(ctx)),
 		slog.String("preview", go_pkg_utils.TruncateString(result, 256)))
 	return nil

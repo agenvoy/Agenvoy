@@ -31,7 +31,7 @@ func New(chatID int64) (string, error) {
 
 	botName := configBot.FormatName(utils.LookupChatName(filesystem.TelegramAuthPath, strconv.FormatInt(chatID, 10)))
 	if err := configBot.Save(sessionID, botName, "", false); err != nil {
-		slog.Warn("configBot Save",
+		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

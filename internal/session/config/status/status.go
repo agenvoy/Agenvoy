@@ -2,10 +2,11 @@ package configStatus
 
 import (
 	"log/slog"
-	"time"
+
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 func Get(sessionID string) Status {
@@ -17,7 +18,7 @@ func Get(sessionID string) Status {
 	return get(sessionID)
 }
 
-func Clear() {
+func Reset() {
 	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
 	if err != nil {
 		slog.Warn("github.com/pardnchiu/go-pkg/filesystem/reader ListDirs",
@@ -26,23 +27,25 @@ func Clear() {
 		return
 	}
 	for _, dir := range dirs {
-		clear(dir.Name)
+		reset(dir.Name)
 	}
 }
 
-func clear(sessionID string) {
+func reset(sessionID string) {
 	if sessionID == "" {
 		return
 	}
 	mu.Lock()
 	defer mu.Unlock()
 
-	status := get(sessionID)
-	if len(status.Active) == 0 && status.State != StatusOnline {
+	status, err := go_pkg_filesystem.ReadJSON[Status](filesystem.StatusPath(sessionID))
+	if err != nil {
 		return
 	}
-	status.Active = nil
+	if status.State == StatusIdle && status.Count == 0 {
+		return
+	}
+	status.Count = 0
 	status.State = StatusIdle
-	status.EndedAt = time.Now().Format("2006-01-02 15:04:05.000")
 	write(sessionID, status)
 }

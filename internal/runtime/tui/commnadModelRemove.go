@@ -54,7 +54,7 @@ func (t TUI) commandModelRemove() (TUI, tea.Cmd, bool) {
 
 func (t TUI) runModelRemove(chosen string) (TUI, tea.Cmd) {
 	if chosen == "" {
-		return t, tea.Println(hintStyle.Render("⎯ no models selected") + "\n")
+		return t, nil
 	}
 
 	toRemove := make(map[string]bool)
@@ -64,7 +64,7 @@ func (t TUI) runModelRemove(chosen string) (TUI, tea.Cmd) {
 		}
 	}
 	if len(toRemove) == 0 {
-		return t, tea.Println(hintStyle.Render("⎯ no models selected") + "\n")
+		return t, nil
 	}
 
 	cfg, err := config.Load()

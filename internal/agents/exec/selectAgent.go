@@ -141,7 +141,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				next := cooldown.Check(nil, registry)
 				hasNext := next != nil && !dead[next.Name()]
 				if ctx.Err() == nil && !rateLimited {
-					slog.Warn("dispatcher routing failed",
+					slog.Debug("dispatcher routing failed",
 						slog.String("name", bot.Name()),
 						slog.String("error", sendErr.Error()))
 				}
@@ -149,7 +149,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 					break
 				}
 				if ctx.Err() == nil && !rateLimited {
-					slog.Warn("dispatcher retrying with fallback",
+					slog.Debug("dispatcher retrying with fallback",
 						slog.String("name", next.Name()))
 				}
 				bot = next
@@ -261,7 +261,7 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 			return cand, cand.Name()
 		}
 		if ctx.Err() == nil {
-			slog.Warn("fallback health check failed",
+			slog.Debug("fallback health check failed",
 				slog.String("name", cand.Name()),
 				slog.Duration("timeout", HealthCheckTimeout))
 		}
@@ -286,6 +286,5 @@ func ResolveAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes
 	if len(candidates) == 0 {
 		return nil, nil, fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
 	}
-	// * skip probe; return primary immediately and let real Send drive retry/failover onto the rest
 	return candidates[0], candidates[1:], nil
 }

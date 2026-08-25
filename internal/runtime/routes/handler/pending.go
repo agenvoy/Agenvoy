@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -148,11 +147,6 @@ func ResumeSessionPending() gin.HandlerFunc {
 			historyContent = history
 		}
 
-		slog.Info("pending resume via web",
-			slog.String("session", sid),
-			slog.String("task_hash", taskHash),
-			slog.Int("answers", len(body.Answers)))
-
 		events := make(chan agentTypes.Event, 64)
 		ctx := context.WithoutCancel(c.Request.Context())
 		wrapped := pubsub.Wrap(ctx, sid, events, 64)
@@ -173,7 +167,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 				content,
 				nil, nil,
 				wrapped,
-				true,
+				interactive.LoadPendingAllowAll(sid, taskHash),
 				workDir,
 				sid,
 				taskHash,

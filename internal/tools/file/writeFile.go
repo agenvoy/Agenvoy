@@ -47,7 +47,7 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 
 	change, err := historyStore.Capture(absPath)
 	if err != nil {
-		slog.Warn("historyStore.Capture",
+		slog.Debug("historyStore.Capture",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 	}
@@ -60,7 +60,7 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	e.RecordFile(absPath)
 
 	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
-		slog.Warn("historyStore.Record",
+		slog.Debug("historyStore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)

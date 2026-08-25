@@ -44,7 +44,7 @@ func Store(sessionID, callID, toolName, args, result string) {
 	}
 	db := torii.DB(torii.DBToolCache)
 	if err := db.Set(keyPrefix(sessionID)+callID, string(raw), torii.SetDefault, torii.TTL(ttlSeconds)); err != nil {
-		slog.Warn("toolcache Store",
+		slog.Debug("toolcache Store",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -45,6 +46,7 @@ func DeleteKey() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		imageTool.Prune(c.Request.Context())
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }

@@ -49,7 +49,13 @@ function subscribe(sessionId) {
 let announceTimer = 0;
 let announced = false;
 
+let currentTaskId = "";
+
 function parseEvent(event) {
+  if (event.task_id) {
+    currentTaskId = event.task_id;
+  }
+
   if (event.type === "EventTextDone") {
     clearTimeout(announceTimer);
     announceTimer = setTimeout(function () {
@@ -98,6 +104,7 @@ function parseEvent(event) {
   renderEvent(streamDom, event);
 
   if (event.type === "EventCanceled") {
+    currentTaskId = "";
     streamDom = null;
     clearTodo();
     loadPending(subscribedSession);
@@ -108,6 +115,7 @@ function parseEvent(event) {
   }
 
   if (event.type === "EventDone") {
+    currentTaskId = "";
     streamDom = null;
     clearTodo();
     loadPending(subscribedSession);

@@ -27,6 +27,7 @@ type Config struct {
 	LineEnabled      bool          `json:"line_enabled"`
 	LineUsername     string        `json:"line_username"`
 	EnableVoice      bool          `json:"enable_voice"`
+	ImageGenerator   string        `json:"image_generator"`
 	AdminChannel     string        `json:"admin_channel"`
 }
 

@@ -91,25 +91,11 @@ type TUI struct {
 
 	quitting bool
 
-	onceCall     bool
-	userInput    string
-	allowAll     bool
-	awaitingExit bool
+	allowAll bool
 }
 
 func (t TUI) Init() tea.Cmd {
-	var seq []tea.Cmd
-	if t.onceCall {
-		if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-			if input := strings.TrimSpace(t.userInput); input != "" {
-				seq = append(seq, func() tea.Msg { return autoSubmit{input: input} })
-			}
-		} else {
-			seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
-		}
-		return tea.Sequence(seq...)
-	}
-	seq = []tea.Cmd{
+	seq := []tea.Cmd{
 		tea.ClearScreen,
 		tea.Batch(
 			textarea.Blink,
@@ -132,25 +118,13 @@ type CancelRunConfirm struct {
 	yes bool
 }
 
-type autoSubmit struct {
-	input string
-}
-
-func chainSingleShotSubmit(prior tea.Cmd, input string) tea.Cmd {
-	submit := func() tea.Msg { return autoSubmit{input: strings.TrimSpace(input)} }
-	if prior == nil {
-		return submit
-	}
-	return tea.Sequence(prior, submit)
-}
-
 type StartupSelectSession struct{}
 
 type StartupSessionSelect struct {
 	id string
 }
 
-func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TUI {
+func newModel(ctx context.Context) TUI {
 	textArea := textarea.New()
 	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage · shift+m models · shift+f fast`
 	textArea.CharLimit = 8000
@@ -205,9 +179,6 @@ func newModel(ctx context.Context, userInput string, onceCall, allowAll bool) TU
 		currentSessionName: currentName,
 		inputHistory:       loadInputHistory(currentSID),
 		inputHistoryIdx:    -1,
-		onceCall:           onceCall,
-		userInput:          userInput,
-		allowAll:           allowAll,
 	}
 }
 

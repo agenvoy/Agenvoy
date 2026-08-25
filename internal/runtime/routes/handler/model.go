@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
 func modelNames() []string {
@@ -256,6 +257,59 @@ func SetDispatcherModel() gin.HandlerFunc {
 		}
 		agents.Reload()
 		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
+	}
+}
+
+func GetImageModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		imageTool.Prune(c.Request.Context())
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"model":   cfg.ImageGenerator,
+			"options": imageTool.Available(c.Request.Context()),
+		})
+	}
+}
+
+func SetImageModel() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Model string `json:"model"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		name := strings.TrimSpace(body.Model)
+		if name == "off" {
+			name = ""
+		}
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if name != "" && !slices.Contains(imageTool.Available(c.Request.Context()), name) {
+			if !slices.Contains(imageTool.Providers, name) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown image provider: " + name})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": name + " has no credentials stored"})
+			return
+		}
+
+		cfg.ImageGenerator = name
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "model": name})
 	}
 }
 

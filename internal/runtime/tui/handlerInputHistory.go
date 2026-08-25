@@ -64,7 +64,7 @@ func (t TUI) recordInputHistory(content string) TUI {
 		sb.WriteString("\n")
 	}
 	if err := go_pkg_filesystem.WriteFile(filesystem.InputHistoryPath(t.currentSessionID), sb.String(), 0644); err != nil {
-		slog.Warn("go_pkg_filesystem.WriteFile",
+		slog.Debug("go_pkg_filesystem.WriteFile",
 			slog.String("session", t.currentSessionID),
 			slog.String("error", err.Error()))
 	}

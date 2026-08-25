@@ -200,7 +200,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			}
 		case agentTypes.EventError:
 			if ev.Err != nil {
-				slog.Warn("subagent event error",
+				slog.Debug("subagent event error",
 					slog.String("session", sessionID),
 					slog.String("error", ev.Err.Error()))
 			}
@@ -226,7 +226,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	if err := <-errCh; err != nil {
 		if str := strings.TrimSpace(sb.String()); str != "" {
-			slog.Warn("subagent partial output discarded",
+			slog.Debug("subagent partial output discarded",
 				slog.String("session", sessionID),
 				slog.String("model", agent.Name()),
 				slog.String("output", go_pkg_utils.TruncateString(str, 2048)))
@@ -273,7 +273,7 @@ func ensureSubagentSession(input string) (string, error) {
 	if trimmed == "" {
 		if idle := sessionManager.FindTemp(); idle != "" {
 			if _, err := sessionManager.ResetAll(idle); err != nil {
-				slog.Warn("ensureSubagentSession ResetAll, opening a fresh session instead",
+				slog.Debug("ensureSubagentSession ResetAll, opening a fresh session instead",
 					slog.String("session", idle),
 					slog.String("error", err.Error()))
 			} else {
