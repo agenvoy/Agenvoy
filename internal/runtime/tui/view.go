@@ -30,16 +30,6 @@ func (t TUI) viewIdle() string {
 		width = 80
 	}
 
-	if t.onceCall {
-		if t.awaitingExit {
-			return ""
-		}
-		if t.running {
-			return "\n" + t.viewThinking() + "\n"
-		}
-		return ""
-	}
-
 	var fastMode string
 	if fast.IsEnabled() {
 		fastMode = systemStyle.Render(" [fast]")

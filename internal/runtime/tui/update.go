@@ -23,16 +23,6 @@ import (
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	if t.onceCall {
-		if km, ok := msg.(tea.KeyMsg); ok && km.Type == tea.KeyCtrlC {
-			if t.cancelExec != nil {
-				t.cancelExec()
-			}
-			t.quitting = true
-			return t, tea.Quit
-		}
-	}
-
 	if t.popup != nil {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -167,10 +157,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case tea.KeyEnter:
-			if t.awaitingExit {
-				t.quitting = true
-				return t, tea.Quit
-			}
 			if t.selector != nil {
 				t = t.selectCommand()
 				return t, nil
@@ -282,44 +268,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
 			doneCmds = append(doneCmds, tea.Println(errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err))+"\n"))
 		}
-		if t.onceCall {
-			t.awaitingExit = true
-			doneCmds = append(doneCmds, tea.Println(hintStyle.Render("⎯ press Enter to close")+"\n"))
-		}
 		if len(doneCmds) == 0 {
 			return t, nil
 		}
 		return t, tea.Sequence(doneCmds...)
-
-	case autoSubmit:
-		content := strings.TrimSpace(msg.input)
-		if content == "" {
-			t.awaitingExit = true
-			return t, tea.Println(hintStyle.Render("⎯ press Enter to close") + "\n")
-		}
-		if strings.HasPrefix(content, "/") {
-			if next, cmd, handled := t.handleCommand(content); handled {
-				return next, cmd
-			}
-			if !noMatches(content) {
-				return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
-			}
-		}
-		if len(agents.Registry().Entries) == 0 {
-			t.awaitingExit = true
-			return t, tea.Sequence(
-				tea.Println(warnStyle.Render("⎯ no model configured · /model global add")+"\n"),
-				tea.Println(hintStyle.Render("⎯ press Enter to close")+"\n"),
-			)
-		}
-		t.running = true
-		t.runStartedAt = time.Now()
-		t.runTarget = targetSession(content, t.currentSessionID)
-		go runExec(t.ctx, content, t.allowAll, t.cwd, t.currentSessionID, "", "")
-		return t, tea.Batch(
-			tea.Println(messageBlock(content)),
-			t.spinner.Tick,
-		)
 
 	case ResumeExec:
 		if t.running {
@@ -365,11 +317,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case SessionSelect:
-		next, cmd := t.runCommandSwitch(msg.id)
-		if next.onceCall {
-			return next, chainSingleShotSubmit(cmd, next.userInput)
-		}
-		return next, cmd
+		return t.runCommandSwitch(msg.id)
 
 	case SessionNew:
 		next, cmd, _ := t.commandNew(nil)
@@ -384,11 +332,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 
 	case SessionNewPromptSubmit:
-		next, cmd := t.runCreateSession(msg.name, msg.body)
-		if next.onceCall {
-			return next, chainSingleShotSubmit(cmd, next.userInput)
-		}
-		return next, cmd
+		return t.runCreateSession(msg.name, msg.body)
 
 	case ModelScopeSelect:
 		switch msg.scope {
@@ -1119,15 +1063,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tailLine:
-		if t.onceCall {
-			return t, nil
-		}
 		return t, tea.Println(msg.line)
 
 	case Log:
-		if t.onceCall {
-			return t, nil
-		}
 		return t, tea.Println(renderLogLine(msg))
 
 	case initTailer:

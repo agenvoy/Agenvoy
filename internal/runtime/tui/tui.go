@@ -46,8 +46,8 @@ type ResumeExec struct {
 	HistoryContent string
 }
 
-func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
-	prog := tea.NewProgram(newModel(ctx, userInput, onceCall, allowAll), tea.WithContext(ctx), tea.WithoutSignalHandler())
+func Run(ctx context.Context) error {
+	prog := tea.NewProgram(newModel(ctx), tea.WithContext(ctx), tea.WithoutSignalHandler())
 	program.Store(prog)
 	defer program.Store(nil)
 
@@ -58,10 +58,8 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 		tools.WorkDirChangeHook = nil
 	}()
 
-	if !onceCall {
-		restoreSlog := installSlogTUI(ctx)
-		defer restoreSlog()
-	}
+	restoreSlog := installSlogTUI(ctx)
+	defer restoreSlog()
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
 		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)

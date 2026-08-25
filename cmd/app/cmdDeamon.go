@@ -222,7 +222,7 @@ func cmdDaemon() {
 		slog.Warn("runtime.Init",
 			slog.String("error", err.Error()))
 	}
-	configStatus.Clear()
+	configStatus.Reset()
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",

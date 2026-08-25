@@ -258,11 +258,6 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			})
 			t = t.closePopup()
 		}
-		if t.onceCall && t.currentSessionID == "" {
-			t.quitting = true
-			return t, tea.Quit
-		}
-
 	case tea.KeyEnter:
 		chosen := p.options[p.cursor]
 		if p.values != nil && p.cursor < len(p.values) {
@@ -408,10 +403,6 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		if p.pendingId == "" {
 			t = t.closePopup()
-			if t.onceCall && t.currentSessionID == "" {
-				t.quitting = true
-				return t, tea.Quit
-			}
 			return t, nil
 		}
 		runtime.Resolve(p.pendingId, runtime.Reply{

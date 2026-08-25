@@ -33,6 +33,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type ExecuteMeta struct {
@@ -95,12 +96,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 	var taskID string
 	if session.ID != "" {
-		var inputText string
-		if s, ok := session.UserInput.Content.(string); ok {
-			inputText = s
-		}
-		taskID = configStatus.Online(session.ID, inputText)
-		defer configStatus.Idle(session.ID, taskID)
+		taskID = go_pkg_utils.UUID()
+		configStatus.Online(session.ID)
+		defer configStatus.Idle(session.ID)
 		registerCancel(taskID, execCancel)
 		defer unregisterCancel(taskID)
 
@@ -112,7 +110,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		defer ClearSteer(session.ID)
 
 		original := events
-		teed := make(chan agentTypes.Event, 64)
+		runTaskID := taskID
+		fanoutEvents := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
@@ -124,12 +123,15 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			defer close(done)
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("event tee goroutine panic recovered",
+					slog.Error("event fanout goroutine panic recovered",
 						slog.String("session", sid),
 						slog.Any("panic", r))
 				}
 			}()
-			for ev := range teed {
+			for ev := range fanoutEvents {
+				if ev.TaskID == "" && ev.Source == "" {
+					ev.TaskID = runTaskID
+				}
 				if !stateless && ev.Source == "" {
 					sessionLog.Record(sid, ev)
 				}
@@ -152,7 +154,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 		}()
 		defer func() {
-			close(teed)
+			close(fanoutEvents)
 			<-done
 			if isDcPush {
 				text := strings.TrimSpace(pushTextBuf.String())
@@ -168,7 +170,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}
 		}()
-		events = teed
+		events = fanoutEvents
 	}
 
 	// * if skill is empty, then treat as no skill

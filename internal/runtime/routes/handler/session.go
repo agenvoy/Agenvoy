@@ -23,12 +23,11 @@ import (
 )
 
 type SessionInfo struct {
-	ID      string              `json:"id"`
-	Name    string              `json:"name"`
-	State   string              `json:"state"`
-	Model   string              `json:"model"`
-	Active  []configStatus.Task `json:"active"`
-	EndedAt string              `json:"ended_at"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	State string `json:"state"`
+	Model string `json:"model"`
+	Count int    `json:"count"`
 }
 
 func ListSessions() gin.HandlerFunc {
@@ -73,18 +72,13 @@ func ListSessions() gin.HandlerFunc {
 			name, _ := configBot.Get(sid)
 			model, _ := configBot.GetModel(sid)
 
-			if status.Active == nil {
-				status.Active = []configStatus.Task{}
-			}
-
 			entries = append(entries, entry{
 				info: SessionInfo{
-					ID:      sid,
-					Name:    name,
-					State:   status.State,
-					Model:   model,
-					Active:  status.Active,
-					EndedAt: status.EndedAt,
+					ID:    sid,
+					Name:  name,
+					State: status.State,
+					Model: model,
+					Count: status.Count,
 				},
 				activeAt: lastActiveAt(sid),
 			})

@@ -37,16 +37,6 @@ func init() {
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "cli", "run":
-			if len(os.Args) < 3 {
-				fmt.Fprintf(os.Stderr, "Usage: agen cli <input...>\n")
-				fmt.Fprintf(os.Stderr, "       agen run <input...>\n")
-				os.Exit(1)
-			}
-			input := strings.TrimSpace(strings.ReplaceAll(strings.Join(os.Args[2:], " "), `\n`, "\n"))
-			newTUI(input, true, os.Args[1] == "run")
-			return
-
 		case "stop":
 			runStop()
 			return
@@ -70,7 +60,7 @@ func main() {
 		return
 	}
 
-	newTUI("", false, false)
+	newTUI()
 }
 
 func runStop() {
@@ -139,8 +129,6 @@ func printUsage() {
 	fmt.Println("  agen                                            Attach TUI; spawn server daemon if not running")
 	fmt.Println("  agen stop                                       Stop the running server daemon")
 	fmt.Println("  agen update                                     Update agen to the latest release")
-	fmt.Println("  agen cli <input...>                             Run agent (requires tool confirmation)")
-	fmt.Println("  agen run <input...>                             Run agent (allow all tools)")
 }
 
 func runUpdate() {

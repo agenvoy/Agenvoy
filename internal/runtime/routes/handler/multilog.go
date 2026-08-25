@@ -64,8 +64,7 @@ func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
 type connectedFrame struct {
 	Session string `json:"session,omitempty"`
 	agentTypes.Event
-	State   string `json:"state,omitempty"`
-	EndedAt string `json:"ended_at,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 func newConnectedFrame(sessionID string) connectedFrame {
@@ -74,7 +73,6 @@ func newConnectedFrame(sessionID string) connectedFrame {
 		Session: sessionID,
 		Event:   agentTypes.Event{Type: agentTypes.EventConnected, Text: sessionID},
 		State:   status.State,
-		EndedAt: status.EndedAt,
 	}
 }
 

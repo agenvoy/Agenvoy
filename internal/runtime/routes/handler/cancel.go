@@ -2,13 +2,11 @@ package handler
 
 import (
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 )
 
 func CancelSessionTask() gin.HandlerFunc {
@@ -20,12 +18,11 @@ func CancelSessionTask() gin.HandlerFunc {
 			return
 		}
 
-		status := configStatus.Get(sessionID)
-		if !slices.ContainsFunc(status.Active, func(t configStatus.Task) bool { return t.ID == taskID }) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "task not active in this session"})
+		if !exec.CancelTask(taskID) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "task not running in this process"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": exec.CancelTask(taskID)})
+		c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": true})
 	}
 }

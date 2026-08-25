@@ -115,13 +115,7 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	t.currentModel = ""
 	t.activity = ""
 
-	if !t.onceCall {
-		t = t.restartTailer()
-	}
-
-	if t.onceCall {
-		return t, nil
-	}
+	t = t.restartTailer()
 
 	label := utils.ShortenSessionID(id)
 	if name != "" {

@@ -26,7 +26,7 @@ import (
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
-func newTUI(initialInput string, onceCall, allowAll bool) {
+func newTUI() {
 	lipgloss.SetHasDarkBackground(true)
 
 	tuiHash.New()
@@ -104,7 +104,7 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 		cancel()
 	}()
 
-	if err := tui.Run(ctx, initialInput, onceCall, allowAll); err != nil {
+	if err := tui.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "tui.Run error: %v\n", err)
 	}
 }
