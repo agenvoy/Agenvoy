@@ -397,8 +397,6 @@ function routingRow(label, kind, current, options) {
   return _("div.routing", [_("strong", label), select]);
 }
 
-// the daemon decides which providers can generate images — credentials alone,
-// no registered model required — and returns them alongside the current value
 function imageRow(current, added) {
   const select = _("select");
   select.appendChild(_("option", { value: "" }, "off"));

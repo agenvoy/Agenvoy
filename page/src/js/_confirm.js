@@ -51,8 +51,6 @@ function renderToolConfirm(event) {
   let note = null;
   if (restricted.length > 0) {
     body.push(_("p.restricted", `needs your system password · ${restricted.join(", ")}`));
-    // * autocomplete=new-password makes Chrome offer a generated password; its
-    // * preview paints dots into the field while value stays empty
     password = _("input", {
       type: "password",
       autocomplete: "off",
@@ -79,7 +77,7 @@ function renderToolConfirm(event) {
     button.addEventListener("click", () => {
       const payload = Object.assign({}, option.body);
       if (password && option.body.approve) {
-        const field = card.querySelector("input[type=\"password\"]") || password;
+        const field = card.querySelector('input[type="password"]') || password;
         if (field.value === "") {
           note.textContent = "type your system password first";
           field.focus();

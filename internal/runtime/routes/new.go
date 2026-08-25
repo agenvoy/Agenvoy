@@ -107,6 +107,8 @@ func New() *gin.Engine {
 	r.DELETE("/v1/knowledge", localhostOnly(), handler.DeleteKnowledge())
 
 	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
+	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())
+	r.DELETE("/v1/skill", localhostOnly(), handler.DeleteSkill())
 
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 

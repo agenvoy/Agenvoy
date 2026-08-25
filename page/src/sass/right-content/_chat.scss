@@ -265,8 +265,6 @@ body[data-rendered="1"] section.right-content section.chat {
         gap: 1rem;
         width: 100%;
 
-        // * direct child only: this is the avatar. As a descendant selector it
-        // * also pinned every image rendered inside the message body to 24px
         > img {
           width: 1.5rem;
           height: 1.5rem;

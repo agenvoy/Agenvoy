@@ -161,7 +161,6 @@ function knowledgeBtn() {
 
     dom.disabled = true;
     try {
-      // * name left empty: the server names the note after the content's first line, capped at 32
       const response = await fetch(`${API}/v1/knowledge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
