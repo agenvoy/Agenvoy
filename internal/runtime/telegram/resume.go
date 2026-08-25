@@ -44,7 +44,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	markStatus := func(str string) {
 		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
 		if err := b.client.SendStatus(ctx, chatID, 0, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Warn("SendStatus (resume)",
+			slog.Debug("SendStatus (resume)",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}
@@ -100,7 +100,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
 		if execErr := exec.Execute(execCtx, execData, sess, wrapped, false); execErr != nil {
-			slog.Warn("ask_user resume: exec",
+			slog.Debug("ask_user resume: exec",
 				slog.String("session", sessionID),
 				slog.String("error", execErr.Error()))
 		}

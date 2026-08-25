@@ -123,7 +123,7 @@ func fillRemoveOptions(p *Popup, sessions []Session, currentSID string) {
 
 func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {
 	if chosen == "" {
-		return t, tea.Println(hintStyle.Render("⎯ no sessions selected") + "\n")
+		return t, nil
 	}
 
 	var ids []string
@@ -134,7 +134,7 @@ func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {
 		}
 	}
 	if len(ids) == 0 {
-		return t, tea.Println(hintStyle.Render("⎯ no sessions selected") + "\n")
+		return t, nil
 	}
 
 	labels := make([]string, len(ids))
@@ -158,7 +158,7 @@ func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {
 
 func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	if !msg.yes {
-		return t, tea.Println(hintStyle.Render("⎯ cancelled") + "\n")
+		return t, nil
 	}
 
 	removedCurrent := false

@@ -37,7 +37,7 @@ func Append(sessionID, providerName, model string, u provider.Usage) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	line := fmt.Sprintf("[%s][%s@%s] in/%-7d out/%-7d write/%-7d hit/%-7d\n", ts, providerName, model, u.Input, u.Output, u.CacheCreate, u.CacheRead)
 	if err := go_pkg_filesystem.AppendText(path, line); err != nil {
-		slog.Warn("AppendText",
+		slog.Debug("AppendText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
@@ -53,7 +53,7 @@ func Append(sessionID, providerName, model string, u provider.Usage) {
 func trim(path string) {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem ReadText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
@@ -90,7 +90,7 @@ func trim(path string) {
 	}
 
 	if err := go_pkg_filesystem.WriteFile(path, out, 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem WriteFile",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 	}

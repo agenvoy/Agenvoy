@@ -14,7 +14,7 @@ import (
 
 func addWatch(watcher *fsnotify.Watcher, dir string) {
 	if err := watcher.Add(dir); err != nil {
-		slog.Warn("fsnotify.Add",
+		slog.Debug("fsnotify.Add",
 			slog.String("dir", dir),
 			slog.String("error", err.Error()))
 	}
@@ -103,7 +103,7 @@ func (s *Server) watch(ctx context.Context) {
 				if !ok {
 					return
 				}
-				slog.Warn("fsnotify.Error",
+				slog.Debug("fsnotify.Error",
 					slog.String("error", err.Error()))
 			}
 		}

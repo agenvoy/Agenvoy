@@ -84,7 +84,7 @@ func New() (*Bot, error) {
 	if cfg, err := config.Load(); err == nil && cfg != nil && cfg.TelegramUsername != username {
 		cfg.TelegramUsername = username
 		if err := config.Save(cfg); err != nil {
-			slog.Warn("github.com/pardnchiu/agenvoy/internal/session Save",
+			slog.Debug("github.com/pardnchiu/agenvoy/internal/session Save",
 				slog.String("error", err.Error()))
 		}
 	}

@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -147,11 +146,6 @@ func ResumeSessionPending() gin.HandlerFunc {
 			content = full
 			historyContent = history
 		}
-
-		slog.Info("pending resume via web",
-			slog.String("session", sid),
-			slog.String("task_hash", taskHash),
-			slog.Int("answers", len(body.Answers)))
 
 		events := make(chan agentTypes.Event, 64)
 		ctx := context.WithoutCancel(c.Request.Context())

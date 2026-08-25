@@ -239,7 +239,7 @@ func subscribeSessionEvents(ctx context.Context, sessionID string) {
 			send(agentEvent{event: ev})
 		}
 		if err := scanner.Err(); err != nil && ctx.Err() == nil {
-			slog.Warn("SSE scanner",
+			slog.Debug("SSE scanner",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}

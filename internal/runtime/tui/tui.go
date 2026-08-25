@@ -64,7 +64,7 @@ func Run(ctx context.Context) error {
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
 		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 		if err != nil {
-			slog.Warn("ask_user resume: pending already consumed",
+			slog.Debug("ask_user resume: pending already consumed",
 				slog.String("session", sessionID),
 				slog.String("task_hash", taskHash))
 			return

@@ -385,7 +385,7 @@ func watchConfig(ctx context.Context) func() {
 				if !ok {
 					return
 				}
-				slog.Warn("fsnotify.Watcher",
+				slog.Debug("fsnotify.Watcher",
 					slog.String("error", err.Error()))
 			}
 		}
@@ -403,7 +403,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 		return "", err
 	}
 	if err := configBot.Save(sessionID, "", "", false); err != nil {
-		slog.Warn("sessionBot Save",
+		slog.Debug("sessionBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

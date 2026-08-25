@@ -68,7 +68,7 @@ func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword str
 			continue
 		}
 		if err := db.Expire(key, ttlSeconds); err != nil {
-			slog.Warn("memory.Expire",
+			slog.Debug("memory.Expire",
 				slog.String("key", key),
 				slog.String("error", err.Error()))
 		}
@@ -128,7 +128,7 @@ func scanWithFilter(db *toriidb.Session, pattern string, match func(Record) bool
 			continue
 		}
 		if err := db.Expire(keys[i], ttlSeconds); err != nil {
-			slog.Warn("memory.Expire",
+			slog.Debug("memory.Expire",
 				slog.String("key", keys[i]),
 				slog.String("error", err.Error()))
 		}

@@ -69,7 +69,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	if len(remaining) >= 2 {
 		llmRemove, err := identifyRemovable(compactCtx, agent, old, exchanges, remaining)
 		if err != nil {
-			slog.Warn("compact: LLM pass failed, using pre-filter only",
+			slog.Debug("compact: LLM pass failed, using pre-filter only",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		} else {
@@ -187,7 +187,7 @@ func parseRemoveIndices(raw string, exchangeCount int) (map[int]bool, error) {
 	dic := make(map[int]bool, len(result.Remove))
 	for _, idx := range result.Remove {
 		if idx < 0 || idx >= exchangeCount {
-			slog.Warn("compact: out-of-range index ignored", slog.Int("index", idx))
+			slog.Debug("compact: out-of-range index ignored", slog.Int("index", idx))
 			continue
 		}
 		dic[idx] = true

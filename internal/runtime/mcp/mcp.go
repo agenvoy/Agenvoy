@@ -276,7 +276,7 @@ func (m *MCP) Call(ctx context.Context, server, tool string, args map[string]any
 		return "", err
 	}
 
-	slog.Warn("mcp session lost, reconnecting",
+	slog.Debug("mcp session lost, reconnecting",
 		slog.String("server", server),
 		slog.String("tool", tool),
 		slog.String("error", err.Error()))
@@ -334,7 +334,7 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 
 	tools, err := client.List(ctx)
 	if err != nil {
-		slog.Warn("mcp refresh client.List",
+		slog.Debug("mcp refresh client.List",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
 		m.mu.Lock()
@@ -378,7 +378,7 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 		client := m.clients[name]
 		tools, err := client.List(ctx)
 		if err != nil {
-			slog.Warn("client.List",
+			slog.Debug("client.List",
 				slog.String("server", name),
 				slog.String("error", err.Error()))
 			m.lastError[name] = err.Error()
@@ -389,7 +389,7 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 		for _, tool := range tools {
 			def, ok := tool.getDef(name, m)
 			if !ok {
-				slog.Warn("tool.getDef",
+				slog.Debug("tool.getDef",
 					slog.String("server", name),
 					slog.String("tool", tool.Name))
 				continue

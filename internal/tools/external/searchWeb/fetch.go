@@ -153,7 +153,7 @@ func fetch(ctx context.Context, query, timeRange string, cdp bool) (string, erro
 	}
 	if status == http.StatusAccepted {
 		cdpForced.Store(true)
-		slog.Warn("search_web HTTP 202, fallback to CDP (locked)")
+		slog.Debug("search_web HTTP 202, fallback to CDP (locked)")
 		return fetchCDP(ctx, query, timeRange)
 	}
 	if status != http.StatusOK {

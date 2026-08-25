@@ -48,7 +48,7 @@ func New(guildID, channelID, userID string) (string, error) {
 
 	botName := configBot.FormatName(utils.LookupChatName(filesystem.DiscordAuthPath, channelID))
 	if err := configBot.Save(sessionID, botName, "", false); err != nil {
-		slog.Warn("configBot Save",
+		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

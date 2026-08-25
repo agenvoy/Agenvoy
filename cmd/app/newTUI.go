@@ -100,7 +100,7 @@ func newTUI() {
 	defer cancel()
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGTERM)
 	go func() {
 		<-quit
 		cancel()

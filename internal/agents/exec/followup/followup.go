@@ -58,7 +58,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 		{Role: "user", Content: "<conversation>\n" + transcript + "\n</conversation>"},
 	}, nil, provider.ReasoningNone, fast.Mode())
 	if err != nil {
-		slog.Warn("followup.Generate",
+		slog.Debug("followup.Generate",
 			slog.String("session", sessionID),
 			slog.String("model", agent.Name()),
 			slog.String("error", err.Error()))

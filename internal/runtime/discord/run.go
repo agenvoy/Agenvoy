@@ -44,7 +44,7 @@ func recordChatter(in go_bot_discord.Input, content string) {
 
 	sessionID, err := sessionDiscord.New(in.GuildID, in.ChannelID, in.UserID)
 	if err != nil {
-		slog.Warn("sessionDiscord.New (chatter)",
+		slog.Debug("sessionDiscord.New (chatter)",
 			slog.String("channel", channelName(in)),
 			slog.String("error", err.Error()))
 		return
@@ -60,7 +60,7 @@ func recordChatter(in go_bot_discord.Input, content string) {
 		SendAt:  time.Now().UnixNano(),
 		Sender:  username,
 	}}); err != nil {
-		slog.Warn("sessionHistory.Append (chatter)",
+		slog.Debug("sessionHistory.Append (chatter)",
 			slog.String("channel", channelName(in)),
 			slog.String("error", err.Error()))
 	}
@@ -109,7 +109,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				return
 			}
 			if err := b.client.Delete(ctx, in.ChannelID, msgID); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Delete",
+				slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.Delete",
 					slog.String("label", label),
 					slog.String("channel", channelName(in)),
 					slog.String("msg", msgID),
@@ -170,7 +170,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		attachments := saveAttachments(ctx, b, in)
 		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
 		if err != nil {
-			slog.Warn("transcribeSavedAttachments",
+			slog.Debug("transcribeSavedAttachments",
 				slog.String("channel", channelName(in)),
 				slog.String("error", err.Error()))
 			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ Voice transcription failed\n`%s`", err.Error()))
@@ -260,7 +260,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 	markStatus := func(str string) {
 		if err := b.client.SendStatus(ctx, in.ChannelID, in.MessageID, str); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.SendStatus",
+			slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.SendStatus",
 				slog.String("session", sess.ID),
 				slog.String("text", str),
 				slog.String("channel", channelName(in)),
@@ -275,7 +275,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		execCtx := exec.SuppressDcPush(ctx)
 		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
 		if execErr != nil {
-			slog.Warn("exec",
+			slog.Debug("exec",
 				slog.String("session", sess.ID),
 				slog.String("error", execErr.Error()))
 		}
@@ -290,7 +290,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	doneEvent := result.Done
 
 	if err := b.client.FinishStatus(ctx, in.ChannelID); err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.FinishStatus",
+		slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.FinishStatus",
 			slog.String("session", sess.ID),
 			slog.String("channel", channelName(in)),
 			slog.String("error", err.Error()))
@@ -382,7 +382,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				if summarizeTexts {
 					summary, err := geminiSummary.VoiceReply(bgCtx, text)
 					if err != nil {
-						slog.Warn("gemini summary VoiceReply",
+						slog.Debug("gemini summary VoiceReply",
 							slog.String("session", sessID),
 							slog.String("channel", channel),
 							slog.String("error", err.Error()))

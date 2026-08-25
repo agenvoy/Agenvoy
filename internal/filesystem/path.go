@@ -53,7 +53,7 @@ var (
 	WorkScriptToolsDir string
 	WorkSkillsDir      string
 
-	// will deprecated
+	// DELETE will deprecated
 	LegacyAPIToolsDir        string
 	LegacyScriptToolsDir     string
 	LegacyWorkAPIToolsDir    string

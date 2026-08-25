@@ -386,7 +386,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				unresponsiveFailures++
 				if unresponsiveFailures < MaxUnresponsiveProbeFailures {
-					slog.Warn("agent health probe failed, retrying",
+					slog.Debug("agent health probe failed, retrying",
 						slog.String("session", session.ID),
 						slog.String("name", data.Agent.Name()),
 						slog.Int("failures", unresponsiveFailures))
@@ -416,7 +416,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				unresponsiveFailures = 0
 				watchdog.Reset(UnresponsiveProbeInterval)
-				slog.Warn("agent unresponsive, switching model",
+				slog.Debug("agent unresponsive, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", data.Agent.Name()),
 					slog.String("to", nextName))
@@ -459,7 +459,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			if reason := cooldown.Reason(err, sendCode); reason != "" {
 				cooldown.Register(modelName)
-				slog.Warn("data.Agent.Send "+reason+", model cooldown registered",
+				slog.Debug("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
 			}
@@ -491,14 +491,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
-			slog.Warn("data.Agent.Send",
+			slog.Debug("data.Agent.Send",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
 
 			if isTimeout && timeoutRetryCount < MaxSendTimeoutRetries-1 {
 				timeoutRetryCount++
-				slog.Warn("data.Agent.Send timed out, retrying same model",
+				slog.Debug("data.Agent.Send timed out, retrying same model",
 					slog.String("session", session.ID),
 					slog.String("name", modelName),
 					slog.Int("attempt", timeoutRetryCount+1))
@@ -515,7 +515,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			next, nextName := nextAgent(execCtx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 			if next != nil {
-				slog.Warn("data.Agent.Send failed, switching model",
+				slog.Debug("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", modelName),
 					slog.String("to", nextName))

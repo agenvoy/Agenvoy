@@ -273,7 +273,7 @@ func (t TUI) runOAuthFailed(msg OAuthFailed) (TUI, tea.Cmd) {
 	t.popup = nil
 	switch {
 	case errors.Is(msg.err, context.Canceled):
-		return t, tea.Println(hintStyle.Render("⎯ oauth cancelled") + "\n")
+		return t, nil
 	case errors.Is(msg.err, context.DeadlineExceeded):
 		return t, tea.Println(warnStyle.Render("⎯ oauth timed out · device code expired") + "\n")
 	}
@@ -582,7 +582,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 				ids, err = fn(ctx, config, provider.ModelFilter{TextOnly: true})
 			}
 			if err != nil {
-				slog.Warn("provider Models",
+				slog.Debug("provider Models",
 					slog.String("provider", prov),
 					slog.Any("error", err))
 			}

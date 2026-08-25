@@ -230,7 +230,7 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 		if errors.As(err, &fe) {
 			status = fe.Status
 		} else {
-			slog.Warn("go_browser.Fetch",
+			slog.Debug("go_browser.Fetch",
 				slog.String("url", link),
 				slog.String("error", err.Error()))
 		}

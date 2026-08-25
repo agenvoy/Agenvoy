@@ -162,7 +162,7 @@ func StreamMultiLog() gin.HandlerFunc {
 					case merged <- te:
 					case <-timer.C:
 						n := fanInDropped.Add(1)
-						slog.Warn("multilog fan-in overflow, event dropped",
+						slog.Debug("multilog fan-in overflow, event dropped",
 							slog.String("session", id),
 							slog.String("event", ev.Type.String()),
 							slog.Int64("dropped_total", n))

@@ -69,7 +69,7 @@ func recordChatter(in go_bot_telegram.Input, content string) {
 
 	sessionID, err := sessionTelegram.New(in.ChatID)
 	if err != nil {
-		slog.Warn("sessionTelegram.New (chatter)",
+		slog.Debug("sessionTelegram.New (chatter)",
 			slog.Int64("chat", in.ChatID),
 			slog.String("error", err.Error()))
 		return
@@ -85,7 +85,7 @@ func recordChatter(in go_bot_telegram.Input, content string) {
 		SendAt:  time.Now().UnixNano(),
 		Sender:  username,
 	}}); err != nil {
-		slog.Warn("sessionHistory.Append (chatter)",
+		slog.Debug("sessionHistory.Append (chatter)",
 			slog.Int64("chat", in.ChatID),
 			slog.String("error", err.Error()))
 	}
@@ -137,7 +137,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 				return
 			}
 			if err := b.client.Delete(ctx, in.ChatID, msgID); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Delete",
+				slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.Delete",
 					slog.String("label", label),
 					slog.String("chat", chatName(in)),
 					slog.Int("msg", msgID),
@@ -197,7 +197,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		}
 		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
 		if err != nil {
-			slog.Warn("transcribeSavedAttachments",
+			slog.Debug("transcribeSavedAttachments",
 				slog.String("chat", chatName(in)),
 				slog.String("error", err.Error()))
 			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, fmt.Sprintf("⚠️ Voice transcription failed\n<code>%s</code>", html.EscapeString(err.Error())), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
@@ -227,7 +227,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	markStatus := func(str string) {
 		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
 		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
+			slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
 				slog.String("text", str),
 				slog.String("chat", chatName(in)),
 				slog.Int("replyTo", in.MessageID),
@@ -278,7 +278,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
 	if err != nil {
 		if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
+			slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
 				slog.String("chat", chatName(in)),
 				slog.String("error", finishErr.Error()))
 		}
@@ -317,13 +317,12 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	utils.EventLog("[Telegram]", agentTypes.Event{}, sess.ID, content)
 
 	events := make(chan agentTypes.Event, 128)
-	// * tee into pubsub so the web view can stream this channel session live
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
 		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
 		if execErr != nil {
-			slog.Warn("exec",
+			slog.Debug("exec",
 				slog.String("session", sess.ID),
 				slog.String("error", execErr.Error()))
 		}
@@ -338,7 +337,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	doneEvent := result.Done
 
 	if err := b.client.FinishStatus(ctx, in.ChatID); err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
+		slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
 			slog.String("session", sess.ID),
 			slog.String("chat", chatName(in)),
 			slog.String("error", err.Error()))
@@ -423,7 +422,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 				if summarizeTexts {
 					summary, err := geminiSummary.VoiceReply(bgCtx, text)
 					if err != nil {
-						slog.Warn("gemini summary VoiceReply",
+						slog.Debug("gemini summary VoiceReply",
 							slog.String("session", sessID),
 							slog.String("chat", chat),
 							slog.String("error", err.Error()))

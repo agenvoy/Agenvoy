@@ -75,7 +75,7 @@ func get(sessionID string) Status {
 
 func write(sessionID string, status Status) {
 	if err := go_pkg_filesystem.WriteJSON(filesystem.StatusPath(sessionID), status, true); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
 			slog.String("file", filesystem.StatusPath(sessionID)),
 			slog.String("error", err.Error()))
 	}

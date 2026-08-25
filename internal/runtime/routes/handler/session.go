@@ -210,7 +210,7 @@ func CompactSession() gin.HandlerFunc {
 
 		removed, err := compact.SessionHistory(ctx, sid)
 		if err != nil {
-			slog.Warn("handler.CompactSession",
+			slog.Debug("handler.CompactSession",
 				slog.String("session", sid),
 				slog.String("error", err.Error()))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

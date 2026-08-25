@@ -65,7 +65,7 @@ func writeUsageCache(id string, entry usageEntry) {
 		return
 	}
 	if err := db.Set(usageKeyPrefix+id, string(raw), torii.SetDefault, torii.TTL(providerUsageTTL)); err != nil {
-		slog.Warn("provider usage cache",
+		slog.Debug("provider usage cache",
 			slog.String("provider", id),
 			slog.String("error", err.Error()))
 	}

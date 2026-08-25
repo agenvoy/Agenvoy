@@ -323,7 +323,7 @@ func SchedulerWatcher(ctx context.Context) func() {
 				if !ok {
 					return
 				}
-				slog.Warn("SchedulerWatcher",
+				slog.Debug("SchedulerWatcher",
 					slog.String("error", err.Error()))
 			}
 		}

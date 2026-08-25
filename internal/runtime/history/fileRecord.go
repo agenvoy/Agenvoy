@@ -72,7 +72,7 @@ func oversized(path string, size int64) Change {
 
 	tempPath, err := filesystem.CopyToStoreTemp(path)
 	if err != nil {
-		slog.Warn("filesystem.CopyToStoreTemp",
+		slog.Debug("filesystem.CopyToStoreTemp",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 		c.truncated = true

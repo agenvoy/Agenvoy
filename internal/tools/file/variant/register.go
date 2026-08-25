@@ -22,7 +22,7 @@ func Register() {
 func capture(path string) historyStore.Change {
 	change, err := historyStore.Capture(path)
 	if err != nil {
-		slog.Warn("historyStore.Capture",
+		slog.Debug("historyStore.Capture",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}
@@ -31,7 +31,7 @@ func capture(path string) historyStore.Change {
 
 func record(ctx context.Context, e *toolTypes.Executor, change historyStore.Change, created, tool string) {
 	if err := historyStore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
-		slog.Warn("historyStore.Record",
+		slog.Debug("historyStore.Record",
 			slog.String("tool", tool),
 			slog.String("error", err.Error()))
 	}
@@ -39,7 +39,7 @@ func record(ctx context.Context, e *toolTypes.Executor, change historyStore.Chan
 
 func recordRemoval(ctx context.Context, e *toolTypes.Executor, path, trashPath, tool string) {
 	if err := historyStore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
-		slog.Warn("historyStore.RecordDelete",
+		slog.Debug("historyStore.RecordDelete",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}

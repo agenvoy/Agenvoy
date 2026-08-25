@@ -742,7 +742,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case CronRemoveSelect:
 		if len(msg.skills) == 0 {
-			return t, tea.Println(hintStyle.Render("⎯ no crons selected") + "\n")
+			return t, nil
 		}
 		next, cmd := t.runCronRemove(msg.skills)
 		return next, cmd
@@ -783,7 +783,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TaskRemoveConfirm:
 		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ task remove cancelled") + "\n")
+			return t, nil
 		}
 		next, cmd := t.runTaskRemove(msg.skill)
 		return next, cmd
@@ -805,14 +805,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ResetSessionConfirm1:
 		if msg.mode != "summary" && msg.mode != "all" {
-			return t, tea.Println(hintStyle.Render("⎯ reset cancelled") + "\n")
+			return t, nil
 		}
 		next, cmd := t.openResetConfirm2(msg.id, msg.mode)
 		return next, cmd
 
 	case ResetSessionConfirm2:
 		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ reset cancelled") + "\n")
+			return t, nil
 		}
 		next, cmd := t.runResetSession(msg.id, msg.mode)
 		return next, cmd
@@ -827,7 +827,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case CompactConfirm:
 		if !msg.yes {
-			return t, tea.Println(hintStyle.Render("⎯ compact cancelled") + "\n")
+			return t, nil
 		}
 		return t.runCompact(msg.id)
 
@@ -990,7 +990,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 	case UpdateConfirm:
 		if !msg.ok {
-			return t, tea.Println(hintStyle.Render("⎯ update cancelled") + "\n")
+			return t, nil
 		}
 		return t, tea.Sequence(
 			tea.Println(hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")+"\n"),

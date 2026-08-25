@@ -99,7 +99,7 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 
 	if name != "" || body != "" {
 		if err := configBot.Save(id, name, body, true); err != nil {
-			slog.Warn("sessionBot.Save", slog.String("session", id), slog.String("error", err.Error()))
+			slog.Debug("sessionBot.Save", slog.String("session", id), slog.String("error", err.Error()))
 		}
 	}
 

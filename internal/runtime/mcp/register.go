@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// window context can not support large content, limit it first
-	MaxBytes = 1 << 20 // 1 MiB
+	// * window context can not support large content, limit it first
+	MaxBytes = 1 << 20
 )
 
 func (t Tool) getDef(server string, m *MCP) (toolRegister.Def, bool) {
