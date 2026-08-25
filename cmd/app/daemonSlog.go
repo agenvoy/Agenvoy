@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -33,11 +34,15 @@ func (h *daemonSlogHandler) Handle(ctx context.Context, r slog.Record) error {
 		sb.WriteString(fmt.Sprintf("%v", a.Value.Any()))
 		return true
 	})
-	pubsub.Pub(daemonLogChannel, agentTypes.Event{
+
+	select {
+	case daemonLogQueue <- agentTypes.Event{
 		Type:   agentTypes.EventDaemonLog,
 		Source: r.Level.String(),
 		Text:   strings.TrimSpace(sb.String()),
-	})
+	}:
+	default:
+	}
 	return h.base.Handle(ctx, r)
 }
 
@@ -49,7 +54,20 @@ func (h *daemonSlogHandler) WithGroup(name string) slog.Handler {
 	return &daemonSlogHandler{base: h.base.WithGroup(name)}
 }
 
+var (
+	daemonLogQueue = make(chan agentTypes.Event, 1024)
+	daemonLogOnce  sync.Once
+)
+
 func installDaemonSlog() {
+	daemonLogOnce.Do(func() {
+		go func() {
+			for event := range daemonLogQueue {
+				pubsub.Pub(daemonLogChannel, event)
+			}
+		}()
+	})
+
 	base := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
 	slog.SetDefault(slog.New(&daemonSlogHandler{base: base}))
 }

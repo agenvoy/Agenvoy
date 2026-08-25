@@ -3,6 +3,8 @@ const TOAST_IGNORE = [/^pending resume via web\b/];
 const TOAST_LEVEL = { WARN: "warn", ERROR: "error" };
 
 let toastStream = null;
+let toastStreamRetry = 0;
+let toastStreamOff = false;
 
 function toastDom() {
   return $("#toast");
@@ -27,12 +29,37 @@ function pushToast(level, text, time) {
   dom.scrollTop = dom.scrollHeight;
 }
 
-function subscribeDaemonLog() {
+function daemonLogToast(level, text, time) {
+  if (!text || level === "DEBUG") {
+    return;
+  }
+  if (TOAST_IGNORE.some((pattern) => pattern.test(text))) {
+    return;
+  }
+  pushToast(level || "INFO", text, time || nowClock());
+}
+
+function nowClock() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+function stopDaemonLogStream() {
+  toastStreamOff = true;
+  clearTimeout(toastStreamRetry);
   if (toastStream) {
+    toastStream.close();
+    toastStream = null;
+  }
+}
+
+function subscribeDaemonLog() {
+  if (toastStream || toastStreamOff) {
     return;
   }
 
-  toastStream = new EventSource(`${API}/v1/daemon/log`);
+  toastStream = new EventSource(`${API}/v1/log`);
   toastStream.onmessage = function (e) {
     let event = {};
     try {
@@ -41,19 +68,18 @@ function subscribeDaemonLog() {
       console.error("subscribeDaemonLog", err);
       return;
     }
-    if (!event.text || event.level === "DEBUG") {
+    if (event.type !== "EventDaemonLog") {
       return;
     }
-    if (TOAST_IGNORE.some((pattern) => pattern.test(event.text))) {
-      return;
-    }
-    pushToast(event.level || "INFO", event.text, event.time);
+    daemonLogToast(event.source, event.text);
   };
   toastStream.onerror = function () {
     if (toastStream) {
       toastStream.close();
       toastStream = null;
     }
-    setTimeout(subscribeDaemonLog, 5000);
+    if (!toastStreamOff) {
+      toastStreamRetry = setTimeout(subscribeDaemonLog, 5000);
+    }
   };
 }

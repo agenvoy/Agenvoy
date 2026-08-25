@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -36,19 +35,6 @@ func McpStatus() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"servers": m.Status("")})
-	}
-}
-
-func McpHealth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		m := mcp.Manager()
-		if m == nil {
-			c.JSON(http.StatusOK, gin.H{"servers": []mcp.HealthInfo{}})
-			return
-		}
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-		defer cancel()
-		c.JSON(http.StatusOK, gin.H{"servers": m.Health(ctx)})
 	}
 }
 

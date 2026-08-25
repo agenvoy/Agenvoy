@@ -18,7 +18,11 @@ import (
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-const mergeBlockWait = 250 * time.Millisecond
+const (
+	mergeBlockWait   = 250 * time.Millisecond
+	logHeartbeat     = 25 * time.Second
+	daemonLogChannel = "daemon"
+)
 
 type taggedEvent struct {
 	Session string `json:"session"`
@@ -76,21 +80,17 @@ func newConnectedFrame(sessionID string) connectedFrame {
 
 func StreamMultiLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		raw := strings.TrimSpace(c.Query("sessions"))
-		if raw == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "sessions query param is required"})
-			return
-		}
-
 		var sids []string
-		for s := range strings.SplitSeq(raw, ",") {
+		for s := range strings.SplitSeq(strings.TrimSpace(c.Query("sessions")), ",") {
 			s = strings.TrimSpace(s)
 			if s != "" {
 				sids = append(sids, s)
 			}
 		}
-		if len(sids) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "no valid session ids"})
+
+		withDaemon := internalUtils.IsLoopback(c.Request.RemoteAddr) && c.DefaultQuery("daemon", "1") != "0"
+		if len(sids) == 0 && !withDaemon {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "sessions is required when daemon=0 or the caller is remote"})
 			return
 		}
 
@@ -138,6 +138,11 @@ func StreamMultiLog() gin.HandlerFunc {
 
 		merged := make(chan taggedEvent, 1024)
 		var fanInDropped atomic.Int64
+
+		if withDaemon {
+			sids = append(sids, daemonLogChannel)
+		}
+
 		for _, sid := range sids {
 			sub := pubsub.Sub(sid, 1024)
 			subs = append(subs, sub)

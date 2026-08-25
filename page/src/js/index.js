@@ -231,7 +231,9 @@ document.addEventListener("DOMContentLoaded", function () {
           dom.dataset.collapsed = "1";
         });
 
-        subscribeDaemonLog();
+        if (!(params.page === "chat" && params.chat)) {
+          subscribeDaemonLog();
+        }
         bindSelectPicker();
         bindInputDrop();
         bindChatMenu();
