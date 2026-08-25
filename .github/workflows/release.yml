@@ -53,8 +53,22 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           go build -trimpath -tags fts5 \
-            -ldflags "-s -w -X github.com/pardnchiu/agenvoy/internal/version.Current=${GITHUB_REF_NAME}" \
+            -ldflags "-s -w -X github.com/pardnchiu/agenvoy/internal/runtime.CurrentVersion=${GITHUB_REF_NAME}" \
             -o agen ./cmd/app/
+
+      # -X against a symbol that no longer resolves is silently ignored by the
+      # linker — v0.32.12 shipped printing "dev" because the variable had moved
+      # package. Nothing in the built artifact reveals that, so check the symbol
+      # named in the ldflags above still exists in the source being built.
+      - name: Verify ldflags symbol resolves
+        run: |
+          set -euo pipefail
+          sym="$(grep -o 'X github.com/pardnchiu/agenvoy/[^=]*' .github/workflows/release.yml | head -1 | cut -d' ' -f2)"
+          pkg="${sym%.*}"
+          name="${sym##*.}"
+          dir="${pkg#github.com/pardnchiu/agenvoy/}"
+          grep -Rqs "^var ${name} " "${dir}" \
+            || { echo "::error::ldflags target ${sym} does not exist — the version stamp would be silently dropped"; exit 1; }
 
       - name: Package
         env:
