@@ -12,6 +12,7 @@ import (
 	"github.com/muesli/reflow/wrap"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -301,8 +302,6 @@ func buildTable(header []string, rows [][]string, termWidth int) string {
 	return sb.String()
 }
 
-var projectVersion = "dev"
-
 var (
 	headerStyle = lipgloss.NewStyle()
 
@@ -329,7 +328,7 @@ var asciiMarkLines = []string{
 }
 
 func headerBlock(daemon, http, discord, telegram string) string {
-	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(projectVersion)
+	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(runtime.CurrentVersion)
 
 	const markCol = 20
 	const gap = "   "

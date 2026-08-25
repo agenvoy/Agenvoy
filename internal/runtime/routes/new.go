@@ -25,6 +25,7 @@ func New() *gin.Engine {
 
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
+	r.GET("/v1/info/version", handler.GetVersion())
 
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
