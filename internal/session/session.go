@@ -26,7 +26,7 @@ func New(prefix string) (string, error) {
 
 	sessionID := prefix + uuid
 	if err := configBot.Save(sessionID, "", "", false); err != nil {
-		slog.Warn("configBot Save",
+		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

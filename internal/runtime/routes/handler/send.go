@@ -166,7 +166,7 @@ func Send() gin.HandlerFunc {
 			}
 
 			if err := configBot.Save(sessionID, "", "", false); err != nil {
-				slog.Warn("sessionBot Save",
+				slog.Debug("sessionBot Save",
 					slog.String("session", sessionID),
 					slog.String("error", err.Error()))
 			}

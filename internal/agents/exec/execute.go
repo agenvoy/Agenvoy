@@ -15,7 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
-	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -31,8 +30,10 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type ExecuteMeta struct {
@@ -59,10 +60,9 @@ type ExecuteMeta struct {
 }
 
 type (
-	allowAllCtxKey    struct{}
-	allowListRulesKey struct{}
-	parentEventsKey   struct{}
-	parentWorkDirKey  struct{}
+	allowAllCtxKey   struct{}
+	parentEventsKey  struct{}
+	parentWorkDirKey struct{}
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
@@ -76,10 +76,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	execCtx = context.WithValue(execCtx, allowAllCtxKey{}, allowAll)
-
-	if !allowAll {
-		execCtx = context.WithValue(execCtx, allowListRulesKey{}, allowTool.List(data.WorkDir))
-	}
 
 	if events != nil {
 		execCtx = context.WithValue(execCtx, parentEventsKey{}, events)
@@ -95,12 +91,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 	var taskID string
 	if session.ID != "" {
-		var inputText string
-		if s, ok := session.UserInput.Content.(string); ok {
-			inputText = s
-		}
-		taskID = configStatus.Online(session.ID, inputText)
-		defer configStatus.Idle(session.ID, taskID)
+		taskID = go_pkg_utils.UUID()
+		configStatus.Online(session.ID)
+		defer configStatus.Idle(session.ID)
 		registerCancel(taskID, execCancel)
 		defer unregisterCancel(taskID)
 
@@ -112,7 +105,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		defer ClearSteer(session.ID)
 
 		original := events
-		teed := make(chan agentTypes.Event, 64)
+		runTaskID := taskID
+		fanoutEvents := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
@@ -124,12 +118,15 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			defer close(done)
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("event tee goroutine panic recovered",
+					slog.Error("event fanout goroutine panic recovered",
 						slog.String("session", sid),
 						slog.Any("panic", r))
 				}
 			}()
-			for ev := range teed {
+			for ev := range fanoutEvents {
+				if ev.TaskID == "" && ev.Source == "" {
+					ev.TaskID = runTaskID
+				}
 				if !stateless && ev.Source == "" {
 					sessionLog.Record(sid, ev)
 				}
@@ -152,7 +149,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 		}()
 		defer func() {
-			close(teed)
+			close(fanoutEvents)
 			<-done
 			if isDcPush {
 				text := strings.TrimSpace(pushTextBuf.String())
@@ -168,7 +165,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}
 		}()
-		events = teed
+		events = fanoutEvents
 	}
 
 	// * if skill is empty, then treat as no skill
@@ -206,7 +203,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, allowAll)
 		}
 		defer func() {
 			if !keepPending {
@@ -222,6 +219,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	cfg, _ := config.Load()
 	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
 		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
+	}
+	if !imageTool.Enabled() {
+		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
 	}
 	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
 		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
@@ -380,7 +380,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				unresponsiveFailures++
 				if unresponsiveFailures < MaxUnresponsiveProbeFailures {
-					slog.Warn("agent health probe failed, retrying",
+					slog.Debug("agent health probe failed, retrying",
 						slog.String("session", session.ID),
 						slog.String("name", data.Agent.Name()),
 						slog.Int("failures", unresponsiveFailures))
@@ -410,7 +410,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				unresponsiveFailures = 0
 				watchdog.Reset(UnresponsiveProbeInterval)
-				slog.Warn("agent unresponsive, switching model",
+				slog.Debug("agent unresponsive, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", data.Agent.Name()),
 					slog.String("to", nextName))
@@ -453,7 +453,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			if reason := cooldown.Reason(err, sendCode); reason != "" {
 				cooldown.Register(modelName)
-				slog.Warn("data.Agent.Send "+reason+", model cooldown registered",
+				slog.Debug("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
 			}
@@ -485,14 +485,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
-			slog.Warn("data.Agent.Send",
+			slog.Debug("data.Agent.Send",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
 
 			if isTimeout && timeoutRetryCount < MaxSendTimeoutRetries-1 {
 				timeoutRetryCount++
-				slog.Warn("data.Agent.Send timed out, retrying same model",
+				slog.Debug("data.Agent.Send timed out, retrying same model",
 					slog.String("session", session.ID),
 					slog.String("name", modelName),
 					slog.Int("attempt", timeoutRetryCount+1))
@@ -509,7 +509,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			next, nextName := nextAgent(execCtx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 			if next != nil {
-				slog.Warn("data.Agent.Send failed, switching model",
+				slog.Debug("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", modelName),
 					slog.String("to", nextName))

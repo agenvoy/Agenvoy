@@ -202,6 +202,26 @@
             </footer>
           </form>
         </section>
+
+        <section :elif="params.tab == Skills" class="editor">
+          <div class="side">
+            <button type="button" class="new" @click="skill_config">
+              <span class="material-symbols-outlined"> checklist </span>
+              <p>Setting Skills</p>
+            </button>
+            <div class="list" id="skill-list"></div>
+          </div>
+          <form id="skill-form">
+            <p class="empty">select skills</p>
+            <section class="tools" id="skill-allow-list"></section>
+            <input id="skill-name" type="text" disabled />
+            <textarea id="skill-content" rows="20" disabled></textarea>
+            <footer>
+              <button type="button" class="remove" @click="skill_delete">delete</button>
+              <button type="button" class="submit" @click="skill_open">open</button>
+            </footer>
+          </form>
+        </section>
       </section>
       <!---->
       <section :elif="params.page == config" class="config">

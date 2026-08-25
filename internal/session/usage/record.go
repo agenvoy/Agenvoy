@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 const (
 	maxLogSize     = 5 << 20
 	trimTargetSize = 4 << 20
+	retainDays     = 28
 )
 
 var mu sync.Mutex
@@ -35,7 +37,7 @@ func Append(sessionID, providerName, model string, u provider.Usage) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	line := fmt.Sprintf("[%s][%s@%s] in/%-7d out/%-7d write/%-7d hit/%-7d\n", ts, providerName, model, u.Input, u.Output, u.CacheCreate, u.CacheRead)
 	if err := go_pkg_filesystem.AppendText(path, line); err != nil {
-		slog.Warn("AppendText",
+		slog.Debug("AppendText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
@@ -51,34 +53,44 @@ func Append(sessionID, providerName, model string, u provider.Usage) {
 func trim(path string) {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem ReadText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
 	}
 
-	data := []byte(text)
-	if int64(len(data)) <= maxLogSize {
-		return
+	cutoff := time.Now().AddDate(0, 0, -retainDays)
+	var kept strings.Builder
+	for line := range strings.SplitSeq(text, "\n") {
+		if line == "" {
+			continue
+		}
+		matches := linePattern.FindStringSubmatch(line)
+		if len(matches) != 7 {
+			continue
+		}
+		at, parseErr := time.ParseInLocation(timestampLayout, matches[1], cutoff.Location())
+		if parseErr != nil || at.Before(cutoff) {
+			continue
+		}
+		kept.WriteString(line)
+		kept.WriteByte('\n')
 	}
 
-	cut := max(len(data)-trimTargetSize, 0)
-	for cut < len(data) && data[cut] != '\n' {
-		cut++
-	}
-	if cut < len(data) {
-		cut++
-	}
-	if cut >= len(data) {
-		if err := go_pkg_filesystem.WriteFile(path, "", 0644); err != nil {
-			slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
-				slog.String("file", path),
-				slog.String("error", err.Error()))
+	out := kept.String()
+	if len(out) > maxLogSize {
+		cut := len(out) - trimTargetSize
+		for cut < len(out) && out[cut] != '\n' {
+			cut++
 		}
-		return
+		if cut < len(out) {
+			cut++
+		}
+		out = out[cut:]
 	}
-	if err := go_pkg_filesystem.WriteFile(path, string(data[cut:]), 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+
+	if err := go_pkg_filesystem.WriteFile(path, out, 0644); err != nil {
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem WriteFile",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 	}

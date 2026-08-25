@@ -50,7 +50,7 @@ func generateFollowup(ctx context.Context, sessionID string) (agentTypes.Event, 
 
 	if result.Title != "" {
 		if err := configBot.SetTitle(sessionID, result.Title); err != nil {
-			slog.Warn("configBot.SetTitle",
+			slog.Debug("configBot.SetTitle",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}

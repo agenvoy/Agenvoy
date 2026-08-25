@@ -127,6 +127,15 @@ document.addEventListener("DOMContentLoaded", function () {
       knowledge_delete: function () {
         deleteEditing("knowledge");
       },
+      skill_config: function () {
+        openSkillConfig();
+      },
+      skill_delete: function () {
+        deleteSkillTab();
+      },
+      skill_open: function () {
+        openSkillFolder();
+      },
       rule_change: function (e) {
         selectRule(e.target.value);
       },
@@ -294,6 +303,10 @@ document.addEventListener("DOMContentLoaded", function () {
           if (kind) {
             resetFeature(kind);
             renderFeature(kind);
+          }
+          if (params.tab === "Skills") {
+            renderSkillTab();
+            openSkillConfig();
           }
         }
       },

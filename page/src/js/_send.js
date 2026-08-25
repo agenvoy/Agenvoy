@@ -20,16 +20,12 @@ async function stopRunning() {
   if (!currentSessionId) return;
   if (!confirm("Cancel this task?")) return;
 
-  const base = `${API}/v1/session/${encodeURIComponent(currentSessionId)}`;
+  if (!currentTaskId) return;
   try {
-    const response = await fetch(`${base}/status`);
-    if (!response.ok) return;
-
-    const body = await response.json();
-    for (const task of body.active || []) {
-      if (!task.id) continue;
-      await fetch(`${base}/cancel/${encodeURIComponent(task.id)}`, { method: "POST" });
-    }
+    await fetch(
+      `${API}/v1/session/${encodeURIComponent(currentSessionId)}/cancel/${encodeURIComponent(currentTaskId)}`,
+      { method: "POST" },
+    );
   } catch (err) {
     console.error("stopRunning", err);
   }

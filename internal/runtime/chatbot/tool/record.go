@@ -47,7 +47,7 @@ func recordOutbound(sessionID, message string) {
 		Content: message,
 		SendAt:  time.Now().UnixNano(),
 	}}); err != nil {
-		slog.Warn("sessionHistory.Append (push)",
+		slog.Debug("sessionHistory.Append (push)",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

@@ -46,12 +46,12 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 		} `json:"state"`
 	}
 	if err := json.Unmarshal([]byte(rawArgs), &params); err != nil {
-		slog.Warn("json Unmarshal",
+		slog.Debug("json Unmarshal",
 			slog.String("error", err.Error()))
 		return
 	}
 	if len(params.Questions) == 0 {
-		slog.Warn("ask user no questions")
+		slog.Debug("ask user no questions")
 		return
 	}
 

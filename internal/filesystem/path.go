@@ -53,7 +53,7 @@ var (
 	WorkScriptToolsDir string
 	WorkSkillsDir      string
 
-	// will deprecated
+	// DELETE will deprecated
 	LegacyAPIToolsDir        string
 	LegacyScriptToolsDir     string
 	LegacyWorkAPIToolsDir    string
@@ -185,7 +185,7 @@ func SummaryMetaPath(sessionID string) string {
 }
 
 func InputHistoryPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), ".history")
+	return filepath.Join(SessionDir(sessionID), ".cmd_history")
 }
 
 func PendingDir(sessionID string) string {

@@ -23,6 +23,7 @@ import (
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
+	allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
 	full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 	if err != nil {
 		if chatID, chErr := lookupChatID(sessionID); chErr == nil {
@@ -44,7 +45,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	markStatus := func(str string) {
 		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
 		if err := b.client.SendStatus(ctx, chatID, 0, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Warn("SendStatus (resume)",
+			slog.Debug("SendStatus (resume)",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}
@@ -99,8 +100,8 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
 		execCtx := exec.SuppressDcPush(ctx)
-		if execErr := exec.Execute(execCtx, execData, sess, wrapped, false); execErr != nil {
-			slog.Warn("ask_user resume: exec",
+		if execErr := exec.Execute(execCtx, execData, sess, wrapped, allowAll); execErr != nil {
+			slog.Debug("ask_user resume: exec",
 				slog.String("session", sessionID),
 				slog.String("error", execErr.Error()))
 		}

@@ -37,7 +37,7 @@ func RemoveToTrash(ctx context.Context, e *toolTypes.Executor, paths []string, t
 		moved = append(moved, src)
 		e.RecordFile(src)
 		if err := historyStore.RecordDelete(ctx, src, dst, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
-			slog.Warn("historyStore.RecordDelete",
+			slog.Debug("historyStore.RecordDelete",
 				slog.String("path", src),
 				slog.String("error", err.Error()))
 			unrecorded = append(unrecorded, fmt.Sprintf("%s now at %s (%v)", src, dst, err))

@@ -37,6 +37,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -212,6 +213,7 @@ func cmdDaemon() {
 	defer historyStore.Close()
 
 	geminiStt.Register()
+	imageTool.Register()
 	chatbotTool.Register()
 
 	if _, err := runtime.Init(); err != nil {
@@ -222,7 +224,7 @@ func cmdDaemon() {
 		slog.Warn("runtime.Init",
 			slog.String("error", err.Error()))
 	}
-	configStatus.Clear()
+	configStatus.Reset()
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",
@@ -383,7 +385,7 @@ func watchConfig(ctx context.Context) func() {
 				if !ok {
 					return
 				}
-				slog.Warn("fsnotify.Watcher",
+				slog.Debug("fsnotify.Watcher",
 					slog.String("error", err.Error()))
 			}
 		}
@@ -401,7 +403,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 		return "", err
 	}
 	if err := configBot.Save(sessionID, "", "", false); err != nil {
-		slog.Warn("sessionBot Save",
+		slog.Debug("sessionBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}

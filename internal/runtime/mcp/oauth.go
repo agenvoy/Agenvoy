@@ -98,7 +98,7 @@ func loadOAuthClient(name string) (oauthClient, bool) {
 	}
 	var client oauthClient
 	if err := json.Unmarshal([]byte(raw), &client); err != nil {
-		slog.Warn("mcp oauth client unmarshal",
+		slog.Debug("mcp oauth client unmarshal",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
 		return oauthClient{}, false
@@ -116,7 +116,7 @@ func loadOAuth(name string) (oauthRecord, bool) {
 	}
 	var rec oauthRecord
 	if err := json.Unmarshal([]byte(raw), &rec); err != nil {
-		slog.Warn("mcp oauth record unmarshal",
+		slog.Debug("mcp oauth record unmarshal",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
 		return oauthRecord{}, false
@@ -396,7 +396,7 @@ func Login(ctx context.Context, name string, onURL func(string)) error {
 		if source, srcErr := handler.TokenSource(ctx); srcErr != nil || source == nil {
 			return loginError(err, name, reuseClient)
 		}
-		slog.Warn("mcp oauth login tools/list",
+		slog.Debug("mcp oauth login tools/list",
 			slog.String("server", name),
 			slog.String("error", err.Error()))
 	}
@@ -481,7 +481,7 @@ func listenCallback(name string, stored oauthClient, hasClient bool, result chan
 		if !stored.Dynamic {
 			return nil, false, fmt.Errorf("net.Listen %s: %w", parsed.Host, err)
 		}
-		slog.Warn("mcp oauth cached callback port busy, registering a new client",
+		slog.Debug("mcp oauth cached callback port busy, registering a new client",
 			slog.String("server", name),
 			slog.String("redirect", redirectURL))
 	}

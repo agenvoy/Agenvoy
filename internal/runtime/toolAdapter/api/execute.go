@@ -118,7 +118,7 @@ func (a *Adapter) send(ctx context.Context, key string, doc *Document, params ma
 			return r.body, r.err
 
 		case <-ticker.C:
-			slog.Warn("running",
+			slog.Debug("running",
 				slog.String("name", name),
 				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), sec)))
 

@@ -2,13 +2,9 @@ package configStatus
 
 import (
 	"log/slog"
-	"os"
 	"sync"
-	"syscall"
-	"time"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
@@ -22,49 +18,41 @@ var (
 	mu sync.Mutex
 )
 
-type Task struct {
-	ID        string `json:"id"`
-	Input     string `json:"input"`
-	StartedAt string `json:"started_at"`
-	PID       int    `json:"pid,omitempty"`
-}
-
 type Status struct {
-	State   string `json:"state"`
-	Active  []Task `json:"active"`
-	EndedAt string `json:"ended_at"`
+	State string `json:"state"`
+	Count int    `json:"count"`
 }
 
-func Online(sessionID, input string) string {
+func Online(sessionID string) {
 	if sessionID == "" {
-		return ""
+		return
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
 
 	status := get(sessionID)
-	task := Task{
-		ID:        go_pkg_utils.UUID(),
-		Input:     go_pkg_utils.TruncateString(input, 256),
-		StartedAt: time.Now().Format("2006-01-02 15:04:05.000"),
-		PID:       os.Getpid(),
-	}
-	status.Active = append(status.Active, task)
+	status.Count++
 	status.State = StatusOnline
 	write(sessionID, status)
-	return task.ID
 }
 
-func isAlive(pid int) bool {
-	if pid <= 0 {
-		return false
+func Idle(sessionID string) {
+	if sessionID == "" {
+		return
 	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
+	mu.Lock()
+	defer mu.Unlock()
+
+	status := get(sessionID)
+	status.Count--
+	if status.Count <= 0 {
+		status.Count = 0
+		status.State = StatusIdle
+	} else {
+		status.State = StatusOnline
 	}
-	return proc.Signal(syscall.Signal(0)) == nil
+	write(sessionID, status)
 }
 
 func get(sessionID string) Status {
@@ -72,67 +60,23 @@ func get(sessionID string) Status {
 	if err != nil {
 		return Status{State: StatusIdle}
 	}
-
-	live := status.Active[:0]
-	stale := false
-	for _, t := range status.Active {
-		if isAlive(t.PID) {
-			live = append(live, t)
-		} else {
-			stale = true
-		}
+	if status.Count < 0 {
+		status.Count = 0
 	}
-	status.Active = live
-
-	if stale && len(status.Active) == 0 && status.EndedAt == "" {
-		status.EndedAt = time.Now().Format("2006-01-02 15:04:05.000")
-	}
-	if status.State == "" || stale {
-		if len(status.Active) > 0 {
+	if status.State == "" {
+		if status.Count > 0 {
 			status.State = StatusOnline
 		} else {
 			status.State = StatusIdle
 		}
 	}
-	if stale {
-		write(sessionID, status)
-	}
 	return status
 }
 
 func write(sessionID string, status Status) {
-	if status.Active == nil {
-		status.Active = []Task{}
-	}
-
 	if err := go_pkg_filesystem.WriteJSON(filesystem.StatusPath(sessionID), status, true); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
+		slog.Debug("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
 			slog.String("file", filesystem.StatusPath(sessionID)),
 			slog.String("error", err.Error()))
 	}
-}
-
-func Idle(sessionID, taskID string) {
-	if sessionID == "" || taskID == "" {
-		return
-	}
-	mu.Lock()
-	defer mu.Unlock()
-
-	status := get(sessionID)
-	filtered := status.Active[:0]
-	for _, t := range status.Active {
-		if t.ID == taskID {
-			continue
-		}
-		filtered = append(filtered, t)
-	}
-	status.Active = filtered
-	if len(status.Active) == 0 {
-		status.State = StatusIdle
-		status.EndedAt = time.Now().Format("2006-01-02 15:04:05.000")
-	} else {
-		status.State = StatusOnline
-	}
-	write(sessionID, status)
 }

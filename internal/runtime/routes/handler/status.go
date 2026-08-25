@@ -13,11 +13,10 @@ import (
 )
 
 type SessionStatus struct {
-	State   string              `json:"state"`
-	Active  []configStatus.Task `json:"active"`
-	EndedAt string              `json:"ended_at"`
-	Limit   int                 `json:"limit"`
-	Usage   float64             `json:"usage"`
+	State string  `json:"state"`
+	Count int     `json:"count"`
+	Limit int     `json:"limit"`
+	Usage float64 `json:"usage"`
 }
 
 func GetSessionStatus() gin.HandlerFunc {
@@ -38,18 +37,13 @@ func GetSessionStatus() gin.HandlerFunc {
 		limit := filesystem.MaxSessionTasks
 		usage := 0.0
 		if limit > 0 {
-			usage = math.Round(float64(len(status.Active))/float64(limit)*10000) / 100
+			usage = math.Round(float64(status.Count)/float64(limit)*10000) / 100
 		}
-		if status.Active == nil {
-			status.Active = []configStatus.Task{}
-		}
-
 		c.JSON(http.StatusOK, SessionStatus{
-			State:   status.State,
-			Active:  status.Active,
-			EndedAt: status.EndedAt,
-			Limit:   limit,
-			Usage:   usage,
+			State: status.State,
+			Count: status.Count,
+			Limit: limit,
+			Usage: usage,
 		})
 	}
 }

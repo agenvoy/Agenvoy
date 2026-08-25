@@ -25,7 +25,7 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 
 	channelID, err := sessionDiscord.GetChannel(id)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/agenvoy/internal/session GetChannelID",
+		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChannelID",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return

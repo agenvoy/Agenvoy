@@ -1,5 +1,3 @@
-// Telegram replies are written for parse_mode=HTML, so a tg- session's text
-// carries <b>/<code>/<a> markup this page would otherwise print literally.
 const TG_SESSION = /^tg-/i;
 
 function channelText(text) {

@@ -33,7 +33,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 
 	resp, err := send(ctx, sender, messages, reasoning)
 	if err != nil && sender.Name() != agent.Name() {
-		slog.Warn("agentSummary.Send: summary model",
+		slog.Debug("agentSummary.Send: summary model",
 			slog.String("session", sessionID),
 			slog.String("model", sender.Name()),
 			slog.String("error", err.Error()))

@@ -81,7 +81,7 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 
 	var unrecorded string
 	if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
-		slog.Warn("historyStore.Record",
+		slog.Debug("historyStore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)

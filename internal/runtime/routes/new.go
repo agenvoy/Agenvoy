@@ -35,6 +35,8 @@ func New() *gin.Engine {
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
 	r.POST("/v1/model/dispatcher", localhostOnly(), handler.SetDispatcherModel())
+	r.GET("/v1/model/image", localhostOnly(), handler.GetImageModel())
+	r.POST("/v1/model/image", localhostOnly(), handler.SetImageModel())
 	r.GET("/v1/model/summary", localhostOnly(), handler.GetSummaryModel())
 	r.POST("/v1/model/summary", localhostOnly(), handler.SetSummaryModel())
 
@@ -105,6 +107,8 @@ func New() *gin.Engine {
 	r.DELETE("/v1/knowledge", localhostOnly(), handler.DeleteKnowledge())
 
 	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
+	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())
+	r.DELETE("/v1/skill", localhostOnly(), handler.DeleteSkill())
 
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 

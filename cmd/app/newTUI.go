@@ -21,12 +21,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
-func newTUI(initialInput string, onceCall, allowAll bool) {
+func newTUI() {
 	lipgloss.SetHasDarkBackground(true)
 
 	tuiHash.New()
@@ -66,6 +67,7 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 	defer historyStore.Close()
 
 	geminiStt.Register()
+	imageTool.Register()
 	chatbotTool.Register()
 
 	if !runtime.IsCurrent() {
@@ -98,13 +100,13 @@ func newTUI(initialInput string, onceCall, allowAll bool) {
 	defer cancel()
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGTERM)
 	go func() {
 		<-quit
 		cancel()
 	}()
 
-	if err := tui.Run(ctx, initialInput, onceCall, allowAll); err != nil {
+	if err := tui.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "tui.Run error: %v\n", err)
 	}
 }

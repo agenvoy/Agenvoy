@@ -33,7 +33,7 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model", "add / remove provider · pick session / dispatch / summary model"},
+	{"model", "add / remove provider · pick session / dispatch / summary model · image generator"},
 	{"mcp", "list MCP servers · add / install · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
@@ -49,7 +49,7 @@ var commands = []Command{
 	{"task", "add / remove / edit one-shot scheduled task"},
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
 	{"resume", "reload visible transcript · last 100 entries from action.log"},
-	{"log", "open / view raw action.log via $PAGER (less)"},
+	{"log", "follow / tail raw daemon.log via $PAGER (less +F) · ctrl-c stops following"},
 	{"usage", "show per-model token usage · 24h / 7d / 28d"},
 	{"pending", "list / resume interrupted tasks · error recovery · ask_user resume"},
 	{"key", "update / rotate keychain value · pick from recorded keys"},

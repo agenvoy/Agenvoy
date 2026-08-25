@@ -34,20 +34,20 @@ func addToSkippedMap(href string, status int, title string) {
 	val := fmt.Sprintf("%d|%s", status, strings.TrimSpace(title))
 	if status >= 500 {
 		if err := db.Set(skipKey("skip5xx:", href), val, torii.SetDefault, torii.TTL(int64(skippedExpired.Seconds()))); err != nil {
-			slog.Warn("store.DB.Set",
+			slog.Debug("store.DB.Set",
 				slog.String("error", err.Error()))
 		}
 		return
 	}
 	if status == 0 {
 		if err := db.Set(skipKey("skipEmpty:", href), val, torii.SetDefault, torii.TTL(int64(emptySkipExpired.Seconds()))); err != nil {
-			slog.Warn("store.DB.Set",
+			slog.Debug("store.DB.Set",
 				slog.String("error", err.Error()))
 		}
 		return
 	}
 	if err := db.Set(skipKey("skip4xx:", href), val, torii.SetDefault, nil); err != nil {
-		slog.Warn("store.DB.Set",
+		slog.Debug("store.DB.Set",
 			slog.String("error", err.Error()))
 	}
 }

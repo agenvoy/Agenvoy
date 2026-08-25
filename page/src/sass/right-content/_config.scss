@@ -76,7 +76,7 @@ body[data-rendered="1"] section.right-content section.config {
       padding: 1.5rem 1rem 3rem;
       width: 100%;
       min-width: 0;
-      max-height: calc(100% - 2.5rem);
+      height: calc(100% - 2.5rem);
       overflow-y: scroll;
 
       @media (max-width: 767.99px) {
@@ -542,8 +542,12 @@ body section.right-content section.config {
       }
     }
 
-    input[readonly]:not([type="checkbox"]):not([type="radio"]) {
-      color: var(--gray-3);
+    input[readonly]:not([type="checkbox"]):not([type="radio"]),
+    input:disabled,
+    textarea:disabled {
+      color: var(--text-color);
+      -webkit-text-fill-color: var(--text-color);
+      opacity: 1;
       caret-color: transparent;
       cursor: default;
 
