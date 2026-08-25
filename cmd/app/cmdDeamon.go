@@ -37,6 +37,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -212,6 +213,7 @@ func cmdDaemon() {
 	defer historyStore.Close()
 
 	geminiStt.Register()
+	imageTool.Register()
 	chatbotTool.Register()
 
 	if _, err := runtime.Init(); err != nil {

@@ -25,6 +25,7 @@ type Config struct {
 	TelegramEnabled  bool          `json:"telegram_enabled"`
 	TelegramUsername string        `json:"telegram_username"`
 	EnableVoice      bool          `json:"enable_voice"`
+	ImageGenerator   string        `json:"image_generator"`
 	AdminChannel     string        `json:"admin_channel"`
 }
 

@@ -33,7 +33,7 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model", "add / remove provider · pick session / dispatch / summary model"},
+	{"model", "add / remove provider · pick session / dispatch / summary model · image generator"},
 	{"mcp", "list MCP servers · add / install · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},

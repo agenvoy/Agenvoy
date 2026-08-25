@@ -21,6 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
@@ -66,6 +67,7 @@ func newTUI() {
 	defer historyStore.Close()
 
 	geminiStt.Register()
+	imageTool.Register()
 	chatbotTool.Register()
 
 	if !runtime.IsCurrent() {

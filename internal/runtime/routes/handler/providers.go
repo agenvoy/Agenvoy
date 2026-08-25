@@ -10,6 +10,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
@@ -273,6 +274,7 @@ func ClearProviderOAuth() gin.HandlerFunc {
 		}
 
 		DropUsageCache(prov)
+		imageTool.Prune(c.Request.Context())
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }

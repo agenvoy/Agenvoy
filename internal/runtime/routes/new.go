@@ -35,6 +35,8 @@ func New() *gin.Engine {
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
 	r.POST("/v1/model/dispatcher", localhostOnly(), handler.SetDispatcherModel())
+	r.GET("/v1/model/image", localhostOnly(), handler.GetImageModel())
+	r.POST("/v1/model/image", localhostOnly(), handler.SetImageModel())
 	r.GET("/v1/model/summary", localhostOnly(), handler.GetSummaryModel())
 	r.POST("/v1/model/summary", localhostOnly(), handler.SetSummaryModel())
 

@@ -348,6 +348,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "summary":
 			next, cmd, _ := t.commandSummaryModel()
 			return next, cmd
+		case "image":
+			next, cmd, _ := t.commandImageModel()
+			return next, cmd
 		}
 		return t, nil
 
@@ -982,6 +985,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		agents.Reload()
 		return next, cmd
 
+	case ImageModelSelect:
+		next, cmd := t.runImageModelSelect(msg.name)
+		return next, cmd
 	case UpdateConfirm:
 		if !msg.ok {
 			return t, tea.Println(hintStyle.Render("⎯ update cancelled") + "\n")
