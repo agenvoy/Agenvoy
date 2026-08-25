@@ -25,7 +25,7 @@ func New() *gin.Engine {
 
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
-	r.GET("/v1/daemon/log", localhostOnly(), handler.StreamDaemonLog())
+	r.GET("/v1/info/version", handler.GetVersion())
 
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
@@ -45,7 +45,6 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
 	r.POST("/v1/session/:session_id/cancel/:task_id", handler.CancelSessionTask())
 	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
-	r.GET("/v1/session/:session_id/log", handler.StreamSessionLog())
 	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
 	r.GET("/v1/session/:session_id/pending", handler.ListSessionPending())
 	r.GET("/v1/session/:session_id/pending/:task_hash/questions", handler.GetSessionPendingQuestions())
@@ -59,7 +58,6 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id/summary", localhostOnly(), handler.SummarySession())
 	r.GET("/v1/session/:session_id/reasoning", localhostOnly(), handler.GetSessionReasoning())
 	r.POST("/v1/session/:session_id/reasoning", localhostOnly(), handler.SetSessionReasoning())
-	r.GET("/v1/session/:session_id/daemon", localhostOnly(), handler.GetSessionDaemonLog())
 	r.GET("/v1/session/:session_id/action", localhostOnly(), handler.GetSessionActionLog())
 	r.GET("/v1/session/:session_id/usage", localhostOnly(), handler.GetSessionUsageLog())
 	r.GET("/v1/session/:session_id/history", localhostOnly(), handler.ListSessionHistoryFiles())
@@ -88,7 +86,6 @@ func New() *gin.Engine {
 	r.POST("/v1/mcp", localhostOnly(), handler.SetMcpServer())
 	r.POST("/v1/mcp/remove", localhostOnly(), handler.RemoveMcpServer())
 	r.GET("/v1/mcp/status", localhostOnly(), handler.McpStatus())
-	r.GET("/v1/mcp/health", localhostOnly(), handler.McpHealth())
 	r.POST("/v1/mcp/reconnect", localhostOnly(), handler.McpReconnect())
 	r.GET("/v1/mcp/oauth", localhostOnly(), handler.McpOAuthLogin())
 	r.POST("/v1/mcp/oauth/callback", localhostOnly(), handler.McpOAuthCallback())

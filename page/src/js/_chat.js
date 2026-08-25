@@ -1,5 +1,12 @@
 const CHANNEL_PREFIX = { "tg-": "fa-telegram", "dc-": "fa-discord", "ln-": "fa-line" };
 
+let chatListRetry = 0;
+
+function retryChatList() {
+  clearTimeout(chatListRetry);
+  chatListRetry = setTimeout(renderChatList, 3000);
+}
+
 async function renderChatList() {
   const dom = $("#left-tab-chat-list");
   const channelDom = $("#left-tab-channel-list");
@@ -10,11 +17,16 @@ async function renderChatList() {
   let list = [];
   try {
     const response = await fetch(`${API}/v1/sessions`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
     list = (await response.json()).sessions || [];
   } catch (err) {
     console.error("loadChatList", err);
+    retryChatList();
     return;
   }
+  clearTimeout(chatListRetry);
 
   dom.innerHTML = "";
   if (channelDom) {

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,41 +22,6 @@ var usagePeriods = []struct {
 	{label: "24h", days: 1},
 	{label: "7d", days: 7},
 	{label: "28d", days: 28},
-}
-
-func GetSessionDaemonLog() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.DaemonLogPath) {
-			c.JSON(http.StatusOK, gin.H{"lines": []string{}})
-			return
-		}
-		content, err := go_pkg_filesystem.ReadText(filesystem.DaemonLogPath)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		limit, err := strconv.Atoi(c.DefaultQuery("limit", "200"))
-		if err != nil || limit <= 0 {
-			limit = 200
-		}
-
-		var matched []string
-		for line := range strings.SplitSeq(content, "\n") {
-			if strings.Contains(line, sid) {
-				matched = append(matched, line)
-			}
-		}
-		if len(matched) > limit {
-			matched = matched[len(matched)-limit:]
-		}
-		c.JSON(http.StatusOK, gin.H{"lines": matched})
-	}
 }
 
 func GetSessionActionLog() gin.HandlerFunc {
