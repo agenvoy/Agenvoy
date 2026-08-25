@@ -1133,14 +1133,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case initTailer:
 		return t.restartTailer(), nil
 
-	case released:
-		if t.onceCall || msg.tag == "" || msg.tag == projectVersion || projectVersion == "dev" {
-			return t, nil
-		}
-
-		hint := okayStyle.Render("⏺ latest: "+msg.tag) + hintStyle.Render("  (now is ") + textStyle.Render(projectVersion) + hintStyle.Render(")")
-		return t, tea.Println(hint + "\n")
-
 	case spinner.TickMsg:
 		if t.running {
 			var cmd tea.Cmd

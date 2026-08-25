@@ -1,4 +1,5 @@
 let subscription = null;
+let streamWasDown = false;
 let subscribedSession = "";
 function subscribe(sessionId) {
   if (!sessionId || subscribedSession === sessionId) {
@@ -12,6 +13,7 @@ function subscribe(sessionId) {
   }
   subscribedSession = sessionId;
   subscription = new EventSource(`${API}/v1/log?sessions=${encodeURIComponent(sessionId)}&replay=0`);
+  stopDaemonLogStream();
   subscription.onmessage = (e) => {
     let event;
     try {
@@ -21,12 +23,25 @@ function subscribe(sessionId) {
       return;
     }
 
+    if (event.type === "EventDaemonLog") {
+      daemonLogToast(event.source, event.text);
+      return;
+    }
+
     if ((event.session && event.session !== subscribedSession) || event.type === "EventConnected") {
       return;
     }
     parseEvent(event);
   };
+  subscription.onopen = () => {
+    if (streamWasDown) {
+      streamWasDown = false;
+      renderChatList();
+      loadPending(subscribedSession);
+    }
+  };
   subscription.onerror = (err) => {
+    streamWasDown = true;
     console.error("subscribe", err);
   };
 }

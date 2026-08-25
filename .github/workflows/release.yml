@@ -53,7 +53,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           go build -trimpath -tags fts5 \
-            -ldflags "-s -w -X github.com/pardnchiu/agenvoy/internal/runtime/tui.projectVersion=${GITHUB_REF_NAME}" \
+            -ldflags "-s -w -X github.com/pardnchiu/agenvoy/internal/version.Current=${GITHUB_REF_NAME}" \
             -o agen ./cmd/app/
 
       - name: Package

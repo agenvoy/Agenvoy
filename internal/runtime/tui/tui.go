@@ -75,9 +75,6 @@ func Run(ctx context.Context, userInput string, onceCall, allowAll bool) error {
 	})
 
 	go newPendingChannel(ctx)
-	if !onceCall {
-		go fetchProjectRelease(ctx)
-	}
 
 	if _, err := prog.Run(); err != nil {
 		return fmt.Errorf("prog.Run: %w", err)

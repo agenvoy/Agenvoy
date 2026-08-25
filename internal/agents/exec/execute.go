@@ -130,7 +130,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range teed {
-				if !stateless {
+				if !stateless && ev.Source == "" {
 					sessionLog.Record(sid, ev)
 				}
 				if isDcPush {
