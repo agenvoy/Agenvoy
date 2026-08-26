@@ -100,15 +100,19 @@ func TestAlwaysAllowNames(t *testing.T) {
 
 func TestConcurrentNames(t *testing.T) {
 	tr := New("ext_")
-	tr.scripts["x"] = &Script{Doc: ScriptDoc{Name: "x"}}
+	tr.scripts["x"] = &Script{Doc: ScriptDoc{Name: "x", Concurrent: true}}
 	tr.scripts["y"] = &Script{Doc: ScriptDoc{Name: "y"}}
+	tr.scripts["z"] = &Script{Doc: ScriptDoc{Name: "z", Concurrent: true}}
 
 	names := tr.ConcurrentNames()
 	if len(names) != 2 {
 		t.Fatalf("len = %d, want 2", len(names))
 	}
-	if !slices.Contains(names, "ext_x") || !slices.Contains(names, "ext_y") {
+	if !slices.Contains(names, "ext_x") || !slices.Contains(names, "ext_z") {
 		t.Errorf("names = %v", names)
+	}
+	if slices.Contains(names, "ext_y") {
+		t.Errorf("script without concurrent was included: %v", names)
 	}
 }
 

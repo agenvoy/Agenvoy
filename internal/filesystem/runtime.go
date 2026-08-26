@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
 )
@@ -26,7 +26,7 @@ var (
 	MaxResumeWaitMin      = 60
 )
 
-type DeniedConfig struct {
+type SensitiveConfig struct {
 	Dirs       []string `json:"dirs"`
 	Files      []string `json:"files"`
 	Prefixes   []string `json:"prefixes"`
@@ -34,13 +34,11 @@ type DeniedConfig struct {
 }
 
 var (
-	DeniedMap       DeniedConfig
-	DeniedMapBytes  []byte
-	WhiteList       []string
-	WhiteListSystem []string
+	SensitivePath   SensitiveConfig
+	DeniedCommand   []string
+	DeniedPath      []string
 	NetWhiteList    []string
 	ReadOnlyCommand []string
-	PathWhiteList   []string
 )
 
 const Port = "17989"
@@ -110,30 +108,41 @@ func LoadRuntime() error {
 	}
 	MaxHistoryBytes = limits.MaxHistoryBytes
 
-	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
-		return fmt.Errorf("embedded denied_map: %w", err)
+	if err := json.Unmarshal(configs.SensitivePath, &SensitivePath); err != nil {
+		return fmt.Errorf("embedded sensitive_path: %w", err)
 	}
-	if err := json.Unmarshal(configs.WhiteList, &WhiteList); err != nil {
-		return fmt.Errorf("embedded white_list: %w", err)
+	if data, ok := raw["sensitive_path"]; ok && len(data) > 0 {
+		var user SensitiveConfig
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal sensitive_path: %w", err)
+		}
+		SensitivePath.Dirs = merge(SensitivePath.Dirs, user.Dirs)
+		SensitivePath.Files = merge(SensitivePath.Files, user.Files)
+		SensitivePath.Prefixes = merge(SensitivePath.Prefixes, user.Prefixes)
+		SensitivePath.Extensions = merge(SensitivePath.Extensions, user.Extensions)
+	}
+	for key, note := range legacyKeys {
+		if data, ok := raw[key]; ok && len(data) > 0 {
+			slog.Warn("config key is no longer read",
+				slog.String("key", key),
+				slog.String("note", note))
+		}
 	}
 
-	WhiteListSystem = append([]string(nil), WhiteList...)
-	if data, ok := raw["denied_map"]; ok && len(data) > 0 {
-		var user DeniedConfig
-		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal denied_map: %w", err)
-		}
-		DeniedMap.Dirs = merge(DeniedMap.Dirs, user.Dirs)
-		DeniedMap.Files = merge(DeniedMap.Files, user.Files)
-		DeniedMap.Prefixes = merge(DeniedMap.Prefixes, user.Prefixes)
-		DeniedMap.Extensions = merge(DeniedMap.Extensions, user.Extensions)
-	}
-	if data, ok := raw["white_list"]; ok && len(data) > 0 {
+	if data, ok := raw["denied_command"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal white_list: %w", err)
+			return fmt.Errorf("json.Unmarshal denied_command: %w", err)
 		}
-		WhiteList = merge(WhiteList, user)
+		DeniedCommand = merge(nil, user)
+	}
+
+	if data, ok := raw["denied_path"]; ok && len(data) > 0 {
+		var user []string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal denied_path: %w", err)
+		}
+		DeniedPath = normalizeDeniedPath(user)
 	}
 
 	if data, ok := raw["net_white_list"]; ok && len(data) > 0 {
@@ -155,23 +164,11 @@ func LoadRuntime() error {
 		ReadOnlyCommand = merge(ReadOnlyCommand, user)
 	}
 
-	if data, ok := raw["path_white_list"]; ok && len(data) > 0 {
-		var user []string
-		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal path_white_list: %w", err)
-		}
-		PathWhiteList = normalizePathWhiteList(user)
+	if err := applySandboxDenied(); err != nil {
+		return err
 	}
 
-	deniedBytes, err := json.Marshal(DeniedMap)
-	if err != nil {
-		return fmt.Errorf("json.Marshal denied_map: %w", err)
-	}
-	DeniedMapBytes = deniedBytes
-
-	go_pkg_sandbox.New(DeniedMapBytes)
 	if err := go_pkg_filesystem.New(go_pkg_filesystem.Policy{
-		DeniedMap:   DeniedMapBytes,
 		ExcludeList: configs.ExcludeList,
 	}); err != nil {
 		slog.Warn("go_pkg_filesystem New",
@@ -196,43 +193,73 @@ func LoadRuntime() error {
 	return nil
 }
 
-func normalizePathWhiteList(list []string) []string {
-	home, homeErr := os.UserHomeDir()
+var legacyKeys = map[string]string{
+	"sensitive_map":   "renamed to sensitive_path",
+	"white_list":      "removed; commands run unless listed in denied_command",
+	"path_white_list": "removed; paths outside $HOME are approved per session",
+}
+
+func normalizeDeniedPath(list []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(list))
-	for _, one := range list {
-		one = strings.TrimSpace(one)
-		if one == "" {
+	root := string(filepath.Separator)
+	for _, entry := range list {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
 			continue
 		}
-		if one == "~" || strings.HasPrefix(one, "~/") {
-			if homeErr != nil {
-				slog.Warn("path_white_list entry dropped: home directory unknown",
-					slog.String("entry", one),
-					slog.String("error", homeErr.Error()))
-				continue
-			}
-			one = filepath.Join(home, one[1:])
+		if !filepath.IsAbs(entry) && entry != "~" && !strings.HasPrefix(entry, "~/") {
+			slog.Warn("denied_path entry dropped: needs an absolute path or ~/",
+				slog.String("entry", entry))
+			continue
 		}
+		one := go_pkg_utils.AbsPath("", entry)
 		if !filepath.IsAbs(one) {
-			slog.Warn("path_white_list entry dropped: not an absolute path",
-				slog.String("entry", one))
+			slog.Warn("denied_path entry dropped: cannot be resolved",
+				slog.String("entry", entry))
 			continue
 		}
+		if one == root {
+			slog.Warn("denied_path entry dropped: refusing to deny the filesystem root",
+				slog.String("entry", entry))
+			continue
+		}
+		if !seen[one] {
+			seen[one] = true
+			out = append(out, one)
+		}
+
 		resolved, err := go_pkg_filesystem.RealPath(one)
-		if err != nil {
-			slog.Warn("path_white_list entry dropped: cannot be resolved",
-				slog.String("entry", one),
-				slog.String("error", err.Error()))
-			continue
-		}
-		if seen[resolved] {
+		if err != nil || resolved == root || seen[resolved] {
 			continue
 		}
 		seen[resolved] = true
 		out = append(out, resolved)
 	}
 	return out
+}
+
+func applySandboxDenied() error {
+	if len(DeniedPath) == 0 {
+		return nil
+	}
+	payload := struct {
+		Dirs  []string `json:"dirs"`
+		Files []string `json:"files"`
+	}{}
+	for _, one := range DeniedPath {
+		if go_pkg_filesystem_reader.IsFile(one) {
+			payload.Files = append(payload.Files, one)
+			continue
+		}
+		payload.Dirs = append(payload.Dirs, one)
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("json.Marshal denied_path: %w", err)
+	}
+	go_pkg_sandbox.New(raw)
+	return nil
 }
 
 func merge(base, extra []string) []string {

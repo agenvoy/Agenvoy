@@ -9,44 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowCmd "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/cmd"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
-
-func ListAllowCmd() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"white_list": allowCmd.List(),
-			"system":     allowCmd.System(),
-			"custom":     allowCmd.Custom(),
-		})
-	}
-}
-
-func AddAllowCmd() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var body struct {
-			Name string `json:"name"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		name := strings.TrimSpace(body.Name)
-		if name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "name required"})
-			return
-		}
-		added, err := allowCmd.Append(name)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "added": added, "restart_required": added})
-	}
-}
 
 func ListAllowSkill() gin.HandlerFunc {
 	return func(c *gin.Context) {

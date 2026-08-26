@@ -241,7 +241,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         if (!(params.page === "chat" && params.chat)) {
-          subscribeDaemonLog();
+          subscribe("");
         }
         bindSelectPicker();
         bindInputDrop();

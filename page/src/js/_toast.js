@@ -1,10 +1,6 @@
 const TOAST_MAX = 32;
 const TOAST_LEVEL = { WARN: "warn", ERROR: "error" };
 
-let toastStream = null;
-let toastStreamRetry = 0;
-let toastStreamOff = false;
-
 function toastDom() {
   return $("#toast");
 }
@@ -41,41 +37,3 @@ function nowClock() {
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-function stopDaemonLogStream() {
-  toastStreamOff = true;
-  clearTimeout(toastStreamRetry);
-  if (toastStream) {
-    toastStream.close();
-    toastStream = null;
-  }
-}
-
-function subscribeDaemonLog() {
-  if (toastStream || toastStreamOff) {
-    return;
-  }
-
-  toastStream = new EventSource(`${API}/v1/log`);
-  toastStream.onmessage = function (e) {
-    let event = {};
-    try {
-      event = JSON.parse(e.data);
-    } catch (err) {
-      console.error("subscribeDaemonLog", err);
-      return;
-    }
-    if (event.type !== "EventDaemonLog") {
-      return;
-    }
-    daemonLogToast(event.source, event.text);
-  };
-  toastStream.onerror = function () {
-    if (toastStream) {
-      toastStream.close();
-      toastStream = null;
-    }
-    if (!toastStreamOff) {
-      toastStreamRetry = setTimeout(subscribeDaemonLog, 5000);
-    }
-  };
-}

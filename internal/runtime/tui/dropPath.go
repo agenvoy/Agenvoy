@@ -1,12 +1,11 @@
 package tui
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 func quoteDroppedPaths(raw string) (string, bool) {
@@ -22,7 +21,7 @@ func quoteDroppedPaths(raw string) (string, bool) {
 		if !strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "~/") {
 			return "", false
 		}
-		if !go_pkg_filesystem_reader.Exists(expandHome(path)) {
+		if !go_pkg_filesystem_reader.Exists(go_pkg_utils.AbsPath("", path)) {
 			return "", false
 		}
 	}
@@ -58,16 +57,4 @@ func splitDroppedPaths(raw string) []string {
 		list = append(list, sb.String())
 	}
 	return list
-}
-
-func expandHome(path string) string {
-	rest, ok := strings.CutPrefix(path, "~/")
-	if !ok {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path
-	}
-	return filepath.Join(home, rest)
 }

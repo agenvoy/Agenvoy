@@ -24,11 +24,6 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}
 
-	allowedCommand := make(map[string]bool, len(filesystem.WhiteList))
-	for _, cmd := range filesystem.WhiteList {
-		allowedCommand[cmd] = true
-	}
-
 	apiToolbox := apiAdapter.New("api_")
 	apiToolbox.Builtin(extensions.APIs, "apis")
 
@@ -129,7 +124,6 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	return &toolTypes.Executor{
 		WorkDir:          workPath,
 		SessionID:        sessionID,
-		AllowedCommand:   allowedCommand,
 		Tools:            initial,
 		AllTools:         tools,
 		StubTools:        stubTools,

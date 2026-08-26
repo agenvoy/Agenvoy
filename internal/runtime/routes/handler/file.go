@@ -12,7 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	"github.com/pardnchiu/agenvoy/internal/tools/file"
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 )
 
 func resolveFilePath(raw string) (string, int, error) {
@@ -28,7 +28,7 @@ func resolveFilePath(raw string) (string, int, error) {
 	if err != nil {
 		return "", http.StatusForbidden, err
 	}
-	if file.IsSensitivePath(absPath) {
+	if boundary.IsSensitivePath(absPath) {
 		return "", http.StatusForbidden, os.ErrPermission
 	}
 	return absPath, 0, nil

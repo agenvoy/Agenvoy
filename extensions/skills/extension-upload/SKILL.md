@@ -287,10 +287,10 @@ ls -l ~/.config/agenvoy/tools/.extension/.package/<name>@<version>.tar.gz
 
 Do not branch on "stderr contains a warning → failure". A tarball on disk = success.
 
-If `tar` is not in the whitelist / blocked by the sandbox, tell the user:
+If `tar` is blocked, tell the user:
 
 ```
-⚠️ tar is not in the whitelist. Run /allow-cmd tar and retry, or have the maintainer add tar to configs/jsons/white_list.json.
+⚠️ tar is blocked. Check whether it is listed under denied_command in ~/.agenvoy/config.json.
 ```
 
 ### 8. Upload to pkg.agenvoy.com (registry)

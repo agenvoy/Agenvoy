@@ -139,7 +139,7 @@ func Send() gin.HandlerFunc {
 				}
 			}
 			if agent == nil {
-				primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, sessionID)
+				primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, "", sessionID)
 				if err != nil {
 					wrapped <- agentTypes.ErrorEvent(err)
 					return
@@ -154,6 +154,7 @@ func Send() gin.HandlerFunc {
 			}
 
 			data := exec.ExecuteMeta{
+				Origin:            "chat-",
 				Agent:             agent,
 				FallbackAgents:    fallbacks,
 				WorkDir:           workDir,

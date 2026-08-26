@@ -2,18 +2,20 @@ let subscription = null;
 let streamWasDown = false;
 let subscribedSession = "";
 function subscribe(sessionId) {
-  if (!sessionId || subscribedSession === sessionId) {
+  sessionId = sessionId || "";
+  if (subscription && subscribedSession === sessionId) {
     return;
   }
 
   if (subscription) {
     subscription.close();
-    subscribedSession = "";
     subscription = null;
   }
   subscribedSession = sessionId;
-  subscription = new EventSource(`${API}/v1/log?sessions=${encodeURIComponent(sessionId)}&replay=0`);
-  stopDaemonLogStream();
+  const url = sessionId
+    ? `${API}/v1/log?sessions=${encodeURIComponent(sessionId)}&replay=0`
+    : `${API}/v1/log?replay=0`;
+  subscription = new EventSource(url);
   subscription.onmessage = (e) => {
     let event;
     try {
@@ -37,7 +39,9 @@ function subscribe(sessionId) {
     if (streamWasDown) {
       streamWasDown = false;
       renderChatList();
-      loadPending(subscribedSession);
+      if (subscribedSession) {
+        loadPending(subscribedSession);
+      }
     }
   };
   subscription.onerror = (err) => {

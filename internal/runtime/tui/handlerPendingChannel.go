@@ -11,13 +11,15 @@ type Pending struct {
 	request runtime.Request
 }
 
+const tuiSessionPrefix = "cli-"
+
 func newPendingChannel(ctx context.Context) {
-	notify, unregister := runtime.RegisterListener("")
+	notify, unregister := runtime.RegisterListener(tuiSessionPrefix)
 	defer unregister()
 
 	for {
 		for {
-			id, next, ok := runtime.PickNext("")
+			id, next, ok := runtime.PickNext(tuiSessionPrefix)
 			if !ok {
 				break
 			}

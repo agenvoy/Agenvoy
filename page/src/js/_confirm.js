@@ -41,15 +41,19 @@ function renderToolConfirm(event) {
   }
 
   const body = [_("p.name", event.tool_name || "tool")];
-  const args = (event.tool_args || "").trim();
+  const args = (event.tool_display || event.tool_args || "").trim();
   if (args && args !== "{}") {
     body.push(_("pre.args", args));
   }
 
   const restricted = event.restricted || [];
+  const cached = Boolean(event.password_cached);
   let password = null;
   let note = null;
-  if (restricted.length > 0) {
+  if (restricted.length > 0 && cached) {
+    body.push(_("p.restricted", `outside the allow list · ${restricted.join(", ")} · sudo still valid, no password needed`));
+  }
+  if (restricted.length > 0 && !cached) {
     body.push(_("p.restricted", `needs your system password · ${restricted.join(", ")}`));
     password = _("input", {
       type: "password",

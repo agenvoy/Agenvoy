@@ -1,7 +1,5 @@
 {
-  "tools": [
-    "install_dependence"
-  ],
+  "tools": [],
   "skills": [
     "extension-upload",
     "extension-install"

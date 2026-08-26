@@ -66,7 +66,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	userText := full
 	sessionLog.Append(sessionID, userText)
 
-	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, sessionID)
+	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, "", sessionID)
 	if err != nil {
 		b.client.FinishStatus(ctx, chatID)
 		errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
@@ -76,6 +76,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
 
 	execData := exec.ExecuteMeta{
+		Origin:         "tg-",
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,

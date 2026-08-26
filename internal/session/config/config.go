@@ -19,7 +19,6 @@ type Config struct {
 	Models           []ModelEntry  `json:"models"`
 	Compats          []CompatEntry `json:"compats"`
 	Keys             []string      `json:"keys"`
-	DiscordGuildID   string        `json:"discord_guild_id"`
 	DiscordEnabled   bool          `json:"discord_enabled"`
 	DiscordUsername  string        `json:"discord_username"`
 	TelegramEnabled  bool          `json:"telegram_enabled"`

@@ -1,10 +1,13 @@
 const TG_SESSION = /^tg-/i;
 
+const SEND_FILE_MARKER = /\[SEND_FILE:[^\]]*\]/g;
+
 function channelText(text) {
+  const stripped = String(text || "").replace(SEND_FILE_MARKER, "");
   if (!TG_SESSION.test(currentSessionId || "")) {
-    return text;
+    return stripped;
   }
-  return tgHtmlToMarkdown(text);
+  return tgHtmlToMarkdown(stripped);
 }
 
 function tgHtmlToMarkdown(text) {
