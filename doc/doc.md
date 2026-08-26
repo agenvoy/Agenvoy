@@ -22,7 +22,7 @@ agen
 ```bash
 git clone https://github.com/pardnchiu/agenvoy.git
 cd agenvoy
-go build -tags fts5 -ldflags "-X github.com/pardnchiu/agenvoy/internal/runtime/tui.projectVersion=dev" -o agen ./cmd/app/
+go build -tags fts5 -ldflags "-X github.com/pardnchiu/agenvoy/internal/runtime.CurrentVersion=dev" -o agen ./cmd/app/
 ./agen
 ```
 
@@ -43,7 +43,6 @@ agen
 | `make stop` | Stop the daemon |
 | `make update` | Run the official updater |
 | `make test` | `go test -v -count=1 ./...` |
-| `make setup` | Build the macOS installer app bundles into `dist/` |
 
 ### Run without installing
 
@@ -91,12 +90,12 @@ When the input area is empty, press `Shift+F` to toggle fast mode. The header di
 
 ### Restricted paths and commands
 
-Paths under `denied_map` (credential stores, key material) and commands outside the allowlist are not refused outright: `boundary.Resolve` and `tools.RestrictedCommands` collect them and raise a confirmation that also demands the operating-system password (`sudo -v` inside the TUI). Approval is bound to that session and the specific path or binary, and the sudo timestamp is the only clock — there is no second TTL.
+Paths outside `$HOME` and commands outside the allowlist are not refused outright: `boundary.Resolve` and `tools.RestrictedCommands` collect them and raise a confirmation that also demands the operating-system password (`sudo -v` inside the TUI). Approval is bound to that session and the specific path or binary, and the sudo timestamp is the only clock — there is no second TTL: while that ticket is still valid the prompt appears without a password field.
 
 Two consequences worth knowing before automating anything:
 
 - Only the TUI can approve them. Any channel that cannot collect a password (HTTP API, Telegram, Discord, subagents) gets the call back as skipped, with a message saying so.
-- `run_command` never negotiates `denied_map`; the sandbox profile denies those paths unconditionally, so the error points at `find_files` / `read_files`, which can ask.
+- Reads are not restricted by path. The sandbox constrains writes, not reads, so a command fails on a path only when the operating system itself refuses.
 
 Commands that need to write outside `$HOME` declare `write_paths` instead of escalating; only those paths are bound into the sandbox.
 
@@ -131,7 +130,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 
 | Command | Purpose |
 |---|---|
-| `/model` | Add or remove providers, pick the session / dispatcher / summary model |
+| `/model` | Add or remove providers, pick the session / dispatcher / summary model, set the image generator |
 | `/mcp` | List MCP servers; add, install into other agents, log in, reconnect, inspect tools, set per-tool permission, remove |
 | `/switch` `/new` | Switch to another session, or create one (names are conflict-checked) |
 | `/bot` | Rename the current session or edit its persona |
@@ -158,18 +157,6 @@ Shortcuts work while the input area is empty:
 | `Shift+T` | Toggle command mode — input runs as a shell command in the current directory, outside the sandbox |
 | `Shift+U` | Provider quota and balance |
 | `Shift+M` | Registered model list |
-
-### Agent runs
-
-```bash
-# Keep per-tool confirmation
-agen cli 'Summarize the main modules in this Go project'
-
-# Allow tools automatically for this run
-agen run 'Inspect the latest Git changes and produce a summary'
-```
-
-`run` bypasses per-call confirmation only; sandbox, denied-path, exclusions, and runtime limits still apply.
 
 ### Local HTTP API
 
@@ -200,8 +187,6 @@ printf '%s\n' \
 | Command | Syntax | Description |
 |---|---|---|
 | TUI | `agen` | Open the interactive TUI and attach to the local daemon. |
-| Interactive run | `agen cli <input...>` | Run an agent with tool confirmation. |
-| Automatic run | `agen run <input...>` | Run an agent with tools allowed for that request. |
 | Stop | `agen stop` | Stop the daemon. |
 | Update | `agen update` | Execute the official updater. |
 | Daemon | `agen --daemon` | Start the daemon directly. |
@@ -217,7 +202,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `POST` | `/v1/send` | Run an agent request. |
 | `POST` | `/v1/chat/completions` | Stateless OpenAI-compatible chat completion. |
-| `GET` | `/v1/log` | SSE stream of events across all sessions. |
+| `GET` | `/v1/info/version` | Build version stamped at compile time (`{version, dev}`); `dev` is true for an untagged build. |
+| `GET` | `/v1/log` | SSE stream. With no query it carries daemon `slog` records only (`EventDaemonLog` frames with `source` as the level) — the same feed the TUI header shows, and it includes new-chat verification codes, so daemon frames are attached only for loopback callers. `?sessions=a,b` adds those sessions' events on the same connection; `replay=0` skips the backlog, `daemon=0` drops the daemon frames. A remote caller must pass `sessions`. |
 | `GET` | `/v1/tools` | List current tools. |
 | `POST` | `/v1/tool/:tool_name` | Run a named tool directly. |
 
@@ -230,6 +216,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
 | `GET` `POST` | `/v1/model/dispatcher` | **local** — get/set the dispatcher model. |
 | `GET` `POST` | `/v1/model/summary` | **local** — get/set the summary model. |
+| `GET` `POST` | `/v1/model/image` | **local** — get/set the image generator. The value is a provider id (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`), empty or `off` disables it; GET also returns the full option list. Rejects a provider with no registered model. |
 
 **Sessions**
 
@@ -239,20 +226,18 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` `PUT` `DELETE` | `/v1/session` | **local** — create / rename / delete a session. |
 | `POST` | `/v1/session/:id/model` | Set the model for a session. |
 | `GET` | `/v1/session/:id/status` | Get session status and usage. |
-| `GET` | `/v1/session/:id/log` | SSE stream of events for one session. |
 | `POST` | `/v1/session/:id/event` | **local** — publish an event into a session's stream. |
 | `GET` | `/v1/session/:id/pending` | List pending (`ask_user`/confirm) tasks. |
 | `GET` | `/v1/session/:id/pending/:task_hash/questions` | Get a pending task's questions. |
 | `POST` | `/v1/session/:id/pending/:task_hash/resume` | Answer a pending task and resume. |
 | `DELETE` | `/v1/session/:id/pending/:task_hash` | Discard a pending task without answering it. |
-| `POST` | `/v1/session/:id/cancel/:task_id` | Cancel one running task. `task_id` comes from `/status`; cancelling is per-task by design, there is no cancel-everything variant. |
+| `POST` | `/v1/session/:id/cancel/:task_id` | Cancel one running task; 404 when that id is not running in this process. |
 | `POST` | `/v1/session/:id/confirm/:request_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?}`. Restricted paths and non-allowlisted commands cannot be approved here — they need the password check only the TUI can collect, so an approval without it comes back as skipped. |
 | `GET` `POST` | `/v1/session/:id/persona` | **local** — get/set a session's persona. |
 | `GET` `POST` | `/v1/session/:id/reasoning` | **local** — get/set the session's reasoning level. |
 | `POST` | `/v1/session/:id/reset` | **local** — clear the session's history and summary. |
 | `POST` | `/v1/session/:id/summary` | **local** — rebuild the session summary in the background. |
 | `POST` | `/v1/session/:id/compact` | **local** — compact history in the background (fire-and-forget, `202 Accepted`). |
-| `GET` | `/v1/session/:id/daemon` | **local** — `daemon.log` lines mentioning this session ID (best-effort grep, not a true per-session log). |
 | `GET` | `/v1/session/:id/action` | **local** — that session's `action.log` content. |
 | `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d per-model token usage (same aggregation as the TUI `/usage` screen). |
 | `GET` | `/v1/session/:id/history` | **local** — list archived completed pending-task files. |
@@ -264,6 +249,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` | `/v1/channel/status` | **local** — Telegram/Discord enabled state, bot username, whether a token is stored. |
 | `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`. Enable stores the token and flips the config flag only; the `GetMe` verification the TUI does is intentionally skipped, since the daemon's existing config-file watcher already reconnects the bot and fills in its username. |
+| `GET` | `/v1/channel/:channel/chats` | **local** — chats that finished verification for `telegram` / `discord`, read from the `.telegram` / `.discord` auth files. Only meaningful while the bot runs, so ask for it after `status` reports `enabled`. |
+| `DELETE` | `/v1/channel/:channel/chat` | **local** — `{id}`. Drops one chat from that auth file; the chat has to verify again before the bot answers it. 404 when the id is not on the list. |
 | `GET` | `/v1/channel/admin` | **local** — current relay target plus the pickable ones: `{admin_channel, authorized, chats:[{value,type,id,name}]}`. `chats` comes from the `.telegram` / `.discord` auth files (tg first, then dc) and each `value` can be posted back as-is; `authorized` says whether the current value is still on that list (a hand-typed ID reads `false`). |
 | `POST` | `/v1/channel/admin` | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`. Sets where new-chat verification codes are relayed; an empty string clears it. `value` is required (omitting it returns 400 so an empty body cannot silently clear the setting). Only the format is validated — an ID that is not in the authorized list makes `NotifyAdminCode` log a warning and keep the code log-only. |
 
@@ -283,9 +270,11 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/providers` | **local** — list providers and their available operations. |
+| `GET` | `/v1/providers/usage` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
 | `GET` | `/v1/provider/:provider/check` | **local** — whether a credential exists for this provider. |
 | `POST` | `/v1/provider/:provider/key` | **local** — set an API key. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
+| `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |
 | `GET` | `/v1/provider/:provider/models` | **local** — list models available to this provider. |
 
 **MCP**
@@ -295,7 +284,6 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` `POST` | `/v1/mcp` | **local** — list/add MCP servers. The `GET` also returns `oauth: {name: bool}` for the HTTP servers, saying which ones already hold a token. |
 | `POST` | `/v1/mcp/remove` | **local** — remove an MCP server. |
 | `GET` | `/v1/mcp/status` | **local** — connection status per server. |
-| `GET` | `/v1/mcp/health` | **local** — health probe per server. |
 | `POST` | `/v1/mcp/reconnect` | **local** — reconnect all MCP clients and re-register tools. |
 | `GET` | `/v1/mcp/oauth?name=X` | **local** — SSE OAuth login for one HTTP MCP server, mirroring `/v1/provider/:provider/oauth`: emits `{"url":…}` for the browser, then `{"done":true,"ok":…}` (plus `reconnect_error` when the post-login reconnect fails). Times out after 10 minutes, or when the client disconnects. |
 | `POST` | `/v1/mcp/oauth/callback` | **local** — `{name, url}`. Hands the redirect URL back when the browser cannot reach the daemon's loopback listener on `localhost:17988`; the code is parsed out of the URL's query. 400 if no login is waiting for that server. |
@@ -371,6 +359,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Support | `calculate` | Arithmetic, unit and currency conversion |
 | | `store_secret` | Masked prompt, stored in the keychain |
 | Conditional | `transcribe_media` | Audio and video to text — needs `GEMINI_API_KEY` |
+| Conditional | `generate_image` | Text to image, saved to disk — excluded while the image generator is off |
 | | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
 
 Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry.

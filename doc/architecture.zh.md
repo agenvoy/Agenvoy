@@ -25,7 +25,7 @@ graph TB
 
 ## 模組：進入點
 
-`cmd/app` 二進位檔預設啟動 TUI。`agen cli <input>` 保留逐次工具確認，`agen run <input>` 則只在該次執行中允許工具自動執行，仍受沙箱政策限制。`agen stop` 停止 daemon，`agen update` 執行官方更新器，而非終端 stdin 會啟動 MCP server。
+`cmd/app` 二進位檔預設啟動 TUI。`agen stop` 停止 daemon，`agen update` 執行官方更新器，而非終端 stdin 會啟動 MCP server。
 
 ```mermaid
 graph TB
@@ -112,7 +112,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過拒絕路徑檢查、允許規則、確認閘門、shell 驗證與沙箱強制。落在 `denied_map` 內的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
+內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過允許規則、確認閘門、shell 驗證與沙箱強制。`$HOME` 以外的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
 
 ```mermaid
 graph TB

@@ -141,7 +141,7 @@ Response is JSON `{"ok": true/false, ...}`. `ok:false` or tool error → **abort
 
 Each call triggers a `KindToolConfirm` popup (`AlwaysAllow=false`); the user sees "About to run `brew install ffmpeg` — confirm?". User decline → tool fails → skill aborts.
 
-> Note: `install_dependence` is only registered in the TUI / `agen cli` / `agen run` processes; Telegram / Discord / HTTP-API / subagent see it filtered out via `ExcludeTools`. This skill is also only usable from those visible channels.
+> Note: `install_dependence` is only registered in the TUI process; Telegram / Discord / HTTP-API / subagent see it filtered out via `ExcludeTools`. This skill is also only usable from those visible channels.
 
 ### 4. Check and fill keychain keys
 

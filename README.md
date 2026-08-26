@@ -39,7 +39,13 @@
 ## What you can do with it
 
 <table>
+- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
+- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
 <tr>
+- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
+- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
+- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
+- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
 <td width="50%" valign="top">
 
 ### Ask for live answers
@@ -189,6 +195,10 @@ Agenvoy is for developers, technical operators, and AI-heavy workflows that need
 | MCP server           | Expose sandboxed tools to any MCP-compatible agent                       |
 | Reasoning guides     | On-demand rules via `reasoning_guide(topic=...)`                         |
 | Tool Market          | Share and install tools                                                  |
+| Image generation     | Generate images through a configured provider                         |
+| Live command output  | Stream `run_command` progress to the TUI and Web dashboard            |
+| Secure file boundary | Confirm sensitive paths and out-of-home access before granting them   |
+| MCP OAuth            | Log in to HTTP MCP servers and persist tokens in the OS keychain      |
 | Transcription        | Audio and video to text                                                  |
 | Self-improvement     | Auto-fixes after execution failures                                      |
 

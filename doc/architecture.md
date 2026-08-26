@@ -25,7 +25,7 @@ graph TB
 
 ## Module: Entry Points
 
-The `cmd/app` binary runs the TUI by default. `agen cli <input>` retains per-tool confirmation, while `agen run <input>` allows tools for that run subject to sandbox policy. `agen stop` stops the daemon, `agen update` runs the official updater, and non-terminal stdin activates the MCP server.
+The `cmd/app` binary runs the TUI by default. `agen stop` stops the daemon, `agen update` runs the official updater, and non-terminal stdin activates the MCP server.
 
 ```mermaid
 graph TB
@@ -112,7 +112,7 @@ graph TB
 
 ## Module: Tool Registry and Sandbox
 
-Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through denied-path checks, allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths inside `denied_map` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
+Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths outside `$HOME` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
 
 ```mermaid
 graph TB
