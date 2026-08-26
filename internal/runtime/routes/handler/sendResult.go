@@ -41,7 +41,7 @@ func sendResult(c *gin.Context, sessionID string, input string, events <-chan ag
 			if sb.Len() > 0 {
 				sb.WriteByte('\n')
 			}
-			sb.WriteString(utils.StripFileMarkers(event.Text))
+			sb.WriteString(event.Text)
 		case agentTypes.EventTextDone:
 
 		case agentTypes.EventDone:

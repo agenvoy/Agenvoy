@@ -60,10 +60,6 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 
 const confirmTimeout = 5 * time.Minute
 
-func isTUISession(sessionID string) bool {
-	return strings.HasPrefix(strings.TrimSpace(sessionID), "cli-")
-}
-
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
 func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
@@ -431,20 +427,17 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			verified := false
 			reason := ""
 			if runtime.HasListener(sessionData.ID) {
-				askCtx := ctx
-				cancelAsk := func() {}
-				if !isTUISession(sessionData.ID) {
-					askCtx, cancelAsk = context.WithTimeout(ctx, confirmTimeout)
-				}
+				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
 				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:       runtime.KindToolConfirm,
 					SessionID:  sessionData.ID,
+					Origin:     exec.Origin,
 					ToolName:   toolName,
 					ToolArgs:   toolArg,
 					Restricted: restrictedList,
 				})
 				cancelAsk()
-				if !isTUISession(sessionData.ID) && errors.Is(err, context.DeadlineExceeded) {
+				if errors.Is(err, context.DeadlineExceeded) {
 					events <- agentTypes.Event{
 						Type:     agentTypes.EventToolSkipped,
 						ToolName: toolName,

@@ -43,7 +43,6 @@ func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agent
 			continue
 		}
 
-		event.Text = utils.StripFileMarkers(event.Text)
 		raw, err := json.Marshal(event)
 		if err != nil {
 			continue

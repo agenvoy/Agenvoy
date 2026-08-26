@@ -39,6 +39,7 @@ type Request struct {
 	ID          string
 	Kind        Kind
 	SessionID   string
+	Origin      string
 	ToolName    string
 	ToolArgs    string
 	Restricted  []string
@@ -151,6 +152,13 @@ func Ask(ctx context.Context, req Request) (Reply, error) {
 	}
 }
 
+func (r Request) routeKey() string {
+	if r.Origin != "" {
+		return r.Origin
+	}
+	return r.SessionID
+}
+
 func PickNext(prefix string) (id string, req Request, ok bool) {
 	return PickNextMatch(prefix, nil)
 }
@@ -165,7 +173,7 @@ func PickNextMatch(prefix string, accept func(Request) bool) (id string, req Req
 		if e.claimed {
 			continue
 		}
-		if prefix != "" && !strings.HasPrefix(e.req.SessionID, prefix) {
+		if prefix != "" && !strings.HasPrefix(e.req.routeKey(), prefix) {
 			continue
 		}
 		if e.req.Ctx != nil && e.req.Ctx.Err() != nil {

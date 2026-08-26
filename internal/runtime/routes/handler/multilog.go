@@ -56,12 +56,10 @@ func toWire(ev agentTypes.Event) wireEvent {
 	case agentTypes.EventToolConfirm:
 		display = internalUtils.FormatToolArgs(ev.ToolName, ev.ToolArgs, "")
 	}
-	ev.Text = internalUtils.StripFileMarkers(ev.Text)
 	return wireEvent{Event: ev, Display: display}
 }
 
 func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
-	ev.Text = internalUtils.StripFileMarkers(ev.Text)
 	return taggedEvent{
 		Session: sessionID,
 		Event:   ev,
