@@ -31,13 +31,6 @@ type Bot struct {
 
 var current atomic.Pointer[Bot]
 
-func (b *Bot) Client() *go_bot_telegram.Bot {
-	if b == nil {
-		return nil
-	}
-	return b.client
-}
-
 func New() (*Bot, error) {
 	cfg, err := config.Load()
 	if err != nil || cfg == nil || !cfg.TelegramEnabled {
