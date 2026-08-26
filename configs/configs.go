@@ -96,8 +96,8 @@ var GuideWriteTodo string
 
 // * Configs
 
-//go:embed jsons/denied_map.json
-var DeniedMap []byte
+//go:embed jsons/sensitive_map.json
+var SensitiveMap []byte
 
 //go:embed jsons/exclude_list.json
 var ExcludeList []byte

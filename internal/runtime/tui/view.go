@@ -76,6 +76,11 @@ func (t TUI) viewThinking() string {
 		sb.WriteByte('\n')
 	}
 
+	for _, line := range t.toolLog {
+		sb.WriteString(hintStyle.Render(go_pkg_utils.TruncateString("  "+line, max(t.width-4, 32))))
+		sb.WriteByte('\n')
+	}
+
 	verb := activityVerb(t.activity)
 	elapsed := formatTime(int(time.Since(t.runStartedAt).Seconds()))
 

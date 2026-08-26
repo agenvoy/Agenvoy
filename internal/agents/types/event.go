@@ -26,6 +26,7 @@ var eventTypeByName = map[string]EventType{
 	"EventToolCallStart":   EventToolCallStart,
 	"EventToolCallText":    EventToolCallText,
 	"EventToolCallEnd":     EventToolCallEnd,
+	"EventToolProgress":    EventToolProgress,
 	"EventToolResult":      EventToolResult,
 	"EventToolSkipped":     EventToolSkipped,
 	"EventToolConfirm":     EventToolConfirm,
@@ -91,6 +92,7 @@ const (
 	EventPending
 	EventClientToolCall
 	EventFileChanged
+	EventToolProgress
 )
 
 func (e EventType) String() string {
@@ -115,6 +117,8 @@ func (e EventType) String() string {
 		return "EventToolCallText"
 	case EventToolCallEnd:
 		return "EventToolCallEnd"
+	case EventToolProgress:
+		return "EventToolProgress"
 	case EventToolResult:
 		return "EventToolResult"
 	case EventToolSkipped:
@@ -176,6 +180,7 @@ type Event struct {
 	Suggests        []string            `json:"suggests,omitempty"`
 	Files           []string            `json:"files,omitempty"`
 	Restricted      []string            `json:"restricted,omitempty"`
+	PasswordCached  bool                `json:"password_cached,omitempty"`
 	ClientToolCalls []provider.ToolCall `json:"client_tool_calls,omitempty"`
 	Err             error               `json:"-"`
 }

@@ -10,7 +10,6 @@ import (
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
@@ -73,13 +72,6 @@ func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 		return "", fmt.Errorf("filepath.Abs: %w", err)
 	}
 	abs = filepath.Clean(abs)
-
-	for _, dir := range filesystem.DeniedMap.Dirs {
-		needle := "/" + dir
-		if strings.Contains(abs, needle+"/") || strings.HasSuffix(abs, needle) {
-			return "", fmt.Errorf("access denied: %s. %s", dir, deniedHint)
-		}
-	}
 
 	if !go_pkg_filesystem_reader.IsDir(abs) {
 		return "", fmt.Errorf("not a directory or does not exist: %s", abs)

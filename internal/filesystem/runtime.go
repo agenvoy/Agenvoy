@@ -11,7 +11,6 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 
 	"github.com/pardnchiu/agenvoy/configs"
 )
@@ -26,7 +25,7 @@ var (
 	MaxResumeWaitMin      = 60
 )
 
-type DeniedConfig struct {
+type SensitiveConfig struct {
 	Dirs       []string `json:"dirs"`
 	Files      []string `json:"files"`
 	Prefixes   []string `json:"prefixes"`
@@ -34,8 +33,7 @@ type DeniedConfig struct {
 }
 
 var (
-	DeniedMap       DeniedConfig
-	DeniedMapBytes  []byte
+	SensitiveMap    SensitiveConfig
 	WhiteList       []string
 	WhiteListSystem []string
 	NetWhiteList    []string
@@ -110,24 +108,25 @@ func LoadRuntime() error {
 	}
 	MaxHistoryBytes = limits.MaxHistoryBytes
 
-	if err := json.Unmarshal(configs.DeniedMap, &DeniedMap); err != nil {
-		return fmt.Errorf("embedded denied_map: %w", err)
+	if err := json.Unmarshal(configs.SensitiveMap, &SensitiveMap); err != nil {
+		return fmt.Errorf("embedded sensitive_map: %w", err)
 	}
+	if data, ok := raw["sensitive_map"]; ok && len(data) > 0 {
+		var user SensitiveConfig
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal sensitive_map: %w", err)
+		}
+		SensitiveMap.Dirs = merge(SensitiveMap.Dirs, user.Dirs)
+		SensitiveMap.Files = merge(SensitiveMap.Files, user.Files)
+		SensitiveMap.Prefixes = merge(SensitiveMap.Prefixes, user.Prefixes)
+		SensitiveMap.Extensions = merge(SensitiveMap.Extensions, user.Extensions)
+	}
+
 	if err := json.Unmarshal(configs.WhiteList, &WhiteList); err != nil {
 		return fmt.Errorf("embedded white_list: %w", err)
 	}
 
 	WhiteListSystem = append([]string(nil), WhiteList...)
-	if data, ok := raw["denied_map"]; ok && len(data) > 0 {
-		var user DeniedConfig
-		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal denied_map: %w", err)
-		}
-		DeniedMap.Dirs = merge(DeniedMap.Dirs, user.Dirs)
-		DeniedMap.Files = merge(DeniedMap.Files, user.Files)
-		DeniedMap.Prefixes = merge(DeniedMap.Prefixes, user.Prefixes)
-		DeniedMap.Extensions = merge(DeniedMap.Extensions, user.Extensions)
-	}
 	if data, ok := raw["white_list"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
@@ -163,15 +162,7 @@ func LoadRuntime() error {
 		PathWhiteList = normalizePathWhiteList(user)
 	}
 
-	deniedBytes, err := json.Marshal(DeniedMap)
-	if err != nil {
-		return fmt.Errorf("json.Marshal denied_map: %w", err)
-	}
-	DeniedMapBytes = deniedBytes
-
-	go_pkg_sandbox.New(DeniedMapBytes)
 	if err := go_pkg_filesystem.New(go_pkg_filesystem.Policy{
-		DeniedMap:   DeniedMapBytes,
 		ExcludeList: configs.ExcludeList,
 	}); err != nil {
 		slog.Warn("go_pkg_filesystem New",

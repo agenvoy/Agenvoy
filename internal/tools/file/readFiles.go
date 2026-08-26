@@ -4,36 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"slices"
-	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
-
-var sensitiveFiles = []string{
-	"id_rsa", "id_rsa.pub",
-	"id_dsa", "id_dsa.pub",
-	"id_ecdsa", "id_ecdsa.pub",
-	"id_ed25519", "id_ed25519.pub",
-	"authorized_keys",
-	"ssh_host_rsa_key", "ssh_host_rsa_key.pub",
-	"ssh_host_ed25519_key", "ssh_host_ed25519_key.pub",
-	".netrc", ".git-credentials", ".env",
-}
-
-var sensitiveExts = []string{".pem", ".key", ".p12", ".pfx", ".cer"}
-
-func IsSensitivePath(absPath string) bool {
-	base := filepath.Base(absPath)
-	if slices.Contains(sensitiveFiles, base) || strings.HasPrefix(base, ".env.") {
-		return true
-	}
-	return slices.Contains(sensitiveExts, strings.ToLower(filepath.Ext(base)))
-}
 
 const (
 	maxReadSize      = 1 << 20

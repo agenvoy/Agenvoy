@@ -20,7 +20,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -349,7 +348,7 @@ func isSensitiveReadFile(argsJSON string) bool {
 		return false
 	}
 	for _, f := range p.Files {
-		if f.Path != "" && file.IsSensitivePath(f.Path) {
+		if f.Path != "" && boundary.IsSensitivePath(f.Path) {
 			return true
 		}
 	}
@@ -467,6 +466,22 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					}
 					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", confirmTimeout)
 				}
+				if errors.Is(err, context.Canceled) {
+					return sessionData, alreadyCall, err
+				}
+				if err == nil && reply.Error != nil {
+					events <- agentTypes.Event{
+						Type:     agentTypes.EventToolSkipped,
+						ToolName: toolName,
+						ToolArgs: toolArg,
+						ToolID:   toolID,
+						Text:     reply.Error.Error(),
+					}
+					if exec.CancelExecution != nil {
+						exec.CancelExecution()
+					}
+					return sessionData, alreadyCall, reply.Error
+				}
 				if err != nil {
 					proceed = false
 				} else {
@@ -492,9 +507,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				reason = fmt.Sprintf("this needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedList(restrictedPaths, restrictedCmds), ", "))
 			}
 			if !proceed {
-				message := "Skipped by user"
+				message := "The user declined this call. Retrying it, or reissuing it with different arguments, produces the same prompt and the same refusal. Continue without it, or use ask_user to agree on another approach."
 				if reason != "" {
-					message = fmt.Sprintf("Skipped by user. Reason: %s", reason)
+					message = fmt.Sprintf("The user declined this call: %s. Retrying it, or reissuing it with different arguments, produces the same prompt and the same refusal. Continue without it, or use ask_user to agree on another approach.", reason)
 				}
 				events <- agentTypes.Event{
 					Type:     agentTypes.EventToolSkipped,
@@ -731,7 +746,25 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
-	result, err := tools.Execute(ctx, exec, s.name, json.RawMessage(s.args))
+	var progressMu sync.Mutex
+	progressDone := false
+	progressCtx := toolTypes.WithProgress(ctx, func(chunk string) {
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		if progressDone {
+			return
+		}
+		events <- agentTypes.Event{
+			Type:     agentTypes.EventToolProgress,
+			ToolName: s.name,
+			ToolID:   s.id,
+			Text:     chunk,
+		}
+	})
+	result, err := tools.Execute(progressCtx, exec, s.name, json.RawMessage(s.args))
+	progressMu.Lock()
+	progressDone = true
+	progressMu.Unlock()
 	if err != nil {
 		failToolEvent(exec, s, events, err)
 		return

@@ -83,7 +83,7 @@ func resolveRaw(baseDir, path string) (string, error) {
 }
 
 func isWhitelisted(absPath string) bool {
-	if go_pkg_filesystem.IsDenied(absPath) {
+	if IsSensitivePath(absPath) {
 		return false
 	}
 	sep := string(filepath.Separator)
@@ -96,19 +96,25 @@ func isWhitelisted(absPath string) bool {
 }
 
 func Resolve(sessionID, baseDir, path string) (string, error) {
-	abs, err := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
-	if err == nil {
+	abs, homeErr := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	if homeErr == nil && !IsSensitivePath(abs) {
 		return abs, nil
 	}
 
 	restricted, rawErr := resolveRaw(baseDir, path)
 	if rawErr != nil {
-		return "", err
+		if homeErr != nil {
+			return "", homeErr
+		}
+		return "", rawErr
 	}
-	if !isGranted(sessionID, restricted) && !isWhitelisted(restricted) {
-		return "", fmt.Errorf("%w; the user was not asked or did not approve this path, so retrying the same path fails the same way", err)
+	if isGranted(sessionID, restricted) || isWhitelisted(restricted) {
+		return restricted, nil
 	}
-	return restricted, nil
+	if homeErr != nil {
+		return "", fmt.Errorf("%w; the user was not asked or did not approve this path, so retrying the same path fails the same way", homeErr)
+	}
+	return "", fmt.Errorf("%s holds credentials or key material; the user was not asked or did not approve this path, so retrying the same path fails the same way", restricted)
 }
 
 func Restricted(sessionID, workDir, toolName, toolArgs string) []string {
@@ -125,12 +131,14 @@ func Restricted(sessionID, workDir, toolName, toolArgs string) []string {
 		if one == "" {
 			continue
 		}
-		if _, err := go_pkg_filesystem.AbsPath(base, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); err == nil {
+		abs, err := resolveRaw(base, one)
+		if err != nil {
 			continue
 		}
-
-		abs, err := resolveRaw(base, one)
-		if err != nil || seen[abs] || isWhitelisted(abs) || isGranted(sessionID, abs) {
+		if _, homeErr := go_pkg_filesystem.AbsPath(base, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); homeErr == nil && !IsSensitivePath(abs) {
+			continue
+		}
+		if seen[abs] || isWhitelisted(abs) || isGranted(sessionID, abs) {
 			continue
 		}
 
