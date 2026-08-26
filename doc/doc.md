@@ -88,16 +88,23 @@ The runtime ships 12 model providers, plus the `compat` entry for local or custo
 
 When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.5.1 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
 
+### Agent selection and confirmation routing
+
+When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone.
+
+Interactive requests also carry an origin prefix. CLI confirmations are consumed only by the TUI, web requests by the web confirmation stream, and Telegram or Discord requests by their matching channel listeners. Non-TUI confirmations expire after five minutes, preventing one channel from intercepting or indefinitely holding another channel's prompt.
+
 ### Restricted paths and commands
 
 Paths outside `$HOME` and commands outside the allowlist are not refused outright: `boundary.Resolve` and `tools.RestrictedCommands` collect them and raise a confirmation that also demands the operating-system password (`sudo -v` inside the TUI). Approval is bound to that session and the specific path or binary, and the sudo timestamp is the only clock — there is no second TTL: while that ticket is still valid the prompt appears without a password field.
 
 Two consequences worth knowing before automating anything:
 
-- Only the TUI can approve them. Any channel that cannot collect a password (HTTP API, Telegram, Discord, subagents) gets the call back as skipped, with a message saying so.
+- Normal tool confirmations return to the originating CLI, web, Telegram, or Discord channel. The TUI listens only for CLI-origin requests.
+- Restricted operations that require operating-system verification still execute only when that verification is available. A channel may approve the prompt, but an unverified restricted call is skipped rather than elevated.
 - Reads are not restricted by path. The sandbox constrains writes, not reads, so a command fails on a path only when the operating system itself refuses.
 
-Commands that need to write outside `$HOME` declare `write_paths` instead of escalating; only those paths are bound into the sandbox.
+`$HOME` is always writable and needs no setup. When a command has to write outside it, the agent attaches `write_paths` to that one call; you get a prompt asking for your system password, and only after you approve are those paths bound in as well.
 
 ### MCP client configuration
 
@@ -157,6 +164,10 @@ Shortcuts work while the input area is empty:
 | `Shift+T` | Toggle command mode — input runs as a shell command in the current directory, outside the sandbox |
 | `Shift+U` | Provider quota and balance |
 | `Shift+M` | Registered model list |
+
+### Web and file-response rendering
+
+The backend preserves `[SEND_FILE:…]` markers while events move through result, SSE, pending, and multilog handlers so delivery metadata remains available to channel consumers. The web dashboard removes those markers only when rendering message text; users see the response body without the internal transport marker.
 
 ### Local HTTP API
 
@@ -345,7 +356,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Execution | `run_command` | Run a binary in the work directory under sandbox constraints |
 | | `open_file` | Hand a file to the OS default application |
 | | `download_file` | Fetch a binary asset to disk |
-| | `install_dependence` | Install a missing system binary |
+| | `pkg_manage` | Drive the Linux package manager (install / remove / update / upgrade / search / info); Linux only, every channel |
 | Coordination | `subagents` | Delegate a subtask to its own session (`mode=invoke\|list`) |
 | | `write_todo` | Live checklist the user watches |
 | | `ask_user` | Pause and ask; the turn resumes on the answer |

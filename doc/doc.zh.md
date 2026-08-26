@@ -97,16 +97,23 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
+### Agent 選擇與確認路由
+
+請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。
+
+互動請求也會攜帶來源前綴。CLI 確認僅由 TUI 接收，Web 請求由 Web 確認串流處理，Telegram 與 Discord 則由各自對應的頻道 listener 接收。非 TUI 確認會在五分鐘後逾時，避免某個頻道攔截或長期占用其他頻道的提示。
+
 ### 受限路徑與受限指令
 
 `$HOME` 以外的路徑與白名單外的指令不會直接被拒絕：`boundary.Resolve` 與 `tools.RestrictedCommands` 會收集它們並發出確認，且該確認同時要求作業系統密碼（TUI 內的 `sudo -v`）。核准只綁定該 session 與該路徑或該執行檔，時鐘一律沿用 sudo 自己的 timestamp，不另外維護 TTL；該 ticket 仍有效時，彈窗不會再出現密碼欄。
 
-自動化之前要知道的兩件事：
+自動化之前要知道的事項：
 
-- 只有 TUI 能核准。收不到密碼的通道（HTTP API、Telegram、Discord、subagent）會拿回 skipped，並附上原因說明。
+- 一般工具確認會回到原始 CLI、Web、Telegram 或 Discord 頻道；TUI 只監聽 CLI 來源的請求。
+- 需要作業系統驗證的受限操作，仍只會在驗證可用時執行。頻道即使核准提示，未完成驗證的受限呼叫仍會跳過，不會提權。
 - 讀取不受路徑限制。沙箱約束的是寫入而非讀取，因此指令只有在作業系統本身拒絕時才會在某個路徑上失敗。
 
-需要寫入 `$HOME` 以外位置的指令改為宣告 `write_paths`，只有那幾個路徑會被綁進沙箱。
+`$HOME` 一律可寫，不需要任何設定。指令要寫到 `$HOME` 以外時，agent 會在**那一次呼叫**自己附上 `write_paths`，你會看到確認框並輸入系統密碼，核准後那幾個路徑才額外綁進沙箱。
 
 ### MCP Client
 
@@ -187,6 +194,10 @@ printf '%s\n' \
 ```
 
 支援 `initialize`、`notifications/initialized`、`tools/list`、`tools/call` 與 `ping`。
+
+### Web 與檔案回應顯示
+
+後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:…]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
 
 ### HTTP API
 
@@ -364,7 +375,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位                                                         |
 |            | `open_file`                       | 以系統預設應用開啟檔案                                                                 |
 |            | `download_file`                   | 下載二進位資產至磁碟                                                                   |
-|            | `install_dependence`              | 安裝缺少的系統執行檔                                                                   |
+|            | `pkg_manage`                      | 驅動 Linux 套件管理器（install／remove／update／upgrade／search／info）；僅 Linux，全通道 |
 | Agent 協調 | `subagents`                       | 將子任務委派到獨立 session（`mode=invoke\|list`）                                      |
 |            | `write_todo`                      | 使用者即時看得到的任務清單                                                             |
 |            | `ask_user`                        | 暫停提問，回答後自動續跑                                                               |

@@ -89,14 +89,14 @@ graph TB
 
 ## Module: Agent Execution and Routing
 
-A request is matched to a skill or a configured model. The executor builds system prompts and a session, sends messages to the selected model, loops through tool calls, trims context when needed, and moves to fallback agents when a send attempt fails.
+A request is matched to a Skill or a configured model. The matched Skill description is passed to the selector as a task hint, while the request origin is propagated through execution and tool calls. The executor builds system prompts and a session, sends messages to the selected model, loops through tool calls, trims context when needed, and moves to fallback agents when a send attempt fails.
 
 ```mermaid
 graph TB
     subgraph Execution[Agent Execution]
-        Input[User input] --> Match[Match skill]
-        Match --> Resolve[Resolve primary & fallback agents]
-        Resolve --> Session[Build AgentSession]
+        Input[User input] --> Match[Match Skill]
+        Match --> Resolve[Resolve primary & fallback agents<br/>with Skill hint]
+        Resolve --> Session[Build AgentSession<br/>with request origin]
         Session --> Prompt[Build system prompts]
         Prompt --> Send[Send to model]
         Send --> Response{Response}
@@ -133,7 +133,7 @@ graph TB
 
 ## Module: Sessions, History, and Pending Work
 
-Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions retain task metadata and resume through registered channel handlers.
+Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
 
 ```mermaid
 graph TB
@@ -143,7 +143,9 @@ graph TB
         History --> SQLite[SQLite history index]
         History --> Summary[Summary metadata]
         Request --> Logs[action.log / usage.log]
-        Pending[ask_user / confirmation] --> Meta[Pending task metadata]
+        Pending[ask_user / confirmation] --> Origin[Origin prefix<br/>cli- · chat- · tg- · dc-]
+        Origin --> MatchListener[Matching channel listener]
+        MatchListener --> Meta[Pending task metadata]
         Meta --> Resume[Resume handler]
         Resume --> Request
         Reset[Reset] --> History
@@ -177,7 +179,7 @@ graph TB
 
 ## Module: Chat and MCP Integrations
 
-Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, pending confirmations, formatting, and push delivery. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. HTTP servers marked `auth: oauth` authorize through `mcp.Login`: the daemon opens a loopback callback listener on `localhost:17988`, performs dynamic client registration when the provider allows it, and stores the resulting token and client id in the OS keychain. A pre-registered client can be supplied instead, and the redirect URL can be pasted back when the browser cannot reach the listener. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
+Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, origin-matched pending confirmations, formatting, and push delivery. Web result, SSE, pending, and multilog handlers preserve file-delivery markers through transport; the dashboard strips them only when rendering visible text. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. HTTP servers marked `auth: oauth` authorize through `mcp.Login`: the daemon opens a loopback callback listener on `localhost:17988`, performs dynamic client registration when the provider allows it, and stores the resulting token and client id in the OS keychain. A pre-registered client can be supplied instead, and the redirect URL can be pasted back when the browser cannot reach the listener. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
 
 ```mermaid
 graph TB
@@ -185,9 +187,12 @@ graph TB
         Telegram[Telegram] --> Auth[Authorization & session match]
         Discord[Discord] --> Auth
         Auth --> Attachments[Save attachments / optional transcription]
-        Attachments --> ChatRun[Run agent]
+        Attachments --> ChatRun[Run agent with channel origin]
         ChatRun --> Events[Agent events]
-        Events --> Format[Channel formatter]
+        Events --> Confirm[Origin-matched confirmation]
+        Confirm --> Format[Channel formatter]
+        Events --> FileMarker[Preserve SEND_FILE metadata]
+        FileMarker --> Format
         Format --> Reply[Reply / status / push]
 
         MCPConfig[mcp.json] --> Transport{Transport}
@@ -265,7 +270,7 @@ stateDiagram-v2
 - File operations resolve through `boundary.Resolve`, which applies denied-path and sensitive-file checks before execution.
 - Command execution is subject to allow rules, AST-based shell validation, and OS-level sandbox policies (`sandbox-exec` on macOS, `bwrap` on Linux).
 - Restricted paths and non-allowlisted commands are not refused outright: they raise a confirmation that also requires the operating-system password, and the grant is bound to that session plus that specific path or binary. Channels that cannot collect a password — HTTP API, chat bots, subagents — receive the call back as skipped. There is no elevated or `/sudo` mode; per-request authorization replaced it.
-- A command that must write outside `$HOME` declares `write_paths`, and only those paths are bound into the sandbox.
+- `$HOME` is always writable, no setup needed. To write outside it the agent attaches `write_paths` to that call; the paths are bound in only after you approve the prompt with your system password.
 - `run` mode bypasses confirmation only for its request; sandbox and denied-path protections still apply.
 - Credentials are stored through the operating-system keychain integration, not in the repository.
 
@@ -290,7 +295,7 @@ flowchart LR
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill scanner]
     Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rules]
     Allow[allow_skill · allow_tool] --> Gate[Confirmation gate]
-    Config --> CmdAllow[config.json white_list: command allowlist]
+    Config --> CmdDeny[config.json denied_command · denied_path: hard denylist]
     Schedule[crons.json · tasks.json] --> Scheduler[Scheduler]
     Auth[.telegram · .discord] --> Channels[Authorized chats]
 ```

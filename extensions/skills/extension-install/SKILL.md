@@ -128,20 +128,20 @@ Every path in `files` must exist in the staging subdirectory; any missing file �
 For each `<dep>` in `manifest.dependence`, call:
 
 ```
-install_dependence(package="<dep>")
+pkg_manage(action="install", package="<dep>")
 ```
 
 The tool internally:
 - `exec.LookPath(<dep>)` already present → returns `already_installed:true`, this step is satisfied
-- macOS → `brew install <dep>` (brew doesn't need sudo)
-- Linux → probes `apt-get/dnf/yum/pacman/apk` (first found) and runs `sudo <pm> install -y <dep>`; the TUI suspends the alt-screen so sudo can take the tty for the password prompt
+- Linux only — probes `apt/apt-get/dnf/yum/pacman/apk` (first found) and runs `sudo -n <pm> install -y <dep>`; the sudo ticket comes from the password collected during confirmation
+- macOS → the tool is not registered; use `run_command(["brew","install","<dep>"], write_paths=["/opt/homebrew"])`
 - After install, `LookPath` re-checks
 
 Response is JSON `{"ok": true/false, ...}`. `ok:false` or tool error → **abort immediately** and `rm -rf .staging`.
 
-Each call triggers a `KindToolConfirm` popup (`AlwaysAllow=false`); the user sees "About to run `brew install ffmpeg` — confirm?". User decline → tool fails → skill aborts.
+Each call triggers a `KindToolConfirm` popup (`AlwaysAllow=false`); the user sees "About to run `sudo apt install -y ffmpeg` — confirm?". User decline → tool fails → skill aborts.
 
-> Note: `install_dependence` is only registered in the TUI process; Telegram / Discord / HTTP-API / subagent see it filtered out via `ExcludeTools`. This skill is also only usable from those visible channels.
+> Note: `pkg_manage` is Linux-only (not registered on macOS) and available on every channel. Root actions go through the same system-password confirmation `run_command` uses for `write_paths`, so no terminal is needed.
 
 ### 4. Check and fill keychain keys
 

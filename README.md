@@ -31,21 +31,19 @@
 
 ## Why Agenvoy
 
-- **Self-extending tools** — builds the missing tool instead of stopping
-- **One sandboxed tool library** — shared across Agenvoy, Claude Code, Codex, and more
-- **Self-hosted execution** — scheduling, memory, and file search on your own machine
-- **Agent app and MCP server** — the same binary is both
+- **Self-extending tools** — Builds the missing tool instead of stopping.
+- **One sandboxed tool library** — Shares the same tool library across Agenvoy, Claude Code, Codex, and other agents.
+- **Live command feedback** — Streams throttled command output to the TUI and Web dashboard while preserving the complete final result.
+- **Skill-aware model routing** — Passes matched Skill descriptions into agent selection so the dispatcher can choose models against the actual task contract.
+- **Origin-aware confirmations** — Routes approval prompts back to the originating CLI, Web, Telegram, or Discord channel without cross-channel interception.
+- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
+- **Self-hosted execution** — Runs scheduling, memory, and file search on your own machine.
+- **Agent app and MCP server** — Provides both roles from the same binary.
 
 ## What you can do with it
 
 <table>
-- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
-- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
 <tr>
-- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
-- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
-- **Permission-aware security** — Treats sensitive paths and restricted commands as confirmation boundaries instead of opaque sandbox denials.
-- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
 <td width="50%" valign="top">
 
 ### Ask for live answers
@@ -238,23 +236,6 @@ A cost-effective model setup to get started:
 - Use a subscription plan as your **primary** model:
   - OpenAI ChatGPT Plus ($20/mo)
   - SuperGrok ($30/mo)
-
----
-
-## How it compares
-
-|                            | **Agenvoy**                | OpenClaw         | Hermes-agent     |
-| -------------------------- | -------------------------- | ---------------- | ---------------- |
-| Install                    | One command, single binary | pnpm monorepo    | pip + docker     |
-| Multi-model                | Auto-picks                 | Manual switch    | Manual switch    |
-| Chat UI                    | Buttons / menus / modals   | Text only        | Text only        |
-| Builds missing tools       | ✅                         | ❌               | ⚠️ Skill only    |
-| Shares tools across agents | ✅                         | ❌               | ❌               |
-| Works as MCP server        | ✅                         | ❌               | ❌               |
-| Chat verification          | 6-digit code               | Manual approval  | Manual approval  |
-| Cross-session push         | ✅                         | ❌               | ⚠️ Limited       |
-| File search                | Semantic + keyword         | Chat memory only | Chat memory only |
-| Scheduled local workflows  | ✅                         | ❌               | ⚠️ Limited       |
 
 ---
 
