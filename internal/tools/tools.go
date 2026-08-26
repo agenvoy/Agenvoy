@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
@@ -47,39 +45,11 @@ func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 		return "", fmt.Errorf("cd accepts at most one positional argument, got %d", len(positional))
 	}
 
-	var target string
-	switch {
-	case len(positional) == 0 || positional[0] == "~":
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("os.UserHomeDir: %w", err)
-		}
-		target = home
-	case strings.HasPrefix(positional[0], "~/"):
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("os.UserHomeDir: %w", err)
-		}
-		target = filepath.Join(home, positional[0][2:])
-	default:
+	target := "~"
+	if len(positional) == 1 {
 		target = positional[0]
 	}
-
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(e.WorkDir, target)
-	}
-	abs, err := filepath.Abs(target)
-	if err != nil {
-		return "", fmt.Errorf("filepath.Abs: %w", err)
-	}
-	abs = filepath.Clean(abs)
-
-	for _, dir := range filesystem.DeniedMap.Dirs {
-		needle := "/" + dir
-		if strings.Contains(abs, needle+"/") || strings.HasSuffix(abs, needle) {
-			return "", fmt.Errorf("access denied: %s. %s", dir, deniedHint)
-		}
-	}
+	abs := go_pkg_utils.AbsPath(e.WorkDir, target)
 
 	if !go_pkg_filesystem_reader.IsDir(abs) {
 		return "", fmt.Errorf("not a directory or does not exist: %s", abs)

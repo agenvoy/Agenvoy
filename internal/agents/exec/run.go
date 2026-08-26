@@ -66,7 +66,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		Type: agentTypes.EventAgentSelect,
 	}
 
-	agent, fallbacks, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, sessionOverride)
+	agent, fallbacks, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, SkillHint(matchedSkill), sessionOverride)
 	if err != nil {
 		return fmt.Errorf("ResolveAgent: %w", err)
 	}
@@ -81,6 +81,7 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	}
 
 	execData := ExecuteMeta{
+		Origin:         "cli-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

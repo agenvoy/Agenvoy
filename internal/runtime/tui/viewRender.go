@@ -457,13 +457,13 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 
 	case agentTypes.EventText:
 		if ev.Source != "" {
-			str := toPureText(ev.Text)
+			str := toPureText(utils.StripFileMarkers(ev.Text))
 			if str == "" {
 				return "", false
 			}
 			return hintStyle.Render("  ⎿ " + srcPrefix + oneLine(str)), true
 		}
-		str := renderMarkdown(ev.Text, width-2)
+		str := renderMarkdown(utils.StripFileMarkers(ev.Text), width-2)
 		if str == "" {
 			return "", false
 		}
@@ -562,6 +562,25 @@ func rowLabel(row, offset int) string {
 		return ""
 	}
 	return strconv.Itoa(row+offset) + " "
+}
+
+func diffCell(line string, width int) string {
+	s := "  " + strings.ReplaceAll(line, "\t", "    ")
+	if lipgloss.Width(s) <= width {
+		return padToWidth(s, width)
+	}
+
+	var sb strings.Builder
+	used := 0
+	for _, r := range s {
+		w := lipgloss.Width(string(r))
+		if used+w > width-1 {
+			break
+		}
+		sb.WriteRune(r)
+		used += w
+	}
+	return padToWidth(sb.String()+"…", width)
 }
 
 func padToWidth(s string, width int) string {

@@ -50,7 +50,6 @@ func (r Row) RestoreBlock() string {
 
 type Filter struct {
 	Path   string
-	Dir    string
 	TaskID string
 	From   int64
 	To     int64

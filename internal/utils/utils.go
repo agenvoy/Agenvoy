@@ -357,6 +357,13 @@ func splitLines(s string) []string {
 
 var fileMarkerRegex = regexp.MustCompile(`\[SEND_FILE:([^\]]+)\]`)
 
+func StripFileMarkers(str string) string {
+	if !strings.Contains(str, "[SEND_FILE:") {
+		return str
+	}
+	return strings.TrimSpace(fileMarkerRegex.ReplaceAllString(str, ""))
+}
+
 func ExtractFileMarkers(str string) (cleanText string, paths []string) {
 	seen := map[string]bool{}
 	var raw []string

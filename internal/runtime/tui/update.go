@@ -544,10 +544,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runAllowSkillToggle(msg.scope, msg.name)
 		return next, cmd
 
-	case AllowCmdSubmit:
-		next, cmd := t.runAllowCmdAppend(msg.name)
-		return next, cmd
-
 	case ModelRemove:
 		next, cmd := t.runModelRemove(msg.chosen)
 		return next, cmd
@@ -911,9 +907,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "allow-skill":
 			next, cmd, _ := t.commandAllowSkill(nil)
-			return next, cmd
-		case "allow-cmd":
-			next, cmd, _ := t.commandAllowCmd(nil)
 			return next, cmd
 		}
 		return t, nil

@@ -48,6 +48,8 @@ func (t *TUI) collapseToolBuf() tea.Cmd {
 
 const subagentLogLines = 3
 
+const commandLogLines = 128
+
 type subagentLive struct {
 	tools int
 	lines []string
@@ -216,6 +218,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 				return t, nil
 			}
 			t.activity = "tool: " + ev.ToolName
+			t.toolLog = nil
 			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
 				if utils.IsSubagentInvoke(ev.ToolName, ev.ToolArgs) {
@@ -228,6 +231,18 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			}
 			return t, nil
 		}
+
+	case agentTypes.EventToolProgress:
+		if ev.Source != "" {
+			t.trackSubagent(ev.Source, ev.ToolName+": "+oneLine(ev.Text))
+			return t, nil
+		}
+		t.activity = "tool: " + ev.ToolName
+		t.toolLog = append(t.toolLog, oneLine(ev.Text))
+		if len(t.toolLog) > commandLogLines {
+			t.toolLog = t.toolLog[len(t.toolLog)-commandLogLines:]
+		}
+		return t, nil
 
 	case agentTypes.EventToolSkipped:
 		if ev.Source != "" {
@@ -265,6 +280,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			}
 		}
 		t.activity = ""
+		t.toolLog = nil
 		return t, nil
 
 	case agentTypes.EventSummaryGenerate:
@@ -289,7 +305,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	case agentTypes.EventText:
 		if ev.Source == "" {
 			collapse := t.collapseToolBuf()
-			raw := ev.Text
+			raw := utils.StripFileMarkers(ev.Text)
 
 			if len(t.tableBuf) > 0 {
 				if strings.Contains(raw, "|") {
@@ -337,6 +353,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.dropSubagent(ev.Source)
 			return t, nil
 		}
+		t.toolLog = nil
 		collapse := t.collapseToolBuf()
 		t.todos = nil
 		t.subBuf, t.subOrder, t.subActive = nil, nil, 0
@@ -366,6 +383,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.dropSubagent(ev.Source)
 			return t, nil
 		}
+		t.toolLog = nil
 		collapse := t.collapseToolBuf()
 		t.todos = nil
 		t.subBuf, t.subOrder, t.subActive = nil, nil, 0

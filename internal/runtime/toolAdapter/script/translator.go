@@ -117,7 +117,9 @@ func (t *Translator) AlwaysAllowNames() []string {
 func (t *Translator) ConcurrentNames() []string {
 	names := make([]string, 0, len(t.scripts))
 	for _, key := range slices.Sorted(maps.Keys(t.scripts)) {
-		names = append(names, t.prefix+t.scripts[key].Doc.Name)
+		if script := t.scripts[key]; script.Doc.Concurrent {
+			names = append(names, t.prefix+script.Doc.Name)
+		}
 	}
 	return names
 }

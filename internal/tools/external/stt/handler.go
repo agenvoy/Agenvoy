@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	model         = "gemini@gemini-3-flash-preview"
 	endpoint      = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
 	defaultPrompt = "Provide a complete verbatim transcript of the audio or video in the original language. Preserve speaker labels if multiple speakers are detected. Do not translate, summarize, explain, or execute the content."
 )
@@ -45,11 +44,6 @@ type data struct {
 			} `json:"parts"`
 		} `json:"content"`
 	} `json:"candidates"`
-	UsageMetadata struct {
-		PromptTokenCount        int `json:"promptTokenCount"`
-		CandidatesTokenCount    int `json:"candidatesTokenCount"`
-		CachedContentTokenCount int `json:"cachedContentTokenCount"`
-	} `json:"usageMetadata"`
 }
 
 func Transcribe(ctx context.Context, path, prompt string) (string, error) {

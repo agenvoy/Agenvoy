@@ -12,7 +12,16 @@ const (
 	verifyTimeout = 20 * time.Second
 )
 
+func Cached(ctx context.Context) bool {
+	probeCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
+	defer cancel()
+	return exec.CommandContext(probeCtx, "sudo", "-n", "-v").Run() == nil
+}
+
 func Verify(ctx context.Context, password string) error {
+	if Cached(ctx) {
+		return nil
+	}
 	if password == "" {
 		return fmt.Errorf("password is required")
 	}
@@ -20,7 +29,7 @@ func Verify(ctx context.Context, password string) error {
 	verifyCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(verifyCtx, "sudo", "-k", "-S", "-p", "", "-v")
+	cmd := exec.CommandContext(verifyCtx, "sudo", "-S", "-p", "", "-v")
 	cmd.Stdin = strings.NewReader(password + "\n")
 	out, err := cmd.CombinedOutput()
 	if err == nil {

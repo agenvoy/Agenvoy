@@ -15,8 +15,6 @@ func (t TUI) commandDangerous(parts []string) (TUI, tea.Cmd, bool) {
 			return t.commandRemoveSession()
 		case "allow-skill":
 			return t.commandAllowSkill(parts[1:])
-		case "allow-cmd":
-			return t.commandAllowCmd(parts[1:])
 		}
 	}
 
@@ -26,9 +24,8 @@ func (t TUI) commandDangerous(parts []string) (TUI, tea.Cmd, bool) {
 		options: []string{
 			"remove-session  delete current session",
 			"allow-skill     always-allow skill (skip permission)",
-			"allow-cmd       append binary to white_list",
 		},
-		values: []string{"remove-session", "allow-skill", "allow-cmd"},
+		values: []string{"remove-session", "allow-skill"},
 		onConfirm: func(chosen string) any {
 			return DangerousSelect{action: chosen}
 		},

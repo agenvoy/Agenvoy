@@ -25,7 +25,7 @@ graph TB
 
 ## 模組：進入點
 
-`cmd/app` 二進位檔預設啟動 TUI。`agen cli <input>` 保留逐次工具確認，`agen run <input>` 則只在該次執行中允許工具自動執行，仍受沙箱政策限制。`agen stop` 停止 daemon，`agen update` 執行官方更新器，而非終端 stdin 會啟動 MCP server。
+`cmd/app` 二進位檔預設啟動 TUI。`agen stop` 停止 daemon，`agen update` 執行官方更新器，而非終端 stdin 會啟動 MCP server。
 
 ```mermaid
 graph TB
@@ -89,14 +89,14 @@ graph TB
 
 ## 模組：Agent 執行與路由
 
-請求會比對至 Skill 或已設定模型。執行器建立 system prompt 與 session，將訊息傳給選定模型，迭代處理工具呼叫；需要時裁剪 context，若傳送失敗則轉移至 fallback Agent。
+請求會比對至 Skill 或已設定模型。符合的 Skill 說明會作為任務提示傳給 selector，而請求來源則會一路傳遞至執行與工具呼叫。執行器建立 system prompt 與 session，將訊息傳給選定模型，迭代處理工具呼叫；需要時裁剪 context，若傳送失敗則轉移至 fallback Agent。
 
 ```mermaid
 graph TB
     subgraph Execution[Agent 執行]
         Input[使用者輸入] --> Match[比對 Skill]
-        Match --> Resolve[解析主要與 Fallback Agent]
-        Resolve --> Session[建立 AgentSession]
+        Match --> Resolve[依 Skill 提示解析<br/>主要與 Fallback Agent]
+        Resolve --> Session[建立含請求來源的<br/>AgentSession]
         Session --> Prompt[建立 System Prompts]
         Prompt --> Send[傳送至模型]
         Send --> Response{回應}
@@ -112,7 +112,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過拒絕路徑檢查、允許規則、確認閘門、shell 驗證與沙箱強制。落在 `denied_map` 內的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
+內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過允許規則、確認閘門、shell 驗證與沙箱強制。`$HOME` 以外的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
 
 ```mermaid
 graph TB
@@ -133,7 +133,7 @@ graph TB
 
 ## 模組：Session、歷史與 Pending 工作
 
-Session 持久保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 會以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題會保留 task metadata，並透過已註冊的 channel handler 恢復。
+Session 持久保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 會以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認會保留來源前綴；CLI、Web、Telegram 與 Discord listener 只會接收符合來源的工作，再透過已註冊的 handler 恢復。
 
 ```mermaid
 graph TB
@@ -143,7 +143,9 @@ graph TB
         History --> SQLite[SQLite History Index]
         History --> Summary[Summary Metadata]
         Request --> Logs[action.log／usage.log]
-        Pending[ask_user／確認] --> Meta[Pending Task Metadata]
+        Pending[ask_user／確認] --> Origin[來源前綴<br/>cli- · chat- · tg- · dc-]
+        Origin --> MatchListener[符合來源的頻道 Listener]
+        MatchListener --> Meta[Pending Task Metadata]
         Meta --> Resume[Resume Handler]
         Resume --> Request
         Reset[Reset] --> History
@@ -177,7 +179,7 @@ graph TB
 
 ## 模組：聊天與 MCP 整合
 
-Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、pending confirmation、格式化與 push delivery。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。標記 `auth: oauth` 的 HTTP server 透過 `mcp.Login` 授權：daemon 會在 `localhost:17988` 開啟 loopback callback listener，供應商允許時執行動態 client 註冊，並將取得的 token 與 client id 存入作業系統 keychain。也可改用預先註冊的 client；瀏覽器連不到 listener 時可將 redirect URL 貼回。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
+Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、依來源配對的 pending confirmation、格式化與 push delivery。Web 的 result、SSE、pending 與 multilog handler 會在傳輸流程保留檔案標記，dashboard 僅在顯示文字時移除。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。標記 `auth: oauth` 的 HTTP server 透過 `mcp.Login` 授權：daemon 會在 `localhost:17988` 開啟 loopback callback listener，供應商允許時執行動態 client 註冊，並將取得的 token 與 client id 存入作業系統 keychain。也可改用預先註冊的 client；瀏覽器連不到 listener 時可將 redirect URL 貼回。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
 
 ```mermaid
 graph TB
@@ -185,9 +187,12 @@ graph TB
         Telegram[Telegram] --> Auth[授權與 Session Match]
         Discord[Discord] --> Auth
         Auth --> Attachments[保存附件／選擇性轉錄]
-        Attachments --> ChatRun[執行 Agent]
+        Attachments --> ChatRun[帶頻道來源執行 Agent]
         ChatRun --> Events[Agent Events]
-        Events --> Format[頻道格式化]
+        Events --> Confirm[依來源配對確認]
+        Confirm --> Format[頻道格式化]
+        Events --> FileMarker[保留 SEND_FILE Metadata]
+        FileMarker --> Format
         Format --> Reply[回覆／狀態／Push]
 
         MCPConfig[mcp.json] --> Transport{Transport}
@@ -265,7 +270,7 @@ stateDiagram-v2
 - 檔案操作一律走 `boundary.Resolve`，在執行前套用 denied path 與 sensitive-file 檢查。
 - 命令執行受 allow rule、AST-based shell validation 與作業系統層沙箱限制（macOS `sandbox-exec`、Linux `bwrap`）。
 - 受限路徑與白名單外指令不會直接被拒：它們會發出同時要求作業系統密碼的確認，核准綁定該 session 與該路徑或該執行檔。收不到密碼的通道（HTTP API、聊天機器人、subagent）會拿回 skipped。已無 elevated 或 `/sudo` 模式，改由逐次請求授權取代。
-- 需要寫入 `$HOME` 以外位置的指令改為宣告 `write_paths`，只有那幾個路徑會被綁進沙箱。
+- `$HOME` 一律可寫，無需設定。要寫到 `$HOME` 以外時，agent 在該次呼叫自行附上 `write_paths`，經確認與系統密碼核准後才額外綁進沙箱。
 - `run` 模式只略過該次 request 的確認，不會略過 sandbox 與 denied-path 保護。
 - 憑證透過作業系統 keychain integration 保存，不放在 repository 中。
 
@@ -290,7 +295,7 @@ flowchart LR
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]
     Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rule]
     Allow[allow_skill · allow_tool] --> Gate[確認機制]
-    Config --> CmdAllow[config.json white_list：指令白名單]
+    Config --> CmdDeny[config.json denied_command · denied_path：硬性黑名單]
     Schedule[crons.json · tasks.json] --> Scheduler[排程器]
     Auth[.telegram · .discord] --> Channels[已授權對話]
 ```

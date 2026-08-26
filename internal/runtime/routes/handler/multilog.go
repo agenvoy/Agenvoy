@@ -37,6 +37,9 @@ type wireEvent struct {
 
 func skipEvent(ev agentTypes.Event) bool {
 	switch ev.Type {
+	case agentTypes.EventToolProgress:
+		return true
+
 	case agentTypes.EventToolCall, agentTypes.EventToolResult, agentTypes.EventToolSkipped,
 		agentTypes.EventToolCallStart, agentTypes.EventToolCallText, agentTypes.EventToolCallEnd,
 		agentTypes.EventToolConfirm:
@@ -47,8 +50,11 @@ func skipEvent(ev agentTypes.Event) bool {
 
 func toWire(ev agentTypes.Event) wireEvent {
 	display := ""
-	if ev.Type == agentTypes.EventToolCall {
+	switch ev.Type {
+	case agentTypes.EventToolCall:
 		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
+	case agentTypes.EventToolConfirm:
+		display = internalUtils.FormatToolArgs(ev.ToolName, ev.ToolArgs, "")
 	}
 	return wireEvent{Event: ev, Display: display}
 }

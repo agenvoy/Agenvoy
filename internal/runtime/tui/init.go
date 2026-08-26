@@ -56,6 +56,7 @@ type TUI struct {
 	currentSessionID   string
 	currentSessionName string
 	activity           string
+	toolLog            []string
 	lastIn             int
 	lastOut            int
 	lastCacheRead      int

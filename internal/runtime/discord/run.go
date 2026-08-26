@@ -223,7 +223,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	sessionLog.Append(discordSessionID, content)
 	pubsub.Pub(discordSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
 
-	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, discordSessionID)
+	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, exec.SkillHint(matchedSkill), discordSessionID)
 	if err != nil {
 		if _, sendErr := b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send (ResolveAgent error reply)",
@@ -239,6 +239,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	pubsub.Pub(discordSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
+		Origin:         "dc-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

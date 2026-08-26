@@ -62,7 +62,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if model != "" {
 		agent = registry.Registry[model]
 	} else {
-		agent = SelectAgent(ctx, dispatcher, registry, task, false, "")
+		agent = SelectAgent(ctx, dispatcher, registry, task, false, "", "")
 	}
 	if agent == nil {
 		return "", fmt.Errorf("no agent available")

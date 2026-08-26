@@ -62,12 +62,25 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	})
 
 	before := content
+	var skipped []int
 	for _, i := range order {
 		updated, err := applyTarget(content, targets[i], absPath)
+		if updated == content && err == nil {
+			skipped = append(skipped, i)
+		}
 		if err != nil {
+			if conflict := batchConflict(before, content, absPath, targets, order, i); conflict != "" {
+				return "", fmt.Errorf("targets[%d]: %s", i, conflict)
+			}
+			if content != before && strings.Contains(err.Error(), "row") {
+				return "", fmt.Errorf("targets[%d]: %w — those row numbers count the earlier targets in this same call, which are not on disk because nothing was written; re-reading the file gives different numbers, so either keep this exact set of targets and use the numbers above, or send this target on its own", i, err)
+			}
 			return "", fmt.Errorf("targets[%d]: %w", i, err)
 		}
 		content = updated
+	}
+	if content == before {
+		return fmt.Sprintf("no write: every target in %s already matches its new_string, so the file is unchanged", absPath), nil
 	}
 	if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
 		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
@@ -87,7 +100,12 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
 	}
 
-	return fmt.Sprintf("successfully updated %s", absPath) + unrecorded, nil
+	note := ""
+	if len(skipped) > 0 {
+		sort.Ints(skipped)
+		note = fmt.Sprintf("\n%d of %d targets were already applied and were skipped: %v", len(skipped), len(targets), skipped)
+	}
+	return fmt.Sprintf("successfully updated %s", absPath) + note + unrecorded, nil
 }
 
 type patchTarget struct {
@@ -113,7 +131,7 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 		old := target.OldString
 		new := target.NewString
 		if old == new {
-			return "", fmt.Errorf("no edit needed")
+			return content, nil
 		}
 		if !strings.Contains(content, old) {
 			return "", anchorNotFound(content, old, absPath)
@@ -139,6 +157,33 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 	default:
 		return "", fmt.Errorf("either old_string or insert_string is required")
 	}
+}
+
+func batchConflict(original, current, absPath string, targets []patchTarget, order []int, at int) string {
+	old := targets[at].OldString
+	if old == "" || strings.Contains(current, old) || !strings.Contains(original, old) {
+		return ""
+	}
+
+	var by []string
+	for _, j := range order {
+		if j == at {
+			break
+		}
+		other := targets[j].OldString
+		if other == "" {
+			other = targets[j].InsertString
+		}
+		if other != "" && (strings.Contains(old, other) || strings.Contains(other, old)) {
+			by = append(by, fmt.Sprintf("targets[%d]", j))
+		}
+	}
+	culprit := "an earlier target in this same call"
+	if len(by) > 0 {
+		culprit = strings.Join(by, " and ")
+	}
+
+	return fmt.Sprintf("%q is still present in %s on disk, but %s rewrote that region earlier in this same call, so the anchor was already gone when this target ran. Nothing was written. Re-reading the file shows the anchor and produces this same failure — merge the overlapping targets into one target, or send them in separate calls", old, absPath, culprit)
 }
 
 func anchorNotFound(content, old, absPath string) error {

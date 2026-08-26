@@ -14,9 +14,8 @@ import (
 const protocolVersion = "2024-11-05"
 
 type rpcError struct {
-	Code    int             `json:"code"`
-	Message string          `json:"message"`
-	Data    json.RawMessage `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 type request struct {
@@ -34,9 +33,8 @@ type response struct {
 }
 
 type notification struct {
-	JSONRPC string          `json:"jsonrpc"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params,omitempty"`
+	JSONRPC string `json:"jsonrpc"`
+	Method  string `json:"method"`
 }
 
 type toolContent struct {

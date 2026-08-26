@@ -275,7 +275,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	sessionLog.Append(routingSessionID, userText)
 	pubsub.Pub(routingSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: userText})
 
-	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, routingSessionID)
+	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, exec.SkillHint(matchedSkill), routingSessionID)
 	if err != nil {
 		if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
 			slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
@@ -297,6 +297,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	pubsub.Pub(routingSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
+		Origin:         "tg-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

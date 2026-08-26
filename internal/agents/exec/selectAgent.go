@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -32,7 +33,6 @@ const (
 )
 
 type AgentConfig struct {
-	SessionID    string                  `json:"session_id"`
 	DefaultModel string                  `json:"default_model"`
 	Models       []agentTypes.AgentEntry `json:"models"`
 }
@@ -56,7 +56,14 @@ func GetAgent() []agentTypes.AgentEntry {
 	return cfg.Models
 }
 
-func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, sessionID string) ([]string, map[string]bool) {
+func SkillHint(s *skill.Skill) string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.Description)
+}
+
+func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool) {
 	dead := map[string]bool{}
 
 	if sessionID != "" {
@@ -94,6 +101,9 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 			userContent := strings.TrimSpace(userInput)
 			if hasSkill {
 				userContent = "[Run Skill] " + userContent
+				if desc := strings.TrimSpace(skillHint); desc != "" {
+					userContent += " — " + desc
+				}
 			}
 			messages := []provider.Message{
 				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
@@ -167,8 +177,8 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	return picked, dead
 }
 
-func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, sessionID string) agentTypes.Agent {
-	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, sessionID)
+func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {
+	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
 	for _, n := range names {
 		if dead[n] {
 			continue
@@ -269,8 +279,8 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 	return nil, ""
 }
 
-func ResolveAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, sessionID string) (agentTypes.Agent, []agentTypes.Agent, error) {
-	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, sessionID)
+func ResolveAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) (agentTypes.Agent, []agentTypes.Agent, error) {
+	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
 	if len(names) == 0 {
 		return nil, nil, fmt.Errorf("no agents available")
 	}

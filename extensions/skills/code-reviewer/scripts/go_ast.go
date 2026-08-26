@@ -18,7 +18,6 @@ type Issue struct {
 	Description string `json:"description"`
 	File        string `json:"file"`
 	Line        int    `json:"line"`
-	CodeSnippet string `json:"code_snippet"`
 	Suggestion  string `json:"suggestion"`
 }
 
