@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	goRuntime "runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -31,9 +33,9 @@ func registRunCommand() {
 		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: `Runs a binary in the work directory and returns its combined stdout/stderr.
+		Description: fmt.Sprintf(`Runs a binary in the work directory and returns its combined stdout/stderr.
 Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
-Reading a file → read_files; finding one → find_files; installing a system binary → install_dependence; opening one in an app → open_file.`,
+Reading a file → read_files; finding one → find_files; %s; opening one in an app → open_file.`, systemPackageRoute()),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -45,7 +47,7 @@ Reading a file → read_files; finding one → find_files; installing a system b
 				},
 				"write_paths": map[string]any{
 					"type":        "array",
-					"description": "Absolute paths outside $HOME this command has to write to — ['/opt/homebrew'] for brew upgrade, ['/usr/local'] for a system install. The sandbox only allows writes under $HOME, so a command touching anything else fails with a permission error that looks like a file ownership problem and is not one. Each path needs the user's approval on this call, or an entry in path_white_list. Paths under $HOME need not be listed.",
+					"description": "Absolute paths outside $HOME this command has to write to — ['/opt/homebrew'] for brew upgrade, ['/usr/local'] for a system install. The sandbox only allows writes under $HOME, so a command touching anything else fails with a permission error that looks like a file ownership problem and is not one. Each path needs the user's approval on this call. Paths under $HOME need not be listed.",
 					"items":       map[string]any{"type": "string"},
 				},
 			},
@@ -64,34 +66,45 @@ Reading a file → read_files; finding one → find_files; installing a system b
 	})
 }
 
+func deniedCommandErr(binary string) error {
+	return fmt.Errorf("%s is on denied_command and can never run; it cannot be approved and retrying changes nothing", binary)
+}
+
+func systemPackageRoute() string {
+	if goRuntime.GOOS == "linux" {
+		return "installing or removing a system package → pkg_manage"
+	}
+	return `installing a system package → brew install, declaring write_paths: ["/opt/homebrew"]`
+}
+
 func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string) (string, error) {
 	if len(argv) == 0 {
 		return "", fmt.Errorf("run_command requires a non-empty 'argv' array, e.g. [\"git\", \"status\"]")
 	}
 
 	binary := filepath.Base(argv[0])
-	allowed := allowedWithGrants(e.SessionID, e.AllowedCommand)
+	denied := filesystem.DeniedCommand
 
 	if binary != argv[0] {
 		return "", fmt.Errorf("failed to run command: %q must be a bare command name (%q), not a path", argv[0], binary)
 	}
 
 	if (binary == "sh" || binary == "bash") && len(argv) >= 3 && argv[1] == "-c" {
-		if !allowed[binary] {
-			return "", fmt.Errorf("failed to run command: %s is not allowed", binary)
+		if slices.Contains(denied, binary) {
+			return "", deniedCommandErr(binary)
 		}
 		if strings.TrimSpace(argv[2]) == "" {
 			return "", fmt.Errorf("%s -c requires a non-empty command string", binary)
 		}
-		if err := validateShellScript(argv[2], allowed); err != nil {
+		if err := validateShellScript(argv[2], denied); err != nil {
 			return "", err
 		}
 	} else {
 		if binary == "cd" {
 			return changeWorkDir(e, argv[1:])
 		}
-		if !allowed[binary] {
-			return "", fmt.Errorf("failed to run command: %s is not allowed", binary)
+		if slices.Contains(denied, binary) {
+			return "", deniedCommandErr(binary)
 		}
 		if binary == "rm" {
 			return moveToTrash(ctx, e, argv[1:])

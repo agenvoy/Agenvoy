@@ -96,14 +96,11 @@ var GuideWriteTodo string
 
 // * Configs
 
-//go:embed jsons/sensitive_map.json
-var SensitiveMap []byte
+//go:embed jsons/sensitive_path.json
+var SensitivePath []byte
 
 //go:embed jsons/exclude_list.json
 var ExcludeList []byte
-
-//go:embed jsons/white_list.json
-var WhiteList []byte
 
 //go:embed jsons/read_only_command.json
 var ReadOnlyCommand []byte

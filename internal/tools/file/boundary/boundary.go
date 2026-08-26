@@ -3,12 +3,12 @@ package boundary
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
@@ -58,45 +58,22 @@ func isGranted(sessionID, absPath string) bool {
 }
 
 func resolveRaw(baseDir, path string) (string, error) {
-	path = strings.TrimSpace(path)
-	switch {
-	case path == "":
-		path = baseDir
-	case path == "~" || strings.HasPrefix(path, "~/"):
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("os.UserHomeDir: %w", err)
-		}
-		path = filepath.Join(home, path[1:])
-	case !filepath.IsAbs(path):
-		path = filepath.Join(baseDir, path)
+	abs := go_pkg_utils.AbsPath(baseDir, path)
+	if abs == "" {
+		return "", fmt.Errorf("empty path with no base directory")
 	}
-
-	if !filepath.IsAbs(path) {
-		abs, err := filepath.Abs(path)
-		if err != nil {
-			return "", fmt.Errorf("filepath.Abs: %w", err)
-		}
-		path = abs
-	}
-	return go_pkg_filesystem.RealPath(path)
+	return go_pkg_filesystem.RealPath(abs)
 }
 
-func isWhitelisted(absPath string) bool {
-	if IsSensitivePath(absPath) {
-		return false
-	}
-	sep := string(filepath.Separator)
-	for _, one := range filesystem.PathWhiteList {
-		if absPath == one || strings.HasPrefix(absPath, one+sep) {
-			return true
-		}
-	}
-	return false
+func deniedErr(absPath string) error {
+	return fmt.Errorf("%s is on denied_path and is permanently off limits for both reads and writes; it cannot be approved and retrying the same path fails the same way", absPath)
 }
 
 func Resolve(sessionID, baseDir, path string) (string, error) {
 	abs, homeErr := go_pkg_filesystem.AbsPath(baseDir, path, go_pkg_filesystem.AbsPathOption{HomeOnly: true})
+	if homeErr == nil && IsDeniedPath(abs) {
+		return "", deniedErr(abs)
+	}
 	if homeErr == nil && !IsSensitivePath(abs) {
 		return abs, nil
 	}
@@ -108,7 +85,10 @@ func Resolve(sessionID, baseDir, path string) (string, error) {
 		}
 		return "", rawErr
 	}
-	if isGranted(sessionID, restricted) || isWhitelisted(restricted) {
+	if IsDeniedPath(restricted) {
+		return "", deniedErr(restricted)
+	}
+	if isGranted(sessionID, restricted) {
 		return restricted, nil
 	}
 	if homeErr != nil {
@@ -138,7 +118,7 @@ func Restricted(sessionID, workDir, toolName, toolArgs string) []string {
 		if _, homeErr := go_pkg_filesystem.AbsPath(base, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); homeErr == nil && !IsSensitivePath(abs) {
 			continue
 		}
-		if seen[abs] || isWhitelisted(abs) || isGranted(sessionID, abs) {
+		if seen[abs] || IsDeniedPath(abs) || isGranted(sessionID, abs) {
 			continue
 		}
 
@@ -159,7 +139,10 @@ func WriteBinds(sessionID, baseDir string, list []string) ([]string, error) {
 		if !filepath.IsAbs(one) && !strings.HasPrefix(one, "~") {
 			return nil, fmt.Errorf("write_paths needs absolute paths, got %q", one)
 		}
-		if _, err := go_pkg_filesystem.AbsPath(baseDir, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); err == nil {
+		if home, err := go_pkg_filesystem.AbsPath(baseDir, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); err == nil {
+			if IsDeniedPath(home) {
+				return nil, deniedErr(home)
+			}
 			continue
 		}
 
@@ -167,8 +150,11 @@ func WriteBinds(sessionID, baseDir string, list []string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("write_paths %q: %w", one, err)
 		}
-		if !isGranted(sessionID, abs) && !isWhitelisted(abs) {
-			return nil, fmt.Errorf("write path %s was not approved — it has to be approved in this call's prompt or listed in path_white_list; retrying without that changes nothing", abs)
+		if IsDeniedPath(abs) {
+			return nil, deniedErr(abs)
+		}
+		if !isGranted(sessionID, abs) {
+			return nil, fmt.Errorf("write path %s was not approved — it has to be approved in this call's prompt; retrying without that changes nothing", abs)
 		}
 		if seen[abs] {
 			continue

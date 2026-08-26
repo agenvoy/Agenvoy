@@ -305,7 +305,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	case agentTypes.EventText:
 		if ev.Source == "" {
 			collapse := t.collapseToolBuf()
-			raw := ev.Text
+			raw := utils.StripFileMarkers(ev.Text)
 
 			if len(t.tableBuf) > 0 {
 				if strings.Contains(raw, "|") {

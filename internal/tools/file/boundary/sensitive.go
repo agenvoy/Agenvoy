@@ -8,12 +8,23 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
+func IsDeniedPath(absPath string) bool {
+	absPath = filepath.Clean(strings.TrimSpace(absPath))
+	if absPath == "" || absPath == "." {
+		return false
+	}
+	sep := string(filepath.Separator)
+	return slices.ContainsFunc(filesystem.DeniedPath, func(one string) bool {
+		return absPath == one || strings.HasPrefix(absPath, one+sep)
+	})
+}
+
 func IsSensitivePath(absPath string) bool {
 	absPath = filepath.Clean(strings.TrimSpace(absPath))
 	if absPath == "" || absPath == "." {
 		return false
 	}
-	dic := filesystem.SensitiveMap
+	dic := filesystem.SensitivePath
 
 	for segment := range strings.SplitSeq(absPath, string(filepath.Separator)) {
 		if slices.Contains(dic.Dirs, segment) {

@@ -177,9 +177,9 @@ func (t TUI) viewPopup() string {
 		case dl == "":
 			body = append(body, "")
 		case strings.HasPrefix(dl, "- "):
-			body = append(body, diffOldStyle.Render(padToWidth("  "+dl, diffWidth)))
+			body = append(body, diffOldStyle.Render(diffCell(dl, diffWidth)))
 		default:
-			body = append(body, diffNewStyle.Render(padToWidth("  "+dl, diffWidth)))
+			body = append(body, diffNewStyle.Render(diffCell(dl, diffWidth)))
 		}
 	}
 	body = append(body, "")

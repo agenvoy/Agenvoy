@@ -32,7 +32,6 @@ const (
 )
 
 type AgentConfig struct {
-	SessionID    string                  `json:"session_id"`
 	DefaultModel string                  `json:"default_model"`
 	Models       []agentTypes.AgentEntry `json:"models"`
 }

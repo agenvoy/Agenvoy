@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -21,7 +22,7 @@ var shellAllow = map[string]bool{
 	"getopts": true, "let": true,
 }
 
-func validateShellScript(script string, allowed map[string]bool) error {
+func validateShellScript(script string, denied []string) error {
 	file, err := syntax.NewParser().Parse(strings.NewReader(script), "")
 	if err != nil {
 		return fmt.Errorf("sh -c parse: %w", err)
@@ -52,8 +53,8 @@ func validateShellScript(script string, allowed map[string]bool) error {
 		if shellAllow[base] {
 			return true
 		}
-		if !allowed[base] {
-			bad = fmt.Errorf("failed to run command: %s is not allowed", bin)
+		if slices.Contains(denied, base) {
+			bad = deniedCommandErr(base)
 			return false
 		}
 		if (base == "sh" || base == "bash") && len(call.Args) >= 3 {
@@ -66,7 +67,7 @@ func validateShellScript(script string, allowed map[string]bool) error {
 				bad = fmt.Errorf("sh -c: nested %s -c with dynamic script not allowed", base)
 				return false
 			}
-			if err := validateShellScript(inner, allowed); err != nil {
+			if err := validateShellScript(inner, denied); err != nil {
 				bad = err
 				return false
 			}

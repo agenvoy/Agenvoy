@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 type pendingTaskInfo struct {
@@ -223,7 +224,7 @@ func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 				return resumeResult{Text: text.String(), Canceled: true}
 			case agentTypes.EventText, agentTypes.EventTextDone:
 				if ev.Text != "" {
-					text.WriteString(ev.Text)
+					text.WriteString(utils.StripFileMarkers(ev.Text))
 				}
 			case agentTypes.EventError, agentTypes.EventExecError:
 				lastErr = ev.Text

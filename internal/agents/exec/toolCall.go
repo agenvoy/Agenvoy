@@ -329,15 +329,6 @@ func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
 	sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
 }
 
-func restrictedList(paths, commands []string) []string {
-	out := make([]string, 0, len(paths)+len(commands))
-	out = append(out, paths...)
-	for _, one := range commands {
-		out = append(out, "command: "+one)
-	}
-	return out
-}
-
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
 		Files []struct {
@@ -431,8 +422,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		}
 
 		restrictedPaths := boundary.Restricted(exec.SessionID, exec.WorkDir, toolName, toolArg)
-		restrictedCmds := tools.RestrictedCommands(exec.AllowedCommand, toolName, toolArg)
-		restricted := len(restrictedPaths) > 0 || len(restrictedCmds) > 0
+		restrictedList := append(append([]string{}, restrictedPaths...), interactive.RestrictedPkgManage(toolName, toolArg)...)
+		restricted := len(restrictedList) > 0
 
 		if !allowAll && (restricted || toolNeedsConfirmation(exec, toolName, toolArg, *turnAllowAll)) {
 			proceed := true
@@ -450,7 +441,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					SessionID:  sessionData.ID,
 					ToolName:   toolName,
 					ToolArgs:   toolArg,
-					Restricted: restrictedList(restrictedPaths, restrictedCmds),
+					Restricted: restrictedList,
 				})
 				cancelAsk()
 				if !isTUISession(sessionData.ID) && errors.Is(err, context.DeadlineExceeded) {
@@ -504,7 +495,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			if approved && restricted && !verified {
 				proceed = false
 				approved = false
-				reason = fmt.Sprintf("this needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedList(restrictedPaths, restrictedCmds), ", "))
+				reason = fmt.Sprintf("this needs system password verification, which this channel cannot collect: %s", strings.Join(restrictedList, ", "))
 			}
 			if !proceed {
 				message := "The user declined this call. Retrying it, or reissuing it with different arguments, produces the same prompt and the same refusal. Continue without it, or use ask_user to agree on another approach."
@@ -524,7 +515,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			}
 			if approved {
 				boundary.Grant(exec.SessionID, restrictedPaths...)
-				tools.GrantCommands(exec.SessionID, restrictedCmds)
 			}
 		}
 

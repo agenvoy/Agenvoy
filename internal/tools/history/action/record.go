@@ -45,14 +45,12 @@ type attempt struct {
 
 type result struct {
 	Name   string `json:"name"`
-	ID     string `json:"id"`
 	Result string `json:"result"`
 }
 
 type todo struct {
-	Content    string `json:"content"`
-	Status     string `json:"status"`
-	ActiveForm string `json:"active_form,omitempty"`
+	Content string `json:"content"`
+	Status  string `json:"status"`
 }
 
 type entry struct {
