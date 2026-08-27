@@ -14,8 +14,7 @@
       href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css"
     />
     <link rel="stylesheet" href="public/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
 
     <script src="public/index.js"></script>
     <script src="https://cloud.pardn.io/nanomd-pre-test-v1.js"></script>
@@ -60,17 +59,13 @@
       </section>
       <!---->
       <footer>
-        <a href="/?page=usage&tab=24h">
+        <a href="/?page=config&tab=Usage">
           <span class="material-symbols-outlined"> bar_chart </span>
           <p>Usage</p>
         </a>
-        <a href="https://web.agenvoy.com/config?tab=models" target="_blank" rel="noreferrer">
-          <span class="material-symbols-outlined"> settings </span>
-          <p>Config</p>
-        </a>
         <a href="/?page=config&tab=Model">
           <span class="material-symbols-outlined"> settings </span>
-          <p>New Config (Building)</p>
+          <p>Config</p>
         </a>
       </footer>
     </section>
@@ -229,27 +224,6 @@
         </section>
       </section>
       <!---->
-      <section :elif="params.page == usage" class="usage">
-        <header :data-selected="{{params.tab}}">
-          <a :for="(k, v) in usageTab" :href="?page=usage&tab={{k}}" :name="{{k}}">
-            <span class="material-symbols-outlined"> {{v}} </span>
-            <p>{{k}}</p>
-          </a>
-          <div></div>
-        </header>
-
-        <section class="editor">
-          <div class="side">
-            <div class="list" id="usage-list"></div>
-          </div>
-          <form id="usage-form">
-            <section class="summary" id="usage-summary"></section>
-            <section class="chart" id="usage-chart"></section>
-            <section class="table" id="usage-table"></section>
-          </form>
-        </section>
-      </section>
-      <!---->
       <section :elif="params.page == config" class="config">
         <header :data-selected="{{params.tab}}">
           <a :for="(k, v) in configTab" :href="?page=config&tab={{k}}" :name="{{k}}">
@@ -275,6 +249,20 @@
             <section class="tools" id="model-catalog"></section>
             <section class="tools" id="model-routing"></section>
             <section class="tools" id="model-models"></section>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Usage" class="editor">
+          <div class="side">
+            <div class="list" id="usage-list"></div>
+          </div>
+          <form id="usage-form">
+            <nav class="period" :data-selected="{{params.period}}">
+              <a :for="(k, v) in usageTab" :href="?page=config&tab=Usage&period={{k}}" :name="{{k}}">{{k}}</a>
+            </nav>
+            <section class="summary" id="usage-summary"></section>
+            <section class="chart" id="usage-chart"></section>
+            <section class="table" id="usage-table"></section>
           </form>
         </section>
 

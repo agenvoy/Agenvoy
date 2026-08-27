@@ -1,147 +1,40 @@
-body[data-rendered="1"] section.right-content section.usage {
-  display: flex;
-}
-
 @mixin styles {
-  section.usage {
-    position: absolute;
-    display: none;
-    flex-flow: column;
-    justify-content: flex-start;
-    align-items: center;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: scroll;
-
-    header {
-      z-index: 10;
-      position: absolute;
-      top: 0;
-      left: 0;
-      display: flex;
-      flex-flow: row;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 1rem;
-      padding: 0 1rem;
-      width: 100%;
-      height: 2.5rem;
-      overflow: scroll;
-
-      @each $name in ("24h", "7d", "28d") {
-        &[data-selected="#{$name}"] a[name="#{$name}"] {
-          padding-top: 2px;
-          border-bottom: 2px solid var(--accent);
-          opacity: 1;
-        }
-      }
-
-      div {
-        flex-grow: 1;
-      }
-
-      a {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        gap: 0.25rem;
-        color: var(--black);
-        opacity: 0.35;
-        text-decoration: none;
-        transition: 0.2s;
-
-        p {
-          font-size: small;
-          font-weight: 300;
-        }
-      }
-    }
-
+  section.config {
     section.editor {
-      display: flex;
-      flex-flow: row;
-      align-items: flex-start;
-      gap: 1.5rem;
-      margin-top: 2.5rem;
-      padding: 1.5rem 1rem 3rem;
-      width: 100%;
-      min-width: 0;
-      height: calc(100% - 2.5rem);
-      overflow-y: scroll;
-
-      @media (max-width: 767.99px) {
-        flex-flow: column;
-        align-items: stretch;
+      form {
         gap: 1rem;
-      }
 
-      div.side {
-        display: flex;
-        flex-flow: column;
-        gap: 0.5rem;
-        width: 16rem;
-        flex-shrink: 0;
-
-        @media (max-width: 767.99px) {
-          width: 100%;
-        }
-
-        div.list {
+        nav.period {
           display: flex;
-          flex-flow: column;
-          gap: 0.5rem;
+          flex-flow: row;
+          align-items: center;
+          gap: 0.75rem;
 
-          div.card {
-            position: relative;
-            display: flex;
-            flex-flow: column;
-            gap: 0.125rem;
-            padding: 0.625rem 0.75rem;
-            border-radius: 0.5rem;
-            background-color: var(--gray);
-            cursor: pointer;
+          @each $name in ("24h", "7d", "28d") {
+            &[data-selected="#{$name}"] a[name="#{$name}"] {
+              color: var(--accent);
+              background-color: var(--accent-bg);
+              opacity: 1;
+            }
+          }
+
+          a {
+            padding: 0.25rem 0.625rem;
+            font-size: small;
+            font-weight: 300;
+            border-radius: 0.375rem;
+            color: var(--black);
+            opacity: 0.35;
+            text-decoration: none;
             transition: 0.2s;
 
             @media (hover: hover) {
               &:hover {
-                background-color: var(--gray-2);
+                opacity: 1;
               }
-            }
-
-            &[data-selected="1"] {
-              background-color: var(--accent-bg);
-            }
-
-            > strong {
-              font-size: small;
-              font-weight: 500;
-              color: var(--ink);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-
-            > p {
-              font-size: 0.75rem;
-              font-weight: 300;
-              color: var(--gray-3);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
             }
           }
         }
-      }
-
-      form {
-        display: flex;
-        flex-flow: column;
-        gap: 1rem;
-        flex: 1 1 0;
-        min-width: 0;
-        max-width: 100%;
 
         section.summary {
           display: grid;

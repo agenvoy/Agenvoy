@@ -33,7 +33,7 @@ function readConfig() {
   }
 
   if (config.left_tab_collapsed !== "1" && config.left_tab_collapsed !== "0") {
-    config.left_tab_collapsed = document.documentElement.clientWidth < 768 ? "1" : "0";
+    config.left_tab_collapsed = "0";
     writeConfig(config);
   }
 

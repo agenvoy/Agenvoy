@@ -183,7 +183,6 @@ func reload() error {
 		return fmt.Errorf("LoadCrons: %w", err)
 	}
 
-	now := time.Now()
 	diskTaskKeys := make(map[string]TaskEntry, len(tasks))
 	for _, t := range tasks {
 		diskTaskKeys[TaskKey(t)] = t
@@ -213,20 +212,9 @@ func reload() error {
 		if _, exists := st.timers[key]; exists {
 			continue
 		}
-		if !entry.At.After(now) {
-			go func(e TaskEntry) {
-				if _, err := RemoveTaskByTimeSkill(e.At, e.Skill); err != nil {
-					slog.Warn("RemoveTaskByTimeSkill",
-						slog.String("session", e.SessionID),
-						slog.String("error", err.Error()))
-				}
-			}(entry)
-			continue
-		}
 		entryCopy := entry
 		keyCopy := key
-		delay := time.Until(entry.At)
-		timer := time.AfterFunc(delay, func() {
+		timer := time.AfterFunc(time.Until(entry.At), func() {
 			fire(entryCopy.SessionID, entryCopy.Skill)
 			st.mu.Lock()
 			delete(st.timers, keyCopy)

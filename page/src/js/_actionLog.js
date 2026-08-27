@@ -26,7 +26,7 @@ function parseActionLog(content) {
 
     switch (kind) {
       case "user":
-        if (body.startsWith("[Resumed Task")) {
+        if (body.startsWith("[Resumed Task") || body.startsWith("[Scheduled Task")) {
           break;
         }
 

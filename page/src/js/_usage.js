@@ -1,11 +1,35 @@
 const USAGE_SERIES = [
   { key: "input", label: "input", color: "#1461dc" },
   { key: "output", label: "output", color: "#2ea44f" },
-  { key: "write", label: "cache write", color: "#6f4ed8" },
   { key: "hit", label: "cache read", color: "#b0b0b0" },
 ];
 
 const USAGE_BAR_HEIGHT = 22;
+
+const ECHARTS_SRC = "https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js";
+
+let echartsLoading = null;
+
+function ensureECharts() {
+  if (typeof echarts !== "undefined") {
+    return Promise.resolve(true);
+  }
+  if (echartsLoading) {
+    return echartsLoading;
+  }
+
+  echartsLoading = new Promise((resolve) => {
+    const tag = document.createElement("script");
+    tag.src = ECHARTS_SRC;
+    tag.onload = () => resolve(true);
+    tag.onerror = () => {
+      console.error("ensureECharts", ECHARTS_SRC);
+      resolve(false);
+    };
+    document.head.appendChild(tag);
+  });
+  return echartsLoading;
+}
 
 let usageScope = "";
 let usageCache = null;
@@ -13,7 +37,7 @@ let usageChart = null;
 
 function usageDom() {
   return {
-    header: document.querySelector("section.usage > header"),
+    header: document.querySelector("section.config nav.period"),
     list: $("#usage-list"),
     summary: $("#usage-summary"),
     chart: $("#usage-chart"),
@@ -104,12 +128,12 @@ function renderUsageSummary(rows, totals, period) {
     return;
   }
 
-  const hitRate = totals.total > 0 ? Math.round((totals.hit / totals.total) * 100) : 0;
+  const read = totals.input + totals.hit;
+  const hitRate = read > 0 ? Math.round((totals.hit / read) * 100) : 0;
   const cells = [
     { label: "total tokens · " + period, value: usageNumber(totals.total) },
     { label: "input", value: usageNumber(totals.input) },
     { label: "output", value: usageNumber(totals.output) },
-    { label: "cache write", value: usageNumber(totals.write) },
     { label: "cache read", value: usageNumber(totals.hit) + " (" + hitRate + "%)" },
     { label: "models", value: String(rows.length) },
   ];
@@ -136,7 +160,6 @@ function renderUsageTable(rows) {
     _("th", "model"),
     _("th.num", "input"),
     _("th.num", "output"),
-    _("th.num", "cache write"),
     _("th.num", "cache read"),
     _("th.num", "total"),
   ]);
@@ -148,7 +171,6 @@ function renderUsageTable(rows) {
         _("td", row.model),
         _("td.num", usageNumber(row.input)),
         _("td.num", usageNumber(row.output)),
-        _("td.num", usageNumber(row.write)),
         _("td.num", usageNumber(row.hit)),
         _("td.num.total", usageNumber(row.total)),
       ]),
@@ -261,5 +283,6 @@ async function renderUsagePage() {
   markSelectedCard(dom.list, usageScope);
 
   window.addEventListener("resize", resizeUsageChart);
+  await ensureECharts();
   await selectUsage(usageScope);
 }

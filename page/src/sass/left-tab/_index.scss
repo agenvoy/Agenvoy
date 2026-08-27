@@ -16,7 +16,7 @@
 
     width: var(--width-left-tab-collaspse);
 
-    @media (max-width: 767.99px) {
+    @media (max-width: 1279.99px) {
       z-index: 100;
       position: absolute;
       top: 0;
@@ -32,7 +32,7 @@
       }
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 1280px) {
       width: var(--width-left-tab);
 
       @include show.styles;

@@ -32,7 +32,7 @@ body[data-rendered="1"] section.right-content section.config {
       height: 2.5rem;
       overflow: scroll;
 
-      @each $name in (Model, MCP, Keychain, Channel) {
+      @each $name in (Model, Usage, MCP, Keychain, Channel) {
         &[data-selected="#{$name}"] a[name="#{$name}"],
         &[data-selected="#{$name}"] button[name="#{$name}"] {
           padding-top: 2px;
@@ -588,6 +588,19 @@ body section.right-content section.config {
       padding: 0;
       background: none;
       border: none;
+
+      @media (min-width: 1024px) {
+        flex-flow: row wrap;
+        align-items: flex-start;
+
+        > strong {
+          width: 100%;
+        }
+
+        > details.provider {
+          width: calc((100% - 0.5rem) / 2);
+        }
+      }
     }
 
     section.tools {

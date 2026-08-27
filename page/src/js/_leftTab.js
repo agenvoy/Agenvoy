@@ -6,6 +6,7 @@ const feature = {
 };
 
 const configTab = {
+  Usage: "bar_chart",
   Model: "deployed_code",
   MCP: "electrical_services",
   Keychain: "key",
