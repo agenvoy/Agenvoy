@@ -12,6 +12,12 @@ const configTab = {
   Channel: "cell_tower",
 };
 
+const usageTab = {
+  "24h": "schedule",
+  "7d": "schedule",
+  "28d": "schedule",
+};
+
 const leftTab = {
   "New Chat": {
     icon: "add_comment",

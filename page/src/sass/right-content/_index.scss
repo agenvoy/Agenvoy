@@ -1,6 +1,7 @@
 @use "chat";
 @use "feature";
 @use "config";
+@use "usage";
 
 * {
   --width-right-content: calc(100% - 2rem);
@@ -33,6 +34,7 @@
     @include chat.styles;
     @include feature.styles;
     @include config.styles;
+    @include usage.styles;
   }
 }
 

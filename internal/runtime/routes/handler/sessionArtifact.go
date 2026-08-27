@@ -66,6 +66,23 @@ func GetSessionUsageLog() gin.HandlerFunc {
 	}
 }
 
+func GetTotalUsage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+
+		periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
+		for _, period := range usagePeriods {
+			summary, err := usagelog.Total(period.days, now)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			periods[period.label] = summary
+		}
+		c.JSON(http.StatusOK, gin.H{"periods": periods})
+	}
+}
+
 func ListSessionHistoryFiles() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))

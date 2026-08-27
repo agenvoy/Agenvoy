@@ -12,6 +12,12 @@ document.addEventListener("DOMContentLoaded", function () {
     params.tab = matched || tabs[0];
   }
 
+  if (params.page == "usage") {
+    const tabs = Object.keys(usageTab);
+    const matched = tabs.find((name) => name.toLowerCase() === String(params.tab || "").toLowerCase());
+    params.tab = matched || tabs[0];
+  }
+
   if (params.chat != null && !CHAT_ID.test(params.chat || "")) {
     window.location.href = getLink({ page: params.page });
     return;
@@ -43,6 +49,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left_tab: leftTab,
       feature: feature,
       configTab: configTab,
+      usageTab: usageTab,
     },
     event: {
       show_tab: function () {
@@ -296,6 +303,10 @@ document.addEventListener("DOMContentLoaded", function () {
           if (params.tab === "Channel") {
             renderChannel();
           }
+        }
+
+        if (params.page === "usage") {
+          renderUsagePage();
         }
 
         if (params.page === "features") {

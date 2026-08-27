@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:17989";
+const API = window.location.origin;
 const SKIP_EVENTS = [
   "EventConnected",
   "EventTextDone",

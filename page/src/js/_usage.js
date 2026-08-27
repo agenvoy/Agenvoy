@@ -1,0 +1,265 @@
+const USAGE_SERIES = [
+  { key: "input", label: "input", color: "#1461dc" },
+  { key: "output", label: "output", color: "#2ea44f" },
+  { key: "write", label: "cache write", color: "#6f4ed8" },
+  { key: "hit", label: "cache read", color: "#b0b0b0" },
+];
+
+const USAGE_BAR_HEIGHT = 22;
+
+let usageScope = "";
+let usageCache = null;
+let usageChart = null;
+
+function usageDom() {
+  return {
+    header: document.querySelector("section.usage > header"),
+    list: $("#usage-list"),
+    summary: $("#usage-summary"),
+    chart: $("#usage-chart"),
+    table: $("#usage-table"),
+  };
+}
+
+function currentUsagePeriod() {
+  const header = usageDom().header;
+  return (header && header.dataset.selected) || "24h";
+}
+
+async function fetchUsagePeriods(sessionId) {
+  const url = sessionId ? `${API}/v1/session/${encodeURIComponent(sessionId)}/usage` : `${API}/v1/usage`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return {};
+    }
+    return (await response.json()).periods || {};
+  } catch (err) {
+    console.error("fetchUsagePeriods", err);
+    return {};
+  }
+}
+
+async function fetchUsageSessions() {
+  try {
+    const response = await fetch(`${API}/v1/sessions`);
+    if (response.ok) {
+      return (await response.json()).sessions || [];
+    }
+  } catch (err) {
+    console.error("fetchUsageSessions", err);
+  }
+  return [];
+}
+
+function usageCard(id, title, subtitle) {
+  const card = _("div.card", [_("strong", title), _("p", subtitle)]);
+  card.dataset.name = id;
+  card.addEventListener("click", () => {
+    markSelectedCard(usageDom().list, id);
+    selectUsage(id);
+  });
+  return card;
+}
+
+function usageRows(summary) {
+  const rows = [];
+  for (const model of Object.keys(summary || {})) {
+    const one = summary[model] || {};
+    const row = {
+      model: model,
+      input: Number(one.input) || 0,
+      output: Number(one.output) || 0,
+      write: Number(one.write) || 0,
+      hit: Number(one.hit) || 0,
+    };
+    row.total = row.input + row.output + row.write + row.hit;
+    if (row.total > 0) {
+      rows.push(row);
+    }
+  }
+  rows.sort((a, b) => b.total - a.total || a.model.localeCompare(b.model));
+  return rows;
+}
+
+function usageTotals(rows) {
+  const sum = { input: 0, output: 0, write: 0, hit: 0, total: 0 };
+  for (const row of rows) {
+    sum.input += row.input;
+    sum.output += row.output;
+    sum.write += row.write;
+    sum.hit += row.hit;
+    sum.total += row.total;
+  }
+  return sum;
+}
+
+function usageNumber(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function renderUsageSummary(rows, totals, period) {
+  const dom = usageDom();
+  if (!dom.summary) {
+    return;
+  }
+
+  const hitRate = totals.total > 0 ? Math.round((totals.hit / totals.total) * 100) : 0;
+  const cells = [
+    { label: "total tokens · " + period, value: usageNumber(totals.total) },
+    { label: "input", value: usageNumber(totals.input) },
+    { label: "output", value: usageNumber(totals.output) },
+    { label: "cache write", value: usageNumber(totals.write) },
+    { label: "cache read", value: usageNumber(totals.hit) + " (" + hitRate + "%)" },
+    { label: "models", value: String(rows.length) },
+  ];
+
+  dom.summary.innerHTML = "";
+  for (const cell of cells) {
+    dom.summary.appendChild(_("div.cell", [_("p", cell.label), _("strong", cell.value)]));
+  }
+}
+
+function renderUsageTable(rows) {
+  const dom = usageDom();
+  if (!dom.table) {
+    return;
+  }
+
+  dom.table.innerHTML = "";
+  if (rows.length === 0) {
+    dom.table.appendChild(_("p.empty", "no usage in this window"));
+    return;
+  }
+
+  const head = _("tr", [
+    _("th", "model"),
+    _("th.num", "input"),
+    _("th.num", "output"),
+    _("th.num", "cache write"),
+    _("th.num", "cache read"),
+    _("th.num", "total"),
+  ]);
+
+  const body = [];
+  for (const row of rows) {
+    body.push(
+      _("tr", [
+        _("td", row.model),
+        _("td.num", usageNumber(row.input)),
+        _("td.num", usageNumber(row.output)),
+        _("td.num", usageNumber(row.write)),
+        _("td.num", usageNumber(row.hit)),
+        _("td.num.total", usageNumber(row.total)),
+      ]),
+    );
+  }
+
+  dom.table.appendChild(_("table", [_("thead", [head]), _("tbody", body)]));
+}
+
+function renderUsageChart(rows) {
+  const dom = usageDom();
+  if (!dom.chart || typeof echarts === "undefined") {
+    return;
+  }
+
+  if (usageChart) {
+    usageChart.dispose();
+    usageChart = null;
+  }
+  if (rows.length === 0) {
+    dom.chart.innerHTML = "";
+    dom.chart.style.height = "";
+    return;
+  }
+
+  const models = rows.map((row) => row.model).reverse();
+  dom.chart.style.height = Math.max(224, rows.length * USAGE_BAR_HEIGHT + 72) + "px";
+  usageChart = echarts.init(dom.chart, null, { renderer: "canvas" });
+  usageChart.setOption({
+    animation: false,
+    grid: { left: 8, right: 24, top: 32, bottom: 8, containLabel: true },
+    legend: {
+      top: 0,
+      left: 0,
+      icon: "roundRect",
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 11, color: "#253146" },
+    },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      valueFormatter: (value) => usageNumber(value),
+    },
+    xAxis: {
+      type: "value",
+      axisLabel: { fontSize: 11, color: "#999999", formatter: (value) => compactToken(value) },
+      splitLine: { lineStyle: { color: "#ececec" } },
+    },
+    yAxis: {
+      type: "category",
+      data: models,
+      axisLabel: {
+        interval: 0,
+        fontSize: 11,
+        color: "#253146",
+        width: 220,
+        overflow: "truncate",
+      },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "#ececec" } },
+    },
+    series: USAGE_SERIES.map((one) => ({
+      name: one.label,
+      type: "bar",
+      stack: "token",
+      itemStyle: { color: one.color },
+      barMaxWidth: 14,
+      data: rows.map((row) => row[one.key]).reverse(),
+    })),
+  });
+}
+
+function resizeUsageChart() {
+  if (usageChart) {
+    usageChart.resize();
+  }
+}
+
+function paintUsage() {
+  const summary = (usageCache || {})[currentUsagePeriod()] || {};
+  const rows = usageRows(summary);
+  renderUsageSummary(rows, usageTotals(rows), currentUsagePeriod());
+  renderUsageChart(rows);
+  renderUsageTable(rows);
+}
+
+async function selectUsage(sessionId) {
+  usageScope = sessionId || "";
+  usageCache = await fetchUsagePeriods(usageScope);
+  paintUsage();
+}
+
+async function renderUsagePage() {
+  const dom = usageDom();
+  if (!dom.list) {
+    return;
+  }
+
+  const sessions = await fetchUsageSessions();
+
+  dom.list.innerHTML = "";
+  dom.list.appendChild(usageCard("", "ALL", "every session combined"));
+  for (const one of sessions) {
+    if (!one || !one.id) {
+      continue;
+    }
+    dom.list.appendChild(usageCard(one.id, one.name || one.id, one.model || one.id));
+  }
+  markSelectedCard(dom.list, usageScope);
+
+  window.addEventListener("resize", resizeUsageChart);
+  await selectUsage(usageScope);
+}
