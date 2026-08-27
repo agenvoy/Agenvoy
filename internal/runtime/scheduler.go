@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
 type Runner func(ctx context.Context, sessionID, skillName string) (string, error)
@@ -107,6 +108,24 @@ func addDefaultCrons() {
 		slog.Warn("cron pruneFileHistory",
 			slog.String("error", err.Error()))
 	}
+
+	usagelog.Retain()
+	if _, err := st.cron.Add("0 4 * * *", usagelog.Retain); err != nil {
+		slog.Warn("cron usageRetain",
+			slog.String("error", err.Error()))
+	}
+
+	pruneActionHistory := func() {
+		if err := historyStore.PruneAction(context.Background()); err != nil {
+			slog.Warn("historyStore.PruneAction",
+				slog.String("error", err.Error()))
+		}
+	}
+	pruneActionHistory()
+	if _, err := st.cron.Add("0 4 * * *", pruneActionHistory); err != nil {
+		slog.Warn("cron pruneActionHistory",
+			slog.String("error", err.Error()))
+	}
 }
 
 func AddSystemCron(spec string, fn func()) error {
@@ -164,7 +183,6 @@ func reload() error {
 		return fmt.Errorf("LoadCrons: %w", err)
 	}
 
-	now := time.Now()
 	diskTaskKeys := make(map[string]TaskEntry, len(tasks))
 	for _, t := range tasks {
 		diskTaskKeys[TaskKey(t)] = t
@@ -194,20 +212,9 @@ func reload() error {
 		if _, exists := st.timers[key]; exists {
 			continue
 		}
-		if !entry.At.After(now) {
-			go func(e TaskEntry) {
-				if _, err := RemoveTaskByTimeSkill(e.At, e.Skill); err != nil {
-					slog.Warn("RemoveTaskByTimeSkill",
-						slog.String("session", e.SessionID),
-						slog.String("error", err.Error()))
-				}
-			}(entry)
-			continue
-		}
 		entryCopy := entry
 		keyCopy := key
-		delay := time.Until(entry.At)
-		timer := time.AfterFunc(delay, func() {
+		timer := time.AfterFunc(time.Until(entry.At), func() {
 			fire(entryCopy.SessionID, entryCopy.Skill)
 			st.mu.Lock()
 			delete(st.timers, keyCopy)

@@ -1,9 +1,9 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
@@ -15,14 +15,12 @@ func Reset(sessionID string) (int, error) {
 	if sessionID == "" {
 		return 0, fmt.Errorf("sessionID is required")
 	}
-	sessionDir := filesystem.SessionDir(sessionID)
-
 	if err := os.Remove(filesystem.HistoryPath(sessionID)); err != nil && !os.IsNotExist(err) {
 		return 0, fmt.Errorf("os.Remove [%s]: %w", filesystem.HistoryPath(sessionID), err)
 	}
 
-	if err := os.RemoveAll(filepath.Join(sessionDir, "history")); err != nil {
-		return 0, fmt.Errorf("os.RemoveAll [%s]: %w", filepath.Join(sessionDir, "history"), err)
+	if err := historyStore.ClearAction(context.Background(), sessionID); err != nil {
+		return 0, fmt.Errorf("historyStore.ClearAction: %w", err)
 	}
 
 	os.RemoveAll(filesystem.PendingDir(sessionID))

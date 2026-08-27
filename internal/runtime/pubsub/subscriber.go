@@ -4,18 +4,14 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
-
-const sendBlockWait = 500 * time.Millisecond
 
 type Subscriber struct {
 	channel   chan agentTypes.Event
 	sessionID string
 	closed    bool
-	stalled   bool
 	dropped   atomic.Int64
 	mu        sync.Mutex
 }
@@ -52,23 +48,7 @@ func (s *Subscriber) send(event agentTypes.Event) {
 
 	select {
 	case s.channel <- event:
-		s.stalled = false
-		return
 	default:
-	}
-
-	if s.stalled {
-		s.countDrop(event)
-		return
-	}
-
-	timer := time.NewTimer(sendBlockWait)
-	defer timer.Stop()
-
-	select {
-	case s.channel <- event:
-	case <-timer.C:
-		s.stalled = true
 		s.countDrop(event)
 	}
 }

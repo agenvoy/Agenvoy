@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -243,24 +243,30 @@ func CleanupPending(sessionID, taskHash string) {
 		return
 	}
 
-	histDir := filesystem.TaskHistoryDir(sessionID)
-	if err := go_pkg_filesystem.CheckDir(histDir, true); err != nil {
-		slog.Debug("CleanupPending CheckDir",
-			slog.String("session", sessionID),
+	defer os.Remove(src)
+
+	raw, err := go_pkg_filesystem.ReadText(src)
+	if err != nil {
+		slog.Debug("CleanupPending ReadText",
+			slog.String("file", src),
 			slog.String("error", err.Error()))
-		os.Remove(src)
 		return
 	}
 
-	ts := time.Now().Format("2006-01-02-15-04")
-	dst := filepath.Join(histDir, fmt.Sprintf("%s-%s.json", ts, taskHash))
-	if err := os.Rename(src, dst); err != nil {
-		slog.Debug("CleanupPending rename",
-			slog.String("src", src),
-			slog.String("dst", dst),
+	var row historyStore.ActionRecord
+	if err := json.Unmarshal([]byte(raw), &row); err != nil {
+		slog.Debug("CleanupPending Unmarshal",
+			slog.String("file", src),
 			slog.String("error", err.Error()))
-		os.Remove(src)
-		return
+	}
+	row.TaskHash = taskHash
+	row.EndAt = time.Now()
+
+	if err := historyStore.WriteAction(context.Background(), sessionID, row); err != nil {
+		slog.Warn("historyStore.WriteAction",
+			slog.String("session", sessionID),
+			slog.String("task", taskHash),
+			slog.String("error", err.Error()))
 	}
 }
 

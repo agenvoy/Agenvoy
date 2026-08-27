@@ -41,6 +41,7 @@ func New() *gin.Engine {
 	r.POST("/v1/model/summary", localhostOnly(), handler.SetSummaryModel())
 
 	r.GET("/v1/sessions", handler.ListSessions())
+	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
 	r.POST("/v1/session", localhostOnly(), handler.CreateSession())
 	r.PUT("/v1/session", localhostOnly(), handler.UpdateSession())
 	r.DELETE("/v1/session", localhostOnly(), handler.DeleteSession())

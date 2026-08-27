@@ -1,6 +1,7 @@
 @use "chat";
 @use "feature";
 @use "config";
+@use "usage";
 
 * {
   --width-right-content: calc(100% - 2rem);
@@ -10,7 +11,7 @@
     --width-right-content: calc(100% - 4rem);
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 1280px) {
     --width-right-content: calc(100% - 8rem);
   }
 }
@@ -25,7 +26,7 @@
     margin-left: var(--width-left-tab-collaspse);
     width: calc(100% - var(--width-left-tab-collaspse));
 
-    @media (min-width: 768px) {
+    @media (min-width: 1280px) {
       margin-left: 0;
       width: calc(100% - var(--width-left-tab));
     }
@@ -33,6 +34,7 @@
     @include chat.styles;
     @include feature.styles;
     @include config.styles;
+    @include usage.styles;
   }
 }
 

@@ -51,7 +51,7 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 	switch kind {
 	case "user", "steer":
 		body = metaWrapRegex.ReplaceAllString(body, "")
-		if strings.Contains(body, "[Resumed Task") {
+		if strings.Contains(body, "[Resumed Task") || strings.HasPrefix(body, "[Scheduled Task") {
 			return agentTypes.Event{}, false
 		}
 		body = strings.TrimSpace(body)

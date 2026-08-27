@@ -37,6 +37,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
@@ -211,6 +212,14 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()
+	historyStore.MigrateAction()
+
+	if err := usagelog.New(); err != nil {
+		slog.Warn("usagelog.New",
+			slog.String("error", err.Error()))
+	}
+	defer usagelog.Close()
+	usagelog.Migrate()
 
 	geminiStt.Register()
 	imageTool.Register()
@@ -408,7 +417,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 			slog.String("error", err.Error()))
 	}
 
-	output, err := exec.ExecWithSubagent(exec.WithDcPushPrefix(ctx, skillName), body, sessionID, "", "", "", nil, "")
+	output, err := exec.ExecWithSubagent(exec.WithSchedule(exec.WithDcPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, "")
 	if err != nil {
 		return "", err
 	}

@@ -70,6 +70,46 @@ func syncColumns(c *go_sqlkit_core.Connector) error {
 			return fmt.Errorf("sql.DB Exec [ALTER TABLE messages DROP COLUMN %s]: %w", name, err)
 		}
 	}
+
+	return dropActionColumns(c)
+}
+
+func dropActionColumns(c *go_sqlkit_core.Connector) error {
+	rows, err := c.Query(`PRAGMA table_info(action_history)`)
+	if err != nil {
+		return fmt.Errorf("sql.DB Query [PRAGMA table_info action_history]: %w", err)
+	}
+	defer rows.Close()
+
+	existing := make(map[string]bool)
+	for rows.Next() {
+		var (
+			cid, notNull, pk int
+			name, dataType   string
+			defaultValue     any
+		)
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info action_history]: %w", err)
+		}
+		existing[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("sql.Rows Err [PRAGMA table_info action_history]: %w", err)
+	}
+
+	for _, name := range []string{"completed", "next_steps", "answer", "tool_attempts"} {
+		if !existing[name] {
+			continue
+		}
+		if _, err := c.Exec(fmt.Sprintf(`ALTER TABLE action_history DROP COLUMN %s`, name)); err != nil {
+			return fmt.Errorf("sql.DB Exec [ALTER TABLE action_history DROP COLUMN %s]: %w", name, err)
+		}
+	}
+
+	if _, err := c.Exec(
+		`UPDATE action_history SET end_at = end_at * 1000000000 WHERE end_at < 1000000000000`); err != nil {
+		return fmt.Errorf("sql.DB Exec [action_history end_at to nano]: %w", err)
+	}
 	return nil
 }
 

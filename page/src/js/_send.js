@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:17989";
+const API = window.location.origin;
 const SKIP_EVENTS = [
   "EventConnected",
   "EventTextDone",
@@ -20,14 +20,18 @@ async function stopRunning() {
   if (!currentSessionId) return;
   if (!confirm("Cancel this task?")) return;
 
-  if (!currentTaskId) return;
+  const taskId = currentTaskId || "current";
   try {
-    await fetch(
-      `${API}/v1/session/${encodeURIComponent(currentSessionId)}/cancel/${encodeURIComponent(currentTaskId)}`,
+    const response = await fetch(
+      `${API}/v1/session/${encodeURIComponent(currentSessionId)}/cancel/${encodeURIComponent(taskId)}`,
       { method: "POST" },
     );
+    if (!response.ok) {
+      pushToast(TOAST_LEVEL.ERROR, `cancel failed: ${response.status}`, nowClock());
+    }
   } catch (err) {
     console.error("stopRunning", err);
+    pushToast(TOAST_LEVEL.ERROR, `cancel failed: ${err?.message || err}`, nowClock());
   }
 }
 

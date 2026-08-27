@@ -13,7 +13,7 @@ import (
 
 const (
 	downloadMaxAge = 7 * 24 * time.Hour
-	trashMaxAge    = 30 * 24 * time.Hour
+	trashMaxAge    = 28 * 24 * time.Hour
 )
 
 func CleanDownload() {

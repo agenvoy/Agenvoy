@@ -6,7 +6,7 @@
     <title>Agenvoy</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,book_2,cached,cell_tower,check_circle,checklist,clear_all,close,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,clear_all,close,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -14,7 +14,7 @@
       href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css"
     />
     <link rel="stylesheet" href="public/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
 
     <script src="public/index.js"></script>
     <script src="https://cloud.pardn.io/nanomd-pre-test-v1.js"></script>
@@ -59,13 +59,13 @@
       </section>
       <!---->
       <footer>
-        <a href="https://web.agenvoy.com/config?tab=models" target="_blank" rel="noreferrer">
-          <span class="material-symbols-outlined"> settings </span>
-          <p>Config</p>
+        <a href="/?page=config&tab=Usage">
+          <span class="material-symbols-outlined"> bar_chart </span>
+          <p>Usage</p>
         </a>
         <a href="/?page=config&tab=Model">
           <span class="material-symbols-outlined"> settings </span>
-          <p>New Config (Building)</p>
+          <p>Config</p>
         </a>
       </footer>
     </section>
@@ -166,7 +166,7 @@
           <div class="side">
             <button type="button" class="new" @click="rule_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>new</p>
+              <p>Add Rule</p>
             </button>
             <div class="list" id="rule-list"></div>
           </div>
@@ -184,7 +184,7 @@
           <div class="side">
             <button type="button" class="new" @click="knowledge_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>new</p>
+              <p>Add Knowledge</p>
             </button>
             <div class="list" id="knowledge-list"></div>
           </div>
@@ -252,11 +252,25 @@
           </form>
         </section>
 
+        <section :elif="params.tab == Usage" class="editor">
+          <div class="side">
+            <div class="list" id="usage-list"></div>
+          </div>
+          <form id="usage-form">
+            <nav class="period" :data-selected="{{params.period}}">
+              <a :for="(k, v) in usageTab" :href="?page=config&tab=Usage&period={{k}}" :name="{{k}}">{{k}}</a>
+            </nav>
+            <section class="summary" id="usage-summary"></section>
+            <section class="chart" id="usage-chart"></section>
+            <section class="table" id="usage-table"></section>
+          </form>
+        </section>
+
         <section :elif="params.tab == MCP" class="editor">
           <div class="side">
             <button type="button" class="new" @click="mcp_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>new</p>
+              <p>Add MCP</p>
             </button>
             <div class="list" id="mcp-list"></div>
           </div>
@@ -301,7 +315,7 @@
           <div class="side">
             <button type="button" class="new" @click="keychain_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>new</p>
+              <p>Add Key</p>
             </button>
             <div class="list" id="keychain-list"></div>
           </div>

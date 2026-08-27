@@ -3,9 +3,11 @@ package toolcache
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 const (
@@ -20,22 +22,95 @@ type toolHistory struct {
 }
 
 var cacheable = map[string]bool{
-	"fetch_page": true,
-	"search_web": true,
+	"fetch_page":   true,
+	"search_web":   true,
+	"http_request": true,
 }
 
-func IsCacheable(name string) bool {
-	return cacheable[name]
+var (
+	globalScope = map[string]bool{
+		"fetch_page": true,
+	}
+	ignoredArg = map[string]bool{
+		"force": true,
+	}
+)
+
+func IsCacheable(name, args string) bool {
+	if !cacheable[name] {
+		return false
+	}
+	if name != "http_request" {
+		return true
+	}
+	return IsIdempotentRequest(args)
 }
 
-func keyPrefix(sessionID string) string {
+func IsIdempotentRequest(args string) bool {
+	var params struct {
+		Method string `json:"method"`
+	}
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
+		return false
+	}
+	method := strings.ToUpper(strings.TrimSpace(params.Method))
+	return method == "" || method == "GET"
+}
+
+func keyPrefix(sessionID, toolName string) string {
+	if globalScope[toolName] {
+		return "tc:global:"
+	}
 	return "tc:" + sessionID + ":"
+}
+
+func schemaDefault(toolName string) map[string]any {
+	tool := toolRegister.GetTool(toolName)
+	if tool == nil {
+		return nil
+	}
+	var schema struct {
+		Properties map[string]struct {
+			Default any `json:"default"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(tool.Function.Parameters, &schema); err != nil {
+		return nil
+	}
+	dic := make(map[string]any, len(schema.Properties))
+	for name, prop := range schema.Properties {
+		if prop.Default != nil {
+			dic[name] = prop.Default
+		}
+	}
+	return dic
+}
+
+func canonical(toolName, args string) string {
+	var dic map[string]any
+	if err := json.Unmarshal([]byte(args), &dic); err != nil {
+		return args
+	}
+	for name := range ignoredArg {
+		delete(dic, name)
+	}
+	for name, value := range schemaDefault(toolName) {
+		if _, ok := dic[name]; ok || ignoredArg[name] {
+			continue
+		}
+		dic[name] = value
+	}
+	raw, err := json.Marshal(dic)
+	if err != nil {
+		return args
+	}
+	return string(raw)
 }
 
 func Store(sessionID, callID, toolName, args, result string) {
 	raw, err := json.Marshal(toolHistory{
 		ToolName:  toolName,
-		Args:      args,
+		Args:      canonical(toolName, args),
 		Result:    result,
 		CreatedAt: time.Now().Unix(),
 	})
@@ -43,7 +118,7 @@ func Store(sessionID, callID, toolName, args, result string) {
 		return
 	}
 	db := torii.DB(torii.DBToolCache)
-	if err := db.Set(keyPrefix(sessionID)+callID, string(raw), torii.SetDefault, torii.TTL(ttlSeconds)); err != nil {
+	if err := db.Set(keyPrefix(sessionID, toolName)+callID, string(raw), torii.SetDefault, torii.TTL(ttlSeconds)); err != nil {
 		slog.Debug("toolcache Store",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
@@ -52,8 +127,8 @@ func Store(sessionID, callID, toolName, args, result string) {
 
 func FindRecent(sessionID, toolName, args string) (string, bool) {
 	db := torii.DB(torii.DBToolCache)
-	prefix := keyPrefix(sessionID)
-	keys := db.Keys(prefix + "*")
+	want := canonical(toolName, args)
+	keys := db.Keys(keyPrefix(sessionID, toolName) + "*")
 
 	var best toolHistory
 	found := false
@@ -66,7 +141,7 @@ func FindRecent(sessionID, toolName, args string) (string, bool) {
 		if err := json.Unmarshal([]byte(entry.Value()), &e); err != nil {
 			continue
 		}
-		if e.ToolName != toolName || e.Args != args {
+		if e.ToolName != toolName || e.Args != want {
 			continue
 		}
 		if !found || e.CreatedAt > best.CreatedAt {
