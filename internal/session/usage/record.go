@@ -16,7 +16,7 @@ func Append(sessionID, providerName, model string, u provider.Usage) {
 	if _, err := conn.ExecContext(context.Background(), `
 	INSERT INTO usage (session_id, send_at, model, input, output, write, hit)
 	VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		sessionID, time.Now().Unix(), providerName+"@"+model,
+		sessionID, time.Now().UnixNano(), providerName+"@"+model,
 		u.Input, u.Output, u.CacheCreate, u.CacheRead); err != nil {
 		slog.Debug("usage.Append",
 			slog.String("session", sessionID),

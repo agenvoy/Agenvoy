@@ -26,7 +26,7 @@ func Usage(sessionID string, days int, now time.Time) (map[string]ModelUsage, er
 	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
 	FROM usage
 	WHERE session_id = ? AND send_at >= ? AND send_at <= ?
-	GROUP BY model`, sessionID, from, now.Unix())
+	GROUP BY model`, sessionID, from, now.UnixNano())
 }
 
 func Total(days int, now time.Time) (map[string]ModelUsage, error) {
@@ -39,14 +39,14 @@ func Total(days int, now time.Time) (map[string]ModelUsage, error) {
 	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
 	FROM usage
 	WHERE send_at >= ? AND send_at <= ?
-	GROUP BY model`, from, now.Unix())
+	GROUP BY model`, from, now.UnixNano())
 }
 
 func window(days int, now time.Time) (int64, error) {
 	if days < 1 {
 		return 0, fmt.Errorf("days must be positive")
 	}
-	return now.Add(-time.Duration(days) * 24 * time.Hour).Unix(), nil
+	return now.Add(-time.Duration(days) * 24 * time.Hour).UnixNano(), nil
 }
 
 func aggregate(query string, args ...any) (map[string]ModelUsage, error) {

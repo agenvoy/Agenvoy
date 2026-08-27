@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	defaultListLimit = 10
+	defaultListLimit  = 10
+	recentResultRunes = 1024
 )
 
 func registChatHistory() {
@@ -32,7 +33,7 @@ The records live in the daemon's own state directory, so listing, globbing or op
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"list", "read", "search"},
-					"description": "list: recent runs, one row each with its task_id, newest first. read: one run in full, needs task_id. search: past messages, needs keyword. Omitted: task_id selects read, keyword selects search, otherwise list.",
+					"description": "list: recent runs, one row each with its task_id, newest first; the newest row also carries one tool result from that run, plus tool_result_count so you can walk further back with result_index. read: one run in full with untruncated tool results, needs task_id. search: past messages, needs keyword. Omitted: task_id selects read, keyword selects search, otherwise list.",
 					"default":     "list",
 				},
 				"task_id": map[string]any{
@@ -55,6 +56,11 @@ The records live in the daemon's own state directory, so listing, globbing or op
 					"description": "mode=search: how far back to look.",
 					"default":     defaultTimeRange,
 				},
+				"result_index": map[string]any{
+					"type":        "integer",
+					"description": "mode=list: which tool result of the newest run to include, counting back from its last call. 1 is the final call, 2 the one before it. Compare against tool_result_count in the reply; long results are truncated, use mode=read for the whole run.",
+					"default":     1,
+				},
 				"limit": map[string]any{
 					"type":        "integer",
 					"description": "Rows to return, newest first; hit cap per source when mode=search. Ignored when mode=read.",
@@ -64,12 +70,13 @@ The records live in the daemon's own state directory, so listing, globbing or op
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				Mode      string `json:"mode"`
-				TaskID    string `json:"task_id"`
-				Keyword   string `json:"keyword"`
-				Match     string `json:"match"`
-				TimeRange string `json:"time_range"`
-				Limit     int    `json:"limit"`
+				Mode        string `json:"mode"`
+				TaskID      string `json:"task_id"`
+				Keyword     string `json:"keyword"`
+				Match       string `json:"match"`
+				TimeRange   string `json:"time_range"`
+				Limit       int    `json:"limit"`
+				ResultIndex int    `json:"result_index"`
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
@@ -91,7 +98,7 @@ The records live in the daemon's own state directory, so listing, globbing or op
 
 			switch params.Mode {
 			case "list":
-				return list(e, params.Limit)
+				return list(e, params.Limit, params.ResultIndex)
 			case "read":
 				if params.TaskID == "" {
 					return "", fmt.Errorf("task_id is required when mode=read")

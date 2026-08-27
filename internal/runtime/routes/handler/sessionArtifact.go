@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,6 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -90,43 +91,50 @@ func ListSessionHistoryFiles() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 			return
 		}
-		dir := filesystem.TaskHistoryDir(sid)
-		if !go_pkg_filesystem_reader.Exists(dir) {
-			c.JSON(http.StatusOK, gin.H{"files": []go_pkg_filesystem_reader.File{}})
-			return
-		}
-		files, err := go_pkg_filesystem_reader.ListFiles(dir)
+		rows, err := historyStore.ListAction(c.Request.Context(), sid)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"files": files})
+
+		tasks := make([]gin.H, 0, len(rows))
+		for _, row := range rows {
+			tasks = append(tasks, gin.H{
+				"task_hash": row.TaskHash,
+				"end_at":    row.EndAt.Format(time.RFC3339),
+				"objective": row.Objective,
+				"model":     row.Model,
+				"reasoning": row.Reasoning,
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"tasks": tasks})
 	}
 }
 
 func GetSessionHistoryFile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))
-		name := strings.TrimPrefix(c.Param("file"), "/")
-		if sid == "" || name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and file are required"})
-			return
-		}
-		if name != filepath.Base(name) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file name"})
+		hash := strings.TrimPrefix(c.Param("file"), "/")
+		if sid == "" || hash == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
 			return
 		}
 
-		path := filepath.Join(filesystem.TaskHistoryDir(sid), name)
-		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
-			return
-		}
-		content, err := go_pkg_filesystem.ReadText(path)
+		row, ok, err := historyStore.ReadAction(c.Request.Context(), sid, hash)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"content": content})
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+			return
+		}
+
+		raw, err := json.Marshal(row)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"content": string(raw)})
 	}
 }

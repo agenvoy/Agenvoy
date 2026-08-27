@@ -35,7 +35,7 @@ func Migrate() {
 		return
 	}
 
-	cutoff := time.Now().AddDate(0, 0, -retainDays).Unix()
+	cutoff := time.Now().AddDate(0, 0, -retainDays).UnixNano()
 	var imported, expired, broken int
 	for _, one := range dirs {
 		if strings.HasPrefix(one.Name, ".") {
@@ -116,7 +116,7 @@ func importFile(sessionID, staged string, cutoff int64) (int, int, int, error) {
 			broken++
 			continue
 		}
-		if at.Unix() < cutoff {
+		if at.UnixNano() < cutoff {
 			expired++
 			continue
 		}
@@ -127,7 +127,7 @@ func importFile(sessionID, staged string, cutoff int64) (int, int, int, error) {
 			continue
 		}
 
-		if _, err := stmt.ExecContext(ctx, sessionID, at.Unix(), matches[2],
+		if _, err := stmt.ExecContext(ctx, sessionID, at.UnixNano(), matches[2],
 			values[0], values[1], values[2], values[3]); err != nil {
 			return 0, 0, 0, fmt.Errorf("sql.Stmt ExecContext: %w", err)
 		}

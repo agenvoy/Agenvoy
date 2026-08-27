@@ -51,3 +51,25 @@ CREATE INDEX IF NOT EXISTS idx_fh_path    ON file_history(dir, name, changed_at 
 CREATE INDEX IF NOT EXISTS idx_fh_dir     ON file_history(dir, changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fh_time    ON file_history(changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fh_session ON file_history(session_id, changed_at DESC);
+
+CREATE TABLE IF NOT EXISTS action_history (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id    TEXT    NOT NULL,
+    task_hash     TEXT    NOT NULL,
+    end_at        INTEGER NOT NULL,
+    model         TEXT    NOT NULL DEFAULT '',
+    reasoning     TEXT    NOT NULL DEFAULT '',
+    objective     TEXT    NOT NULL DEFAULT '',
+    tool_results  TEXT    NOT NULL DEFAULT '',
+    todos         TEXT    NOT NULL DEFAULT '',
+    reply         TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ah_unique
+    ON action_history(session_id, task_hash);
+
+CREATE INDEX IF NOT EXISTS idx_ah_session_end
+    ON action_history(session_id, end_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ah_end
+    ON action_history(end_at);

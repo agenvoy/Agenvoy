@@ -28,6 +28,11 @@ func New() error {
 		return fmt.Errorf("sql.DB Exec [migrate usage]: %w", err)
 	}
 
+	if _, err := c.Exec(
+		`UPDATE usage SET send_at = send_at * 1000000000 WHERE send_at < 1000000000000`); err != nil {
+		return fmt.Errorf("sql.DB Exec [usage send_at to nano]: %w", err)
+	}
+
 	conn = c
 	return nil
 }
@@ -37,7 +42,7 @@ func Retain() {
 		return
 	}
 
-	cutoff := time.Now().AddDate(0, 0, -retainDays).Unix()
+	cutoff := time.Now().AddDate(0, 0, -retainDays).UnixNano()
 	if _, err := conn.ExecContext(context.Background(),
 		`DELETE FROM usage WHERE send_at < ?`, cutoff); err != nil {
 		slog.Warn("usage.Retain",

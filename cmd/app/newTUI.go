@@ -66,6 +66,7 @@ func newTUI() {
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()
+	historyStore.MigrateAction()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",
