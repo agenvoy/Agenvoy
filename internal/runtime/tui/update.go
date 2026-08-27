@@ -368,6 +368,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case UsageScopeSelect:
+		switch msg.scope {
+		case "session":
+			next, cmd, _ := t.commandUsageSession()
+			return next, cmd
+		case "total":
+			next, cmd, _ := t.commandUsageTotal()
+			return next, cmd
+		}
+		return t, nil
+
 	case McpMenuPick:
 		return t.runMcpMenuPick(msg.value)
 

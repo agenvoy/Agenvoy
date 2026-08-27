@@ -112,6 +112,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
 		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
+		scheduleName := ""
+		if isSchedule(pushCtx) {
+			scheduleName = scheduleLabel(dcPushPrefix(pushCtx))
+		}
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
 		stateless := session.Stateless
@@ -127,6 +131,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			for ev := range fanoutEvents {
 				if ev.TaskID == "" && ev.Source == "" {
 					ev.TaskID = runTaskID
+				}
+				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
+					ev.Model = scheduleName
 				}
 				if !stateless && ev.Source == "" {
 					sessionLog.Record(sid, ev)

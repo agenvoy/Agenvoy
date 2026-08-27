@@ -131,7 +131,11 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
-	sessionLog.Append(sessionID, userText)
+	if isSchedule(ctx) {
+		sessionLog.Append(sessionID, "[Scheduled Task: "+dcPushPrefix(ctx)+"]")
+	} else {
+		sessionLog.Append(sessionID, userText)
+	}
 	SaveUserInputHistory(ctx, sessionID, userText)
 
 	subCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
@@ -159,6 +163,15 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			}
 			displayName = short + rest
 		}
+	}
+
+	if isSchedule(ctx) {
+		agentResult := agentTypes.Event{
+			Type: agentTypes.EventAgentResult,
+			Text: scheduleLabel(dcPushPrefix(ctx)),
+		}
+		pubsub.Pub(sessionID, agentResult)
+		sessionLog.Record(sessionID, agentResult)
 	}
 
 	events := make(chan agentTypes.Event, 64)

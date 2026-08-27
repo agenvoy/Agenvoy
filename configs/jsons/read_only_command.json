@@ -41,6 +41,7 @@
   "git count-objects",
   "git check-ignore",
   "git merge-base",
+  "git config",
   "docker ps",
   "docker images",
   "docker version",

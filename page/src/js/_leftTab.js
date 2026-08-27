@@ -6,10 +6,17 @@ const feature = {
 };
 
 const configTab = {
+  Usage: "bar_chart",
   Model: "deployed_code",
   MCP: "electrical_services",
   Keychain: "key",
   Channel: "cell_tower",
+};
+
+const usageTab = {
+  "24h": "schedule",
+  "7d": "schedule",
+  "28d": "schedule",
 };
 
 const leftTab = {

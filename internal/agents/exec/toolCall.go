@@ -649,7 +649,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			calls[i].Function.Arguments = truncateWriteArgs(calls[i].Function.Arguments)
 		}
 		alreadyCall[s.hash] = result
-		if images, _ := splitImageResult(result); s.execErr == "" && len(images) == 0 && toolcache.IsCacheable(s.name) {
+		if images, _ := splitImageResult(result); s.execErr == "" && len(images) == 0 && toolcache.IsCacheable(s.name, s.args) {
 			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
 

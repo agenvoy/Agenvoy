@@ -7,6 +7,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -55,6 +56,11 @@ HTML meant to be read → fetch_page; a binary file → download_file; an endpoi
 					"description": "Timeout seconds (max 300). Use 120+ for compute-heavy APIs.",
 					"default":     30,
 				},
+				"force": map[string]any{
+					"type":        "boolean",
+					"description": "Skip the cached-result lookup and re-send even if an identical GET was made in the last 30 minutes. Only GET is ever cached. Set true when the user asks to re-check or refresh.",
+					"default":     false,
+				},
 			},
 			"required": []string{"url"},
 		},
@@ -66,9 +72,16 @@ HTML meant to be read → fetch_page; a binary file → download_file; an endpoi
 				Body        map[string]any    `json:"body"`
 				ContentType string            `json:"content_type"`
 				Timeout     int               `json:"timeout"`
+				Force       bool              `json:"force"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if !params.Force && toolcache.IsIdempotentRequest(string(args)) {
+				if cached, ok := toolcache.FindRecent(e.SessionID, "http_request", string(args)); ok {
+					return cached, nil
+				}
 			}
 			return sendHTTPRequest(ctx, params.URL, params.Method, params.Headers, params.Body, params.ContentType, params.Timeout)
 		},

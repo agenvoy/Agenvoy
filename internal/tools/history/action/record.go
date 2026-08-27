@@ -1,46 +1,24 @@
 package actionHistory
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 	"time"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-const (
-	nameLayout    = "2006-01-02-15-04"
-	displayLayout = "2006-01-02 15:04"
-)
+const displayLayout = "2006-01-02 15:04"
 
 type record struct {
-	Model        string    `json:"model,omitempty"`
-	Reasoning    string    `json:"reasoning,omitempty"`
-	Objective    string    `json:"objective,omitempty"`
-	Completed    []string  `json:"completed,omitempty"`
-	NextSteps    []string  `json:"next_steps,omitempty"`
-	Answer       []answer  `json:"answer,omitempty"`
-	ToolAttempts []attempt `json:"tool_attempts,omitempty"`
-	ToolResults  []result  `json:"tool_results,omitempty"`
-	Todos        []todo    `json:"todos,omitempty"`
-	Reply        string    `json:"reply,omitempty"`
-}
-
-type answer struct {
-	Question string `json:"question"`
-	Answer   string `json:"answer"`
-}
-
-type attempt struct {
-	Name string `json:"name"`
-	Args string `json:"args"`
+	Model       string   `json:"model,omitempty"`
+	Reasoning   string   `json:"reasoning,omitempty"`
+	Objective   string   `json:"objective,omitempty"`
+	ToolResults []result `json:"tool_results,omitempty"`
+	Todos       []todo   `json:"todos,omitempty"`
+	Reply       string   `json:"reply,omitempty"`
 }
 
 type result struct {
@@ -54,9 +32,9 @@ type todo struct {
 }
 
 type entry struct {
-	path   string
 	taskID string
 	at     time.Time
+	row    historyStore.ActionRecord
 }
 
 func entries(e *toolTypes.Executor) ([]entry, error) {
@@ -79,7 +57,7 @@ func Objective(sessionID, taskID string) string {
 		if item.taskID != taskID {
 			continue
 		}
-		r, err := load(item.path)
+		r, err := load(item)
 		if err != nil {
 			return ""
 		}
@@ -89,48 +67,27 @@ func Objective(sessionID, taskID string) string {
 }
 
 func entriesOf(sessionID string) ([]entry, error) {
-	dir := filesystem.TaskHistoryDir(sessionID)
-	if !go_pkg_filesystem_reader.IsDir(dir) {
-		return nil, nil
-	}
-
-	names, err := os.ReadDir(dir)
+	rows, err := historyStore.ListAction(context.Background(), sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("os.ReadDir [%s]: %w", dir, err)
+		return nil, err
 	}
 
-	var list []entry
-	for _, name := range names {
-		if name.IsDir() || !strings.HasSuffix(name.Name(), ".json") {
-			continue
-		}
-
-		trimmed := strings.TrimSuffix(name.Name(), ".json")
-		if len(trimmed) <= len(nameLayout)+1 {
-			continue
-		}
-		at, err := time.ParseInLocation(nameLayout, trimmed[:len(nameLayout)], time.Local)
-		if err != nil {
-			continue
-		}
-
-		list = append(list, entry{
-			path:   filepath.Join(dir, name.Name()),
-			taskID: trimmed[len(nameLayout)+1:],
-			at:     at,
-		})
+	list := make([]entry, 0, len(rows))
+	for _, row := range rows {
+		list = append(list, entry{taskID: row.TaskHash, at: row.EndAt, row: row})
 	}
-
-	slices.SortFunc(list, func(a, b entry) int {
-		return strings.Compare(b.path, a.path)
-	})
 	return list, nil
 }
 
-func load(path string) (record, error) {
-	r, err := go_pkg_filesystem.ReadJSON[record](path)
+func load(item entry) (record, error) {
+	raw, err := json.Marshal(item.row)
 	if err != nil {
-		return record{}, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", path, err)
+		return record{}, fmt.Errorf("encoding/json Marshal: %w", err)
+	}
+
+	var r record
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return record{}, fmt.Errorf("encoding/json Unmarshal: %w", err)
 	}
 	return r, nil
 }

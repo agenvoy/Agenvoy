@@ -140,6 +140,7 @@ func StreamMultiLog() gin.HandlerFunc {
 		}
 		c.Writer.Flush()
 
+		ctx := c.Request.Context()
 		merged := make(chan taggedEvent, 1024)
 		var fanInDropped atomic.Int64
 
@@ -166,6 +167,9 @@ func StreamMultiLog() gin.HandlerFunc {
 					timer := time.NewTimer(mergeBlockWait)
 					select {
 					case merged <- te:
+					case <-ctx.Done():
+						timer.Stop()
+						return
 					case <-timer.C:
 						n := fanInDropped.Add(1)
 						slog.Debug("multilog fan-in overflow, event dropped",
@@ -184,7 +188,6 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 		}()
 
-		ctx := c.Request.Context()
 		heartbeat := time.NewTicker(logHeartbeat)
 		defer heartbeat.Stop()
 

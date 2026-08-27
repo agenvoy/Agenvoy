@@ -17,7 +17,7 @@ func read(e *toolTypes.Executor, taskID string) (string, error) {
 		if item.taskID != taskID {
 			continue
 		}
-		r, err := load(item.path)
+		r, err := load(item)
 		if err != nil {
 			return "", err
 		}
@@ -40,20 +40,10 @@ func render(item entry, r record) string {
 		fmt.Fprintf(&b, "\n\nobjective:\n%s", r.Objective)
 	}
 
-	section(&b, "completed", r.Completed)
-	section(&b, "next steps", r.NextSteps)
-
-	for _, a := range r.Answer {
-		fmt.Fprintf(&b, "\n\nasked: %s\nanswered: %s", a.Question, a.Answer)
-	}
-
 	for _, t := range r.Todos {
 		fmt.Fprintf(&b, "\n\ntodo [%s] %s", t.Status, t.Content)
 	}
 
-	for _, a := range r.ToolAttempts {
-		fmt.Fprintf(&b, "\n\nattempted %s %s", a.Name, a.Args)
-	}
 	for _, t := range r.ToolResults {
 		fmt.Fprintf(&b, "\n\ncalled %s:\n%s", t.Name, t.Result)
 	}
@@ -62,14 +52,4 @@ func render(item entry, r record) string {
 		fmt.Fprintf(&b, "\n\nreplied:\n%s", r.Reply)
 	}
 	return b.String()
-}
-
-func section(b *strings.Builder, title string, lines []string) {
-	if len(lines) == 0 {
-		return
-	}
-	fmt.Fprintf(b, "\n\n%s:", title)
-	for _, line := range lines {
-		fmt.Fprintf(b, "\n- %s", line)
-	}
 }

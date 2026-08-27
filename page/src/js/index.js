@@ -1,5 +1,8 @@
+const LEFT_TAB_WIDE = 1280;
+
 document.addEventListener("DOMContentLoaded", function () {
   const config = readConfig();
+  const isWide = () => document.documentElement.clientWidth >= LEFT_TAB_WIDE;
   let params = praseURL();
 
   if (params.page == null) {
@@ -10,6 +13,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const tabs = Object.keys(configTab);
     const matched = tabs.find((name) => name.toLowerCase() === String(params.tab || "").toLowerCase());
     params.tab = matched || tabs[0];
+
+    const periods = Object.keys(usageTab);
+    const period = periods.find((name) => name.toLowerCase() === String(params.period || "").toLowerCase());
+    params.period = period || periods[0];
   }
 
   if (params.chat != null && !CHAT_ID.test(params.chat || "")) {
@@ -39,16 +46,20 @@ document.addEventListener("DOMContentLoaded", function () {
     id: "app",
     data: {
       params: params,
-      collapsed: config.left_tab_collapsed,
+      collapsed: isWide() ? config.left_tab_collapsed : "1",
       left_tab: leftTab,
       feature: feature,
       configTab: configTab,
+      usageTab: usageTab,
     },
     event: {
       show_tab: function () {
         const dom = $(".left-tab");
         const collapsed = dom.dataset.collapsed === "1" ? "0" : "1";
         dom.dataset.collapsed = collapsed;
+        if (!isWide()) {
+          return;
+        }
         config.left_tab_collapsed = collapsed;
         writeConfig(config);
       },
@@ -237,7 +248,7 @@ document.addEventListener("DOMContentLoaded", function () {
             clearTimeout(timer);
           }, 500);
 
-          if (dom.dataset.collapsed === "1" || vw >= 768) {
+          if (dom.dataset.collapsed === "1" || vw >= LEFT_TAB_WIDE) {
             return;
           }
           dom.dataset.collapsed = "1";
@@ -287,6 +298,9 @@ document.addEventListener("DOMContentLoaded", function () {
         if (params.page === "config") {
           if (params.tab === "Model") {
             renderModel();
+          }
+          if (params.tab === "Usage") {
+            renderUsagePage();
           }
           if (params.tab === "MCP") {
             resetMcp();
