@@ -1,17 +1,10 @@
 package usage
 
 import (
-	"bufio"
+	"context"
 	"fmt"
-	"os"
-	"regexp"
-	"strconv"
 	"time"
 )
-
-var linePattern = regexp.MustCompile(`^\[(\d{4}-\d{2}-\d{2} [^\]]+)\]\[([^\]]+)\]\s+in/\s*(\d+)\s+out/\s*(\d+)\s+write/\s*(\d+)\s+hit/\s*(\d+)`)
-
-const timestampLayout = "2006-01-02 15:04:05.000"
 
 type ModelUsage struct {
 	Input  uint64 `json:"input"`
@@ -20,54 +13,69 @@ type ModelUsage struct {
 	Hit    uint64 `json:"hit"`
 }
 
-func Usage(path string, days int, now time.Time) (map[string]ModelUsage, error) {
-	if days < 1 {
-		return nil, fmt.Errorf("days must be positive")
-	}
-
-	file, err := os.Open(path)
+func Usage(sessionID string, days int, now time.Time) (map[string]ModelUsage, error) {
+	from, err := window(days, now)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	cutoff := now.Add(-time.Duration(days) * 24 * time.Hour)
-	result := make(map[string]ModelUsage)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		matches := linePattern.FindStringSubmatch(scanner.Text())
-		if len(matches) != 7 {
-			continue
-		}
-		timestamp, parseErr := time.ParseInLocation(timestampLayout, matches[1], now.Location())
-		if parseErr != nil || timestamp.Before(cutoff) || timestamp.After(now) {
-			continue
-		}
-
-		model := matches[2]
-
-		values := [4]uint64{}
-		valid := true
-		for i := range values {
-			values[i], err = strconv.ParseUint(matches[i+3], 10, 64)
-			if err != nil {
-				valid = false
-				break
-			}
-		}
-		if !valid {
-			continue
-		}
-
-		u := result[model]
-		u.Input += values[0]
-		u.Output += values[1]
-		u.Write += values[2]
-		u.Hit += values[3]
-		result[model] = u
+	if sessionID == "" {
+		return make(map[string]ModelUsage), nil
 	}
-	if err := scanner.Err(); err != nil {
+
+	return aggregate(`
+	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
+	FROM usage
+	WHERE session_id = ? AND send_at >= ? AND send_at <= ?
+	GROUP BY model`, sessionID, from, now.Unix())
+}
+
+func Total(days int, now time.Time) (map[string]ModelUsage, error) {
+	from, err := window(days, now)
+	if err != nil {
 		return nil, err
+	}
+
+	return aggregate(`
+	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
+	FROM usage
+	WHERE send_at >= ? AND send_at <= ?
+	GROUP BY model`, from, now.Unix())
+}
+
+func window(days int, now time.Time) (int64, error) {
+	if days < 1 {
+		return 0, fmt.Errorf("days must be positive")
+	}
+	return now.Add(-time.Duration(days) * 24 * time.Hour).Unix(), nil
+}
+
+func aggregate(query string, args ...any) (map[string]ModelUsage, error) {
+	result := make(map[string]ModelUsage)
+	if conn == nil {
+		return result, nil
+	}
+
+	rows, err := conn.QueryContext(context.Background(), query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("sql.DB QueryContext [SELECT usage]: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model string
+		var input, output, write, hit int64
+		if err := rows.Scan(&model, &input, &output, &write, &hit); err != nil {
+			return nil, fmt.Errorf("sql.Rows Scan [SELECT usage]: %w", err)
+		}
+		result[model] = ModelUsage{
+			Input:  uint64(max(input, 0)),
+			Output: uint64(max(output, 0)),
+			Write:  uint64(max(write, 0)),
+			Hit:    uint64(max(hit, 0)),
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("sql.Rows Err [SELECT usage]: %w", err)
 	}
 	return result, nil
 }

@@ -37,6 +37,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
@@ -211,6 +212,13 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()
+
+	if err := usagelog.New(); err != nil {
+		slog.Warn("usagelog.New",
+			slog.String("error", err.Error()))
+	}
+	defer usagelog.Close()
+	usagelog.Migrate()
 
 	geminiStt.Register()
 	imageTool.Register()

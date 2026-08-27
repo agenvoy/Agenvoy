@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -52,19 +51,14 @@ func GetSessionUsageLog() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 			return
 		}
-		path := filesystem.UsageLogPath(sid)
 		now := time.Now()
 
 		periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
 		for _, period := range usagePeriods {
-			summary, err := usagelog.Usage(path, period.days, now)
+			summary, err := usagelog.Usage(sid, period.days, now)
 			if err != nil {
-				if os.IsNotExist(err) {
-					summary = map[string]usagelog.ModelUsage{}
-				} else {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
 			}
 			periods[period.label] = summary
 		}

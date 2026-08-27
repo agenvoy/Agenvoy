@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
 type Runner func(ctx context.Context, sessionID, skillName string) (string, error)
@@ -105,6 +106,12 @@ func addDefaultCrons() {
 	pruneFileHistory()
 	if _, err := st.cron.Add("0 4 * * *", pruneFileHistory); err != nil {
 		slog.Warn("cron pruneFileHistory",
+			slog.String("error", err.Error()))
+	}
+
+	usagelog.Retain()
+	if _, err := st.cron.Add("0 4 * * *", usagelog.Retain); err != nil {
+		slog.Warn("cron usageRetain",
 			slog.String("error", err.Error()))
 	}
 }

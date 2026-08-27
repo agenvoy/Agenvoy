@@ -14,7 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-const storeTempMaxAge = 30 * 24 * time.Hour
+const storeTempMaxAge = 28 * 24 * time.Hour
 
 var stampedEntry = regexp.MustCompile(`_(\d{8}_\d{6}\.\d{3})(?:_\d+)?(?:\.[^.]*)?$`)
 

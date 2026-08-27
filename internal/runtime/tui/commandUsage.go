@@ -2,14 +2,12 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -22,30 +20,65 @@ var usagePeriods = []struct {
 	{label: "28d", days: 28},
 }
 
-func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
+type UsageScopeSelect struct {
+	scope string
+}
+
+func (t TUI) commandUsage(parts []string) (TUI, tea.Cmd, bool) {
+	if len(parts) > 1 {
+		switch parts[1] {
+		case "session":
+			return t.commandUsageSession()
+		case "total":
+			return t.commandUsageTotal()
+		}
+	}
+
+	t.popup = &Popup{
+		kind:  popupSingleSelect,
+		title: "Usage",
+		options: []string{
+			"session  current session only · per-model token usage",
+			"total    every session combined · includes temp / subagent / bot sessions",
+		},
+		values: []string{"session", "total"},
+		onConfirm: func(chosen string) any {
+			return UsageScopeSelect{scope: chosen}
+		},
+	}
+	return t, nil, true
+}
+
+func (t TUI) commandUsageSession() (TUI, tea.Cmd, bool) {
 	sessionID := strings.TrimSpace(t.currentSessionID)
 	if sessionID == "" {
 		return t, tea.Println(hintStyle.Render("⎯ no active session") + "\n"), true
 	}
 
-	path := filesystem.UsageLogPath(sessionID)
+	return t.renderUsage("Usage by model · current session",
+		func(days int, now time.Time) (map[string]usagelog.ModelUsage, error) {
+			return usagelog.Usage(sessionID, days, now)
+		})
+}
+
+func (t TUI) commandUsageTotal() (TUI, tea.Cmd, bool) {
+	return t.renderUsage("Usage by model · all sessions", usagelog.Total)
+}
+
+func (t TUI) renderUsage(title string, load func(int, time.Time) (map[string]usagelog.ModelUsage, error)) (TUI, tea.Cmd, bool) {
 	now := time.Now()
 
 	summaries := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
 	for i, period := range usagePeriods {
-		summary, err := usagelog.Usage(path, period.days, now)
+		summary, err := load(period.days, now)
 		if err != nil {
-			if os.IsNotExist(err) {
-				summary = map[string]usagelog.ModelUsage{}
-			} else {
-				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] usage: %v", err)) + "\n"), true
-			}
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] usage: %v", err)) + "\n"), true
 		}
 		summaries[i] = summary
 	}
 
 	var output strings.Builder
-	output.WriteString(systemStyle.Render("Usage by model"))
+	output.WriteString(systemStyle.Render(title))
 	output.WriteByte('\n')
 	output.WriteString(renderUsageTable(summaries))
 

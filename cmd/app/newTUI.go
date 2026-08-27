@@ -21,6 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
@@ -65,6 +66,13 @@ func newTUI() {
 			slog.String("error", err.Error()))
 	}
 	defer historyStore.Close()
+
+	if err := usagelog.New(); err != nil {
+		slog.Warn("usagelog.New",
+			slog.String("error", err.Error()))
+	}
+	defer usagelog.Close()
+	usagelog.Migrate()
 
 	geminiStt.Register()
 	imageTool.Register()
