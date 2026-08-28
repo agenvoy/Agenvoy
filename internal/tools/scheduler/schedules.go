@@ -15,7 +15,7 @@ func registSchedules() {
 		Name:        "schedules",
 		SystemUse:   false,
 		AlwaysLoad:  false,
-		AlwaysAllow: false,
+		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Scheduled runs bound to a scheduler skill: what is queued (list), moving one to a new time (patch), cancelling one (remove).
 Use for 有哪些排程 / 改時間 / 取消排程 / 那個定時任務還在嗎.

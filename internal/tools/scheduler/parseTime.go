@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func parseTime(text string) (time.Time, error) {
+func ParseTime(text string) (time.Time, error) {
 	text = strings.TrimSpace(text)
 
 	if strings.HasPrefix(text, "+") {

@@ -12,30 +12,26 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-type Meta struct {
-	LastMessageTime string `json:"last_message_time"`
-}
-
-func GetMeta(sessionID string) Meta {
-	p := filesystem.SummaryMetaPath(sessionID)
-	if !go_pkg_filesystem_reader.Exists(p) {
-		return Meta{}
+func GetCursor(sessionID string) string {
+	path := filesystem.SummaryCursorPath(sessionID)
+	if !go_pkg_filesystem_reader.Exists(path) {
+		return ""
 	}
-	meta, err := go_pkg_filesystem.ReadJSON[Meta](p)
+
+	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadJSON",
-			slog.String("path", p),
+		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+			slog.String("path", path),
 			slog.String("error", err.Error()))
-		return Meta{}
+		return ""
 	}
-	return meta
+	return strings.TrimSpace(text)
 }
 
-func SaveMeta(sessionID string, lastTime string) {
-	meta := Meta{LastMessageTime: lastTime}
-	if err := go_pkg_filesystem.WriteJSON(filesystem.SummaryMetaPath(sessionID), meta, false); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
-			slog.String("path", filesystem.SummaryMetaPath(sessionID)),
+func SaveCursor(sessionID, cursor string) {
+	if err := go_pkg_filesystem.WriteText(filesystem.SummaryCursorPath(sessionID), cursor); err != nil {
+		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteText",
+			slog.String("path", filesystem.SummaryCursorPath(sessionID)),
 			slog.String("error", err.Error()))
 	}
 }

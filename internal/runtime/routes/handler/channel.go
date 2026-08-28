@@ -11,8 +11,8 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )

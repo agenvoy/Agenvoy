@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_session_send_at
     ON messages(session_id, send_at);
 
-CREATE TABLE IF NOT EXISTS session_meta (
+CREATE TABLE IF NOT EXISTS message_meta (
     session_id TEXT PRIMARY KEY,
     start_at   INTEGER NOT NULL DEFAULT 0
 );
@@ -73,3 +73,27 @@ CREATE INDEX IF NOT EXISTS idx_ah_session_end
 
 CREATE INDEX IF NOT EXISTS idx_ah_end
     ON action_history(end_at);
+
+CREATE TABLE IF NOT EXISTS session (
+    session_id TEXT PRIMARY KEY,
+    name       TEXT NOT NULL DEFAULT '',
+    model      TEXT NOT NULL DEFAULT 'auto',
+    reasoning  TEXT NOT NULL DEFAULT 'medium',
+    rule       TEXT NOT NULL DEFAULT '',
+    chat_id    TEXT NOT NULL DEFAULT '',
+    guild_id   TEXT NOT NULL DEFAULT '',
+    channel_id TEXT NOT NULL DEFAULT '',
+    user_id    TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_chat    ON session(chat_id)    WHERE chat_id    <> '';
+CREATE INDEX IF NOT EXISTS idx_session_channel ON session(channel_id) WHERE channel_id <> '';
+CREATE INDEX IF NOT EXISTS idx_session_name    ON session(name)       WHERE name       <> '';
+
+CREATE TABLE IF NOT EXISTS state (
+    session_id TEXT    PRIMARY KEY,
+    state      TEXT    NOT NULL DEFAULT 'idle',
+    in_action  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_state_state ON state(state);

@@ -297,7 +297,6 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	pubsub.Pub(routingSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
-		Origin:         "tg-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

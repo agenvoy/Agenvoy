@@ -5,33 +5,11 @@
         gap: 1rem;
 
         nav.period {
-          display: flex;
-          flex-flow: row;
-          align-items: center;
-          gap: 0.75rem;
-
           @each $name in ("24h", "7d", "28d") {
             &[data-selected="#{$name}"] a[name="#{$name}"] {
               color: var(--accent);
               background-color: var(--accent-bg);
               opacity: 1;
-            }
-          }
-
-          a {
-            padding: 0.25rem 0.625rem;
-            font-size: small;
-            font-weight: 300;
-            border-radius: 0.375rem;
-            color: var(--black);
-            opacity: 0.35;
-            text-decoration: none;
-            transition: 0.2s;
-
-            @media (hover: hover) {
-              &:hover {
-                opacity: 1;
-              }
             }
           }
         }

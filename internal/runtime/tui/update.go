@@ -33,12 +33,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 			return t, tea.Batch(cmds...)
 		case Pending:
-			if msg.request.Kind == runtime.KindExecProcess {
-				runtime.Resolve(msg.id, runtime.Reply{
-					Error: fmt.Errorf("exec process cannot run while a popup is active"),
-				})
-				return t, nil
-			}
 			t.popupQueue = append(t.popupQueue, msg)
 			return t, nil
 		case OAuthInfo:
@@ -291,9 +285,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.handleAgentEvent(msg.event)
 
 	case Pending:
-		if msg.request.Kind == runtime.KindExecProcess {
-			return t.runExecProcess(msg.id, msg.request)
-		}
 		popup := newPopup(msg.id, msg.request)
 		if popup == nil {
 			runtime.Resolve(msg.id, runtime.Reply{Error: fmt.Errorf("invalid pending request")})
@@ -311,9 +302,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.streaming = false
 		}
 		t.popup = popup
-		return t, nil
-
-	case ExecProcessDone:
 		return t, nil
 
 	case SessionSelect:

@@ -45,6 +45,17 @@ func ListSessions() gin.HandlerFunc {
 			activeAt time.Time
 		}
 
+		rows, err := historyStore.ListSessionRows(c.Request.Context())
+		if err != nil {
+			slog.Warn("historyStore.ListSessionRows",
+				slog.String("error", err.Error()))
+		}
+		states, err := historyStore.ListStateRows(c.Request.Context())
+		if err != nil {
+			slog.Warn("historyStore.ListStateRows",
+				slog.String("error", err.Error()))
+		}
+
 		entries := make([]entry, 0, len(dirs))
 		for _, dir := range dirs {
 			sid := dir.Name
@@ -52,9 +63,10 @@ func ListSessions() gin.HandlerFunc {
 				continue
 			}
 
+			status := configStatus.FromRow(states[sid])
+
 			switch filter {
 			case "active":
-				status := configStatus.Get(sid)
 				if status.State != configStatus.StatusOnline {
 					continue
 				}
@@ -68,14 +80,16 @@ func ListSessions() gin.HandlerFunc {
 				}
 			}
 
-			status := configStatus.Get(sid)
-			name, _ := configBot.Get(sid)
-			model, _ := configBot.GetModel(sid)
+			row := rows[sid]
+			model := row.Model
+			if model == "" {
+				model = configBot.DefaultModel
+			}
 
 			entries = append(entries, entry{
 				info: SessionInfo{
 					ID:    sid,
-					Name:  name,
+					Name:  row.Name,
 					State: status.State,
 					Model: model,
 					Count: status.Count,
@@ -180,6 +194,14 @@ func DeleteSession() gin.HandlerFunc {
 			}
 		}
 		if err := historyStore.Clear(sid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := historyStore.DeleteState(c.Request.Context(), sid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := historyStore.DeleteSession(c.Request.Context(), sid); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

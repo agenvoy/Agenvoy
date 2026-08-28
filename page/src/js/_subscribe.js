@@ -1,16 +1,46 @@
 let subscription = null;
 let streamWasDown = false;
 let subscribedSession = "";
+let subscribeBound = false;
+
+function closeSubscription() {
+  if (!subscription) {
+    return;
+  }
+  subscription.close();
+  subscription = null;
+}
+
+function bindSubscribeLifecycle() {
+  if (subscribeBound) {
+    return;
+  }
+  subscribeBound = true;
+
+  window.addEventListener("pagehide", function () {
+    closeSubscription();
+  });
+
+  window.addEventListener("pageshow", function (e) {
+    if (!e.persisted || subscription) {
+      return;
+    }
+    const sessionId = subscribedSession;
+    subscribedSession = "";
+    streamWasDown = true;
+    subscribe(sessionId);
+  });
+}
+
 function subscribe(sessionId) {
+  bindSubscribeLifecycle();
+
   sessionId = sessionId || "";
   if (subscription && subscribedSession === sessionId) {
     return;
   }
 
-  if (subscription) {
-    subscription.close();
-    subscription = null;
-  }
+  closeSubscription();
   subscribedSession = sessionId;
   const url = sessionId
     ? `${API}/v1/log?sessions=${encodeURIComponent(sessionId)}&replay=0`

@@ -138,6 +138,30 @@ document.addEventListener("DOMContentLoaded", function () {
       knowledge_delete: function () {
         deleteEditing("knowledge");
       },
+      cron_save: function () {
+        saveSchedule("cron");
+      },
+      cron_reset: function () {
+        resetSchedule("cron");
+      },
+      cron_delete: function () {
+        deleteEditingSchedule("cron");
+      },
+      cron_test: function () {
+        testSchedule("cron");
+      },
+      task_save: function () {
+        saveSchedule("task");
+      },
+      task_reset: function () {
+        resetSchedule("task");
+      },
+      task_delete: function () {
+        deleteEditingSchedule("task");
+      },
+      task_test: function () {
+        testSchedule("task");
+      },
       skill_config: function () {
         openSkillConfig();
       },
@@ -175,6 +199,9 @@ document.addEventListener("DOMContentLoaded", function () {
       model_routing: function () {
         selectModelRouting();
       },
+      model_filter: function (e) {
+        modelFilterChange(e);
+      },
       mcp_reset: function () {
         resetMcp();
       },
@@ -193,8 +220,8 @@ document.addEventListener("DOMContentLoaded", function () {
       mcp_logout: function () {
         clearMcpOAuth(mcpEditing);
       },
-      mcp_transport: function () {
-        mcpTransportChange();
+      mcp_transport: function (e) {
+        mcpTransportChange(e);
       },
       mcp_auth: function () {
         mcpAuthChange();
@@ -321,6 +348,11 @@ document.addEventListener("DOMContentLoaded", function () {
           if (params.tab === "Skills") {
             renderSkillTab();
             openSkillConfig();
+          }
+          const schedule = { Cron: "cron", Task: "task" }[params.tab];
+          if (schedule) {
+            resetSchedule(schedule);
+            renderSchedule(schedule);
           }
         }
       },

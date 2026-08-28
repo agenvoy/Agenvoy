@@ -2,7 +2,8 @@ const feature = {
   Rules: "deployed_code_account",
   Knowledge: "book_2",
   Skills: "lightbulb_2",
-  // Schedule: "schedule",
+  Cron: "schedule",
+  Task: "alarm",
 };
 
 const configTab = {
@@ -26,7 +27,12 @@ const leftTab = {
   },
 };
 
+const leftTabSkip = ["Cron", "Task"];
+
 for (const name of Object.keys(feature)) {
+  if (leftTabSkip.includes(name)) {
+    continue;
+  }
   leftTab[name] = {
     icon: feature[name],
     href: getLink({ page: "features", tab: name }),

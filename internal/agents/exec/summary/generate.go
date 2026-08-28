@@ -39,19 +39,18 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 
 	summaryCtx := agentTypes.WithSessionID(ctx, sessionID)
 	raw, dic := summary.Ensure(sessionID)
-	meta := summary.GetMeta(sessionID)
+	cursor := summary.GetCursor(sessionID)
 
 	// * step1: check summaried or not
-	if meta.LastMessageTime == "" && len(dic) > 0 {
+	if cursor == "" && len(dic) > 0 {
 		latest := latestTime(histories)
-		summary.SaveMeta(sessionID, latest)
+		summary.SaveCursor(sessionID, latest)
 		summary.Save(sessionID, dic)
 		return nil
 	}
 
 	// * step2: split chunks
-	chunks := chunkHistories(histories, meta.LastMessageTime)
-	cursor := meta.LastMessageTime
+	chunks := chunkHistories(histories, cursor)
 
 	// * step3: start to summary
 	oldSummary := string(raw)
@@ -73,7 +72,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 		if chunkLatest := latestTime(chunk); chunkLatest > cursor {
 			cursor = chunkLatest
 		}
-		summary.SaveMeta(sessionID, cursor)
+		summary.SaveCursor(sessionID, cursor)
 	}
 	return nil
 }

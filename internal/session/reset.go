@@ -48,8 +48,11 @@ func ResetAll(sessionID string) (int, error) {
 	if err := os.Remove(filesystem.SummaryPath(sessionID)); err != nil && !os.IsNotExist(err) {
 		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryPath(sessionID), err)
 	}
-	if err := os.Remove(filesystem.SummaryMetaPath(sessionID)); err != nil && !os.IsNotExist(err) {
-		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryMetaPath(sessionID), err)
+	if err := os.Remove(filesystem.SummaryCursorPath(sessionID)); err != nil && !os.IsNotExist(err) {
+		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryCursorPath(sessionID), err)
+	}
+	if err := os.Remove(filesystem.LegacySummaryMetaPath(sessionID)); err != nil && !os.IsNotExist(err) {
+		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.LegacySummaryMetaPath(sessionID), err)
 	}
 	return keys, nil
 }
