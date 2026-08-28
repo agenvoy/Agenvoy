@@ -21,7 +21,6 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
@@ -231,25 +230,21 @@ func refreshBotNames() {
 }
 
 func refreshBotName(sid string) {
-	var authPath, idKey string
+	chatID, _, channelID, _ := configBot.GetChannel(sid)
+
+	var authPath, id string
 	switch {
 	case strings.HasPrefix(sid, "tg-"):
-		authPath = filesystem.TelegramAuthPath
-		idKey = "chat_id"
+		authPath, id = filesystem.TelegramAuthPath, chatID
 	case strings.HasPrefix(sid, "dc-"):
-		authPath = filesystem.DiscordAuthPath
-		idKey = "channel_id"
+		authPath, id = filesystem.DiscordAuthPath, channelID
 	default:
 		return
 	}
-	cfg, err := go_pkg_filesystem.ReadJSON[map[string]string](filesystem.SessionConfigPath(sid))
-	if err != nil {
-		return
-	}
-	id := cfg[idKey]
 	if id == "" {
 		return
 	}
+
 	if n := configBot.FormatName(utils.LookupChatName(authPath, id)); n != "" {
 		configBot.ReplaceDefault(sid, n)
 	}

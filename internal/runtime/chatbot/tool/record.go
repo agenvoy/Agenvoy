@@ -1,15 +1,13 @@
 package tool
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"time"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
@@ -17,24 +15,18 @@ import (
 const outboundModel = "forwarded"
 
 func resolveChatbotSession(prefix, field, id string) string {
-	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
-	if err != nil {
+	ctx := context.Background()
+	if field == "chat_id" {
+		return matchPrefix(historyStore.FindSessionByChat(ctx, id), prefix)
+	}
+	return matchPrefix(historyStore.FindSessionByChannel(ctx, id), prefix)
+}
+
+func matchPrefix(sessionID, prefix string) string {
+	if !strings.HasPrefix(sessionID, prefix) {
 		return ""
 	}
-
-	for _, dir := range dirs {
-		if !strings.HasPrefix(dir.Name, prefix) {
-			continue
-		}
-		config, err := go_pkg_filesystem.ReadJSON[map[string]string](filesystem.SessionConfigPath(dir.Name))
-		if err != nil {
-			continue
-		}
-		if config[field] == id {
-			return dir.Name
-		}
-	}
-	return ""
+	return sessionID
 }
 
 func recordOutbound(sessionID, message string) {

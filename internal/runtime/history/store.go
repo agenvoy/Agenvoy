@@ -19,6 +19,9 @@ func New() error {
 	if c == nil {
 		return fmt.Errorf("internal/filesystem: OpenDB has not run")
 	}
+	if err := renameSessionMeta(c); err != nil {
+		return err
+	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
 	}
@@ -71,7 +74,39 @@ func syncColumns(c *go_sqlkit_core.Connector) error {
 		}
 	}
 
+	if err := backfillSessionDefaults(c); err != nil {
+		return err
+	}
 	return dropActionColumns(c)
+}
+
+func backfillSessionDefaults(c *go_sqlkit_core.Connector) error {
+	if _, err := c.Exec(`UPDATE session SET model = ? WHERE model = ''`, DefaultModel); err != nil {
+		return fmt.Errorf("sql.DB Exec [UPDATE session model]: %w", err)
+	}
+	if _, err := c.Exec(`UPDATE session SET reasoning = ? WHERE reasoning = ''`, DefaultReasoning); err != nil {
+		return fmt.Errorf("sql.DB Exec [UPDATE session reasoning]: %w", err)
+	}
+	return nil
+}
+
+func renameSessionMeta(c *go_sqlkit_core.Connector) error {
+	var legacy, current int
+	if err := c.Read.QueryRow(`
+	SELECT
+		COALESCE(SUM(name = 'session_meta'), 0),
+		COALESCE(SUM(name = 'message_meta'), 0)
+	FROM sqlite_master WHERE type = 'table'`).Scan(&legacy, &current); err != nil {
+		return fmt.Errorf("sql.DB QueryRow [sqlite_master]: %w", err)
+	}
+	if legacy == 0 || current > 0 {
+		return nil
+	}
+
+	if _, err := c.Exec(`ALTER TABLE session_meta RENAME TO message_meta`); err != nil {
+		return fmt.Errorf("sql.DB Exec [ALTER TABLE session_meta RENAME]: %w", err)
+	}
+	return nil
 }
 
 func dropActionColumns(c *go_sqlkit_core.Connector) error {
@@ -139,7 +174,7 @@ func SetStartAt(sessionID string, timestamp int64) error {
 	}
 
 	_, err := conn.Exec(`
-	INSERT INTO session_meta (session_id, start_at)
+	INSERT INTO message_meta (session_id, start_at)
 	VALUES (?, ?)
 	ON CONFLICT(session_id)
 	DO UPDATE SET start_at = excluded.start_at
@@ -155,7 +190,7 @@ func GetStartAt(sessionID string) int64 {
 	var ts int64
 	conn.Read.QueryRow(`
 	SELECT start_at
-	FROM session_meta
+	FROM message_meta
 	WHERE session_id = ?
 	`, sessionID).Scan(&ts)
 	return ts

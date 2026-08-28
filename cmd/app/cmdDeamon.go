@@ -36,6 +36,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -213,6 +214,8 @@ func cmdDaemon() {
 	}
 	defer historyStore.Close()
 	historyStore.MigrateAction()
+	historyStore.MigrateSession()
+	sessionSummary.MigrateCursor()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",

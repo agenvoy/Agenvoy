@@ -9,8 +9,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 func New(guildID, channelID, userID string) (string, error) {
@@ -21,30 +19,16 @@ func New(guildID, channelID, userID string) (string, error) {
 		channelID = "ch"
 	}
 
-	var key string
-	var config map[string]string
+	var key, boundGuild, boundUser string
 	if guildID == "dm" {
 		key = fmt.Sprintf("%s_%s", channelID, userID)
-		config = map[string]string{
-			"channel_id": channelID,
-			"user_id":    userID,
-		}
+		boundUser = userID
 	} else {
 		key = fmt.Sprintf("%s_%s", guildID, channelID)
-		config = map[string]string{
-			"guild_id":   guildID,
-			"channel_id": channelID,
-		}
+		boundGuild = guildID
 	}
 	sum := sha256.Sum256([]byte(key))
-
 	sessionID := "dc-" + hex.EncodeToString(sum[:])
-	configPath := filesystem.SessionConfigPath(sessionID)
-	if !go_pkg_filesystem_reader.Exists(configPath) {
-		if err := go_pkg_filesystem.WriteJSON(configPath, config, false); err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteJSON [%s]: %w", configPath, err)
-		}
-	}
 
 	botName := configBot.FormatName(utils.LookupChatName(filesystem.DiscordAuthPath, channelID))
 	if err := configBot.Save(sessionID, botName, "", false); err != nil {
@@ -55,6 +39,9 @@ func New(guildID, channelID, userID string) (string, error) {
 	if botName != "" {
 		configBot.ReplaceDefault(sessionID, botName)
 	}
+	if err := configBot.SetChannel(sessionID, "", boundGuild, channelID, boundUser); err != nil {
+		return "", fmt.Errorf("configBot.SetChannel: %w", err)
+	}
 	return sessionID, nil
 }
 
@@ -63,10 +50,6 @@ func GetChannel(sessionID string) (string, error) {
 		return "", fmt.Errorf("sessionID is required")
 	}
 
-	configPath := filesystem.SessionConfigPath(sessionID)
-	config, err := go_pkg_filesystem.ReadJSON[map[string]string](configPath)
-	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", configPath, err)
-	}
-	return config["channel_id"], nil
+	_, _, channelID, _ := configBot.GetChannel(sessionID)
+	return channelID, nil
 }
