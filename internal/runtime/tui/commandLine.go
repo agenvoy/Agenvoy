@@ -9,7 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime/line"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	go_bot_line "github.com/pardnchiu/go-bot/line"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"

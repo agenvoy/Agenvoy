@@ -19,7 +19,7 @@ import (
 )
 
 func getSession(ctx context.Context, in go_bot_line.Input, content string, data exec.ExecuteMeta) (*agentTypes.AgentSession, error) {
-	sessionID, err := sessionManager.GetLineSession(in.SourceType, in.UserID, in.GroupID, in.RoomID)
+	sessionID, err := sessionManager.GetLineSession(in.UserID, in.GroupID, in.RoomID)
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetLineSession: %w", err)
 	}

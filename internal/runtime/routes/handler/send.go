@@ -72,6 +72,12 @@ func Send() gin.HandlerFunc {
 			sessionID = prefix + utils.UUID()
 		}
 
+		if err := configBot.Save(sessionID, "", "", false); err != nil {
+			slog.Debug("sessionBot Save",
+				slog.String("session", sessionID),
+				slog.String("error", err.Error()))
+		}
+
 		if exec.IsRunning(sessionID) {
 			exec.AppendSteer(sessionID, req.Content)
 			c.JSON(http.StatusOK, gin.H{
@@ -154,7 +160,6 @@ func Send() gin.HandlerFunc {
 			}
 
 			data := exec.ExecuteMeta{
-				Origin:            "chat-",
 				Agent:             agent,
 				FallbackAgents:    fallbacks,
 				WorkDir:           workDir,
@@ -164,12 +169,6 @@ func Send() gin.HandlerFunc {
 				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
 				ExcludeSkills:     tools.TUIOnlySkills,
 				ExtraSystemPrompt: req.SystemPrompt,
-			}
-
-			if err := configBot.Save(sessionID, "", "", false); err != nil {
-				slog.Debug("sessionBot Save",
-					slog.String("session", sessionID),
-					slog.String("error", err.Error()))
 			}
 
 			session, err := newSession(execCtx, data, sessionID)

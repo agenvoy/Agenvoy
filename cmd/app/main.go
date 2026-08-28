@@ -16,10 +16,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/line"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
-	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )

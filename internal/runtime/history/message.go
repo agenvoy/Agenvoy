@@ -105,10 +105,10 @@ func Clear(sessionID string) error {
 	}
 
 	if _, err := conn.Exec(`
-	DELETE FROM session_meta
+	DELETE FROM message_meta
 	WHERE session_id = ?
 	`, sessionID); err != nil {
-		return fmt.Errorf("sql.DB Exec [DELETE messages_meta]: %w", err)
+		return fmt.Errorf("sql.DB Exec [DELETE message_meta]: %w", err)
 	}
 	return nil
 }

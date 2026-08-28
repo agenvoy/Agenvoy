@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -67,6 +68,8 @@ func newTUI() {
 	}
 	defer historyStore.Close()
 	historyStore.MigrateAction()
+	historyStore.MigrateSession()
+	sessionSummary.MigrateCursor()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",

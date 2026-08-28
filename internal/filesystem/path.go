@@ -182,7 +182,11 @@ func SummaryPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "summary.json")
 }
 
-func SummaryMetaPath(sessionID string) string {
+func SummaryCursorPath(sessionID string) string {
+	return filepath.Join(SessionDir(sessionID), ".summary_cursor")
+}
+
+func LegacySummaryMetaPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "summary.meta.json")
 }
 

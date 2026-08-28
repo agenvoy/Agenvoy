@@ -5,10 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strings"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
@@ -106,7 +104,7 @@ func GetSessionID(name string) string {
 	return ""
 }
 
-func GetLineSession(sourceType, userID, groupID, roomID string) (string, error) {
+func GetLineSession(userID, groupID, roomID string) (string, error) {
 	var key, target string
 	switch {
 	case groupID != "":
@@ -119,24 +117,8 @@ func GetLineSession(sourceType, userID, groupID, roomID string) (string, error) 
 		key = "ln_u_" + userID
 		target = userID
 	}
-	config := map[string]string{
-		"line_target":      target,
-		"line_source_type": sourceType,
-	}
 	sum := sha256.Sum256([]byte(key))
-
 	sessionID := "ln-" + hex.EncodeToString(sum[:])
-	sessionDir := filepath.Join(filesystem.SessionsDir, sessionID)
-	configPath := filepath.Join(sessionDir, "config.json")
-
-	if !go_pkg_filesystem_reader.Exists(configPath) {
-		if err := go_pkg_filesystem.CheckDir(sessionDir, true); err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
-		}
-		if err := go_pkg_filesystem.WriteJSON(configPath, config, false); err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteJSON: %w", err)
-		}
-	}
 
 	botName := configBot.FormatName(utils.LookupChatName(filesystem.LineAuthPath, target))
 	if err := configBot.Save(sessionID, botName, "", false); err != nil {
@@ -147,6 +129,9 @@ func GetLineSession(sourceType, userID, groupID, roomID string) (string, error) 
 	if botName != "" {
 		configBot.ReplaceDefault(sessionID, botName)
 	}
+	if err := configBot.SetChannel(sessionID, target, "", "", ""); err != nil {
+		return "", fmt.Errorf("configBot.SetChannel: %w", err)
+	}
 	return sessionID, nil
 }
 
@@ -155,10 +140,6 @@ func GetLineTarget(sessionID string) (string, error) {
 		return "", fmt.Errorf("sessionID is required")
 	}
 
-	configPath := filepath.Join(filesystem.SessionsDir, sessionID, "config.json")
-	config, err := go_pkg_filesystem.ReadJSON[map[string]string](configPath)
-	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON: %w", err)
-	}
-	return config["line_target"], nil
+	chatID, _, _, _ := configBot.GetChannel(sessionID)
+	return chatID, nil
 }

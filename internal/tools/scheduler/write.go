@@ -18,7 +18,7 @@ func writeSchedule(e *toolTypes.Executor, target, when, skill string) (string, e
 
 	switch target {
 	case "task":
-		at, err := parseTime(when)
+		at, err := ParseTime(when)
 		if err != nil {
 			return "", err
 		}

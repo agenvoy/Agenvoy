@@ -22,7 +22,6 @@ type Executor struct {
 	ToolsMu          sync.Mutex
 	WorkDir          string
 	SessionID        string
-	Origin           string
 	Tools            []provider.Tool
 	AllTools         []provider.Tool
 	StubTools        map[string]bool

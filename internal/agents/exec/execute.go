@@ -57,7 +57,6 @@ type ExecuteMeta struct {
 	ReplyMessageID    string
 	HistoryContent    string
 	Sender            string
-	Origin            string
 }
 
 type (
@@ -190,7 +189,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	if err != nil {
 		return fmt.Errorf("tools.NewExecutor: %w", err)
 	}
-	exec.Origin = data.Origin
 
 	emitChangedFiles := func() {
 		if files := exec.EditedFiles(); len(files) > 0 {

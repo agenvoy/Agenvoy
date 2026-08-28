@@ -23,20 +23,21 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/knowledge"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
-	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
-	"github.com/pardnchiu/agenvoy/internal/runtime/line"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
-	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -256,6 +257,8 @@ func cmdDaemon() {
 	}
 	defer historyStore.Close()
 	historyStore.MigrateAction()
+	historyStore.MigrateSession()
+	sessionSummary.MigrateCursor()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",

@@ -76,7 +76,6 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
 
 	execData := exec.ExecuteMeta{
-		Origin:         "tg-",
 		Agent:          primary,
 		FallbackAgents: rest,
 		WorkDir:        workDir,

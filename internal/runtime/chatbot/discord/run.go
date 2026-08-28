@@ -239,7 +239,6 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	pubsub.Pub(discordSessionID, agentResult)
 
 	execData := exec.ExecuteMeta{
-		Origin:         "dc-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

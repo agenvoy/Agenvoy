@@ -1,51 +1,46 @@
 package configStatus
 
 import (
+	"context"
 	"log/slog"
 
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 )
 
 func Get(sessionID string) Status {
 	if sessionID == "" {
 		return Status{}
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	return get(sessionID)
+
+	row, ok, err := historyStore.ReadState(context.Background(), sessionID)
+	if err != nil {
+		slog.Debug("historyStore.ReadState",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
+	}
+	if !ok {
+		return Status{State: StatusIdle}
+	}
+	return FromRow(row)
+}
+
+func FromRow(row historyStore.StateRow) Status {
+	status := Status{State: row.State, Count: row.InAction}
+	if status.Count < 0 {
+		status.Count = 0
+	}
+	if status.State == "" {
+		status.State = StatusIdle
+		if status.Count > 0 {
+			status.State = StatusOnline
+		}
+	}
+	return status
 }
 
 func Reset() {
-	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
-	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem/reader ListDirs",
-			slog.String("dir", filesystem.SessionsDir),
+	if err := historyStore.ResetState(context.Background(), StatusIdle); err != nil {
+		slog.Warn("historyStore.ResetState",
 			slog.String("error", err.Error()))
-		return
 	}
-	for _, dir := range dirs {
-		reset(dir.Name)
-	}
-}
-
-func reset(sessionID string) {
-	if sessionID == "" {
-		return
-	}
-	mu.Lock()
-	defer mu.Unlock()
-
-	status, err := go_pkg_filesystem.ReadJSON[Status](filesystem.StatusPath(sessionID))
-	if err != nil {
-		return
-	}
-	if status.State == StatusIdle && status.Count == 0 {
-		return
-	}
-	status.Count = 0
-	status.State = StatusIdle
-	write(sessionID, status)
 }

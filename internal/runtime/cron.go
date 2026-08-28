@@ -87,3 +87,21 @@ func PatchCron(skillName, newExpression string) (int, error) {
 	}
 	return patched, SaveCrons(existing)
 }
+
+func SetCrons(skillName, sessionID string, expressions []string) error {
+	existing, err := LoadCrons()
+	if err != nil {
+		return err
+	}
+	filtered := make([]CronEntry, 0, len(existing)+len(expressions))
+	for _, e := range existing {
+		if e.Skill == skillName {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	for _, expression := range expressions {
+		filtered = append(filtered, CronEntry{Expression: expression, SessionID: sessionID, Skill: skillName})
+	}
+	return SaveCrons(filtered)
+}

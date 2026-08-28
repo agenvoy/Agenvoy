@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -166,6 +168,16 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	for _, sid := range msg.ids {
 		deleteSessionHistKeys(sid)
 		historyStore.Clear(sid)
+		if err := historyStore.DeleteState(context.Background(), sid); err != nil {
+			slog.Warn("historyStore.DeleteState",
+				slog.String("session", sid),
+				slog.String("error", err.Error()))
+		}
+		if err := historyStore.DeleteSession(context.Background(), sid); err != nil {
+			slog.Warn("historyStore.DeleteSession",
+				slog.String("session", sid),
+				slog.String("error", err.Error()))
+		}
 		sessionHistory.ClearMutex(sid)
 		exec.ClearSteer(sid)
 		if err := os.RemoveAll(filesystem.SessionDir(sid)); err != nil {

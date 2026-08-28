@@ -32,7 +32,7 @@ body[data-rendered="1"] section.right-content section.feature {
       height: 2.5rem;
       overflow: scroll;
 
-      @each $name in (Rules, Knowledge, Skills, Schedule) {
+      @each $name in (Rules, Knowledge, Skills, Cron, Task) {
         &[data-selected="#{$name}"] a[name="#{$name}"],
         &[data-selected="#{$name}"] button[name="#{$name}"] {
           padding-top: 2px;
@@ -223,6 +223,50 @@ body[data-rendered="1"] section.right-content section.feature {
           color: var(--gray-3);
         }
 
+        div.row {
+          display: flex;
+          flex-flow: row;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+
+          > input {
+            flex: 1 1 0;
+            min-width: 0;
+            width: auto;
+          }
+
+          > button {
+            flex: 0 0 auto;
+            padding: 0.375rem 0.875rem;
+            font-size: small;
+            border-radius: 0.375rem;
+            transition: 0.2s;
+          }
+
+          > button.submit {
+            background-color: var(--black);
+            color: #fff;
+
+            @media (hover: hover) {
+              &:hover {
+                color: #fff;
+                opacity: 0.85;
+              }
+            }
+          }
+
+          > button.remove {
+            color: var(--error);
+
+            @media (hover: hover) {
+              &:hover {
+                color: var(--error-2);
+              }
+            }
+          }
+        }
+
         label.tool {
           display: flex;
           flex-flow: row;
@@ -337,6 +381,11 @@ body[data-rendered="1"] section.right-content section.feature {
 
           > button.remove {
             display: none;
+          }
+
+          > button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
           }
 
           > button {

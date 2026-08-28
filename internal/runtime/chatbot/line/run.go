@@ -78,7 +78,7 @@ func recordChatter(in go_bot_line.Input, content string) {
 		return
 	}
 
-	sessionID, err := sessionManager.GetLineSession(in.SourceType, in.UserID, in.GroupID, in.RoomID)
+	sessionID, err := sessionManager.GetLineSession(in.UserID, in.GroupID, in.RoomID)
 	if err != nil {
 		slog.Warn("sessionManager.GetLineSession (chatter)",
 			slog.String("source", sourceName(in)),
@@ -221,7 +221,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		scanner.Scan()
 	}
 
-	sessionID, err := sessionManager.GetLineSession(in.SourceType, in.UserID, in.GroupID, in.RoomID)
+	sessionID, err := sessionManager.GetLineSession(in.UserID, in.GroupID, in.RoomID)
 	if err != nil {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetLineSession: %w", err)
 	}
