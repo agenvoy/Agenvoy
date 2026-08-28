@@ -247,6 +247,12 @@
             <div class="list" id="model-list"></div>
           </div>
           <form id="model-form" data-view="add">
+            <nav class="tab" id="model-filter" @click="model_filter">
+              <button type="button" name="all" data-selected="1">All</button>
+              <button type="button" name="oauth">OAuth</button>
+              <button type="button" name="api_key">API Key</button>
+              <button type="button" name="custom">Custom</button>
+            </nav>
             <section class="tools" id="model-catalog"></section>
             <section class="tools" id="model-routing"></section>
             <section class="tools" id="model-models"></section>
@@ -277,16 +283,14 @@
           </div>
           <form id="mcp-form" data-transport="stdio">
             <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
-            <div class="row">
-              <select id="mcp-transport" @change="mcp_transport">
-                <option value="stdio">stdio · local command</option>
-                <option value="http">http · remote endpoint</option>
-              </select>
-              <select id="mcp-auth" @change="mcp_auth">
-                <option value="">header auth · or none</option>
-                <option value="oauth">oauth</option>
-              </select>
-            </div>
+            <nav class="tab" id="mcp-transport" @click="mcp_transport">
+              <button type="button" name="stdio" data-selected="1">stdio · local command</button>
+              <button type="button" name="http">http · remote endpoint</button>
+            </nav>
+            <select id="mcp-auth" @change="mcp_auth">
+              <option value="">header auth · or none</option>
+              <option value="oauth">oauth</option>
+            </select>
             <div class="field" data-transport="stdio">
               <input id="mcp-command" type="text" placeholder="Command, e.g. npx" />
               <textarea id="mcp-args" rows="3" placeholder="Arguments · one per line"></textarea>

@@ -134,7 +134,7 @@ function fillMcpForm(name, server, authorized) {
   const transport = server.url ? "http" : "stdio";
   dom.name.value = name || "";
   dom.name.readOnly = Boolean(name);
-  dom.transport.value = transport;
+  setMcpTransport(transport);
   dom.auth.value = server.auth === "oauth" ? "oauth" : "";
   dom.command.value = server.command || "";
   dom.args.value = (server.args || []).join("\n");
@@ -172,10 +172,33 @@ function resetMcp() {
   fillMcpForm("", {}, false);
 }
 
-function mcpTransportChange() {
+function mcpTransport() {
   const dom = mcpDom();
+  const active = dom.transport && dom.transport.querySelector('button[data-selected="1"]');
+  return active ? active.name : "stdio";
+}
+
+function setMcpTransport(value) {
+  const dom = mcpDom();
+  if (!dom.transport) {
+    return;
+  }
+  for (const one of dom.transport.querySelectorAll("button")) {
+    if (one.name === value) {
+      one.dataset.selected = "1";
+    } else {
+      delete one.dataset.selected;
+    }
+  }
   if (dom.form) {
-    dom.form.dataset.transport = dom.transport.value;
+    dom.form.dataset.transport = value;
+  }
+}
+
+function mcpTransportChange(e) {
+  const button = e && e.target ? e.target.closest("button") : null;
+  if (button && button.name) {
+    setMcpTransport(button.name);
   }
   renderMcpOAuth(false);
 }
@@ -197,7 +220,7 @@ async function saveMcp() {
   }
 
   const server = {};
-  if (dom.transport.value === "http") {
+  if (mcpTransport() === "http") {
     const url = dom.url.value.trim();
     if (!url) {
       mcpError("url is required for an http server");
@@ -309,7 +332,7 @@ function renderMcpOAuth(authorized, note) {
   }
 
   dom.oauth.innerHTML = "";
-  if (!mcpEditing || dom.transport.value !== "http" || dom.auth.value !== "oauth") {
+  if (!mcpEditing || mcpTransport() !== "http" || dom.auth.value !== "oauth") {
     delete dom.oauth.dataset.open;
     delete dom.form.dataset.oauth;
     return;

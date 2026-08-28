@@ -175,6 +175,9 @@ document.addEventListener("DOMContentLoaded", function () {
       model_routing: function () {
         selectModelRouting();
       },
+      model_filter: function (e) {
+        modelFilterChange(e);
+      },
       mcp_reset: function () {
         resetMcp();
       },
@@ -193,8 +196,8 @@ document.addEventListener("DOMContentLoaded", function () {
       mcp_logout: function () {
         clearMcpOAuth(mcpEditing);
       },
-      mcp_transport: function () {
-        mcpTransportChange();
+      mcp_transport: function (e) {
+        mcpTransportChange(e);
       },
       mcp_auth: function () {
         mcpAuthChange();

@@ -462,8 +462,9 @@ function selectProviderAdd() {
 }
 
 function providerDetails(provider, method, added) {
-  const pill = _("span", method);
-  pill.dataset.method = method;
+  const label = MODEL_CUSTOM.includes(provider.id) ? "custom" : method;
+  const pill = _("span", label);
+  pill.dataset.method = label;
 
   const summary = _("summary", [_("strong", provider.label), _("div.pills", [pill])]);
   const details = _("details.provider", [summary, providerCredentialForm(provider, method, added)]);
@@ -475,6 +476,51 @@ function providerDetails(provider, method, added) {
   return details;
 }
 
+const MODEL_CUSTOM = ["cloudflare", "compat"];
+
+function modelFilter() {
+  const nav = $("#model-filter");
+  const active = nav && nav.querySelector('button[data-selected="1"]');
+  return active ? active.name : "all";
+}
+
+function setModelFilter(value) {
+  const nav = $("#model-filter");
+  if (!nav) {
+    return;
+  }
+  for (const one of nav.querySelectorAll("button")) {
+    if (one.name === value) {
+      one.dataset.selected = "1";
+    } else {
+      delete one.dataset.selected;
+    }
+  }
+}
+
+function modelFilterChange(e) {
+  const button = e && e.target ? e.target.closest("button") : null;
+  if (!button || !button.name) {
+    return;
+  }
+  setModelFilter(button.name);
+  renderModel();
+}
+
+function matchModelFilter(provider, filter) {
+  const custom = MODEL_CUSTOM.includes(provider.id);
+  if (filter === "custom") {
+    return custom;
+  }
+  if (custom) {
+    return filter === "all";
+  }
+  if (filter === "all") {
+    return true;
+  }
+  return Object.keys(provider.methods || {}).includes(filter);
+}
+
 function renderProviderCatalog(catalog, added) {
   const dom = modelDom();
   if (!dom.catalog) {
@@ -484,16 +530,19 @@ function renderProviderCatalog(catalog, added) {
   dom.catalog.innerHTML = "";
   dom.catalog.dataset.open = "1";
 
+  const filter = modelFilter();
+  const visible = catalog.filter((item) => matchModelFilter(item, filter));
+
   const append = (provider) => {
     const method = Object.keys(provider.methods || {})[0] || "";
     dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
   };
 
-  for (const provider of catalog.filter((item) => !added.includes(item.id))) {
+  for (const provider of visible.filter((item) => !added.includes(item.id))) {
     append(provider);
   }
 
-  const done = catalog.filter((item) => added.includes(item.id));
+  const done = visible.filter((item) => added.includes(item.id));
   if (done.length === 0) {
     return;
   }
