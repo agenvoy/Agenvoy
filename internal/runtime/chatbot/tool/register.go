@@ -3,8 +3,8 @@ package tool
 import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/telegram"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 

@@ -15,7 +15,6 @@ type Kind string
 const (
 	KindToolConfirm Kind = "tool_confirm"
 	KindAskUser     Kind = "ask_user"
-	KindExecProcess Kind = "exec_process"
 )
 
 type Question struct {
@@ -30,23 +29,17 @@ type UserPayload struct {
 	Questions []Question `json:"questions"`
 }
 
-type ExecPayload struct {
-	Command string   `json:"command"`
-	Args    []string `json:"args,omitempty"`
-}
-
 type Request struct {
-	ID          string
-	Kind        Kind
-	SessionID   string
-	Origin      string
-	ToolName    string
-	ToolArgs    string
-	Restricted  []string
-	AskUser     *UserPayload
-	ExecProcess *ExecPayload
-	Ctx         context.Context
-	EnqueueAt   time.Time
+	ID         string
+	Kind       Kind
+	SessionID  string
+	Origin     string
+	ToolName   string
+	ToolArgs   string
+	Restricted []string
+	AskUser    *UserPayload
+	Ctx        context.Context
+	EnqueueAt  time.Time
 }
 
 type Reply struct {
