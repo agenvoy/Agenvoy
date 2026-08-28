@@ -11,7 +11,7 @@ import (
 func patchSchedule(target, when, skill string) (string, error) {
 	switch target {
 	case "task":
-		at, err := parseTime(when)
+		at, err := ParseTime(when)
 		if err != nil {
 			return "", err
 		}

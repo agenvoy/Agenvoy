@@ -81,7 +81,6 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	}
 
 	execData := ExecuteMeta{
-		Origin:         "cli-",
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,

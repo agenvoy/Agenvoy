@@ -7,7 +7,10 @@ import (
 	"strings"
 	"unicode"
 
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 )
 
@@ -163,5 +166,13 @@ func Save(sessionID, name, body string, force bool) error {
 	row.SessionID = sessionID
 	row.Name = name
 	row.Rule = body
-	return write(row)
+	if err := write(row); err != nil {
+		return err
+	}
+
+	dir := filesystem.SessionDir(sessionID)
+	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
+		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
+	}
+	return nil
 }

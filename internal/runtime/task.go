@@ -122,3 +122,21 @@ func PatchTask(skillName string, newAt time.Time) (int, error) {
 	}
 	return patched, SaveTasks(existing)
 }
+
+func SetTasks(skillName, sessionID string, list []time.Time) error {
+	existing, err := LoadTasks()
+	if err != nil {
+		return err
+	}
+	filtered := make([]TaskEntry, 0, len(existing)+len(list))
+	for _, e := range existing {
+		if e.Skill == skillName {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	for _, at := range list {
+		filtered = append(filtered, TaskEntry{At: at.UTC(), SessionID: sessionID, Skill: skillName})
+	}
+	return SaveTasks(filtered)
+}

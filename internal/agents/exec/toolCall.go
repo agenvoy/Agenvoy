@@ -431,7 +431,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:       runtime.KindToolConfirm,
 					SessionID:  sessionData.ID,
-					Origin:     exec.Origin,
 					ToolName:   toolName,
 					ToolArgs:   toolArg,
 					Restricted: restrictedList,
