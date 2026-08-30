@@ -173,17 +173,6 @@
         height: 1rem;
         cursor: pointer;
 
-        &.rule select {
-          direction: ltr;
-          text-align: left;
-          text-align-last: left;
-
-          option {
-            direction: ltr;
-            text-align: left;
-          }
-        }
-
         &.model select {
           direction: rtl;
           text-align: right;
@@ -217,6 +206,39 @@
         display: flex;
         justify-content: center;
         align-items: center;
+
+        @media (hover: hover) {
+          &:hover {
+            &:after {
+              opacity: 1;
+            }
+          }
+        }
+
+        &.left:after {
+          left: -0.5rem;
+        }
+
+        &.right:after {
+          right: 0;
+        }
+
+        &:after {
+          z-index: 1000;
+          content: attr(name);
+          position: absolute;
+          top: 0;
+          transform: translateY(calc(-100% - 0.75rem));
+          padding: 0 0.5rem;
+          line-height: 1.25rem;
+          font-size: x-small;
+          white-space: nowrap;
+          color: #fff;
+          background-color: #000;
+          border-radius: 0.625rem;
+          opacity: 0;
+          pointer-events: none;
+        }
 
         &.send {
           background-color: var(--black);

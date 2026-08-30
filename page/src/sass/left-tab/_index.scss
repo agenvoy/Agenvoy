@@ -151,8 +151,11 @@
         cursor: pointer;
 
         @media (hover: hover) {
-          &:hover:before {
-            opacity: 1;
+          &:hover {
+            &:before,
+            &:after {
+              opacity: 1;
+            }
           }
         }
 
@@ -168,6 +171,23 @@
           background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
+        }
+
+        &:after {
+          z-index: 1000;
+          content: attr(name);
+          position: absolute;
+          right: 0;
+          transform: translateX(calc(100% + 0.25rem));
+          padding: 0 0.5rem;
+          line-height: 1.25rem;
+          font-size: x-small;
+          white-space: nowrap;
+          color: #fff;
+          background-color: #000;
+          border-radius: 0.625rem;
+          opacity: 0;
+          pointer-events: none;
         }
 
         &[data-selected="1"]:before {
@@ -278,8 +298,11 @@
         cursor: pointer;
 
         @media (hover: hover) {
-          &:hover:before {
-            opacity: 1;
+          &:hover {
+            &:before,
+            &:after {
+              opacity: 1;
+            }
           }
         }
 
@@ -295,6 +318,23 @@
           background-color: var(--gray-2);
           opacity: 0;
           transition: 0.2s;
+        }
+
+        &:after {
+          z-index: 1000;
+          content: attr(name);
+          position: absolute;
+          right: 0;
+          transform: translateX(calc(100% + 0.25rem));
+          padding: 0 0.5rem;
+          line-height: 1.25rem;
+          font-size: x-small;
+          white-space: nowrap;
+          color: #fff;
+          background-color: #000;
+          border-radius: 0.625rem;
+          opacity: 0;
+          pointer-events: none;
         }
 
         &[data-selected="1"]:before {

@@ -10,7 +10,7 @@
     flex-grow: 1;
     flex-shrink: 1;
     gap: 1rem;
-    padding: 2.5rem 0 8rem;
+    padding: 3.5rem 0 8rem;
     max-height: calc(100% - 5.25rem);
     overflow-y: scroll;
     width: var(--width-right-content);
@@ -60,14 +60,41 @@
         }
 
         button {
+          position: relative;
           display: flex;
           align-items: center;
           height: 1rem;
           transition: 0.2s;
 
+          @media (hover: hover) {
+            &:hover {
+              &:after {
+                opacity: 1;
+              }
+            }
+          }
+
           &:active {
             transform: scale(0.98);
             opacity: 0.5;
+          }
+
+          &:after {
+            z-index: 1000;
+            content: attr(name);
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            transform: translateY(calc(100% + 0.25rem));
+            padding: 0 0.5rem;
+            line-height: 1.25rem;
+            font-size: x-small;
+            white-space: nowrap;
+            color: #fff;
+            background-color: #000;
+            border-radius: 0.625rem;
+            opacity: 0;
+            pointer-events: none;
           }
         }
       }
@@ -258,14 +285,41 @@
           }
 
           button {
+            position: relative;
             display: flex;
             align-items: center;
             height: 1rem;
             transition: 0.2s;
 
+            @media (hover: hover) {
+              &:hover {
+                &:after {
+                  opacity: 1;
+                }
+              }
+            }
+
             &:active {
               transform: scale(0.98);
               opacity: 0.5;
+            }
+
+            &:after {
+              z-index: 1000;
+              content: attr(name);
+              position: absolute;
+              bottom: 0;
+              left: 0;
+              transform: translateY(calc(100% + 0.25rem));
+              padding: 0 0.5rem;
+              line-height: 1.25rem;
+              font-size: x-small;
+              white-space: nowrap;
+              color: #fff;
+              background-color: #000;
+              border-radius: 0.625rem;
+              opacity: 0;
+              pointer-events: none;
             }
           }
         }

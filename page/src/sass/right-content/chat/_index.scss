@@ -138,9 +138,11 @@ body[data-rendered="1"] section.right-content section.chat {
         }
 
         &:after {
+          z-index: 1000;
           content: attr(name);
           position: absolute;
-          bottom: -1.75rem;
+          bottom: 0;
+          transform: translateY(calc(100% + 0.5rem));
           padding: 0 0.5rem;
           line-height: 1.25rem;
           font-size: x-small;
