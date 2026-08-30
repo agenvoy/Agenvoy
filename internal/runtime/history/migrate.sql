@@ -76,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_ah_end
 
 CREATE TABLE IF NOT EXISTS session (
     session_id TEXT PRIMARY KEY,
+    self_id    TEXT NOT NULL DEFAULT '',
     name       TEXT NOT NULL DEFAULT '',
     model      TEXT NOT NULL DEFAULT 'auto',
     reasoning  TEXT NOT NULL DEFAULT 'medium',
@@ -89,6 +90,9 @@ CREATE TABLE IF NOT EXISTS session (
 CREATE INDEX IF NOT EXISTS idx_session_chat    ON session(chat_id)    WHERE chat_id    <> '';
 CREATE INDEX IF NOT EXISTS idx_session_channel ON session(channel_id) WHERE channel_id <> '';
 CREATE INDEX IF NOT EXISTS idx_session_name    ON session(name)       WHERE name       <> '';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_session_self_id
+    ON session(self_id) WHERE self_id <> '';
 
 CREATE TABLE IF NOT EXISTS state (
     session_id TEXT    PRIMARY KEY,

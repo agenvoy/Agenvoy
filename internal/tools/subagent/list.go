@@ -11,7 +11,7 @@ import (
 func listSessions() string {
 	list := session.ListSessions()
 	if len(list) == 0 {
-		return "no reusable named sessions — spawn a temp subagent (name empty)"
+		return "no session carries a self id — spawn a temp subagent (name empty)"
 	}
 
 	var sb strings.Builder
@@ -20,7 +20,11 @@ func listSessions() string {
 		if role == "" {
 			role = "(no role description)"
 		}
-		fmt.Fprintf(&sb, "- %s — %s\n", s.Name, go_pkg_utils.TruncateString(role, 256))
+		label := s.SelfID
+		if s.Name != "" && s.Name != s.SelfID {
+			label = fmt.Sprintf("%s (%s)", s.SelfID, s.Name)
+		}
+		fmt.Fprintf(&sb, "- %s — %s\n", label, go_pkg_utils.TruncateString(role, 256))
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -9,11 +10,13 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type NamedSession struct {
 	SessionID string
+	SelfID    string
 	Name      string
 	Role      string
 }
@@ -61,17 +64,29 @@ func ListSessions() []NamedSession {
 		if strings.HasPrefix(sid, "temp-") {
 			continue
 		}
-		name, body := configBot.Get(sid)
-		if name == "" {
+		selfID, name, body := configBot.GetPersona(sid)
+		if selfID == "" {
 			continue
 		}
 		list = append(list, NamedSession{
 			SessionID: sid,
+			SelfID:    selfID,
 			Name:      name,
 			Role:      strings.TrimSpace(body),
 		})
 	}
 	return list
+}
+
+func GetSessionIDBySelfID(selfID string) string {
+	if selfID == "" {
+		return ""
+	}
+	sid := historyStore.FindSessionBySelfID(context.Background(), selfID)
+	if strings.HasPrefix(sid, "temp-") {
+		return ""
+	}
+	return sid
 }
 
 func GetSessionID(name string) string {

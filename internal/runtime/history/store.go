@@ -22,6 +22,9 @@ func New() error {
 	if err := renameSessionMeta(c); err != nil {
 		return err
 	}
+	if err := addSessionSelfID(c); err != nil {
+		return err
+	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
 	}
@@ -86,6 +89,41 @@ func backfillSessionDefaults(c *go_sqlkit_core.Connector) error {
 	}
 	if _, err := c.Exec(`UPDATE session SET reasoning = ? WHERE reasoning = ''`, DefaultReasoning); err != nil {
 		return fmt.Errorf("sql.DB Exec [UPDATE session reasoning]: %w", err)
+	}
+	return nil
+}
+
+func addSessionSelfID(c *go_sqlkit_core.Connector) error {
+	rows, err := c.Query(`PRAGMA table_info(session)`)
+	if err != nil {
+		return fmt.Errorf("sql.DB Query [PRAGMA table_info session]: %w", err)
+	}
+	defer rows.Close()
+
+	var columns, found int
+	for rows.Next() {
+		var (
+			cid, notNull, pk int
+			name, dataType   string
+			defaultValue     any
+		)
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info session]: %w", err)
+		}
+		columns++
+		if name == "self_id" {
+			found++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("sql.Rows Err [PRAGMA table_info session]: %w", err)
+	}
+	if columns == 0 || found > 0 {
+		return nil
+	}
+
+	if _, err := c.Exec(`ALTER TABLE session ADD COLUMN self_id TEXT NOT NULL DEFAULT ''`); err != nil {
+		return fmt.Errorf("sql.DB Exec [ALTER TABLE session ADD COLUMN self_id]: %w", err)
 	}
 	return nil
 }

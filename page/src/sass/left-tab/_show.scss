@@ -18,6 +18,16 @@
     display: flex;
   }
 
+  section:not(.chats),
+  footer {
+    > a,
+    > div {
+      &:after {
+        opacity: 0 !important;
+      }
+    }
+  }
+
   section {
     &[data-name]:not([data-name=""]) {
       &:after {

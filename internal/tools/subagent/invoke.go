@@ -41,8 +41,8 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 
 	sessionID := strings.TrimSpace(params.SessionID)
 	if name := strings.TrimSpace(params.Name); name != "" {
-		if resolved := session.GetSessionID(name); resolved != "" {
-			sessionID = resolved
+		if found := session.GetSessionIDBySelfID(name); found != "" {
+			sessionID = found
 		}
 	}
 

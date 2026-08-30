@@ -21,6 +21,7 @@
     position: relative;
     height: 100%;
     background-color: white;
+    overflow-x: hidden;
     transition: 0.2s;
 
     margin-left: var(--width-left-tab-collaspse);

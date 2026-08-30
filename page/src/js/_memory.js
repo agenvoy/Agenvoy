@@ -24,6 +24,9 @@ async function memoryPost(path, body) {
 }
 
 async function memorySummary() {
+  if (!confirm("Regenerate the summary for this conversation?")) {
+    return;
+  }
   const result = await memoryPost("summary");
   if (!result) {
     return;
@@ -32,6 +35,9 @@ async function memorySummary() {
 }
 
 async function memoryCompact() {
+  if (!confirm("Compact this conversation? Older messages are dropped.")) {
+    return;
+  }
   const result = await memoryPost("compact");
   if (!result) {
     return;

@@ -32,16 +32,18 @@ func registSubagents() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
-		Description: `Runs a subtask in its own session (invoke), or lists the named sessions available to run it (list).
-Use when the same lookup repeats across 3+ entities, spans 2+ source classes, or the user delegates by name (呼叫 X / 請 X / 找 X).
-One call per distinct subtask, at most three at a time — a fourth queues while its own timeout runs. The full dispatch protocol and the model ladder → reasoning_guide(topic=subagent_dispatch).`,
+		Description: `Runs a subtask in its own session (invoke), or lists the self ids available (list).
+Naming an agent is an order: 呼叫 X / 請 X / 找 X / call X / ask X → dispatch to X, never answer it yourself.
+Also fan out when one lookup repeats across 3+ entities or 2+ source classes.
+The leg's report comes back whole — relay it; "已呼叫" is not an answer.
+One call per subtask, three at a time. Protocol and model ladder → reasoning_guide(topic=subagent_dispatch).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"invoke", "list"},
-					"description": "invoke: run the task in a subagent session. list: the reusable named sessions and their roles — run it first for a single delegated subtask, then ask_user whether to route there. Omitted: task → invoke, otherwise list.",
+					"description": "invoke: run the task in a subagent session. list: the self ids reusable as `name`, with their roles — run it first for a single delegated subtask, then ask_user whether to route there. Omitted: task → invoke, otherwise list.",
 					"default":     "invoke",
 				},
 				"task": map[string]any{
@@ -50,7 +52,7 @@ One call per distinct subtask, at most three at a time — a fourth queues while
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: an existing non-temp session to reuse, matching its `bot.json` `name` — set it verbatim when the user delegates by name, otherwise leave EMPTY. Never invent a descriptive label: an unmatched name resolves to nothing and the run becomes a temp session anyway. Broad parallel fan-out stays anonymous. Takes precedence over session_id.",
+					"description": "mode=invoke: an existing non-temp session to reuse, matching its `self_id` exactly as mode=list prints it — set it verbatim when the user delegates by name, otherwise leave EMPTY. Never invent a descriptive label: an unmatched value resolves to nothing and the run becomes a temp session anyway. Broad parallel fan-out stays anonymous. Takes precedence over session_id.",
 					"default":     "",
 				},
 				"session_id": map[string]any{

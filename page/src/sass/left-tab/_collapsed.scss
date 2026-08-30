@@ -31,6 +31,20 @@
     display: none;
   }
 
+  section:not(.chats),
+  footer {
+    > a,
+    > div {
+      @media (hover: hover) {
+        &:hover {
+          &:after {
+            opacity: 1 !important;
+          }
+        }
+      }
+    }
+  }
+
   section {
     &[data-name]:not([data-name=""]) {
       &:after,

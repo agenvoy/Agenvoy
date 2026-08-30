@@ -144,7 +144,7 @@ function renderUsageSummary(rows, totals, period) {
   }
 }
 
-function renderUsageTable(rows) {
+function renderUsageTable(rows, period) {
   const dom = usageDom();
   if (!dom.table) {
     return;
@@ -152,7 +152,7 @@ function renderUsageTable(rows) {
 
   dom.table.innerHTML = "";
   if (rows.length === 0) {
-    dom.table.appendChild(_("p.empty", "no usage in this window"));
+    dom.table.appendChild(_("p.empty", "no usage in " + period));
     return;
   }
 
@@ -255,7 +255,7 @@ function paintUsage() {
   const rows = usageRows(summary);
   renderUsageSummary(rows, usageTotals(rows), currentUsagePeriod());
   renderUsageChart(rows);
-  renderUsageTable(rows);
+  renderUsageTable(rows, currentUsagePeriod());
 }
 
 async function selectUsage(sessionId) {
