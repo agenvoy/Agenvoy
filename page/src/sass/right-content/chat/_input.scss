@@ -1,0 +1,266 @@
+@mixin styles {
+  div.input {
+    z-index: 1;
+    position: sticky;
+    bottom: 1rem;
+    display: flex;
+    flex-flow: column;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    width: var(--width-right-content);
+    max-width: var(--max-width-right-content);
+    background-color: #fff;
+    border-radius: 1.25rem;
+    overflow: hidden;
+
+    &[data-voice="1"] {
+      &::before {
+        opacity: 1;
+      }
+
+      > span {
+        padding: calc(1rem - 1px);
+        border: 1px solid var(--gray-2);
+      }
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      width: 150%;
+      aspect-ratio: 1 / 1;
+      background-image: conic-gradient(
+        #5575d9,
+        #dfa0d380,
+        #dfa0d333,
+        transparent,
+        #dfa0d333,
+        #dfa0d380,
+        #5575d9,
+        #dfa0d380,
+        #dfa0d333,
+        #dfa0d300,
+        #dfa0d333,
+        #dfa0d380,
+        #5575d9
+      );
+      filter: blur(2rem);
+      left: calc(-100% / 2);
+      top: calc(-100% / 2);
+      animation: animate 4s linear infinite;
+      transition: 0.2s;
+      opacity: 0;
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 1rem;
+      box-shadow:
+        inset 0 0 0.25rem 0.25rem #fff,
+        inset 0 0 0.5rem 0.25rem #ffffff80;
+    }
+
+    @keyframes animate {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    &:has(textarea:focus) > span,
+    &:has(textarea[data-dragging]) > span {
+      padding: calc(1rem - 1px);
+      border: 1px solid var(--gray-2);
+    }
+
+    &:has(textarea[data-dragging]) {
+      border-style: dashed;
+    }
+
+    > span {
+      z-index: 10;
+      position: absolute;
+      display: block;
+      inset: 0.375rem;
+      background-color: #fff;
+      border-radius: calc(1rem - 0.125rem);
+      box-shadow:
+        0 6px 8px -2px #0000001a,
+        0 4px 6px -4px #0000001a;
+    }
+
+    > label {
+      z-index: 10;
+      position: relative;
+      display: block;
+      width: 100%;
+      min-height: 1.5rem;
+      line-height: 1.5rem;
+      max-height: 16rem;
+      font-family: inherit;
+      font-size: inherit;
+      letter-spacing: inherit;
+      box-sizing: border-box;
+      overflow: hidden;
+
+      pre,
+      textarea {
+        margin: 0;
+        padding: 0;
+        line-height: inherit;
+        min-height: inherit;
+        font-family: inherit;
+        font-size: inherit;
+        letter-spacing: inherit;
+      }
+
+      pre {
+        display: block;
+        width: 100%;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
+        color: transparent;
+        background-color: transparent;
+      }
+
+      textarea {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        resize: none;
+        border: none;
+        outline: none;
+        background-color: transparent;
+        color: inherit;
+        overflow: hidden;
+        overflow: scroll;
+
+        &::placeholder {
+          color: var(--gray-3);
+        }
+      }
+    }
+
+    section {
+      z-index: 10;
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      height: 1rem;
+
+      > div {
+        flex-grow: 1;
+      }
+
+      label {
+        display: flex;
+        flex-flow: row;
+        align-items: center;
+        gap: 0.25rem;
+        height: 1rem;
+        cursor: pointer;
+
+        &.rule select {
+          direction: ltr;
+          text-align: left;
+          text-align-last: left;
+
+          option {
+            direction: ltr;
+            text-align: left;
+          }
+        }
+
+        &.model select {
+          direction: rtl;
+          text-align: right;
+          text-align-last: right;
+
+          option {
+            direction: ltr;
+            text-align: right;
+          }
+        }
+
+        select {
+          field-sizing: content;
+          width: auto;
+          max-width: 12rem;
+          height: 1rem;
+          padding: 0;
+          font: inherit;
+          font-size: small;
+          line-height: 1rem;
+          color: inherit;
+          background-color: transparent;
+          border: none;
+          outline: none;
+          cursor: pointer;
+        }
+      }
+
+      button {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        &.send {
+          background-color: var(--black);
+          margin-top: -0.5rem;
+          margin-right: -0.5rem;
+          width: 2rem;
+          height: 2rem;
+          border-radius: 50%;
+
+          span {
+            color: #fff;
+          }
+        }
+
+        &:not(.send) {
+          width: 1rem;
+          height: 1rem;
+
+          @media (hover: hover) {
+            &:hover:before {
+              opacity: 1;
+            }
+          }
+
+          &[data-selected]:before {
+            opacity: 1;
+            background-color: var(--gray-2);
+          }
+
+          &:before {
+            content: "";
+            z-index: 0;
+            position: absolute;
+            top: -0.5rem;
+            left: -0.5rem;
+            width: 2rem;
+            height: 2rem;
+            background-color: var(--gray-2);
+            border-radius: 50%;
+            opacity: 0;
+            transition: 0.2s;
+          }
+        }
+      }
+    }
+  }
+}
