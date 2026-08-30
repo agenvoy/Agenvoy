@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,clear_all,close,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -60,10 +60,6 @@
       </section>
       <!---->
       <footer>
-        <a href="/?page=config&tab=Usage" name="Usage">
-          <span class="material-symbols-outlined"> bar_chart </span>
-          <p>Usage</p>
-        </a>
         <a href="/?page=config&tab=Model" name="Config">
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
@@ -80,18 +76,12 @@
           <button class="persona" type="button" @click="persona_edit" name="Bot persona">
             <span class="material-symbols-outlined"> for_you </span>
           </button>
-          <button class="memory" type="button" title="summary" @click="memory_summary" name="Regenerate summary">
+          <button class="memory" type="button" @click="memory_pick" name="Memory">
             <span class="material-symbols-outlined"> cognition_2 </span>
           </button>
-          <button class="memory" type="button" title="compact" @click="memory_compact" name="Compact history">
-            <span class="material-symbols-outlined"> compress </span>
-          </button>
-          <button class="memory" type="button" title="reset" @click="memory_reset" name="Clear conversation">
-            <span class="material-symbols-outlined"> clear_all </span>
-          </button>
-          <span class="memory"></span>
-          <button class="work-dir" type="button" @click="workdir_pick" name="Working directory">
-            <span class="material-symbols-outlined"> folder </span>
+          <!--<span class="memory"></span>-->
+          <button class="usage" type="button" @click="usage_open" name="Usage">
+            <span class="material-symbols-outlined"> bar_chart </span>
           </button>
           <button class="harness" type="button" @click="harness_click" name="Voice mode">
             <span class="material-symbols-outlined"> robot_2 </span>
@@ -129,6 +119,9 @@
             </button>
             <button class="skill left" type="button" @click="skill_pick" name="Use skill">
               <span class="material-symbols-outlined"> lightbulb_2 </span>
+            </button>
+            <button class="work-dir left" type="button" @click="workdir_pick" name="Working directory">
+              <span class="material-symbols-outlined"> folder </span>
             </button>
             <div></div>
             <label class="model">

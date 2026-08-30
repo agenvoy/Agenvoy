@@ -23,6 +23,53 @@ async function memoryPost(path, body) {
   }
 }
 
+const MEMORY_ACTIONS = [
+  { key: "summary", label: "Regenerate summary", hint: "rebuild the rolling summary of this conversation" },
+  { key: "compact", label: "Compact history", hint: "drop older messages, keep the summary" },
+  { key: "reset", label: "Reset conversation", hint: "clear every message in this session" },
+];
+
+function openMemoryPicker() {
+  const list = _("div.list");
+  const boxes = [];
+
+  for (const one of MEMORY_ACTIONS) {
+    const box = _("input", { type: "radio", name: "memory-pick", value: one.key });
+    boxes.push(box);
+    list.appendChild(_("label", [box, _("div", [_("strong", one.label), _("p", one.hint)])]));
+  }
+
+  const cancel = _("button", { type: "button" }, "cancel");
+  const run = _("button", { type: "button", class: "submit" }, "run");
+
+  const root = _("div.popup", [_("div.panel", [_("strong", "Memory"), list, _("footer", [cancel, run])])]);
+  root.id = "memory-popup";
+
+  const close = () => root.remove();
+  cancel.addEventListener("click", close);
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
+  });
+  run.addEventListener("click", () => {
+    const picked = boxes.find((box) => box.checked);
+    if (!picked) {
+      return;
+    }
+    close();
+    if (picked.value === "summary") {
+      memorySummary();
+      return;
+    }
+    if (picked.value === "compact") {
+      memoryCompact();
+      return;
+    }
+    memoryReset();
+  });
+
+  document.body.appendChild(root);
+}
+
 async function memorySummary() {
   if (!confirm("Regenerate the summary for this conversation?")) {
     return;

@@ -76,13 +76,27 @@ async function fetchUsageSessions() {
   return [];
 }
 
+function usageLink(period, id) {
+  return "?page=config&tab=Usage&period=" + period + (id ? "&chat=" + encodeURIComponent(id) : "");
+}
+
+function markUsagePeriods() {
+  const header = usageDom().header;
+  if (!header) {
+    return;
+  }
+  for (const link of header.querySelectorAll("a")) {
+    link.href = usageLink(link.getAttribute("name"), usageScope);
+  }
+}
+
 function usageCard(id, title, subtitle) {
-  const card = _("div.card", [_("strong", title), _("p", subtitle)]);
+  const card = _("a.card", { href: usageLink(currentUsagePeriod(), id) }, [
+    _("strong", title),
+    _("p", subtitle),
+  ]);
   card.dataset.name = id;
-  card.addEventListener("click", () => {
-    markSelectedCard(usageDom().list, id);
-    selectUsage(id);
-  });
+  card.dataset.selected = id === usageScope ? "1" : "0";
   return card;
 }
 
@@ -264,12 +278,14 @@ async function selectUsage(sessionId) {
   paintUsage();
 }
 
-async function renderUsagePage() {
+async function renderUsagePage(sessionId) {
   const dom = usageDom();
   if (!dom.list) {
     return;
   }
 
+  usageScope = sessionId || "";
+  markUsagePeriods();
   const sessions = await fetchUsageSessions();
 
   dom.list.innerHTML = "";
@@ -280,7 +296,6 @@ async function renderUsagePage() {
     }
     dom.list.appendChild(usageCard(one.id, one.name || one.id, one.model || one.id));
   }
-  markSelectedCard(dom.list, usageScope);
 
   window.addEventListener("resize", resizeUsageChart);
   await ensureECharts();

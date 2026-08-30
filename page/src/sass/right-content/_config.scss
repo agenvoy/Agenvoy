@@ -130,7 +130,8 @@ body[data-rendered="1"] section.right-content section.config {
         flex-flow: column;
         gap: 0.5rem;
 
-        div.card {
+        .card {
+          text-decoration: none;
           position: relative;
           display: flex;
           flex-flow: column;
@@ -323,7 +324,7 @@ body[data-rendered="1"] section.right-content section.config {
 }
 
 body section.right-content section.config {
-  section.editor div.list div.card[data-state] {
+  section.editor div.list .card[data-state] {
     > strong {
       position: relative;
       padding-right: 1rem;
@@ -357,15 +358,15 @@ body section.right-content section.config {
     }
   }
 
-  section.editor div.list div.card[data-selected="1"] {
+  section.editor div.list .card[data-selected="1"] {
     background-color: var(--gray-2);
   }
 
-  section.editor div.list div.card:hover > span.quota {
+  section.editor div.list .card:hover > span.quota {
     opacity: 0;
   }
 
-  section.editor div.list div.card > span.quota {
+  section.editor div.list .card > span.quota {
     position: absolute;
     top: 50%;
     right: 0.75rem;

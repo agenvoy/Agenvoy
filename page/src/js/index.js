@@ -19,9 +19,12 @@ document.addEventListener("DOMContentLoaded", function () {
     params.period = period || periods[0];
   }
 
-  if (params.chat != null && !CHAT_ID.test(params.chat || "")) {
-    window.location.href = getLink({ page: params.page });
-    return;
+  if (params.chat) {
+    const shape = params.page === "chat" ? CHAT_ID : SESSION_ID;
+    if (!shape.test(params.chat)) {
+      window.location.href = getLink({ page: params.page, tab: params.tab });
+      return;
+    }
   }
   params.chat = params.chat || "";
 
@@ -120,6 +123,9 @@ document.addEventListener("DOMContentLoaded", function () {
       persona_edit: function () {
         openPersonaPopup();
       },
+      usage_open: function () {
+        window.location.href = usageLink("24h", currentSessionId);
+      },
       skill_pick: function () {
         openSkillPicker();
       },
@@ -187,14 +193,8 @@ document.addEventListener("DOMContentLoaded", function () {
       reasoning_change: function (e) {
         saveSessionReasoning(currentSessionId, e.target.value);
       },
-      memory_summary: function () {
-        memorySummary();
-      },
-      memory_compact: function () {
-        memoryCompact();
-      },
-      memory_reset: function () {
-        memoryReset();
+      memory_pick: function () {
+        openMemoryPicker();
       },
       model_add: function () {
         selectProviderAdd();
@@ -327,7 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
             renderModel();
           }
           if (params.tab === "Usage") {
-            renderUsagePage();
+            renderUsagePage(params.chat);
           }
           if (params.tab === "MCP") {
             resetMcp();
