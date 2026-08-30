@@ -32,6 +32,10 @@ const SelfIDLimit = 32
 
 var selfIDRegex = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+func NormalizeSelfID(selfID string) string {
+	return strings.ToLower(strings.TrimSpace(selfID))
+}
+
 func ValidSelfID(selfID string) error {
 	if selfID == "" {
 		return nil
@@ -75,6 +79,7 @@ func WriteSession(ctx context.Context, r SessionRow) error {
 	if r.Reasoning == "" {
 		r.Reasoning = DefaultReasoning
 	}
+	r.SelfID = NormalizeSelfID(r.SelfID)
 	if err := ValidSelfID(r.SelfID); err != nil {
 		return err
 	}
@@ -158,7 +163,7 @@ func FindSessionByChannel(ctx context.Context, channelID string) string {
 }
 
 func FindSessionBySelfID(ctx context.Context, selfID string) string {
-	return findSessionBy(ctx, "self_id", selfID)
+	return findSessionBy(ctx, "self_id", NormalizeSelfID(selfID))
 }
 
 func findSessionBy(ctx context.Context, column, value string) string {

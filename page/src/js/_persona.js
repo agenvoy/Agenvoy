@@ -18,7 +18,7 @@ async function openPersonaPopup() {
     return;
   }
 
-  const self = personaField(current.self_id || "", "A-Z a-z 0-9 _ - only, up to 32 characters", true);
+  const self = personaField(current.self_id || "", "a-z 0-9 _ - only, up to 32 characters · stored lowercase", true);
   const name = personaField(current.name || "", "shown as the session title", true);
   const rule = personaField(current.body || "", "system prompt for this session", false);
 
