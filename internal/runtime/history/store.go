@@ -90,6 +90,9 @@ func backfillSessionDefaults(c *go_sqlkit_core.Connector) error {
 	if _, err := c.Exec(`UPDATE session SET reasoning = ? WHERE reasoning = ''`, DefaultReasoning); err != nil {
 		return fmt.Errorf("sql.DB Exec [UPDATE session reasoning]: %w", err)
 	}
+	if _, err := c.Exec(`UPDATE session SET self_id = LOWER(self_id) WHERE self_id <> LOWER(self_id)`); err != nil {
+		return fmt.Errorf("sql.DB Exec [UPDATE session self_id]: %w", err)
+	}
 	return nil
 }
 
