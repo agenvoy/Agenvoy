@@ -117,6 +117,9 @@ document.addEventListener("DOMContentLoaded", function () {
       workdir_pick: function () {
         openWorkDirPrompt();
       },
+      persona_edit: function () {
+        openPersonaPopup();
+      },
       skill_pick: function () {
         openSkillPicker();
       },
@@ -171,8 +174,8 @@ document.addEventListener("DOMContentLoaded", function () {
       skill_open: function () {
         openSkillFolder();
       },
-      rule_change: function (e) {
-        selectRule(e.target.value);
+      rule_pick: function () {
+        openRulePicker();
       },
       model_change: function (e) {
         const model = e.target.value;

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,clear_all,close,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,clear_all,close,cognition_2,compress,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -34,7 +34,7 @@
       </header>
       <!---->
       <section>
-        <a :for="(k, v) in left_tab" :href="{{v.href}}">
+        <a :for="(k, v) in left_tab" :href="{{v.href}}" :name="{{k}}">
           <span class="material-symbols-outlined"> {{v.icon}} </span>
           <p>{{k}}</p>
         </a>
@@ -60,11 +60,11 @@
       </section>
       <!---->
       <footer>
-        <a href="/?page=config&tab=Usage">
+        <a href="/?page=config&tab=Usage" name="Usage">
           <span class="material-symbols-outlined"> bar_chart </span>
           <p>Usage</p>
         </a>
-        <a href="/?page=config&tab=Model">
+        <a href="/?page=config&tab=Model" name="Config">
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
         </a>
@@ -75,16 +75,26 @@
       <!---->
       <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}" @wheel="chat_wheel">
         <header>
-          <p></p>
-          <div></div>
-          <button type="button" title="summary" @click="memory_summary">
+          <!--<p></p>
+          <div></div>-->
+          <button class="persona" type="button" @click="persona_edit" name="Bot persona">
+            <span class="material-symbols-outlined"> for_you </span>
+          </button>
+          <button class="memory" type="button" title="summary" @click="memory_summary" name="Regenerate summary">
             <span class="material-symbols-outlined"> cognition_2 </span>
           </button>
-          <button type="button" title="compact" @click="memory_compact">
+          <button class="memory" type="button" title="compact" @click="memory_compact" name="Compact history">
             <span class="material-symbols-outlined"> compress </span>
           </button>
-          <button type="button" title="reset" @click="memory_reset">
+          <button class="memory" type="button" title="reset" @click="memory_reset" name="Clear conversation">
             <span class="material-symbols-outlined"> clear_all </span>
+          </button>
+          <span class="memory"></span>
+          <button class="work-dir" type="button" @click="workdir_pick" name="Working directory">
+            <span class="material-symbols-outlined"> folder </span>
+          </button>
+          <button class="harness" type="button" @click="harness_click" name="Voice mode">
+            <span class="material-symbols-outlined"> robot_2 </span>
           </button>
         </header>
         <!---->
@@ -114,17 +124,11 @@
             <pre></pre>
           </label>
           <section>
-            <label class="rule">
-              <select id="chat-rule" @change="rule_change">
-                <option value="">default</option>
-              </select>
-              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-            </label>
-            <button class="skill" type="button" @click="skill_pick">
-              <span class="material-symbols-outlined"> lightbulb_2 </span>
+            <button class="rule left" type="button" @click="rule_pick" name="Use persona">
+              <span class="material-symbols-outlined"> deployed_code_account </span>
             </button>
-            <button class="work-dir" type="button" @click="workdir_pick">
-              <span class="material-symbols-outlined"> folder </span>
+            <button class="skill left" type="button" @click="skill_pick" name="Use skill">
+              <span class="material-symbols-outlined"> lightbulb_2 </span>
             </button>
             <div></div>
             <label class="model">
@@ -144,10 +148,7 @@
               </select>
               <span class="material-symbols-outlined"> keyboard_arrow_down </span>
             </label>
-            <button class="harness" type="button" @click="harness_click">
-              <span class="material-symbols-outlined"> robot_2 </span>
-            </button>
-            <button class="send" type="button" @click="send_click">
+            <button class="send right" type="button" @click="send_click" name="Send">
               <span class="material-symbols-outlined"> send </span>
             </button>
           </section>
@@ -233,8 +234,18 @@
             <div class="list" id="cron-list"></div>
           </div>
           <form id="cron-form">
-            <input id="cron-name" type="text" maxlength="64" placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest" />
-            <input id="cron-description" type="text" maxlength="256" placeholder="Describe when it fires and what it does" />
+            <input
+              id="cron-name"
+              type="text"
+              maxlength="64"
+              placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
+            />
+            <input
+              id="cron-description"
+              type="text"
+              maxlength="256"
+              placeholder="Describe when it fires and what it does"
+            />
             <textarea id="cron-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
             <section class="tools" id="cron-entries"></section>
             <footer>
@@ -254,8 +265,18 @@
             <div class="list" id="task-list"></div>
           </div>
           <form id="task-form">
-            <input id="task-name" type="text" maxlength="64" placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. meeting-reminder" />
-            <input id="task-description" type="text" maxlength="256" placeholder="Describe when it fires and what it does" />
+            <input
+              id="task-name"
+              type="text"
+              maxlength="64"
+              placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. meeting-reminder"
+            />
+            <input
+              id="task-description"
+              type="text"
+              maxlength="256"
+              placeholder="Describe when it fires and what it does"
+            />
             <textarea id="task-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
             <section class="tools" id="task-entries"></section>
             <footer>
