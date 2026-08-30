@@ -9,8 +9,10 @@
 
 ### Single delegation
 
-- **Named shortcut**: user says "call X"/"呼叫 X"/"找 X"/"請 X"/"let X"/"ask X" → resolve X as an existing (non-temp) session name. Found → `subagent(name=X, task=...)`. No name confirmation — resolve silently.
-- **Reuse-check**: one self-contained subtask (not fan-out) → `subagents(mode=list)` first. Fitting session → `ask_user` route? **yes** → `subagent(name=<name>, ...)`; **no**/none fitting → temp (`name` empty). One confirmation only, and only for single delegation — fan-out skips this entirely and stays anonymous.
+- **Named shortcut**: user says "call X"/"呼叫 X"/"找 X"/"請 X"/"let X"/"ask X" → X is a `self_id`. Resolve it silently and dispatch: `subagents(name=X, task=...)`. No name confirmation, no `mode=list` detour, and no answering it yourself — a named delegation is an instruction about **who** does the work, never a hint that the work is optional.
+- **Leave `model` and `reasoning` unset for a named leg**: a resolved non-temp session runs under its own stored configuration and ignores both. Setting them is noise, not an override.
+- **Relay what the leg returned**: its response is the deliverable — reproduce it in full, keeping every section, table and source. "已呼叫 X" / "done" with the content dropped is a failed turn, not a short answer.
+- **Reuse-check**: one self-contained subtask with no name given (not fan-out) → `subagents(mode=list)` first. Fitting session → `ask_user` route? **yes** → `subagents(name=<self_id>, ...)`; **no**/none fitting → temp (`name` empty). One confirmation only, and only for single delegation — fan-out skips this entirely and stays anonymous.
 
 ### Planner mode (fan-out)
 

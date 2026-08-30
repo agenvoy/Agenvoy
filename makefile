@@ -1,9 +1,10 @@
-.PHONY: help build app stop update test
+.PHONY: help build app dev stop update test
 
 help:
 	@echo "How to use:"
 	@echo "  make build              Build binary and install to /usr/local/bin/agen"
 	@echo "  make app                Attach TUI; spawn server daemon (HTTP + Discord + Telegram) if not running"
+	@echo "  make dev                Same as app, but serves page/ from disk so index.html/public edits need no rebuild"
 	@echo "  make stop               Stop the running server daemon"
 	@echo "  make update             Update agen to the latest release (always overwrite)"
 	@echo "  make test               Run all unit tests"
@@ -22,6 +23,11 @@ app:
 	@$(MAKE) stop
 	@$(MAKE) build
 	@agen
+
+dev:
+	@$(MAKE) stop
+	@$(MAKE) build
+	@AGENVOY_PAGE_DIR=$(CURDIR)/page agen
 
 stop:
 	go run ./cmd/app/ stop

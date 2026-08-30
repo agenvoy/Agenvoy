@@ -2,7 +2,10 @@ package historyStore
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 const (
@@ -12,6 +15,7 @@ const (
 
 type SessionRow struct {
 	SessionID string
+	SelfID    string
 	Name      string
 	Model     string
 	Reasoning string
@@ -22,13 +26,36 @@ type SessionRow struct {
 	UserID    string
 }
 
-const sessionColumns = `session_id, name, model, reasoning, rule, chat_id, guild_id, channel_id, user_id`
+const sessionColumns = `session_id, self_id, name, model, reasoning, rule, chat_id, guild_id, channel_id, user_id`
+
+const SelfIDLimit = 32
+
+var selfIDRegex = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+func ValidSelfID(selfID string) error {
+	if selfID == "" {
+		return nil
+	}
+	if len([]rune(selfID)) > SelfIDLimit {
+		return fmt.Errorf("self_id is limited to %d characters", SelfIDLimit)
+	}
+	if !selfIDRegex.MatchString(selfID) {
+		return fmt.Errorf("self_id allows A-Z a-z 0-9 _ - only")
+	}
+	return nil
+}
+
+var ErrDuplicateSelfID = errors.New("self_id is already used by another session")
+
+func isSelfIDConflict(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: session.self_id")
+}
 
 func scanSession(rows interface {
 	Scan(dest ...any) error
 }) (SessionRow, error) {
 	var one SessionRow
-	if err := rows.Scan(&one.SessionID, &one.Name, &one.Model, &one.Reasoning, &one.Rule,
+	if err := rows.Scan(&one.SessionID, &one.SelfID, &one.Name, &one.Model, &one.Reasoning, &one.Rule,
 		&one.ChatID, &one.GuildID, &one.ChannelID, &one.UserID); err != nil {
 		return SessionRow{}, fmt.Errorf("sql.Rows Scan [SELECT session]: %w", err)
 	}
@@ -48,11 +75,15 @@ func WriteSession(ctx context.Context, r SessionRow) error {
 	if r.Reasoning == "" {
 		r.Reasoning = DefaultReasoning
 	}
+	if err := ValidSelfID(r.SelfID); err != nil {
+		return err
+	}
 
 	if _, err := conn.ExecContext(ctx, `
 	INSERT INTO session (`+sessionColumns+`)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(session_id) DO UPDATE SET
+		self_id    = excluded.self_id,
 		name       = excluded.name,
 		model      = excluded.model,
 		reasoning  = excluded.reasoning,
@@ -61,8 +92,11 @@ func WriteSession(ctx context.Context, r SessionRow) error {
 		guild_id   = excluded.guild_id,
 		channel_id = excluded.channel_id,
 		user_id    = excluded.user_id`,
-		r.SessionID, r.Name, r.Model, r.Reasoning, r.Rule,
+		r.SessionID, r.SelfID, r.Name, r.Model, r.Reasoning, r.Rule,
 		r.ChatID, r.GuildID, r.ChannelID, r.UserID); err != nil {
+		if isSelfIDConflict(err) {
+			return fmt.Errorf("%w: %s", ErrDuplicateSelfID, r.SelfID)
+		}
 		return fmt.Errorf("sql.DB ExecContext [INSERT session]: %w", err)
 	}
 	return nil
@@ -121,6 +155,10 @@ func FindSessionByChat(ctx context.Context, chatID string) string {
 
 func FindSessionByChannel(ctx context.Context, channelID string) string {
 	return findSessionBy(ctx, "channel_id", channelID)
+}
+
+func FindSessionBySelfID(ctx context.Context, selfID string) string {
+	return findSessionBy(ctx, "self_id", selfID)
 }
 
 func findSessionBy(ctx context.Context, column, value string) string {

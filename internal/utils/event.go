@@ -140,10 +140,10 @@ func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string
 		if mode != "invoke" {
 			return ""
 		}
-		if model := arg("model"); model != "" {
-			return model
+		if target := arg("name", "session_id"); target != "" {
+			return target
 		}
-		return arg("name", "session_id")
+		return arg("model")
 
 	case "run_command":
 		return joinArgv(raw)
