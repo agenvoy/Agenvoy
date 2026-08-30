@@ -1,6 +1,6 @@
 async function openWorkDirPrompt() {
   const current = readChatConfig(currentSessionId).work_dir;
-  const input = prompt("Working directory  (~/… or /…)", current);
+  const input = await workDirPopup(current);
   if (input === null) {
     return;
   }
@@ -32,6 +32,72 @@ async function openWorkDirPrompt() {
 
   writeChatConfig(currentSessionId, { work_dir: path });
   markWorkDir(path);
+}
+
+function workDirPopup(value) {
+  return new Promise(function (resolve) {
+    const box = _("textarea", { placeholder: "~/… or /…" });
+    box.value = value || "";
+
+    const mirror = _("pre");
+    mirror.textContent = box.value + "\n";
+
+    const cancel = _("button", { type: "button" }, "cancel");
+    const save = _("button", { type: "button", class: "submit" }, "save");
+
+    const root = _("div.popup", [
+      _("div.panel", [
+        _("strong", "Working directory"),
+        _("p", "Absolute path only: start with / or ~/"),
+        _("label.input", [box, mirror]),
+        _("footer", [cancel, save]),
+      ]),
+    ]);
+    root.id = "workdir-popup";
+
+    let settled = false;
+    const close = function (result) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      document.removeEventListener("keydown", escape);
+      root.remove();
+      resolve(result);
+    };
+    const escape = function (e) {
+      if (e.key === "Escape") {
+        close(null);
+      }
+    };
+
+    box.addEventListener("input", function () {
+      mirror.textContent = box.value + "\n";
+    });
+    box.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing) {
+        return;
+      }
+      e.preventDefault();
+      close(box.value);
+    });
+    cancel.addEventListener("click", function () {
+      close(null);
+    });
+    save.addEventListener("click", function () {
+      close(box.value);
+    });
+    root.addEventListener("click", function (e) {
+      if (e.target === root) {
+        close(null);
+      }
+    });
+    document.addEventListener("keydown", escape);
+
+    document.body.appendChild(root);
+    box.focus();
+    box.select();
+  });
 }
 
 function markWorkDir(path) {

@@ -13,10 +13,14 @@ import (
 
 func registPage(r *gin.Engine) gin.HandlerFunc {
 	if dir := os.Getenv("AGENVOY_PAGE_DIR"); dir != "" {
+		noStore := func(c *gin.Context) { c.Header("Cache-Control", "no-store") }
 		path := filepath.Join(dir, "index.html")
-		index := func(c *gin.Context) { c.File(path) }
+		index := func(c *gin.Context) {
+			noStore(c)
+			c.File(path)
+		}
 		r.GET("/", index)
-		r.Static("/public", filepath.Join(dir, "public"))
+		r.Group("/public", noStore).Static("/", filepath.Join(dir, "public"))
 		return index
 	}
 

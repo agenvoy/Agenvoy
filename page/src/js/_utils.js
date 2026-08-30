@@ -128,7 +128,7 @@ function renderFileBox(box, files) {
 }
 
 function copyBtn() {
-  const dom = _("button", [_("span.material-symbols-outlined", "content_copy")]);
+  const dom = _("button", { name: "Copy content" }, [_("span.material-symbols-outlined", "content_copy")]);
   dom.addEventListener("click", function () {
     const bubble = dom.closest("div.assistant, div.user");
     const source = bubble && bubble.querySelector("pre.source");
@@ -149,7 +149,7 @@ function copyBtn() {
 }
 
 function knowledgeBtn() {
-  const dom = _("button", [_("span.material-symbols-outlined", "book_2")]);
+  const dom = _("button", { name: "Add knoledge" }, [_("span.material-symbols-outlined", "book_2")]);
   dom.addEventListener("click", async function () {
     const bubble = dom.closest("div.assistant");
     const source = bubble && bubble.querySelector("pre.source");
@@ -231,13 +231,18 @@ function filePathOf(value) {
   return value.startsWith("/") || value.startsWith("~/") ? value : "";
 }
 
+function dropTarget() {
+  const popup = $("#workdir-popup");
+  return popup ? popup.querySelector("textarea") : $("#chat-input");
+}
+
 function bindInputDrop() {
   window.addEventListener("dragover", function (e) {
     e.preventDefault();
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = "copy";
     }
-    const dom = $("#chat-input");
+    const dom = dropTarget();
     if (dom) {
       dom.dataset.dragging = "1";
     }
@@ -248,7 +253,7 @@ function bindInputDrop() {
       if (name === "dragleave" && e.relatedTarget !== null) {
         return;
       }
-      const dom = $("#chat-input");
+      const dom = dropTarget();
       if (dom) {
         delete dom.dataset.dragging;
       }
@@ -256,7 +261,7 @@ function bindInputDrop() {
   }
 
   window.addEventListener("drop", async function (e) {
-    const dom = $("#chat-input");
+    const dom = dropTarget();
     if (!dom) {
       return;
     }
@@ -284,9 +289,17 @@ function bindInputDrop() {
         alert(`failed to locate [${entry.name}]：${err.message}`);
       }
     }
-    if (paths.length > 0) {
-      insertAtCursor(dom, paths.map((p) => `"${p}"`).join(" "));
+    if (paths.length === 0) {
+      return;
     }
+    if (dom.closest("#workdir-popup")) {
+      dom.value = paths[0];
+      dom.nextElementSibling.textContent = dom.value + "\n";
+      dom.setSelectionRange(dom.value.length, dom.value.length);
+      dom.focus();
+      return;
+    }
+    insertAtCursor(dom, paths.map((p) => `"${p}"`).join(" "));
   });
 }
 

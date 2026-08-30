@@ -47,6 +47,33 @@ func Get(sessionID string) (name, body string) {
 	return row.Name, row.Rule
 }
 
+func GetPersona(sessionID string) (selfID, name, body string) {
+	row, _ := read(sessionID)
+	return row.SelfID, row.Name, row.Rule
+}
+
+func SavePersona(sessionID, selfID, name, body string) error {
+	if sessionID == "" {
+		return fmt.Errorf("sessionID is required")
+	}
+	if err := historyStore.ValidSelfID(selfID); err != nil {
+		return err
+	}
+	if name == "" {
+		name = sessionID
+	}
+	if body == "" {
+		body = configs.DefaultSessionPrompt
+	}
+
+	row, _ := read(sessionID)
+	row.SessionID = sessionID
+	row.SelfID = selfID
+	row.Name = name
+	row.Rule = body
+	return write(row)
+}
+
 func GetModel(sessionID string) (model, reasoning string) {
 	row, _ := read(sessionID)
 	model = row.Model

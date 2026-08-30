@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -253,8 +254,8 @@ func GetSessionPersona() gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 			return
 		}
-		name, body := configBot.Get(sid)
-		c.JSON(http.StatusOK, gin.H{"name": name, "body": body})
+		selfID, name, body := configBot.GetPersona(sid)
+		c.JSON(http.StatusOK, gin.H{"self_id": selfID, "name": name, "body": body})
 	}
 }
 
@@ -271,15 +272,26 @@ func SetSessionPersona() gin.HandlerFunc {
 		}
 
 		var body struct {
-			Name string `json:"name"`
-			Body string `json:"body"`
+			SelfID string `json:"self_id"`
+			Name   string `json:"name"`
+			Body   string `json:"body"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if err := configBot.Save(sid, body.Name, body.Body, true); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+		selfID := strings.TrimSpace(body.SelfID)
+		if err := historyStore.ValidSelfID(selfID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err := configBot.SavePersona(sid, selfID, body.Name, body.Body); err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, historyStore.ErrDuplicateSelfID) {
+				status = http.StatusConflict
+			}
+			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
