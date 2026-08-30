@@ -7,11 +7,11 @@ const feature = {
 };
 
 const configTab = {
-  Usage: "bar_chart",
   Model: "deployed_code",
   MCP: "electrical_services",
   Keychain: "key",
   Channel: "cell_tower",
+  Usage: "bar_chart",
 };
 
 const usageTab = {
