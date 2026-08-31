@@ -77,69 +77,85 @@ func (t TUI) renderUsage(title string, load func(int, time.Time) (map[string]usa
 		summaries[i] = summary
 	}
 
-	var output strings.Builder
-	output.WriteString(systemStyle.Render(title))
-	output.WriteByte('\n')
-	output.WriteString(renderUsageTable(summaries))
+	labels := make([]string, len(usagePeriods))
+	for i, period := range usagePeriods {
+		labels[i] = period.label
+	}
 
-	return t, tea.Println(output.String() + "\n"), true
+	nameWidth := usageNameWidth(summaries)
+	popup := &Popup{
+		kind:       popupSingleSelect,
+		title:      title,
+		subtitle:   hintStyle.Render("  input(cache hit%)/output"),
+		maxVisible: usageMaxVisible,
+		tabs:       labels,
+	}
+	popup.onTab = func(p *Popup) {
+		fillUsageOptions(p, summaries, nameWidth)
+	}
+	popup.onTab(popup)
+
+	t.popup = popup
+	return t, nil, true
 }
 
-const usageCellWidth = 20
+const usageMaxVisible = 16
 
-func renderUsageTable(summaries []map[string]usagelog.ModelUsage) string {
-	seen := make(map[string]bool)
+func usageNameWidth(summaries []map[string]usagelog.ModelUsage) int {
+	width := len("model")
 	for _, summary := range summaries {
-		for model := range summary {
-			seen[model] = true
+		for model, one := range summary {
+			if one.Input == 0 && one.Output == 0 {
+				continue
+			}
+			if len(model) > width {
+				width = len(model)
+			}
 		}
 	}
-	if len(seen) == 0 {
-		return hintStyle.Render("  no usage") + "\n"
-	}
+	return width
+}
 
-	models := make([]string, 0, len(seen))
-	for model := range seen {
+func fillUsageOptions(p *Popup, summaries []map[string]usagelog.ModelUsage, nameWidth int) {
+	idx := p.tabIdx
+	if idx < 0 || idx >= len(summaries) {
+		idx = 0
+	}
+	summary := summaries[idx]
+
+	models := make([]string, 0, len(summary))
+	for model, one := range summary {
+		if one.Input == 0 && one.Output == 0 {
+			continue
+		}
 		models = append(models, model)
 	}
 	sort.Slice(models, func(i, j int) bool {
-		left, right := summaries[0][models[i]].Input, summaries[0][models[j]].Input
+		left, right := summary[models[i]].Input, summary[models[j]].Input
 		if left == right {
 			return models[i] < models[j]
 		}
 		return left > right
 	})
 
-	nameWidth := len("model")
+	options := make([]string, 0, len(models))
+	tails := make([]string, 0, len(models))
 	for _, model := range models {
-		if len(model) > nameWidth {
-			nameWidth = len(model)
-		}
+		options = append(options, fmt.Sprintf("%-*s", nameWidth, model))
+		tails = append(tails, formatUsageCell(summary[model]))
 	}
-	nameWidth += 1
+	if len(options) == 0 {
+		options = append(options, "no usage")
+		tails = append(tails, "")
+	}
 
-	var output strings.Builder
-	output.WriteString(hintStyle.Render(fmt.Sprintf("  %-*s", nameWidth, "model")))
-	for _, period := range usagePeriods {
-		output.WriteString(hintStyle.Render(fmt.Sprintf("   %-*s", usageCellWidth, period.label)))
-	}
-	output.WriteByte('\n')
-
-	for _, model := range models {
-		output.WriteString(fmt.Sprintf("  %-*s", nameWidth, model))
-		for _, summary := range summaries {
-			output.WriteString("   ")
-			output.WriteString(formatUsageCell(summary[model]))
-		}
-		output.WriteByte('\n')
-	}
-	return output.String()
+	p.options = options
+	p.optionTail = tails
+	p.values = nil
+	p.cursor = 0
 }
 
 func formatUsageCell(u usagelog.ModelUsage) string {
-	if u.Input == 0 && u.Output == 0 {
-		return strings.Repeat(" ", usageCellWidth)
-	}
 	hitPct := 0.0
 	if total := u.Input + u.Hit; total > 0 {
 		hitPct = float64(u.Hit) / float64(total) * 100
@@ -157,6 +173,20 @@ func formatUsageCell(u usagelog.ModelUsage) string {
 	return fmt.Sprintf("%s(%s)/%s", color(u.Input), pct, color(u.Output))
 }
 
+func color(value uint64) string {
+	plain := fmt.Sprintf("%7s", formatUsageCount(value))
+	switch {
+	case value >= 1_000_000_000:
+		return errorStyle.Render(plain)
+	case value >= 1_000_000:
+		return systemStyle.Render(plain)
+	case value >= 1_000:
+		return okayStyle.Render(plain)
+	default:
+		return plain
+	}
+}
+
 func formatUsageCount(value uint64) string {
 	units := []struct {
 		threshold uint64
@@ -172,18 +202,4 @@ func formatUsageCount(value uint64) string {
 		}
 	}
 	return fmt.Sprintf("%d", value)
-}
-
-func color(value uint64) string {
-	plain := fmt.Sprintf("%7s", formatUsageCount(value))
-	switch {
-	case value >= 1_000_000_000:
-		return errorStyle.Render(plain)
-	case value >= 1_000_000:
-		return systemStyle.Render(plain)
-	case value >= 1_000:
-		return okayStyle.Render(plain)
-	default:
-		return plain
-	}
 }

@@ -221,6 +221,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.toolLog = nil
 			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
+				t.emitted = true
 				if utils.IsSubagentInvoke(ev.ToolName, ev.ToolArgs) {
 					t.subCount++
 					t.subActive++
@@ -237,6 +238,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.trackSubagent(ev.Source, ev.ToolName+": "+oneLine(ev.Text))
 			return t, nil
 		}
+		t.emitted = true
 		t.activity = "tool: " + ev.ToolName
 		t.toolLog = append(t.toolLog, oneLine(ev.Text))
 		if len(t.toolLog) > commandLogLines {
@@ -259,6 +261,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		if !ok {
 			return t, nil
 		}
+		t.emitted = true
 		collapse := t.collapseToolBuf()
 		if collapse != nil {
 			return t, tea.Sequence(collapse, tea.Println("\n"+line))
@@ -304,6 +307,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	case agentTypes.EventText:
 		if ev.Source == "" {
+			t.emitted = true
 			collapse := t.collapseToolBuf()
 			raw := utils.StripFileMarkers(ev.Text)
 

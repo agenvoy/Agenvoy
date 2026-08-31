@@ -39,7 +39,7 @@ var commands = []Command{
 	{"new", "create / add new session · name conflict-checked"},
 	{"dangerous", "remove-session / allow-skill"},
 	{"memory", "compact / reset / summary · manage session memory"},
-	{"bot", "edit / rename current session · name / description (persona)"},
+	{"bot", "edit / rename current session · name / self id / description (persona)"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"voice", "enable / disable voice message · gemini tts"},
