@@ -125,6 +125,14 @@ MCP client and server live in `internal/runtime/mcp` and use the official [`mode
 }
 ```
 
+### Session Classification and Monitoring
+
+The TUI session selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, `chat-` for Web/API, and `temp-` for short-lived work. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
+
+Session personas are stored in the history SQLite database. `self_id` is normalized to lowercase and accepts only up to 32 ASCII letters, digits, `_`, or `-`; non-empty values must be unique. At daemon startup, legacy per-session `bot.json`, bot markdown, `config.json`, and `status.json` files are migrated into SQLite/state tables.
+
+The daemon also runs a background runtime monitor. Every 30 seconds it checks CPU usage, Go-process memory, and the TCP connection to `1.1.1.1:443`. High CPU, high memory, network interruption, and network recovery are written to the daemon log; on CPU anomalies it also attempts to list the top three processes.
+
 ## Usage
 
 ### Interactive TUI
@@ -144,6 +152,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/memory` | `compact` / `reset` / `summary` for the current session |
 | `/dangerous` | Remove a session, or edit the skill / command allowlists |
 | `/discord` `/telegram` `/voice` | Enable or disable each channel; tokens are validated before they are stored |
+| `/startup` | Enable or disable launching the daemon on login (launchd agent on macOS, systemd user unit on Linux) |
 | `/admin-channel` | Pick which authorized chat receives new-chat verification codes |
 | `/kuradb` | Install, update or reconnect KuraDB as an MCP server |
 | `/cron` `/task` | Add, edit or remove recurring and one-shot scheduled work |
@@ -234,6 +243,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/sessions` | List sessions and status. |
+| `GET` | `/v1/usage` | **local** — 24h/7d/28d total token usage across sessions. |
 | `POST` `PUT` `DELETE` | `/v1/session` | **local** — create / rename / delete a session. |
 | `POST` | `/v1/session/:id/model` | Set the model for a session. |
 | `GET` | `/v1/session/:id/status` | Get session status and usage. |
@@ -249,6 +259,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/session/:id/reset` | **local** — clear the session's history and summary. |
 | `POST` | `/v1/session/:id/summary` | **local** — rebuild the session summary in the background. |
 | `POST` | `/v1/session/:id/compact` | **local** — compact history in the background (fire-and-forget, `202 Accepted`). |
+| `GET` | `/v1/session/:id/chat` | **local** — read the session chat/action log. |
+| `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d per-model token usage for one session. |
 | `GET` | `/v1/session/:id/action` | **local** — that session's `action.log` content. |
 | `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d per-model token usage (same aggregation as the TUI `/usage` screen). |
 | `GET` | `/v1/session/:id/history` | **local** — list archived completed pending-task files. |
@@ -312,15 +324,18 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` | `/v1/knowledge/*name` | **local** — read one note. |
 | `POST` `PATCH` `DELETE` | `/v1/knowledge` | **local** — create / update / delete a note. The name defaults to the first line when omitted. |
 | `GET` | `/v1/skills` | **local** — list installed skills. |
+| `GET` | `/v1/skill/*name` | **local** — read one installed skill. |
+| `DELETE` | `/v1/skill` | **local** — remove one installed skill. |
 
 **Automation**
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/schedule/*skill` | **local** — read a scheduler skill's contents. |
-| `GET` `DELETE` | `/v1/cron` | **local** — list/delete cron entries. |
+| `GET` | `/v1/schedule/*skill` | **local** — read a scheduler skill split into `name` / `description` / `body` (frontmatter parsed off). |
+| `POST` `PATCH` | `/v1/schedule` | **local** — create/update a scheduler skill from `name` / `description` / `content` (the frontmatter is composed server-side) and rebind its whole `target=cron\|task` entry set. |
+| `GET` `DELETE` | `/v1/cron` | **local** — list/delete cron entries; delete trashes the skill when nothing else binds it. |
 | `POST` | `/v1/cron/run` | **local** — fire a cron entry now (`202 Accepted`). |
-| `GET` `DELETE` | `/v1/task` | **local** — list/delete one-off tasks. |
+| `GET` `DELETE` | `/v1/task` | **local** — list/delete one-off tasks; delete trashes the skill when nothing else binds it. |
 | `POST` | `/v1/task/run` | **local** — fire a task now (`202 Accepted`). |
 
 **Allowlists**

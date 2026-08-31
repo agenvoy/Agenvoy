@@ -133,6 +133,13 @@ graph TB
 
 ## Module: Sessions, History, and Pending Work
 
+Sessions are identified by a prefix that also determines their origin: `cli-` for local CLI/TUI work, `tg-` for Telegram, `dc-` for Discord, `chat-` for web/API work, and `temp-` for short-lived work. The TUI session picker ranks these groups, places the current session first, and exposes `all` plus one tab per detected prefix when multiple groups exist. A daemon-side `fsnotify` watcher observes newly created session directories and logs the session ID and configured name.
+
+Session configuration is persisted in the history SQLite database. Persona fields include a normalized lowercase `self_id`, limited to 32 ASCII letters, digits, `_`, and `-`; non-empty values are unique. The daemon migrates legacy `bot.json`, legacy bot markdown, session `config.json`, and `status.json` into SQLite/state tables during startup. New session creation persists the database row and creates the session directory before session logs are written.
+
+Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
+## Module: Sessions, History, and Pending Work
+
 Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
 
 ```mermaid
@@ -153,6 +160,10 @@ graph TB
         ResetAll[ResetAll] --> Summary
     end
 ```
+
+## Module: Runtime Monitoring
+
+The daemon starts a background monitor that samples every 30 seconds. It reports high CPU usage at or above 80%, Go process memory at or above 2 GiB, and loss of TCP connectivity to `1.1.1.1:443`; recovery events are logged when each condition clears. When CPU is high, the monitor also queries the top three processes with `ps` when available. These records are emitted through the daemon log stream and are independent of agent session execution.
 
 ## Module: Task Lifecycle, Concurrency, and Cancellation
 
