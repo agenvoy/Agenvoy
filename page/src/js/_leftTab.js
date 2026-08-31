@@ -11,7 +11,12 @@ const configTab = {
   MCP: "electrical_services",
   Keychain: "key",
   Channel: "cell_tower",
+};
+
+const monitorTab = {
   Usage: "bar_chart",
+  History: "history",
+  Daemon: "terminal",
 };
 
 const usageTab = {
@@ -49,6 +54,27 @@ function getLink(params) {
   }
   if (params.chat) {
     path += `&chat=${params.chat}`;
+  }
+  if (params.target) {
+    path += `&target=${encodeURIComponent(params.target)}`;
+  }
+  if (params.offset) {
+    path += `&offset=${params.offset}`;
+  }
+  if (params.hash) {
+    path += `&hash=${encodeURIComponent(params.hash)}`;
+  }
+  if (params.item) {
+    path += `&item=${encodeURIComponent(params.item)}`;
+  }
+  if (params.keyword) {
+    path += `&keyword=${encodeURIComponent(params.keyword)}`;
+  }
+  if (params.from) {
+    path += `&from=${params.from}`;
+  }
+  if (params.to) {
+    path += `&to=${params.to}`;
   }
   return path;
 }

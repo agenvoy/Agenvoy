@@ -76,20 +76,6 @@ function skillTabDom() {
   };
 }
 
-function resetSkillTab() {
-  const dom = skillTabDom();
-  skillTabName = "";
-  skillTabPath = "";
-  if (dom.name) dom.name.value = "";
-  if (dom.content) dom.content.value = "";
-  if (dom.form) {
-    delete dom.form.dataset.editing;
-    delete dom.form.dataset.view;
-  }
-  if (dom.allowList) delete dom.allowList.dataset.open;
-  markSelectedCard(dom.list, "");
-}
-
 async function skillTabState() {
   const out = { skills: [], allowed: {}, source: {} };
   try {
@@ -115,17 +101,21 @@ async function renderSkillTab() {
   const { skills, allowed, source } = await skillTabState();
 
   dom.list.innerHTML = "";
+  const picked = praseURL().target || "";
 
   for (const name of skills) {
     const mark = allowed[name] ? "always allow" : "ask each time";
     const card = _("div.card", [_("strong", name), _("p", `${source[name] || "unknown"} · ${mark}`)]);
     card.dataset.name = name;
-    card.dataset.selected = name === skillTabName ? "1" : "0";
+    card.dataset.selected = name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, name);
-      openSkillTab(name);
+      window.location.href = getLink({ page: "features", tab: "Skills", target: name });
     });
     dom.list.appendChild(card);
+  }
+
+  if (picked && skills.includes(picked)) {
+    openSkillTab(picked);
   }
 }
 
@@ -236,8 +226,7 @@ async function deleteSkillTab() {
     return;
   }
 
-  resetSkillTab();
-  renderSkillTab();
+  window.location.href = getLink({ page: "features", tab: "Skills" });
 }
 
 async function openSkillFolder() {

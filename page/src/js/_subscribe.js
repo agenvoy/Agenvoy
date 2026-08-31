@@ -56,7 +56,9 @@ function subscribe(sessionId) {
     }
 
     if (event.type === "EventDaemonLog") {
-      daemonLogToast(event.source, event.text);
+      if (!appendDaemonLog(event.source, event.text)) {
+        daemonLogToast(event.source, event.text);
+      }
       return;
     }
 

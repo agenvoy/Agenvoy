@@ -288,6 +288,18 @@ async function renderModel() {
   }
   const count = (prefix) => registered.filter((id) => modelPrefix(id) === prefix).length;
 
+  const picked = praseURL().target || "";
+  if (picked === "routing") {
+    modelView = "routing";
+    modelProvider = "";
+  } else if (picked && prefixes.includes(picked)) {
+    modelView = "provider";
+    modelProvider = picked;
+  } else {
+    modelView = "add";
+    modelProvider = "";
+  }
+
   dom.list.innerHTML = "";
   for (const [name, view] of [
     ["add-provider", "add"],
@@ -438,27 +450,15 @@ async function renderModelRouting(registered) {
 }
 
 function selectProvider(prefix) {
-  cancelModelFetch();
-  modelView = "provider";
-  modelProvider = prefix;
-  modelOpen = "";
-  renderModel();
+  window.location.href = getLink({ page: "config", tab: "Model", target: prefix });
 }
 
 function selectModelRouting() {
-  cancelModelFetch();
-  modelView = "routing";
-  modelProvider = "";
-  modelOpen = "";
-  renderModel();
+  window.location.href = getLink({ page: "config", tab: "Model", target: "routing" });
 }
 
 function selectProviderAdd() {
-  cancelModelFetch();
-  modelView = "add";
-  modelProvider = "";
-  modelOpen = "";
-  renderModel();
+  window.location.href = getLink({ page: "config", tab: "Model" });
 }
 
 function providerDetails(provider, method, added) {
@@ -783,7 +783,7 @@ async function renderProviderModels(prefix, registered) {
   dom.models.appendChild(_("div.row", [_("strong", `${prefix} · pick the models this agent can use`), remove]));
 
   const probe = await probeProvider(prefix);
-  if (probe.aborted || modelProvider !== prefix) {
+  if (probe.aborted) {
     return;
   }
 

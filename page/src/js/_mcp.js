@@ -86,6 +86,7 @@ async function renderMcp() {
 
   const { servers, oauth, status } = await mcpServers();
   const names = Object.keys(servers).sort();
+  const picked = praseURL().target || "";
 
   dom.list.innerHTML = "";
 
@@ -116,12 +117,15 @@ async function renderMcp() {
     const card = _("div.card", [_("strong", name), _("p", `${transport} · ${mark}`), remove]);
     card.dataset.name = name;
     card.dataset.state = flag;
-    card.dataset.selected = name === mcpEditing ? "1" : "0";
+    card.dataset.selected = name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, name);
-      openMcp(name);
+      window.location.href = getLink({ page: "config", tab: "MCP", target: name });
     });
     dom.list.appendChild(card);
+  }
+
+  if (picked && servers[picked]) {
+    fillMcpForm(picked, servers[picked], oauth[picked] === true);
   }
 }
 
@@ -268,8 +272,7 @@ async function saveMcp() {
     return;
   }
 
-  await openMcp(name);
-  renderMcp();
+  window.location.href = getLink({ page: "config", tab: "MCP", target: name });
 }
 
 async function removeMcpServer(name) {
@@ -297,10 +300,7 @@ async function deleteMcp(name) {
     return;
   }
 
-  if (mcpEditing === name) {
-    resetMcp();
-  }
-  renderMcp();
+  window.location.href = getLink({ page: "config", tab: "MCP" });
 }
 
 function deleteEditingMcp() {

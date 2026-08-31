@@ -97,8 +97,12 @@ func ListSessionHistoryFiles() gin.HandlerFunc {
 			return
 		}
 
+		keyword := strings.ToLower(strings.TrimSpace(c.Query("keyword")))
 		tasks := make([]gin.H, 0, len(rows))
 		for _, row := range rows {
+			if !actionMatch(row, keyword) {
+				continue
+			}
 			tasks = append(tasks, gin.H{
 				"task_hash": row.TaskHash,
 				"end_at":    row.EndAt.Format(time.RFC3339),
@@ -109,6 +113,18 @@ func ListSessionHistoryFiles() gin.HandlerFunc {
 		}
 		c.JSON(http.StatusOK, gin.H{"tasks": tasks})
 	}
+}
+
+func actionMatch(row historyStore.ActionRecord, keyword string) bool {
+	if keyword == "" {
+		return true
+	}
+	for _, field := range []string{row.Objective, row.Reply, string(row.ToolResults)} {
+		if strings.Contains(strings.ToLower(field), keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func GetSessionHistoryFile() gin.HandlerFunc {

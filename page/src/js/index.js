@@ -13,6 +13,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const tabs = Object.keys(configTab);
     const matched = tabs.find((name) => name.toLowerCase() === String(params.tab || "").toLowerCase());
     params.tab = matched || tabs[0];
+  }
+
+  if (params.page == "monitor") {
+    const tabs = Object.keys(monitorTab).concat(["Details"]);
+    const matched = tabs.find((name) => name.toLowerCase() === String(params.tab || "").toLowerCase());
+    params.tab = matched || tabs[0];
 
     const periods = Object.keys(usageTab);
     const period = periods.find((name) => name.toLowerCase() === String(params.period || "").toLowerCase());
@@ -53,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left_tab: leftTab,
       feature: feature,
       configTab: configTab,
+      monitorTab: monitorTab,
       usageTab: usageTab,
     },
     event: {
@@ -126,6 +133,18 @@ document.addEventListener("DOMContentLoaded", function () {
       usage_open: function () {
         window.location.href = usageLink("24h", currentSessionId);
       },
+      history_open: function () {
+        window.location.href = historyLink(currentSessionId, 0);
+      },
+      history_range: function () {
+        historySubmit();
+      },
+      history_keydown: function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          historySubmit();
+        }
+      },
       skill_pick: function () {
         openSkillPicker();
       },
@@ -148,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
         deleteEditing("knowledge");
       },
       cron_save: function () {
-        saveSchedule("cron");
+        commitSchedule("cron");
       },
       cron_reset: function () {
         resetSchedule("cron");
@@ -160,7 +179,7 @@ document.addEventListener("DOMContentLoaded", function () {
         testSchedule("cron");
       },
       task_save: function () {
-        saveSchedule("task");
+        commitSchedule("task");
       },
       task_reset: function () {
         resetSchedule("task");
@@ -200,6 +219,15 @@ document.addEventListener("DOMContentLoaded", function () {
       },
       model_filter: function (e) {
         modelFilterChange(e);
+      },
+      daemon_range: function () {
+        daemonSubmit();
+      },
+      daemon_keydown: function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          daemonSubmit();
+        }
       },
       mcp_reset: function () {
         resetMcp();
@@ -322,9 +350,6 @@ document.addEventListener("DOMContentLoaded", function () {
           if (params.tab === "Model") {
             renderModel();
           }
-          if (params.tab === "Usage") {
-            renderUsagePage(params.chat);
-          }
           if (params.tab === "MCP") {
             resetMcp();
             renderMcp();
@@ -338,6 +363,21 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         }
 
+        if (params.page === "monitor") {
+          if (params.tab === "Usage") {
+            renderUsagePage(params.chat);
+          }
+          if (params.tab === "History") {
+            renderHistoryPage(params.target || "", Number(params.offset) || 0);
+          }
+          if (params.tab === "Details") {
+            renderDetailsPage(params.target || "", params.hash || "", params.item || "");
+          }
+          if (params.tab === "Daemon") {
+            renderDaemonPage();
+          }
+        }
+
         if (params.page === "features") {
           const kind = { Rules: "rule", Knowledge: "knowledge" }[params.tab];
           if (kind) {
@@ -346,7 +386,9 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           if (params.tab === "Skills") {
             renderSkillTab();
-            openSkillConfig();
+            if (!params.target) {
+              openSkillConfig();
+            }
           }
           const schedule = { Cron: "cron", Task: "task" }[params.tab];
           if (schedule) {

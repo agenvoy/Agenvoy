@@ -33,6 +33,7 @@ async function renderKeychain() {
   }
 
   const keys = await keychainKeys();
+  const picked = praseURL().target || "";
 
   dom.list.innerHTML = "";
 
@@ -47,12 +48,15 @@ async function renderKeychain() {
 
     const card = _("div.card", [_("strong", key), _("p", "stored"), remove]);
     card.dataset.name = key;
-    card.dataset.selected = key === keychainEditing ? "1" : "0";
+    card.dataset.selected = key === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, key);
-      openKeychain(key);
+      window.location.href = getLink({ page: "config", tab: "Keychain", target: key });
     });
     dom.list.appendChild(card);
+  }
+
+  if (picked && keys.includes(picked)) {
+    openKeychain(picked);
   }
 }
 
@@ -125,8 +129,7 @@ async function saveKeychain() {
     return;
   }
 
-  openKeychain(key);
-  renderKeychain();
+  window.location.href = getLink({ page: "config", tab: "Keychain", target: key });
 }
 
 async function deleteKeychain(key) {
@@ -147,10 +150,7 @@ async function deleteKeychain(key) {
     return;
   }
 
-  if (keychainEditing === key) {
-    resetKeychain();
-  }
-  renderKeychain();
+  window.location.href = getLink({ page: "config", tab: "Keychain" });
 }
 
 function deleteEditingKeychain() {

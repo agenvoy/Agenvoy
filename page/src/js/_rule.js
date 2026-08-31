@@ -29,7 +29,7 @@ function markRule(name) {
   }
   delete dom.dataset.selected;
   dom.removeAttribute("title");
-  dom.name = "Use persona";
+  dom.name = "Use rule";
 }
 
 async function selectRule(name) {

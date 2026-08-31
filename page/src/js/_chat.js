@@ -167,7 +167,7 @@ async function renderChat(sessionId) {
 
   let content = "";
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/action`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/chat`);
     if (!response.ok) {
       return;
     }

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -60,6 +60,10 @@
       </section>
       <!---->
       <footer>
+        <a href="/?page=monitor&tab=Usage" name="Monitor">
+          <span class="material-symbols-outlined"> desktop_windows </span>
+          <p>Monitor</p>
+        </a>
         <a href="/?page=config&tab=Model" name="Config">
           <span class="material-symbols-outlined"> settings </span>
           <p>Config</p>
@@ -81,6 +85,9 @@
           </button>
           <button type="button" @click="usage_open" name="Usage" data-hide="1">
             <span class="material-symbols-outlined"> bar_chart </span>
+          </button>
+          <button type="button" @click="history_open" name="History" data-hide="1">
+            <span class="material-symbols-outlined"> history </span>
           </button>
           <button class="harness" type="button" @click="harness_click" name="Voice mode">
             <span class="material-symbols-outlined"> robot_2 </span>
@@ -113,7 +120,7 @@
             <pre></pre>
           </label>
           <section>
-            <button class="rule left" type="button" @click="rule_pick" name="Use persona">
+            <button class="rule left" type="button" @click="rule_pick" name="Use rule">
               <span class="material-symbols-outlined"> contract </span>
             </button>
             <button class="skill left" type="button" @click="skill_pick" name="Use skill">
@@ -152,7 +159,13 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add Rule</p>
             </button>
-            <div class="list" id="rule-list"></div>
+            <details class="group" open>
+              <summary>
+                Rules
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="rule-list"></div>
+            </details>
           </div>
           <form id="rule-form">
             <input id="rule-title" type="text" placeholder="Name this rule" />
@@ -170,7 +183,13 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add Knowledge</p>
             </button>
-            <div class="list" id="knowledge-list"></div>
+            <details class="group" open>
+              <summary>
+                Knowledge
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="knowledge-list"></div>
+            </details>
           </div>
           <form id="knowledge-form">
             <input
@@ -193,7 +212,13 @@
               <span class="material-symbols-outlined"> checklist </span>
               <p>Setting Skills</p>
             </button>
-            <div class="list" id="skill-list"></div>
+            <details class="group" open>
+              <summary>
+                Skills
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="skill-list"></div>
+            </details>
           </div>
           <form id="skill-form">
             <p class="empty">select skills</p>
@@ -213,7 +238,13 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add Cron</p>
             </button>
-            <div class="list" id="cron-list"></div>
+            <details class="group" open>
+              <summary>
+                Cron
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="cron-list"></div>
+            </details>
           </div>
           <form id="cron-form">
             <input
@@ -244,7 +275,13 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add Task</p>
             </button>
-            <div class="list" id="task-list"></div>
+            <details class="group" open>
+              <summary>
+                Task
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="task-list"></div>
+            </details>
           </div>
           <form id="task-form">
             <input
@@ -289,7 +326,13 @@
               <span class="material-symbols-outlined"> checklist </span>
               <p>Setting Models</p>
             </button>
-            <div class="list" id="model-list"></div>
+            <details class="group" open>
+              <summary>
+                Providers
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list quota" id="model-list"></div>
+            </details>
           </div>
           <form id="model-form" data-view="add">
             <nav class="tab" id="model-filter" @click="model_filter">
@@ -304,27 +347,19 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Usage" class="editor">
-          <div class="side">
-            <div class="list" id="usage-list"></div>
-          </div>
-          <form id="usage-form">
-            <nav class="period" :data-selected="{{params.period}}">
-              <a :for="(k, v) in usageTab" :href="?page=config&tab=Usage&period={{k}}" :name="{{k}}">{{k}}</a>
-            </nav>
-            <section class="summary" id="usage-summary"></section>
-            <section class="chart" id="usage-chart"></section>
-            <section class="table" id="usage-table"></section>
-          </form>
-        </section>
-
         <section :elif="params.tab == MCP" class="editor">
           <div class="side">
             <button type="button" class="new" @click="mcp_reset">
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add MCP</p>
             </button>
-            <div class="list" id="mcp-list"></div>
+            <details class="group" open>
+              <summary>
+                Servers
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list status" id="mcp-list"></div>
+            </details>
           </div>
           <form id="mcp-form" data-transport="stdio">
             <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
@@ -367,7 +402,13 @@
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add Key</p>
             </button>
-            <div class="list" id="keychain-list"></div>
+            <details class="group" open>
+              <summary>
+                Keys
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="keychain-list"></div>
+            </details>
           </div>
           <form id="keychain-form" autocomplete="off">
             <input
@@ -416,6 +457,127 @@
               <button type="button" class="remove" @click="channel_disable">disable</button>
               <button type="button" class="submit" @click="channel_enable">enable</button>
             </footer>
+          </form>
+        </section>
+      </section>
+      <!---->
+      <section :elif="params.page == monitor" class="config monitor">
+        <header :data-selected="{{params.tab}}">
+          <a :for="(k, v) in monitorTab" :href="?page=monitor&tab={{k}}" :name="{{k}}">
+            <span class="material-symbols-outlined"> {{v}} </span>
+            <p>{{k}}</p>
+          </a>
+          <div></div>
+        </header>
+
+        <section :if="params.tab == Usage" class="editor">
+          <div class="side">
+            <a class="new" id="usage-all">
+              <span class="material-symbols-outlined"> stacks </span>
+              <p>All</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Sessions
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="usage-list"></div>
+            </details>
+          </div>
+          <form id="usage-form">
+            <nav class="period" :data-selected="{{params.period}}">
+              <a :for="(k, v) in usageTab" :href="?page=monitor&tab=Usage&period={{k}}" :name="{{k}}">{{k}}</a>
+            </nav>
+            <section class="summary" id="usage-summary"></section>
+            <section class="chart" id="usage-chart"></section>
+            <section class="table" id="usage-table"></section>
+          </form>
+        </section>
+
+        <section :elif="params.tab == History" class="editor history">
+          <div class="side">
+            <a class="new" id="history-all">
+              <span class="material-symbols-outlined"> stacks </span>
+              <p>All</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Sessions
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="history-list"></div>
+            </details>
+          </div>
+          <form>
+            <div class="range">
+              <input id="history-keyword" type="search" placeholder="keyword" @keydown="history_keydown" />
+              <input id="history-ago" type="text" placeholder="2d ago" @keydown="history_keydown" />
+              <input id="history-span" type="text" placeholder="12h wide" @keydown="history_keydown" />
+              <button type="button" class="submit" @click="history_range">search</button>
+            </div>
+            <section class="entries" id="history-entries"></section>
+            <nav class="pager" id="history-pager"></nav>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Details" class="editor details">
+          <div class="side">
+            <a class="new" id="details-back">
+              <span class="material-symbols-outlined"> arrow_back </span>
+              <p>Back</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Sections
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="details-list"></div>
+            </details>
+          </div>
+          <form>
+            <section class="entries" id="details-body"></section>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Daemon" class="editor daemon" id="daemon-panel" data-target="all">
+          <div class="side">
+            <a class="new" :href="?page=monitor&tab=Daemon" name="all">
+              <span class="material-symbols-outlined"> stacks </span>
+              <p>All</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Levels
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list">
+                <a class="card" :href="?page=monitor&tab=Daemon&target=error" name="error">
+                  <strong>Error</strong>
+                  <p>failures only</p>
+                </a>
+                <a class="card" :href="?page=monitor&tab=Daemon&target=warn" name="warn">
+                  <strong>Warn</strong>
+                  <p>recoverable issues</p>
+                </a>
+                <a class="card" :href="?page=monitor&tab=Daemon&target=debug" name="debug">
+                  <strong>Debug</strong>
+                  <p>verbose traces</p>
+                </a>
+                <a class="card" :href="?page=monitor&tab=Daemon&target=info" name="info">
+                  <strong>Info</strong>
+                  <p>normal activity</p>
+                </a>
+              </div>
+            </details>
+          </div>
+          <form>
+            <div class="range">
+              <input id="daemon-keyword" type="search" placeholder="keyword" @keydown="daemon_keydown" />
+              <input id="daemon-ago" type="text" placeholder="2d ago" @keydown="daemon_keydown" />
+              <input id="daemon-span" type="text" placeholder="12h wide" @keydown="daemon_keydown" />
+              <button type="button" class="submit" @click="daemon_range">search</button>
+            </div>
+            <pre id="daemon-log"></pre>
           </form>
         </section>
       </section>
