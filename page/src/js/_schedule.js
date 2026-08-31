@@ -14,6 +14,7 @@ const SCHEDULE_SPEC = {
     list: "/v1/cron",
     run: "/v1/cron/run",
     key: "crons",
+    tab: "Cron",
     hint: "Cron expressions · {min} {hour} {dom} {mon} {dow}",
     placeholder: "*/5 * * * *",
     empty: "at least one cron expression is required",
@@ -22,6 +23,7 @@ const SCHEDULE_SPEC = {
     list: "/v1/task",
     run: "/v1/task/run",
     key: "tasks",
+    tab: "Task",
     hint: "Fire times · '+5m' · '15:04' · 'YYYY-MM-DD HH:MM'",
     placeholder: "2026-01-01 09:00",
     empty: "at least one fire time is required",
@@ -107,6 +109,7 @@ async function renderSchedule(kind) {
   scheduleGroup[kind] = group;
 
   dom.list.innerHTML = "";
+  const picked = praseURL().target || "";
 
   for (const name of Object.keys(group)) {
     const remove = _("button", { type: "button" }, [_("span.material-symbols-outlined", "delete")]);
@@ -117,12 +120,15 @@ async function renderSchedule(kind) {
 
     const card = _("div.card", [_("strong", name), _("p", group[name].join(" · ")), remove]);
     card.dataset.name = name;
-    card.dataset.selected = name === scheduleEditing[kind] ? "1" : "0";
+    card.dataset.selected = name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, name);
-      openSchedule(kind, name);
+      window.location.href = getLink({ page: "features", tab: spec.tab, target: name });
     });
     dom.list.appendChild(card);
+  }
+
+  if (picked && group[picked]) {
+    openSchedule(kind, picked);
   }
 }
 
@@ -272,8 +278,16 @@ async function saveSchedule(kind) {
     scheduleError(err.message || "failed");
     return null;
   }
-  renderSchedule(kind);
   return { name: saved.name || name, session_id: saved.session_id || "" };
+}
+
+async function commitSchedule(kind) {
+  const spec = SCHEDULE_SPEC[kind];
+  const saved = await saveSchedule(kind);
+  if (!spec || !saved) {
+    return;
+  }
+  window.location.href = getLink({ page: "features", tab: spec.tab, target: saved.name });
 }
 
 async function testSchedule(kind) {
@@ -338,10 +352,7 @@ async function deleteSchedule(kind, name) {
     return;
   }
 
-  if (scheduleEditing[kind] === name) {
-    resetSchedule(kind);
-  }
-  renderSchedule(kind);
+  window.location.href = getLink({ page: "features", tab: spec.tab });
 }
 
 function deleteEditingSchedule(kind) {

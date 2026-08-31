@@ -1,0 +1,13 @@
+[Unit]
+Description=Agenvoy daemon
+
+[Service]
+Type=simple
+ExecStart="/usr/local/bin/agen" --daemon
+WorkingDirectory=/home/example
+Environment="PATH=/home/example/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+StandardOutput=append:/home/example/.config/agenvoy/daemon.log
+StandardError=append:/home/example/.config/agenvoy/daemon.log
+
+[Install]
+WantedBy=default.target

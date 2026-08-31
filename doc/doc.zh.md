@@ -125,6 +125,14 @@ MCP client 與 server 位於 `internal/runtime/mcp`，並使用官方 [`modelcon
     "local-tools": {
       "command": "node",
       "args": ["/absolute/path/server.js"]
+### Session 分類與監控
+
+TUI 的 session 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
+
+Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
+
+Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶體，以及到 `1.1.1.1:443` 的 TCP 連線；CPU 過高、記憶體過高、網路中斷與恢復都會寫入 daemon log，CPU 異常時也會盡可能列出前三名程序。
+
     },
     "remote-tools": {
       "url": "http://127.0.0.1:8000/mcp",
@@ -153,6 +161,7 @@ agen
 | `/memory`                       | 對當前 session 執行 `compact` / `reset` / `summary`                                   |
 | `/dangerous`                    | 刪除 session，或編輯 skill／指令白名單                                                |
 | `/discord` `/telegram` `/voice` | 啟用或停用各通道；token 會先驗證再存入                                                |
+| `/startup`                      | 啟用或停用登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit） |
 | `/admin-channel`                | 選擇由哪個已授權對話接收新對話驗證碼                                                  |
 | `/kuradb`                       | 安裝、更新或重連 KuraDB（以 MCP server 形式）                                         |
 | `/cron` `/task`                 | 新增、編輯或移除週期性與一次性排程                                                    |
@@ -336,10 +345,11 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method         | Path                  | 說明                                             |
 | -------------- | --------------------- | ------------------------------------------------ |
-| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill 內容            |
-| `GET` `DELETE` | `/v1/cron`            | **local** — 列出／刪除 cron 項目                 |
+| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，拆成 `name`／`description`／`body`（frontmatter 已解析） |
+| `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`description`／`content` 建立／更新 scheduler skill（frontmatter 由後端組出）並整組重綁 `target=cron\|task` 的排程     |
+| `GET` `DELETE` | `/v1/cron`            | **local** — 列出／刪除 cron 項目；刪除後若無其他綁定則將 skill 移入 .Trash       |
 | `POST`         | `/v1/cron/run`        | **local** — 立即觸發 cron 項目（`202 Accepted`） |
-| `GET` `DELETE` | `/v1/task`            | **local** — 列出／刪除單次任務                   |
+| `GET` `DELETE` | `/v1/task`            | **local** — 列出／刪除單次任務；刪除後若無其他綁定則將 skill 移入 .Trash        |
 | `POST`         | `/v1/task/run`        | **local** — 立即觸發任務（`202 Accepted`）       |
 
 **白名單**

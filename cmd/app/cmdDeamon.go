@@ -323,6 +323,9 @@ func cmdDaemon() {
 	stopWatcher := watchConfig(context.Background())
 	defer stopWatcher()
 
+	stopSessionWatcher := watchSession(context.Background())
+	defer stopSessionWatcher()
+
 	reloadDiscord(0)
 	reloadTelegram(0)
 	reloadLine()

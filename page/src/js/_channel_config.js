@@ -5,6 +5,11 @@ const CHANNEL_SPEC = {
   line: { label: "LINE", path: "/v1/channel/line", secret: true },
 };
 
+function channelTarget() {
+  const picked = praseURL().target || "";
+  return picked === "telegram" || picked === "discord" || picked === "line" ? picked : "admin";
+}
+
 let channelActive = "admin";
 
 function channelDom() {
@@ -41,6 +46,7 @@ async function renderChannel() {
     return;
   }
 
+  channelActive = channelTarget();
   const status = await channelStatus();
 
   for (const kind of Object.keys(CHANNEL_SPEC)) {
@@ -143,9 +149,6 @@ async function renderChannelChats(kind, enabled) {
   dom.chats.appendChild(_("strong", "Authorized chats · verified once, allowed since"));
 
   const chats = await channelChats(kind);
-  if (channelActive !== kind) {
-    return;
-  }
   if (chats.length === 0) {
     dom.chats.appendChild(_("p.empty", "none yet · message the bot and enter the verification code"));
     return;
@@ -235,8 +238,7 @@ function selectChannel(kind) {
   if (kind !== "admin" && !CHANNEL_SPEC[kind]) {
     return;
   }
-  channelActive = kind;
-  renderChannel();
+  window.location.href = getLink({ page: "config", tab: "Channel", target: kind });
 }
 
 async function sendChannel(action, token, secret) {

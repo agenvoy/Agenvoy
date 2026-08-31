@@ -36,6 +36,7 @@ type TUI struct {
 	spinner  spinner.Model
 
 	running       bool
+	emitted       bool
 	cancelExec    context.CancelFunc
 	runStartedAt  time.Time
 	pendingResume *ResumeExec

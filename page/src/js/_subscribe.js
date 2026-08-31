@@ -1,3 +1,5 @@
+const SESSION_CREATED = "session created";
+
 let subscription = null;
 let streamWasDown = false;
 let subscribedSession = "";
@@ -56,7 +58,14 @@ function subscribe(sessionId) {
     }
 
     if (event.type === "EventDaemonLog") {
-      daemonLogToast(event.source, event.text);
+      if (String(event.text || "").includes(SESSION_CREATED)) {
+        renderChatList();
+        appendDaemonLog(event.source, event.text);
+        return;
+      }
+      if (!appendDaemonLog(event.source, event.text)) {
+        daemonLogToast(event.source, event.text);
+      }
       return;
     }
 

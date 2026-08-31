@@ -29,7 +29,7 @@ function markRule(name) {
   }
   delete dom.dataset.selected;
   dom.removeAttribute("title");
-  dom.name = "Use persona";
+  dom.name = "Use rule";
 }
 
 async function selectRule(name) {
@@ -67,36 +67,31 @@ async function selectRule(name) {
 
 function openRulePicker() {
   const list = _("div.list");
-  const boxes = [];
-
-  const none = _("input", { type: "radio", name: "rule-pick", value: "" });
-  none.checked = ruleName === "";
-  boxes.push(none);
-  list.appendChild(_("label", [none, _("div", [_("strong", "default")])]));
-
-  for (const item of ruleList) {
-    if (!item.name) continue;
-    const box = _("input", { type: "radio", name: "rule-pick", value: item.name });
-    box.checked = ruleName === item.name;
-    boxes.push(box);
-    list.appendChild(_("label", [box, _("div", [_("strong", item.name)])]));
-  }
 
   const cancel = _("button", { type: "button" }, "cancel");
-  const save = _("button", { type: "button", class: "submit" }, "save");
-
-  const root = _("div.popup", [_("div.panel", [_("strong", "Rule"), list, _("footer", [cancel, save])])]);
+  const root = _("div.popup", [_("div.panel", [_("strong", "Rule"), list, _("footer", [cancel])])]);
   root.id = "rule-popup";
 
   const close = () => root.remove();
+  const add = function (value, body) {
+    const box = _("input", { type: "radio", name: "rule-pick", value: value });
+    box.checked = ruleName === value;
+    box.addEventListener("change", () => {
+      selectRule(value);
+      close();
+    });
+    list.appendChild(_("label", [box, _("div", body)]));
+  };
+
+  add("", [_("strong", "default")]);
+  for (const item of ruleList) {
+    if (!item.name) continue;
+    add(item.name, [_("strong", item.name)]);
+  }
+
   cancel.addEventListener("click", close);
   root.addEventListener("click", (e) => {
     if (e.target === root) close();
-  });
-  save.addEventListener("click", () => {
-    const picked = boxes.find((box) => box.checked);
-    selectRule(picked ? picked.value : "");
-    close();
   });
 
   document.body.appendChild(root);

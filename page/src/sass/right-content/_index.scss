@@ -2,6 +2,7 @@
 @use "feature";
 @use "config";
 @use "usage";
+@use "history";
 
 * {
   --width-right-content: calc(100% - 2rem);
@@ -36,6 +37,7 @@
     @include feature.styles;
     @include config.styles;
     @include usage.styles;
+    @include history.styles;
   }
 }
 

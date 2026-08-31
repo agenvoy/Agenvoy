@@ -37,7 +37,8 @@ let usageChart = null;
 
 function usageDom() {
   return {
-    header: document.querySelector("section.config nav.period"),
+    header: document.querySelector("section.monitor nav.period"),
+    all: $("#usage-all"),
     list: $("#usage-list"),
     summary: $("#usage-summary"),
     chart: $("#usage-chart"),
@@ -77,7 +78,7 @@ async function fetchUsageSessions() {
 }
 
 function usageLink(period, id) {
-  return "?page=config&tab=Usage&period=" + period + (id ? "&chat=" + encodeURIComponent(id) : "");
+  return "?page=monitor&tab=Usage&period=" + period + (id ? "&chat=" + encodeURIComponent(id) : "");
 }
 
 function markUsagePeriods() {
@@ -288,13 +289,18 @@ async function renderUsagePage(sessionId) {
   markUsagePeriods();
   const sessions = await fetchUsageSessions();
 
+  if (dom.all) {
+    dom.all.href = usageLink(currentUsagePeriod(), "");
+    dom.all.dataset.selected = usageScope === "" ? "1" : "0";
+  }
+
   dom.list.innerHTML = "";
-  dom.list.appendChild(usageCard("", "ALL", "every session combined"));
   for (const one of sessions) {
     if (!one || !one.id) {
       continue;
     }
-    dom.list.appendChild(usageCard(one.id, one.name || one.id, one.model || one.id));
+    const name = one.name || one.id;
+    dom.list.appendChild(usageCard(one.id, one.self_id ? `${name} (${one.self_id})` : name, one.model || one.id));
   }
 
   window.addEventListener("resize", resizeUsageChart);
