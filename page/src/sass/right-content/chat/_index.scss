@@ -47,8 +47,7 @@ body[data-rendered="1"] section.right-content section.chat {
         display: flex;
       }
 
-      header .memory,
-      header button.persona {
+      header button[data-hide="1"] {
         display: flex;
       }
     }
@@ -91,8 +90,7 @@ body[data-rendered="1"] section.right-content section.chat {
         background-color: #000;
       }
 
-      .memory,
-      button.persona {
+      button[data-hide="1"] {
         display: none;
       }
 

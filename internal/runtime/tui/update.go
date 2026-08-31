@@ -69,6 +69,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, nil
 			}
 			if t.running && t.cancelExec != nil {
+				if !t.emitted {
+					return t.Update(CancelRunConfirm{yes: true})
+				}
 				t.popup = &Popup{
 					kind:    popupSingleSelect,
 					title:   "Cancel current task?",
@@ -219,6 +222,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case agentExec:
 		t.cancelExec = msg.cancel
+		t.emitted = false
 		t.toolBuf, t.toolCount = nil, 0
 		t.subCount, t.subActive = 0, 0
 		t.subBuf, t.subOrder = nil, nil
@@ -557,11 +561,24 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.botBodyDraft = ""
 			return t, cmd
 		}
-		next, cmd := t.showBotPromptPicker(msg.name)
+		next, cmd := t.showBotSelfIDPopup(sid, msg.name)
+		return next, cmd
+
+	case BotSelfIDSubmit:
+		sid := strings.TrimSpace(t.currentSessionID)
+		if sid == "" {
+			t.botBodyDraft = ""
+			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
+		}
+		if cmd, ok := t.botCheckSelfID(sid, msg.selfID); !ok {
+			t.botBodyDraft = ""
+			return t, cmd
+		}
+		next, cmd := t.showBotPromptPicker(msg.name, msg.selfID)
 		return next, cmd
 
 	case BotCustomSubmit:
-		next, cmd := t.showBotCustomPopup(msg.name)
+		next, cmd := t.showBotCustomPopup(msg.name, msg.selfID)
 		return next, cmd
 
 	case BotPromptSubmit:
@@ -569,7 +586,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if sid == "" {
 			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 		}
-		return t, t.botSaveCmd(sid, msg.name, msg.body)
+		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
 	case BotSaved:
 		if msg.err != nil {
@@ -899,6 +916,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice %s: %v", msg.action, msg.err)) + "\n")
 		}
 		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
+
+	case StartupAction:
+		return t, setStartup(msg.action)
+
+	case StartupDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] startup %s: %v", msg.action, msg.err)) + "\n")
+		}
+		line := fmt.Sprintf("⎯ startup %sd", msg.action)
+		if msg.detail != "" {
+			line += " · " + msg.detail
+		}
+		return t, tea.Println(hintStyle.Render(line) + "\n")
 
 	case KuradbAction:
 		sid := strings.TrimSpace(t.currentSessionID)

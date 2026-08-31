@@ -31,11 +31,12 @@ const KNOWLEDGE_TEMPLATE = `# <topic>
 `;
 
 const FEATURE_SPEC = {
-  rule: { list: "/v1/rules", item: "/v1/rule", key: "rules", template: RULE_TEMPLATE },
+  rule: { list: "/v1/rules", item: "/v1/rule", key: "rules", tab: "Rules", template: RULE_TEMPLATE },
   knowledge: {
     list: "/v1/knowledges",
     item: "/v1/knowledge",
     key: "knowledges",
+    tab: "Knowledge",
     template: KNOWLEDGE_TEMPLATE,
     titleOptional: true,
   },
@@ -88,9 +89,14 @@ async function renderFeature(kind) {
   }
 
   dom.list.innerHTML = "";
+  const picked = praseURL().target || "";
+  let found = false;
 
   for (const item of items) {
     if (!item.name) continue;
+    if (item.name === picked) {
+      found = true;
+    }
 
     const remove = _("button", { type: "button" }, [_("span.material-symbols-outlined", "delete")]);
     remove.addEventListener("click", (e) => {
@@ -104,12 +110,15 @@ async function renderFeature(kind) {
       remove,
     ]);
     card.dataset.name = item.name;
-    card.dataset.selected = item.name === featureEditing[kind] ? "1" : "0";
+    card.dataset.selected = item.name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, item.name);
-      openFeature(kind, item.name);
+      window.location.href = getLink({ page: "features", tab: spec.tab, target: item.name });
     });
     dom.list.appendChild(card);
+  }
+
+  if (found) {
+    openFeature(kind, picked);
   }
 }
 
@@ -188,14 +197,12 @@ async function saveFeature(kind) {
       featureError(detail.error || `HTTP ${response.status}`);
       return;
     }
-    featureEditing[kind] = ((await response.json()) || {}).name || name;
-    markFeatureMode(dom, true);
+    const saved = ((await response.json()) || {}).name || name;
+    window.location.href = getLink({ page: "features", tab: spec.tab, target: saved });
   } catch (err) {
     console.error("saveFeature", err);
     featureError(err.message || "failed");
-    return;
   }
-  renderFeature(kind);
 }
 
 async function deleteFeature(kind, name) {
@@ -216,10 +223,7 @@ async function deleteFeature(kind, name) {
     return;
   }
 
-  if (featureEditing[kind] === name) {
-    resetFeature(kind);
-  }
-  renderFeature(kind);
+  window.location.href = getLink({ page: "features", tab: spec.tab });
 }
 
 function deleteEditing(kind) {

@@ -133,6 +133,13 @@ graph TB
 
 ## 模組：Session、歷史與 Pending 工作
 
+Session ID 的前綴同時代表請求來源：`cli-` 是本機 CLI／TUI、`tg-` 是 Telegram、`dc-` 是 Discord、`chat-` 是 Web／API、`temp-` 是短期工作。TUI session 選擇器會依群組排序，將目前 session 排在最前；偵測到至少兩個群組時，顯示 `all` 與各前綴分頁。Daemon 透過 `fsnotify` 監看新建立的 session 目錄，並在 log 記錄 session ID 與設定名稱。
+
+Session 設定持久化於 history SQLite 資料庫。Persona 的 `self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會將舊版 `bot.json`、舊版 bot markdown、session `config.json` 與 `status.json` 遷移至 SQLite／state table。新建 session 會先保存資料庫列並建立目錄，再寫入 session log。
+
+Session 仍會保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認保留來源前綴；CLI、Web、Telegram 與 Discord listener 只接收相符工作，再透過已註冊 handler 恢復。
+## 模組：Session、歷史與 Pending 工作
+
 Session 持久保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 會以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認會保留來源前綴；CLI、Web、Telegram 與 Discord listener 只會接收符合來源的工作，再透過已註冊的 handler 恢復。
 
 ```mermaid
@@ -153,6 +160,10 @@ graph TB
         ResetAll[ResetAll] --> Summary
     end
 ```
+
+## 模組：Runtime 監控
+
+Daemon 啟動背景監控器，每 30 秒取樣一次。CPU 使用率達 80% 以上、Go process 記憶體達 2 GiB 以上，或對 `1.1.1.1:443` 的 TCP 連線中斷時會記錄警告；條件解除後會記錄恢復事件。CPU 過高時，若可用也會以 `ps` 查詢前三名 CPU 使用程序。這些紀錄會進入 daemon log stream，與 Agent session 執行彼此獨立。
 
 ## 模組：任務生命週期、併發與取消
 

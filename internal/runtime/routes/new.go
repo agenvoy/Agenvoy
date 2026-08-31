@@ -26,6 +26,7 @@ func New() *gin.Engine {
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
 	r.GET("/v1/info/version", handler.GetVersion())
+	r.GET("/v1/daemon", localhostOnly(), handler.GetDaemonLog())
 
 	r.GET("/v1/tools", handler.ListTools())
 	r.POST("/v1/tool/:tool_name", handler.CallTool())
@@ -61,7 +62,7 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id/summary", localhostOnly(), handler.SummarySession())
 	r.GET("/v1/session/:session_id/reasoning", localhostOnly(), handler.GetSessionReasoning())
 	r.POST("/v1/session/:session_id/reasoning", localhostOnly(), handler.SetSessionReasoning())
-	r.GET("/v1/session/:session_id/action", localhostOnly(), handler.GetSessionActionLog())
+	r.GET("/v1/session/:session_id/chat", localhostOnly(), handler.GetSessionChatLog())
 	r.GET("/v1/session/:session_id/usage", localhostOnly(), handler.GetSessionUsageLog())
 	r.GET("/v1/session/:session_id/history", localhostOnly(), handler.ListSessionHistoryFiles())
 	r.GET("/v1/session/:session_id/history/*file", localhostOnly(), handler.GetSessionHistoryFile())

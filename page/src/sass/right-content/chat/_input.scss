@@ -165,42 +165,6 @@
         flex-grow: 1;
       }
 
-      label {
-        display: flex;
-        flex-flow: row;
-        align-items: center;
-        gap: 0.25rem;
-        height: 1rem;
-        cursor: pointer;
-
-        &.model select {
-          direction: rtl;
-          text-align: right;
-          text-align-last: right;
-
-          option {
-            direction: ltr;
-            text-align: right;
-          }
-        }
-
-        select {
-          field-sizing: content;
-          width: auto;
-          max-width: 12rem;
-          height: 1rem;
-          padding: 0;
-          font: inherit;
-          font-size: small;
-          line-height: 1rem;
-          color: inherit;
-          background-color: transparent;
-          border: none;
-          outline: none;
-          cursor: pointer;
-        }
-      }
-
       button {
         position: relative;
         display: flex;
@@ -220,7 +184,12 @@
         }
 
         &.right:after {
+          right: -0.5rem;
+        }
+
+        &:last-child:after {
           right: 0;
+          transform: translateY(calc(-100% - 0.25rem));
         }
 
         &:after {
@@ -280,6 +249,46 @@
             border-radius: 50%;
             opacity: 0;
             transition: 0.2s;
+          }
+        }
+
+        &.model {
+          gap: 0.25rem;
+          width: auto;
+
+          > span.model-icon {
+            display: none;
+          }
+
+          > p {
+            max-width: 12rem;
+            font-size: small;
+            line-height: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          &:before,
+          &:after {
+            display: none;
+          }
+
+          @media (max-width: 479.99px) {
+            width: 1rem;
+
+            > span.model-icon {
+              display: block;
+            }
+
+            > p {
+              display: none;
+            }
+
+            &:before,
+            &:after {
+              display: block;
+            }
           }
         }
       }

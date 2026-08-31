@@ -17,42 +17,51 @@ async function openSkillPicker() {
   }
 
   const list = _("div.list");
-  const boxes = [];
-
-  const none = _("input", { type: "radio", name: "skill-pick", value: "" });
-  none.checked = skill === "";
-  boxes.push(none);
-  list.appendChild(_("label", [none, _("div", [_("strong", "none")])]));
-
-  for (const item of items) {
-    if (!item.name) continue;
-    const box = _("input", { type: "radio", name: "skill-pick", value: item.name });
-    box.checked = skill === item.name;
-    boxes.push(box);
-
-    const body = item.description ? [_("strong", item.name), _("p", item.description)] : [_("strong", item.name)];
-    list.appendChild(_("label", [box, _("div", body)]));
-  }
 
   const cancel = _("button", { type: "button" }, "cancel");
-  const save = _("button", { type: "button", class: "submit" }, "save");
-
-  const root = _("div.popup", [_("div.panel", [_("strong", "Skill"), list, _("footer", [cancel, save])])]);
+  const root = _("div.popup", [_("div.panel", [_("strong", "Skill"), list, _("footer", [cancel])])]);
   root.id = "skill-popup";
 
   const close = () => root.remove();
+  const add = function (value, body) {
+    const box = _("input", { type: "radio", name: "skill-pick", value: value });
+    box.checked = skill === value;
+    box.addEventListener("change", () => {
+      skill = value;
+      markSkill(skill);
+      prefixChatInput(skill);
+      close();
+    });
+    list.appendChild(_("label", [box, _("div", body)]));
+  };
+
+  add("", [_("strong", "none")]);
+  for (const item of items) {
+    if (!item.name) continue;
+    add(item.name, item.description ? [_("strong", item.name), _("p", item.description)] : [_("strong", item.name)]);
+  }
+
   cancel.addEventListener("click", close);
   root.addEventListener("click", (e) => {
     if (e.target === root) close();
   });
-  save.addEventListener("click", () => {
-    const picked = boxes.find((box) => box.checked);
-    skill = picked ? picked.value : "";
-    markSkill(skill);
-    close();
-  });
 
   document.body.appendChild(root);
+}
+
+function prefixChatInput(name) {
+  const dom = $("#chat-input");
+  if (!dom) {
+    return;
+  }
+
+  const rest = dom.value.replace(/^\/\S*\s*/, "");
+  dom.value = name ? `/${name} ${rest}` : rest;
+  if (dom.nextElementSibling) {
+    dom.nextElementSibling.textContent = dom.value + "\n";
+  }
+  dom.focus();
+  dom.setSelectionRange(dom.value.length, dom.value.length);
 }
 
 function markSkill(name) {
@@ -83,20 +92,6 @@ function skillTabDom() {
   };
 }
 
-function resetSkillTab() {
-  const dom = skillTabDom();
-  skillTabName = "";
-  skillTabPath = "";
-  if (dom.name) dom.name.value = "";
-  if (dom.content) dom.content.value = "";
-  if (dom.form) {
-    delete dom.form.dataset.editing;
-    delete dom.form.dataset.view;
-  }
-  if (dom.allowList) delete dom.allowList.dataset.open;
-  markSelectedCard(dom.list, "");
-}
-
 async function skillTabState() {
   const out = { skills: [], allowed: {}, source: {} };
   try {
@@ -122,17 +117,21 @@ async function renderSkillTab() {
   const { skills, allowed, source } = await skillTabState();
 
   dom.list.innerHTML = "";
+  const picked = praseURL().target || "";
 
   for (const name of skills) {
     const mark = allowed[name] ? "always allow" : "ask each time";
     const card = _("div.card", [_("strong", name), _("p", `${source[name] || "unknown"} · ${mark}`)]);
     card.dataset.name = name;
-    card.dataset.selected = name === skillTabName ? "1" : "0";
+    card.dataset.selected = name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      markSelectedCard(dom.list, name);
-      openSkillTab(name);
+      window.location.href = getLink({ page: "features", tab: "Skills", target: name });
     });
     dom.list.appendChild(card);
+  }
+
+  if (picked && skills.includes(picked)) {
+    openSkillTab(picked);
   }
 }
 
@@ -243,8 +242,7 @@ async function deleteSkillTab() {
     return;
   }
 
-  resetSkillTab();
-  renderSkillTab();
+  window.location.href = getLink({ page: "features", tab: "Skills" });
 }
 
 async function openSkillFolder() {
