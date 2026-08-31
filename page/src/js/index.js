@@ -26,8 +26,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   if (params.chat) {
-    const shape = params.page === "chat" ? CHAT_ID : SESSION_ID;
-    if (!shape.test(params.chat)) {
+    if (!SESSION_ID.test(params.chat)) {
       window.location.href = getLink({ page: params.page, tab: params.tab });
       return;
     }

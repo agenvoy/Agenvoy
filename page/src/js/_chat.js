@@ -10,6 +10,8 @@ function retryChatList() {
 async function renderChatList() {
   const dom = $("#left-tab-chat-list");
   const channelDom = $("#left-tab-channel-list");
+  const terminalDom = $("#left-tab-terminal-list");
+  const tempDom = $("#left-tab-temp-list");
   if (!dom) {
     return;
   }
@@ -29,17 +31,57 @@ async function renderChatList() {
   clearTimeout(chatListRetry);
 
   dom.innerHTML = "";
-  if (channelDom) {
-    channelDom.innerHTML = "";
+  for (const one of [channelDom, terminalDom, tempDom]) {
+    if (one) {
+      one.innerHTML = "";
+    }
   }
+
   for (const e of list) {
     if (e.id.startsWith("chat-")) {
       dom.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
+    if (e.id.startsWith("cli-")) {
+      if (terminalDom) {
+        terminalDom.appendChild(chatListItem(e.id, e.name || e.id));
+      }
+      continue;
+    }
+    if (e.id.startsWith("temp-")) {
+      if (tempDom) {
+        tempDom.appendChild(chatListItem(e.id, e.name || e.id));
+      }
+      continue;
+    }
     const icon = channelIcon(e.id);
     if (icon && channelDom) {
       channelDom.appendChild(channelListItem(e.id, e.name || e.id, icon));
+    }
+  }
+
+  for (const [box, label] of [
+    [channelDom, "Channels"],
+    [terminalDom, "Terminals"],
+    [tempDom, "Temps"],
+  ]) {
+    if (!box) {
+      continue;
+    }
+    const group = box.closest("details");
+    const title = group ? group.querySelector("summary > p") : null;
+    if (title) {
+      title.textContent = `${label} (${box.childElementCount})`;
+    }
+  }
+
+  const active = currentSessionId
+    ? document.querySelector(`section.chats [data-id="${currentSessionId}"]`)
+    : null;
+  if (active) {
+    const group = active.closest("details");
+    if (group) {
+      group.open = true;
     }
   }
 }
@@ -100,7 +142,7 @@ function chatListItem(sessionId, title) {
 }
 
 function closeChatMenu() {
-  for (const dom of document.querySelectorAll('#left-tab-chat-list [data-show="1"]')) {
+  for (const dom of document.querySelectorAll('section.chats [data-show="1"]')) {
     dom.dataset.show = "0";
   }
 }
@@ -137,7 +179,7 @@ async function deleteChat(sessionId) {
     return;
   }
 
-  const row = document.querySelector(`#left-tab-chat-list [data-id="${sessionId}"]`);
+  const row = document.querySelector(`section.chats [data-id="${sessionId}"]`);
   if (row) {
     row.remove();
   }

@@ -83,7 +83,7 @@ function openModelPicker() {
 }
 
 async function saveSessionModel(sessionId, model) {
-  if (!CHAT_ID.test(sessionId || "") || !model) {
+  if (!SESSION_ID.test(sessionId || "") || !model) {
     return;
   }
 
@@ -102,7 +102,7 @@ async function saveSessionModel(sessionId, model) {
 }
 
 async function getSessionModel(sessionId) {
-  if (!CHAT_ID.test(sessionId || "")) {
+  if (!SESSION_ID.test(sessionId || "")) {
     return "";
   }
 
@@ -150,7 +150,7 @@ function markReasoning(level) {
 }
 
 async function getReasoningList(sessionId) {
-  if (!CHAT_ID.test(sessionId || "")) {
+  if (!SESSION_ID.test(sessionId || "")) {
     return;
   }
 
@@ -211,7 +211,7 @@ function openReasoningPicker() {
 }
 
 async function saveSessionReasoning(sessionId, level) {
-  if (!CHAT_ID.test(sessionId || "") || !level) {
+  if (!SESSION_ID.test(sessionId || "") || !level) {
     return;
   }
 

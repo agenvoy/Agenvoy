@@ -76,10 +76,20 @@
     }
 
     > section.chats {
+      display: flex;
       flex-flow: column;
       flex-grow: 1;
       flex-shrink: 1;
+      min-height: 0;
       overflow-y: scroll;
+    }
+
+    details.group#left-tab-chats {
+      flex-grow: 1;
+    }
+
+    details.group:not(#left-tab-chats):has(> section:empty) {
+      display: none;
     }
 
     details.group {
@@ -226,7 +236,7 @@
       div.menu {
         z-index: 20;
         position: absolute;
-        top: 100%;
+        bottom: 100%;
         right: 0.125rem;
         display: none;
         flex-flow: column;
@@ -283,6 +293,8 @@
     }
 
     footer {
+      margin-top: 1rem;
+
       a,
       div {
         position: relative;
