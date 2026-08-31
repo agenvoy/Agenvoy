@@ -29,6 +29,7 @@ async function openSkillPicker() {
     box.addEventListener("change", () => {
       skill = value;
       markSkill(skill);
+      prefixChatInput(skill);
       close();
     });
     list.appendChild(_("label", [box, _("div", body)]));
@@ -46,6 +47,21 @@ async function openSkillPicker() {
   });
 
   document.body.appendChild(root);
+}
+
+function prefixChatInput(name) {
+  const dom = $("#chat-input");
+  if (!dom) {
+    return;
+  }
+
+  const rest = dom.value.replace(/^\/\S*\s*/, "");
+  dom.value = name ? `/${name} ${rest}` : rest;
+  if (dom.nextElementSibling) {
+    dom.nextElementSibling.textContent = dom.value + "\n";
+  }
+  dom.focus();
+  dom.setSelectionRange(dom.value.length, dom.value.length);
 }
 
 function markSkill(name) {
