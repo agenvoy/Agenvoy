@@ -24,7 +24,7 @@ var usagePeriods = []struct {
 	{label: "28d", days: 28},
 }
 
-func GetSessionActionLog() gin.HandlerFunc {
+func GetSessionChatLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		if sid == "" {
