@@ -24,11 +24,12 @@ import (
 )
 
 type SessionInfo struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	State string `json:"state"`
-	Model string `json:"model"`
-	Count int    `json:"count"`
+	ID     string `json:"id"`
+	SelfID string `json:"self_id"`
+	Name   string `json:"name"`
+	State  string `json:"state"`
+	Model  string `json:"model"`
+	Count  int    `json:"count"`
 }
 
 func ListSessions() gin.HandlerFunc {
@@ -89,11 +90,12 @@ func ListSessions() gin.HandlerFunc {
 
 			entries = append(entries, entry{
 				info: SessionInfo{
-					ID:    sid,
-					Name:  row.Name,
-					State: status.State,
-					Model: model,
-					Count: status.Count,
+					ID:     sid,
+					SelfID: row.SelfID,
+					Name:   row.Name,
+					State:  status.State,
+					Model:  model,
+					Count:  status.Count,
 				},
 				activeAt: lastActiveAt(sid),
 			})

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,delete,deployed_code,deployed_code_account,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,stop"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,docs,electrical_services,folder,for_you,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stop"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -73,14 +73,13 @@
         <header>
           <!--<p></p>
           <div></div>-->
-          <button class="persona" type="button" @click="persona_edit" name="Bot persona">
+          <button type="button" @click="persona_edit" name="Bot persona" data-hide="1">
             <span class="material-symbols-outlined"> for_you </span>
           </button>
-          <button class="memory" type="button" @click="memory_pick" name="Memory">
+          <button type="button" @click="memory_pick" name="Memory" data-hide="1">
             <span class="material-symbols-outlined"> cognition_2 </span>
           </button>
-          <!--<span class="memory"></span>-->
-          <button class="usage" type="button" @click="usage_open" name="Usage">
+          <button type="button" @click="usage_open" name="Usage" data-hide="1">
             <span class="material-symbols-outlined"> bar_chart </span>
           </button>
           <button class="harness" type="button" @click="harness_click" name="Voice mode">
@@ -115,7 +114,7 @@
           </label>
           <section>
             <button class="rule left" type="button" @click="rule_pick" name="Use persona">
-              <span class="material-symbols-outlined"> deployed_code_account </span>
+              <span class="material-symbols-outlined"> contract </span>
             </button>
             <button class="skill left" type="button" @click="skill_pick" name="Use skill">
               <span class="material-symbols-outlined"> lightbulb_2 </span>
@@ -124,24 +123,14 @@
               <span class="material-symbols-outlined"> folder </span>
             </button>
             <div></div>
-            <label class="model">
-              <select id="chat-model" @change="model_change">
-                <option value="auto">auto</option>
-              </select>
-              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-            </label>
-            <label class="model">
-              <select id="chat-reasoning" @change="reasoning_change">
-                <option value="none">none</option>
-                <option value="low">low</option>
-                <option value="medium" selected>medium</option>
-                <option value="high">high</option>
-                <option value="xhigh">xhigh</option>
-                <option value="max">max</option>
-              </select>
-              <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-            </label>
-            <button class="send right" type="button" @click="send_click" name="Send">
+            <button id="chat-model" class="model right" type="button" @click="model_pick" name="auto">
+              <span class="material-symbols-outlined model-icon"> deployed_code </span>
+              <p>auto</p>
+            </button>
+            <button id="chat-reasoning" class="reasoning right" type="button" @click="reasoning_pick" name="medium">
+              <span class="material-symbols-outlined"> signal_cellular_2_bar </span>
+            </button>
+            <button class="send" type="button" @click="send_click" name="Send">
               <span class="material-symbols-outlined"> send </span>
             </button>
           </section>

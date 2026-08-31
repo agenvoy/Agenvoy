@@ -183,15 +183,11 @@ document.addEventListener("DOMContentLoaded", function () {
       rule_pick: function () {
         openRulePicker();
       },
-      model_change: function (e) {
-        const model = e.target.value;
-        if (!model || !currentSessionId) {
-          return;
-        }
-        saveSessionModel(currentSessionId, model);
+      model_pick: function () {
+        openModelPicker();
       },
-      reasoning_change: function (e) {
-        saveSessionReasoning(currentSessionId, e.target.value);
+      reasoning_pick: function () {
+        openReasoningPicker();
       },
       memory_pick: function () {
         openMemoryPicker();

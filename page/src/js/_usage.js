@@ -294,7 +294,8 @@ async function renderUsagePage(sessionId) {
     if (!one || !one.id) {
       continue;
     }
-    dom.list.appendChild(usageCard(one.id, one.name || one.id, one.model || one.id));
+    const name = one.name || one.id;
+    dom.list.appendChild(usageCard(one.id, one.self_id ? `${name} (${one.self_id})` : name, one.model || one.id));
   }
 
   window.addEventListener("resize", resizeUsageChart);

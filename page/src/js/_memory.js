@@ -31,40 +31,36 @@ const MEMORY_ACTIONS = [
 
 function openMemoryPicker() {
   const list = _("div.list");
-  const boxes = [];
-
-  for (const one of MEMORY_ACTIONS) {
-    const box = _("input", { type: "radio", name: "memory-pick", value: one.key });
-    boxes.push(box);
-    list.appendChild(_("label", [box, _("div", [_("strong", one.label), _("p", one.hint)])]));
-  }
 
   const cancel = _("button", { type: "button" }, "cancel");
-  const run = _("button", { type: "button", class: "submit" }, "run");
-
-  const root = _("div.popup", [_("div.panel", [_("strong", "Memory"), list, _("footer", [cancel, run])])]);
+  const root = _("div.popup", [_("div.panel", [_("strong", "Memory"), list, _("footer", [cancel])])]);
   root.id = "memory-popup";
 
   const close = () => root.remove();
-  cancel.addEventListener("click", close);
-  root.addEventListener("click", (e) => {
-    if (e.target === root) close();
-  });
-  run.addEventListener("click", () => {
-    const picked = boxes.find((box) => box.checked);
-    if (!picked) {
-      return;
-    }
-    close();
-    if (picked.value === "summary") {
+  const run = function (key) {
+    if (key === "summary") {
       memorySummary();
       return;
     }
-    if (picked.value === "compact") {
+    if (key === "compact") {
       memoryCompact();
       return;
     }
     memoryReset();
+  };
+
+  for (const one of MEMORY_ACTIONS) {
+    const box = _("input", { type: "radio", name: "memory-pick", value: one.key });
+    box.addEventListener("change", () => {
+      run(one.key);
+      box.checked = false;
+    });
+    list.appendChild(_("label", [box, _("div", [_("strong", one.label), _("p", one.hint)])]));
+  }
+
+  cancel.addEventListener("click", close);
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
   });
 
   document.body.appendChild(root);

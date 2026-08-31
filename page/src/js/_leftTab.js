@@ -1,5 +1,5 @@
 const feature = {
-  Rules: "deployed_code_account",
+  Rules: "contract",
   Knowledge: "book_2",
   Skills: "lightbulb_2",
   Cron: "schedule",
