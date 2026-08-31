@@ -43,6 +43,7 @@ var commands = []Command{
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"voice", "enable / disable voice message · gemini tts"},
+	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
 	{"kuradb", "setup / update KuraDB RAG as an MCP server"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
