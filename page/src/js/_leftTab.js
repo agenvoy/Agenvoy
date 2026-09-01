@@ -16,6 +16,7 @@ const configTab = {
 const monitorTab = {
   Usage: "bar_chart",
   History: "history",
+  Lessons: "cognition_2",
   Daemon: "terminal",
 };
 
@@ -66,6 +67,9 @@ function getLink(params) {
   }
   if (params.item) {
     path += `&item=${encodeURIComponent(params.item)}`;
+  }
+  if (params.outcome) {
+    path += `&outcome=${encodeURIComponent(params.outcome)}`;
   }
   if (params.keyword) {
     path += `&keyword=${encodeURIComponent(params.keyword)}`;

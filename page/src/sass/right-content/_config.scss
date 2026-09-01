@@ -101,7 +101,7 @@ div.side {
     gap: 0.5rem;
     flex-grow: 1;
     flex-shrink: 1;
-    padding-bottom: 1rem;
+    padding-bottom: 5rem;
     min-height: 0;
     overflow-y: scroll;
 
@@ -321,7 +321,7 @@ align-self: stretch;
 min-width: 0;
 min-height: 0;
 max-width: 100%;
-padding-bottom: 1rem;
+padding-bottom: 5rem;
 overflow: scroll;
 
 @media (max-width: 767.99px) {
@@ -476,7 +476,7 @@ footer {
     overflow: scroll;
 
     header {
-      @include contentNav((Model, Usage, History, MCP, Keychain, Channel, Daemon));
+      @include contentNav((Model, Usage, History, Lessons, MCP, Keychain, Channel, Daemon));
     }
 
     section.editor.daemon {
@@ -524,6 +524,10 @@ footer {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
         overflow: auto;
+
+        @media (max-width: 767.99px) {
+          min-height: 50vh;
+        }
       }
     }
 
@@ -776,7 +780,7 @@ body section.right-content section.config {
     }
 
     select {
-      flex: 1 1 0;
+      flex: 0;
       min-width: 0;
       padding: 0.625rem 0.75rem;
       font: inherit;

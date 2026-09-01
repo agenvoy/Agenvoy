@@ -210,6 +210,9 @@ document.addEventListener("DOMContentLoaded", function () {
       memory_pick: function () {
         openMemoryPicker();
       },
+      resume_pick: function () {
+        openResumePicker();
+      },
       model_add: function () {
         selectProviderAdd();
       },
@@ -324,6 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
           renderWorkDirMark();
           renderChat(params.chat);
           loadPending(params.chat);
+          renderResumeMark(params.chat);
 
           const harness = $("section.chat button.harness");
           if (config.harness_enable) {
@@ -368,6 +372,9 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           if (params.tab === "History") {
             renderHistoryPage(params.target || "", Number(params.offset) || 0);
+          }
+          if (params.tab === "Lessons") {
+            renderLessonPage(params.target || "", Number(params.offset) || 0, params.outcome || "");
           }
           if (params.tab === "Details") {
             renderDetailsPage(params.target || "", params.hash || "", params.item || "");

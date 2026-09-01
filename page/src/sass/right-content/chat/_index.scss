@@ -94,6 +94,14 @@ body[data-rendered="1"] section.right-content section.chat {
         display: none;
       }
 
+      button.resume {
+        display: none;
+
+        &[data-has="1"] {
+          display: flex;
+        }
+      }
+
       button {
         position: relative;
         display: flex;

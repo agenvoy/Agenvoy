@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -104,6 +104,9 @@
           </button>
           <button type="button" @click="history_open" name="History" data-hide="1">
             <span class="material-symbols-outlined"> history </span>
+          </button>
+          <button class="resume" type="button" @click="resume_pick" name="Pending">
+            <span class="material-symbols-outlined"> running_with_errors </span>
           </button>
           <button class="harness" type="button" @click="harness_click" name="Voice mode">
             <span class="material-symbols-outlined"> robot_2 </span>
@@ -533,6 +536,27 @@
             </div>
             <section class="entries" id="history-entries"></section>
             <nav class="pager" id="history-pager"></nav>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Lessons" class="editor details">
+          <div class="side">
+            <a class="new" id="lesson-all">
+              <span class="material-symbols-outlined"> stacks </span>
+              <p>All</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Tools
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="lesson-list"></div>
+            </details>
+          </div>
+          <form>
+            <nav class="period" id="lesson-filter"></nav>
+            <section class="entries" id="lesson-body"></section>
+            <nav class="pager" id="lesson-pager"></nav>
           </form>
         </section>
 

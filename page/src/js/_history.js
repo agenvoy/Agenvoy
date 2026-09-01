@@ -1,4 +1,4 @@
-const HISTORY_PAGE_SIZE = 50;
+const HISTORY_PAGE_SIZE = 20;
 
 function historyDom() {
   return {
@@ -127,6 +127,10 @@ function codeBlock(text) {
   const body = _("pre");
   body.textContent = text;
   return _("div.code", [copyButton(() => body.textContent), body]);
+}
+
+function labeledBlock(label, text) {
+  return _("div.block", [textNode("strong", label), codeBlock(text)]);
 }
 
 function historyClock(text) {
@@ -311,7 +315,10 @@ async function renderDetailsPage(sessionId, hash, item) {
 
   if (picked >= 0) {
     dom.body.appendChild(_("div.head", [textNode("strong", tools[picked].name || "tool"), textNode("p", tools[picked].id || "")]));
-    dom.body.appendChild(codeBlock(historyText(tools[picked].result)));
+    if (tools[picked].args) {
+      dom.body.appendChild(labeledBlock("args", historyText(tools[picked].args)));
+    }
+    dom.body.appendChild(labeledBlock("result", historyText(tools[picked].result)));
     return;
   }
 
