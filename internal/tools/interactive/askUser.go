@@ -345,7 +345,7 @@ func AppendToolResult(sessionID, taskHash string, result ToolResult) {
 	}
 }
 
-func ListPendingTasks(sessionID string) []string {
+func listPendingTasks(sessionID string) []string {
 	files, err := go_pkg_filesystem_reader.ListFiles(filesystem.PendingDir(sessionID))
 	if err != nil {
 		return nil

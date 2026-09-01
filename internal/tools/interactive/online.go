@@ -33,6 +33,18 @@ func IsOnline(sessionID, taskHash string) bool {
 	return ok
 }
 
+func ListResumablePending(sessionID string) []string {
+	hashes := listPendingTasks(sessionID)
+	list := make([]string, 0, len(hashes))
+	for _, one := range hashes {
+		if IsOnline(sessionID, one) {
+			continue
+		}
+		list = append(list, one)
+	}
+	return list
+}
+
 func KeepOnline(sessionID, taskHash string) func() {
 	markOnline(sessionID, taskHash)
 

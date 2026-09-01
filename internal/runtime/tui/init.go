@@ -103,7 +103,7 @@ func (t TUI) Init() tea.Cmd {
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
-		if n := len(interactive.ListPendingTasks(sid)); n > 0 {
+		if n := len(interactive.ListResumablePending(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
 			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
 		}
