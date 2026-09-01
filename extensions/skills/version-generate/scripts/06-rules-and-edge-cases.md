@@ -1,5 +1,18 @@
 # 分類規則與邊界案例
 
+## 淨差異原則（最高優先，凌駕所有分類規則）
+
+Changelog 描述的是 **`$LATEST_TAG` 與 `HEAD` 兩個狀態的差異**，不是區間內的開發過程。
+
+| 判準 | 內容 |
+|---|---|
+| 條目存在依據 | `git diff $LATEST_TAG..HEAD` 有淨差異（詳見 [02-collect-changes.md](./02-collect-changes.md) §2.0） |
+| 條目描述對象 | 變更後的**最終狀態**，不敘述中間態、不敘述繞路過程 |
+| 抵銷處理 | 淨差異為零 → 整條丟棄，不留 REMOVE、不留 revert 記錄、不寫 Migration |
+| 合併處理 | 多 commit 對應同一淨差異 → 併成 1 條，`[hash]` 逗號分隔列出 |
+
+**為何：** 讀者升級時只在乎「我要改什麼才能從舊版走到新版」。列出走過又走回的路徑，讀者得自行推導哪些條目彼此抵銷才能得到真正的差異——這是 changelog 該替他做完的工作。
+
 ## 分類規則
 
 1. **版本優先**：`BREAKING` > `FEAT` > `PATCH_TAGS` > `NO_BUMP`
@@ -29,6 +42,12 @@
 | `.gitignore` 變更 | `CHORE` |
 | `go.mod` / `go.sum` / `package-lock.json` | `CHORE`（相依性管理） |
 | 自標籤後無提交 | 跳過生成，輸出「無變更」訊息 |
+| 自標籤後有提交但淨 diff 為空 | 跳過生成，輸出「無淨變更」訊息 |
+| 區間內新增檔案後又刪除 | 兩條皆不列（非 FEAT + REMOVE） |
+| 區間內改動後又改回原狀 | 不列 |
+| 區間內 BREAKING 後被還原 | 不列，且**不**要求 Migration |
+| `revert` commit 與被還原對象皆在本區間 | 兩者皆不列 |
+| `revert` commit 還原的是**已發布版本**的功能 | 列 `REMOVE`，描述該功能已消失 |
 | `BREAKING` 無 Migration 內容 | **中止**並要求補充，不產出殘缺文件 |
 | Co-author trailer 含 AI | 寫入 `co_authors`，不計入 `contributors` |
 | 僅 `NO_BUMP` 標籤（STYLE／DOC／TEST／CHORE） | 不更新 `.doc/version-generate/CHANGELOG.md` 索引 |

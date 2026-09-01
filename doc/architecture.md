@@ -66,7 +66,7 @@ graph LR
 
 ## Module: Daemon and HTTP API
 
-The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, tool calls, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers and their OAuth logins, rules, knowledge, cron/task automation, command/skill/tool allowlists, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. The web dashboard that drives the config tier lives in `page/`, is embedded into the binary at build time, and is served from `/` by the same daemon; `AGENVOY_PAGE_DIR` swaps the embedded copy for files on disk during development.
+The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers and their OAuth logins, rules, knowledge, schedule automation, the skill/tool allowlist, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. The web dashboard that drives the config tier lives in `page/`, is embedded into the binary at build time, and is served from `/` by the same daemon; `AGENVOY_PAGE_DIR` swaps the embedded copy for files on disk during development.
 
 ```mermaid
 graph TB
@@ -80,7 +80,7 @@ graph TB
         Reload --> AgentInit
     end
     Routes --> ExecAPI[Agent-execution API<br/>send · chat/completions · tools · sessions · models · SSE logs]
-    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · rules/knowledge · cron/task · allowlists · torii inspection]
+    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · rules/knowledge · schedule · allowlist · torii inspection]
     Routes --> Page[Embedded dashboard<br/>page/ served at /]
     ConfigAPI --> LocalGuard[localhostOnly guard]
     ExecAPI --> Client[CLI / TUI / remote agents]
@@ -112,7 +112,7 @@ graph TB
 
 ## Module: Tool Registry and Sandbox
 
-Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths outside `$HOME` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
+Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Fourteen tools ship with full schemas — `ask_user`, `calculate`, `chat_history`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths outside `$HOME` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
 
 ```mermaid
 graph TB
@@ -137,7 +137,6 @@ Sessions are identified by a prefix that also determines their origin: `cli-` fo
 
 Session configuration is persisted in the history SQLite database. Persona fields include a normalized lowercase `self_id`, limited to 32 ASCII letters, digits, `_`, and `-`; non-empty values are unique. The daemon migrates legacy `bot.json`, legacy bot markdown, session `config.json`, and `status.json` into SQLite/state tables during startup. New session creation persists the database row and creates the session directory before session logs are written.
 
-Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
 ## Module: Sessions, History, and Pending Work
 
 Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
@@ -183,7 +182,7 @@ graph TB
         Run --> Terminal[Completed / Failed / Canceled]
         Terminal --> Clear[Remove task from status.json]
     end
-    CancelAPI[POST /v1/session/:id/cancel/:task_id] --> Registry[Task ID to cancel func registry]
+    CancelAPI[POST /v1/session/:id/cancel/:once_id] --> Registry[Task ID to cancel func registry]
     Registry --> Run
     StaleCheck[Reader finds dead PID] --> Clear
 ```
@@ -291,16 +290,19 @@ stateDiagram-v2
 flowchart LR
     Config[~/.config/agenvoy/config.json] --> Limits[Runtime limits]
     Config --> Sessions[Session directories]
-    Sessions --> Bot[bot.json: name · model · reasoning · persona]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[pending metadata]
-    Sessions --> Status[status.json: active tasks and owning PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History search]
+    SQLite --> SessionRow[session: name · self_id · model · reasoning · persona]
+    SQLite --> StateRow[state: active tasks and owning PID]
+    SQLite --> ActionRow[action_history: finished runs and their tool results]
+    SQLite --> UsageRow[usage: per-model token spend, 28-day retention]
     Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 tool cache]
     Torii --> SessionHist[db_1 session conversation]
     Torii --> ErrorMemory[db_2 tool-error memory]
     Torii --> Knowledge[db_3 operator knowledge]
+    Torii --> Online[db_4 running-task presence]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP clients]
     Tools[~/.config/agenvoy/tools] --> Registry[Tool registry]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill scanner]

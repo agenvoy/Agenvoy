@@ -13,7 +13,7 @@ description: 從最新的 git tag 到 HEAD 生成結構化變更日誌並推薦�
 |---|---|---|
 | 0 | 發版者驗證（git config 缺失即中止） | [scripts/00-validate-releaser.md](./scripts/00-validate-releaser.md) |
 | 1 | 版本偵測（最新標籤 + remote URL） | [scripts/01-detect-version.md](./scripts/01-detect-version.md) |
-| 2 | 收集變更（Conventional Commits 優先） | [scripts/02-collect-changes.md](./scripts/02-collect-changes.md) |
+| 2 | 收集變更（`git diff` 淨差異優先，commit 為溯源） | [scripts/02-collect-changes.md](./scripts/02-collect-changes.md) |
 | 3 | 分類標籤與版本升級規則 | [scripts/03-classify-and-bump.md](./scripts/03-classify-and-bump.md) |
 | 4 | 產出 `.doc/version-generate/NEW_VERSION.md`（frontmatter + 追溯） | [scripts/04-output-template.md](./scripts/04-output-template.md) |
 | 5 | 更新 `.doc/version-generate/CHANGELOG.md` 主索引 | [scripts/05-update-index.md](./scripts/05-update-index.md) |
@@ -21,9 +21,13 @@ description: 從最新的 git tag 到 HEAD 生成結構化變更日誌並推薦�
 
 ## 核心契約
 
+### 條目定義（最高優先）
+
+條目來自 **`git diff $LATEST_TAG..HEAD` 的淨差異**，不是 commit 逐筆轉錄。區間內互相抵銷的變更（新增後刪除、遷移後遷回、改後改回）不列入，連 REMOVE 與 Migration 都不寫；多 commit 對應同一淨差異者合併為一條，並保留全部貢獻 commit 的 short hash 作為溯源。
+
 ### 硬性前置條件
 - `git config user.name` 與 `user.email` 必須設定（步驟 0）
-- BREAKING 變更必須附 Migration 指引（步驟 4，缺失則中止）
+- BREAKING 變更必須附 Migration 指引（步驟 4，缺失則中止）；BREAKING 須在淨差異中仍成立，被還原者不算
 
 ### 輸出
 - `.doc/version-generate/<NEW_VERSION>.md` — 完整 changelog（含 frontmatter）
