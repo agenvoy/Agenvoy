@@ -54,34 +54,6 @@ func ListProviders() gin.HandlerFunc {
 	}
 }
 
-func CheckProviderKey() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		prov := c.Param("provider")
-		p := findProvider(prov)
-		if p == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown provider"})
-			return
-		}
-		switch {
-		case p.Methods["oauth"] != "":
-			var exists bool
-			switch prov {
-			case "codex":
-				exists = oauthCodex.HasToken()
-			case "copilot":
-				exists = oauthCopilot.HasToken()
-			case "grok-oauth":
-				exists = oauthGrokOauth.HasToken()
-			}
-			c.JSON(http.StatusOK, gin.H{"exists": exists})
-		case p.Methods["api_key"] != "":
-			c.JSON(http.StatusOK, gin.H{"exists": keychain.Get(strings.ToUpper(prov)+"_API_KEY") != ""})
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support a key/oauth check"})
-		}
-	}
-}
-
 func AddProviderKey() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		prov := c.Param("provider")

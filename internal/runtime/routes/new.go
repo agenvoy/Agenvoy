@@ -19,19 +19,22 @@ func New() *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(cors())
 
-	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
-
 	pageIndex := registPage(r)
 
+	// * OpenAI compatible API
+	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
+	r.GET("/v1/models", handler.ListModels())
+	r.GET("/v1/models/*id", handler.GetModel())
+
+	// * TUI usage ()
+	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
+
+	// * WebUI API
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())
 	r.GET("/v1/info/version", handler.GetVersion())
 	r.GET("/v1/daemon", localhostOnly(), handler.GetDaemonLog())
 
-	r.GET("/v1/tools", handler.ListTools())
-	r.POST("/v1/tool/:tool_name", handler.CallTool())
-	r.GET("/v1/models", handler.ListModels())
-	r.GET("/v1/models/*id", handler.GetModel())
 	r.POST("/v1/models", localhostOnly(), handler.AddModel())
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
@@ -41,31 +44,28 @@ func New() *gin.Engine {
 	r.GET("/v1/model/summary", localhostOnly(), handler.GetSummaryModel())
 	r.POST("/v1/model/summary", localhostOnly(), handler.SetSummaryModel())
 
-	r.GET("/v1/sessions", handler.ListSessions())
 	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
+
+	r.GET("/v1/sessions", handler.ListSessions())
 	r.POST("/v1/session", localhostOnly(), handler.CreateSession())
-	r.PUT("/v1/session", localhostOnly(), handler.UpdateSession())
-	r.DELETE("/v1/session", localhostOnly(), handler.DeleteSession())
-	r.POST("/v1/session/:session_id/model", handler.SetSessionModel())
-	r.POST("/v1/session/:session_id/cancel/:task_id", handler.CancelSessionTask())
-	r.GET("/v1/session/:session_id/status", handler.GetSessionStatus())
-	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
-	r.GET("/v1/session/:session_id/pending", handler.ListSessionPending())
-	r.GET("/v1/session/:session_id/pending/:task_hash/questions", handler.GetSessionPendingQuestions())
-	r.POST("/v1/session/:session_id/pending/:task_hash/resume", handler.ResumeSessionPending())
-	r.DELETE("/v1/session/:session_id/pending/:task_hash", handler.DeleteSessionPending())
+	r.GET("/v1/session/:session_id", localhostOnly(), handler.GetSession())
+	r.POST("/v1/session/:session_id", localhostOnly(), handler.UpdateSession())
+	r.DELETE("/v1/session/:session_id", localhostOnly(), handler.DeleteSession())
 	r.POST("/v1/session/:session_id/confirm/:request_id", handler.ResolveToolConfirm())
-	r.GET("/v1/session/:session_id/persona", localhostOnly(), handler.GetSessionPersona())
-	r.POST("/v1/session/:session_id/persona", localhostOnly(), handler.SetSessionPersona())
 	r.POST("/v1/session/:session_id/compact", localhostOnly(), handler.CompactSession())
 	r.POST("/v1/session/:session_id/reset", localhostOnly(), handler.ResetSession())
 	r.POST("/v1/session/:session_id/summary", localhostOnly(), handler.SummarySession())
-	r.GET("/v1/session/:session_id/reasoning", localhostOnly(), handler.GetSessionReasoning())
-	r.POST("/v1/session/:session_id/reasoning", localhostOnly(), handler.SetSessionReasoning())
 	r.GET("/v1/session/:session_id/chat", localhostOnly(), handler.GetSessionChatLog())
 	r.GET("/v1/session/:session_id/usage", localhostOnly(), handler.GetSessionUsageLog())
 	r.GET("/v1/session/:session_id/history", localhostOnly(), handler.ListSessionHistoryFiles())
 	r.GET("/v1/session/:session_id/history/*file", localhostOnly(), handler.GetSessionHistoryFile())
+
+	// * WebUI session task
+	r.POST("/v1/session/:session_id/cancel/:once_id", handler.CancelSessionTask())
+	r.GET("/v1/session/:session_id/task", handler.ListSessionPending())
+	r.GET("/v1/session/:session_id/task/:task_hash/questions", handler.GetSessionPendingQuestions())
+	r.POST("/v1/session/:session_id/task/:task_hash/resume", handler.ResumeSessionPending())
+	r.DELETE("/v1/session/:session_id/task/:task_hash", handler.DeleteSessionPending())
 
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
@@ -80,13 +80,13 @@ func New() *gin.Engine {
 
 	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
 	r.GET("/v1/providers/usage", localhostOnly(), handler.ListProviderUsage())
-	r.GET("/v1/provider/:provider/check", localhostOnly(), handler.CheckProviderKey())
 	r.POST("/v1/provider/:provider/key", localhostOnly(), handler.AddProviderKey())
 	r.GET("/v1/provider/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
 	r.DELETE("/v1/provider/:provider/oauth", localhostOnly(), handler.ClearProviderOAuth())
 	r.GET("/v1/provider/:provider/models", localhostOnly(), handler.ListProviderModels())
 
 	r.GET("/v1/mcp", localhostOnly(), handler.ListMcpServers())
+	r.GET("/v1/mcp/tools", handler.ListMCPTools())
 	r.POST("/v1/mcp", localhostOnly(), handler.SetMcpServer())
 	r.POST("/v1/mcp/remove", localhostOnly(), handler.RemoveMcpServer())
 	r.GET("/v1/mcp/status", localhostOnly(), handler.McpStatus())

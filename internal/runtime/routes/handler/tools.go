@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
-func ListTools() gin.HandlerFunc {
+func ListMCPTools() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		workDir, _ := os.UserHomeDir()
 		executor, err := tools.NewExecutor(workDir, "api-"+utils.UUID(), agents.Scanner())
@@ -30,6 +31,9 @@ func ListTools() gin.HandlerFunc {
 
 		items := make([]toolItem, 0, len(executor.Tools))
 		for _, t := range executor.Tools {
+			if !strings.HasPrefix(t.Function.Name, "mcp__") {
+				continue
+			}
 			items = append(items, toolItem{
 				Name:        t.Function.Name,
 				Description: t.Function.Description,
@@ -38,43 +42,5 @@ func ListTools() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"tools": items})
-	}
-}
-
-func CallTool() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		toolName := c.Param("tool_name")
-
-		var args json.RawMessage
-		if err := c.ShouldBindJSON(&args); err != nil {
-			args = json.RawMessage("{}")
-		}
-
-		workDir, _ := os.UserHomeDir()
-		executor, err := tools.NewExecutor(workDir, "api-"+utils.UUID(), agents.Scanner())
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		found := false
-		for _, t := range executor.Tools {
-			if t.Function.Name == toolName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "tool not found: " + toolName})
-			return
-		}
-
-		result, err := tools.Execute(c.Request.Context(), executor, toolName, args)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"result": result})
 	}
 }

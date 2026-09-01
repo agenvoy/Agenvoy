@@ -2,9 +2,7 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +11,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -101,46 +98,4 @@ func reasoningLevels() []string {
 		out = append(out, r.String())
 	}
 	return out
-}
-
-func GetSessionReasoning() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid, ok := sessionParam(c)
-		if !ok {
-			return
-		}
-		_, level := configBot.GetModel(sid)
-		levels := reasoningLevels()
-		if !slices.Contains(levels, level) {
-			level = provider.ReasoningDefault.String()
-		}
-		c.JSON(http.StatusOK, gin.H{"reasoning": level, "levels": levels})
-	}
-}
-
-func SetSessionReasoning() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid, ok := sessionParam(c)
-		if !ok {
-			return
-		}
-
-		var body struct {
-			Reasoning string `json:"reasoning"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		level := strings.TrimSpace(body.Reasoning)
-		levels := reasoningLevels()
-		if !slices.Contains(levels, level) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("reasoning must be one of %v", levels)})
-			return
-		}
-
-		configBot.SetModel(sid, "", level)
-		c.JSON(http.StatusOK, gin.H{"ok": true, "reasoning": level})
-	}
 }

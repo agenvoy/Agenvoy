@@ -31,7 +31,6 @@ func (t TUI) restartTailer() TUI {
 		t.tailCancel = nil
 	}
 	sid := strings.TrimSpace(t.currentSessionID)
-	subscribeSessionLog(sid)
 	if sid == "" {
 		return t
 	}

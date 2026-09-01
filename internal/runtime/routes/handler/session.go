@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,7 +18,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	provider "github.com/pardnchiu/go-llm-router/core"
+
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -144,50 +148,123 @@ func CreateSession() gin.HandlerFunc {
 	}
 }
 
+func sessionDetail(sid string) gin.H {
+	selfID, name, rule := configBot.GetPersona(sid)
+	model, reasoning := configBot.GetModel(sid)
+	levels := reasoningLevels()
+	if !slices.Contains(levels, reasoning) {
+		reasoning = provider.ReasoningDefault.String()
+	}
+	status := configStatus.Get(sid)
+	return gin.H{
+		"id":        sid,
+		"self_id":   selfID,
+		"name":      name,
+		"rule":      rule,
+		"state":     status.State,
+		"model":     model,
+		"reasoning": reasoning,
+		"levels":    levels,
+		"count":     status.Count,
+	}
+}
+
+func GetSession() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sid, ok := sessionParam(c)
+		if !ok {
+			return
+		}
+		c.JSON(http.StatusOK, sessionDetail(sid))
+	}
+}
+
 func UpdateSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sid, ok := sessionParam(c)
+		if !ok {
+			return
+		}
+
 		var body struct {
-			SessionID   string `json:"session_id"`
-			Name        string `json:"name"`
-			Description string `json:"description"`
+			SelfID    *string `json:"self_id"`
+			Name      *string `json:"name"`
+			Rule      *string `json:"rule"`
+			Model     *string `json:"model"`
+			Reasoning *string `json:"reasoning"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		sid := strings.TrimSpace(body.SessionID)
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
+
+		model := ""
+		if body.Model != nil {
+			model = strings.TrimSpace(*body.Model)
+			if model == "" {
+				model = configBot.DefaultModel
+			}
+			if model != configBot.DefaultModel && !registeredModel(model) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
+				return
+			}
 		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-			return
+
+		reasoning := ""
+		if body.Reasoning != nil {
+			reasoning = strings.TrimSpace(*body.Reasoning)
+			levels := reasoningLevels()
+			if !slices.Contains(levels, reasoning) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("reasoning must be one of %v", levels)})
+				return
+			}
 		}
-		if err := configBot.Save(sid, body.Name, body.Description, true); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+
+		if body.SelfID != nil || body.Name != nil || body.Rule != nil {
+			selfID, name, rule := configBot.GetPersona(sid)
+			if body.SelfID != nil {
+				selfID = strings.TrimSpace(*body.SelfID)
+			}
+			if body.Name != nil {
+				name = *body.Name
+			}
+			if body.Rule != nil {
+				rule = *body.Rule
+			}
+			if err := historyStore.ValidSelfID(selfID); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := configBot.SavePersona(sid, selfID, name, rule); err != nil {
+				status := http.StatusInternalServerError
+				if errors.Is(err, historyStore.ErrDuplicateSelfID) {
+					status = http.StatusConflict
+				}
+				c.JSON(status, gin.H{"error": err.Error()})
+				return
+			}
 		}
-		c.JSON(http.StatusOK, gin.H{"ok": true})
+
+		if model != "" || reasoning != "" {
+			configBot.SetModel(sid, model, reasoning)
+		}
+
+		c.JSON(http.StatusOK, sessionDetail(sid))
 	}
+}
+
+func registeredModel(name string) bool {
+	cfg, err := config.Load()
+	if err != nil || cfg == nil {
+		return false
+	}
+	return slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == name })
 }
 
 func DeleteSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var body struct {
-			SessionID string `json:"session_id"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		sid := strings.TrimSpace(body.SessionID)
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		sid, ok := sessionParam(c)
+		if !ok {
 			return
 		}
 
@@ -242,60 +319,5 @@ func CompactSession() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed})
-	}
-}
-
-func GetSessionPersona() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-			return
-		}
-		selfID, name, body := configBot.GetPersona(sid)
-		c.JSON(http.StatusOK, gin.H{"self_id": selfID, "name": name, "body": body})
-	}
-}
-
-func SetSessionPersona() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-			return
-		}
-
-		var body struct {
-			SelfID string `json:"self_id"`
-			Name   string `json:"name"`
-			Body   string `json:"body"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		selfID := strings.TrimSpace(body.SelfID)
-		if err := historyStore.ValidSelfID(selfID); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err := configBot.SavePersona(sid, selfID, body.Name, body.Body); err != nil {
-			status := http.StatusInternalServerError
-			if errors.Is(err, historyStore.ErrDuplicateSelfID) {
-				status = http.StatusConflict
-			}
-			c.JSON(status, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }

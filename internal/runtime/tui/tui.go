@@ -59,7 +59,7 @@ func Run(ctx context.Context) error {
 		tools.WorkDirChangeHook = nil
 	}()
 
-	restoreSlog := installSlogTUI(ctx)
+	restoreSlog := installSlogTUI()
 	defer restoreSlog()
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {

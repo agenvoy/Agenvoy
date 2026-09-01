@@ -2,17 +2,12 @@ package tui
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 )
 
 type Log struct {
@@ -120,80 +115,11 @@ func extractField(s, key string) string {
 	return val
 }
 
-type sessionSubMgr struct {
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	current string
-}
-
-var subMgr = &sessionSubMgr{}
-
-func installSlogTUI(ctx context.Context) func() {
+func installSlogTUI() func() {
 	prev := slog.Default()
 	slog.SetDefault(slog.New(&tuiSlogHandler{}))
-	subMgrParentCtx = ctx
-	daemonCtx, daemonCancel := context.WithCancel(ctx)
-	go subscribeSessionEvents(daemonCtx, "daemon")
 
 	return func() {
-		daemonCancel()
-		subMgr.Stop()
 		slog.SetDefault(prev)
 	}
-}
-
-var subMgrParentCtx = context.Background()
-
-// * unsubscribe self tui logs
-func subscribeSessionLog(sessionID string) {
-	_ = sessionID
-	subMgr.Switch(subMgrParentCtx, "")
-}
-
-func (m *sessionSubMgr) Switch(parent context.Context, sessionID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if sessionID == m.current && m.cancel != nil {
-		return
-	}
-	if m.cancel != nil {
-		m.cancel()
-		m.cancel = nil
-	}
-	m.current = sessionID
-	if sessionID == "" {
-		return
-	}
-	ctx, cancel := context.WithCancel(parent)
-	m.cancel = cancel
-	go subscribeSessionEvents(ctx, sessionID)
-}
-
-func (m *sessionSubMgr) Stop() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.cancel != nil {
-		m.cancel()
-		m.cancel = nil
-	}
-	m.current = ""
-}
-
-func subscribeSessionEvents(ctx context.Context, sessionID string) {
-	daemon.Stream(ctx, "/v1/session/"+sessionID+"/log", func(raw []byte) {
-		var ev agentTypes.Event
-		if err := json.Unmarshal(raw, &ev); err != nil {
-			return
-		}
-		if ev.Type == agentTypes.EventDaemonLog {
-			send(Log{
-				Source: "daemon",
-				Level:  ev.Source,
-				Time:   time.Now(),
-				Msg:    ev.Text,
-			})
-			return
-		}
-		send(agentEvent{event: ev})
-	})
 }
