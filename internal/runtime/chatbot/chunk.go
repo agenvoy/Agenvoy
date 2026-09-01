@@ -2,6 +2,7 @@ package chatbot
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -110,9 +111,9 @@ func scanOpenTags(s string) []openTag {
 			stack = append(stack, openTag{name: name, attrs: attrs})
 			continue
 		}
-		for i := len(stack) - 1; i >= 0; i-- {
-			if stack[i].name == name {
-				stack = append(stack[:i], stack[i+1:]...)
+		for i, one := range slices.Backward(stack) {
+			if one.name == name {
+				stack = slices.Delete(stack, i, i+1)
 				break
 			}
 		}
@@ -133,9 +134,9 @@ func renderOpenTags(stack []openTag) string {
 
 func renderCloseTags(stack []openTag) string {
 	var sb strings.Builder
-	for i := len(stack) - 1; i >= 0; i-- {
+	for _, one := range slices.Backward(stack) {
 		sb.WriteString("</")
-		sb.WriteString(stack[i].name)
+		sb.WriteString(one.name)
 		sb.WriteString(">")
 	}
 	return sb.String()

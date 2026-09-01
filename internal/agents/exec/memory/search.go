@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	toriidb "github.com/pardnchiu/ToriiDB/core/store"
-
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
@@ -20,7 +18,7 @@ func Search(ctx context.Context, tool, keyword string, limit int) string {
 		return "keyword is required when tool is not specified"
 	}
 
-	db := torii.DB(torii.DBErrorMemory)
+	db := torii.Remote(torii.DBErrorMemory)
 
 	pattern := "*"
 	if tool != "" {
@@ -33,7 +31,7 @@ func Search(ctx context.Context, tool, keyword string, limit int) string {
 		}
 	}
 
-	records := keywordScan(db, tool, keyword, limit)
+	records := keywordScan(ctx, db, tool, keyword, limit)
 	if len(records) == 0 {
 		return "NONE"
 	}
@@ -47,11 +45,11 @@ func List(limit int) []Record {
 	if limit > 200 {
 		limit = 200
 	}
-	db := torii.DB(torii.DBErrorMemory)
-	return scanWithFilter(db, "*", func(Record) bool { return true }, limit)
+	db := torii.Remote(torii.DBErrorMemory)
+	return scanWithFilter(context.Background(), db, "*", func(Record) bool { return true }, limit)
 }
 
-func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword string, limit int) []Record {
+func vectorSearch(ctx context.Context, db *torii.Client, pattern, keyword string, limit int) []Record {
 	keys, err := db.VSearch(ctx, keyword, pattern, limit)
 	if err != nil || len(keys) == 0 {
 		return nil
@@ -59,7 +57,7 @@ func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword str
 
 	out := make([]Record, 0, len(keys))
 	for _, key := range keys {
-		entry, ok := db.Get(key)
+		entry, ok := db.Get(ctx, key)
 		if !ok {
 			continue
 		}
@@ -67,7 +65,7 @@ func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword str
 		if err := json.Unmarshal([]byte(entry.Value()), &rec); err != nil {
 			continue
 		}
-		if err := db.Expire(key, ttlSeconds); err != nil {
+		if err := db.Expire(ctx, key, ttlSeconds); err != nil {
 			slog.Debug("memory.Expire",
 				slog.String("key", key),
 				slog.String("error", err.Error()))
@@ -77,19 +75,19 @@ func vectorSearch(ctx context.Context, db *toriidb.Session, pattern, keyword str
 	return out
 }
 
-func keywordScan(db *toriidb.Session, tool, keyword string, limit int) []Record {
+func keywordScan(ctx context.Context, db *torii.Client, tool, keyword string, limit int) []Record {
 	if tool != "" {
 		msg := getMessage(keyword)
 		if msg == "unknown" {
 			return nil
 		}
-		return scanWithFilter(db, tool+":*", func(rec Record) bool {
+		return scanWithFilter(ctx, db, tool+":*", func(rec Record) bool {
 			return slices.Contains(rec.Keywords, "error_type:"+msg)
 		}, limit)
 	}
 
 	lower := strings.ToLower(keyword)
-	return scanWithFilter(db, "*", func(rec Record) bool {
+	return scanWithFilter(ctx, db, "*", func(rec Record) bool {
 		if lower == "" {
 			return true
 		}
@@ -108,18 +106,15 @@ func keywordScan(db *toriidb.Session, tool, keyword string, limit int) []Record 
 	}, limit)
 }
 
-func scanWithFilter(db *toriidb.Session, pattern string, match func(Record) bool, cap int) []Record {
-	keys := db.Keys(pattern)
-	if len(keys) == 0 {
+func scanWithFilter(ctx context.Context, db *torii.Client, pattern string, match func(Record) bool, cap int) []Record {
+	entries := db.Scan(ctx, pattern, torii.ScanOption{})
+	if len(entries) == 0 {
 		return nil
 	}
 
 	out := make([]Record, 0, cap)
-	for i := len(keys) - 1; i >= 0; i-- {
-		entry, ok := db.Get(keys[i])
-		if !ok {
-			continue
-		}
+	touched := make([]string, 0, cap)
+	for _, entry := range slices.Backward(entries) {
 		var rec Record
 		if err := json.Unmarshal([]byte(entry.Value()), &rec); err != nil {
 			continue
@@ -127,15 +122,15 @@ func scanWithFilter(db *toriidb.Session, pattern string, match func(Record) bool
 		if !match(rec) {
 			continue
 		}
-		if err := db.Expire(keys[i], ttlSeconds); err != nil {
-			slog.Debug("memory.Expire",
-				slog.String("key", keys[i]),
-				slog.String("error", err.Error()))
-		}
+		touched = append(touched, entry.Key)
 		out = append(out, rec)
 		if len(out) >= cap {
 			break
 		}
+	}
+
+	if err := db.ExpireMany(ctx, touched, ttlSeconds); err != nil {
+		slog.Debug("memory.ExpireMany", slog.String("error", err.Error()))
 	}
 	return out
 }
@@ -163,4 +158,18 @@ func clampLimit(limit int) int {
 		return 16
 	}
 	return limit
+}
+
+func Read(hash string) string {
+	db := torii.Remote(torii.DBErrorMemory)
+	for _, entry := range db.Scan(context.Background(), "*", torii.ScanOption{Contains: hash}) {
+		var record Record
+		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
+			continue
+		}
+		if record.ID == hash {
+			return entry.Value()
+		}
+	}
+	return "not found"
 }

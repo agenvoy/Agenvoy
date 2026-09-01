@@ -191,9 +191,9 @@ func DeleteSession() gin.HandlerFunc {
 			return
 		}
 
-		if db := torii.DB(torii.DBSessionHist); db != nil {
-			if keys := db.Keys(sid + ":*"); len(keys) > 0 {
-				db.Del(keys...)
+		if db := torii.Remote(torii.DBSessionHist); db != nil {
+			if keys := db.Keys(c.Request.Context(), sid+":*"); len(keys) > 0 {
+				db.Del(c.Request.Context(), keys...)
 			}
 		}
 		if err := historyStore.Clear(sid); err != nil {

@@ -35,6 +35,9 @@ func ListSessionPending() gin.HandlerFunc {
 		hashes := interactive.ListPendingTasks(sid)
 		list := make([]pendingTaskInfo, 0, len(hashes))
 		for _, h := range hashes {
+			if interactive.IsOnline(sid, h) {
+				continue
+			}
 			info, ok := interactive.LoadPendingInfo(sid, h)
 			if !ok {
 				continue

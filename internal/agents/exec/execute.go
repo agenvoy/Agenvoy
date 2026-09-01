@@ -217,6 +217,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				interactive.CleanupPending(session.ID, exec.PendingTask)
 			}
 		}()
+		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
 	}
 
 	if data.Skill != nil {

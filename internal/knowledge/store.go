@@ -1,6 +1,7 @@
 package knowledge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -72,7 +73,7 @@ func Key(name string) (string, error) {
 }
 
 func Read(name string) (Record, bool) {
-	entry, ok := torii.DB(torii.DBKnowledge).Get(name)
+	entry, ok := torii.Remote(torii.DBKnowledge).Get(context.Background(), name)
 	if !ok {
 		return Record{}, false
 	}
@@ -89,22 +90,25 @@ func Write(name, content string) error {
 	if err != nil {
 		return fmt.Errorf("json.Marshal: %w", err)
 	}
-	return torii.DB(torii.DBKnowledge).Set(name, string(raw), torii.SetDefault, nil)
+	return torii.Remote(torii.DBKnowledge).Set(context.Background(), name, string(raw), nil)
 }
 
 func Delete(name string) bool {
-	return torii.DB(torii.DBKnowledge).Del(name) > 0
+	return torii.Remote(torii.DBKnowledge).Del(context.Background(), name) > 0
 }
 
 func List() []Record {
-	names := torii.DB(torii.DBKnowledge).Keys("*")
-	sort.Strings(names)
+	entries := torii.Remote(torii.DBKnowledge).Scan(context.Background(), "*", torii.ScanOption{})
 
-	out := make([]Record, 0, len(names))
-	for _, name := range names {
-		if record, ok := Read(name); ok {
-			out = append(out, record)
+	out := make([]Record, 0, len(entries))
+	for _, entry := range entries {
+		var record Record
+		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
+			continue
 		}
+		record.Name = entry.Key
+		out = append(out, record)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }

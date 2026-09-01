@@ -1,13 +1,10 @@
 package tui
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -15,9 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 )
-
-var sseDataPrefix = []byte("data: ")
 
 type Log struct {
 	Source string
@@ -184,76 +180,20 @@ func (m *sessionSubMgr) Stop() {
 }
 
 func subscribeSessionEvents(ctx context.Context, sessionID string) {
-	url := daemonBaseURL() + "/v1/session/" + sessionID + "/log"
-	client := &http.Client{}
-	backoff := time.Second
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
+	daemon.Stream(ctx, "/v1/session/"+sessionID+"/log", func(raw []byte) {
+		var ev agentTypes.Event
+		if err := json.Unmarshal(raw, &ev); err != nil {
 			return
 		}
-		req.Header.Set("Accept", "text/event-stream")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			sleepBackoff(ctx, &backoff)
-			continue
+		if ev.Type == agentTypes.EventDaemonLog {
+			send(Log{
+				Source: "daemon",
+				Level:  ev.Source,
+				Time:   time.Now(),
+				Msg:    ev.Text,
+			})
+			return
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			sleepBackoff(ctx, &backoff)
-			continue
-		}
-		backoff = time.Second // 連到後重置
-
-		scanner := bufio.NewScanner(resp.Body)
-		scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
-		for scanner.Scan() {
-			buf := scanner.Bytes()
-			if !bytes.HasPrefix(buf, sseDataPrefix) {
-				continue
-			}
-			var ev agentTypes.Event
-			if err := json.Unmarshal(buf[len(sseDataPrefix):], &ev); err != nil {
-				continue
-			}
-			if ev.Type == agentTypes.EventDaemonLog {
-				send(Log{
-					Source: "daemon",
-					Level:  ev.Source,
-					Time:   time.Now(),
-					Msg:    ev.Text,
-				})
-				continue
-			}
-			send(agentEvent{event: ev})
-		}
-		if err := scanner.Err(); err != nil && ctx.Err() == nil {
-			slog.Debug("SSE scanner",
-				slog.String("session", sessionID),
-				slog.String("error", err.Error()))
-		}
-		resp.Body.Close()
-	}
-}
-
-func sleepBackoff(ctx context.Context, backoff *time.Duration) {
-	select {
-	case <-time.After(*backoff):
-	case <-ctx.Done():
-	}
-	*backoff *= 2
-	if *backoff > 30*time.Second {
-		*backoff = 30 * time.Second
-	}
+		send(agentEvent{event: ev})
+	})
 }
