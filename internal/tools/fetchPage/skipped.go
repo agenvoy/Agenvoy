@@ -1,6 +1,7 @@
 package fetchPage
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -12,9 +13,9 @@ import (
 )
 
 func isSkipped(href string) (bool, int, string) {
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	for _, prefix := range []string{"skip4xx:", "skip5xx:", "skipEmpty:"} {
-		entry, ok := db.Get(skipKey(prefix, href))
+		entry, ok := db.Get(context.Background(), skipKey(prefix, href))
 		if !ok {
 			continue
 		}
@@ -30,23 +31,23 @@ func skipKey(prefix, href string) string {
 }
 
 func addToSkippedMap(href string, status int, title string) {
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	val := fmt.Sprintf("%d|%s", status, strings.TrimSpace(title))
 	if status >= 500 {
-		if err := db.Set(skipKey("skip5xx:", href), val, torii.SetDefault, torii.TTL(int64(skippedExpired.Seconds()))); err != nil {
+		if err := db.Set(context.Background(), skipKey("skip5xx:", href), val, torii.TTL(int64(skippedExpired.Seconds()))); err != nil {
 			slog.Debug("store.DB.Set",
 				slog.String("error", err.Error()))
 		}
 		return
 	}
 	if status == 0 {
-		if err := db.Set(skipKey("skipEmpty:", href), val, torii.SetDefault, torii.TTL(int64(emptySkipExpired.Seconds()))); err != nil {
+		if err := db.Set(context.Background(), skipKey("skipEmpty:", href), val, torii.TTL(int64(emptySkipExpired.Seconds()))); err != nil {
 			slog.Debug("store.DB.Set",
 				slog.String("error", err.Error()))
 		}
 		return
 	}
-	if err := db.Set(skipKey("skip4xx:", href), val, torii.SetDefault, nil); err != nil {
+	if err := db.Set(context.Background(), skipKey("skip4xx:", href), val, nil); err != nil {
 		slog.Debug("store.DB.Set",
 			slog.String("error", err.Error()))
 	}

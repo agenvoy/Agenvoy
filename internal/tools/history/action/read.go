@@ -7,26 +7,43 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func read(e *toolTypes.Executor, taskID string) (string, error) {
+func read(e *toolTypes.Executor, taskIDs []string, full bool) (string, error) {
 	list, err := entries(e)
 	if err != nil {
 		return "", err
 	}
 
+	idEntry := make(map[string]entry, len(list))
 	for _, item := range list {
-		if item.taskID != taskID {
+		idEntry[item.taskID] = item
+	}
+
+	blocks := make([]string, 0, len(taskIDs))
+	var missing []string
+	for _, id := range taskIDs {
+		item, ok := idEntry[id]
+		if !ok {
+			missing = append(missing, id)
 			continue
 		}
 		r, err := load(item)
 		if err != nil {
 			return "", err
 		}
-		return render(item, r), nil
+		blocks = append(blocks, render(item, r, full))
 	}
-	return "", fmt.Errorf("no finished task with id %s in this session", taskID)
+
+	if len(blocks) == 0 {
+		return "", fmt.Errorf("no finished task with id %s in this session", strings.Join(missing, ", "))
+	}
+	out := strings.Join(blocks, "\n\n---\n\n")
+	if len(missing) > 0 {
+		out += fmt.Sprintf("\n\n---\n\nnot found in this session: %s", strings.Join(missing, ", "))
+	}
+	return out, nil
 }
 
-func render(item entry, r record) string {
+func render(item entry, r record, full bool) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "task %s — %s", item.taskID, item.at.Format(displayLayout))
@@ -44,8 +61,21 @@ func render(item entry, r record) string {
 		fmt.Fprintf(&b, "\n\ntodo [%s] %s", t.Status, t.Content)
 	}
 
+	var withheld []string
 	for _, t := range r.ToolResults {
-		fmt.Fprintf(&b, "\n\ncalled %s:\n%s", t.Name, t.Result)
+		if !full && !isReference(t.Name) {
+			withheld = append(withheld, t.Name)
+			continue
+		}
+		if t.Args == "" {
+			fmt.Fprintf(&b, "\n\ncalled %s:\n%s", t.Name, t.Result)
+			continue
+		}
+		fmt.Fprintf(&b, "\n\ncalled %s(%s):\n%s", t.Name, t.Args, t.Result)
+	}
+	if len(withheld) > 0 {
+		fmt.Fprintf(&b, "\n\nalso called, output withheld by scope=reference — scope=full to include it: %s",
+			strings.Join(withheld, ", "))
 	}
 
 	if r.Reply != "" {

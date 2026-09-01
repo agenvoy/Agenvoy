@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	toriidb "github.com/pardnchiu/ToriiDB/core/store"
+	toriidb "github.com/pardnchiu/toriidb/core/store"
 )
 
 const (
@@ -15,6 +15,7 @@ const (
 	DBSessionHist = 1 // Session conversation
 	DBErrorMemory = 2 // Tool error
 	DBKnowledge   = 3 // Knowledge
+	DBOnline      = 4
 )
 
 var (

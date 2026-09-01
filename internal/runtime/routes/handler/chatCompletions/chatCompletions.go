@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,11 +72,11 @@ func ChatCompletions() gin.HandlerFunc {
 		req.Messages = messages
 
 		input := ""
-		for i := len(req.Messages) - 1; i >= 0; i-- {
-			if req.Messages[i].Role != "user" {
+		for _, one := range slices.Backward(req.Messages) {
+			if one.Role != "user" {
 				continue
 			}
-			if str, ok := req.Messages[i].Content.(string); ok {
+			if str, ok := one.Content.(string); ok {
 				input = str
 				break
 			}

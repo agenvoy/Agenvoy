@@ -354,37 +354,30 @@ async function renderModel() {
   renderProviderCatalog(catalog, prefixes);
 }
 
-async function imageGenerator() {
+async function modelRouting() {
   try {
-    const response = await fetch(`${API}/v1/model/image`);
+    const response = await fetch(`${API}/v1/model`);
     if (response.ok) {
       const body = (await response.json()) || {};
-      return { model: body.model || "", options: body.options || [] };
+      return {
+        dispatcher: body.dispatcher || "",
+        summary: body.summary || "",
+        image: body.image || "",
+        imageOptions: body.image_options || [],
+      };
     }
   } catch (err) {
-    console.error("imageGenerator", err);
+    console.error("modelRouting", err);
   }
-  return { model: "", options: [] };
-}
-
-async function routingModel(kind) {
-  try {
-    const response = await fetch(`${API}/v1/model/${kind}`);
-    if (response.ok) {
-      return ((await response.json()) || {}).model || "";
-    }
-  } catch (err) {
-    console.error("routingModel", err);
-  }
-  return "";
+  return { dispatcher: "", summary: "", image: "", imageOptions: [] };
 }
 
 async function saveRoutingModel(kind, model) {
   try {
-    const response = await fetch(`${API}/v1/model/${kind}`, {
+    const response = await fetch(`${API}/v1/model`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: model }),
+      body: JSON.stringify({ [kind]: model }),
     });
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));
@@ -427,11 +420,7 @@ async function renderModelRouting(registered) {
     return;
   }
 
-  const [dispatcher, summary, image] = await Promise.all([
-    routingModel("dispatcher"),
-    routingModel("summary"),
-    imageGenerator(),
-  ]);
+  const routing = await modelRouting();
   if (modelView !== "routing") {
     return;
   }
@@ -444,9 +433,9 @@ async function renderModelRouting(registered) {
     return;
   }
 
-  dom.routing.appendChild(routingRow("Dispatcher", "dispatcher", dispatcher, registered));
-  dom.routing.appendChild(routingRow("Summary", "summary", summary, registered));
-  dom.routing.appendChild(imageRow(image.model, image.options));
+  dom.routing.appendChild(routingRow("Dispatcher", "dispatcher", routing.dispatcher, registered));
+  dom.routing.appendChild(routingRow("Summary", "summary", routing.summary, registered));
+  dom.routing.appendChild(imageRow(routing.image, routing.imageOptions));
 }
 
 function selectProvider(prefix) {

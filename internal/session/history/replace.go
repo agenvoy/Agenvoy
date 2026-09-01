@@ -1,6 +1,7 @@
 package history
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -31,10 +32,10 @@ func Replace(sessionID string, messages []Record) error {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile: %w", err)
 	}
 
-	db := torii.DB(torii.DBSessionHist)
-	keys := db.Keys(sessionID + ":*")
+	db := torii.Remote(torii.DBSessionHist)
+	keys := db.Keys(context.Background(), sessionID+":*")
 	if len(keys) > 0 {
-		db.Del(keys...)
+		db.Del(context.Background(), keys...)
 	}
 
 	return nil

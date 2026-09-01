@@ -44,14 +44,12 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 	}
 
 	key := fmt.Sprintf("%s:%d", record.ToolName, now.UnixNano())
-	db := torii.DB(torii.DBErrorMemory)
+	db := torii.Remote(torii.DBErrorMemory)
 	value := string(raw)
 	expireAt := torii.TTL(ttlSeconds)
 
-	if err := db.SetVector(ctx, key, value, torii.SetDefault, expireAt); err != nil {
-		if err = db.Set(key, value, torii.SetDefault, expireAt); err != nil {
-			return "", fmt.Errorf("store.Set: %w", err)
-		}
+	if err := db.SetVector(ctx, key, value, expireAt); err != nil {
+		return "", fmt.Errorf("store.Set: %w", err)
 	}
 
 	return fmt.Sprintf("Remember the Error: %s", record.ID), nil

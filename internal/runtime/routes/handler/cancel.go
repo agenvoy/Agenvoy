@@ -15,18 +15,18 @@ import (
 func CancelSessionTask() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := strings.TrimSpace(c.Param("session_id"))
-		taskID := strings.TrimSpace(c.Param("task_id"))
+		onceID := strings.TrimSpace(c.Param("once_id"))
 		if sessionID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 			return
 		}
 
-		if taskID != "" && taskID != "current" && exec.CancelTask(taskID) {
+		if onceID != "" && onceID != "current" && exec.CancelTask(onceID) {
 			c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": true})
 			return
 		}
 
-		event := agentTypes.Event{Type: agentTypes.EventCanceled, TaskID: taskID}
+		event := agentTypes.Event{Type: agentTypes.EventCanceled, OnceID: onceID}
 		sessionLog.Record(sessionID, event)
 		pubsub.Pub(sessionID, event)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": false, "stale": true})

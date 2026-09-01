@@ -37,11 +37,11 @@ func readUsageCache(id string) (usageEntry, bool) {
 	if !torii.Ready() {
 		return usageEntry{}, false
 	}
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	if db == nil {
 		return usageEntry{}, false
 	}
-	record, ok := db.Get(usageKeyPrefix + id)
+	record, ok := db.Get(context.Background(), usageKeyPrefix+id)
 	if !ok {
 		return usageEntry{}, false
 	}
@@ -56,7 +56,7 @@ func writeUsageCache(id string, entry usageEntry) {
 	if !torii.Ready() {
 		return
 	}
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	if db == nil {
 		return
 	}
@@ -64,7 +64,7 @@ func writeUsageCache(id string, entry usageEntry) {
 	if err != nil {
 		return
 	}
-	if err := db.Set(usageKeyPrefix+id, string(raw), torii.SetDefault, torii.TTL(providerUsageTTL)); err != nil {
+	if err := db.Set(context.Background(), usageKeyPrefix+id, string(raw), torii.TTL(providerUsageTTL)); err != nil {
 		slog.Debug("provider usage cache",
 			slog.String("provider", id),
 			slog.String("error", err.Error()))
@@ -75,11 +75,11 @@ func DropUsageCache(id string) {
 	if !torii.Ready() {
 		return
 	}
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	if db == nil {
 		return
 	}
-	db.Del(usageKeyPrefix + id)
+	db.Del(context.Background(), usageKeyPrefix+id)
 }
 
 type usageSource struct {

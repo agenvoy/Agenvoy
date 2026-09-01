@@ -125,14 +125,6 @@ MCP client 與 server 位於 `internal/runtime/mcp`，並使用官方 [`modelcon
     "local-tools": {
       "command": "node",
       "args": ["/absolute/path/server.js"]
-### Session 分類與監控
-
-TUI 的 session 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
-
-Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
-
-Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶體，以及到 `1.1.1.1:443` 的 TCP 連線；CPU 過高、記憶體過高、網路中斷與恢復都會寫入 daemon log，CPU 異常時也會盡可能列出前三名程序。
-
     },
     "remote-tools": {
       "url": "http://127.0.0.1:8000/mcp",
@@ -141,6 +133,29 @@ Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶
   }
 }
 ```
+
+Agenvoy 本身也是 MCP server，走 stdio：`agen` 的 stdin 不是 TTY（有管線輸入）時就啟動 MCP server 而非 TUI。要掛進其他 agent 請自行寫入該 agent 的設定檔——Claude Code 用 `~/.claude.json`、OpenCode 用 `~/.config/opencode/opencode.jsonc`、Codex 用 `~/.codex/config.toml`：
+
+```json
+{
+  "mcpServers": {
+    "agenvoy": { "command": "agen" }
+  }
+}
+```
+
+```toml
+[mcp_servers.agenvoy]
+command = "agen"
+```
+
+### Session 分類與監控
+
+TUI 的 session 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
+
+Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
+
+Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶體，以及到 `1.1.1.1:443` 的 TCP 連線；CPU 過高、記憶體過高、網路中斷與恢復都會寫入 daemon log，CPU 異常時也會盡可能列出前三名程序。
 
 ## 使用方式
 
@@ -155,7 +170,7 @@ agen
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
 | `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成來源         |
-| `/mcp`                          | 列出 MCP server；新增、安裝到其他 agent、登入、重連、查看工具、設定單一工具權限、移除 |
+| `/mcp`                          | 列出 MCP server；新增、登入、重連、查看工具、設定單一工具權限、移除                   |
 | `/switch` `/new`                | 切換 session 或建立新的（名稱會檢查重複）                                             |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
 | `/memory`                       | 對當前 session 執行 `compact` / `reset` / `summary`                                   |
@@ -243,8 +258,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `POST` | `/v1/chat/completions` | OpenAI 相容且 stateless 的 chat completions |
 | `GET`  | `/v1/info/version`     | 編譯時寫入的版本（`{version, dev}`）；未帶 tag 的建置 `dev` 為 true |
 | `GET`  | `/v1/log`              | SSE：不帶參數時只送 daemon `slog`（`EventDaemonLog`，`source` 為層級），與 TUI 標題列同一份來源；內含新對話驗證碼，故 daemon frame 僅對 loopback 來源附加。`?sessions=a,b` 於同一條連線加上該些 session 的事件，`replay=0` 略過回放，`daemon=0` 去掉 daemon frame。遠端來源必須帶 `sessions` |
-| `GET`  | `/v1/tools`            | 列出工具                                    |
-| `POST` | `/v1/tool/:tool_name`  | 直接呼叫工具                                |
+| `GET`  | `/v1/mcp/tools`        | 列出已連線 MCP server 註冊的工具（`mcp__*`）  |
 
 **模型**
 
@@ -253,44 +267,34 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[…]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
-| `GET` `POST`    | `/v1/model/dispatcher`          | **local** — 讀取／設定 dispatcher 模型               |
-| `GET` `POST`    | `/v1/model/summary`             | **local** — 讀取／設定 summary 模型                  |
-| `GET` `POST`    | `/v1/model/image`               | **local** — 讀取／設定圖片生成來源。值是 provider id（`openai`／`codex`／`grok`／`grok-oauth`／`gemini`），空字串或 `off` 為關閉；GET 另外回傳完整選項。該 provider 未註冊任何模型時拒絕 |
+| `GET` `POST`    | `/v1/model`                     | **local** — 模型路由：`dispatcher`／`summary`／`image`，讀取時另附 `image_options`。三個欄位放的東西不同類：`dispatcher` 與 `summary` 填已註冊的模型名（`prefix@model`），`image` 填的是 provider endpoint（`openai`／`codex`／`grok`／`grok-oauth`／`gemini`）——因為各 provider 的圖片模型寫死在 `go-llm-router` 內，選的是來源不是模型；`image_options` 只列出當前有憑證的 provider。`POST` 為部分更新：未帶（或 `null`）的欄位不動，`""` 清除，`image` 另接受 `off` 作為 `""` 的別名。模型未註冊、provider 不存在、或該 provider 沒有憑證一律拒絕且整批不寫。兩個動詞回傳同一種物件 |
 
 **Session**
 
 | Method                | Path                                           | 說明                                                                                                                                                                                  |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`                 | `/v1/sessions`                                 | 列出 session 與狀態                                                                                                                                                                   |
-| `POST` `PUT` `DELETE` | `/v1/session`                                  | **local** — 建立／重新命名／刪除 session                                                                                                                                              |
-| `POST`                | `/v1/session/:id/model`                        | 設定該 session 的模型                                                                                                                                                                 |
-| `GET`                 | `/v1/session/:id/status`                       | 查詢 session 狀態與用量                                                                                                                                                               |
+| `POST`                | `/v1/session`                                  | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                              |
+| `GET` `POST` `DELETE` | `/v1/session/:id`                              | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯）；兩者預設關閉，因為 log 可能很大 |
 | `POST`                | `/v1/session/:id/event`                        | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                       |
-| `GET`                 | `/v1/session/:id/pending`                      | 列出待完成（`ask_user`／confirm）工作                                                                                                                                                 |
-| `GET`                 | `/v1/session/:id/pending/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
-| `POST`                | `/v1/session/:id/pending/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
-| `DELETE`              | `/v1/session/:id/pending/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
-| `POST`                | `/v1/session/:id/cancel/:task_id`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
-| `POST`                | `/v1/session/:id/confirm/:request_id`          | 回覆等待中的工具確認:`{approve, remember?, allow_turn?, abort?, reason?}`。受限路徑與白名單外指令無法由此核准——它們需要只有 TUI 收得到的系統密碼驗證,沒帶驗證的核准會被退回為 skipped |
-| `GET` `POST`          | `/v1/session/:id/persona`                      | **local** — 讀取／設定 session persona                                                                                                                                                |
-| `GET` `POST`          | `/v1/session/:id/reasoning`                    | **local** — 讀取／設定該 session 的 reasoning 等級                                                                                                                                    |
-| `POST`                | `/v1/session/:id/reset`                        | **local** — 清除該 session 的歷史與摘要                                                                                                                                               |
-| `POST`                | `/v1/session/:id/summary`                      | **local** — 於背景重建 session 摘要                                                                                                                                                   |
-| `POST`                | `/v1/session/:id/compact`                      | **local** — 背景壓縮歷史（fire-and-forget,立即回 `202 Accepted`）                                                                                                                     |
-| `GET`                 | `/v1/session/:id/action`                       | **local** — 該 session 的 `action.log` 全文                                                                                                                                           |
-| `GET`                 | `/v1/session/:id/usage`                        | **local** — 24h/7d/28d 各模型 token 用量（與 TUI `/usage` 畫面同一套聚合邏輯）                                                                                                        |
-| `GET`                 | `/v1/session/:id/history`                      | **local** — 列出已歸檔的完成 pending task 檔案                                                                                                                                        |
-| `GET`                 | `/v1/session/:id/history/*file`                | **local** — 讀取單一歸檔的 pending task 檔案                                                                                                                                          |
+| `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 3 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 5 秒），視窗關閉或程序被砍的任務 5 秒內會重新出現 |
+| `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
+| `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
+| `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
+| `POST`                | `/v1/session/:id/cancel/:once_id`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
+| `POST`                | `/v1/session/:id/confirm/:once_id`          | 回覆等待中的工具確認:`{approve, remember?, allow_turn?, abort?, reason?}`。受限路徑與白名單外指令無法由此核准——它們需要只有 TUI 收得到的系統密碼驗證,沒帶驗證的核准會被退回為 skipped |
+| `POST`                | `/v1/session/:id/memory`                       | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清 |
+| `GET`                 | `/v1/session/:id/task/history`                 | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                 |
+| `GET`                 | `/v1/session/:id/task/:task_hash/history`      | **local** — 單一已完成任務的完整 action 紀錄，以 JSON 字串放在 `content`；該 hash 沒有紀錄時回 404                                                                                     |
 
 **Channel**
 
 | Method | Path                                         | 說明                                                                                                                                                                                                                                                    |
 | ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/v1/channel/status`                         | **local** — Telegram／Discord 啟用狀態、bot 使用者名稱、是否已存 token                                                                                                                                                                                  |
+| `GET`  | `/v1/channel`                                | **local** — 所有 channel 讀取合在同一個物件：`telegram` 與 `discord` 各帶 `{enabled, username, has_token}`，`admin` 帶 `{channel, authorized, chats:[{value,type,id,name}]}`。`chats` 取自 `.telegram` / `.discord` 授權檔（先 tg 後 dc），`value` 可直接回送 `POST`；`authorized` 標示現行轉發目標是否仍在名單內（手打的 ID 會是 `false`） |
 | `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱                                                                        |
 | `GET` | `/v1/channel/:channel/chats` | **local** — `telegram` / `discord` 已完成驗證的對話,來源是 `.telegram` / `.discord` 授權檔。只有 bot 執行中才有意義,建議在 `status` 回報 `enabled` 後才取用 |
 | `DELETE` | `/v1/channel/:channel/chat` | **local** — `{id}`。從該授權檔移除一筆對話,該對話需重新驗證才能再與 bot 對話。id 不在名單上回 404 |
-| `GET`  | `/v1/channel/admin`                          | **local** — 現行轉發目標與可選對象:`{admin_channel, authorized, chats:[{value,type,id,name}]}`。`chats` 取自 `.telegram` / `.discord` 授權檔(先 tg 後 dc),`value` 可直接回送 `POST`;`authorized` 標示現值是否仍在名單內(手打的 ID 會是 `false`)         |
 | `POST` | `/v1/channel/admin`                          | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`。設定新對話驗證碼的轉發目標,空字串清除;`value` 必填(省略回 400,避免誤送空 body 靜默清除)。只驗格式,不檢查該 ID 是否已在授權名單——未授權時 `NotifyAdminCode` 會 log warning 並讓驗證碼留在日誌 |
 
 **檔案與憑證**
@@ -310,7 +314,6 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | ------ | ------------------------------- | -------------------------------------- |
 | `GET`  | `/v1/providers`                 | **local** — 列出 provider 及其可用操作 |
 | `GET` | `/v1/providers/usage` | **local** — `codex`、`grok-oauth`、`copilot` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
-| `GET`  | `/v1/provider/:provider/check`  | **local** — 該 provider 是否已有憑證   |
 | `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key               |
 | `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
@@ -345,25 +348,29 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method         | Path                  | 說明                                             |
 | -------------- | --------------------- | ------------------------------------------------ |
+| `GET`          | `/v1/schedule`        | **local** — 以單一 `schedules` 陣列列出 cron 與單次任務，每筆帶 `type=cron\|task`；`?type=` 可只取其一 |
 | `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，拆成 `name`／`description`／`body`（frontmatter 已解析） |
-| `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`description`／`content` 建立／更新 scheduler skill（frontmatter 由後端組出）並整組重綁 `target=cron\|task` 的排程     |
-| `GET` `DELETE` | `/v1/cron`            | **local** — 列出／刪除 cron 項目；刪除後若無其他綁定則將 skill 移入 .Trash       |
-| `POST`         | `/v1/cron/run`        | **local** — 立即觸發 cron 項目（`202 Accepted`） |
-| `GET` `DELETE` | `/v1/task`            | **local** — 列出／刪除單次任務；刪除後若無其他綁定則將 skill 移入 .Trash        |
-| `POST`         | `/v1/task/run`        | **local** — 立即觸發任務（`202 Accepted`）       |
+| `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`description`／`content` 建立／更新 scheduler skill（frontmatter 由後端組出）並整組重綁到 `type=cron\|task`；切換 type 時同步刪除該 skill 在另一邊的排程 |
+| `DELETE`       | `/v1/schedule`        | **local** — 刪除該 skill 的排程（帶 `type` 只刪一邊，不帶則兩邊都刪）；刪除後若無其他綁定則將 skill 移入 .Trash |
+| `POST`         | `/v1/schedule/run`    | **local** — 立即觸發排程（`202 Accepted`） |
 
 **白名單**
 
 | Method       | Path                  | 說明                                                                                                                                                                                                                                         |
 | ------------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET` `POST` | `/v1/allowlist/cmd`   | **local** — 列出／新增指令白名單（append-only,需重啟 daemon 生效）                                                                                                                                                                           |
-| `GET` `POST` | `/v1/allowlist/skill` | **local** — 列出／切換 skill 白名單（`scope=global\|project`）                                                                                                                                                                               |
-| `GET` `POST` | `/v1/allowlist/tool`  | **local** — 全域工具免確認名單。`GET` 回全部,帶 `?prefix=` 則只回該前綴。`POST` `{prefix, entries}` 只替換該前綴底下的項目(與 TUI `/mcp` → permission 同一支),其餘規則不受影響;每個 entry 必須以 `prefix` 開頭,出現 `prefix*` 時收斂成單一項 |
+| `GET` `POST` | `/v1/allowlist`       | **local** — 兩份白名單合在同一個物件，鍵為 `skill` 與 `tool`。`GET` 以 `?scope=global\|project`（`project` 需另帶 `?work_dir=`）決定 skill 區塊，`?prefix=` 縮小 tool 區塊。`POST` 收 `{skill: {name, scope?, work_dir?}}` 切換單一 skill，與／或 `{tool: {prefix, entries}}` 只替換該前綴底下的免確認項目（與 TUI `/mcp` → permission 同一支），其餘規則不受影響；每個 entry 必須以 `prefix` 開頭，出現 `prefix*` 時收斂成單一項。未帶的區塊不動 |
+
+**設定**
+
+| Method       | Path                  | 說明                                                                                                                                                              |
+| ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效 |
 
 **查閱**
 
 | Method | Path              | 說明                                                                     |
 | ------ | ----------------- | ------------------------------------------------------------------------ |
+| `GET` `POST` `DELETE` | `/v1/toriidb/:db/*key`、`/v1/toriidb` | **local** — ToriiDB 的唯一入口。`GET` 帶純 key 回單筆，帶 `*` 樣式回全部命中，並可用 `?contains=<substr>`（比對 value，不分大小寫）與 `?after=<unix 秒>`（entry 異動時間）在伺服器端縮小範圍；`?keys=1` 只回名稱、`?search=<text>&limit=` 走向量搜尋；`POST` `{db,key,value,expire_at,vector}` 以絕對時間戳寫入，或 `{db,keys,ttl}` 以相對秒數重設既有 key 的到期；`DELETE` `{db,keys}` 刪除。daemon 以外的行程一律只能經由此端點碰 ToriiDB，所以 tool cache、對話向量、knowledge、error memory 與 pending 存活在 TUI 與 daemon 之間是共用的 |
 | `GET`  | `/v1/torii/error` | **local** — 查閱工具錯誤記憶；`tool`／`keyword` 皆未帶時回傳無過濾全表掃 |
 
 ## 工具參考

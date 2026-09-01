@@ -46,6 +46,7 @@ type ToolAttempt struct {
 type ToolResult struct {
 	Name   string `json:"name"`
 	ID     string `json:"id"`
+	Args   string `json:"args,omitempty"`
 	Result string `json:"result"`
 }
 
@@ -344,7 +345,7 @@ func AppendToolResult(sessionID, taskHash string, result ToolResult) {
 	}
 }
 
-func ListPendingTasks(sessionID string) []string {
+func listPendingTasks(sessionID string) []string {
 	files, err := go_pkg_filesystem_reader.ListFiles(filesystem.PendingDir(sessionID))
 	if err != nil {
 		return nil
@@ -474,7 +475,12 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		msg.WriteString("\n## Completed Tool Results\n")
 		msg.WriteString("Actual output from each tool call completed before this task was interrupted — this is the ground truth referenced above, use it directly instead of re-deriving or guessing.\n")
 		for _, tr := range meta.ToolResults {
-			msg.WriteString(fmt.Sprintf("\n### %s (id=%s)\n%s\n", tr.Name, tr.ID, tr.Result))
+			msg.WriteString(fmt.Sprintf("\n### %s (id=%s)\n", tr.Name, tr.ID))
+			if tr.Args != "" {
+				msg.WriteString(fmt.Sprintf("args=%s\n", tr.Args))
+			}
+			msg.WriteString(tr.Result)
+			msg.WriteString("\n")
 		}
 	}
 
@@ -613,6 +619,7 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 				slog.String("task_hash", taskHash),
 				slog.String("error", reply.Error.Error()))
 			CleanupPending(sessionID, taskHash)
+			runtime.NotifyCanceled(sessionID, taskHash, reply.Error.Error())
 			return
 		}
 		runtime.TriggerResume(sessionID, taskHash, reply.Answers)

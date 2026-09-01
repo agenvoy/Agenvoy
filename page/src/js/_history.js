@@ -1,4 +1,4 @@
-const HISTORY_PAGE_SIZE = 50;
+const HISTORY_PAGE_SIZE = 20;
 
 function historyDom() {
   return {
@@ -129,6 +129,10 @@ function codeBlock(text) {
   return _("div.code", [copyButton(() => body.textContent), body]);
 }
 
+function labeledBlock(label, text) {
+  return _("div.block", [textNode("strong", label), codeBlock(text)]);
+}
+
 function historyClock(text) {
   const at = new Date(text);
   if (Number.isNaN(at.getTime())) {
@@ -141,7 +145,7 @@ function historyClock(text) {
 async function historyTasks(sessionId, keyword) {
   const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : "";
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/history${query}`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task/history${query}`);
     if (response.ok) {
       const tasks = (await response.json()).tasks || [];
       for (const task of tasks) {
@@ -162,7 +166,7 @@ async function historyAllTasks(sessions, keyword) {
 
 async function historyDetail(sessionId, hash) {
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/history/${encodeURIComponent(hash)}`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(hash)}/history`);
     if (!response.ok) {
       return null;
     }
@@ -311,7 +315,10 @@ async function renderDetailsPage(sessionId, hash, item) {
 
   if (picked >= 0) {
     dom.body.appendChild(_("div.head", [textNode("strong", tools[picked].name || "tool"), textNode("p", tools[picked].id || "")]));
-    dom.body.appendChild(codeBlock(historyText(tools[picked].result)));
+    if (tools[picked].args) {
+      dom.body.appendChild(labeledBlock("args", historyText(tools[picked].args)));
+    }
+    dom.body.appendChild(labeledBlock("result", historyText(tools[picked].result)));
     return;
   }
 

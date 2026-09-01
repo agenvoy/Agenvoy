@@ -165,29 +165,17 @@ document.addEventListener("DOMContentLoaded", function () {
       knowledge_delete: function () {
         deleteEditing("knowledge");
       },
-      cron_save: function () {
-        commitSchedule("cron");
+      schedule_save: function () {
+        commitSchedule();
       },
-      cron_reset: function () {
-        resetSchedule("cron");
+      schedule_reset: function () {
+        resetSchedule();
       },
-      cron_delete: function () {
-        deleteEditingSchedule("cron");
+      schedule_delete: function () {
+        deleteEditingSchedule();
       },
-      cron_test: function () {
-        testSchedule("cron");
-      },
-      task_save: function () {
-        commitSchedule("task");
-      },
-      task_reset: function () {
-        resetSchedule("task");
-      },
-      task_delete: function () {
-        deleteEditingSchedule("task");
-      },
-      task_test: function () {
-        testSchedule("task");
+      schedule_test: function () {
+        testSchedule();
       },
       skill_config: function () {
         openSkillConfig();
@@ -209,6 +197,9 @@ document.addEventListener("DOMContentLoaded", function () {
       },
       memory_pick: function () {
         openMemoryPicker();
+      },
+      resume_pick: function () {
+        openResumePicker();
       },
       model_add: function () {
         selectProviderAdd();
@@ -324,6 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
           renderWorkDirMark();
           renderChat(params.chat);
           loadPending(params.chat);
+          renderResumeMark(params.chat);
 
           const harness = $("section.chat button.harness");
           if (config.harness_enable) {
@@ -369,6 +361,9 @@ document.addEventListener("DOMContentLoaded", function () {
           if (params.tab === "History") {
             renderHistoryPage(params.target || "", Number(params.offset) || 0);
           }
+          if (params.tab === "Lessons") {
+            renderLessonPage(params.target || "", Number(params.offset) || 0, params.outcome || "");
+          }
           if (params.tab === "Details") {
             renderDetailsPage(params.target || "", params.hash || "", params.item || "");
           }
@@ -389,10 +384,9 @@ document.addEventListener("DOMContentLoaded", function () {
               openSkillConfig();
             }
           }
-          const schedule = { Cron: "cron", Task: "task" }[params.tab];
-          if (schedule) {
-            resetSchedule(schedule);
-            renderSchedule(schedule);
+          if (params.tab === "Schedule") {
+            resetSchedule();
+            renderSchedule();
           }
         }
       },

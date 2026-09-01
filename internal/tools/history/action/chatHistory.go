@@ -14,31 +14,48 @@ import (
 
 const (
 	defaultListLimit  = 10
-	recentResultRunes = 1024
+	defaultToolsLimit = 16
+	listArgsRunes     = 256
 )
 
 func registChatHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "chat_history",
 		SystemUse:   true,
-		AlwaysLoad:  false,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `This session's own record — the action log: what each finished run was asked for, every tool it called with what came back, the reply it ended on, and the messages themselves.
+		Description: `This session's action log: each past run's objective, its tool calls with arguments and output, and the messages.
 Use for 最近做了什麼 / 之前處理過這個嗎 / 那次到底做了什麼 / 那個工具回了什麼 / 上一個動作的 action log / 我們之前聊過什麼.
-The records live in the daemon's own state directory, so listing, globbing or opening files never reaches them. File versions → file_history; failures → error_history.`,
+Before repeating a tool call, mode=list shows what past runs called with which arguments; mode=read returns their output — reuse instead of re-running.
+Not the workspace — file listing never reaches them. Versions → file_history; failures → error_history.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
-					"enum":        []string{"list", "read", "search"},
-					"description": "list: recent runs, one row each with its task_id, newest first; the newest row also carries one tool result from that run, plus tool_result_count so you can walk further back with result_index. read: one run in full with untruncated tool results, needs task_id. search: past messages, needs keyword. Omitted: task_id selects read, keyword selects search, otherwise list.",
+					"enum":        []string{"list", "tool_list", "tool", "read", "search"},
+					"description": "list: recent runs as a bare index — task_id, when it ended, what it was for. Match an objective here, then read that task_id. tool_list: the same calls flattened across the last 16 runs and reduced to the ones worth reusing (network fetches, subagent reports, generated media, mcp__/api_/script_/ext_ payloads), each with its time, arguments and task_id — scan it before fetching anything to see whether this session already has it. tool: one call's raw output, addressed by task_id + name (+ args when that run called the tool more than once) — the cheapest way back to a page or search result already paid for. read: the full runs behind one or more task_ids, tool output untruncated. search: past messages, needs keyword. Omitted: task_id with name selects tool, task_id alone selects read, keyword selects search, otherwise list.",
 					"default":     "list",
 				},
 				"task_id": map[string]any{
+					"type":        "array",
+					"items":       map[string]any{"type": "string"},
+					"description": "mode=read: task ids taken from list rows; pass every run you want in one call. mode=tool: the single run holding the call you want. Required for both.",
+				},
+				"scope": map[string]any{
 					"type":        "string",
-					"description": "mode=read: task id taken from a list row; required.",
+					"enum":        []string{"reference", "full"},
+					"description": "mode=read: reference keeps what costs money or time to obtain again — fetch_page, search_web, http_request, subagents reports, transcribe_media, generate_image, download_file, and every mcp__/api_/script_/ext_ payload — and reduces the rest to bare tool names. full includes every tool's arguments and output; use it to reconstruct what a run actually did.",
+					"default":     "reference",
+				},
+				"name": map[string]any{
+					"type":        "string",
+					"description": "mode=tool: the tool name exactly as it appears in a tool_list row (e.g. 'fetch_page', 'mcp__itrd__cycle').",
+				},
+				"args": map[string]any{
+					"type":        "string",
+					"description": "mode=tool: the arguments string from that same tool_list row, needed only when the run called the tool more than once; an unmatched value comes back with the ones it did use.",
 				},
 				"keyword": map[string]any{
 					"type":        "string",
@@ -56,27 +73,24 @@ The records live in the daemon's own state directory, so listing, globbing or op
 					"description": "mode=search: how far back to look.",
 					"default":     defaultTimeRange,
 				},
-				"result_index": map[string]any{
-					"type":        "integer",
-					"description": "mode=list: which tool result of the newest run to include, counting back from its last call. 1 is the final call, 2 the one before it. Compare against tool_result_count in the reply; long results are truncated, use mode=read for the whole run.",
-					"default":     1,
-				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Rows to return, newest first; hit cap per source when mode=search. Ignored when mode=read.",
+					"description": "Rows to return, newest first; runs to scan when mode=tool_list (default 16); hit cap per source when mode=search. Ignored when mode=read.",
 					"default":     defaultListLimit,
 				},
 			},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				Mode        string `json:"mode"`
-				TaskID      string `json:"task_id"`
-				Keyword     string `json:"keyword"`
-				Match       string `json:"match"`
-				TimeRange   string `json:"time_range"`
-				Limit       int    `json:"limit"`
-				ResultIndex int    `json:"result_index"`
+				Mode      string          `json:"mode"`
+				Scope     string          `json:"scope"`
+				TaskID    json.RawMessage `json:"task_id"`
+				Keyword   string          `json:"keyword"`
+				Match     string          `json:"match"`
+				TimeRange string          `json:"time_range"`
+				Name      string          `json:"name"`
+				Args      string          `json:"args"`
+				Limit     int             `json:"limit"`
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
@@ -85,11 +99,22 @@ The records live in the daemon's own state directory, so listing, globbing or op
 			}
 
 			params.Mode = strings.TrimSpace(params.Mode)
-			params.TaskID = strings.TrimSpace(params.TaskID)
+			taskIDs := parseTaskIDs(params.TaskID)
+
+			full := false
+			switch strings.TrimSpace(params.Scope) {
+			case "", "reference":
+			case "full":
+				full = true
+			default:
+				return "", fmt.Errorf("unknown scope %q; available: reference, full", params.Scope)
+			}
 			if params.Mode == "" {
 				params.Mode = "list"
 				switch {
-				case params.TaskID != "":
+				case len(taskIDs) > 0 && strings.TrimSpace(params.Name) != "":
+					params.Mode = "tool"
+				case len(taskIDs) > 0:
 					params.Mode = "read"
 				case strings.TrimSpace(params.Keyword) != "":
 					params.Mode = "search"
@@ -98,16 +123,47 @@ The records live in the daemon's own state directory, so listing, globbing or op
 
 			switch params.Mode {
 			case "list":
-				return list(e, params.Limit, params.ResultIndex)
+				return list(e, params.Limit)
+			case "tool_list":
+				return toolList(e, params.Limit)
+			case "tool":
+				return toolContent(e, taskIDs, strings.TrimSpace(params.Name), params.Args)
 			case "read":
-				if params.TaskID == "" {
+				if len(taskIDs) == 0 {
 					return "", fmt.Errorf("task_id is required when mode=read")
 				}
-				return read(e, params.TaskID)
+				return read(e, taskIDs, full)
 			case "search":
 				return searchMessages(ctx, e, params.Keyword, params.Match, params.TimeRange, params.Limit)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: list, read, search", params.Mode)
+			return "", fmt.Errorf("unknown mode %q; available: list, tools, read, search", params.Mode)
 		},
 	})
+}
+
+func parseTaskIDs(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var list []string
+	if err := json.Unmarshal(raw, &list); err != nil {
+		var one string
+		if err := json.Unmarshal(raw, &one); err != nil {
+			return nil
+		}
+		list = []string{one}
+	}
+
+	ids := make([]string, 0, len(list))
+	seen := make(map[string]bool, len(list))
+	for _, id := range list {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids
 }

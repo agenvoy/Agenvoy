@@ -22,7 +22,7 @@ func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 		return t, tea.Println(hintStyle.Render("no active session") + "\n"), true
 	}
 
-	hashes := interactive.ListPendingTasks(sid)
+	hashes := interactive.ListResumablePending(sid)
 	if len(hashes) == 0 {
 		return t, tea.Println(hintStyle.Render("⎯ no pending tasks") + "\n"), true
 	}

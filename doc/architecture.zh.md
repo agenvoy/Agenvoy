@@ -66,7 +66,7 @@ graph LR
 
 ## 模組：Daemon 與 HTTP API
 
-Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、工具呼叫、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server 與其 OAuth 登入、rule、知識、cron/task 自動化、指令／skill／工具白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。驅動設定層的 web dashboard 位於 `page/`，建置時嵌入二進位檔並由同一個 daemon 從 `/` 提供；開發時可用 `AGENVOY_PAGE_DIR` 改讀磁碟上的檔案。
+Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server 與其 OAuth 登入、rule、知識、schedule 自動化、skill／工具白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。驅動設定層的 web dashboard 位於 `page/`，建置時嵌入二進位檔並由同一個 daemon 從 `/` 提供；開發時可用 `AGENVOY_PAGE_DIR` 改讀磁碟上的檔案。
 
 ```mermaid
 graph TB
@@ -80,7 +80,7 @@ graph TB
         Reload --> AgentInit
     end
     Routes --> ExecAPI[Agent 執行層 API<br/>send · chat/completions · 工具 · session · 模型 · SSE log]
-    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · rule/知識 · cron/task · 白名單 · torii 查閱]
+    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · rule/知識 · schedule · 白名單 · torii 查閱]
     Routes --> Page[內嵌 dashboard<br/>page/ 由 / 提供]
     ConfigAPI --> LocalGuard[localhostOnly 守衛]
     ExecAPI --> Client[CLI／TUI／遠端 Agent]
@@ -112,7 +112,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。13 個工具帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過允許規則、確認閘門、shell 驗證與沙箱強制。`$HOME` 以外的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
+內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。14 個工具帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過允許規則、確認閘門、shell 驗證與沙箱強制。`$HOME` 以外的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
 
 ```mermaid
 graph TB
@@ -137,7 +137,6 @@ Session ID 的前綴同時代表請求來源：`cli-` 是本機 CLI／TUI、`tg-
 
 Session 設定持久化於 history SQLite 資料庫。Persona 的 `self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會將舊版 `bot.json`、舊版 bot markdown、session `config.json` 與 `status.json` 遷移至 SQLite／state table。新建 session 會先保存資料庫列並建立目錄，再寫入 session log。
 
-Session 仍會保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認保留來源前綴；CLI、Web、Telegram 與 Discord listener 只接收相符工作，再透過已註冊 handler 恢復。
 ## 模組：Session、歷史與 Pending 工作
 
 Session 持久保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 會以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認會保留來源前綴；CLI、Web、Telegram 與 Discord listener 只會接收符合來源的工作，再透過已註冊的 handler 恢復。
@@ -183,7 +182,7 @@ graph TB
         Run --> Terminal[完成／失敗／已取消]
         Terminal --> Clear[從 status.json 移除任務]
     end
-    CancelAPI[POST /v1/session/:id/cancel/:task_id] --> Registry[任務 ID 對應取消函式的登記表]
+    CancelAPI[POST /v1/session/:id/cancel/:once_id] --> Registry[任務 ID 對應取消函式的登記表]
     Registry --> Run
     StaleCheck[讀取端發現 PID 已死] --> Clear
 ```
@@ -291,16 +290,19 @@ stateDiagram-v2
 flowchart LR
     Config[~/.config/agenvoy/config.json] --> Limits[Runtime Limits]
     Config --> Sessions[Session Directories]
-    Sessions --> Bot[bot.json：名稱 · 模型 · reasoning · persona]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     Sessions --> Pending[Pending Metadata]
-    Sessions --> Status[status.json：執行中任務與所屬 PID]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History Search]
+    SQLite --> SessionRow[session：名稱 · self_id · 模型 · reasoning · persona]
+    SQLite --> StateRow[state：執行中任務與所屬 PID]
+    SQLite --> ActionRow[action_history：已完成的 run 與其工具結果]
+    SQLite --> UsageRow[usage：各模型 token 花費，保留 28 天]
     Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 工具快取]
     Torii --> SessionHist[db_1 session 對話]
     Torii --> ErrorMemory[db_2 工具錯誤記憶]
     Torii --> Knowledge[db_3 operator 知識]
+    Torii --> Online[db_4 執行中任務的存活紀錄]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]

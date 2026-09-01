@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -157,9 +158,14 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 		done <- err
 	}()
 
+	terminated := false
 	for ev := range ch {
 		if ev.Type == agentTypes.EventTextDelta {
 			continue
+		}
+		switch ev.Type {
+		case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError:
+			terminated = true
 		}
 		send(agentEvent{event: ev})
 		switch ev.Type {
@@ -169,6 +175,13 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 	}
 
 	err := <-done
+	if err != nil && !terminated {
+		ev := agentTypes.Event{Type: agentTypes.EventError, Text: err.Error()}
+		if errors.Is(err, context.Canceled) {
+			ev.Type = agentTypes.EventCanceled
+		}
+		publishEventToDaemon(ctx, sessionID, ev)
+	}
 	send(agentExecDone{err: err})
 }
 

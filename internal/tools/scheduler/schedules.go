@@ -41,7 +41,7 @@ Creating a schedule → the scheduler-skill-creator skill, never mode=write. A d
 				},
 				"time": map[string]any{
 					"type":        "string",
-					"description": "mode=write / mode=patch: required. target=task: '+5m' / '+1h30m' (relative), '15:04' (today clock), '2006-01-02 15:04' (local datetime), or RFC3339. target=cron: 5-field expression '{min} {hour} {dom} {mon} {dow}'.",
+					"description": "mode=write / mode=patch: required. target=task: '+5m' / '+1h30m' (relative), '15:04' (today clock), '2006-01-02 15:04' (local datetime), or RFC3339. target=cron: 5-field expression '{min} {hour} {dom} {mon} {dow}', a descriptor (@yearly @annually @monthly @weekly @daily @midnight @hourly), or '@every {duration}' (minimum 30s).",
 				},
 			},
 		},

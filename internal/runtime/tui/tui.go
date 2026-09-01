@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -59,8 +60,12 @@ func Run(ctx context.Context) error {
 		tools.WorkDirChangeHook = nil
 	}()
 
-	restoreSlog := installSlogTUI(ctx)
+	restoreSlog := installSlogTUI()
 	defer restoreSlog()
+
+	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
+		publishEventToDaemon(ctx, sessionID, agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason})
+	})
 
 	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
 		allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)

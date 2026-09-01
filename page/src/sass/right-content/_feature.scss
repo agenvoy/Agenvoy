@@ -19,7 +19,7 @@ body[data-rendered="1"] section.right-content section.feature {
     overflow: scroll;
 
     header {
-      @include config.contentNav((Rules, Knowledge, Skills, Cron, Task));
+      @include config.contentNav((Rules, Knowledge, Skills, Schedule));
     }
 
     section.editor {
@@ -135,10 +135,27 @@ body[data-rendered="1"] section.right-content section.feature {
         }
       }
 
+      form#skill-form:not([data-editing="1"]) > span,
       form#skill-form:not([data-editing="1"]) > input,
       form#skill-form:not([data-editing="1"]) > textarea,
       form#skill-form:not([data-editing="1"]) > footer {
         display: none;
+      }
+
+      form#schedule-form > select {
+        padding: 0.625rem 0.75rem;
+        width: 100%;
+        box-sizing: border-box;
+        font: inherit;
+        font-size: small;
+        line-height: 1.5;
+        color: var(--text-color);
+        background-color: var(--gray);
+        border: 1px solid var(--gray-2);
+        border-radius: 0.5rem;
+        outline: none;
+        cursor: pointer;
+        transition: 0.2s;
       }
 
       form {

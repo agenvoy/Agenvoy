@@ -219,48 +219,16 @@ func RemoveModel() gin.HandlerFunc {
 	}
 }
 
-func GetDispatcherModel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		cfg, err := config.Load()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"model": cfg.DispatcherModel})
+func modelRouting(c *gin.Context, cfg *config.Config) gin.H {
+	return gin.H{
+		"dispatcher":    cfg.DispatcherModel,
+		"summary":       cfg.SummaryModel,
+		"image":         cfg.ImageGenerator,
+		"image_options": imageTool.Available(c.Request.Context()),
 	}
 }
 
-func SetDispatcherModel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var body struct {
-			Model string `json:"model"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		model := strings.TrimSpace(body.Model)
-
-		cfg, err := config.Load()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if model != "" && !slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == model }) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
-			return
-		}
-		cfg.DispatcherModel = model
-		if err := config.Save(cfg); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		agents.Reload()
-		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
-	}
-}
-
-func GetImageModel() gin.HandlerFunc {
+func GetModelRouting() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		imageTool.Prune(c.Request.Context())
 
@@ -269,25 +237,20 @@ func GetImageModel() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"model":   cfg.ImageGenerator,
-			"options": imageTool.Available(c.Request.Context()),
-		})
+		c.JSON(http.StatusOK, modelRouting(c, cfg))
 	}
 }
 
-func SetImageModel() gin.HandlerFunc {
+func SetModelRouting() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
-			Model string `json:"model"`
+			Dispatcher *string `json:"dispatcher"`
+			Summary    *string `json:"summary"`
+			Image      *string `json:"image"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
-		}
-		name := strings.TrimSpace(body.Model)
-		if name == "off" {
-			name = ""
 		}
 
 		cfg, err := config.Load()
@@ -295,106 +258,59 @@ func SetImageModel() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if name != "" && !slices.Contains(imageTool.Available(c.Request.Context()), name) {
-			if !slices.Contains(imageTool.Providers, name) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown image provider: " + name})
+
+		known := func(name string) bool {
+			return slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == name })
+		}
+
+		dispatcher, summary := "", ""
+		if body.Dispatcher != nil {
+			dispatcher = strings.TrimSpace(*body.Dispatcher)
+			if dispatcher != "" && !known(dispatcher) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + dispatcher})
 				return
 			}
-			c.JSON(http.StatusBadRequest, gin.H{"error": name + " has no credentials stored"})
-			return
+		}
+		if body.Summary != nil {
+			summary = strings.TrimSpace(*body.Summary)
+			if summary != "" && !known(summary) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + summary})
+				return
+			}
 		}
 
-		cfg.ImageGenerator = name
-		if err := config.Save(cfg); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "model": name})
-	}
-}
-
-func GetSummaryModel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		cfg, err := config.Load()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"model": cfg.SummaryModel})
-	}
-}
-
-func SetSummaryModel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var body struct {
-			Model string `json:"model"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		model := strings.TrimSpace(body.Model)
-
-		cfg, err := config.Load()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if model != "" && !slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == model }) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
-			return
-		}
-		cfg.SummaryModel = model
-		if err := config.Save(cfg); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		agents.Reload()
-		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
-	}
-}
-
-func SetSessionModel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-			return
-		}
-
-		var body struct {
-			Model string `json:"model"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		model := strings.TrimSpace(body.Model)
-		if model == "" {
-			model = configBot.DefaultModel
-		}
-		if model != configBot.DefaultModel {
-			valid := false
-			if cfg, err := config.Load(); err == nil && cfg != nil {
-				for _, m := range cfg.Models {
-					if m.Name == model {
-						valid = true
-						break
-					}
+		image := ""
+		if body.Image != nil {
+			image = strings.TrimSpace(*body.Image)
+			if image == "off" {
+				image = ""
+			}
+			if image != "" && !slices.Contains(imageTool.Available(c.Request.Context()), image) {
+				if !slices.Contains(imageTool.Providers, image) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "unknown image provider: " + image})
+					return
 				}
-			}
-			if !valid {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
+				c.JSON(http.StatusBadRequest, gin.H{"error": image + " has no credentials stored"})
 				return
 			}
 		}
 
-		configBot.SetModel(sid, model, "")
-		c.JSON(http.StatusOK, gin.H{"ok": true, "model": model})
+		if body.Dispatcher != nil {
+			cfg.DispatcherModel = dispatcher
+		}
+		if body.Summary != nil {
+			cfg.SummaryModel = summary
+		}
+		if body.Image != nil {
+			cfg.ImageGenerator = image
+		}
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if body.Dispatcher != nil || body.Summary != nil {
+			agents.Reload()
+		}
+		c.JSON(http.StatusOK, modelRouting(c, cfg))
 	}
 }

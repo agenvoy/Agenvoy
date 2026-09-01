@@ -355,7 +355,7 @@ function mcpToolPrefix(name) {
 async function mcpToolList(prefix) {
   let tools = [];
   try {
-    const response = await fetch(`${API}/v1/tools`);
+    const response = await fetch(`${API}/v1/mcp/tools`);
     if (response.ok) {
       tools = (await response.json()).tools || [];
     }
@@ -375,9 +375,9 @@ async function mcpToolList(prefix) {
 
 async function mcpGranted(prefix) {
   try {
-    const response = await fetch(`${API}/v1/allowlist/tool?prefix=${encodeURIComponent(prefix)}`);
+    const response = await fetch(`${API}/v1/allowlist?prefix=${encodeURIComponent(prefix)}`);
     if (response.ok) {
-      return (await response.json()).entries || [];
+      return (((await response.json()) || {}).tool || {}).entries || [];
     }
   } catch (err) {
     console.error("mcpGranted", err);
@@ -387,10 +387,10 @@ async function mcpGranted(prefix) {
 
 async function saveMcpPermission(prefix, entries) {
   try {
-    const response = await fetch(`${API}/v1/allowlist/tool`, {
+    const response = await fetch(`${API}/v1/allowlist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prefix: prefix, entries: entries }),
+      body: JSON.stringify({ tool: { prefix: prefix, entries: entries } }),
     });
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));

@@ -117,9 +117,9 @@ func emitWebConfirms() {
 
 func ResolveToolConfirm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := strings.TrimSpace(c.Param("request_id"))
+		requestID := strings.TrimSpace(c.Param("once_id"))
 		if requestID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "request_id is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "once_id is required"})
 			return
 		}
 

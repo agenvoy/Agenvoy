@@ -1,6 +1,7 @@
 package toolcache
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"strings"
@@ -117,8 +118,8 @@ func Store(sessionID, callID, toolName, args, result string) {
 	if err != nil {
 		return
 	}
-	db := torii.DB(torii.DBToolCache)
-	if err := db.Set(keyPrefix(sessionID, toolName)+callID, string(raw), torii.SetDefault, torii.TTL(ttlSeconds)); err != nil {
+	db := torii.Remote(torii.DBToolCache)
+	if err := db.Set(context.Background(), keyPrefix(sessionID, toolName)+callID, string(raw), torii.TTL(ttlSeconds)); err != nil {
 		slog.Debug("toolcache Store",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
@@ -126,17 +127,11 @@ func Store(sessionID, callID, toolName, args, result string) {
 }
 
 func FindRecent(sessionID, toolName, args string) (string, bool) {
-	db := torii.DB(torii.DBToolCache)
+	db := torii.Remote(torii.DBToolCache)
 	want := canonical(toolName, args)
-	keys := db.Keys(keyPrefix(sessionID, toolName) + "*")
-
 	var best toolHistory
 	found := false
-	for _, k := range keys {
-		entry, ok := db.Get(k)
-		if !ok {
-			continue
-		}
+	for _, entry := range db.Scan(context.Background(), keyPrefix(sessionID, toolName)+"*", torii.ScanOption{}) {
 		var e toolHistory
 		if err := json.Unmarshal([]byte(entry.Value()), &e); err != nil {
 			continue

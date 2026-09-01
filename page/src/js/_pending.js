@@ -11,7 +11,7 @@ async function loadPending(sessionId) {
 
   let list = [];
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/pending`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task`);
     if (!response.ok) {
       return;
     }
@@ -28,7 +28,7 @@ async function loadPending(sessionId) {
 
   let questions = [];
   try {
-    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/pending/${encodeURIComponent(task.task_hash)}/questions`;
+    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(task.task_hash)}/questions`;
     const response = await fetch(url);
     if (!response.ok) {
       return;
@@ -153,7 +153,7 @@ function answerPending(index, total) {
 }
 
 async function resumePending(task, answers) {
-  const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/pending/${encodeURIComponent(task.taskHash)}/resume`;
+  const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/task/${encodeURIComponent(task.taskHash)}/resume`;
 
   try {
     const response = await fetch(url, {
@@ -167,4 +167,88 @@ async function resumePending(task, answers) {
   } catch (err) {
     console.error("resumePending", err);
   }
+}
+
+async function listResumable(sessionId) {
+  try {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task`);
+    if (!response.ok) {
+      console.error("listResumable", response.status);
+      return [];
+    }
+    return (await response.json()).pending || [];
+  } catch (err) {
+    console.error("listResumable", err);
+    return [];
+  }
+}
+
+async function renderResumeMark(sessionId) {
+  const dom = $("section.chat header button.resume");
+  if (!dom) {
+    return;
+  }
+
+  delete dom.dataset.has;
+  if (!sessionId) {
+    return;
+  }
+
+  const tasks = await listResumable(sessionId);
+  if (tasks.length > 0) {
+    dom.dataset.has = "1";
+  }
+}
+
+async function openResumePicker() {
+  if (!currentSessionId) {
+    return;
+  }
+
+  const list = _("div.list");
+  const cancel = _("button", { type: "button" }, "cancel");
+  const root = _("div.popup", [_("div.panel", [_("strong", "Pending"), list, _("footer", [cancel])])]);
+  root.id = "resume-popup";
+
+  const close = () => root.remove();
+  cancel.addEventListener("click", close);
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
+  });
+  document.body.appendChild(root);
+
+  const sessionId = currentSessionId;
+  const tasks = await listResumable(sessionId);
+  if (!root.isConnected) {
+    return;
+  }
+
+  if (tasks.length === 0) {
+    list.appendChild(_("p.empty", "none yet · every task in this chat is finished or still running"));
+    return;
+  }
+
+  for (const one of tasks) {
+    const title = String(one.objective || "").replace(/\s+/g, " ").trim() || one.task_hash;
+    const box = _("input", { type: "radio", name: "resume-pick", value: one.task_hash });
+
+    box.addEventListener("change", () => {
+      box.checked = false;
+      if (!confirm(`Resume in this chat?\n\n${title}`)) {
+        return;
+      }
+      close();
+      startResume(sessionId, one.task_hash);
+    });
+
+    const hint = one.has_questions ? "waiting on questions · resumes without answering them" : "interrupted run · continues where it stopped";
+    list.appendChild(_("label", [box, _("div", [_("strong", title), _("p", hint)])]));
+  }
+}
+
+function startResume(sessionId, taskHash) {
+  if (pendingTask && pendingTask.sessionId === sessionId && pendingTask.taskHash === taskHash) {
+    clearPending();
+  }
+  resumePending({ sessionId: sessionId, taskHash: taskHash }, []);
 }

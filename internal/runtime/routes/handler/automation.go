@@ -18,6 +18,48 @@ import (
 
 var scheduleName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
+type scheduleItem struct {
+	Type       string     `json:"type"`
+	Skill      string     `json:"skill"`
+	SessionID  string     `json:"session_id"`
+	Expression string     `json:"expression,omitempty"`
+	At         *time.Time `json:"at,omitempty"`
+}
+
+func loadSchedules(kind string) ([]scheduleItem, error) {
+	list := make([]scheduleItem, 0)
+	if kind != "task" {
+		crons, err := runtime.LoadCrons()
+		if err != nil {
+			return nil, err
+		}
+		for _, one := range crons {
+			list = append(list, scheduleItem{
+				Type:       "cron",
+				Skill:      one.Skill,
+				SessionID:  one.SessionID,
+				Expression: one.Expression,
+			})
+		}
+	}
+	if kind != "cron" {
+		tasks, err := runtime.LoadTasks()
+		if err != nil {
+			return nil, err
+		}
+		for _, one := range tasks {
+			at := one.At
+			list = append(list, scheduleItem{
+				Type:      "task",
+				Skill:     one.Skill,
+				SessionID: one.SessionID,
+				At:        &at,
+			})
+		}
+	}
+	return list, nil
+}
+
 func GetScheduleSkill() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := strings.TrimPrefix(c.Param("skill"), "/")
@@ -40,8 +82,24 @@ func GetScheduleSkill() gin.HandlerFunc {
 	}
 }
 
+func ListSchedules() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		kind := strings.ToLower(strings.TrimSpace(c.Query("type")))
+		if kind != "" && kind != "cron" && kind != "task" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'cron' or 'task'"})
+			return
+		}
+		list, err := loadSchedules(kind)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"schedules": list})
+	}
+}
+
 type scheduleBody struct {
-	Target      string   `json:"target"`
+	Type        string   `json:"type"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Content     string   `json:"content"`
@@ -78,53 +136,51 @@ func scheduleTimes(list []string) ([]time.Time, error) {
 
 func scheduleExpressions(list []string) error {
 	for _, one := range list {
-		if len(strings.Fields(one)) != 5 {
-			return fmt.Errorf("expression must be 5 fields '{min} {hour} {dom} {mon} {dow}' (got %q)", one)
+		if err := schedulerTool.ValidateCron(one); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func scheduleSession(target, name, given string) (string, error) {
+func scheduleSession(name, given string) (string, error) {
 	if given = strings.TrimSpace(given); given != "" {
 		return given, nil
 	}
-	if target == "cron" {
-		crons, err := runtime.LoadCrons()
-		if err != nil {
-			return "", err
-		}
-		for _, one := range crons {
-			if one.Skill == name && strings.TrimSpace(one.SessionID) != "" {
-				return one.SessionID, nil
-			}
-		}
-	} else {
-		tasks, err := runtime.LoadTasks()
-		if err != nil {
-			return "", err
-		}
-		for _, one := range tasks {
-			if one.Skill == name && strings.TrimSpace(one.SessionID) != "" {
-				return one.SessionID, nil
-			}
+	list, err := loadSchedules("")
+	if err != nil {
+		return "", err
+	}
+	for _, one := range list {
+		if one.Skill == name && strings.TrimSpace(one.SessionID) != "" {
+			return one.SessionID, nil
 		}
 	}
 	return sessionManager.New("chat-")
 }
 
-func prepareSchedule(target string, list []string) (func(name, sessionID string) error, error) {
-	if target == "cron" {
+func prepareSchedule(kind string, list []string) (func(name, sessionID string) error, error) {
+	if kind == "cron" {
 		if err := scheduleExpressions(list); err != nil {
 			return nil, err
 		}
-		return func(name, sessionID string) error { return runtime.SetCrons(name, sessionID, list) }, nil
+		return func(name, sessionID string) error {
+			if _, err := runtime.RemoveTask(name); err != nil {
+				return err
+			}
+			return runtime.SetCrons(name, sessionID, list)
+		}, nil
 	}
 	times, err := scheduleTimes(list)
 	if err != nil {
 		return nil, err
 	}
-	return func(name, sessionID string) error { return runtime.SetTasks(name, sessionID, times) }, nil
+	return func(name, sessionID string) error {
+		if _, err := runtime.RemoveCron(name); err != nil {
+			return err
+		}
+		return runtime.SetTasks(name, sessionID, times)
+	}, nil
 }
 
 func readScheduleBody(c *gin.Context) (scheduleBody, []string, bool) {
@@ -134,9 +190,9 @@ func readScheduleBody(c *gin.Context) (scheduleBody, []string, bool) {
 		return body, nil, false
 	}
 
-	body.Target = strings.ToLower(strings.TrimSpace(body.Target))
-	if body.Target != "cron" && body.Target != "task" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "target must be 'cron' or 'task'"})
+	body.Type = strings.ToLower(strings.TrimSpace(body.Type))
+	if body.Type != "cron" && body.Type != "task" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'cron' or 'task'"})
 		return body, nil, false
 	}
 
@@ -153,190 +209,127 @@ func readScheduleBody(c *gin.Context) (scheduleBody, []string, bool) {
 
 	list := body.values()
 	if len(list) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one " + body.Target + " entry is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one " + body.Type + " entry is required"})
 		return body, nil, false
 	}
 	return body, list, true
 }
 
+func writeSchedule(c *gin.Context, exists bool) {
+	body, list, ok := readScheduleBody(c)
+	if !ok {
+		return
+	}
+	if exists && !skill.HasSchedule(body.Name) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "schedule skill not found: " + body.Name})
+		return
+	}
+	if !exists && skill.HasSchedule(body.Name) {
+		c.JSON(http.StatusConflict, gin.H{"error": "name already taken: " + body.Name})
+		return
+	}
+
+	commit, err := prepareSchedule(body.Type, list)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	sessionID, err := scheduleSession(body.Name, body.SessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := skill.WriteSchedule(body.Name, body.Description, body.Content); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := commit(body.Name, sessionID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"type": body.Type, "name": body.Name, "session_id": sessionID})
+}
+
 func CreateSchedule() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		body, list, ok := readScheduleBody(c)
-		if !ok {
-			return
-		}
-		if skill.HasSchedule(body.Name) {
-			c.JSON(http.StatusConflict, gin.H{"error": "name already taken: " + body.Name})
-			return
-		}
-
-		commit, err := prepareSchedule(body.Target, list)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		sessionID, err := scheduleSession(body.Target, body.Name, body.SessionID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if err := skill.WriteSchedule(body.Name, body.Description, body.Content); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if err := commit(body.Name, sessionID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"name": body.Name, "session_id": sessionID})
+		writeSchedule(c, false)
 	}
 }
 
 func UpdateSchedule() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		body, list, ok := readScheduleBody(c)
-		if !ok {
-			return
-		}
-		if !skill.HasSchedule(body.Name) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "schedule skill not found: " + body.Name})
-			return
-		}
+		writeSchedule(c, true)
+	}
+}
 
-		commit, err := prepareSchedule(body.Target, list)
-		if err != nil {
+func DeleteSchedule() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Type  string `json:"type"`
+			Skill string `json:"skill"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		sessionID, err := scheduleSession(body.Target, body.Name, body.SessionID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		kind := strings.ToLower(strings.TrimSpace(body.Type))
+		if kind != "" && kind != "cron" && kind != "task" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'cron' or 'task'"})
 			return
 		}
-		if err := skill.WriteSchedule(body.Name, body.Description, body.Content); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		name := strings.TrimSpace(body.Skill)
+		if name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "skill is required"})
 			return
 		}
-		if err := commit(body.Name, sessionID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"name": body.Name, "session_id": sessionID})
-	}
-}
 
-func ListCrons() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		crons, err := runtime.LoadCrons()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"crons": crons})
-	}
-}
+		sessionID, _ := scheduleSessionOf(name)
 
-func DeleteCron() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		deleteSchedule(c, "cron")
-	}
-}
-
-func RunCron() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		runSchedule(c)
-	}
-}
-
-func ListTasks() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tasks, err := runtime.LoadTasks()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"tasks": tasks})
-	}
-}
-
-func DeleteTask() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		deleteSchedule(c, "task")
-	}
-}
-
-func RunTask() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		runSchedule(c)
-	}
-}
-
-func deleteSchedule(c *gin.Context, target string) {
-	var body struct {
-		Skill string `json:"skill"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	name := strings.TrimSpace(body.Skill)
-	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "skill is required"})
-		return
-	}
-
-	sessionID, _ := scheduleSessionOf(target, name)
-
-	var removed int
-	var err error
-	if target == "cron" {
-		removed, err = runtime.RemoveCron(name)
-	} else {
-		removed, err = runtime.RemoveTask(name)
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if removed == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": target + " not found"})
-		return
-	}
-
-	bound, err := scheduleBound(name)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	trashed := false
-	if !bound {
-		if err := skill.TrashSchedule(c.Request.Context(), name, historyStore.Meta{SessionID: sessionID}); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		trashed = true
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed, "trashed": trashed})
-}
-
-func scheduleSessionOf(target, name string) (string, error) {
-	if target == "cron" {
-		crons, err := runtime.LoadCrons()
-		if err != nil {
-			return "", err
-		}
-		for _, one := range crons {
-			if one.Skill == name {
-				return one.SessionID, nil
+		removed := 0
+		if kind != "task" {
+			count, err := runtime.RemoveCron(name)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
 			}
+			removed += count
 		}
-		return "", nil
+		if kind != "cron" {
+			count, err := runtime.RemoveTask(name)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			removed += count
+		}
+		if removed == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "schedule not found: " + name})
+			return
+		}
+
+		bound, err := scheduleBound(name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		trashed := false
+		if !bound {
+			if err := skill.TrashSchedule(c.Request.Context(), name, historyStore.Meta{SessionID: sessionID}); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			trashed = true
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed, "trashed": trashed})
 	}
-	tasks, err := runtime.LoadTasks()
+}
+
+func scheduleSessionOf(name string) (string, error) {
+	list, err := loadSchedules("")
 	if err != nil {
 		return "", err
 	}
-	for _, one := range tasks {
+	for _, one := range list {
 		if one.Skill == name {
 			return one.SessionID, nil
 		}
@@ -345,20 +338,11 @@ func scheduleSessionOf(target, name string) (string, error) {
 }
 
 func scheduleBound(name string) (bool, error) {
-	crons, err := runtime.LoadCrons()
+	list, err := loadSchedules("")
 	if err != nil {
 		return false, err
 	}
-	for _, one := range crons {
-		if one.Skill == name {
-			return true, nil
-		}
-	}
-	tasks, err := runtime.LoadTasks()
-	if err != nil {
-		return false, err
-	}
-	for _, one := range tasks {
+	for _, one := range list {
 		if one.Skill == name {
 			return true, nil
 		}
@@ -366,21 +350,23 @@ func scheduleBound(name string) (bool, error) {
 	return false, nil
 }
 
-func runSchedule(c *gin.Context) {
-	var body struct {
-		SessionID string `json:"session_id"`
-		Skill     string `json:"skill"`
+func RunSchedule() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			SessionID string `json:"session_id"`
+			Skill     string `json:"skill"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		sessionID := strings.TrimSpace(body.SessionID)
+		name := strings.TrimSpace(body.Skill)
+		if sessionID == "" || name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and skill are required"})
+			return
+		}
+		go runtime.Fire(sessionID, name)
+		c.JSON(http.StatusAccepted, gin.H{"ok": true, "started": true})
 	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	sessionID := strings.TrimSpace(body.SessionID)
-	name := strings.TrimSpace(body.Skill)
-	if sessionID == "" || name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and skill are required"})
-		return
-	}
-	go runtime.Fire(sessionID, name)
-	c.JSON(http.StatusAccepted, gin.H{"ok": true, "started": true})
 }

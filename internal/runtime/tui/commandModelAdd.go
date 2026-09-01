@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 type modelAddItem struct {
@@ -483,7 +485,7 @@ func (t TUI) runModelAddCompatNameSubmit(name string) (TUI, tea.Cmd) {
 func (t TUI) openModelAddCompatURL() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
-		title:    "URL (blank = scan local)",
+		title:    "URL",
 		subtitle: "enter up to /v1 — e.g. http://localhost:11434/v1",
 		input:    newPopupInput("", false),
 		onConfirm: func(value string) any {
@@ -498,8 +500,8 @@ func (t TUI) runModelAddCompatURLSubmit(url string) (TUI, tea.Cmd) {
 		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
 	}
 	if url == "" {
-		go scanLocalModels(t.ctx, "")
-		return t, nil
+		t.modelAdd = nil
+		return t, tea.Println(errorStyle.Render("[!] url is required") + "\n")
 	}
 	url = strings.TrimRight(url, "/")
 	if !strings.Contains(url, "://") {
@@ -813,4 +815,40 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 		},
 	}
 	return t, nil
+}
+
+type modelsResponse struct {
+	Data []struct {
+		ID                 string `json:"id"`
+		ModelPickerEnabled bool   `json:"model_picker_enabled"`
+		Policy             struct {
+			State string `json:"state"`
+		} `json:"policy"`
+	} `json:"data"`
+}
+
+func fetchModelIDs(ctx context.Context, baseURL, provider string) []string {
+	endpoint := baseURL + "/models"
+
+	var headers map[string]string
+	apiKeyEnvKey := "COMPAT_" + strings.ToUpper(provider) + "_API_KEY"
+	if key := keychain.Get(apiKeyEnvKey); key != "" {
+		headers = map[string]string{
+			"Authorization": "Bearer " + key,
+		}
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	data, status, err := go_pkg_http.GET[modelsResponse](ctx, client, endpoint, headers)
+	if err != nil || status != http.StatusOK {
+		return nil
+	}
+
+	ids := make([]string, 0, len(data.Data))
+	for _, m := range data.Data {
+		if id := strings.TrimSpace(m.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
