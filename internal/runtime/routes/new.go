@@ -129,6 +129,9 @@ func New() *gin.Engine {
 	r.GET("/v1/allowlist/tool", localhostOnly(), handler.ListAllowTool())
 	r.POST("/v1/allowlist/tool", localhostOnly(), handler.SetAllowTool())
 
+	r.GET("/v1/config/startup", localhostOnly(), handler.GetStartup())
+	r.POST("/v1/config/startup", localhostOnly(), handler.SetStartup())
+
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 
 	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
