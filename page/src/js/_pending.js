@@ -11,7 +11,7 @@ async function loadPending(sessionId) {
 
   let list = [];
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/pending`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task`);
     if (!response.ok) {
       return;
     }
@@ -28,7 +28,7 @@ async function loadPending(sessionId) {
 
   let questions = [];
   try {
-    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/pending/${encodeURIComponent(task.task_hash)}/questions`;
+    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(task.task_hash)}/questions`;
     const response = await fetch(url);
     if (!response.ok) {
       return;
@@ -153,7 +153,7 @@ function answerPending(index, total) {
 }
 
 async function resumePending(task, answers) {
-  const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/pending/${encodeURIComponent(task.taskHash)}/resume`;
+  const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/task/${encodeURIComponent(task.taskHash)}/resume`;
 
   try {
     const response = await fetch(url, {
@@ -171,7 +171,7 @@ async function resumePending(task, answers) {
 
 async function listResumable(sessionId) {
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/pending`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task`);
     if (!response.ok) {
       console.error("listResumable", response.status);
       return [];

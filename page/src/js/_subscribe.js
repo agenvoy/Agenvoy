@@ -95,8 +95,8 @@ let announced = false;
 let currentTaskId = "";
 
 function parseEvent(event) {
-  if (event.task_id) {
-    currentTaskId = event.task_id;
+  if (event.once_id) {
+    currentTaskId = event.once_id;
   }
 
   if (event.type === "EventTextDone") {

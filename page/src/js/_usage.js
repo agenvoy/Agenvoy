@@ -52,13 +52,14 @@ function currentUsagePeriod() {
 }
 
 async function fetchUsagePeriods(sessionId) {
-  const url = sessionId ? `${API}/v1/session/${encodeURIComponent(sessionId)}/usage` : `${API}/v1/usage`;
+  const url = sessionId ? `${API}/v1/session/${encodeURIComponent(sessionId)}?usage=1` : `${API}/v1/usage`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
       return {};
     }
-    return (await response.json()).periods || {};
+    const body = (await response.json()) || {};
+    return (sessionId ? body.usage : body.periods) || {};
   } catch (err) {
     console.error("fetchUsagePeriods", err);
     return {};

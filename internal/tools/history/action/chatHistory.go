@@ -13,15 +13,16 @@ import (
 )
 
 const (
-	defaultListLimit = 10
-	listArgsRunes    = 256
+	defaultListLimit  = 10
+	defaultToolsLimit = 16
+	listArgsRunes     = 256
 )
 
 func registChatHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "chat_history",
 		SystemUse:   true,
-		AlwaysLoad:  false,
+		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `This session's action log: each past run's objective, its tool calls with arguments and output, and the messages.
@@ -33,20 +34,28 @@ Not the workspace — file listing never reaches them. Versions → file_history
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
-					"enum":        []string{"list", "read", "search"},
-					"description": "list: recent runs, newest first — each row carries its task_id, objective and every tool it called with the arguments it was given, no tool output. read: the full runs behind one or more task_ids, tool output untruncated. search: past messages, needs keyword. Omitted: task_id selects read, keyword selects search, otherwise list.",
+					"enum":        []string{"list", "tool_list", "tool", "read", "search"},
+					"description": "list: recent runs as a bare index — task_id, when it ended, what it was for. Match an objective here, then read that task_id. tool_list: the same calls flattened across the last 16 runs and reduced to the ones worth reusing (network fetches, subagent reports, generated media, mcp__/api_/script_/ext_ payloads), each with its time, arguments and task_id — scan it before fetching anything to see whether this session already has it. tool: one call's raw output, addressed by task_id + name (+ args when that run called the tool more than once) — the cheapest way back to a page or search result already paid for. read: the full runs behind one or more task_ids, tool output untruncated. search: past messages, needs keyword. Omitted: task_id with name selects tool, task_id alone selects read, keyword selects search, otherwise list.",
 					"default":     "list",
 				},
 				"task_id": map[string]any{
 					"type":        "array",
 					"items":       map[string]any{"type": "string"},
-					"description": "mode=read: task ids taken from list rows; pass every run you want in one call. Required.",
+					"description": "mode=read: task ids taken from list rows; pass every run you want in one call. mode=tool: the single run holding the call you want. Required for both.",
 				},
 				"scope": map[string]any{
 					"type":        "string",
 					"enum":        []string{"reference", "full"},
-					"description": "mode=list/read: reference keeps what costs money or time to obtain again — fetch_page, search_web, http_request, subagents reports, transcribe_media, generate_image, download_file, and every mcp__/api_/script_/ext_ payload — and reduces the rest to bare tool names. full includes every tool's arguments and output; use it to reconstruct what a run actually did.",
+					"description": "mode=read: reference keeps what costs money or time to obtain again — fetch_page, search_web, http_request, subagents reports, transcribe_media, generate_image, download_file, and every mcp__/api_/script_/ext_ payload — and reduces the rest to bare tool names. full includes every tool's arguments and output; use it to reconstruct what a run actually did.",
 					"default":     "reference",
+				},
+				"name": map[string]any{
+					"type":        "string",
+					"description": "mode=tool: the tool name exactly as it appears in a tool_list row (e.g. 'fetch_page', 'mcp__itrd__cycle').",
+				},
+				"args": map[string]any{
+					"type":        "string",
+					"description": "mode=tool: the arguments string from that same tool_list row, needed only when the run called the tool more than once; an unmatched value comes back with the ones it did use.",
 				},
 				"keyword": map[string]any{
 					"type":        "string",
@@ -66,7 +75,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Rows to return, newest first; hit cap per source when mode=search. Ignored when mode=read.",
+					"description": "Rows to return, newest first; runs to scan when mode=tool_list (default 16); hit cap per source when mode=search. Ignored when mode=read.",
 					"default":     defaultListLimit,
 				},
 			},
@@ -79,6 +88,8 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				Keyword   string          `json:"keyword"`
 				Match     string          `json:"match"`
 				TimeRange string          `json:"time_range"`
+				Name      string          `json:"name"`
+				Args      string          `json:"args"`
 				Limit     int             `json:"limit"`
 			}
 			if len(args) > 0 {
@@ -101,6 +112,8 @@ Not the workspace — file listing never reaches them. Versions → file_history
 			if params.Mode == "" {
 				params.Mode = "list"
 				switch {
+				case len(taskIDs) > 0 && strings.TrimSpace(params.Name) != "":
+					params.Mode = "tool"
 				case len(taskIDs) > 0:
 					params.Mode = "read"
 				case strings.TrimSpace(params.Keyword) != "":
@@ -110,7 +123,11 @@ Not the workspace — file listing never reaches them. Versions → file_history
 
 			switch params.Mode {
 			case "list":
-				return list(e, params.Limit, full)
+				return list(e, params.Limit)
+			case "tool_list":
+				return toolList(e, params.Limit)
+			case "tool":
+				return toolContent(e, taskIDs, strings.TrimSpace(params.Name), params.Args)
 			case "read":
 				if len(taskIDs) == 0 {
 					return "", fmt.Errorf("task_id is required when mode=read")
@@ -119,7 +136,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 			case "search":
 				return searchMessages(ctx, e, params.Keyword, params.Match, params.TimeRange, params.Limit)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: list, read, search", params.Mode)
+			return "", fmt.Errorf("unknown mode %q; available: list, tools, read, search", params.Mode)
 		},
 	})
 }

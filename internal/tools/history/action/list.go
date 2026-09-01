@@ -7,12 +7,7 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-type call struct {
-	Name string `json:"name"`
-	Args string `json:"args,omitempty"`
-}
-
-func list(e *toolTypes.Executor, limit int, full bool) (string, error) {
+func list(e *toolTypes.Executor, limit int) (string, error) {
 	if limit <= 0 {
 		limit = defaultListLimit
 	}
@@ -37,15 +32,6 @@ func list(e *toolTypes.Executor, limit int, full bool) (string, error) {
 
 		if r, err := load(item); err == nil {
 			row["objective"] = r.Objective
-			if r.Model != "" {
-				row["model"] = r.Model
-			}
-			if n := len(r.Todos); n > 0 {
-				row["todos"] = n
-			}
-			if calls := toolCalls(r, full); len(calls) > 0 {
-				row["calls"] = calls
-			}
 		} else {
 			row["unreadable"] = err.Error()
 		}
@@ -57,18 +43,6 @@ func list(e *toolTypes.Executor, limit int, full bool) (string, error) {
 		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
 	}
 	return string(raw), nil
-}
-
-func toolCalls(r record, full bool) []call {
-	calls := make([]call, 0, len(r.ToolResults))
-	for _, t := range r.ToolResults {
-		one := call{Name: t.Name}
-		if full || isReference(t.Name) {
-			one.Args = truncateArgs(t.Args)
-		}
-		calls = append(calls, one)
-	}
-	return calls
 }
 
 func truncateArgs(text string) string {
