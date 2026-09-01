@@ -12,7 +12,6 @@ require (
 	github.com/line/line-bot-sdk-go/v8 v8.18.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/muesli/reflow v0.3.0
-	github.com/pardnchiu/ToriiDB v0.5.1
 	github.com/pardnchiu/go-bot v0.4.3
 	github.com/pardnchiu/go-browser v0.3.1
 	github.com/pardnchiu/go-llm-router v0.5.3
@@ -32,10 +31,7 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 )
 
-require (
-	github.com/joho/godotenv v1.5.1 // indirect
-	mvdan.cc/sh/v3 v3.13.1
-)
+require mvdan.cc/sh/v3 v3.13.1
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -74,8 +70,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/pardnchiu/go-utils v0.5.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // direct
+	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -94,6 +89,7 @@ require (
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/pardnchiu/toriidb v0.5.2
 	github.com/ysmood/fetchup v0.2.3 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/got v0.40.0 // indirect

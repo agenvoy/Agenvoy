@@ -2,8 +2,7 @@ const feature = {
   Rules: "contract",
   Knowledge: "book_2",
   Skills: "lightbulb_2",
-  Cron: "schedule",
-  Task: "alarm",
+  Schedule: "schedule",
 };
 
 const configTab = {
@@ -16,6 +15,7 @@ const configTab = {
 const monitorTab = {
   Usage: "bar_chart",
   History: "history",
+  Lessons: "cognition_2",
   Daemon: "terminal",
 };
 
@@ -32,7 +32,7 @@ const leftTab = {
   },
 };
 
-const leftTabSkip = ["Cron", "Task"];
+const leftTabSkip = ["Skills", "Schedule"];
 
 for (const name of Object.keys(feature)) {
   if (leftTabSkip.includes(name)) {
@@ -66,6 +66,9 @@ function getLink(params) {
   }
   if (params.item) {
     path += `&item=${encodeURIComponent(params.item)}`;
+  }
+  if (params.outcome) {
+    path += `&outcome=${encodeURIComponent(params.outcome)}`;
   }
   if (params.keyword) {
     path += `&keyword=${encodeURIComponent(params.keyword)}`;

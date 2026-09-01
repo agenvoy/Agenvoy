@@ -75,14 +75,12 @@ func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.M
 		return
 	}
 	key := fmt.Sprintf("%s:%d", sessionID, time.Now().UnixNano())
-	db := torii.DB(torii.DBSessionHist)
+	db := torii.Remote(torii.DBSessionHist)
 	value := string(msgBytes)
 
-	if setErr := db.SetVector(ctx, key, value, torii.SetDefault, nil); setErr != nil {
-		if setErr = db.Set(key, value, torii.SetDefault, nil); setErr != nil {
-			slog.Warn("store.DB.Set",
-				slog.String("session", sessionID),
-				slog.String("error", setErr.Error()))
-		}
+	if setErr := db.SetVector(ctx, key, value, nil); setErr != nil {
+		slog.Warn("store.DB.Set",
+			slog.String("session", sessionID),
+			slog.String("error", setErr.Error()))
 	}
 }

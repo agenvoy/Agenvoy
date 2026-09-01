@@ -95,9 +95,9 @@ function skillTabDom() {
 async function skillTabState() {
   const out = { skills: [], allowed: {}, source: {} };
   try {
-    const response = await fetch(`${API}/v1/allowlist/skill?scope=global`);
+    const response = await fetch(`${API}/v1/allowlist?scope=global`);
     if (response.ok) {
-      const body = await response.json();
+      const body = ((await response.json()) || {}).skill || {};
       out.skills = body.skills || [];
       out.allowed = body.allowed || {};
       out.source = body.source || {};
@@ -206,10 +206,10 @@ async function toggleSkillAllow(name) {
   }
 
   try {
-    const response = await fetch(`${API}/v1/allowlist/skill`, {
+    const response = await fetch(`${API}/v1/allowlist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope: "global", name: name }),
+      body: JSON.stringify({ skill: { scope: "global", name: name } }),
     });
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));

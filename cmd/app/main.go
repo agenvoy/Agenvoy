@@ -34,6 +34,9 @@ func init() {
 	exec.RegisterAdminSender("dc", func(ctx context.Context, id, str string) error {
 		return chatbot.SendAdminCode(ctx, chatbot.Discord, id, str)
 	})
+	exec.RegisterAdminSender("ln", func(ctx context.Context, id, str string) error {
+		return chatbot.SendAdminCode(ctx, chatbot.Line, id, str)
+	})
 }
 
 func main() {

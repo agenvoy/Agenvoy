@@ -1,6 +1,7 @@
 package history
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 
@@ -70,8 +71,8 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 }
 
 func clean(sessionID string, before int64) {
-	db := torii.DB(torii.DBSessionHist)
-	keys := db.Keys(sessionID + ":*")
+	db := torii.Remote(torii.DBSessionHist)
+	keys := db.Keys(context.Background(), sessionID+":*")
 	if len(keys) == 0 {
 		return
 	}
@@ -86,7 +87,7 @@ func clean(sessionID string, before int64) {
 		}
 	}
 	if len(toDelete) > 0 {
-		db.Del(toDelete...)
+		db.Del(context.Background(), toDelete...)
 	}
 }
 

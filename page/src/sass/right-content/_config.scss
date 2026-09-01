@@ -101,7 +101,7 @@ div.side {
     gap: 0.5rem;
     flex-grow: 1;
     flex-shrink: 1;
-    padding-bottom: 1rem;
+    padding-bottom: 5rem;
     min-height: 0;
     overflow-y: scroll;
 
@@ -314,6 +314,14 @@ nav.period,
 nav.tab {
   @include contentFilter;
 }
+
+> span,
+> div.field > span {
+  margin-bottom: -0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-3);
+}
 flex-grow: 1;
 flex-shrink: 1;
 flex-basis: 0;
@@ -321,7 +329,7 @@ align-self: stretch;
 min-width: 0;
 min-height: 0;
 max-width: 100%;
-padding-bottom: 1rem;
+padding-bottom: 5rem;
 overflow: scroll;
 
 @media (max-width: 767.99px) {
@@ -476,7 +484,7 @@ footer {
     overflow: scroll;
 
     header {
-      @include contentNav((Model, Usage, History, MCP, Keychain, Channel, Daemon));
+      @include contentNav((Model, Usage, History, Lessons, MCP, Keychain, Channel, Daemon));
     }
 
     section.editor.daemon {
@@ -524,6 +532,10 @@ footer {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
         overflow: auto;
+
+        @media (max-width: 767.99px) {
+          min-height: 50vh;
+        }
       }
     }
 
@@ -679,7 +691,9 @@ body section.right-content section.config {
 
     &[data-enabled="1"] input#channel-token,
     &[data-enabled="1"] input#channel-secret,
-    &:not([data-kind="line"]) input#channel-secret {
+    &[data-enabled="1"] span#channel-secret-label,
+    &:not([data-kind="line"]) input#channel-secret,
+    &:not([data-kind="line"]) span#channel-secret-label {
       display: none;
     }
 
@@ -778,7 +792,7 @@ body section.right-content section.config {
     }
 
     select {
-      flex: 1 1 0;
+      flex: 0;
       min-width: 0;
       padding: 0.625rem 0.75rem;
       font: inherit;
@@ -811,6 +825,7 @@ body section.right-content section.config {
     &[data-view="admin"] > div.status,
     &[data-view="admin"] > input#channel-token,
     &[data-view="admin"] > input#channel-secret,
+    &[data-view="admin"] > span#channel-secret-label,
     &[data-view="admin"] > footer,
     &[data-view="channel"] > section#channel-admin {
       display: none;

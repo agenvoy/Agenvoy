@@ -163,10 +163,8 @@ function bindChatMenu() {
 
 async function deleteChat(sessionId) {
   try {
-    const response = await fetch(`${API}/v1/session`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId }),
     });
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));
@@ -209,11 +207,11 @@ async function renderChat(sessionId) {
 
   let content = "";
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/chat`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}?chat=1`);
     if (!response.ok) {
       return;
     }
-    content = (await response.json()).content || "";
+    content = (await response.json()).chat || "";
   } catch (err) {
     console.error("loadChat", err);
     return;

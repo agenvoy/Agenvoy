@@ -395,19 +395,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpOAuthPaste:
 		return t.runMcpOAuthPaste(msg)
 
-	case McpInstallPick:
-		if msg.index < 0 || msg.index >= len(mcpInstallClients) {
-			return t, tea.Println(errorStyle.Render("[!] invalid selection") + "\n")
-		}
-		c := mcpInstallClients[msg.index]
-		return t, func() tea.Msg { return runMcpInstall(c) }
-
-	case McpInstallDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s: %v", msg.client, msg.err)) + "\n")
-		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("✓ added agenvoy to %s (%s)", msg.client, msg.path)) + "\n")
-
 	case McpAddName:
 		if msg.name == "" {
 			t.mcpAdd = nil
@@ -664,12 +651,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ProviderUsageResult:
 		return t, tea.Println(hintStyle.Render("⎯ ") + " " + strings.Join(msg.lines, " / ") + "\n")
-
-	case ModelScanLocalResult:
-		return t.runModelScanLocalResult(msg)
-
-	case ModelScanLocalPick:
-		return t.runModelScanLocalPick(msg.chosen)
 
 	case OAuthInfo:
 		return t.runOAuthInfo(msg)
@@ -1004,7 +985,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
 			if _, _, ok := exec.ParseAdminChannel(value); !ok {
-				return t, tea.Println(errorStyle.Render("[!] admin-channel: format must be tg@<chatID> or dc@<channelID>") + "\n")
+				return t, tea.Println(errorStyle.Render("[!] admin-channel: format must be tg@<chatID>, dc@<channelID> or ln@<sourceID>") + "\n")
 			}
 		}
 		cfg, err := config.Load()

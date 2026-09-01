@@ -24,47 +24,25 @@ var usagePeriods = []struct {
 	{label: "28d", days: 28},
 }
 
-func GetSessionChatLog() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		path := filesystem.ActionLogPath(sid)
-		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusOK, gin.H{"content": ""})
-			return
-		}
-		content, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"content": content})
+func sessionChatLog(sid string) (string, error) {
+	path := filesystem.ActionLogPath(sid)
+	if !go_pkg_filesystem_reader.Exists(path) {
+		return "", nil
 	}
+	return go_pkg_filesystem.ReadText(path)
 }
 
-func GetSessionUsageLog() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
+func sessionUsage(sid string) (map[string]map[string]usagelog.ModelUsage, error) {
+	now := time.Now()
+	periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
+	for _, period := range usagePeriods {
+		summary, err := usagelog.Usage(sid, period.days, now)
+		if err != nil {
+			return nil, err
 		}
-		now := time.Now()
-
-		periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
-		for _, period := range usagePeriods {
-			summary, err := usagelog.Usage(sid, period.days, now)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			periods[period.label] = summary
-		}
-		c.JSON(http.StatusOK, gin.H{"periods": periods})
+		periods[period.label] = summary
 	}
+	return periods, nil
 }
 
 func GetTotalUsage() gin.HandlerFunc {
@@ -84,7 +62,7 @@ func GetTotalUsage() gin.HandlerFunc {
 	}
 }
 
-func ListSessionHistoryFiles() gin.HandlerFunc {
+func ListTaskHistory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		if sid == "" {
@@ -127,10 +105,10 @@ func actionMatch(row historyStore.ActionRecord, keyword string) bool {
 	return false
 }
 
-func GetSessionHistoryFile() gin.HandlerFunc {
+func GetTaskHistory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))
-		hash := strings.TrimPrefix(c.Param("file"), "/")
+		hash := strings.TrimSpace(c.Param("task_hash"))
 		if sid == "" || hash == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
 			return

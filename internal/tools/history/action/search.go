@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	toriidb "github.com/pardnchiu/ToriiDB/core/store"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -24,6 +24,7 @@ type historyHit struct {
 }
 
 const (
+	historyScanCap      = 48
 	historyWindowBefore = 2
 	historyWindowAfter  = 1
 	defaultTimeRange    = "1d"
@@ -67,7 +68,7 @@ func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, 
 	return semanticHandler(ctx, e.SessionID, keyword, timeRange, limit)
 }
 
-func keywordHandler(_ context.Context, sessionID, keyword, timeRange string, limit int) (string, error) {
+func keywordHandler(ctx context.Context, sessionID, keyword, timeRange string, limit int) (string, error) {
 	var sb strings.Builder
 
 	reults, err := historyStore.Search(sessionID, keyword, timeRange, limit)
@@ -83,14 +84,17 @@ func keywordHandler(_ context.Context, sessionID, keyword, timeRange string, lim
 		}
 	}
 
-	db := torii.DB(torii.DBSessionHist)
-	allKeys := db.Keys(sessionID + ":*")
-	if len(allKeys) > 0 {
-		var afterNano int64
-		if d, ok := historyTimeRanges[timeRange]; ok {
-			afterNano = time.Now().Add(-d).UnixNano()
-		}
-		recent := keywordHits(db, allKeys, keyword, afterNano, limit)
+	db := torii.Remote(torii.DBSessionHist)
+	var afterNano int64
+	scan := torii.ScanOption{Contains: keyword, Limit: historyScanCap}
+	if d, ok := historyTimeRanges[timeRange]; ok {
+		afterNano = time.Now().Add(-d).UnixNano()
+		scan.After = time.Now().Add(-d).Unix()
+	}
+
+	entries := db.Scan(ctx, sessionID+":*", scan)
+	if len(entries) > 0 {
+		recent := keywordHits(entries, keyword, afterNano, limit)
 		if len(recent) > 0 {
 			if sb.Len() > 0 {
 				sb.WriteString("\n")
@@ -110,15 +114,15 @@ func keywordHandler(_ context.Context, sessionID, keyword, timeRange string, lim
 }
 
 func semanticHandler(ctx context.Context, sessionID, keyword, timeRange string, limit int) (string, error) {
-	db := torii.DB(torii.DBSessionHist)
-	allKeys := db.Keys(sessionID + ":*")
+	db := torii.Remote(torii.DBSessionHist)
+	allKeys := db.Keys(ctx, sessionID+":*")
 	if len(allKeys) == 0 {
 		return "no history found", nil
 	}
 
 	keyIdx := make(map[string]int, len(allKeys))
-	for i, k := range allKeys {
-		keyIdx[k] = i
+	for i, one := range allKeys {
+		keyIdx[one] = i
 	}
 
 	_, maxHistory := sessionHistory.Get(sessionID)
@@ -140,15 +144,15 @@ func semanticHandler(ctx context.Context, sessionID, keyword, timeRange string, 
 		return fmt.Sprintf("no matches with keyword: %s", keyword), nil
 	}
 
-	return formatSegments(db, allKeys, expanded), nil
+	return formatSegments(ctx, db, allKeys, expanded), nil
 }
 
-func keywordHits(db *toriidb.Session, keys []string, keyword string, afterNano int64, cap int) []historyHit {
+func keywordHits(entries []torii.Entry, keyword string, afterNano int64, cap int) []historyHit {
 	lower := strings.ToLower(keyword)
 	out := make([]historyHit, 0, cap)
 
-	for i := len(keys) - 1; i >= 0; i-- {
-		key := keys[i]
+	for _, entry := range slices.Backward(entries) {
+		key := entry.Key
 		ts, ok := parseKeyTS(key)
 		if !ok {
 			continue
@@ -157,10 +161,6 @@ func keywordHits(db *toriidb.Session, keys []string, keyword string, afterNano i
 			break
 		}
 
-		entry, ok := db.Get(key)
-		if !ok {
-			continue
-		}
 		val := entry.Value()
 		if !strings.Contains(strings.ToLower(val), lower) {
 			continue
@@ -178,7 +178,7 @@ func keywordHits(db *toriidb.Session, keys []string, keyword string, afterNano i
 	return out
 }
 
-func semanticHits(ctx context.Context, db *toriidb.Session, sessionID, keyword string, exclude map[string]struct{}, cap int) []historyHit {
+func semanticHits(ctx context.Context, db *torii.Client, sessionID, keyword string, exclude map[string]struct{}, cap int) []historyHit {
 	hits, err := db.VSearch(ctx, keyword, sessionID+":*", cap+len(exclude))
 	if err != nil {
 		return nil
@@ -193,7 +193,7 @@ func semanticHits(ctx context.Context, db *toriidb.Session, sessionID, keyword s
 		if !ok {
 			continue
 		}
-		entry, ok := db.Get(key)
+		entry, ok := db.Get(ctx, key)
 		if !ok {
 			continue
 		}
@@ -234,7 +234,7 @@ func expandWindows(hits []historyHit, allKeys []string, keyIdx map[string]int, e
 	return out
 }
 
-func formatSegments(db *toriidb.Session, allKeys []string, idxs []int) string {
+func formatSegments(ctx context.Context, db *torii.Client, allKeys []string, idxs []int) string {
 	var sb strings.Builder
 	prevIdx := -1
 	first := true
@@ -245,11 +245,11 @@ func formatSegments(db *toriidb.Session, allKeys []string, idxs []int) string {
 		prevIdx = i
 
 		key := allKeys[i]
-		entry, ok := db.Get(key)
+		ts, ok := parseKeyTS(key)
 		if !ok {
 			continue
 		}
-		ts, ok := parseKeyTS(key)
+		entry, ok := db.Get(ctx, key)
 		if !ok {
 			continue
 		}

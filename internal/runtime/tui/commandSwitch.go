@@ -112,6 +112,8 @@ func sessionRank(sessionID string) int {
 		return 1
 	case "dc-":
 		return 2
+	case "ln-":
+		return 3
 	case "chat-":
 		return 4
 	case "temp-":

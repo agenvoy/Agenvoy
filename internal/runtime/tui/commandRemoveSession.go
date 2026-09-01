@@ -236,10 +236,10 @@ func pickAlternateSession(exclude ...string) string {
 }
 
 func deleteSessionHistKeys(sid string) int {
-	db := torii.DB(torii.DBSessionHist)
-	keys := db.Keys(sid + ":*")
+	db := torii.Remote(torii.DBSessionHist)
+	keys := db.Keys(context.Background(), sid+":*")
 	if len(keys) == 0 {
 		return 0
 	}
-	return db.Del(keys...)
+	return db.Del(context.Background(), keys...)
 }

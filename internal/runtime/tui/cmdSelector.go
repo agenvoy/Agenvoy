@@ -34,7 +34,7 @@ type Command struct {
 
 var commands = []Command{
 	{"model", "add / remove provider · pick session / dispatch / summary model · image generator"},
-	{"mcp", "list MCP servers · add / install · per-server login, reconnect, tools, remove"},
+	{"mcp", "list MCP servers · add · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
 	{"dangerous", "remove-session / allow-skill"},
@@ -46,7 +46,7 @@ var commands = []Command{
 	{"voice", "enable / disable voice message · gemini tts"},
 	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
 	{"kuradb", "setup / update KuraDB RAG as an MCP server"},
-	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
+	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>/ln@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},
 	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},

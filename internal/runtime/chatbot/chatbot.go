@@ -9,10 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	go_bot_line "github.com/pardnchiu/go-bot/line"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -23,6 +25,7 @@ type Channel int
 const (
 	Telegram Channel = iota
 	Discord
+	Line
 )
 
 var VoiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
@@ -97,6 +100,19 @@ func SendAdminCode(ctx context.Context, ch Channel, targetID, text string) error
 		}
 		if _, err := client.Send(ctx, strings.TrimSpace(targetID), "", text); err != nil {
 			return fmt.Errorf("go-bot/discord Send: %w", err)
+		}
+	case Line:
+		secret := strings.TrimSpace(keychain.Get("LINE_SECRET"))
+		token := strings.TrimSpace(keychain.Get("LINE_TOKEN"))
+		if secret == "" || token == "" {
+			return fmt.Errorf("line secret or token missing")
+		}
+		client, err := go_bot_line.New(secret, token, filesystem.LinePort)
+		if err != nil {
+			return fmt.Errorf("go-bot/line New: %w", err)
+		}
+		if _, err := client.Send(ctx, strings.TrimSpace(targetID), text); err != nil {
+			return fmt.Errorf("go-bot/line Send: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown channel %d", ch)

@@ -1,24 +1,24 @@
-async function memoryPost(path, body) {
+async function memoryPost(action, body) {
   if (!currentSessionId) {
     return null;
   }
 
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}/${path}`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}/memory`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body || {}),
+      body: JSON.stringify({ action: action, ...(body || {}) }),
     });
     const detail = await response.json().catch(() => ({}));
     if (!response.ok) {
-      console.error("memoryPost", path, response.status, detail);
-      alert(`${path} failed: ${detail.error || response.status}`);
+      console.error("memoryPost", action, response.status, detail);
+      alert(`${action} failed: ${detail.error || response.status}`);
       return null;
     }
     return detail;
   } catch (err) {
-    console.error("memoryPost", path, err);
-    alert(`${path} failed: ${err.message || err}`);
+    console.error("memoryPost", action, err);
+    alert(`${action} failed: ${err.message || err}`);
     return null;
   }
 }

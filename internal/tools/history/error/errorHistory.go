@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -133,7 +132,7 @@ A past run's own steps → chat_history; the full recovery loop → reasoning_gu
 				if params.Hash == "" {
 					return "", fmt.Errorf("hash is required when mode=read")
 				}
-				return readRecord(params.Hash), nil
+				return memory.Read(params.Hash), nil
 
 			case "write":
 				record := memory.Record{
@@ -176,22 +175,4 @@ func requireRecord(r memory.Record) error {
 		return fmt.Errorf("outcome is required when mode=write")
 	}
 	return nil
-}
-
-func readRecord(hash string) string {
-	db := torii.DB(torii.DBErrorMemory)
-	for _, key := range db.Keys("*") {
-		entry, ok := db.Get(key)
-		if !ok {
-			continue
-		}
-		var rec memory.Record
-		if err := json.Unmarshal([]byte(entry.Value()), &rec); err != nil {
-			continue
-		}
-		if rec.ID == hash {
-			return entry.Value()
-		}
-	}
-	return "not found"
 }

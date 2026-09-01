@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -18,13 +19,26 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-func GetChannelStatus() gin.HandlerFunc {
+func GetChannel() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cfg, err := config.Load()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		if cfg == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "config is empty"})
+			return
+		}
+
+		current := strings.TrimSpace(cfg.AdminChannel)
+		chats := slices.Concat(
+			adminChats("tg", filesystem.TelegramAuthPath),
+			adminChats("dc", filesystem.DiscordAuthPath),
+			adminChats("ln", filesystem.LineAuthPath),
+		)
+		authorized := slices.ContainsFunc(chats, func(chat adminChat) bool { return chat.Value == current })
+
 		c.JSON(http.StatusOK, gin.H{
 			"telegram": gin.H{
 				"enabled":   cfg.TelegramEnabled,
@@ -41,6 +55,11 @@ func GetChannelStatus() gin.HandlerFunc {
 				"username": cfg.LineUsername,
 				"has_token": strings.TrimSpace(keychain.Get(line.SecretKey)) != "" &&
 					strings.TrimSpace(keychain.Get(line.TokenKey)) != "",
+			},
+			"admin": gin.H{
+				"channel":    current,
+				"authorized": current != "" && authorized,
+				"chats":      chats,
 			},
 		})
 	}
@@ -149,40 +168,6 @@ func adminChats(prefix, path string) []adminChat {
 	return list
 }
 
-func GetAdminChannel() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		cfg, err := config.Load()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if cfg == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "config is empty"})
-			return
-		}
-
-		current := strings.TrimSpace(cfg.AdminChannel)
-		chats := append(
-			adminChats("tg", filesystem.TelegramAuthPath),
-			adminChats("dc", filesystem.DiscordAuthPath)...,
-		)
-
-		authorized := false
-		for _, chat := range chats {
-			if chat.Value == current {
-				authorized = true
-				break
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"admin_channel": current,
-			"authorized":    current != "" && authorized,
-			"chats":         chats,
-		})
-	}
-}
-
 func channelAuthPath(channel string) (path, prefix string, ok bool) {
 	switch channel {
 	case "telegram":
@@ -283,7 +268,7 @@ func SetAdminChannel() gin.HandlerFunc {
 		value := strings.TrimSpace(*body.Value)
 		if value != "" {
 			if _, _, ok := exec.ParseAdminChannel(value); !ok {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "value must be tg@<chatID> or dc@<channelID>, or empty to clear"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "value must be tg@<chatID>, dc@<channelID> or ln@<sourceID>, or empty to clear"})
 				return
 			}
 		}
@@ -303,7 +288,7 @@ func SetAdminChannel() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "admin_channel": value})
+		c.JSON(http.StatusOK, gin.H{"ok": true, "channel": value})
 	}
 }
 

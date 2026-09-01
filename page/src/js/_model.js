@@ -88,7 +88,7 @@ async function saveSessionModel(sessionId, model) {
   }
 
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/model`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: model }),
@@ -107,14 +107,12 @@ async function getSessionModel(sessionId) {
   }
 
   try {
-    const response = await fetch(`${API}/v1/sessions`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`);
     if (!response.ok) {
       return "";
     }
 
-    const list = (await response.json()).sessions || [];
-    const session = list.find((item) => item.id === sessionId);
-    return session ? session.model || "" : "";
+    return (await response.json()).model || "";
   } catch (err) {
     console.error("sessionModel", err);
     return "";
@@ -155,7 +153,7 @@ async function getReasoningList(sessionId) {
   }
 
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/reasoning`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`);
     if (!response.ok) {
       return;
     }
@@ -216,7 +214,7 @@ async function saveSessionReasoning(sessionId, level) {
   }
 
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/reasoning`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reasoning: level }),

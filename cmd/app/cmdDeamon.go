@@ -18,6 +18,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -30,6 +31,7 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -37,6 +39,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -155,7 +158,7 @@ func reloadTelegram(attempt int) {
 	telegramBot = bot
 }
 
-func reloadLine() {
+func reloadLine(attempt int) {
 	newSecret := keychain.Get(line.SecretKey)
 	newToken := keychain.Get(line.TokenKey)
 	newEnabled := false
@@ -166,7 +169,7 @@ func reloadLine() {
 	lineMu.Lock()
 	defer lineMu.Unlock()
 
-	if newEnabled == lastLineEnabled && newSecret == lastLineSecret && newToken == lastLineToken {
+	if attempt == 0 && newEnabled == lastLineEnabled && newSecret == lastLineSecret && newToken == lastLineToken {
 		return
 	}
 
@@ -174,20 +177,30 @@ func reloadLine() {
 		_ = line.Close(lineBot)
 		lineBot = nil
 	}
-	lastLineEnabled = newEnabled
-	lastLineSecret = newSecret
-	lastLineToken = newToken
 
 	if !newEnabled || newSecret == "" || newToken == "" {
+		lastLineEnabled = newEnabled
+		lastLineSecret = newSecret
+		lastLineToken = newToken
 		return
 	}
 
 	bot, err := line.New()
 	if err != nil {
 		slog.Error("line.New",
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.Int("attempt", attempt))
+		if attempt < reloadRetryMax {
+			go func() {
+				time.Sleep(reloadRetryDelay)
+				reloadLine(attempt + 1)
+			}()
+		}
 		return
 	}
+	lastLineEnabled = newEnabled
+	lastLineSecret = newSecret
+	lastLineToken = newToken
 	lineBot = bot
 }
 
@@ -328,10 +341,16 @@ func cmdDaemon() {
 
 	reloadDiscord(0)
 	reloadTelegram(0)
-	reloadLine()
+	reloadLine(0)
 	monitor.Start(context.Background())
 
 	handler.StartWebConfirm(context.Background())
+
+	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
+		event := agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason}
+		sessionLog.Record(sessionID, event)
+		pubsub.Pub(sessionID, event)
+	})
 
 	route := routes.New()
 	server := &http.Server{
@@ -446,7 +465,7 @@ func watchConfig(ctx context.Context) func() {
 				}
 				reloadDiscord(0)
 				reloadTelegram(0)
-				reloadLine()
+				reloadLine(0)
 			case err, ok := <-w.Errors:
 				if !ok {
 					return

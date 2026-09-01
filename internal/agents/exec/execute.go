@@ -89,13 +89,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
 
-	var taskID string
+	var onceID string
 	if session.ID != "" {
-		taskID = go_pkg_utils.UUID()
+		onceID = go_pkg_utils.UUID()
 		configStatus.Online(session.ID)
 		defer configStatus.Idle(session.ID)
-		registerCancel(taskID, execCancel)
-		defer unregisterCancel(taskID)
+		registerCancel(onceID, execCancel)
+		defer unregisterCancel(onceID)
 
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
@@ -105,7 +105,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		defer ClearSteer(session.ID)
 
 		original := events
-		runTaskID := taskID
+		runOnceID := onceID
 		fanoutEvents := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
@@ -128,8 +128,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range fanoutEvents {
-				if ev.TaskID == "" && ev.Source == "" {
-					ev.TaskID = runTaskID
+				if ev.OnceID == "" && ev.Source == "" {
+					ev.OnceID = runOnceID
 				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
@@ -217,6 +217,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				interactive.CleanupPending(session.ID, exec.PendingTask)
 			}
 		}()
+		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
 	}
 
 	if data.Skill != nil {
@@ -237,7 +238,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 	if strings.HasPrefix(session.ID, "ln-") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"generate_image", "ask_user", "store_secret", "transcribe_media")
+			"generate_image", "ask_user", "store_secret")
 	}
 
 	if len(data.ExcludeTools) > 0 {

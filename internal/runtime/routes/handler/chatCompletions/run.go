@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -87,8 +88,8 @@ func buildStatelessSession(req Request, userInput, workDir string, scanner *runt
 	systemPrompts = append(systemPrompts, req.systemPrompts...)
 
 	lastUserIdx := -1
-	for i := len(req.Messages) - 1; i >= 0; i-- {
-		if req.Messages[i].Role == "user" {
+	for i, one := range slices.Backward(req.Messages) {
+		if one.Role == "user" {
 			lastUserIdx = i
 			break
 		}

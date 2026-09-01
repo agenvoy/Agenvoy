@@ -5,7 +5,7 @@ async function openPersonaPopup() {
 
   let current = {};
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}/persona`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}`);
     const detail = await response.json().catch(() => ({}));
     if (!response.ok) {
       alert(`persona failed: ${detail.error || response.status}`);
@@ -20,7 +20,7 @@ async function openPersonaPopup() {
 
   const self = personaField(current.self_id || "", "a-z 0-9 _ - only, up to 32 characters · stored lowercase", true);
   const name = personaField(current.name || "", "shown as the session title", true);
-  const rule = personaField(current.body || "", "system prompt for this session", false);
+  const rule = personaField(current.rule || "", "system prompt for this session", false);
 
   const cancel = _("button", { type: "button" }, "cancel");
   const save = _("button", { type: "button", class: "submit" }, "save");
@@ -99,10 +99,10 @@ function personaField(value, placeholder, single) {
 
 async function savePersona(selfId, name, rule) {
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}/persona`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ self_id: selfId, name: name, body: rule }),
+      body: JSON.stringify({ self_id: selfId, name: name, rule: rule }),
     });
     const detail = await response.json().catch(() => ({}));
     if (!response.ok) {

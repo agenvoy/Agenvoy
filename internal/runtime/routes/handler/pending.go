@@ -32,7 +32,7 @@ func ListSessionPending() gin.HandlerFunc {
 			return
 		}
 
-		hashes := interactive.ListPendingTasks(sid)
+		hashes := interactive.ListResumablePending(sid)
 		list := make([]pendingTaskInfo, 0, len(hashes))
 		for _, h := range hashes {
 			info, ok := interactive.LoadPendingInfo(sid, h)

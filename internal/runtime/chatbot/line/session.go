@@ -36,7 +36,7 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 
 	sess.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, agents.Scanner(), sessionID, data.AllowAll, data.ExcludeSkills)
 	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		sess.SummaryMessage = provider.Message{Role: "assistant", Content: summary}
+		sess.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
 	sess.OldHistories = sessionHistory.Messages(maxHistory)

@@ -125,6 +125,21 @@ MCP client and server live in `internal/runtime/mcp` and use the official [`mode
 }
 ```
 
+Agenvoy itself speaks MCP over stdio: run the `agen` binary with stdin piped (no TTY) and it starts the MCP server instead of the TUI. Register it in another agent by hand — Claude Code (`~/.claude.json`), OpenCode (`~/.config/opencode/opencode.jsonc`) and Codex (`~/.codex/config.toml`) each keep their own file:
+
+```json
+{
+  "mcpServers": {
+    "agenvoy": { "command": "agen" }
+  }
+}
+```
+
+```toml
+[mcp_servers.agenvoy]
+command = "agen"
+```
+
 ### Session Classification and Monitoring
 
 The TUI session selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, `chat-` for Web/API, and `temp-` for short-lived work. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
@@ -146,7 +161,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 | Command | Purpose |
 |---|---|
 | `/model` | Add or remove providers, pick the session / dispatcher / summary model, set the image generator |
-| `/mcp` | List MCP servers; add, install into other agents, log in, reconnect, inspect tools, set per-tool permission, remove |
+| `/mcp` | List MCP servers; add, log in, reconnect, inspect tools, set per-tool permission, remove |
 | `/switch` `/new` | Switch to another session, or create one (names are conflict-checked) |
 | `/bot` | Rename the current session or edit its persona |
 | `/memory` | `compact` / `reset` / `summary` for the current session |
@@ -224,8 +239,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/chat/completions` | Stateless OpenAI-compatible chat completion. |
 | `GET` | `/v1/info/version` | Build version stamped at compile time (`{version, dev}`); `dev` is true for an untagged build. |
 | `GET` | `/v1/log` | SSE stream. With no query it carries daemon `slog` records only (`EventDaemonLog` frames with `source` as the level) — the same feed the TUI header shows, and it includes new-chat verification codes, so daemon frames are attached only for loopback callers. `?sessions=a,b` adds those sessions' events on the same connection; `replay=0` skips the backlog, `daemon=0` drops the daemon frames. A remote caller must pass `sessions`. |
-| `GET` | `/v1/tools` | List current tools. |
-| `POST` | `/v1/tool/:tool_name` | Run a named tool directly. |
+| `GET` | `/v1/mcp/tools` | List the tools registered from connected MCP servers (`mcp__*`). |
 
 **Models**
 
@@ -234,9 +248,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` | `/v1/models` | List registered models (OpenAI `{data:[…]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
-| `GET` `POST` | `/v1/model/dispatcher` | **local** — get/set the dispatcher model. |
-| `GET` `POST` | `/v1/model/summary` | **local** — get/set the summary model. |
-| `GET` `POST` | `/v1/model/image` | **local** — get/set the image generator. The value is a provider id (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`), empty or `off` disables it; GET also returns the full option list. Rejects a provider with no registered model. |
+| `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, plus `image_options` on read. The three fields hold different kinds of value: `dispatcher` and `summary` name a registered model (`prefix@model`), while `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router` — `image_options` lists only the providers that currently hold credentials. `POST` is a partial update: a field left out (or `null`) is untouched, `""` clears it, and `off` is accepted for `image` as an alias of `""`. An unregistered model, an unknown provider, or a provider with no credentials is rejected and nothing is written. Both verbs return the same object. |
 
 **Sessions**
 
@@ -244,37 +256,27 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` | `/v1/sessions` | List sessions and status. |
 | `GET` | `/v1/usage` | **local** — 24h/7d/28d total token usage across sessions. |
-| `POST` `PUT` `DELETE` | `/v1/session` | **local** — create / rename / delete a session. |
-| `POST` | `/v1/session/:id/model` | Set the model for a session. |
-| `GET` | `/v1/session/:id/status` | Get session status and usage. |
+| `POST` | `/v1/session` | **local** — create a session; `{prefix}` defaults to `cli-`. |
+| `GET` `POST` `DELETE` | `/v1/session/:id` | **local** — one session's full state: `id`, `self_id`, `name`, `rule`, `state`, `model`, `reasoning`, `levels`, `count`. `POST` is a partial update — `self_id` / `name` / `rule` / `model` / `reasoning` are all optional and a field left out (or `null`) is untouched; `model: ""` resets to `auto`, `reasoning` must be one of `levels`. `GET` and `POST` return the same object. A duplicate `self_id` returns 409. `DELETE` removes the session directory, history, state and vectors. `GET` also takes `?chat=1` to append the raw action log under `chat`, and `?usage=1` to append 24h/7d/28d per-model token usage under `usage` (same aggregation as the TUI `/usage` screen); both are off by default because the log can be large. |
 | `POST` | `/v1/session/:id/event` | **local** — publish an event into a session's stream. |
-| `GET` | `/v1/session/:id/pending` | List pending (`ask_user`/confirm) tasks. |
-| `GET` | `/v1/session/:id/pending/:task_hash/questions` | Get a pending task's questions. |
-| `POST` | `/v1/session/:id/pending/:task_hash/resume` | Answer a pending task and resume. |
-| `DELETE` | `/v1/session/:id/pending/:task_hash` | Discard a pending task without answering it. |
-| `POST` | `/v1/session/:id/cancel/:task_id` | Cancel one running task; 404 when that id is not running in this process. |
-| `POST` | `/v1/session/:id/confirm/:request_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?}`. Restricted paths and non-allowlisted commands cannot be approved here — they need the password check only the TUI can collect, so an approval without it comes back as skipped. |
-| `GET` `POST` | `/v1/session/:id/persona` | **local** — get/set a session's persona. |
-| `GET` `POST` | `/v1/session/:id/reasoning` | **local** — get/set the session's reasoning level. |
-| `POST` | `/v1/session/:id/reset` | **local** — clear the session's history and summary. |
-| `POST` | `/v1/session/:id/summary` | **local** — rebuild the session summary in the background. |
-| `POST` | `/v1/session/:id/compact` | **local** — compact history in the background (fire-and-forget, `202 Accepted`). |
-| `GET` | `/v1/session/:id/chat` | **local** — read the session chat/action log. |
-| `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d per-model token usage for one session. |
-| `GET` | `/v1/session/:id/action` | **local** — that session's `action.log` content. |
-| `GET` | `/v1/session/:id/usage` | **local** — 24h/7d/28d per-model token usage (same aggregation as the TUI `/usage` screen). |
-| `GET` | `/v1/session/:id/history` | **local** — list archived completed pending-task files. |
-| `GET` | `/v1/session/:id/history/*file` | **local** — read one archived pending-task file. |
+| `GET` | `/v1/session/:id/task` | List resumable pending (`ask_user`/confirm) tasks. Tasks whose run is still live are excluded — a run refreshes `action:<session_id>:<task_hash>` in ToriiDB every 3s with a 5s TTL, so a task left behind by a closed window or a killed process reappears here within 5 seconds. |
+| `GET` | `/v1/session/:id/task/:task_hash/questions` | Get a pending task's questions. |
+| `POST` | `/v1/session/:id/task/:task_hash/resume` | Answer a pending task and resume. |
+| `DELETE` | `/v1/session/:id/task/:task_hash` | Discard a pending task without answering it. |
+| `POST` | `/v1/session/:id/cancel/:once_id` | Cancel one running task; 404 when that id is not running in this process. |
+| `POST` | `/v1/session/:id/confirm/:once_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?}`. Restricted paths and non-allowlisted commands cannot be approved here — they need the password check only the TUI can collect, so an approval without it comes back as skipped. |
+| `POST` | `/v1/session/:id/memory` | **local** — one memory operation on the session, picked by `action`: `summary` rebuilds the rolling summary and returns `count`; `compact` drops older messages and returns `removed`; `reset` clears the conversation and returns `removed`, and requires `mode` — `summary` keeps the rolling summary, `all` wipes it too. |
+| `GET` | `/v1/session/:id/task/history` | **local** — completed tasks of this session, newest first: `{task_hash, end_at, objective, model, reasoning}` per row. `?keyword=` filters on the objective and the recorded action text. |
+| `GET` | `/v1/session/:id/task/:task_hash/history` | **local** — the full action record of one completed task, returned as a JSON string under `content`. 404 when that hash has no record. |
 
 **Channels**
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/channel/status` | **local** — Telegram/Discord enabled state, bot username, whether a token is stored. |
+| `GET` | `/v1/channel` | **local** — every channel read in one object: `telegram` and `discord` each carry `{enabled, username, has_token}`, and `admin` carries `{channel, authorized, chats:[{value,type,id,name}]}`. `chats` comes from the `.telegram` / `.discord` auth files (tg first, then dc) and each `value` can be posted back as-is; `authorized` says whether the current relay target is still on that list (a hand-typed ID reads `false`). |
 | `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`. Enable stores the token and flips the config flag only; the `GetMe` verification the TUI does is intentionally skipped, since the daemon's existing config-file watcher already reconnects the bot and fills in its username. |
 | `GET` | `/v1/channel/:channel/chats` | **local** — chats that finished verification for `telegram` / `discord`, read from the `.telegram` / `.discord` auth files. Only meaningful while the bot runs, so ask for it after `status` reports `enabled`. |
 | `DELETE` | `/v1/channel/:channel/chat` | **local** — `{id}`. Drops one chat from that auth file; the chat has to verify again before the bot answers it. 404 when the id is not on the list. |
-| `GET` | `/v1/channel/admin` | **local** — current relay target plus the pickable ones: `{admin_channel, authorized, chats:[{value,type,id,name}]}`. `chats` comes from the `.telegram` / `.discord` auth files (tg first, then dc) and each `value` can be posted back as-is; `authorized` says whether the current value is still on that list (a hand-typed ID reads `false`). |
 | `POST` | `/v1/channel/admin` | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`. Sets where new-chat verification codes are relayed; an empty string clears it. `value` is required (omitting it returns 400 so an empty body cannot silently clear the setting). Only the format is validated — an ID that is not in the authorized list makes `NotifyAdminCode` log a warning and keep the code log-only. |
 
 **Files & credentials**
@@ -294,7 +296,6 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` | `/v1/providers` | **local** — list providers and their available operations. |
 | `GET` | `/v1/providers/usage` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
-| `GET` | `/v1/provider/:provider/check` | **local** — whether a credential exists for this provider. |
 | `POST` | `/v1/provider/:provider/key` | **local** — set an API key. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |
@@ -331,25 +332,29 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/v1/schedule` | **local** — list cron entries and one-off tasks as one `schedules` array, each tagged `type=cron\|task`; `?type=` narrows to one. |
 | `GET` | `/v1/schedule/*skill` | **local** — read a scheduler skill split into `name` / `description` / `body` (frontmatter parsed off). |
-| `POST` `PATCH` | `/v1/schedule` | **local** — create/update a scheduler skill from `name` / `description` / `content` (the frontmatter is composed server-side) and rebind its whole `target=cron\|task` entry set. |
-| `GET` `DELETE` | `/v1/cron` | **local** — list/delete cron entries; delete trashes the skill when nothing else binds it. |
-| `POST` | `/v1/cron/run` | **local** — fire a cron entry now (`202 Accepted`). |
-| `GET` `DELETE` | `/v1/task` | **local** — list/delete one-off tasks; delete trashes the skill when nothing else binds it. |
-| `POST` | `/v1/task/run` | **local** — fire a task now (`202 Accepted`). |
+| `POST` `PATCH` | `/v1/schedule` | **local** — create/update a scheduler skill from `name` / `description` / `content` (the frontmatter is composed server-side) and rebind its whole entry set to `type=cron\|task`; switching type drops the entries the skill held under the other one. |
+| `DELETE` | `/v1/schedule` | **local** — delete a skill's entries (`type` narrows to one, omitted removes both); trashes the skill when nothing else binds it. |
+| `POST` | `/v1/schedule/run` | **local** — fire a schedule now (`202 Accepted`). |
 
 **Allowlists**
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` `POST` | `/v1/allowlist/cmd` | **local** — list/append the command allowlist (append-only, restart required to take effect). |
-| `GET` `POST` | `/v1/allowlist/skill` | **local** — list/toggle the skill allowlist (`scope=global\|project`). |
-| `GET` `POST` | `/v1/allowlist/tool` | **local** — the global tool auto-approve list. `GET` returns every entry, or only those under `?prefix=`. `POST` `{prefix, entries}` replaces just that prefix's entries (same call the TUI's `/mcp` → permission makes), so unrelated rules survive; every entry must start with `prefix`, and `prefix*` collapses the rest. |
+| `GET` `POST` | `/v1/allowlist` | **local** — both allowlists in one object, `skill` and `tool`. `GET` reads `?scope=global\|project` (with `?work_dir=` required for `project`) for the skill block and `?prefix=` to narrow the tool block. `POST` takes `{skill: {name, scope?, work_dir?}}` to toggle one skill and/or `{tool: {prefix, entries}}` to replace just that prefix's auto-approve entries (same call the TUI's `/mcp` → permission makes), so unrelated rules survive; every entry must start with `prefix`, and `prefix*` collapses the rest. A block left out is untouched. |
+
+**Configuration**
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` `POST` | `/v1/config/startup` | **local** — read/set launch-on-login. `POST` `{enable}` writes or removes the launchd agent (macOS) or systemd user unit (Linux); it never starts or stops the running daemon, and takes effect at the next login. |
 
 **Inspection**
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` `POST` `DELETE` | `/v1/toriidb/:db/*key`, `/v1/toriidb` | **local** — the single ToriiDB gate. `GET` on a plain key returns one entry, on a pattern (`*`) returns every matching entry — narrowed server-side by `?contains=<substr>` (case-insensitive, matched against the value) and `?after=<unix seconds>` (entry mtime); `?keys=1` returns names only and `?search=<text>&limit=` runs vector search. `POST` `{db,key,value,expire_at,vector}` writes with an absolute expiry, or `{db,keys,ttl}` re-expires existing keys by relative seconds; `DELETE` `{db,keys}` removes. Every process other than the daemon reaches ToriiDB only through here, so tool cache, chat vectors, knowledge, error memory and pending liveness are shared across the TUI and the daemon. |
 | `GET` | `/v1/torii/error` | **local** — read the tool-error memory store; unfiltered when `tool`/`keyword` are both omitted. |
 
 ## Tool Reference

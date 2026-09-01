@@ -48,6 +48,9 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 	for _, e := range utils.ListChats(filesystem.DiscordAuthPath) {
 		add(adminChannelLabel("dc", e), "dc@"+e.ID)
 	}
+	for _, e := range utils.ListChats(filesystem.LineAuthPath) {
+		add(adminChannelLabel("ln", e), "ln@"+e.ID)
+	}
 
 	cursor := 0
 	for i, v := range values {

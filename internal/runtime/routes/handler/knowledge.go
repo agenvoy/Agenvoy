@@ -41,7 +41,7 @@ func GetKnowledge() gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "knowledge not found"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"name": record.Name, "content": record.Content})
+		c.JSON(http.StatusOK, gin.H{"name": record.Name, "content": record.Content, "updated_at": record.UpdatedAt})
 	}
 }
 

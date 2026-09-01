@@ -23,7 +23,10 @@ func chunk(text string) []string {
 		}
 
 		window := remaining[:lineChunkBytes]
-		idx := strings.LastIndex(window, "\n")
+		idx := strings.LastIndex(window, "\n\n")
+		if idx < 0 {
+			idx = strings.LastIndex(window, "\n")
+		}
 		if idx < 0 {
 			idx = strings.LastIndex(window, " ")
 		}

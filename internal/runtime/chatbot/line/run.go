@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -17,10 +16,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -37,6 +39,10 @@ func sourceID(in go_bot_line.Input) string {
 
 func inputHasAttachment(in go_bot_line.Input) bool {
 	return in.MessageType != "" && in.MessageType != "text" && in.MessageID != ""
+}
+
+func inputHasVoice(in go_bot_line.Input) bool {
+	return in.MessageID != "" && (in.MessageType == "audio" || in.MessageType == "video")
 }
 
 func sourceName(in go_bot_line.Input) string {
@@ -158,6 +164,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		slog.Info("LINE Verification Code",
 			slog.String("name", sourceName(in)),
 			slog.String("code", code))
+		exec.NotifyAdminCode(ctx, code, "LINE "+sourceName(in))
 		pending.Set(target, code, "")
 		if _, err := b.client.Send(ctx, target, "please enter the 6-digit verification code to enable the conversation."); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (verify prompt)",
@@ -167,14 +174,24 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		return nil
 	}
 
+	autoTranscribed := false
 	if hasAttachment {
-		dir := filepath.Join(filesystem.AgenvoyDir, "download")
-		var labels []string
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !config.VoiceEnabled() {
+			if _, err := b.client.Send(ctx, target, "⚠️ voice transcription is disabled. enable it with /voice in the Agenvoy TUI first."); err != nil {
+				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (voice disabled)",
+					slog.String("source", target),
+					slog.String("error", err.Error()))
+			}
+			return nil
+		}
+
+		pathName := map[string]string{}
+		var attachments []chatbot.SavedAttachment
 		for _, ai := range attachInputs {
 			if !inputHasAttachment(ai) {
 				continue
 			}
-			path, err := b.client.Save(ctx, ai.MessageID, dir)
+			path, err := b.client.Save(ctx, ai.MessageID, filesystem.DownloadDir)
 			if err != nil {
 				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Save",
 					slog.String("source", target),
@@ -185,19 +202,42 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 			if path == "" {
 				continue
 			}
-			label := "- " + path
 			if ai.FileName != "" {
-				label += " (" + ai.FileName + ")"
+				pathName[path] = ai.FileName
 			}
-			labels = append(labels, label)
+			attachments = append(attachments, chatbot.SavedAttachment{Path: path, Transcribe: inputHasVoice(ai)})
 		}
-		if len(labels) > 0 {
+
+		transcripts, paths, err := chatbot.TranscribeSavedAttachments(ctx, attachments)
+		if err != nil {
+			slog.Warn("chatbot.TranscribeSavedAttachments",
+				slog.String("source", target),
+				slog.String("error", err.Error()))
+			if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ voice transcription failed\n%s", err.Error())); sendErr != nil {
+				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (transcribe failure)",
+					slog.String("source", target),
+					slog.String("error", sendErr.Error()))
+			}
+			return nil
+		}
+		autoTranscribed = len(transcripts) > 0
+
+		if len(transcripts) > 0 || len(paths) > 0 {
 			var lines []string
 			if content != "" {
 				lines = append(lines, content)
 			}
-			lines = append(lines, "[LINE attachments]")
-			lines = append(lines, labels...)
+			lines = append(lines, transcripts...)
+			if len(paths) > 0 {
+				lines = append(lines, "[LINE attachments]")
+				for _, one := range paths {
+					label := "- " + one
+					if name := pathName[one]; name != "" {
+						label += " (" + name + ")"
+					}
+					lines = append(lines, label)
+				}
+			}
 			content = strings.Join(lines, "\n")
 		}
 	}
@@ -249,6 +289,8 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        content,
+		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
+		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       true,
 		Sender:         sourceName(in),
 	}
@@ -277,7 +319,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	})
 
 	replyText, _ := utils.ExtractFileMarkers(strings.TrimSpace(result.ReplyText))
-	replyText = strings.TrimSpace(replyText)
+	replyText = chatbot.ExtractVoiceMarkers(replyText, false).CleanText
 	if replyText == "" {
 		return fmt.Errorf("no reply")
 	}

@@ -9,43 +9,45 @@ const SCHEDULE_TEMPLATE = `# <title>
 -
 `;
 
-const SCHEDULE_SPEC = {
+const SCHEDULE_TYPES = {
   cron: {
-    list: "/v1/cron",
-    run: "/v1/cron/run",
-    key: "crons",
-    tab: "Cron",
-    hint: "Cron expressions · {min} {hour} {dom} {mon} {dow}",
+    label: "Cron",
+    input: "text",
+    hint: "Cron expressions · {min} {hour} {dom} {mon} {dow} · @daily · @every 30m",
     placeholder: "*/5 * * * *",
+    value: "*/5 * * * *",
     empty: "at least one cron expression is required",
   },
   task: {
-    list: "/v1/task",
-    run: "/v1/task/run",
-    key: "tasks",
-    tab: "Task",
-    hint: "Fire times · '+5m' · '15:04' · 'YYYY-MM-DD HH:MM'",
+    label: "Task",
+    input: "datetime-local",
+    hint: "Fire times · local date and time",
     placeholder: "2026-01-01 09:00",
+    value: "",
     empty: "at least one fire time is required",
   },
 };
 
 const SCHEDULE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
-const scheduleEditing = { cron: "", task: "" };
-const scheduleEntries = { cron: [], task: [] };
-const scheduleGroup = { cron: {}, task: {} };
+let scheduleType = "cron";
+let scheduleEditing = "";
+let scheduleEntries = [];
+let scheduleGroup = {};
+let scheduleSessions = [];
 
-function scheduleDom(kind) {
+function scheduleDom() {
   return {
-    form: $(`#${kind}-form`),
-    list: $(`#${kind}-list`),
-    name: $(`#${kind}-name`),
-    description: $(`#${kind}-description`),
-    content: $(`#${kind}-content`),
-    entries: $(`#${kind}-entries`),
-    submit: document.querySelector(`#${kind}-form > footer button.submit`),
-    test: document.querySelector(`#${kind}-form > footer button.test`),
+    form: $("#schedule-form"),
+    list: $("#schedule-list"),
+    type: $("#schedule-type"),
+    session: $("#schedule-session"),
+    name: $("#schedule-name"),
+    description: $("#schedule-description"),
+    content: $("#schedule-content"),
+    entries: $("#schedule-entries"),
+    submit: document.querySelector("#schedule-form > footer button.submit"),
+    test: document.querySelector("#schedule-form > footer button.test"),
   };
 }
 
@@ -53,8 +55,16 @@ function scheduleError(text) {
   alert(text);
 }
 
-function scheduleValue(kind, item) {
-  return kind === "cron" ? item.expression || "" : scheduleClock(item.at);
+function scheduleValue(item) {
+  return item.type === "cron" ? item.expression || "" : scheduleClock(item.at);
+}
+
+function scheduleInput(value) {
+  return scheduleType === "task" ? value.replace(" ", "T") : value;
+}
+
+function scheduleEntry(value) {
+  return scheduleType === "task" ? value.replace("T", " ") : value;
 }
 
 function scheduleClock(text) {
@@ -66,8 +76,8 @@ function scheduleClock(text) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function markScheduleMode(kind, editing) {
-  const dom = scheduleDom(kind);
+function markScheduleMode(editing) {
+  const dom = scheduleDom();
   if (dom.form) {
     if (editing) {
       dom.form.dataset.editing = "1";
@@ -83,18 +93,86 @@ function markScheduleMode(kind, editing) {
   }
 }
 
-async function renderSchedule(kind) {
-  const spec = SCHEDULE_SPEC[kind];
-  const dom = scheduleDom(kind);
-  if (!spec || !dom.list) {
+async function loadScheduleSessions() {
+  try {
+    const response = await fetch(`${API}/v1/sessions`);
+    if (response.ok) {
+      return ((await response.json()).sessions || []).filter((one) => {
+        const id = one.id || "";
+        return SESSION_ID.test(id) && !id.startsWith("temp-");
+      });
+    }
+  } catch (err) {
+    console.error("loadScheduleSessions", err);
+  }
+  return [];
+}
+
+function renderScheduleSessions(picked) {
+  const dom = scheduleDom();
+  if (!dom.session) {
     return;
   }
 
+  const list = scheduleSessions.slice();
+  if (picked && !list.some((one) => one.id === picked)) {
+    list.unshift({ id: picked, name: picked });
+  }
+
+  dom.session.innerHTML = "";
+  if (list.length === 0) {
+    dom.session.appendChild(_("option", { value: "" }, "no session available · start a chat first"));
+  }
+  for (const one of list) {
+    const option = _("option", { value: one.id }, one.name || one.id);
+    if (one.id === picked) {
+      option.selected = true;
+    }
+    dom.session.appendChild(option);
+  }
+
+  markScheduleReady();
+}
+
+function renderScheduleType() {
+  const dom = scheduleDom();
+  if (!dom.type) {
+    return;
+  }
+
+  dom.type.innerHTML = "";
+  for (const [value, spec] of Object.entries(SCHEDULE_TYPES)) {
+    const button = _("button", { type: "button" }, spec.label);
+    button.dataset.selected = scheduleType === value ? "1" : "0";
+    button.addEventListener("click", () => {
+      if (scheduleType === value) {
+        return;
+      }
+      if (scheduleEntries.length > 0 && !confirm(`Switch to ${spec.label}? The current entries will be cleared.`)) {
+        return;
+      }
+      scheduleType = value;
+      scheduleEntries = [];
+      renderScheduleType();
+      renderScheduleEntries();
+    });
+    dom.type.appendChild(button);
+  }
+}
+
+async function renderSchedule() {
+  const dom = scheduleDom();
+  if (!dom.list) {
+    return;
+  }
+
+  scheduleSessions = await loadScheduleSessions();
+
   let items = [];
   try {
-    const response = await fetch(`${API}${spec.list}`);
+    const response = await fetch(`${API}/v1/schedule`);
     if (response.ok) {
-      items = (await response.json())[spec.key] || [];
+      items = (await response.json()).schedules || [];
     }
   } catch (err) {
     console.error("renderSchedule", err);
@@ -103,10 +181,10 @@ async function renderSchedule(kind) {
   const group = {};
   for (const item of items) {
     if (!item.skill) continue;
-    group[item.skill] = group[item.skill] || [];
-    group[item.skill].push(scheduleValue(kind, item));
+    group[item.skill] = group[item.skill] || { type: item.type || "cron", session_id: item.session_id || "", values: [] };
+    group[item.skill].values.push(scheduleValue(item));
   }
-  scheduleGroup[kind] = group;
+  scheduleGroup = group;
 
   dom.list.innerHTML = "";
   const picked = praseURL().target || "";
@@ -115,53 +193,59 @@ async function renderSchedule(kind) {
     const remove = _("button", { type: "button" }, [_("span.material-symbols-outlined", "delete")]);
     remove.addEventListener("click", (e) => {
       e.stopPropagation();
-      deleteSchedule(kind, name);
+      deleteSchedule(name);
     });
 
-    const card = _("div.card", [_("strong", name), _("p", group[name].join(" · ")), remove]);
+    const card = _("div.card", [
+      _("strong", name),
+      _("p", `${SCHEDULE_TYPES[group[name].type].label} · ${group[name].values.join(" · ")}`),
+      remove,
+    ]);
     card.dataset.name = name;
     card.dataset.selected = name === picked ? "1" : "0";
     card.addEventListener("click", () => {
-      window.location.href = getLink({ page: "features", tab: spec.tab, target: name });
+      window.location.href = getLink({ page: "features", tab: "Schedule", target: name });
     });
     dom.list.appendChild(card);
   }
 
   if (picked && group[picked]) {
-    openSchedule(kind, picked);
-  }
-}
-
-function renderScheduleEntries(kind, focus) {
-  const spec = SCHEDULE_SPEC[kind];
-  const dom = scheduleDom(kind);
-  if (!spec || !dom.entries) {
+    openSchedule(picked);
     return;
   }
+  renderScheduleSessions("");
+}
+
+function renderScheduleEntries(focus) {
+  const dom = scheduleDom();
+  if (!dom.entries) {
+    return;
+  }
+  const spec = SCHEDULE_TYPES[scheduleType];
 
   dom.entries.innerHTML = "";
   dom.entries.dataset.open = "1";
   dom.entries.appendChild(_("strong", spec.hint));
 
-  scheduleEntries[kind].forEach((value, index) => {
-    const shown = _("input", { type: "text", value: value, readonly: "readonly" });
+  scheduleEntries.forEach((value, index) => {
+    const shown = _("input", { type: spec.input, value: scheduleInput(value), readonly: "readonly" });
     const drop = _("button.remove", { type: "button" }, "delete");
     drop.addEventListener("click", () => {
-      scheduleEntries[kind].splice(index, 1);
-      renderScheduleEntries(kind);
+      scheduleEntries.splice(index, 1);
+      renderScheduleEntries();
     });
     dom.entries.appendChild(_("div.row", [shown, drop]));
   });
 
-  const draft = _("input", { type: "text", placeholder: spec.placeholder });
+  const draft = _("input", { type: spec.input, placeholder: spec.placeholder, value: spec.value });
   const add = _("button.submit", { type: "button" }, "add");
   const commit = () => {
-    const value = draft.value.trim();
+    const value = scheduleEntry(draft.value.trim());
     if (!value) {
       return;
     }
-    scheduleEntries[kind].push(value);
-    renderScheduleEntries(kind, true);
+    scheduleEntries.push(value);
+    renderScheduleEntries(true);
   };
   add.addEventListener("click", commit);
   draft.addEventListener("keydown", (e) => {
@@ -173,22 +257,22 @@ function renderScheduleEntries(kind, focus) {
   });
   dom.entries.appendChild(_("div.row", [draft, add]));
 
-  markScheduleReady(kind);
+  markScheduleReady();
 
   if (focus) {
     draft.focus();
   }
 }
 
-function markScheduleReady(kind) {
-  const dom = scheduleDom(kind);
-  const blocked = scheduleEntries[kind].length === 0;
+function markScheduleReady() {
+  const dom = scheduleDom();
+  const blocked = scheduleEntries.length === 0 || scheduleSessions.length === 0;
   if (dom.submit) dom.submit.disabled = blocked;
   if (dom.test) dom.test.disabled = blocked;
 }
 
-async function openSchedule(kind, name) {
-  const dom = scheduleDom(kind);
+async function openSchedule(name) {
+  const dom = scheduleDom();
   if (!dom.name) {
     return;
   }
@@ -210,32 +294,39 @@ async function openSchedule(kind, name) {
     return;
   }
 
-  scheduleEditing[kind] = name;
-  scheduleEntries[kind] = (scheduleGroup[kind][name] || []).slice();
-  markScheduleMode(kind, true);
-  renderScheduleEntries(kind);
+  const group = scheduleGroup[name] || { type: "cron", values: [] };
+  scheduleEditing = name;
+  scheduleType = group.type;
+  scheduleEntries = group.values.slice();
+  markScheduleMode(true);
+  renderScheduleSessions(group.session_id);
+  renderScheduleType();
+  renderScheduleEntries();
 }
 
-function resetSchedule(kind) {
-  const dom = scheduleDom(kind);
+function resetSchedule() {
+  const dom = scheduleDom();
   if (dom.name) dom.name.value = "";
   if (dom.description) dom.description.value = "";
   if (dom.content) dom.content.value = SCHEDULE_TEMPLATE;
-  scheduleEditing[kind] = "";
-  scheduleEntries[kind] = [];
-  markScheduleMode(kind, false);
+  scheduleEditing = "";
+  scheduleType = "cron";
+  scheduleEntries = [];
+  markScheduleMode(false);
   markSelectedCard(dom.list, "");
-  renderScheduleEntries(kind);
+  renderScheduleSessions("");
+  renderScheduleType();
+  renderScheduleEntries();
 }
 
-async function saveSchedule(kind) {
-  const spec = SCHEDULE_SPEC[kind];
-  const dom = scheduleDom(kind);
+async function saveSchedule() {
+  const spec = SCHEDULE_TYPES[scheduleType];
+  const dom = scheduleDom();
   if (!spec || !dom.name) {
     return null;
   }
 
-  const editing = scheduleEditing[kind];
+  const editing = scheduleEditing;
   const name = editing || dom.name.value.trim();
   if (!name) {
     scheduleError("name is required");
@@ -245,17 +336,23 @@ async function saveSchedule(kind) {
     scheduleError("name allows only A-Z a-z 0-9 _ - and must be 1-64 characters, no spaces");
     return null;
   }
-  if (scheduleEntries[kind].length === 0) {
+  if (scheduleEntries.length === 0) {
     scheduleError(spec.empty);
+    return null;
+  }
+  const sessionID = dom.session ? dom.session.value : "";
+  if (!sessionID) {
+    scheduleError("no session available · start a chat first");
     return null;
   }
 
   const body = {
-    target: kind,
+    type: scheduleType,
     name: name,
     description: dom.description ? dom.description.value.trim() : "",
     content: dom.content ? dom.content.value : "",
-    expressions: scheduleEntries[kind],
+    session_id: sessionID,
+    expressions: scheduleEntries,
   };
 
   let saved = null;
@@ -271,8 +368,8 @@ async function saveSchedule(kind) {
       return null;
     }
     saved = (await response.json()) || {};
-    scheduleEditing[kind] = saved.name || name;
-    markScheduleMode(kind, true);
+    scheduleEditing = saved.name || name;
+    markScheduleMode(true);
   } catch (err) {
     console.error("saveSchedule", err);
     scheduleError(err.message || "failed");
@@ -281,22 +378,16 @@ async function saveSchedule(kind) {
   return { name: saved.name || name, session_id: saved.session_id || "" };
 }
 
-async function commitSchedule(kind) {
-  const spec = SCHEDULE_SPEC[kind];
-  const saved = await saveSchedule(kind);
-  if (!spec || !saved) {
+async function commitSchedule() {
+  const saved = await saveSchedule();
+  if (!saved) {
     return;
   }
-  window.location.href = getLink({ page: "features", tab: spec.tab, target: saved.name });
+  window.location.href = getLink({ page: "features", tab: "Schedule", target: saved.name });
 }
 
-async function testSchedule(kind) {
-  const spec = SCHEDULE_SPEC[kind];
-  if (!spec) {
-    return;
-  }
-
-  const saved = await saveSchedule(kind);
+async function testSchedule() {
+  const saved = await saveSchedule();
   if (!saved) {
     return;
   }
@@ -306,7 +397,7 @@ async function testSchedule(kind) {
   }
 
   try {
-    const response = await fetch(`${API}${spec.run}`, {
+    const response = await fetch(`${API}/v1/schedule/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: saved.session_id, skill: saved.name }),
@@ -329,14 +420,13 @@ async function testSchedule(kind) {
   window.location.href = getLink({ page: "chat", chat: saved.session_id });
 }
 
-async function deleteSchedule(kind, name) {
-  const spec = SCHEDULE_SPEC[kind];
-  if (!spec || !confirm(`Delete "${name}"?`)) {
+async function deleteSchedule(name) {
+  if (!confirm(`Delete "${name}"?`)) {
     return;
   }
 
   try {
-    const response = await fetch(`${API}${spec.list}`, {
+    const response = await fetch(`${API}/v1/schedule`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ skill: name }),
@@ -352,11 +442,11 @@ async function deleteSchedule(kind, name) {
     return;
   }
 
-  window.location.href = getLink({ page: "features", tab: spec.tab });
+  window.location.href = getLink({ page: "features", tab: "Schedule" });
 }
 
-function deleteEditingSchedule(kind) {
-  if (scheduleEditing[kind]) {
-    deleteSchedule(kind, scheduleEditing[kind]);
+function deleteEditingSchedule() {
+  if (scheduleEditing) {
+    deleteSchedule(scheduleEditing);
   }
 }

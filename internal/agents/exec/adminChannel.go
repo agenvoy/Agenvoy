@@ -32,6 +32,8 @@ func ParseAdminChannel(v string) (prefix, id string, ok bool) {
 		prefix, id = "tg", strings.TrimSpace(v[len("tg@"):])
 	case strings.HasPrefix(v, "dc@"):
 		prefix, id = "dc", strings.TrimSpace(v[len("dc@"):])
+	case strings.HasPrefix(v, "ln@"):
+		prefix, id = "ln", strings.TrimSpace(v[len("ln@"):])
 	default:
 		return "", "", false
 	}
@@ -64,6 +66,8 @@ func NotifyAdminCode(ctx context.Context, code, sourceName string) {
 		authPath = filesystem.TelegramAuthPath
 	case "dc":
 		authPath = filesystem.DiscordAuthPath
+	case "ln":
+		authPath = filesystem.LineAuthPath
 	}
 	if !utils.IsAuthorized(authPath, id) {
 		slog.Warn("admin_channel not in auth file; verification code stays log-only",

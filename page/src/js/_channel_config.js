@@ -30,7 +30,7 @@ function channelError(text) {
 
 async function channelStatus() {
   try {
-    const response = await fetch(`${API}/v1/channel/status`);
+    const response = await fetch(`${API}/v1/channel`);
     if (response.ok) {
       return await response.json();
     }
@@ -163,14 +163,14 @@ async function renderChannelChats(kind, enabled) {
 
 async function adminChannel() {
   try {
-    const response = await fetch(`${API}/v1/channel/admin`);
+    const response = await fetch(`${API}/v1/channel`);
     if (response.ok) {
-      return await response.json();
+      return ((await response.json()) || {}).admin || {};
     }
   } catch (err) {
     console.error("adminChannel", err);
   }
-  return { admin_channel: "", authorized: false, chats: [] };
+  return { channel: "", authorized: false, chats: [] };
 }
 
 async function saveAdminChannel(value) {
@@ -209,7 +209,7 @@ async function renderAdminChannel() {
   }
 
   const state = await adminChannel();
-  const current = state.admin_channel || "";
+  const current = state.channel || "";
   const chats = state.chats || [];
 
   dom.admin.innerHTML = "";

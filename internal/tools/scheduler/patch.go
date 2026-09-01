@@ -30,8 +30,8 @@ func patchSchedule(target, when, skill string) (string, error) {
 
 	case "cron":
 		expression := strings.TrimSpace(when)
-		if len(strings.Fields(expression)) != 5 {
-			return "", fmt.Errorf("expression must be 5 fields '{min} {hour} {dom} {mon} {dow}' (got %q)", expression)
+		if err := ValidateCron(expression); err != nil {
+			return "", err
 		}
 		patched, err := runtime.PatchCron(skill, expression)
 		if err != nil {

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -105,6 +105,9 @@
           <button type="button" @click="history_open" name="History" data-hide="1">
             <span class="material-symbols-outlined"> history </span>
           </button>
+          <button class="resume" type="button" @click="resume_pick" name="Pending">
+            <span class="material-symbols-outlined"> running_with_errors </span>
+          </button>
           <button class="harness" type="button" @click="harness_click" name="Voice mode">
             <span class="material-symbols-outlined"> robot_2 </span>
           </button>
@@ -184,7 +187,9 @@
             </details>
           </div>
           <form id="rule-form">
+            <span>Name</span>
             <input id="rule-title" type="text" placeholder="Name this rule" />
+            <span>Content</span>
             <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
             <footer>
               <button type="button" class="remove" @click="rule_delete">delete</button>
@@ -208,12 +213,14 @@
             </details>
           </div>
           <form id="knowledge-form">
+            <span>Name</span>
             <input
               id="knowledge-title"
               type="text"
               maxlength="32"
               placeholder="Name this knowledge (defaults to the first line)"
             />
+            <span>Content</span>
             <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
             <footer>
               <button type="button" class="remove" @click="knowledge_delete">delete</button>
@@ -239,7 +246,9 @@
           <form id="skill-form">
             <p class="empty">select skills</p>
             <section class="tools" id="skill-allow-list"></section>
+            <span>Name</span>
             <input id="skill-name" type="text" disabled />
+            <span>Content</span>
             <textarea id="skill-content" rows="20" disabled></textarea>
             <footer>
               <button type="button" class="remove" @click="skill_delete">delete</button>
@@ -248,76 +257,45 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Cron" class="editor">
+        <section :elif="params.tab == Schedule" class="editor">
           <div class="side">
-            <button type="button" class="new" @click="cron_reset">
+            <button type="button" class="new" @click="schedule_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>Add Cron</p>
+              <p>Add Schedule</p>
             </button>
             <details class="group" open>
               <summary>
-                Cron
+                Schedule
                 <span class="material-symbols-outlined"> keyboard_arrow_down </span>
               </summary>
-              <div class="list" id="cron-list"></div>
+              <div class="list" id="schedule-list"></div>
             </details>
           </div>
-          <form id="cron-form">
+          <form id="schedule-form">
+            <span>Name</span>
             <input
-              id="cron-name"
+              id="schedule-name"
               type="text"
               maxlength="64"
               placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
             />
+            <span>Description</span>
             <input
-              id="cron-description"
+              id="schedule-description"
               type="text"
               maxlength="256"
               placeholder="Describe when it fires and what it does"
             />
-            <textarea id="cron-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
-            <section class="tools" id="cron-entries"></section>
+            <span>Content</span>
+            <textarea id="schedule-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
+            <span>Session</span>
+            <select id="schedule-session"></select>
+            <nav class="tab" id="schedule-type"></nav>
+            <section class="tools" id="schedule-entries"></section>
             <footer>
-              <button type="button" class="remove" @click="cron_delete">delete</button>
-              <button type="button" class="test" @click="cron_test">test</button>
-              <button type="button" class="submit" @click="cron_save">add</button>
-            </footer>
-          </form>
-        </section>
-
-        <section :elif="params.tab == Task" class="editor">
-          <div class="side">
-            <button type="button" class="new" @click="task_reset">
-              <span class="material-symbols-outlined"> add_2 </span>
-              <p>Add Task</p>
-            </button>
-            <details class="group" open>
-              <summary>
-                Task
-                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
-              </summary>
-              <div class="list" id="task-list"></div>
-            </details>
-          </div>
-          <form id="task-form">
-            <input
-              id="task-name"
-              type="text"
-              maxlength="64"
-              placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. meeting-reminder"
-            />
-            <input
-              id="task-description"
-              type="text"
-              maxlength="256"
-              placeholder="Describe when it fires and what it does"
-            />
-            <textarea id="task-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
-            <section class="tools" id="task-entries"></section>
-            <footer>
-              <button type="button" class="remove" @click="task_delete">delete</button>
-              <button type="button" class="test" @click="task_test">test</button>
-              <button type="button" class="submit" @click="task_save">add</button>
+              <button type="button" class="remove" @click="schedule_delete">delete</button>
+              <button type="button" class="test" @click="schedule_test">test</button>
+              <button type="button" class="submit" @click="schedule_save">add</button>
             </footer>
           </form>
         </section>
@@ -378,6 +356,7 @@
             </details>
           </div>
           <form id="mcp-form" data-transport="stdio">
+            <span>Name</span>
             <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
             <nav class="tab" id="mcp-transport" @click="mcp_transport">
               <button type="button" name="stdio" data-selected="1">stdio · local command</button>
@@ -388,12 +367,17 @@
               <option value="oauth">oauth</option>
             </select>
             <div class="field" data-transport="stdio">
+              <span>Command</span>
               <input id="mcp-command" type="text" placeholder="Command, e.g. npx" />
+              <span>Arguments</span>
               <textarea id="mcp-args" rows="3" placeholder="Arguments · one per line"></textarea>
+              <span>Environment</span>
               <textarea id="mcp-env" rows="3" placeholder="Environment · KEY=value per line"></textarea>
             </div>
             <div class="field" data-transport="http">
+              <span>URL</span>
               <input id="mcp-url" type="text" placeholder="https://example.com/mcp" />
+              <span>Headers</span>
               <textarea
                 id="mcp-headers"
                 rows="3"
@@ -427,6 +411,7 @@
             </details>
           </div>
           <form id="keychain-form" autocomplete="off">
+            <span>Name</span>
             <input
               id="keychain-name"
               type="text"
@@ -434,6 +419,7 @@
               autocomplete="off"
               placeholder="Key name, e.g. GEMINI_API_KEY"
             />
+            <span>Value</span>
             <input
               id="keychain-value"
               type="password"
@@ -473,7 +459,9 @@
             <div class="status" id="channel-status"></div>
             <section class="tools" id="channel-chats"></section>
             <section class="tools" id="channel-admin"></section>
+            <span id="channel-secret-label">Channel secret</span>
             <input id="channel-secret" type="password" autocomplete="off" placeholder="Channel secret · required to enable" />
+            <span>Token</span>
             <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
             <footer>
               <button type="button" class="remove" @click="channel_disable">disable</button>
@@ -539,6 +527,27 @@
             </div>
             <section class="entries" id="history-entries"></section>
             <nav class="pager" id="history-pager"></nav>
+          </form>
+        </section>
+
+        <section :elif="params.tab == Lessons" class="editor details">
+          <div class="side">
+            <a class="new" id="lesson-all">
+              <span class="material-symbols-outlined"> stacks </span>
+              <p>All</p>
+            </a>
+            <details class="group" open>
+              <summary>
+                Tools
+                <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+              </summary>
+              <div class="list" id="lesson-list"></div>
+            </details>
+          </div>
+          <form>
+            <nav class="period" id="lesson-filter"></nav>
+            <section class="entries" id="lesson-body"></section>
+            <nav class="pager" id="lesson-pager"></nav>
           </form>
         </section>
 

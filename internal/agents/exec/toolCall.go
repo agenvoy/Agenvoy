@@ -64,9 +64,11 @@ var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
 func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
 	nameByID := make(map[string]string)
+	argsByID := make(map[string]string)
 	for _, msg := range session.ToolHistories {
 		for _, tc := range msg.ToolCalls {
 			nameByID[tc.ID] = tc.Function.Name
+			argsByID[tc.ID] = tc.Function.Arguments
 		}
 	}
 
@@ -76,6 +78,7 @@ func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
 		results = append(results, interactive.ToolResult{
 			Name:   nameByID[msg.ToolCallID],
 			ID:     msg.ToolCallID,
+			Args:   argsByID[msg.ToolCallID],
 			Result: content,
 		})
 	}
@@ -697,6 +700,7 @@ func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTyp
 	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
 		Name:   s.name,
 		ID:     s.id,
+		Args:   s.args,
 		Result: "error: " + err.Error(),
 	})
 	events <- agentTypes.Event{
@@ -764,6 +768,7 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
 		Name:   s.name,
 		ID:     s.id,
+		Args:   s.args,
 		Result: result,
 	})
 	if s.name == "write_todo" {

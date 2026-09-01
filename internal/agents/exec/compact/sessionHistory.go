@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -137,8 +138,8 @@ func preFilter(messages []sessionHistory.Record, exchanges []compactExchange) ma
 	removeSet := make(map[int]bool)
 	seen := make(map[string]bool)
 
-	for i := len(exchanges) - 1; i >= 0; i-- {
-		content := strings.TrimSpace(messages[exchanges[i].start].Text())
+	for i, one := range slices.Backward(exchanges) {
+		content := strings.TrimSpace(messages[one.start].Text())
 		if content == "" || seen[content] {
 			removeSet[i] = true
 			continue

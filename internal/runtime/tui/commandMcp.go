@@ -33,11 +33,8 @@ type McpToolsResult struct {
 
 func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
-		switch parts[1] {
-		case "add":
+		if parts[1] == "add" {
 			return t.commandMcpAdd()
-		case "install":
-			return t.commandMcpInstall()
 		}
 		if _, ok := mcpServerStatus(parts[1]); ok {
 			next, cmd := t.openMcpServerMenu(parts[1])
@@ -46,9 +43,9 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 	}
 
 	list := mcpStatusList()
-	options := make([]string, 0, len(list)+2)
-	values := make([]string, 0, len(list)+2)
-	tails := make([]string, 0, len(list)+2)
+	options := make([]string, 0, len(list)+1)
+	values := make([]string, 0, len(list)+1)
+	tails := make([]string, 0, len(list)+1)
 	maxName := 0
 	for _, s := range list {
 		maxName = max(maxName, len(s.Name))
@@ -58,9 +55,9 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 		values = append(values, "server:"+s.Name)
 		tails = append(tails, mcpStateLabel(s))
 	}
-	options = append(options, "add", "install MCP config to other agents")
-	values = append(values, "add", "install")
-	tails = append(tails, "", "")
+	options = append(options, "add")
+	values = append(values, "add")
+	tails = append(tails, "")
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
@@ -139,12 +136,8 @@ func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 }
 
 func (t TUI) runMcpMenuPick(value string) (TUI, tea.Cmd) {
-	switch value {
-	case "add":
+	if value == "add" {
 		next, cmd, _ := t.commandMcpAdd()
-		return next, cmd
-	case "install":
-		next, cmd, _ := t.commandMcpInstall()
 		return next, cmd
 	}
 	if name, ok := strings.CutPrefix(value, "server:"); ok {

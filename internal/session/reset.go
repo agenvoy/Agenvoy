@@ -32,12 +32,12 @@ func Reset(sessionID string) (int, error) {
 	historyStore.Clear(sessionID)
 	sessionHistory.ClearMutex(sessionID)
 
-	db := torii.DB(torii.DBSessionHist)
-	keys := db.Keys(sessionID + ":*")
+	db := torii.Remote(torii.DBSessionHist)
+	keys := db.Keys(context.Background(), sessionID+":*")
 	if len(keys) == 0 {
 		return 0, nil
 	}
-	return db.Del(keys...), nil
+	return db.Del(context.Background(), keys...), nil
 }
 
 func ResetAll(sessionID string) (int, error) {
