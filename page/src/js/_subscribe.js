@@ -139,14 +139,14 @@ function parseEvent(event) {
   }
 
   if (!streamDom) {
-    if (event.type === "EventDone" || event.type === "EventCanceled") return;
+    if (event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError") return;
     streamDom = newStreamItem();
     announced = false;
   }
 
   renderEvent(streamDom, event);
 
-  if (event.type === "EventCanceled") {
+  if (event.type === "EventCanceled" || event.type === "EventError") {
     currentTaskId = "";
     streamDom = null;
     clearTodo();

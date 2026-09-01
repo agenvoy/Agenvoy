@@ -14,7 +14,7 @@ func publishEventToDaemon(ctx context.Context, sessionID string, ev agentTypes.E
 	if sessionID == "" {
 		return
 	}
-	sendCtx, cancel := context.WithTimeout(ctx, publishTimeout)
+	sendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
 	defer cancel()
 
 	daemon.Publish(sendCtx, "/v1/session/"+sessionID+"/event", ev)

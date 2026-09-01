@@ -18,6 +18,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -29,6 +30,7 @@ import (
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -36,6 +38,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -288,6 +291,12 @@ func cmdDaemon() {
 	monitor.Start(context.Background())
 
 	handler.StartWebConfirm(context.Background())
+
+	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
+		event := agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason}
+		sessionLog.Record(sessionID, event)
+		pubsub.Pub(sessionID, event)
+	})
 
 	route := routes.New()
 	server := &http.Server{

@@ -619,6 +619,7 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 				slog.String("task_hash", taskHash),
 				slog.String("error", reply.Error.Error()))
 			CleanupPending(sessionID, taskHash)
+			runtime.NotifyCanceled(sessionID, taskHash, reply.Error.Error())
 			return
 		}
 		runtime.TriggerResume(sessionID, taskHash, reply.Answers)
