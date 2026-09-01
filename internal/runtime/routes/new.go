@@ -37,12 +37,8 @@ func New() *gin.Engine {
 
 	r.POST("/v1/models", localhostOnly(), handler.AddModel())
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
-	r.GET("/v1/model/dispatcher", localhostOnly(), handler.GetDispatcherModel())
-	r.POST("/v1/model/dispatcher", localhostOnly(), handler.SetDispatcherModel())
-	r.GET("/v1/model/image", localhostOnly(), handler.GetImageModel())
-	r.POST("/v1/model/image", localhostOnly(), handler.SetImageModel())
-	r.GET("/v1/model/summary", localhostOnly(), handler.GetSummaryModel())
-	r.POST("/v1/model/summary", localhostOnly(), handler.SetSummaryModel())
+	r.GET("/v1/model", localhostOnly(), handler.GetModelRouting())
+	r.POST("/v1/model", localhostOnly(), handler.SetModelRouting())
 
 	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
 
@@ -51,21 +47,20 @@ func New() *gin.Engine {
 	r.GET("/v1/session/:session_id", localhostOnly(), handler.GetSession())
 	r.POST("/v1/session/:session_id", localhostOnly(), handler.UpdateSession())
 	r.DELETE("/v1/session/:session_id", localhostOnly(), handler.DeleteSession())
-	r.POST("/v1/session/:session_id/confirm/:request_id", handler.ResolveToolConfirm())
-	r.POST("/v1/session/:session_id/compact", localhostOnly(), handler.CompactSession())
-	r.POST("/v1/session/:session_id/reset", localhostOnly(), handler.ResetSession())
-	r.POST("/v1/session/:session_id/summary", localhostOnly(), handler.SummarySession())
-	r.GET("/v1/session/:session_id/chat", localhostOnly(), handler.GetSessionChatLog())
-	r.GET("/v1/session/:session_id/usage", localhostOnly(), handler.GetSessionUsageLog())
-	r.GET("/v1/session/:session_id/history", localhostOnly(), handler.ListSessionHistoryFiles())
-	r.GET("/v1/session/:session_id/history/*file", localhostOnly(), handler.GetSessionHistoryFile())
+	r.POST("/v1/session/:session_id/memory", localhostOnly(), handler.SessionMemory())
 
-	// * WebUI session task
+	r.POST("/v1/session/:session_id/confirm/:once_id", handler.ResolveToolConfirm())
 	r.POST("/v1/session/:session_id/cancel/:once_id", handler.CancelSessionTask())
+
+	// * WebUI session task · pending file
 	r.GET("/v1/session/:session_id/task", handler.ListSessionPending())
 	r.GET("/v1/session/:session_id/task/:task_hash/questions", handler.GetSessionPendingQuestions())
 	r.POST("/v1/session/:session_id/task/:task_hash/resume", handler.ResumeSessionPending())
 	r.DELETE("/v1/session/:session_id/task/:task_hash", handler.DeleteSessionPending())
+
+	// * WebUI session task · sqlite
+	r.GET("/v1/session/:session_id/task/history", localhostOnly(), handler.ListTaskHistory())
+	r.GET("/v1/session/:session_id/task/:task_hash/history", localhostOnly(), handler.GetTaskHistory())
 
 	r.GET("/v1/file", localhostOnly(), handler.GetFile())
 	r.PUT("/v1/file", localhostOnly(), handler.PutFile())
@@ -119,10 +114,8 @@ func New() *gin.Engine {
 	r.POST("/v1/schedule/run", localhostOnly(), handler.RunSchedule())
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
 
-	r.GET("/v1/allowlist/skill", localhostOnly(), handler.ListAllowSkill())
-	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())
-	r.GET("/v1/allowlist/tool", localhostOnly(), handler.ListAllowTool())
-	r.POST("/v1/allowlist/tool", localhostOnly(), handler.SetAllowTool())
+	r.GET("/v1/allowlist", localhostOnly(), handler.GetAllowlist())
+	r.POST("/v1/allowlist", localhostOnly(), handler.SetAllowlist())
 
 	r.GET("/v1/config/startup", localhostOnly(), handler.GetStartup())
 	r.POST("/v1/config/startup", localhostOnly(), handler.SetStartup())
@@ -132,10 +125,9 @@ func New() *gin.Engine {
 	r.POST("/v1/toriidb", localhostOnly(), handler.WriteTorii())
 	r.DELETE("/v1/toriidb", localhostOnly(), handler.RemoveTorii())
 
-	r.GET("/v1/channel/status", localhostOnly(), handler.GetChannelStatus())
+	r.GET("/v1/channel", localhostOnly(), handler.GetChannel())
 	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())
 	r.POST("/v1/channel/discord", localhostOnly(), handler.SetDiscordChannel())
-	r.GET("/v1/channel/admin", localhostOnly(), handler.GetAdminChannel())
 	r.POST("/v1/channel/admin", localhostOnly(), handler.SetAdminChannel())
 	r.GET("/v1/channel/:channel/chats", localhostOnly(), handler.ListChannelChats())
 	r.DELETE("/v1/channel/:channel/chat", localhostOnly(), handler.DeleteChannelChat())

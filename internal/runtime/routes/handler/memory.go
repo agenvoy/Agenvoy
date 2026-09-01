@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -34,7 +36,15 @@ func sessionParam(c *gin.Context) (string, bool) {
 	return sid, true
 }
 
-func ResetSession() gin.HandlerFunc {
+func reasoningLevels() []string {
+	out := make([]string, 0, int(provider.ReasoningMax)+1)
+	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+		out = append(out, r.String())
+	}
+	return out
+}
+
+func SessionMemory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid, ok := sessionParam(c)
 		if !ok {
@@ -42,7 +52,8 @@ func ResetSession() gin.HandlerFunc {
 		}
 
 		var body struct {
-			Mode string `json:"mode"`
+			Action string `json:"action"`
+			Mode   string `json:"mode"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -52,50 +63,45 @@ func ResetSession() gin.HandlerFunc {
 		ctx, cancel := memoryCtx()
 		defer cancel()
 
-		var (
-			removed int
-			err     error
-		)
-		switch strings.TrimSpace(body.Mode) {
+		switch strings.TrimSpace(body.Action) {
 		case "summary":
-			removed, err = exec.ResetSessionWithSummary(ctx, sid)
-		case "all":
-			removed, err = exec.ResetSessionAll(sid)
+			count, err := exec.ForceSummary(ctx, sid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"ok": true, "action": "summary", "count": count})
+		case "compact":
+			removed, err := compact.SessionHistory(ctx, sid)
+			if err != nil {
+				slog.Debug("handler.SessionMemory compact",
+					slog.String("session", sid),
+					slog.String("error", err.Error()))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"ok": true, "action": "compact", "removed": removed})
+		case "reset":
+			var (
+				removed int
+				err     error
+			)
+			switch strings.TrimSpace(body.Mode) {
+			case "summary":
+				removed, err = exec.ResetSessionWithSummary(ctx, sid)
+			case "all":
+				removed, err = exec.ResetSessionAll(sid)
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be 'summary' or 'all' when action=reset"})
+				return
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"ok": true, "action": "reset", "removed": removed})
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be 'summary' or 'all'"})
-			return
+			c.JSON(http.StatusBadRequest, gin.H{"error": "action must be 'summary', 'compact' or 'reset'"})
 		}
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed})
 	}
-}
-
-func SummarySession() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid, ok := sessionParam(c)
-		if !ok {
-			return
-		}
-
-		ctx, cancel := memoryCtx()
-		defer cancel()
-
-		count, err := exec.ForceSummary(ctx, sid)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "count": count})
-	}
-}
-
-func reasoningLevels() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+1)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
-		out = append(out, r.String())
-	}
-	return out
 }

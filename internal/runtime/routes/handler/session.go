@@ -14,7 +14,6 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -175,7 +174,24 @@ func GetSession() gin.HandlerFunc {
 		if !ok {
 			return
 		}
-		c.JSON(http.StatusOK, sessionDetail(sid))
+		out := sessionDetail(sid)
+		if c.Query("chat") == "1" {
+			content, err := sessionChatLog(sid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			out["chat"] = content
+		}
+		if c.Query("usage") == "1" {
+			periods, err := sessionUsage(sid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			out["usage"] = periods
+		}
+		c.JSON(http.StatusOK, out)
 	}
 }
 
@@ -292,32 +308,5 @@ func DeleteSession() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
-	}
-}
-
-func CompactSession() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sid := strings.TrimSpace(c.Param("session_id"))
-		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-			return
-		}
-
-		ctx, cancel := memoryCtx()
-		defer cancel()
-
-		removed, err := compact.SessionHistory(ctx, sid)
-		if err != nil {
-			slog.Debug("handler.CompactSession",
-				slog.String("session", sid),
-				slog.String("error", err.Error()))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "removed": removed})
 	}
 }
