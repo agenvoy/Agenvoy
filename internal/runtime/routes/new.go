@@ -112,17 +112,12 @@ func New() *gin.Engine {
 	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())
 	r.DELETE("/v1/skill", localhostOnly(), handler.DeleteSkill())
 
+	r.GET("/v1/schedule", localhostOnly(), handler.ListSchedules())
 	r.POST("/v1/schedule", localhostOnly(), handler.CreateSchedule())
 	r.PATCH("/v1/schedule", localhostOnly(), handler.UpdateSchedule())
+	r.DELETE("/v1/schedule", localhostOnly(), handler.DeleteSchedule())
+	r.POST("/v1/schedule/run", localhostOnly(), handler.RunSchedule())
 	r.GET("/v1/schedule/*skill", localhostOnly(), handler.GetScheduleSkill())
-
-	r.GET("/v1/cron", localhostOnly(), handler.ListCrons())
-	r.DELETE("/v1/cron", localhostOnly(), handler.DeleteCron())
-	r.POST("/v1/cron/run", localhostOnly(), handler.RunCron())
-
-	r.GET("/v1/task", localhostOnly(), handler.ListTasks())
-	r.DELETE("/v1/task", localhostOnly(), handler.DeleteTask())
-	r.POST("/v1/task/run", localhostOnly(), handler.RunTask())
 
 	r.GET("/v1/allowlist/skill", localhostOnly(), handler.ListAllowSkill())
 	r.POST("/v1/allowlist/skill", localhostOnly(), handler.ToggleAllowSkill())

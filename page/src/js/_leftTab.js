@@ -2,8 +2,7 @@ const feature = {
   Rules: "contract",
   Knowledge: "book_2",
   Skills: "lightbulb_2",
-  Cron: "schedule",
-  Task: "alarm",
+  Schedule: "schedule",
 };
 
 const configTab = {
@@ -33,7 +32,7 @@ const leftTab = {
   },
 };
 
-const leftTabSkip = ["Cron", "Task"];
+const leftTabSkip = ["Skills", "Schedule"];
 
 for (const name of Object.keys(feature)) {
   if (leftTabSkip.includes(name)) {

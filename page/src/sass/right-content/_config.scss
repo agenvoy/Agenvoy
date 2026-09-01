@@ -314,6 +314,14 @@ nav.period,
 nav.tab {
   @include contentFilter;
 }
+
+> span,
+> div.field > span {
+  margin-bottom: -0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-3);
+}
 flex-grow: 1;
 flex-shrink: 1;
 flex-basis: 0;
