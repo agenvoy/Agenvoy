@@ -3,17 +3,18 @@ package actionHistory
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func list(e *toolTypes.Executor, limit, resultIndex int) (string, error) {
+type call struct {
+	Name string `json:"name"`
+	Args string `json:"args,omitempty"`
+}
+
+func list(e *toolTypes.Executor, limit int, full bool) (string, error) {
 	if limit <= 0 {
 		limit = defaultListLimit
-	}
-	if resultIndex <= 0 {
-		resultIndex = 1
 	}
 
 	list, err := entries(e)
@@ -28,7 +29,7 @@ func list(e *toolTypes.Executor, limit, resultIndex int) (string, error) {
 	}
 
 	out := make([]map[string]any, 0, len(list))
-	for i, item := range list {
+	for _, item := range list {
 		row := map[string]any{
 			"task_id": item.taskID,
 			"at":      item.at.Format(displayLayout),
@@ -36,20 +37,14 @@ func list(e *toolTypes.Executor, limit, resultIndex int) (string, error) {
 
 		if r, err := load(item); err == nil {
 			row["objective"] = r.Objective
-			row["did"] = toolsUsed(r)
-			row["model"] = r.Model
+			if r.Model != "" {
+				row["model"] = r.Model
+			}
 			if n := len(r.Todos); n > 0 {
 				row["todos"] = n
 			}
-			if i == 0 && len(r.ToolResults) > 0 {
-				row["tool_result_count"] = len(r.ToolResults)
-				row["tool_result_index"] = resultIndex
-				if one, ok := resultAt(r.ToolResults, resultIndex); ok {
-					row["tool_result"] = one
-				} else {
-					row["tool_result"] = fmt.Sprintf("no result at index %d; this run made %d tool calls",
-						resultIndex, len(r.ToolResults))
-				}
+			if calls := toolCalls(r, full); len(calls) > 0 {
+				row["calls"] = calls
 			}
 		} else {
 			row["unreadable"] = err.Error()
@@ -64,27 +59,23 @@ func list(e *toolTypes.Executor, limit, resultIndex int) (string, error) {
 	return string(raw), nil
 }
 
-func resultAt(list []result, index int) (result, bool) {
-	at := len(list) - index
-	if at < 0 || at >= len(list) {
-		return result{}, false
+func toolCalls(r record, full bool) []call {
+	calls := make([]call, 0, len(r.ToolResults))
+	for _, t := range r.ToolResults {
+		one := call{Name: t.Name}
+		if full || isReference(t.Name) {
+			one.Args = truncateArgs(t.Args)
+		}
+		calls = append(calls, one)
 	}
-
-	one := list[at]
-	runes := []rune(one.Result)
-	if len(runes) > recentResultRunes {
-		one.Result = string(runes[:recentResultRunes]) +
-			fmt.Sprintf("\n… truncated here; %d bytes total, read the task for the rest", len(one.Result))
-	}
-	return one, true
+	return calls
 }
 
-func toolsUsed(r record) []string {
-	var used []string
-	for _, t := range r.ToolResults {
-		if !slices.Contains(used, t.Name) {
-			used = append(used, t.Name)
-		}
+func truncateArgs(text string) string {
+	runes := []rune(text)
+	if len(runes) <= listArgsRunes {
+		return text
 	}
-	return used
+	return string(runes[:listArgsRunes]) +
+		fmt.Sprintf("… truncated; %d bytes total, mode=read for the whole run", len(text))
 }

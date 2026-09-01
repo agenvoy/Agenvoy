@@ -23,6 +23,7 @@ type record struct {
 
 type result struct {
 	Name   string `json:"name"`
+	Args   string `json:"args,omitempty"`
 	Result string `json:"result"`
 }
 
