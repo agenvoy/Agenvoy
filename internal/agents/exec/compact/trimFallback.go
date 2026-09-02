@@ -63,6 +63,7 @@ func IsContextLengthError(err error) bool {
 		strings.Contains(msg, "too many tokens") ||
 		strings.Contains(msg, "maximum context") ||
 		strings.Contains(msg, "maximum prompt length") ||
+		strings.Contains(msg, "input size exceeds") ||
 		strings.Contains(msg, "max_tokens must be at least") ||
 		strings.Contains(msg, "context length")
 }
