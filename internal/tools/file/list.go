@@ -14,13 +14,14 @@ import (
 
 func listBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery) (string, error) {
 	out := make(map[string]any, len(queries))
+	budget := newSizeBudget()
 	for _, q := range queries {
 		files, err := listOne(ctx, e, q.Dir, q.Recursive)
 		if err != nil {
 			out[q.Dir] = "error: " + err.Error()
 			continue
 		}
-		out[q.Dir] = files
+		out[q.Dir] = budget.take(files)
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
@@ -30,7 +31,7 @@ func listBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery) 
 	if err != nil {
 		return "", fmt.Errorf("json.Marshal: %w", err)
 	}
-	return string(raw), nil
+	return string(raw) + budget.notice(), nil
 }
 
 func listOne(ctx context.Context, e *toolTypes.Executor, dir string, recursive bool) ([]go_pkg_filesystem_reader.File, error) {

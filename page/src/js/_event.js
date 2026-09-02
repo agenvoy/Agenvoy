@@ -31,7 +31,7 @@ function renderEvent(view, event) {
 
   if (type === "EventSuggest") {
     view.suggests = event.suggests || [];
-    renameChat(currentSessionId, event.text || "");
+    renameChat(view.session, event.text || "");
     return;
   }
 
@@ -75,12 +75,12 @@ function renderEvent(view, event) {
 
 function renderAnswer(view) {
   view.source.textContent = view.text;
-  render(view.answer, view.text);
+  render(view.answer, view.text, view.session);
   if (view.answered) {
     return;
   }
   view.answered = true;
-  scrollToBottom(true);
+  scrollToBottom(true, view.session);
 }
 
 function resumeMark(view) {
@@ -99,7 +99,7 @@ function renderReasoning(view, line) {
   view.trace += (view.trace ? "\n\n" : "") + line;
   view.think.hidden = false;
   view.resumed = Boolean(view.text);
-  render(view.reasoning, view.trace);
+  render(view.reasoning, view.trace, view.session);
 }
 
 function renderSuggest(view) {
@@ -110,11 +110,11 @@ function renderSuggest(view) {
   const dom = _("section.suggests");
   for (const text of view.suggests) {
     const btn = _("button", { type: "button" }, text);
-    btn.addEventListener("click", () => send(text));
+    btn.addEventListener("click", () => send(text, view.session));
     dom.appendChild(btn);
   }
   view.body.appendChild(dom);
-  scrollToBottom();
+  scrollToBottom(false, view.session);
 }
 
 function formatEvent(event) {

@@ -3,7 +3,7 @@
 @use "../todo";
 
 @mixin styles {
-  section.messages {
+  > section.messages {
     z-index: 1;
     display: none;
     flex-flow: column;
@@ -11,10 +11,8 @@
     flex-shrink: 1;
     gap: 1rem;
     padding: 3.5rem 0 8rem;
-    max-height: calc(100% - 5.25rem);
-    overflow-y: scroll;
-    width: var(--width-right-content);
     max-width: var(--max-width-right-content);
+    overflow-y: scroll;
 
     div.user {
       display: flex;

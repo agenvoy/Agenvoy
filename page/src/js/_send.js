@@ -12,18 +12,72 @@ const SKIP_EVENTS = [
   "EventPending",
 ];
 let currentSessionId = "";
-let streamDom = null;
+const streamViews = new Map();
+const taskIds = new Map();
 
-let localEcho = [];
+function streamOf(sessionId) {
+  return streamViews.get(sessionId || currentSessionId) || null;
+}
 
-async function stopRunning() {
-  if (!currentSessionId) return;
+function setStream(sessionId, view) {
+  const id = sessionId || currentSessionId;
+  if (!id) {
+    return;
+  }
+  if (view) {
+    streamViews.set(id, view);
+  } else {
+    streamViews.delete(id);
+  }
+}
+
+function taskOf(sessionId) {
+  return taskIds.get(sessionId || currentSessionId) || "";
+}
+
+function setTask(sessionId, taskId) {
+  const id = sessionId || currentSessionId;
+  if (!id) {
+    return;
+  }
+  if (taskId) {
+    taskIds.set(id, taskId);
+  } else {
+    taskIds.delete(id);
+  }
+}
+
+const localEcho = new Map();
+
+function pushEcho(sessionId, text) {
+  const id = sessionId || currentSessionId;
+  const list = localEcho.get(id) || [];
+  list.push(text);
+  localEcho.set(id, list);
+}
+
+function takeEcho(sessionId, text) {
+  const list = localEcho.get(sessionId || currentSessionId);
+  if (!list) {
+    return false;
+  }
+  const i = list.indexOf(text);
+  if (i === -1) {
+    return false;
+  }
+  list.splice(i, 1);
+  return true;
+}
+
+async function stopRunning(sessionId) {
+  const sid = sessionId || currentSessionId;
+  if (!sid) return;
   if (!confirm("Cancel this task?")) return;
 
-  const taskId = currentTaskId || "current";
+  const taskId = taskOf(sid) || "current";
   try {
     const response = await fetch(
-      `${API}/v1/session/${encodeURIComponent(currentSessionId)}/cancel/${encodeURIComponent(taskId)}`,
+      `${API}/v1/session/${encodeURIComponent(sid)}/cancel/${encodeURIComponent(taskId)}`,
       { method: "POST" },
     );
     if (!response.ok) {
@@ -35,45 +89,52 @@ async function stopRunning() {
   }
 }
 
-async function send(content) {
+async function send(content, target) {
   content = (content || "").trim();
   if (content === "") return;
 
-  let sessionId;
-  try {
-    sessionId = await ensureSessionId();
-  } catch (err) {
-    console.error("send", err);
-    return;
+  target = (target || "").trim();
+  const primary = target === "" || target === currentSessionId;
+
+  let sessionId = target;
+  if (primary) {
+    try {
+      sessionId = await ensureSessionId();
+    } catch (err) {
+      console.error("send", err);
+      return;
+    }
+
+    const fresh = currentSessionId !== sessionId;
+    setSession(sessionId);
+    subscribe(sessionId);
+    if (fresh) {
+      prependChat(sessionId, content);
+      saveSessionModel(sessionId, ensureModel());
+      saveSessionReasoning(sessionId, ensureReasoning());
+      adoptChatConfig(sessionId);
+    }
   }
 
-  const fresh = currentSessionId !== sessionId;
-  const model = ensureModel();
-  setSession(sessionId);
-  subscribe(sessionId);
-  if (fresh) {
-    prependChat(sessionId, content);
-    saveSessionModel(sessionId, model);
-    saveSessionReasoning(sessionId, ensureReasoning());
-    adoptChatConfig(sessionId);
-  }
-
+  const model = primary ? ensureModel() : "auto";
   const chat = readChatConfig(sessionId);
 
-  const picked = skill;
-  clearSkill();
+  const picked = primary ? skill : "";
+  if (primary) {
+    clearSkill();
+  }
 
-  const dom = $("#right-content-chat-messages");
-  clearPending();
-  if (streamDom) {
+  const dom = chatMessages(sessionId);
+  clearPending(sessionId);
+  if (streamOf(sessionId)) {
     appendUserText(dom, content);
   } else {
     dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
-    streamDom = newStreamItem();
-    clearTodo();
+    setStream(sessionId, newStreamItem({}, sessionId));
+    clearTodo(sessionId);
   }
-  localEcho.push(content);
-  scrollToBottom(true);
+  pushEcho(sessionId, content);
+  scrollToBottom(true, sessionId);
 
   try {
     const response = await fetch(`${API}/v1/send`, {
@@ -85,17 +146,21 @@ async function send(content) {
         session_id: sessionId,
         persist: true,
         model: model === "auto" ? "" : model,
-        system_prompt: rule,
+        system_prompt: primary ? rule : "",
         work_dir: chat.work_dir,
         skill: picked,
       }),
     });
     if (!response.ok) {
-      renderEvent(streamDom, { type: "EventError", text: `HTTP ${response.status}` });
+      const view = streamOf(sessionId);
+      if (view) {
+        renderEvent(view, { type: "EventError", text: `HTTP ${response.status}` });
+      }
     }
   } catch (err) {
-    if (streamDom) {
-      renderEvent(streamDom, { type: "EventError", text: err.message });
+    const view = streamOf(sessionId);
+    if (view) {
+      renderEvent(view, { type: "EventError", text: err.message });
     }
   }
 }
@@ -141,8 +206,10 @@ function setSession(sessionId) {
   if (!sessionId || currentSessionId === sessionId) return;
   currentSessionId = sessionId;
 
-  const chat = $("section.chat");
-  if (chat) chat.dataset.id = sessionId;
+  const panel = $("section.chat > main");
+  if (panel) {
+    panel.dataset.id = sessionId;
+  }
 
   const url = new URL(window.location.href);
   url.searchParams.set("page", "chat");
@@ -150,16 +217,16 @@ function setSession(sessionId) {
   history.replaceState({}, "", url);
 }
 
-function atBottom() {
-  const dom = $("#right-content-chat-messages");
+function atBottom(sessionId) {
+  const dom = chatMessages(sessionId);
   if (!dom) {
     return false;
   }
   return dom.scrollHeight - dom.scrollTop - dom.clientHeight <= AUTO_SCROLL_SLACK;
 }
 
-function scrollToBottom(force) {
-  const dom = $("#right-content-chat-messages");
+function scrollToBottom(force, sessionId) {
+  const dom = chatMessages(sessionId);
   if (!dom || dom.scrollHeight < dom.clientHeight) {
     return;
   }
@@ -193,25 +260,23 @@ function sendAt() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function appendInboundUser(text) {
+function appendInboundUser(text, sessionId) {
   text = (text || "").trim();
   if (!text || text.startsWith("[Resumed Task")) {
     return;
   }
-  const i = localEcho.indexOf(text);
-  if (i !== -1) {
-    localEcho.splice(i, 1);
+  if (takeEcho(sessionId, text)) {
     return;
   }
 
-  const dom = $("#right-content-chat-messages");
+  const dom = chatMessages(sessionId);
   if (!dom) {
     return;
   }
-  streamDom = null;
-  clearTodo();
+  setStream(sessionId, null);
+  clearTodo(sessionId);
   dom.appendChild(newUserItem({ content: text, meta: { send_at: sendAt() } }));
-  scrollToBottom(true);
+  scrollToBottom(true, sessionId);
 }
 
 function eventSkip(event) {
@@ -222,8 +287,9 @@ function eventSkip(event) {
   return SKIP_EVENTS.includes(type);
 }
 
-function newStreamItem(init) {
+function newStreamItem(init, sessionId) {
   init = init || {};
+  const sid = sessionId || currentSessionId;
 
   const reasoning = _("section.md-render");
   const think = _("details.reasoning", [
@@ -239,13 +305,14 @@ function newStreamItem(init) {
   const files = fileBox([]);
   const footer = _("footer");
   const stop = _("button.stop", { type: "button" }, [_("span.material-symbols-outlined", "stop"), _("p", "cancel")]);
-  stop.addEventListener("click", stopRunning);
+  stop.addEventListener("click", () => stopRunning(sid));
   const body = _("section", [model, think, answer, source, files, footer, stop]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
 
-  $("#right-content-chat-messages").appendChild(dom);
+  chatMessages(sid).appendChild(dom);
 
   const view = {
+    session: sid,
     body: body,
     model: model,
     think: think,
@@ -262,18 +329,18 @@ function newStreamItem(init) {
     trace: init.trace || "",
   };
   if (view.trace) {
-    render(view.reasoning, view.trace);
+    render(view.reasoning, view.trace, sid);
   }
   if (view.text) {
-    render(view.answer, view.text);
+    render(view.answer, view.text, sid);
   }
   return view;
 }
 
-function render(dom, markdown) {
-  const stick = atBottom();
+function render(dom, markdown, sessionId) {
+  const stick = atBottom(sessionId);
   dom.innerHTML = renderMarkdownHTML(channelText(markdown));
   if (stick) {
-    scrollToBottom(true);
+    scrollToBottom(true, sessionId);
   }
 }

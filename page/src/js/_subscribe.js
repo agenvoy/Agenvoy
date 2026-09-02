@@ -3,7 +3,19 @@ const SESSION_CREATED = "session created";
 let subscription = null;
 let streamWasDown = false;
 let subscribedSession = "";
+let subscribedSessions = [];
 let subscribeBound = false;
+
+function subscribeTargets(sessionId) {
+  const list = [];
+  const pinned = isWide() ? readConfig().pin_chat || [] : [];
+  for (const id of [sessionId].concat(pinned)) {
+    if (typeof id === "string" && id !== "" && !list.includes(id)) {
+      list.push(id);
+    }
+  }
+  return list;
+}
 
 function closeSubscription() {
   if (!subscription) {
@@ -38,14 +50,16 @@ function subscribe(sessionId) {
   bindSubscribeLifecycle();
 
   sessionId = sessionId || "";
-  if (subscription && subscribedSession === sessionId) {
+  const targets = subscribeTargets(sessionId);
+  if (subscription && subscribedSession === sessionId && subscribedSessions.join(",") === targets.join(",")) {
     return;
   }
 
   closeSubscription();
   subscribedSession = sessionId;
-  const url = sessionId
-    ? `${API}/v1/log?sessions=${encodeURIComponent(sessionId)}&replay=0`
+  subscribedSessions = targets;
+  const url = targets.length
+    ? `${API}/v1/log?sessions=${encodeURIComponent(targets.join(","))}&replay=0`
     : `${API}/v1/log?replay=0`;
   subscription = new EventSource(url);
   subscription.onmessage = (e) => {
@@ -69,7 +83,7 @@ function subscribe(sessionId) {
       return;
     }
 
-    if ((event.session && event.session !== subscribedSession) || event.type === "EventConnected") {
+    if ((event.session && !subscribedSessions.includes(event.session)) || event.type === "EventConnected") {
       return;
     }
     parseEvent(event);
@@ -78,8 +92,8 @@ function subscribe(sessionId) {
     if (streamWasDown) {
       streamWasDown = false;
       renderChatList();
-      if (subscribedSession) {
-        loadPending(subscribedSession);
+      for (const id of subscribedSessions) {
+        renderResumeMark(id);
       }
     }
   };
@@ -92,14 +106,18 @@ function subscribe(sessionId) {
 let announceTimer = 0;
 let announced = false;
 
-let currentTaskId = "";
-
 function parseEvent(event) {
+  const sessionId = event.session || subscribedSession;
+  const active = sessionId === currentSessionId;
+
   if (event.once_id) {
-    currentTaskId = event.once_id;
+    setTask(sessionId, event.once_id);
   }
 
   if (event.type === "EventTextDone") {
+    if (!active) {
+      return;
+    }
     clearTimeout(announceTimer);
     announceTimer = setTimeout(function () {
       announceTimer = 0;
@@ -109,23 +127,23 @@ function parseEvent(event) {
     return;
   }
 
-  if (announceTimer && event.type !== "EventDone") {
+  if (active && announceTimer && event.type !== "EventDone") {
     clearTimeout(announceTimer);
     announceTimer = 0;
   }
 
   if (event.type === "EventToolConfirm") {
-    renderToolConfirm(event);
+    renderToolConfirm(event, sessionId);
     return;
   }
 
   if (event.type === "EventUserInput") {
-    appendInboundUser(event.text);
+    appendInboundUser(event.text, sessionId);
     return;
   }
 
   if (event.type === "EventPending") {
-    loadPending(subscribedSession);
+    renderResumeMark(sessionId);
     return;
   }
 
@@ -134,34 +152,46 @@ function parseEvent(event) {
   }
 
   if (event.type === "EventTodoUpdate") {
-    renderTodo(event.todos || []);
+    renderTodo(event.todos || [], sessionId);
     return;
   }
 
-  if (!streamDom) {
+  let view = streamOf(sessionId);
+  if (!view) {
     if (event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError") return;
-    streamDom = newStreamItem();
-    announced = false;
+    if (!chatMessages(sessionId)) return;
+    view = newStreamItem({}, sessionId);
+    setStream(sessionId, view);
+    if (active) {
+      announced = false;
+    }
   }
 
-  renderEvent(streamDom, event);
+  renderEvent(view, event);
 
   if (event.type === "EventCanceled" || event.type === "EventError") {
-    currentTaskId = "";
-    streamDom = null;
-    clearTodo();
-    loadPending(subscribedSession);
-    clearTimeout(announceTimer);
-    announceTimer = 0;
-    announced = false;
+    setTask(sessionId, "");
+    setStream(sessionId, null);
+    clearTodo(sessionId);
+    clearPending(sessionId);
+    renderResumeMark(sessionId);
+    if (active) {
+      clearTimeout(announceTimer);
+      announceTimer = 0;
+      announced = false;
+    }
     return;
   }
 
   if (event.type === "EventDone") {
-    currentTaskId = "";
-    streamDom = null;
-    clearTodo();
-    loadPending(subscribedSession);
+    setTask(sessionId, "");
+    setStream(sessionId, null);
+    clearTodo(sessionId);
+    clearPending(sessionId);
+    renderResumeMark(sessionId);
+    if (!active) {
+      return;
+    }
     if (announceTimer) {
       clearTimeout(announceTimer);
       announceTimer = 0;

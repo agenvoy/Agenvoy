@@ -8,7 +8,72 @@ import (
 
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
+
+const (
+	maxFindResultBytes = 100 << 10
+	maxMatchesPerFile  = 100
+)
+
+type sizeBudget struct {
+	left    int
+	total   int
+	dropped int
+	capped  int
+}
+
+func newSizeBudget() *sizeBudget {
+	return &sizeBudget{left: maxFindResultBytes}
+}
+
+func entrySize(file go_pkg_filesystem_reader.File) int {
+	raw, _ := json.Marshal(file)
+	return len(raw)
+}
+
+func (b *sizeBudget) take(list []go_pkg_filesystem_reader.File) []go_pkg_filesystem_reader.File {
+	b.total += len(list)
+	for i := range list {
+		cut := false
+		if len(list[i].Matches) > maxMatchesPerFile {
+			list[i].Matches = list[i].Matches[:maxMatchesPerFile]
+			cut = true
+		}
+		size := entrySize(list[i])
+		for size > b.left && len(list[i].Matches) > 0 {
+			list[i].Matches = list[i].Matches[:len(list[i].Matches)/2]
+			cut = true
+			size = entrySize(list[i])
+		}
+		if cut {
+			b.capped++
+		}
+		if size > b.left {
+			b.dropped += len(list) - i
+			return list[:i]
+		}
+		b.left -= size
+	}
+	return list
+}
+
+func (b *sizeBudget) notice() string {
+	if b.dropped == 0 && b.capped == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "\n[partial result: %d of %d matching entries returned, alphabetical by path",
+		b.total-b.dropped, b.total)
+	if b.dropped > 0 {
+		fmt.Fprintf(&sb, "; %d omitted to stay under %d KiB", b.dropped, maxFindResultBytes>>10)
+	}
+	if b.capped > 0 {
+		fmt.Fprintf(&sb, "; matches cut short in %d of them", b.capped)
+	}
+	sb.WriteString(". What is here is accurate, only incomplete. To see the rest, narrow dir, make pattern more specific, or tighten file_pattern — re-running this query unchanged truncates identically.]")
+	return sb.String()
+}
 
 type findQuery struct {
 	Dir         string `json:"dir"`
