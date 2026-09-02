@@ -14,8 +14,8 @@ import (
 
 func removeSkillDir(ctx context.Context, e *toolTypes.Executor, name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", fmt.Errorf("name is required when mode=remove")
+	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid skill name: %q", name)
 	}
 
 	dir := filepath.Join(filesystem.SkillsDir, name)
