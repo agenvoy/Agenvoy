@@ -1,11 +1,12 @@
-async function openPersonaPopup() {
-  if (!currentSessionId) {
+async function openPersonaPopup(sessionId) {
+  const sid = sessionId || currentSessionId;
+  if (!sid) {
     return;
   }
 
   let current = {};
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}`);
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sid)}`);
     const detail = await response.json().catch(() => ({}));
     if (!response.ok) {
       alert(`persona failed: ${detail.error || response.status}`);
@@ -50,7 +51,7 @@ async function openPersonaPopup() {
   };
   const submit = async function () {
     save.disabled = true;
-    const done = await savePersona(self.box.value.trim(), name.box.value.trim(), rule.box.value);
+    const done = await savePersona(sid, self.box.value.trim(), name.box.value.trim(), rule.box.value);
     save.disabled = false;
     if (done) {
       close();
@@ -97,9 +98,9 @@ function personaField(value, placeholder, single) {
   return { field: _("label.input", [box, mirror]), box: box };
 }
 
-async function savePersona(selfId, name, rule) {
+async function savePersona(sessionId, selfId, name, rule) {
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId || currentSessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ self_id: selfId, name: name, rule: rule }),

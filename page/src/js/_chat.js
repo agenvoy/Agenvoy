@@ -1,5 +1,3 @@
-const CHANNEL_PREFIX = { "tg-": "fa-telegram", "dc-": "fa-discord" };
-
 let chatListRetry = 0;
 
 function retryChatList() {
@@ -9,7 +7,9 @@ function retryChatList() {
 
 async function renderChatList() {
   const dom = $("#left-tab-chat-list");
-  const channelDom = $("#left-tab-channel-list");
+  const pinDom = $("#left-tab-pin-list");
+  const discordDom = $("#left-tab-discord-list");
+  const telegramDom = $("#left-tab-telegram-list");
   const terminalDom = $("#left-tab-terminal-list");
   const tempDom = $("#left-tab-temp-list");
   if (!dom) {
@@ -31,13 +31,21 @@ async function renderChatList() {
   clearTimeout(chatListRetry);
 
   dom.innerHTML = "";
-  for (const one of [channelDom, terminalDom, tempDom]) {
+  for (const one of [pinDom, discordDom, telegramDom, terminalDom, tempDom]) {
     if (one) {
       one.innerHTML = "";
     }
   }
 
+  const pinned = readConfig().pin_chat || [];
+
   for (const e of list) {
+    if (pinned.includes(e.id)) {
+      if (pinDom) {
+        pinDom.appendChild(pinListItem(e.id, e.name || e.id));
+      }
+      continue;
+    }
     if (e.id.startsWith("chat-")) {
       dom.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
@@ -54,14 +62,22 @@ async function renderChatList() {
       }
       continue;
     }
-    const icon = channelIcon(e.id);
-    if (icon && channelDom) {
-      channelDom.appendChild(channelListItem(e.id, e.name || e.id, icon));
+    if (e.id.startsWith("dc-")) {
+      if (discordDom) {
+        discordDom.appendChild(channelListItem(e.id, e.name || e.id));
+      }
+      continue;
+    }
+    if (e.id.startsWith("tg-")) {
+      if (telegramDom) {
+        telegramDom.appendChild(channelListItem(e.id, e.name || e.id));
+      }
     }
   }
 
   for (const [box, label] of [
-    [channelDom, "Channels"],
+    [discordDom, "Discords"],
+    [telegramDom, "Telegrams"],
     [terminalDom, "Terminals"],
     [tempDom, "Temps"],
   ]) {
@@ -86,42 +102,24 @@ async function renderChatList() {
   }
 }
 
-function channelIcon(sessionId) {
-  for (const prefix of Object.keys(CHANNEL_PREFIX)) {
-    if (sessionId.startsWith(prefix)) {
-      return CHANNEL_PREFIX[prefix];
-    }
+function rowMenuItem(icon, label, style, action) {
+  const props = { type: "button" };
+  if (style) {
+    props.class = style;
   }
-  return "";
-}
 
-function channelListItem(sessionId, title, icon) {
-  return _(
-    "a",
-    {
-      href: getLink({ page: "chat", chat: sessionId }),
-      "data-id": sessionId,
-      "data-selected": sessionId === currentSessionId ? 1 : 0,
-    },
-    [_("i", { class: `fa-brands ${icon}` }), _("p", title)],
-  );
-}
-
-function chatListItem(sessionId, title) {
-  const remove = _("button", { type: "button", class: "remove" }, [
-    _("span.material-symbols-outlined", "delete"),
-    _("p", "Delete"),
-  ]);
-  remove.addEventListener("click", function (e) {
+  const dom = _("button", props, [_("span.material-symbols-outlined", icon), _("p", label)]);
+  dom.addEventListener("click", function (e) {
     e.preventDefault();
     e.stopPropagation();
     closeChatMenu();
-    if (confirm(`Delete "${title}"?`)) {
-      deleteChat(sessionId);
-    }
+    action();
   });
+  return dom;
+}
 
-  const menu = _("div.menu", [remove]);
+function rowMenu(entries) {
+  const menu = _("div.menu", entries);
   menu.dataset.show = "0";
 
   const more = _("button", { type: "button", class: "more" }, [_("span.material-symbols-outlined", "more_horiz")]);
@@ -131,13 +129,54 @@ function chatListItem(sessionId, title) {
     openChatMenu(menu);
   });
 
+  return [more, menu];
+}
+
+function pinListItem(sessionId, title) {
+  const body = [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title)];
+  body.push(...rowMenu([rowMenuItem("keep_off", "Unpin", "", () => removePinChat(sessionId))]));
+
   return _(
     "div",
     {
       "data-id": sessionId,
       "data-selected": sessionId === currentSessionId ? 1 : 0,
     },
-    [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title), more, menu],
+    body,
+  );
+}
+
+function channelListItem(sessionId, title) {
+  return _(
+    "div",
+    {
+      "data-id": sessionId,
+      "data-selected": sessionId === currentSessionId ? 1 : 0,
+    },
+    [
+      _("a", { href: getLink({ page: "chat", chat: sessionId }) }, title),
+      ...rowMenu([rowMenuItem("keep", "Pin", "", () => addPinChat(sessionId))]),
+    ],
+  );
+}
+
+function chatListItem(sessionId, title) {
+  const entries = [
+    rowMenuItem("keep", "Pin", "", () => addPinChat(sessionId)),
+    rowMenuItem("delete", "Delete", "remove", function () {
+      if (confirm(`Delete "${title}"?`)) {
+        deleteChat(sessionId);
+      }
+    }),
+  ];
+
+  return _(
+    "div",
+    {
+      "data-id": sessionId,
+      "data-selected": sessionId === currentSessionId ? 1 : 0,
+    },
+    [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title), ...rowMenu(entries)],
   );
 }
 
@@ -177,6 +216,8 @@ async function deleteChat(sessionId) {
     return;
   }
 
+  const unpinned = unpinChat(sessionId);
+
   const row = document.querySelector(`section.chats [data-id="${sessionId}"]`);
   if (row) {
     row.remove();
@@ -185,6 +226,10 @@ async function deleteChat(sessionId) {
   const open = new URL(window.location.href).searchParams.get("chat") || "";
   if (sessionId === currentSessionId || sessionId === open) {
     window.location.href = getLink({ page: "chat" });
+    return;
+  }
+  if (unpinned) {
+    window.location.reload();
   }
 }
 
@@ -193,14 +238,14 @@ function renameChat(sessionId, title) {
     return;
   }
 
-  const label = document.querySelector(`#left-tab-chat-list [data-id="${sessionId}"] > a`);
+  const label = document.querySelector(`section.chats [data-id="${sessionId}"] > a`);
   if (label) {
     label.textContent = title;
   }
 }
 
 async function renderChat(sessionId) {
-  const dom = $("#right-content-chat-messages");
+  const dom = chatMessages(sessionId);
   if (!dom || !sessionId) {
     return;
   }
@@ -222,19 +267,19 @@ async function renderChat(sessionId) {
   }
 
   const items = parseActionLog(content);
-  clearTodo();
+  clearTodo(sessionId);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.rule === "assistant" && i === items.length - 1) {
-      streamDom = newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content });
-      renderTodo(item.todos);
+      setStream(sessionId, newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content }, sessionId));
+      renderTodo(item.todos, sessionId);
       continue;
     }
 
     dom.appendChild(item.rule === "user" ? newUserItem(item) : newAssisatantItem(item));
   }
-  scrollToBottom(true);
+  scrollToBottom(true, sessionId);
 }
 
 function assistantFooter(meta) {

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,keep,keep_off,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal,top_panel_close"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -52,10 +52,18 @@
         <!---->
         <details class="group">
           <summary>
-            <p>Channels</p>
+            <p>Discords</p>
             <span class="material-symbols-outlined"> keyboard_arrow_down </span>
           </summary>
-          <section id="left-tab-channel-list"></section>
+          <section id="left-tab-discord-list"></section>
+        </details>
+        <!---->
+        <details class="group">
+          <summary>
+            <p>Telegrams</p>
+            <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+          </summary>
+          <section id="left-tab-telegram-list"></section>
         </details>
         <!---->
         <details class="group">
@@ -73,6 +81,14 @@
           </summary>
           <section id="left-tab-temp-list"></section>
         </details>
+        <!---->
+        <details class="group" :if="LENGTH(pin) > 0" open data-hide="1">
+          <summary>
+            <p>Pinned</p>
+            <span class="material-symbols-outlined"> keyboard_arrow_down </span>
+          </summary>
+          <section id="left-tab-pin-list"></section>
+        </details>
       </section>
       <!---->
       <footer>
@@ -88,79 +104,180 @@
     </section>
     <!---->
     <section class="right-content">
-      <!---->
-      <section :if="params.page == chat" class="chat" :data-id="{{params.chat}}" @wheel="chat_wheel">
-        <header>
-          <!--<p></p>
-          <div></div>-->
-          <button type="button" @click="persona_edit" name="Bot persona" data-hide="1">
-            <span class="material-symbols-outlined"> for_you </span>
-          </button>
-          <button type="button" @click="memory_pick" name="Memory" data-hide="1">
-            <span class="material-symbols-outlined"> cognition_2 </span>
-          </button>
-          <button type="button" @click="usage_open" name="Usage" data-hide="1">
-            <span class="material-symbols-outlined"> bar_chart </span>
-          </button>
-          <button type="button" @click="history_open" name="History" data-hide="1">
-            <span class="material-symbols-outlined"> history </span>
-          </button>
-          <button class="resume" type="button" @click="resume_pick" name="Pending">
-            <span class="material-symbols-outlined"> running_with_errors </span>
-          </button>
-          <button class="harness" type="button" @click="harness_click" name="Voice mode">
-            <span class="material-symbols-outlined"> robot_2 </span>
-          </button>
-        </header>
-        <!---->
-        <div class="logo">
-          <img src="public/logo-min.svg" alt="Logo" />
-          <p>Agenvoy</p>
-        </div>
-        <!---->
-        <section id="right-content-chat-messages" class="messages">
+      <!-- @wheel="chat_wheel" -->
+      <section :if="params.page == chat" class="chat" :data-style="{{pin_style}}">
+        <main :data-id="{{params.chat}}">
+          <header>
+            <!--<p></p>
+            <div></div>-->
+            <button class="pin" type="button" @click="pin_add" name="Pin" data-hide="1" data-desktop="1">
+              <span class="material-symbols-outlined"> keep </span>
+            </button>
+            <button type="button" @click="persona_edit" name="Bot persona" data-hide="1">
+              <span class="material-symbols-outlined"> for_you </span>
+            </button>
+            <button type="button" @click="memory_pick" name="Memory" data-hide="1">
+              <span class="material-symbols-outlined"> cognition_2 </span>
+            </button>
+            <button type="button" @click="usage_open" name="Usage" data-hide="1">
+              <span class="material-symbols-outlined"> bar_chart </span>
+            </button>
+            <button type="button" @click="history_open" name="History" data-hide="1">
+              <span class="material-symbols-outlined"> history </span>
+            </button>
+            <button type="button" @click="resume_pick" name="Pending" data-has="0">
+              <span class="material-symbols-outlined"> running_with_errors </span>
+            </button>
+            <button class="harness" type="button" @click="harness_click" name="Voice mode" :if="LENGTH(pin) < 1">
+              <span class="material-symbols-outlined"> robot_2 </span>
+            </button>
+            <button
+              type="button"
+              @click="style_switch"
+              name="To top"
+              data-hide="1"
+              data-style="1"
+              data-desktop="1"
+              :if="LENGTH(pin) > 1"
+            >
+              <span class="material-symbols-outlined"> top_panel_close </span>
+            </button>
+            <button
+              type="button"
+              @click="style_switch"
+              name="To right"
+              data-hide="1"
+              data-style="0"
+              data-desktop="1"
+              :if="LENGTH(pin) > 1"
+            >
+              <span class="material-symbols-outlined"> right_panel_close </span>
+            </button>
+          </header>
           <!---->
-          <section id="right-content-chat-todo" class="todo"></section>
+          <div class="logo">
+            <img src="public/logo-min.svg" alt="Logo" />
+            <p>Agenvoy</p>
+          </div>
           <!---->
-          <section id="right-content-chat-pending" class="pending" data-index="0"></section>
-          <!---->
-          <section id="right-content-chat-confirm" class="confirm"></section>
-        </section>
-        <!---->
-        <div class="input" data-voice="0">
-          <span></span>
-          <label dir="auto">
-            <textarea
-              id="chat-input"
-              placeholder="How can I help you today?"
-              @input="chat_input"
-              @keydown="chat_keydown"
-            ></textarea>
-            <pre></pre>
-          </label>
-          <section>
-            <button class="rule left" type="button" @click="rule_pick" name="Use rule">
-              <span class="material-symbols-outlined"> contract </span>
-            </button>
-            <button class="skill left" type="button" @click="skill_pick" name="Use skill">
-              <span class="material-symbols-outlined"> lightbulb_2 </span>
-            </button>
-            <button class="work-dir left" type="button" @click="workdir_pick" name="Working directory">
-              <span class="material-symbols-outlined"> folder </span>
-            </button>
-            <div></div>
-            <button id="chat-model" class="model right" type="button" @click="model_pick" name="auto">
-              <span class="material-symbols-outlined model-icon"> deployed_code </span>
-              <p>auto</p>
-            </button>
-            <button id="chat-reasoning" class="reasoning right" type="button" @click="reasoning_pick" name="medium">
-              <span class="material-symbols-outlined"> signal_cellular_2_bar </span>
-            </button>
-            <button class="send" type="button" @click="send_click" name="Send">
-              <span class="material-symbols-outlined"> send </span>
-            </button>
+          <section class="messages">
+            <!---->
+            <section class="todo"></section>
+            <!---->
+            <section class="pending" data-index="0"></section>
+            <!---->
+            <section class="confirm"></section>
           </section>
-        </div>
+          <!---->
+          <div class="input" data-voice="0">
+            <span></span>
+            <label dir="auto">
+              <textarea
+                id="chat-input"
+                placeholder="How can I help you today?"
+                @input="chat_input"
+                @keydown="chat_keydown"
+              ></textarea>
+              <pre></pre>
+            </label>
+            <section>
+              <button class="rule left" type="button" @click="rule_pick" name="Use rule">
+                <span class="material-symbols-outlined"> contract </span>
+              </button>
+              <button class="skill left" type="button" @click="skill_pick" name="Use skill">
+                <span class="material-symbols-outlined"> lightbulb_2 </span>
+              </button>
+              <button class="work-dir left" type="button" @click="workdir_pick" name="Working directory">
+                <span class="material-symbols-outlined"> folder </span>
+              </button>
+              <div></div>
+              <button id="chat-model" class="model right" type="button" @click="model_pick" name="auto">
+                <span class="material-symbols-outlined model-icon"> deployed_code </span>
+                <p>auto</p>
+              </button>
+              <button id="chat-reasoning" class="reasoning right" type="button" @click="reasoning_pick" name="medium">
+                <span class="material-symbols-outlined"> signal_cellular_2_bar </span>
+              </button>
+              <button class="send" type="button" @click="send_click" name="Send">
+                <span class="material-symbols-outlined"> send </span>
+              </button>
+            </section>
+          </div>
+        </main>
+        <!---->
+        <section :for="(chat, i) in pin" :data-index="i" :data-id="{{chat.id}}">
+          <header>
+            <!--<p></p>
+            <div></div>-->
+            <button class="unpin" type="button" @click="pin_remove" name="Unpin">
+              <span class="material-symbols-outlined"> keep_off </span>
+            </button>
+            <button type="button" @click="persona_edit" name="Bot persona" data-hide="1">
+              <span class="material-symbols-outlined"> for_you </span>
+            </button>
+            <button type="button" @click="memory_pick" name="Memory" data-hide="1">
+              <span class="material-symbols-outlined"> cognition_2 </span>
+            </button>
+            <button type="button" @click="usage_open" name="Usage" data-hide="1">
+              <span class="material-symbols-outlined"> bar_chart </span>
+            </button>
+            <button type="button" @click="history_open" name="History" data-hide="1">
+              <span class="material-symbols-outlined"> history </span>
+            </button>
+            <button type="button" @click="resume_pick" name="Pending" data-has="0">
+              <span class="material-symbols-outlined"> running_with_errors </span>
+            </button>
+          </header>
+          <!---->
+          <div class="logo">
+            <img src="public/logo-min.svg" alt="Logo" />
+            <p>Agenvoy</p>
+          </div>
+          <!---->
+          <section class="messages">
+            <!---->
+            <section class="todo"></section>
+            <!---->
+            <section class="pending" data-index="0"></section>
+            <!---->
+            <section class="confirm"></section>
+          </section>
+          <!---->
+          <div class="input" data-voice="0">
+            <span></span>
+            <label dir="auto">
+              <textarea
+                id="chat-input"
+                placeholder="How can I help you today?"
+                @input="chat_input"
+                @keydown="chat_keydown"
+              ></textarea>
+              <pre></pre>
+            </label>
+            <section>
+              <button class="rule left" type="button" @click="rule_pick" name="Use rule">
+                <span class="material-symbols-outlined"> contract </span>
+              </button>
+              <button class="skill left" type="button" @click="skill_pick" name="Use skill">
+                <span class="material-symbols-outlined"> lightbulb_2 </span>
+              </button>
+              <button class="work-dir left" type="button" @click="workdir_pick" name="Working directory">
+                <span class="material-symbols-outlined"> folder </span>
+              </button>
+              <div></div>
+              <button id="chat-model" class="model right" type="button" @click="model_pick" name="auto">
+                <span class="material-symbols-outlined model-icon"> deployed_code </span>
+                <p>auto</p>
+              </button>
+              <button id="chat-reasoning" class="reasoning right" type="button" @click="reasoning_pick" name="medium">
+                <span class="material-symbols-outlined"> signal_cellular_2_bar </span>
+              </button>
+              <button class="send" type="button" @click="send_click" name="Send">
+                <span class="material-symbols-outlined"> send </span>
+              </button>
+            </section>
+          </div>
+        </section>
       </section>
       <!---->
       <section :elif="params.page == features" class="feature">

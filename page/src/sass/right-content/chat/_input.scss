@@ -1,5 +1,5 @@
 @mixin styles {
-  div.input {
+  > div.input {
     z-index: 1;
     position: sticky;
     bottom: 1rem;
@@ -7,7 +7,6 @@
     flex-flow: column;
     gap: 0.75rem;
     padding: 1.5rem;
-    width: var(--width-right-content);
     max-width: var(--max-width-right-content);
     background-color: #fff;
     border-radius: 1.25rem;
@@ -274,7 +273,7 @@
             display: none;
           }
 
-          @media (max-width: 479.99px) {
+          @media (max-width: 479px) {
             width: 1rem;
 
             > span.model-icon {

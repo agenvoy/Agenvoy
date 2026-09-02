@@ -6,11 +6,11 @@ const CONFIRM_OPTIONS = [
   { label: "abort task", body: { approve: false, abort: true }, style: "abort" },
 ];
 
-async function resolveToolConfirm(requestId, body, dom) {
+async function resolveToolConfirm(sessionId, requestId, body, dom) {
   const note = dom.querySelector("p.note");
   try {
     const response = await fetch(
-      `${API}/v1/session/${encodeURIComponent(currentSessionId)}/confirm/${encodeURIComponent(requestId)}`,
+      `${API}/v1/session/${encodeURIComponent(sessionId || currentSessionId)}/confirm/${encodeURIComponent(requestId)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,9 +30,9 @@ async function resolveToolConfirm(requestId, body, dom) {
   dom.remove();
 }
 
-function renderToolConfirm(event) {
+function renderToolConfirm(event, sessionId) {
   const requestId = event.tool_id || "";
-  const dom = $("#right-content-chat-confirm");
+  const dom = chatPart("confirm", sessionId);
   if (!requestId || !dom) {
     return;
   }
@@ -90,7 +90,7 @@ function renderToolConfirm(event) {
         payload.password = field.value;
         note.textContent = "";
       }
-      resolveToolConfirm(requestId, payload, card);
+      resolveToolConfirm(sessionId, requestId, payload, card);
     });
     if (password && option.body.approve && !primary) {
       primary = button;
@@ -108,7 +108,7 @@ function renderToolConfirm(event) {
   }
 
   dom.appendChild(card);
-  scrollToBottom(true);
+  scrollToBottom(true, sessionId);
   if (password) {
     password.focus();
   }
