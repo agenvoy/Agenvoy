@@ -15,8 +15,8 @@ import (
 
 func toolTarget(name, tag string, mustExist bool) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", fmt.Errorf("name is required")
+	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid tool name: %q", name)
 	}
 
 	switch tag {

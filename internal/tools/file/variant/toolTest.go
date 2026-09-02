@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -65,7 +64,10 @@ func testToolScript(ctx context.Context, name, input string) (string, error) {
 		input = "{}"
 	}
 
-	scriptPath := filepath.Join(filesystem.ScriptToolsDir, name, "script.py")
+	scriptPath, err := toolTarget(name, "script", false)
+	if err != nil {
+		return "", err
+	}
 	if !go_pkg_filesystem_reader.Exists(scriptPath) {
 		return "", fmt.Errorf("script not found: %s", scriptPath)
 	}

@@ -16,6 +16,14 @@
 
   > section.chats > details {
     display: flex;
+
+    &[data-hide="1"] {
+      display: none;
+
+      @media (max-width: 1279px) {
+        display: flex;
+      }
+    }
   }
 
   section:not(.chats),

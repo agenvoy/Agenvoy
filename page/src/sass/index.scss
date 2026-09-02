@@ -113,9 +113,9 @@ span.material-symbols-outlined {
   section.right-content {
     width: calc(100% - var(--width-left-tab));
 
-    section.chat header {
-      left: calc((var(--width-left-tab) / 2) + 50%);
-    }
+    // section.chat header {
+    //   left: calc((var(--width-left-tab) / 2) + 50%);
+    // }
   }
 
   &:has(section.left-tab[data-collapsed="1"]) {
@@ -125,9 +125,9 @@ span.material-symbols-outlined {
     section.right-content {
       width: calc(100% - var(--width-left-tab-collaspse));
 
-      section.chat header {
-        left: calc((var(--width-left-tab-collaspse) / 2) + 50%);
-      }
+      // section.chat header {
+      //   left: calc((var(--width-left-tab-collaspse) / 2) + 50%);
+      // }
     }
   }
 }

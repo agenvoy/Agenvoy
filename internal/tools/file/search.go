@@ -37,11 +37,13 @@ func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery
 	slices.SortFunc(merged, func(a, b go_pkg_filesystem_reader.File) int {
 		return strings.Compare(a.Path, b.Path)
 	})
+	budget := newSizeBudget()
+	merged = budget.take(merged)
 	raw, err := json.Marshal(merged)
 	if err != nil {
 		return "", fmt.Errorf("json.Marshal: %w", err)
 	}
-	return string(raw), nil
+	return string(raw) + budget.notice(), nil
 }
 
 func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string) ([]go_pkg_filesystem_reader.File, error) {

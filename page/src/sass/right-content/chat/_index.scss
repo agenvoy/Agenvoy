@@ -13,184 +13,450 @@ body[data-rendered="1"] section.right-content section.chat {
 
 @mixin styles {
   section.chat {
-    position: absolute;
     display: none;
-    flex-flow: column;
-    justify-content: center;
-    align-items: center;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    overflow: scroll;
+    overflow: hidden;
 
-    &[data-id]:not([data-id=""]) {
-      div.logo {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        margin-top: 0;
-        opacity: 0.03;
-
-        img {
-          width: 16rem;
-          height: 16rem;
-        }
-
-        p {
-          display: none;
-        }
+    &[data-style="0"] {
+      > section > section.messages,
+      > section > div.input {
+        width: calc(100% - 2rem);
       }
 
-      section.messages {
-        display: flex;
-      }
-
-      header button[data-hide="1"] {
-        display: flex;
-      }
-    }
-
-    header {
-      z-index: 10;
-      position: fixed;
-      top: 1rem;
-      margin-right: -50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-flow: row;
-      gap: 1rem;
-      justify-content: center;
-      align-items: center;
-      padding: 0.625rem;
-      height: 2.5rem;
-      border-radius: 1.25rem;
-      background-color: #ffffff80;
-      backdrop-filter: blur(0.5rem);
-      -webkit-backdrop-filter: blur(0.5rem);
-      transition: 0.2s;
-
-      @media (max-width: 767.99px) {
-        left: calc((var(--width-left-tab-collaspse) / 2) + 50%);
-      }
-
-      p {
-        font-size: medium;
-      }
-
-      div {
-        flex-grow: 1;
-      }
-
-      > span {
+      > main > header button[data-style="1"] {
         display: block;
-        width: 1px;
-        height: 0.75rem;
-        background-color: #000;
       }
 
-      button[data-hide="1"] {
-        display: none;
-      }
-
-      button.resume {
-        display: none;
-
-        &[data-has="1"] {
-          display: flex;
-        }
-      }
-
-      button {
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 1.5rem;
-        height: 1.5rem;
-        transition: 0.2s;
-
+      > section {
         @media (hover: hover) {
           &:hover {
-            &:before,
             &:after {
+              opacity: 0;
+            }
+            > header {
               opacity: 1;
+            }
+
+            > div.input {
+              transition: 0.2s;
+              transform: translateY(0);
             }
           }
         }
 
-        &:active {
-          transform: scale(0.98);
-        }
-
-        &[data-selected]:before {
-          opacity: 1;
-          background-color: var(--gray-2);
-        }
-
-        &:before {
-          content: "";
-          z-index: 0;
-          position: absolute;
-          top: -0.25rem;
-          left: -0.25rem;
-          width: 2rem;
-          height: 2rem;
-          background-color: #0000001d;
-          border-radius: 50%;
+        > header {
           opacity: 0;
+        }
+
+        > div.input {
           transition: 0.2s;
+          transform: translateY(100%);
+        }
+      }
+
+      &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
+        > main {
+          width: 50%;
         }
 
-        &:after {
-          z-index: 1000;
-          content: attr(name);
+        > section {
+          width: 50%;
+          border-left: 1px solid var(--gray-2);
+        }
+      }
+
+      &:has(> section[data-index="1"]):not(:has(> section[data-index="2"])) {
+        > main {
           position: absolute;
-          bottom: 0;
-          transform: translateY(calc(100% + 0.5rem));
-          padding: 0 0.5rem;
-          line-height: 1.25rem;
-          font-size: x-small;
-          white-space: nowrap;
-          color: #fff;
-          background-color: #000;
-          border-radius: 0.625rem;
-          opacity: 0;
-          pointer-events: none;
+          left: 0;
+          width: 67%;
         }
 
-        span {
-          z-index: 1;
-          width: 1.5rem;
-          line-height: 1rem;
-          font-size: 1.25rem;
+        > section {
+          position: absolute;
+          right: 0;
+          width: 33%;
+          height: 50%;
+          border-left: 1px solid var(--gray-2);
+
+          &[data-index="0"] {
+            top: 0;
+            border-bottom: 1px solid var(--gray-2);
+          }
+
+          &[data-index="1"] {
+            bottom: 0;
+          }
+        }
+      }
+
+      &:has(> section[data-index="2"]) {
+        > main {
+          position: absolute;
+          left: 0;
+          width: 67%;
+        }
+
+        > section {
+          position: absolute;
+          right: 0;
+          width: 33%;
+          height: 33%;
+          border-left: 1px solid var(--gray-2);
+
+          &[data-index="0"] {
+            top: 0;
+            border-bottom: 1px solid var(--gray-2);
+          }
+
+          &[data-index="1"] {
+            top: 33%;
+            border-bottom: 1px solid var(--gray-2);
+          }
+
+          &[data-index="2"] {
+            bottom: 0;
+            height: 34%;
+          }
         }
       }
     }
 
-    div.logo {
-      z-index: 0;
-      display: flex;
-      flex-flow: row;
+    &[data-style="1"] {
+      > section > section.messages,
+      > section > div.input {
+        width: calc(100% - 2rem);
+      }
+
+      > main > header button[data-style="0"] {
+        display: block;
+      }
+
+      > section {
+        @media (hover: hover) {
+          &:hover {
+            &:after {
+              opacity: 0;
+            }
+            > header {
+              opacity: 1;
+            }
+
+            > div.input {
+              transition: 0.2s;
+              transform: translateY(0);
+            }
+          }
+        }
+
+        > header {
+          opacity: 0;
+        }
+
+        > div.input {
+          transition: 0.2s;
+          transform: translateY(100%);
+        }
+      }
+
+      &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
+        > main {
+          width: 50%;
+        }
+
+        > section {
+          width: 50%;
+          border-left: 1px solid var(--gray-2);
+        }
+      }
+
+      &:has(> section[data-index="1"]):not(:has(> section[data-index="2"])) {
+        > main {
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          height: 67%;
+        }
+
+        > section {
+          position: absolute;
+          top: 0;
+          width: 50%;
+          height: 33%;
+          border-bottom: 1px solid var(--gray-2);
+
+          &[data-index="0"] {
+            left: 0;
+          }
+
+          &[data-index="1"] {
+            left: 50%;
+            border-left: 1px solid var(--gray-2);
+          }
+        }
+      }
+
+      &:has(> section[data-index="2"]) {
+        > main {
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          height: 67%;
+        }
+
+        > section {
+          position: absolute;
+          top: 0;
+          width: 33%;
+          height: 33%;
+          border-bottom: 1px solid var(--gray-2);
+
+          &[data-index="0"] {
+            left: 0;
+          }
+
+          &[data-index="1"] {
+            left: 33%;
+            border-left: 1px solid var(--gray-2);
+          }
+
+          &[data-index="2"] {
+            right: 0;
+            width: 34%;
+            border-left: 1px solid var(--gray-2);
+          }
+        }
+      }
+    }
+
+    > main,
+    > section {
+      position: relative;
+      flex-flow: column;
       justify-content: center;
       align-items: center;
-      gap: 1rem;
-      margin-top: -8rem;
-      padding-bottom: 1rem;
       width: 100%;
+      height: 100%;
+      transform: scale(1);
+      overflow: scroll;
 
-      img {
-        width: 2.5rem;
-        height: 2.5rem;
+      &[data-id]:not([data-id=""]) {
+        div.logo {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          margin-top: 0;
+          opacity: 0.03;
+
+          img {
+            width: 16rem;
+            height: 16rem;
+          }
+
+          p {
+            display: none;
+          }
+        }
+
+        > section.messages {
+          display: flex;
+        }
+
+        > header button[data-hide="1"] {
+          display: flex;
+        }
+
+        > header button[data-desktop="1"] {
+          display: none;
+
+          @media (min-width: 1280px) {
+            display: flex;
+          }
+        }
+
+        > div.chat {
+          position: absolute;
+        }
       }
 
-      p {
-        font-size: x-large;
+      > header {
+        z-index: 10;
+        position: fixed;
+        top: 1rem;
+        left: 50%;
+        // margin-right: -50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-flow: row;
+        gap: 1rem;
+        justify-content: center;
+        align-items: center;
+        padding: 0.625rem;
+        height: 2.5rem;
+        border-radius: 1.25rem;
+        background-color: #ffffff80;
+        backdrop-filter: blur(0.5rem);
+        -webkit-backdrop-filter: blur(0.5rem);
+        transition: 0.2s;
+
+        // @media (max-width: 767px) {
+        //   left: calc((var(--width-left-tab-collaspse) / 2) + 50%);
+        // }
+
+        p {
+          font-size: medium;
+        }
+
+        div {
+          flex-grow: 1;
+        }
+
+        > span {
+          display: block;
+          width: 1px;
+          height: 0.75rem;
+          background-color: #000;
+        }
+
+        button {
+          position: relative;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 1.5rem;
+          height: 1.5rem;
+          transition: 0.2s;
+
+          &[data-style="0"],
+          &[data-style="1"],
+          &[data-hide="1"],
+          &[data-has="0"] {
+            display: none;
+          }
+
+          @media (hover: hover) {
+            &:hover {
+              &:before,
+              &:after {
+                opacity: 1;
+              }
+            }
+          }
+
+          &:active {
+            transform: scale(0.98);
+          }
+
+          &[data-selected]:before {
+            opacity: 1;
+            background-color: var(--gray-2);
+          }
+
+          &:before {
+            content: "";
+            z-index: 0;
+            position: absolute;
+            top: -0.25rem;
+            left: -0.25rem;
+            width: 2rem;
+            height: 2rem;
+            background-color: #0000001d;
+            border-radius: 50%;
+            opacity: 0;
+            transition: 0.2s;
+          }
+
+          &:after {
+            z-index: 1000;
+            content: attr(name);
+            position: absolute;
+            bottom: 0;
+            transform: translateY(calc(100% + 0.5rem));
+            padding: 0 0.5rem;
+            line-height: 1.25rem;
+            font-size: x-small;
+            white-space: nowrap;
+            color: #fff;
+            background-color: #000;
+            border-radius: 0.625rem;
+            opacity: 0;
+            pointer-events: none;
+          }
+
+          span {
+            z-index: 1;
+            width: 1.5rem;
+            height: 1.5rem;
+            line-height: 1.5rem;
+            font-size: 1.25rem;
+          }
+        }
+      }
+
+      > div.logo {
+        z-index: 0;
+        display: flex;
+        flex-flow: row;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-top: -8rem;
+        padding-bottom: 1rem;
+        width: 100%;
+
+        img {
+          width: 2.5rem;
+          height: 2.5rem;
+        }
+
+        p {
+          font-size: x-large;
+        }
+      }
+
+      @include message.styles;
+      @include input.styles;
+    }
+
+    > main {
+      display: flex;
+
+      @media (max-width: 1279px) {
+        width: 100% !important;
+      }
+
+      > section.messages,
+      > div.input {
+        width: var(--width-right-content);
       }
     }
 
-    @include message.styles;
-    @include input.styles;
+    > section {
+      display: none;
+
+      @media (min-width: 1280px) {
+        display: flex;
+      }
+
+      &:after {
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 0 0.5rem;
+        width: 100px;
+        content: attr(data-id);
+        line-height: 1.5rem;
+        white-space: nowrap;
+        font-size: x-small;
+        background-color: var(--gray-2);
+        z-index: 10;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   }
 }

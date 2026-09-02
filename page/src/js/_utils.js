@@ -1,5 +1,17 @@
 const CONFIG_KEY = "webui_config";
+const LEFT_TAB_WIDE = 1280;
+
+function isWide() {
+  return document.documentElement.clientWidth >= LEFT_TAB_WIDE;
+}
+
 const AUTO_SCROLL_SLACK = 8;
+const PIN_CHAT_MAX = 3;
+const PIN_CHAT_SEED = [
+  "cli-0ed57a60-d5b7-4fe4-bb14-939f91a8e185",
+  "tg-83a827ab47b6551ec9b3ad721da92e7dc9676372f1406f2ae997677539c772d1",
+  "chat-c09b3e4c-e66f-43fc-bc68-d5eae319ae5c",
+];
 
 function praseURL() {
   const url = new URL(window.location.href);
@@ -41,6 +53,22 @@ function readConfig() {
     config.harness_enable = false;
     writeConfig(config);
   }
+
+  if (config.pin_style !== "1" && config.pin_style !== "0") {
+    config.pin_style = "0";
+    writeConfig(config);
+  }
+
+  if (!Array.isArray(config.pin_chat)) {
+    config.pin_chat = PIN_CHAT_SEED.slice();
+    writeConfig(config);
+  } else {
+    const pinned = config.pin_chat.filter((id) => typeof id === "string" && id !== "").slice(0, PIN_CHAT_MAX);
+    if (pinned.length !== config.pin_chat.length) {
+      config.pin_chat = pinned;
+      writeConfig(config);
+    }
+  }
   return config;
 }
 
@@ -80,6 +108,72 @@ function adoptChatConfig(chatId) {
   config.chat[chatId] = Object.assign(readChatConfig(chatId), draft);
   delete config.chat[CHAT_DRAFT];
   writeConfig(config);
+}
+
+function chatPanel(sessionId) {
+  const chat = $("section.chat");
+  if (!chat) {
+    return null;
+  }
+
+  const id = sessionId || currentSessionId;
+  return id ? chat.querySelector(`:scope > [data-id="${id}"]`) : chat.querySelector(":scope > main");
+}
+
+function addPinChat(sessionId) {
+  if (!sessionId) {
+    return;
+  }
+
+  const config = readConfig();
+  if (config.pin_chat.includes(sessionId)) {
+    return;
+  }
+  if (config.pin_chat.length >= PIN_CHAT_MAX) {
+    alert(`Pinned panels are limited to ${PIN_CHAT_MAX}.\n\nUnpin one from its panel header, then pin this chat again.`);
+    return;
+  }
+
+  config.pin_chat.push(sessionId);
+  writeConfig(config);
+  window.location.reload();
+}
+
+function unpinChat(sessionId) {
+  if (!sessionId) {
+    return false;
+  }
+
+  const config = readConfig();
+  const pinned = config.pin_chat.filter((id) => id !== sessionId);
+  if (pinned.length === config.pin_chat.length) {
+    return false;
+  }
+
+  config.pin_chat = pinned;
+  writeConfig(config);
+  return true;
+}
+
+function removePinChat(sessionId) {
+  if (unpinChat(sessionId)) {
+    window.location.reload();
+  }
+}
+
+function panelSession(dom) {
+  const panel = dom && dom.closest ? dom.closest("section.chat > *") : null;
+  return panel ? panel.dataset.id || "" : "";
+}
+
+function chatMessages(sessionId) {
+  const panel = chatPanel(sessionId);
+  return panel ? panel.querySelector(":scope > section.messages") : null;
+}
+
+function chatPart(name, sessionId) {
+  const dom = chatMessages(sessionId);
+  return dom ? dom.querySelector(`:scope > section.${name}`) : null;
 }
 
 function sourceBox(text) {

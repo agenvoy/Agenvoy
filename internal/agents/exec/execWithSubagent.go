@@ -134,6 +134,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if isSchedule(ctx) {
 		sessionLog.Append(sessionID, "[Scheduled Task: "+dcPushPrefix(ctx)+"]")
 	} else {
+		pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: userText})
 		sessionLog.Append(sessionID, userText)
 	}
 	SaveUserInputHistory(ctx, sessionID, userText)
@@ -165,14 +166,12 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		}
 	}
 
+	agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name()}
 	if isSchedule(ctx) {
-		agentResult := agentTypes.Event{
-			Type: agentTypes.EventAgentResult,
-			Text: scheduleLabel(dcPushPrefix(ctx)),
-		}
-		pubsub.Pub(sessionID, agentResult)
-		sessionLog.Record(sessionID, agentResult)
+		agentResult.Text = scheduleLabel(dcPushPrefix(ctx))
 	}
+	pubsub.Pub(sessionID, agentResult)
+	sessionLog.Record(sessionID, agentResult)
 
 	events := make(chan agentTypes.Event, 64)
 	errCh := make(chan error, 1)

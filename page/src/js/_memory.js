@@ -1,10 +1,11 @@
-async function memoryPost(action, body) {
-  if (!currentSessionId) {
+async function memoryPost(action, body, sessionId) {
+  const sid = sessionId || currentSessionId;
+  if (!sid) {
     return null;
   }
 
   try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(currentSessionId)}/memory`, {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sid)}/memory`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: action, ...(body || {}) }),
@@ -29,7 +30,7 @@ const MEMORY_ACTIONS = [
   { key: "reset", label: "Reset conversation", hint: "clear every message in this session" },
 ];
 
-function openMemoryPicker() {
+function openMemoryPicker(sessionId) {
   const list = _("div.list");
 
   const cancel = _("button", { type: "button" }, "cancel");
@@ -39,14 +40,14 @@ function openMemoryPicker() {
   const close = () => root.remove();
   const run = function (key) {
     if (key === "summary") {
-      memorySummary();
+      memorySummary(sessionId);
       return;
     }
     if (key === "compact") {
-      memoryCompact();
+      memoryCompact(sessionId);
       return;
     }
-    memoryReset();
+    memoryReset(sessionId);
   };
 
   for (const one of MEMORY_ACTIONS) {
@@ -66,22 +67,22 @@ function openMemoryPicker() {
   document.body.appendChild(root);
 }
 
-async function memorySummary() {
+async function memorySummary(sessionId) {
   if (!confirm("Regenerate the summary for this conversation?")) {
     return;
   }
-  const result = await memoryPost("summary");
+  const result = await memoryPost("summary", null, sessionId);
   if (!result) {
     return;
   }
   alert(`summary regenerated · ${result.count || 0} entr${result.count === 1 ? "y" : "ies"}`);
 }
 
-async function memoryCompact() {
+async function memoryCompact(sessionId) {
   if (!confirm("Compact this conversation? Older messages are dropped.")) {
     return;
   }
-  const result = await memoryPost("compact");
+  const result = await memoryPost("compact", null, sessionId);
   if (!result) {
     return;
   }
@@ -93,12 +94,12 @@ async function memoryCompact() {
   window.location.reload();
 }
 
-async function memoryReset() {
+async function memoryReset(sessionId) {
   if (!confirm("Clear the whole conversation?")) {
     return;
   }
   const keep = confirm("Keep the summary? (cancel wipes it as well)");
-  const result = await memoryPost("reset", { mode: keep ? "summary" : "all" });
+  const result = await memoryPost("reset", { mode: keep ? "summary" : "all" }, sessionId);
   if (!result) {
     return;
   }

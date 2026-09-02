@@ -1,8 +1,5 @@
-const LEFT_TAB_WIDE = 1280;
-
 document.addEventListener("DOMContentLoaded", function () {
   const config = readConfig();
-  const isWide = () => document.documentElement.clientWidth >= LEFT_TAB_WIDE;
   let params = praseURL();
 
   if (params.page == null) {
@@ -33,15 +30,26 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   params.chat = params.chat || "";
 
+  const pinnedChats = config.pin_chat.slice();
+  if (isWide() && pinnedChats.includes(params.chat)) {
+    params.chat = "";
+    history.replaceState({}, "", getLink({ page: params.page }));
+  }
+  const voiceDisabled = pinnedChats.length > 0;
+
   console.log("config", config);
   console.log("params", params);
 
-  function submit() {
-    const dom = $("#chat-input");
+  function submit(from) {
+    const panel = from && from.closest ? from.closest("section.chat > *") : null;
+    const dom = panel ? panel.querySelector("div.input textarea") : $("#chat-input");
+    if (!dom) {
+      return;
+    }
     const content = dom.value;
     dom.value = "";
     dom.nextElementSibling.textContent = "\n";
-    send(content);
+    send(content, panelSession(dom));
   }
 
   function wheelDelta(e, target) {
@@ -54,6 +62,8 @@ document.addEventListener("DOMContentLoaded", function () {
     id: "app",
     data: {
       params: params,
+      pin: pinnedChats.map((id) => ({ id: id })),
+      pin_style: config.pin_style,
       collapsed: isWide() ? config.left_tab_collapsed : "1",
       left_tab: leftTab,
       feature: feature,
@@ -85,12 +95,14 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         e.preventDefault();
-        submit();
+        submit(this);
       },
       send_click: function () {
-        submit();
+        submit(this);
       },
       harness_click: function (e) {
+        if (voiceDisabled) return;
+
         const dom = e.target.closest("button");
         if (!dom) return;
 
@@ -111,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       },
       chat_wheel: function (e) {
-        const dom = $("#right-content-chat-messages");
+        const dom = chatMessages();
         if (dom.contains(e.target) || dom.scrollHeight <= dom.clientHeight) {
           return;
         }
@@ -127,13 +139,13 @@ document.addEventListener("DOMContentLoaded", function () {
         openWorkDirPrompt();
       },
       persona_edit: function () {
-        openPersonaPopup();
+        openPersonaPopup(panelSession(this));
       },
       usage_open: function () {
-        window.location.href = usageLink("24h", currentSessionId);
+        window.location.href = usageLink("24h", panelSession(this) || currentSessionId);
       },
       history_open: function () {
-        window.location.href = historyLink(currentSessionId, 0);
+        window.location.href = historyLink(panelSession(this) || currentSessionId, 0);
       },
       history_range: function () {
         historySubmit();
@@ -196,10 +208,25 @@ document.addEventListener("DOMContentLoaded", function () {
         openReasoningPicker();
       },
       memory_pick: function () {
-        openMemoryPicker();
+        openMemoryPicker(panelSession(this));
       },
       resume_pick: function () {
-        openResumePicker();
+        openResumePicker(panelSession(this));
+      },
+      style_switch: function () {
+        const style = this.dataset.style;
+        const chat = $("section.chat");
+        if (chat) {
+          chat.dataset.style = style;
+        }
+        config.pin_style = style;
+        writeConfig(config);
+      },
+      pin_add: function () {
+        addPinChat(panelSession(this));
+      },
+      pin_remove: function () {
+        removePinChat(panelSession(this));
       },
       model_add: function () {
         selectProviderAdd();
@@ -317,11 +344,15 @@ document.addEventListener("DOMContentLoaded", function () {
           getRuleList();
           renderWorkDirMark();
           renderChat(params.chat);
-          loadPending(params.chat);
           renderResumeMark(params.chat);
 
-          const harness = $("section.chat button.harness");
-          if (config.harness_enable) {
+          for (const pinned of pinnedChats) {
+            renderChat(pinned);
+            renderResumeMark(pinned);
+          }
+
+          if (!voiceDisabled && config.harness_enable) {
+            const harness = $("section.chat button.harness");
             if (harness) {
               harness.dataset.selected = "1";
             }

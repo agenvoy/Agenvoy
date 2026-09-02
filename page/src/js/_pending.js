@@ -1,34 +1,17 @@
 let pendingTask = null;
 let pendingAnswers = [];
 
-async function loadPending(sessionId) {
-  const dom = $("#right-content-chat-pending");
-  if (!dom || !sessionId) {
+async function loadPending(sessionId, taskHash) {
+  const dom = chatPart("pending", sessionId);
+  if (!dom || !sessionId || !taskHash) {
     return;
   }
 
-  clearPending();
-
-  let list = [];
-  try {
-    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}/task`);
-    if (!response.ok) {
-      return;
-    }
-    list = (await response.json()).pending || [];
-  } catch (err) {
-    console.error("loadPending", err);
-    return;
-  }
-
-  const task = list.find((item) => item.has_questions);
-  if (!task) {
-    return;
-  }
+  clearPending(sessionId);
 
   let questions = [];
   try {
-    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(task.task_hash)}/questions`;
+    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(taskHash)}/questions`;
     const response = await fetch(url);
     if (!response.ok) {
       return;
@@ -42,25 +25,27 @@ async function loadPending(sessionId) {
     return;
   }
 
-  pendingTask = { sessionId: sessionId, taskHash: task.task_hash, questions: questions };
+  pendingTask = { sessionId: sessionId, taskHash: taskHash, questions: questions };
   pendingAnswers = questions.map((q) => (q.multi_select ? [] : ""));
 
   for (let i = 0; i < questions.length; i++) {
     dom.appendChild(pendingCard(questions[i], i, questions.length));
   }
   dom.dataset.index = "0";
-  scrollToBottom(true);
+  scrollToBottom(true, sessionId);
 }
 
-function clearPending() {
-  const dom = $("#right-content-chat-pending");
+function clearPending(sessionId) {
+  const dom = chatPart("pending", sessionId);
   if (!dom) {
     return;
   }
   dom.innerHTML = "";
   delete dom.dataset.index;
-  pendingTask = null;
-  pendingAnswers = [];
+  if (!pendingTask || !sessionId || pendingTask.sessionId === sessionId) {
+    pendingTask = null;
+    pendingAnswers = [];
+  }
 }
 
 function pendingCard(question, index, total) {
@@ -135,20 +120,21 @@ function pendingOption(question, index, option) {
 }
 
 function answerPending(index, total) {
-  const dom = $("#right-content-chat-pending");
+  const sessionId = pendingTask ? pendingTask.sessionId : "";
+  const dom = chatPart("pending", sessionId);
   if (!dom || !pendingTask) {
     return;
   }
 
   if (index < total - 1) {
     dom.dataset.index = String(index + 1);
-    scrollToBottom(true);
+    scrollToBottom(true, sessionId);
     return;
   }
 
   const task = pendingTask;
   const answers = pendingAnswers;
-  clearPending();
+  clearPending(sessionId);
   resumePending(task, answers);
 }
 
@@ -184,12 +170,13 @@ async function listResumable(sessionId) {
 }
 
 async function renderResumeMark(sessionId) {
-  const dom = $("section.chat header button.resume");
+  const panel = chatPanel(sessionId);
+  const dom = panel ? panel.querySelector(":scope > header button[data-has]") : null;
   if (!dom) {
     return;
   }
 
-  delete dom.dataset.has;
+  dom.dataset.has = "0";
   if (!sessionId) {
     return;
   }
@@ -200,8 +187,9 @@ async function renderResumeMark(sessionId) {
   }
 }
 
-async function openResumePicker() {
-  if (!currentSessionId) {
+async function openResumePicker(sessionId) {
+  const sid = sessionId || currentSessionId;
+  if (!sid) {
     return;
   }
 
@@ -217,8 +205,7 @@ async function openResumePicker() {
   });
   document.body.appendChild(root);
 
-  const sessionId = currentSessionId;
-  const tasks = await listResumable(sessionId);
+  const tasks = await listResumable(sid);
   if (!root.isConnected) {
     return;
   }
@@ -234,21 +221,26 @@ async function openResumePicker() {
 
     box.addEventListener("change", () => {
       box.checked = false;
+      if (one.has_questions) {
+        close();
+        loadPending(sid, one.task_hash);
+        return;
+      }
       if (!confirm(`Resume in this chat?\n\n${title}`)) {
         return;
       }
       close();
-      startResume(sessionId, one.task_hash);
+      startResume(sid, one.task_hash);
     });
 
-    const hint = one.has_questions ? "waiting on questions · resumes without answering them" : "interrupted run · continues where it stopped";
+    const hint = one.has_questions ? "waiting on questions · opens them here to answer" : "interrupted run · continues where it stopped";
     list.appendChild(_("label", [box, _("div", [_("strong", title), _("p", hint)])]));
   }
 }
 
 function startResume(sessionId, taskHash) {
   if (pendingTask && pendingTask.sessionId === sessionId && pendingTask.taskHash === taskHash) {
-    clearPending();
+    clearPending(sessionId);
   }
   resumePending({ sessionId: sessionId, taskHash: taskHash }, []);
 }
