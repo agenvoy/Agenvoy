@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -88,9 +90,9 @@ Each path maps to its content, or to an error string for that path. Text lines a
 				out[f.Path] = content
 			}
 
-			result, err := json.Marshal(out)
+			result, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 			}
 			return string(result), nil
 		},

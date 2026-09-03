@@ -1,10 +1,11 @@
 package actionHistory
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/pardnchiu/agenvoy/internal/utils"
 
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -50,7 +51,7 @@ func toolList(e *toolTypes.Executor, limit int) (string, error) {
 		return fmt.Sprintf("no reusable tool calls in the last %d runs", len(list)), nil
 	}
 
-	raw, err := json.Marshal(out)
+	raw, err := utils.MarshalPlain(out)
 	if err != nil {
 		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
 	}

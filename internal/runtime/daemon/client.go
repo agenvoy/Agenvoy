@@ -39,6 +39,11 @@ func Post[T any](ctx context.Context, path string, body map[string]any) (T, erro
 	return out, err
 }
 
+func Patch[T any](ctx context.Context, path string, body map[string]any) (T, error) {
+	out, _, err := go_pkg_http.PATCH[T](ctx, client, BaseURL()+path, nil, body, "")
+	return out, err
+}
+
 func Delete[T any](ctx context.Context, path string, body map[string]any) (T, error) {
 	out, _, err := go_pkg_http.DELETE[T](ctx, client, BaseURL()+path, nil, body, "")
 	return out, err

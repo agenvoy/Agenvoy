@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb/googleRSS"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
@@ -149,9 +151,9 @@ Results are snippets: a result link worth citing → fetch_page. A URL already i
 				return "", fmt.Errorf("web: %s; news: %s", out.WebError, out.NewsError)
 			}
 
-			raw, err := json.Marshal(out)
+			raw, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 			}
 			return string(raw), nil
 		},

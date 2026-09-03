@@ -575,6 +575,24 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
+	case NoteListed:
+		return t.runNoteListed(msg)
+
+	case NotePick:
+		return t.runNotePick(msg)
+
+	case NoteLoaded:
+		return t.runNoteLoaded(msg)
+
+	case NoteTitleSubmit:
+		return t.runNoteTitleSubmit(msg)
+
+	case NoteBodySubmit:
+		return t, t.noteSaveCmd(msg)
+
+	case NoteSaved:
+		return t.runNoteSaved(msg)
+
 	case BotSaved:
 		if msg.err != nil {
 			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] bot save: %v", msg.err)) + "\n")

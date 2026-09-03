@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -126,9 +128,9 @@ func handleDownloadFile(ctx context.Context, _ *toolTypes.Executor, args json.Ra
 		result["sha256"] = sha
 	}
 
-	raw, err := json.Marshal(result)
+	raw, err := utils.MarshalPlain(result)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 	}
 	return string(raw), nil
 }

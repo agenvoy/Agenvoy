@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -51,9 +53,9 @@ It computes, it does not look anything up: a rate, a price or any live figure co
 				out[expr] = result
 			}
 
-			raw, err := json.Marshal(out)
+			raw, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 			}
 			return string(raw), nil
 		},
