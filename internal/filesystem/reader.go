@@ -24,6 +24,10 @@ var imageExts = map[string]bool{
 }
 
 func ReadFile(ctx context.Context, path string, offset, limit int) (string, error) {
+	if IsMedia(path) {
+		return TranscribeMedia(ctx, path)
+	}
+
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".pdf":

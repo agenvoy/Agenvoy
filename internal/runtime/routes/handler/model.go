@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
@@ -221,10 +222,24 @@ func RemoveModel() gin.HandlerFunc {
 
 func modelRouting(c *gin.Context, cfg *config.Config) gin.H {
 	return gin.H{
-		"dispatcher":    cfg.DispatcherModel,
-		"summary":       cfg.SummaryModel,
-		"image":         cfg.ImageGenerator,
-		"image_options": imageTool.Available(c.Request.Context()),
+		"dispatcher":      cfg.DispatcherModel,
+		"summary":         cfg.SummaryModel,
+		"image":           cfg.ImageGenerator,
+		"image_options":   imageTool.Available(c.Request.Context()),
+		"image_providers": imageTool.Providers,
+		"stt":             cfg.STTModel,
+		"tts":             cfg.TTSModel,
+		"audio_providers": audioTool.Providers,
+	}
+}
+
+func ListAudioModels() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		c.JSON(http.StatusOK, gin.H{
+			"stt_options": audioTool.STTOptions(ctx),
+			"tts_options": audioTool.TTSOptions(ctx),
+		})
 	}
 }
 
@@ -247,6 +262,8 @@ func SetModelRouting() gin.HandlerFunc {
 			Dispatcher *string `json:"dispatcher"`
 			Summary    *string `json:"summary"`
 			Image      *string `json:"image"`
+			STT        *string `json:"stt"`
+			TTS        *string `json:"tts"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -295,6 +312,22 @@ func SetModelRouting() gin.HandlerFunc {
 			}
 		}
 
+		stt, tts := "", ""
+		if body.STT != nil {
+			stt = strings.TrimSpace(*body.STT)
+			if stt != "" && !slices.Contains(audioTool.STTOptions(c.Request.Context()), stt) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown speech-to-text model: " + stt})
+				return
+			}
+		}
+		if body.TTS != nil {
+			tts = strings.TrimSpace(*body.TTS)
+			if tts != "" && !slices.Contains(audioTool.TTSOptions(c.Request.Context()), tts) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown text-to-speech model: " + tts})
+				return
+			}
+		}
+
 		if body.Dispatcher != nil {
 			cfg.DispatcherModel = dispatcher
 		}
@@ -303,6 +336,12 @@ func SetModelRouting() gin.HandlerFunc {
 		}
 		if body.Image != nil {
 			cfg.ImageGenerator = image
+		}
+		if body.STT != nil {
+			cfg.STTModel = stt
+		}
+		if body.TTS != nil {
+			cfg.TTSModel = tts
 		}
 		if err := config.Save(cfg); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -81,15 +81,6 @@ go, js, ts, py, rs, java, c, cpp, cs, php, rb, swift, kt, sh, bash, sql, json, y
 
 ---
 
-## Sending Voice (TTS)
-
-- To deliver a spoken voice message, include `[SEND_VOICE:純文字內容]` in the reply — the system will synthesize via Gemini TTS and send as a Discord voice attachment (OGG/OPUS)
-- Plain text only inside the marker; markdown / Discord tokens are not pronounced and should be stripped. Keep the text concise (≤ a few sentences) to keep the resulting audio short
-- Marker text is not displayed in the message text
-- Multiple voice markers are sent as separate voice messages in order
-- Use voice only when the user explicitly asks for spoken / 語音 / 念給我聽 / 用說的 reply; do not auto-add voice for ordinary replies
-
----
 
 ## Script stdout
 
