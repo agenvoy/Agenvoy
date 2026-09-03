@@ -339,7 +339,7 @@ function newStreamItem(init, sessionId) {
 
 function render(dom, markdown, sessionId) {
   const stick = atBottom(sessionId);
-  dom.innerHTML = renderMarkdownHTML(channelText(markdown));
+  dom.innerHTML = renderMarkdownHTML(channelText(markdown, sessionId));
   if (stick) {
     scrollToBottom(true, sessionId);
   }

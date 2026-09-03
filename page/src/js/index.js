@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   const config = readConfig();
   let params = praseURL();
 
@@ -30,7 +30,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   params.chat = params.chat || "";
 
-  const pinnedChats = config.pin_chat.slice();
+  const models = await fetchModels();
+  const hasModel = hasRealModel(models);
+  if (hasModel) {
+    await prunePinChat(config);
+  }
+  setPinChats(hasModel || models === null ? config.pin_chat.slice() : []);
+
+  const pinnedChats = pinChats();
   if (isWide() && pinnedChats.includes(params.chat)) {
     params.chat = "";
     history.replaceState({}, "", getLink({ page: params.page }));
@@ -339,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           setSession(params.chat);
           subscribe(params.chat);
-          getModelList(params.chat);
+          getModelList(params.chat, models);
           getReasoningList(params.chat);
           getRuleList();
           renderWorkDirMark();

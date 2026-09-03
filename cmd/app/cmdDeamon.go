@@ -35,6 +35,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	"github.com/pardnchiu/agenvoy/internal/runtime/webapp"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -293,6 +294,14 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 	configStatus.Reset()
+
+	if path, err := webapp.Install(context.Background()); err != nil {
+		slog.Warn("webapp.Install",
+			slog.String("error", err.Error()))
+	} else {
+		slog.Debug("webapp.Install",
+			slog.String("path", path))
+	}
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",

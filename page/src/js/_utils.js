@@ -120,6 +120,43 @@ function chatPanel(sessionId) {
   return id ? chat.querySelector(`:scope > [data-id="${id}"]`) : chat.querySelector(":scope > main");
 }
 
+let activePins = [];
+
+function setPinChats(list) {
+  activePins = Array.isArray(list) ? list : [];
+}
+
+function pinChats() {
+  return activePins;
+}
+
+async function prunePinChat(config) {
+  if (!config.pin_chat.length) {
+    return;
+  }
+
+  let list = [];
+  try {
+    const response = await fetch(`${API}/v1/sessions`);
+    if (!response.ok) {
+      return;
+    }
+    list = (await response.json()).sessions || [];
+  } catch (err) {
+    console.error("prunePinChat", err);
+    return;
+  }
+
+  const alive = new Set(list.map((one) => one.id));
+  const pinned = config.pin_chat.filter((id) => alive.has(id));
+  if (pinned.length === config.pin_chat.length) {
+    return;
+  }
+
+  config.pin_chat = pinned;
+  writeConfig(config);
+}
+
 function addPinChat(sessionId) {
   if (!sessionId) {
     return;
@@ -157,7 +194,7 @@ function unpinChat(sessionId) {
 
 function removePinChat(sessionId) {
   if (unpinChat(sessionId)) {
-    window.location.reload();
+    window.location.href = getLink({ page: "chat", chat: sessionId });
   }
 }
 

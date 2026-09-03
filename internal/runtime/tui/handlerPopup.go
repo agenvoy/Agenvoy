@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	goruntime "runtime"
 	"strings"
@@ -151,7 +150,7 @@ func openBrowser(link string) {
 }
 
 func linuxOpenCommand(link string) *exec.Cmd {
-	if bin := wslBrowserPath(); bin != "" {
+	if bin := utils.WSLChromePath(); bin != "" {
 		return exec.Command(bin, link)
 	}
 	if bin, err := exec.LookPath("wslview"); err == nil {
@@ -161,23 +160,6 @@ func linuxOpenCommand(link string) *exec.Cmd {
 		return exec.Command(bin, link)
 	}
 	return nil
-}
-
-func wslBrowserPath() string {
-	if !utils.IsWSL() {
-		return ""
-	}
-	candidates := []string{
-		"/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
-		"/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-		"/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-	}
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
 }
 
 func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

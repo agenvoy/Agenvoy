@@ -38,7 +38,7 @@ async function renderChatList() {
     }
   }
 
-  const pinned = readConfig().pin_chat || [];
+  const pinned = pinChats();
 
   for (const e of list) {
     if (pinned.includes(e.id)) {
@@ -285,7 +285,7 @@ async function renderChat(sessionId) {
       continue;
     }
 
-    dom.appendChild(item.rule === "user" ? newUserItem(item) : newAssisatantItem(item));
+    dom.appendChild(item.rule === "user" ? newUserItem(item) : newAssisatantItem(item, sessionId));
   }
   scrollToBottom(true, sessionId);
 }
@@ -321,20 +321,20 @@ function newUserItem(item) {
   return dom;
 }
 
-function newAssisatantItem(item) {
+function newAssisatantItem(item, sessionId) {
   const body = [_("p", item.meta.model || "")];
 
   if (item.Reasoning) {
     body.push(
       _("details.reasoning", [
         _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-        _("section.md-render", renderMarkdownHTML(channelText(item.Reasoning))),
+        _("section.md-render", renderMarkdownHTML(channelText(item.Reasoning, sessionId))),
       ]),
     );
   }
 
   if (item.content) {
-    body.push(_("section.md-render", renderMarkdownHTML(channelText(item.content))));
+    body.push(_("section.md-render", renderMarkdownHTML(channelText(item.content, sessionId))));
   }
 
   body.push(sourceBox(item.content));

@@ -2,9 +2,9 @@ const TG_SESSION = /^tg-/i;
 
 const SEND_FILE_MARKER = /\[SEND_FILE:[^\]]*\]/g;
 
-function channelText(text) {
+function channelText(text, sessionId) {
   const stripped = String(text || "").replace(SEND_FILE_MARKER, "");
-  if (!TG_SESSION.test(currentSessionId || "")) {
+  if (!TG_SESSION.test(sessionId || currentSessionId || "")) {
     return stripped;
   }
   return tgHtmlToMarkdown(stripped);
