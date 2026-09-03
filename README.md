@@ -35,9 +35,12 @@
 - **One sandboxed tool library** — Shares the same tool library across Agenvoy, Claude Code, Codex, and other agents.
 - **Live command feedback** — Streams throttled command output to the TUI and Web dashboard while preserving the complete final result.
 - **Skill-aware model routing** — Passes matched Skill descriptions into agent selection so the dispatcher can choose models against the actual task contract.
+- **Audio model routing** — Select separate speech-to-text and text-to-speech models from the configured OpenAI or Gemini providers.
 - **Origin-aware confirmations** — Routes approval prompts back to the originating CLI, Web, Telegram, or Discord channel without cross-channel interception.
 - **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
 - **Self-hosted execution** — Runs scheduling, memory, and file search on your own machine.
+- **Local-first agent** — Runs on your personal computer, where the agent can safely work with your files, tools, memory, and schedules without moving them to a hosted service.
+- **Private chatbot access** — Telegram and Discord connect back to the local daemon with a token, so users do not need to expose their host or configure inbound networking.
 - **Agent app and MCP server** — Provides both roles from the same binary.
 
 ## What you can do with it
@@ -216,6 +219,12 @@ Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the
   <a href="https://youtu.be/n8tHHSCwOjE">▶ Watch the Web Dashboard walkthrough</a>
 </p>
 
+## Chatbot Integrations
+
+Agenvoy currently supports **Telegram and Discord** as its chatbot channels. Both use outbound connections from the daemon, so your host does not need to be exposed to the public internet. Users only need to provide a bot token instead of configuring inbound ports, reverse proxies, or other network plumbing. Additional chatbot platforms will be considered only when they offer a meaningful security improvement.
+
+Voice output is temporarily unavailable in Telegram and Discord; audio model settings remain available for local tool use and future channel support.
+
 ## One-line install
 
 > On MacBook, also run `sudo pmset -c sleep 0` to prevent sleep from interrupting schedules.
@@ -230,12 +239,12 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 A cost-effective model setup to get started:
 
-- Apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token, then use it for:
-  - `gpt-oss-20b` as the **dispatcher** model
-  - `gpt-oss-120b` as the **fallback** and **summary** model
+- Apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token for `gpt-oss-20b` as the **dispatcher** model.
 - Use a subscription plan as your **primary** model:
   - OpenAI ChatGPT Plus ($20/mo)
   - SuperGrok ($30/mo)
+
+NVIDIA NIM no longer supports `gpt-oss-120b`, so it is no longer recommended as a fallback or summary model.
 
 ---
 

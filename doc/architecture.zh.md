@@ -46,7 +46,7 @@ graph TB
     Update --> Installer[官方更新腳本]
 ```
 
-目前 runtime 內建 10 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點。
+目前 runtime 內建 13 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點。音訊路由另外從已設定的 OpenAI 與 Gemini provider 選擇語音轉文字與文字轉語音模型；Telegram 與 Discord 目前暫不支援語音輸出。
 
 ## 執行模式
 
