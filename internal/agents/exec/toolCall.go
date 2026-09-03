@@ -247,22 +247,21 @@ func truncateWriteArgs(argsJSON string) string {
 		return argsJSON
 	}
 
-	dics := []map[string]any{m}
+	kept := map[string]any{}
+	for key, value := range m {
+		if key == "content" || key == "targets" {
+			continue
+		}
+		kept[key] = value
+	}
 	if targets, ok := m["targets"].([]any); ok {
-		for _, t := range targets {
-			if tm, ok := t.(map[string]any); ok {
-				dics = append(dics, tm)
-			}
-		}
+		kept["edits"] = len(targets)
 	}
-	for _, dic := range dics {
-		for _, field := range []string{"content", "new_string"} {
-			if _, ok := dic[field]; ok {
-				dic[field] = toolTypes.Elided
-			}
-		}
+	if content, ok := m["content"].(string); ok {
+		kept["wrote_bytes"] = len(content)
 	}
-	out, err := json.Marshal(m)
+
+	out, err := json.Marshal(kept)
 	if err != nil {
 		return argsJSON
 	}
