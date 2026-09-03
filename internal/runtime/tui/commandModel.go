@@ -21,6 +21,10 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 			return t.commandSummaryModel()
 		case "image":
 			return t.commandImageModel()
+		case "stt":
+			return t.commandSTTModel()
+		case "tts":
+			return t.commandTTSModel()
 		}
 	}
 
@@ -33,8 +37,10 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 			"dispatch   set dispatcher model",
 			"summary    set summary model",
 			"image      set image generator",
+			"stt        set speech-to-text model",
+			"tts        set text-to-speech model",
 		},
-		values: []string{"add", "remove", "dispatch", "summary", "image"},
+		values: []string{"add", "remove", "dispatch", "summary", "image", "stt", "tts"},
 		onConfirm: func(chosen string) any {
 			return ModelScopeSelect{scope: chosen}
 		},

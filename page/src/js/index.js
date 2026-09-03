@@ -238,9 +238,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       model_add: function () {
         selectProviderAdd();
       },
-      model_routing: function () {
-        selectModelRouting();
-      },
       model_filter: function (e) {
         modelFilterChange(e);
       },

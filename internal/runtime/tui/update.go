@@ -343,6 +343,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "image":
 			next, cmd, _ := t.commandImageModel()
 			return next, cmd
+		case "stt":
+			next, cmd, _ := t.commandSTTModel()
+			return next, cmd
+		case "tts":
+			next, cmd, _ := t.commandTTSModel()
+			return next, cmd
 		}
 		return t, nil
 
@@ -1004,6 +1010,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SummaryModelSelect:
 		next, cmd := t.runSummaryModelSelect(msg.name)
 		agents.Reload()
+		return next, cmd
+
+	case AudioModelSelect:
+		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
 		return next, cmd
 
 	case ImageModelSelect:
