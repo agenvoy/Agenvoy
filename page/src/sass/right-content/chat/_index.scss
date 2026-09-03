@@ -352,11 +352,6 @@ body[data-rendered="1"] section.right-content section.chat {
             transform: scale(0.98);
           }
 
-          &[data-selected]:before {
-            opacity: 1;
-            background-color: var(--gray-2);
-          }
-
           &:before {
             content: "";
             z-index: 0;
@@ -469,6 +464,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
       @media (max-width: 1279px) {
         width: 100% !important;
+        height: 100% !important;
       }
 
       > section.messages,

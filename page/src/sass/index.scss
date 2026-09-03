@@ -70,6 +70,10 @@ body {
     transition: none !important;
   }
 
+  &:not([data-icons="1"]) .material-symbols-outlined {
+    visibility: hidden;
+  }
+
   @include left-tab.styles;
   @include right-content.styles;
   @include toast.styles;
@@ -104,6 +108,7 @@ span.material-symbols-outlined {
   text-align: center;
   font-size: medium;
   pointer-events: none;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
