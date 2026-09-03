@@ -135,9 +135,6 @@
             <button type="button" @click="resume_pick" name="Pending" data-has="0">
               <span class="material-symbols-outlined"> running_with_errors </span>
             </button>
-            <button class="harness" type="button" @click="harness_click" name="Voice mode" :if="LENGTH(pin) < 1">
-              <span class="material-symbols-outlined"> robot_2 </span>
-            </button>
             <button type="button" @click="style_switch" name="To top" data-style="1" :if="LENGTH(pin) > 1">
               <span class="material-symbols-outlined"> top_panel_close </span>
             </button>
@@ -191,6 +188,9 @@
               </button>
               <button id="chat-reasoning" class="reasoning right" type="button" @click="reasoning_pick" name="medium">
                 <span class="material-symbols-outlined"> signal_cellular_2_bar </span>
+              </button>
+              <button class="harness right" type="button" @click="harness_click" name="Voice mode">
+                <span class="material-symbols-outlined"> robot_2 </span>
               </button>
               <button class="send" type="button" @click="send_click" name="Send">
                 <span class="material-symbols-outlined"> send </span>
@@ -428,10 +428,6 @@
             <button type="button" class="new" name="add-provider" @click="model_add">
               <span class="material-symbols-outlined"> add_2 </span>
               <p>Add provider</p>
-            </button>
-            <button type="button" class="new" name="routing" @click="model_routing">
-              <span class="material-symbols-outlined"> checklist </span>
-              <p>Setting Models</p>
             </button>
             <details class="group" open>
               <summary>

@@ -30,6 +30,7 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -225,11 +226,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	cfg, _ := config.Load()
-	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
-		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
-	}
 	if !imageTool.Enabled() {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
+	}
+	if !audioTool.TTSEnabled() {
+		data.ExcludeTools = append(data.ExcludeTools, "generate_audio")
 	}
 	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
 		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {

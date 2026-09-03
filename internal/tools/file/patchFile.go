@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -108,6 +109,17 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	return fmt.Sprintf("successfully updated %s", absPath) + note + unrecorded, nil
 }
 
+func rejectElided(content string, targets []patchTarget) error {
+	values := []string{content}
+	for _, one := range targets {
+		values = append(values, one.OldString, one.NewString, one.InsertString)
+	}
+	if slices.ContainsFunc(values, toolTypes.IsElided) {
+		return fmt.Errorf("%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", toolTypes.Elided)
+	}
+	return nil
+}
+
 type patchTarget struct {
 	OldString    string `json:"old_string"`
 	NewString    string `json:"new_string"`
@@ -121,6 +133,9 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 	case target.InsertString != "":
 		if target.OldString != "" {
 			return "", fmt.Errorf("insert_string cannot be combined with old_string")
+		}
+		if target.NewString != "" {
+			return "", fmt.Errorf("insert_string cannot be combined with new_string; to replace text send {old_string, new_string}, to add lines send insert_string alone")
 		}
 		if target.Row <= 0 {
 			return "", fmt.Errorf("row is required when insert_string is set; re-read the file and take the number from its output")
@@ -258,9 +273,16 @@ func insertAtRow(content, insert string, row int) (string, error) {
 	insert = strings.TrimSuffix(insert, "\r")
 
 	idx := row - 1
-	out := make([]string, 0, len(lines)+1)
+	added := strings.Split(insert, "\n")
+	after := idx+len(added) <= len(lines) && slices.Equal(lines[idx:idx+len(added)], added)
+	before := idx-len(added) >= 0 && slices.Equal(lines[idx-len(added):idx], added)
+	if after || before {
+		return content, nil
+	}
+
+	out := make([]string, 0, len(lines)+len(added))
 	out = append(out, lines[:idx]...)
-	out = append(out, strings.Split(insert, "\n")...)
+	out = append(out, added...)
 	out = append(out, lines[idx:]...)
 	return strings.Join(out, "\n"), nil
 }

@@ -289,10 +289,7 @@ async function renderModel() {
   const count = (prefix) => registered.filter((id) => modelPrefix(id) === prefix).length;
 
   const picked = praseURL().target || "";
-  if (picked === "routing") {
-    modelView = "routing";
-    modelProvider = "";
-  } else if (picked && prefixes.includes(picked)) {
+  if (picked && prefixes.includes(picked)) {
     modelView = "provider";
     modelProvider = picked;
   } else {
@@ -301,10 +298,7 @@ async function renderModel() {
   }
 
   dom.list.innerHTML = "";
-  for (const [name, view] of [
-    ["add-provider", "add"],
-    ["routing", "routing"],
-  ]) {
+  for (const [name, view] of [["add-provider", "add"]]) {
     const button = $(`section.config div.side button[name="${name}"]`);
     if (button) {
       button.dataset.selected = modelView === view ? "1" : "0";
@@ -347,11 +341,8 @@ async function renderModel() {
     renderProviderModels(modelProvider, registered);
     return;
   }
-  if (modelView === "routing") {
-    renderModelRouting(registered);
-    return;
-  }
   renderProviderCatalog(catalog, prefixes);
+  renderModelRouting(registered);
 }
 
 async function modelRouting() {
@@ -364,12 +355,16 @@ async function modelRouting() {
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
+        imageProviders: body.image_providers || [],
+        stt: body.stt || "",
+        tts: body.tts || "",
+        audioProviders: body.audio_providers || [],
       };
     }
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", summary: "", image: "", imageOptions: [] };
+  return { dispatcher: "", summary: "", image: "", imageOptions: [], imageProviders: [], stt: "", tts: "", audioProviders: [] };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -390,6 +385,14 @@ async function saveRoutingModel(kind, model) {
   renderModel();
 }
 
+function routingLabel(label, providers) {
+  const children = [_("strong", label)];
+  if (providers && providers.length > 0) {
+    children.push(_("p", providers.join(" / ")));
+  }
+  return _("div.label", children);
+}
+
 function routingRow(label, kind, current, options) {
   const select = _("select");
   select.appendChild(_("option", { value: "" }, "auto · first registered model"));
@@ -399,10 +402,54 @@ function routingRow(label, kind, current, options) {
   select.value = current;
   select.addEventListener("change", () => saveRoutingModel(kind, select.value));
 
-  return _("div.routing", [_("strong", label), select]);
+  return _("div.routing", [routingLabel(label), select]);
 }
 
-function imageRow(current, added) {
+function audioRow(label, kind, current, providers) {
+  const select = _("select");
+  select.dataset.kind = kind;
+  select.appendChild(_("option", { value: "" }, "off"));
+  if (current) {
+    select.appendChild(_("option", { value: current }, current));
+  }
+  select.value = current;
+  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
+
+  return _("div.routing", [routingLabel(label, providers), select]);
+}
+
+async function fillAudioOptions(dom) {
+  let body = {};
+  try {
+    const response = await fetch(`${API}/v1/model/audio`);
+    if (!response.ok) {
+      return;
+    }
+    body = (await response.json()) || {};
+  } catch (err) {
+    console.error("fillAudioOptions", err);
+    return;
+  }
+
+  for (const [kind, options] of [
+    ["stt", body.stt_options || []],
+    ["tts", body.tts_options || []],
+  ]) {
+    const select = dom.querySelector(`select[data-kind="${kind}"]`);
+    if (!select) {
+      continue;
+    }
+    const current = select.value;
+    select.innerHTML = "";
+    select.appendChild(_("option", { value: "" }, "off"));
+    for (const name of options) {
+      select.appendChild(_("option", { value: name }, name));
+    }
+    select.value = options.includes(current) ? current : "";
+  }
+}
+
+function imageRow(current, added, providers) {
   const select = _("select");
   select.appendChild(_("option", { value: "" }, "off"));
   for (const id of added) {
@@ -411,7 +458,7 @@ function imageRow(current, added) {
   select.value = added.includes(current) ? current : "";
   select.addEventListener("change", () => saveRoutingModel("image", select.value));
 
-  return _("div.routing", [_("strong", "Image"), select]);
+  return _("div.routing", [routingLabel("Image", providers), select]);
 }
 
 async function renderModelRouting(registered) {
@@ -421,29 +468,31 @@ async function renderModelRouting(registered) {
   }
 
   const routing = await modelRouting();
-  if (modelView !== "routing") {
+  if (modelView !== "add") {
     return;
   }
 
   dom.routing.innerHTML = "";
   dom.routing.dataset.open = "1";
 
+  const box = _("section");
   if (registered.length === 0) {
-    dom.routing.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
-    return;
+    box.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
+  } else {
+    box.appendChild(routingRow("Dispatcher", "dispatcher", routing.dispatcher, registered));
+    box.appendChild(routingRow("Summary", "summary", routing.summary, registered));
+    box.appendChild(imageRow(routing.image, routing.imageOptions, routing.imageProviders));
+    box.appendChild(audioRow("Speech to text", "stt", routing.stt, routing.audioProviders));
+    box.appendChild(audioRow("Text to speech", "tts", routing.tts, routing.audioProviders));
   }
 
-  dom.routing.appendChild(routingRow("Dispatcher", "dispatcher", routing.dispatcher, registered));
-  dom.routing.appendChild(routingRow("Summary", "summary", routing.summary, registered));
-  dom.routing.appendChild(imageRow(routing.image, routing.imageOptions));
+  const group = _("details.group", { open: "" }, [_("summary", ["Setting Model", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]);
+  dom.routing.appendChild(group);
+  fillAudioOptions(group);
 }
 
 function selectProvider(prefix) {
   window.location.href = getLink({ page: "config", tab: "Model", target: prefix });
-}
-
-function selectModelRouting() {
-  window.location.href = getLink({ page: "config", tab: "Model", target: "routing" });
 }
 
 function selectProviderAdd() {
@@ -535,10 +584,12 @@ function renderProviderCatalog(catalog, added) {
   if (done.length === 0) {
     return;
   }
-  dom.catalog.appendChild(_("strong.group", "Added"));
+  const box = _("section");
   for (const provider of done) {
-    append(provider);
+    const method = Object.keys(provider.methods || {})[0] || "";
+    box.appendChild(providerDetails(provider, method, true));
   }
+  dom.catalog.appendChild(_("details.group", [_("summary", ["Added", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]));
 }
 
 function providerCredentialForm(provider, method, added) {

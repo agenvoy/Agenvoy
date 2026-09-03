@@ -46,7 +46,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				"scope": map[string]any{
 					"type":        "string",
 					"enum":        []string{"reference", "full"},
-					"description": "mode=read: reference keeps what costs money or time to obtain again — fetch_page, search_web, http_request, subagents reports, transcribe_media, generate_image, download_file, and every mcp__/api_/script_/ext_ payload — and reduces the rest to bare tool names. full includes every tool's arguments and output; use it to reconstruct what a run actually did.",
+					"description": "mode=read: reference keeps what costs money or time to obtain again — fetch_page, search_web, http_request, subagents reports, generate_image, download_file, and every mcp__/api_/script_/ext_ payload — and reduces the rest to bare tool names. full includes every tool's arguments and output; use it to reconstruct what a run actually did.",
 					"default":     "reference",
 				},
 				"name": map[string]any{

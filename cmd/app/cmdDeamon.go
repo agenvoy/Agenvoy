@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -44,7 +46,6 @@ import (
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
-	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -233,8 +234,8 @@ func cmdDaemon() {
 
 	bootPhase("storage")
 
-	geminiStt.Register()
 	imageTool.Register()
+	audioTool.Register()
 	chatbotTool.Register()
 
 	if _, err := runtime.Init(); err != nil {

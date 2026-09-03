@@ -29,7 +29,6 @@ var eventLabel = map[string]string{
 	"http_request":          "Send",
 	"calculate":             "Calc",
 	"test_tool":             "Test",
-	"transcribe_media":      "Transcribe",
 	"send_to_chatbot":       "Push",
 	"list_chatbot":          "Chatbots",
 	"mcp__kura__search_rag": "RAG",

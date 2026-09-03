@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -24,7 +26,6 @@ import (
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
-	geminiStt "github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
@@ -74,8 +75,8 @@ func newTUI() {
 	defer usagelog.Close()
 	usagelog.Migrate()
 
-	geminiStt.Register()
 	imageTool.Register()
+	audioTool.Register()
 	chatbotTool.Register()
 
 	if !runtime.IsCurrent() {

@@ -91,6 +91,10 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
 
+			if err := rejectElided(params.Content, params.Targets); err != nil {
+				return "", err
+			}
+
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))
 			if mode == "" {
 				switch {

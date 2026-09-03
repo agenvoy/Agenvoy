@@ -1,8 +1,9 @@
 package actionHistory
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/pardnchiu/agenvoy/internal/utils"
 
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -38,7 +39,7 @@ func list(e *toolTypes.Executor, limit int) (string, error) {
 		out = append(out, row)
 	}
 
-	raw, err := json.Marshal(out)
+	raw, err := utils.MarshalPlain(out)
 	if err != nil {
 		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
 	}

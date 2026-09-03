@@ -2,11 +2,12 @@ package fileHistory
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/internal/utils"
 
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
@@ -63,7 +64,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 		out = append(out, item)
 	}
 
-	raw, err := json.Marshal(out)
+	raw, err := utils.MarshalPlain(out)
 	if err != nil {
 		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
 	}
