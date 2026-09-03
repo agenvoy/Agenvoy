@@ -109,7 +109,7 @@ func (t TUI) startMcpLogin(name string) (TUI, tea.Cmd) {
 	}
 	t.popup = &Popup{
 		kind:     popupOAuth,
-		title:    fmt.Sprintf("%s OAuth · discovering authorization server…", name),
+		title:    fmt.Sprintf("%s OAuth · discovering authorization server...", name),
 		subtitle: "browser will open automatically once the URL is ready",
 		oauth:    t.mcpOAuth,
 	}
@@ -145,7 +145,7 @@ func (t TUI) runMcpOAuthPaste(msg McpOAuthPaste) (TUI, tea.Cmd) {
 	}
 	t.popup = &Popup{
 		kind:     popupOAuth,
-		title:    fmt.Sprintf("%s OAuth · waiting for authorization…", msg.server),
+		title:    fmt.Sprintf("%s OAuth · waiting for authorization...", msg.server),
 		subtitle: "",
 		oauth:    state,
 	}

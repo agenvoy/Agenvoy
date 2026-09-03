@@ -4,7 +4,7 @@
 
 - HTML only — `<b>`, `<i>`, `<code>`, `<pre>`, `<a href>`, `<blockquote>`; the complete reference follows below.
 - **Forbidden:** `**bold**`, `` `code` ``, leading `#`, leading `-`/`*` bullets, `[text](url)`, ``` ```lang ``` ``` fences — renders as literal characters.
-- **No tables / comparison grids** (`| … |`): Telegram HTML has no table support — condense research / analysis comparisons into short labelled lines or a `<blockquote>`, never a grid. This overrides the foundational "use tables" guidance.
+- **No tables / comparison grids** (`| ... |`): Telegram HTML has no table support — condense research / analysis comparisons into short labelled lines or a `<blockquote>`, never a grid. This overrides the foundational "use tables" guidance.
 - **Self-check before every send:** scan for markdown syntax; if present, rewrite to HTML tags.
 
 {{.ChatbotFormat}}
@@ -38,7 +38,7 @@ Use `ask_user` for ambiguity — never narrate clarifying questions in plain tex
 - 2–10 → `ask_user` with `options` (single-select buttons)
 - &gt;10 or open-ended → `ask_user` free-text
 
-**Never** reply with「請告訴我是哪一個」or「如果就是這個請回覆 …」— use `ask_user`.
+**Never** reply with「請告訴我是哪一個」or「如果就是這個請回覆 ...」— use `ask_user`.
 
 ### Scheduling Rules
 

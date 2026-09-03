@@ -221,7 +221,7 @@ printf '%s\n' \
 
 ### Web 與檔案回應顯示
 
-後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:…]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
+後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:...]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
 
 ### HTTP API
 
@@ -264,7 +264,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method          | Path                            | 說明                                                 |
 | --------------- | ------------------------------- | ---------------------------------------------------- |
-| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[…]}` 格式,含 `auto`） |
+| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
 | `GET` `POST`    | `/v1/model`                     | **local** — 模型路由：`dispatcher`／`summary`／`image`，讀取時另附 `image_options`。三個欄位放的東西不同類：`dispatcher` 與 `summary` 填已註冊的模型名（`prefix@model`），`image` 填的是 provider endpoint（`openai`／`codex`／`grok`／`grok-oauth`／`gemini`）——因為各 provider 的圖片模型寫死在 `go-llm-router` 內，選的是來源不是模型；`image_options` 只列出當前有憑證的 provider。`POST` 為部分更新：未帶（或 `null`）的欄位不動，`""` 清除，`image` 另接受 `off` 作為 `""` 的別名。模型未註冊、provider 不存在、或該 provider 沒有憑證一律拒絕且整批不寫。兩個動詞回傳同一種物件 |
@@ -327,7 +327,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `POST`       | `/v1/mcp/remove`         | **local** — 移除 MCP server                                                                                                                                                                                                 |
 | `GET`        | `/v1/mcp/status`         | **local** — 各 server 連線狀態                                                                                                                                                                                              |
 | `POST`       | `/v1/mcp/reconnect`      | **local** — 重連全部 MCP client 並重新註冊工具                                                                                                                                                                              |
-| `GET`        | `/v1/mcp/oauth?name=X`   | **local** — 單一 HTTP MCP server 的 SSE OAuth 登入,與 `/v1/provider/:provider/oauth` 同形狀:先送 `{"url":…}` 供瀏覽器開啟,結束送 `{"done":true,"ok":…}`(登入後重連失敗時附 `reconnect_error`)。10 分鐘逾時,客戶端斷線即中止 |
+| `GET`        | `/v1/mcp/oauth?name=X`   | **local** — 單一 HTTP MCP server 的 SSE OAuth 登入,與 `/v1/provider/:provider/oauth` 同形狀:先送 `{"url":...}` 供瀏覽器開啟,結束送 `{"done":true,"ok":...}`(登入後重連失敗時附 `reconnect_error`)。10 分鐘逾時,客戶端斷線即中止 |
 | `POST`       | `/v1/mcp/oauth/callback` | **local** — `{name, url}`。瀏覽器連不到 daemon 的 `localhost:17988` loopback listener 時,把 redirect URL 貼回來,code 由 query 取出。該 server 沒有等待中的登入回 400                                                        |
 | `POST`       | `/v1/mcp/oauth/client`   | **local** — `{name, client_id, client_secret?, redirect_uri?}`。給拒絕動態註冊的 server 用的預先註冊 client;`redirect_uri` 預設 `http://localhost:17988/callback`,須與 provider console 完全一致。寫入前先清掉既有 token    |
 | `DELETE`     | `/v1/mcp/oauth`          | **local** — `{name}`。同時清除該 server 的 token 與 client 註冊                                                                                                                                                             |

@@ -36,7 +36,7 @@ async function openWorkDirPrompt() {
 
 function workDirPopup(value) {
   return new Promise(function (resolve) {
-    const box = _("textarea", { placeholder: "~/… or /…" });
+    const box = _("textarea", { placeholder: "~/... or /..." });
     box.value = value || "";
 
     const mirror = _("pre");

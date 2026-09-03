@@ -56,7 +56,7 @@ Load one only when the content uses it. Six exist, nothing else — a chart ECha
 
 - Major-only paths are safe; never invent a minor version.
 - **CSS matters as much as JS** — MapLibre without its sheet is a blank box, KaTeX without its sheet shows raw boxes.
-- **KaTeX** needs both scripts, then one `renderMathInElement(document.body, {delimiters:[…]})`.
+- **KaTeX** needs both scripts, then one `renderMathInElement(document.body, {delimiters:[...]})`.
 - **Mermaid** ships 3.5 MB as UMD against 30 KB as ESM — import the ESM entry, `mermaid.initialize({startOnLoad:false})`, then `await mermaid.run()`.
 - highlight.js and KaTeX initialise **after** the content exists — at the end of the body.
 

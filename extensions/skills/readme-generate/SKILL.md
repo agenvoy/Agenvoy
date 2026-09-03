@@ -561,7 +561,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 
 **所有徽章使用 HTML `<a><img></a>` 格式，加上 `include_prereleases&style=for-the-badge`。**
 
-**Go / Node.js / PHP 各自的徽章集為完全自足（release + license 皆取自該語言生態圈自身來源），不再套用「通用」GitHub tag/license 徽章。其餘語言（Python、Swift…）沒有專屬 release/license 來源時，回退套用「通用」區塊。**
+**Go / Node.js / PHP 各自的徽章集為完全自足（release + license 皆取自該語言生態圈自身來源），不再套用「通用」GitHub tag/license 徽章。其餘語言（Python、Swift...）沒有專屬 release/license 來源時，回退套用「通用」區塊。**
 
 ### Go
 

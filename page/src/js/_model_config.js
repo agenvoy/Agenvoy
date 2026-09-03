@@ -549,7 +549,7 @@ function providerCredentialForm(provider, method, added) {
       return _("div.row", [_("p", "enter this code in the browser"), codeButton(modelOAuth.code)]);
     }
     if (modelOAuth.id === provider.id) {
-      return _("div.row", [_("p", "waiting for the browser…")]);
+      return _("div.row", [_("p", "waiting for the browser...")]);
     }
     const start = _("button.submit", { type: "button" }, submitLabel);
     start.addEventListener("click", () => startProviderOAuth(provider.id));

@@ -80,12 +80,12 @@ function pendingCard(question, index, total) {
 
 function pendingInput(question, index) {
   if (question.secret) {
-    const dom = _("input", { type: "password", placeholder: "輸入回答…" });
+    const dom = _("input", { type: "password", placeholder: "輸入回答..." });
     dom.addEventListener("input", () => (pendingAnswers[index] = dom.value));
     return dom;
   }
 
-  const dom = _("textarea", { rows: "3", placeholder: "輸入回答…" });
+  const dom = _("textarea", { rows: "3", placeholder: "輸入回答..." });
   dom.addEventListener("input", () => (pendingAnswers[index] = dom.value));
   dom.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.shiftKey || e.isComposing) {

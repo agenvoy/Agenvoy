@@ -17,7 +17,7 @@ Avoid generic verbs: process_*, handle_*, manage_*, execute_*, perform_*, dispat
 If a same-domain tool already exists, match its verb and suffix shape — don't mix analyze_* into a fetch_* cluster, don't invent a new suffix vocabulary for the same concept (read_error / remember_error / search_error_memory would be three shapes for one idea — pick one).
 
 ## Description
-Exactly 3 lines, 60-200 chars total. No filler ("This tool allows you to…", "Use this when needed…"), no **bold**, no output-schema dump, no implementation detail (call-contract stuff belongs in parameter descriptions, not here).
+Exactly 3 lines, 60-200 chars total. No filler ("This tool allows you to...", "Use this when needed..."), no **bold**, no output-schema dump, no implementation detail (call-contract stuff belongs in parameter descriptions, not here).
 1. What — core action, one sentence.
 2. When — trigger vs alternatives (`use for X; Y for Z`).
 3. Precondition — key constraint/prerequisite the caller must satisfy (omit line if none).

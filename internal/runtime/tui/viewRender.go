@@ -433,7 +433,7 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		if ev.Source == "" {
 			return "", false
 		}
-		return hintStyle.Render("  ⎿ " + srcPrefix + "selecting agent…"), true
+		return hintStyle.Render("  ⎿ " + srcPrefix + "selecting agent..."), true
 
 	case agentTypes.EventAgentResult:
 		return "", false
@@ -506,12 +506,12 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		return errorStyle.Render("  ⎿ " + srcPrefix + fmt.Sprintf("error: %v", ev.Err)), true
 
 	case agentTypes.EventSummaryGenerate:
-		return hintStyle.Render("⏵ " + srcPrefix + "summarizing…"), true
+		return hintStyle.Render("⏵ " + srcPrefix + "summarizing..."), true
 
 	case agentTypes.EventCompact:
-		label := "compacting tool history…"
+		label := "compacting tool history..."
 		if ev.Text == "history" {
-			label = "compacting conversation history…"
+			label = "compacting conversation history..."
 		}
 		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
@@ -580,7 +580,7 @@ func diffCell(line string, width int) string {
 		sb.WriteRune(r)
 		used += w
 	}
-	return padToWidth(sb.String()+"…", width)
+	return padToWidth(sb.String()+"...", width)
 }
 
 func padToWidth(s string, width int) string {

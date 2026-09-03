@@ -17,10 +17,10 @@ func activityVerb(activity string) string {
 	case activity == "responding":
 		return "Responsing"
 
-	case activity == "selecting agent…":
+	case activity == "selecting agent...":
 		return "Selecting agent"
 
-	case activity == "summarizing…":
+	case activity == "summarizing...":
 		return "Summarizing"
 
 	case strings.HasPrefix(activity, "tool: "):

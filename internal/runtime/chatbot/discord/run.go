@@ -267,7 +267,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				slog.String("error", err.Error()))
 		}
 	}
-	markStatus("thinking…")
+	markStatus("thinking...")
 
 	events := make(chan agentTypes.Event, 128)
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)

@@ -48,7 +48,7 @@ One call per subtask, three at a time. Protocol and model ladder → reasoning_g
 				},
 				"task": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: the subtask, written to stand on its own — the leg sees none of this conversation. Its result comes back prefixed [subagent · <model> · session=<id> · usage: …], and that usage line is the leg's whole token cost, to be tallied across every fan-out call when reporting this turn's cost.",
+					"description": "mode=invoke: the subtask, written to stand on its own — the leg sees none of this conversation. Its result comes back prefixed [subagent · <model> · session=<id> · usage: ...], and that usage line is the leg's whole token cost, to be tallied across every fan-out call when reporting this turn's cost.",
 				},
 				"name": map[string]any{
 					"type":        "string",

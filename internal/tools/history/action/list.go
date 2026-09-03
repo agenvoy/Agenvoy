@@ -51,5 +51,5 @@ func truncateArgs(text string) string {
 		return text
 	}
 	return string(runes[:listArgsRunes]) +
-		fmt.Sprintf("… truncated; %d bytes total, mode=read for the whole run", len(text))
+		fmt.Sprintf("... truncated; %d bytes total, mode=read for the whole run", len(text))
 }

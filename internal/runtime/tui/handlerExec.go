@@ -189,10 +189,10 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	switch ev.Type {
 	case agentTypes.EventAgentSelect:
 		if ev.Source != "" {
-			t.trackSubagent(ev.Source, "selecting agent…")
+			t.trackSubagent(ev.Source, "selecting agent...")
 			return t, nil
 		}
-		t.activity = "selecting agent…"
+		t.activity = "selecting agent..."
 
 	case agentTypes.EventAgentResult:
 		if ev.Source == "" {
@@ -300,17 +300,17 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case agentTypes.EventSummaryGenerate:
-		t.activity = "summarizing…"
+		t.activity = "summarizing..."
 
 	case agentTypes.EventCompact:
 		if ev.Source != "" {
-			t.trackSubagent(ev.Source, "compacting…")
+			t.trackSubagent(ev.Source, "compacting...")
 			return t, nil
 		}
 		if ev.Text == "history" {
-			t.activity = "compacting history…"
+			t.activity = "compacting history..."
 		} else {
-			t.activity = "compacting tool history…"
+			t.activity = "compacting tool history..."
 		}
 		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
 		if ok {

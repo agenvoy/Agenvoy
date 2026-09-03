@@ -175,7 +175,7 @@ func (t TUI) startOAuthPopup() (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:     popupOAuth,
-		title:    fmt.Sprintf("%s OAuth · waiting for device code…", strings.ToUpper(prov[:1])+prov[1:]),
+		title:    fmt.Sprintf("%s OAuth · waiting for device code...", strings.ToUpper(prov[:1])+prov[1:]),
 		subtitle: "browser will open automatically once the code is ready",
 		oauth: &oauthState{
 			provider: prov,
@@ -551,7 +551,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			ids := fetchModelIDs(ctx, url, prov)
 			send(CompatModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", prov)) + "\n")
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", prov)) + "\n")
 	}
 
 	if fn, ok := modelsProviders[t.modelAdd.provider]; ok {
@@ -572,7 +572,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			}
 			send(RemoteModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", label)) + "\n")
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", label)) + "\n")
 	}
 
 	t.popup = &Popup{
