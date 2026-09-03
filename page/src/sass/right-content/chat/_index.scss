@@ -62,7 +62,6 @@ body[data-rendered="1"] section.right-content section.chat {
 
         > section {
           width: 33%;
-          border-left: 1px solid var(--gray-2);
         }
       }
 
@@ -79,7 +78,6 @@ body[data-rendered="1"] section.right-content section.chat {
           right: 0;
           width: 33%;
           height: 50%;
-          // border-left: 1px solid var(--gray-2);
 
           &[data-index="0"] {
             top: 0;
@@ -105,7 +103,6 @@ body[data-rendered="1"] section.right-content section.chat {
           right: 0;
           width: 33%;
           height: 33%;
-          // border-left: 1px solid var(--gray-2);
 
           &[data-index="0"] {
             top: 0;
@@ -166,7 +163,6 @@ body[data-rendered="1"] section.right-content section.chat {
 
         > section {
           width: 33%;
-          border-left: 1px solid var(--gray-2);
         }
       }
 

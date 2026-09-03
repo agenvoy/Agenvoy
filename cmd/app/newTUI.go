@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -41,10 +41,6 @@ func newTUI() {
 	}
 	if err := filesystem.LoadRuntime(); err != nil {
 		slog.Warn("filesystem.LoadRuntime",
-			slog.String("error", err.Error()))
-	}
-	if err := config.BackfillKeys(); err != nil {
-		slog.Warn("session.BackfillKeys",
 			slog.String("error", err.Error()))
 	}
 	if err := torii.Init(filesystem.StoreDir); err != nil {
@@ -88,6 +84,19 @@ func newTUI() {
 				slog.String("error", err.Error()))
 		}
 	}
+
+	fmt.Fprint(os.Stderr, "waiting for daemon to be ready...")
+	shown := -1
+	if err := waitDaemonReady(context.Background(), 3*time.Minute, func(elapsed time.Duration) {
+		if sec := int(elapsed.Seconds()); sec != shown {
+			shown = sec
+			fmt.Fprintf(os.Stderr, "\r\033[Kwaiting for daemon to be ready... %ds", sec)
+		}
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "\ndaemon not reachable: %v\ncheck %s\n", err, filesystem.DaemonLogPath)
+		return
+	}
+	fmt.Fprint(os.Stderr, "\r\033[K")
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",
