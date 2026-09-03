@@ -177,6 +177,13 @@ func loopbackListeners(port string) ([]net.Listener, error) {
 }
 
 func cmdDaemon() {
+	bootAt := time.Now()
+	bootPhase := func(name string) {
+		slog.Debug("boot phase",
+			slog.String("phase", name),
+			slog.Duration("elapsed", time.Since(bootAt)))
+	}
+
 	installDaemonSlog()
 	tuiHash.New()
 
@@ -191,10 +198,6 @@ func cmdDaemon() {
 	}
 	if err := record.TrimLog(); err != nil {
 		slog.Warn("record TrimLog",
-			slog.String("error", err.Error()))
-	}
-	if err := config.BackfillKeys(); err != nil {
-		slog.Warn("config BackfillKeys",
 			slog.String("error", err.Error()))
 	}
 	if err := torii.Init(filesystem.StoreDir); err != nil {
@@ -228,6 +231,8 @@ func cmdDaemon() {
 	defer usagelog.Close()
 	usagelog.Migrate()
 
+	bootPhase("storage")
+
 	geminiStt.Register()
 	imageTool.Register()
 	chatbotTool.Register()
@@ -257,17 +262,19 @@ func cmdDaemon() {
 
 	subagent.Register()
 
-	mcpManager := initMCP(context.Background(), "")
-	defer mcpManager.Close()
-	mcp.SetManager(mcpManager)
+	defer func() {
+		if m := mcp.Manager(); m != nil {
+			m.Close()
+		}
+	}()
 
-	registry := buildAgentRegistry()
-	scanner := runtime.NewSkillScanner()
-	selectorBot := dispatcherSelector(registry)
-	summaryBot := summarySelector(registry)
-
-	agents.Set(selectorBot, summaryBot, registry, scanner)
+	agents.Set(nil, nil, agentTypes.AgentRegistry{}, runtime.NewSkillScanner())
 	agents.SetRefresher(refreshHost)
+
+	go func() {
+		mcp.SetManager(initMCP(context.Background(), ""))
+		bootPhase("mcp ready")
+	}()
 
 	runtime.SetRunner(runSkill)
 	if err := runtime.NewScheduler(); err != nil {
@@ -320,6 +327,10 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 		return
 	}
+
+	slog.Info("⎯ listening",
+		slog.String("port", filesystem.Port),
+		slog.Duration("boot", time.Since(bootAt)))
 
 	serveErr := make(chan error, len(listeners))
 	for _, listener := range listeners {

@@ -200,7 +200,7 @@ If the directory already exists → `ask_user` singleSelect:
 
 #### 6.1 Rename — collect a new directory name
 
-Default suggestion = `<final-dir>-2`. If `-2` is also taken, increment to `-3`, `-4`, … until non-conflicting.
+Default suggestion = `<final-dir>-2`. If `-2` is also taken, increment to `-3`, `-4`, ... until non-conflicting.
 
 `ask_user` (free-text):
 

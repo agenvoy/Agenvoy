@@ -72,7 +72,7 @@ async function renderChannel() {
   const state = status[channelActive] || {};
   let title = "not connected";
   if (state.enabled) {
-    title = state.username || "connecting…";
+    title = state.username || "connecting...";
   }
 
   const name = _("input", { type: "text" });

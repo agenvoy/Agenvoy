@@ -40,13 +40,13 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				},
 				"targets": map[string]any{
 					"type":        "array",
-					"description": "mode=patch: the edits to that file — read_files it first so every anchor matches the current bytes. Each item is {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Items carrying row apply highest-row first so line numbers stay valid against the original; the rest then apply in listed order, so sequence overlapping old_string items yourself.",
+					"description": "mode=patch: the edits to that file — read_files it first so every anchor matches the current bytes, minus the \"12\\t\" line-number prefix that read_files adds. Each item replaces ({old_string, new_string[, replace_all][, row]}) or inserts ({insert_string, row}), never both. Items carrying row apply highest-row first so line numbers stay valid against the original; the rest then apply in listed order, so sequence overlapping old_string items yourself.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
 							"old_string": map[string]any{
 								"type":        "string",
-								"description": "Exact text to replace, indentation included. Must be unique unless replace_all or row disambiguates. Omit with insert_string.",
+								"description": "Exact text to replace, indentation included — copy it from the file bytes, never with the line-number prefix. Must be unique unless replace_all or row disambiguates. Omit with insert_string.",
 							},
 							"new_string": map[string]any{
 								"type":        "string",
@@ -59,11 +59,11 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 							},
 							"insert_string": map[string]any{
 								"type":        "string",
-								"description": "New line(s) inserted before row — the existing line shifts down, nothing is replaced. Requires row; cannot combine with old_string.",
+								"description": "New line(s) added as they are — nothing is replaced, the surrounding lines shift down. Say where with row, taken from a read_files of the current file; cannot combine with old_string.",
 							},
 							"row": map[string]any{
 								"type":        "integer",
-								"description": "1-based line number. With old_string: which occurrence to edit. With insert_string: the line to insert before.",
+								"description": "1-based line number as read_files prints it. With old_string: which occurrence to edit. With insert_string: required — the line the new text goes in front of, so read_files the file first; any in-range row is accepted as-is.",
 							},
 						},
 					},

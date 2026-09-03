@@ -191,7 +191,7 @@ Shortcuts work while the input area is empty:
 
 ### Web and file-response rendering
 
-The backend preserves `[SEND_FILE:…]` markers while events move through result, SSE, pending, and multilog handlers so delivery metadata remains available to channel consumers. The web dashboard removes those markers only when rendering message text; users see the response body without the internal transport marker.
+The backend preserves `[SEND_FILE:...]` markers while events move through result, SSE, pending, and multilog handlers so delivery metadata remains available to channel consumers. The web dashboard removes those markers only when rendering message text; users see the response body without the internal transport marker.
 
 ### Local HTTP API
 
@@ -245,7 +245,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/models` | List registered models (OpenAI `{data:[…]}` shape, `auto` included). |
+| `GET` | `/v1/models` | List registered models (OpenAI `{data:[...]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
 | `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, plus `image_options` on read. The three fields hold different kinds of value: `dispatcher` and `summary` name a registered model (`prefix@model`), while `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router` — `image_options` lists only the providers that currently hold credentials. `POST` is a partial update: a field left out (or `null`) is untouched, `""` clears it, and `off` is accepted for `image` as an alias of `""`. An unregistered model, an unknown provider, or a provider with no credentials is rejected and nothing is written. Both verbs return the same object. |
@@ -309,7 +309,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/mcp/remove` | **local** — remove an MCP server. |
 | `GET` | `/v1/mcp/status` | **local** — connection status per server. |
 | `POST` | `/v1/mcp/reconnect` | **local** — reconnect all MCP clients and re-register tools. |
-| `GET` | `/v1/mcp/oauth?name=X` | **local** — SSE OAuth login for one HTTP MCP server, mirroring `/v1/provider/:provider/oauth`: emits `{"url":…}` for the browser, then `{"done":true,"ok":…}` (plus `reconnect_error` when the post-login reconnect fails). Times out after 10 minutes, or when the client disconnects. |
+| `GET` | `/v1/mcp/oauth?name=X` | **local** — SSE OAuth login for one HTTP MCP server, mirroring `/v1/provider/:provider/oauth`: emits `{"url":...}` for the browser, then `{"done":true,"ok":...}` (plus `reconnect_error` when the post-login reconnect fails). Times out after 10 minutes, or when the client disconnects. |
 | `POST` | `/v1/mcp/oauth/callback` | **local** — `{name, url}`. Hands the redirect URL back when the browser cannot reach the daemon's loopback listener on `localhost:17988`; the code is parsed out of the URL's query. 400 if no login is waiting for that server. |
 | `POST` | `/v1/mcp/oauth/client` | **local** — `{name, client_id, client_secret?, redirect_uri?}`. Stores a pre-registered OAuth client for servers that reject dynamic registration; `redirect_uri` defaults to `http://localhost:17988/callback` and must match the provider console exactly. Clears any existing token first. |
 | `DELETE` | `/v1/mcp/oauth` | **local** — `{name}`. Clears both the stored token and the client registration for that server. |

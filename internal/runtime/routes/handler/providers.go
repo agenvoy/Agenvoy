@@ -207,32 +207,14 @@ func ProviderOAuth() gin.HandlerFunc {
 		var err error
 		switch prov {
 		case "copilot":
-			if oauthCopilot.HasToken() {
-				if cerr := oauthCopilot.ClearToken(); cerr != nil {
-					emit(gin.H{"error": cerr.Error()})
-					return
-				}
-			}
 			_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
 				emit(gin.H{"url": code.VerificationURI, "user_code": code.UserCode})
 			})
 		case "codex":
-			if oauthCodex.HasToken() {
-				if cerr := oauthCodex.ClearToken(); cerr != nil {
-					emit(gin.H{"error": cerr.Error()})
-					return
-				}
-			}
 			_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
 				emit(gin.H{"url": url})
 			})
 		case "grok-oauth":
-			if oauthGrokOauth.HasToken() {
-				if cerr := oauthGrokOauth.ClearToken(); cerr != nil {
-					emit(gin.H{"error": cerr.Error()})
-					return
-				}
-			}
 			_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
 				emit(gin.H{"url": url})
 			})

@@ -234,7 +234,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 				slog.String("error", err.Error()))
 		}
 	}
-	markStatus("thinking…")
+	markStatus("thinking...")
 
 	workDir, err := os.UserHomeDir()
 	if err != nil {

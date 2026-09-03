@@ -73,7 +73,7 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 				return "", fmt.Errorf("targets[%d]: %s", i, conflict)
 			}
 			if content != before && strings.Contains(err.Error(), "row") {
-				return "", fmt.Errorf("targets[%d]: %w — those row numbers count the earlier targets in this same call, which are not on disk because nothing was written; re-reading the file gives different numbers, so either keep this exact set of targets and use the numbers above, or send this target on its own", i, err)
+				return "", fmt.Errorf("targets[%d]: %w — every row in this call counts against the file as it is on disk, since the targets carrying row are applied from the highest row down; nothing was written, so re-read the file and take the number from its output", i, err)
 			}
 			return "", fmt.Errorf("targets[%d]: %w", i, err)
 		}
@@ -123,7 +123,7 @@ func applyTarget(content string, target patchTarget, absPath string) (string, er
 			return "", fmt.Errorf("insert_string cannot be combined with old_string")
 		}
 		if target.Row <= 0 {
-			return "", fmt.Errorf("row is required when insert_string is set")
+			return "", fmt.Errorf("row is required when insert_string is set; re-read the file and take the number from its output")
 		}
 		return insertAtRow(content, target.InsertString, target.Row)
 

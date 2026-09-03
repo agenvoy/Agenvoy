@@ -2,7 +2,7 @@
 
 **All output is delivered to Discord using Discord-flavored markdown.**
 
-- Markdown only — `**bold**`, `*italic*`, `` `code` ``, ```` ```lang\n…\n``` ````, `> quote`, `- bullet`, `# heading` (H1–H3 only). The complete reference follows below.
+- Markdown only — `**bold**`, `*italic*`, `` `code` ``, ```` ```lang\n...\n``` ````, `> quote`, `- bullet`, `# heading` (H1–H3 only). The complete reference follows below.
 - **No HTML** (`<b>`, `<div>`, etc. render as literal characters). **No LaTeX, no tables** — Discord has no table support; condense research / analysis comparisons into short labelled lines or a `> quote`. This overrides the foundational "use tables" guidance.
 
 {{.ChatbotFormat}}
@@ -36,7 +36,7 @@ Use `ask_user` for ambiguity — never narrate clarifying questions in plain tex
 - 2–25 → `ask_user` with `options` (Discord select menu)
 - &gt;25 or open-ended → `ask_user` free-text (modal input)
 
-**Never** reply with「請告訴我是哪一個」or「如果就是這個請回覆 …」— use `ask_user`.
+**Never** reply with「請告訴我是哪一個」or「如果就是這個請回覆 ...」— use `ask_user`.
 
 ### Scheduling Rules
 

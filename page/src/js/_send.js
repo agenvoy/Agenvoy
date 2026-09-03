@@ -299,7 +299,7 @@ function newStreamItem(init, sessionId) {
   think.hidden = !init.trace;
   think.open = true;
 
-  const model = _("p", init.model || "…");
+  const model = _("p", init.model || "...");
   const answer = _("section.md-render");
   const source = sourceBox(init.text || "");
   const files = fileBox([]);

@@ -48,10 +48,10 @@ func (t TUI) runCompact(sid string) (TUI, tea.Cmd) {
 	t.running = true
 	t.runStartedAt = time.Now()
 	t.runTarget = utils.ShortenSessionID(sid)
-	t.activity = "compacting history…"
+	t.activity = "compacting history..."
 
 	return t, tea.Batch(
-		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ compacting history for %s…", utils.ShortenSessionID(sid)))+"\n"),
+		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ compacting history for %s...", utils.ShortenSessionID(sid)))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()

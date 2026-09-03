@@ -25,7 +25,7 @@ func registReadFiles() {
 		Concurrent:  true,
 		Description: `Canonical way to read any file — text, PDF, DOCX, PPTX, CSV/TSV or image — and the step that must precede edit_file(mode=patch) unless it was already read this session.
 Use for 讀檔 / 看一下這個檔案 / 這份 PDF 寫什麼, and for read_file / cat / head / tail.
-Each path maps to its content, or to an error string for that path. Locating a file → find_files; opening it in an app → open_file.`,
+Each path maps to its content, or to an error string for that path. Text lines arrive as "<row>\t<line>" — the number is not in the file, so strip it before using a line as an edit_file anchor. Locating a file → find_files; opening it in an app → open_file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

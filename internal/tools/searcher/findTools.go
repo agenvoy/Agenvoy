@@ -26,7 +26,7 @@ func registFindTools() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `The tool registry: what exists (list), and pulling a tool's schema in so it can be called (search).
-Use for 有哪些工具 / 找工具 / 有沒有可以…的工具, and for search_tools / list_tools.
+Use for 有哪些工具 / 找工具 / 有沒有可以...的工具, and for search_tools / list_tools.
 A capability that seems missing comes from here before anything is built. Building one → edit_tool; running a script tool → test_tool.`,
 		Parameters: map[string]any{
 			"type": "object",

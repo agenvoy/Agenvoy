@@ -50,7 +50,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 				slog.String("error", err.Error()))
 		}
 	}
-	markStatus("resuming…")
+	markStatus("resuming...")
 
 	workDir, err := os.UserHomeDir()
 	if err != nil {

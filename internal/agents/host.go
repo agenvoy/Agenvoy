@@ -16,6 +16,9 @@ var (
 	registry   agentTypes.AgentRegistry
 	scanner    *runtime.SkillScanner
 	refresher  RefreshFunc
+
+	loadMu sync.Mutex
+	loaded bool
 )
 
 func Set(dispatcherBot agentTypes.Agent, summaryBot agentTypes.Agent, agentRegistry agentTypes.AgentRegistry, skillScanner *runtime.SkillScanner) {
@@ -49,22 +52,55 @@ func Reload() bool {
 	summary = summaryBot
 	registry = agentRegistry
 	mu.Unlock()
+
+	loadMu.Lock()
+	loaded = true
+	loadMu.Unlock()
 	return true
 }
 
+func ensureLoaded() {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+	if loaded {
+		return
+	}
+
+	mu.RLock()
+	fn := refresher
+	mu.RUnlock()
+	if fn == nil {
+		return
+	}
+
+	dispatcherBot, summaryBot, agentRegistry := fn()
+	mu.Lock()
+	dispatcher = dispatcherBot
+	summary = summaryBot
+	registry = agentRegistry
+	mu.Unlock()
+	loaded = true
+}
+
 func DispatcherBot() agentTypes.Agent {
+	ensureLoaded()
+
 	mu.RLock()
 	defer mu.RUnlock()
 	return dispatcher
 }
 
 func SummaryBot() agentTypes.Agent {
+	ensureLoaded()
+
 	mu.RLock()
 	defer mu.RUnlock()
 	return summary
 }
 
 func Registry() agentTypes.AgentRegistry {
+	ensureLoaded()
+
 	mu.RLock()
 	defer mu.RUnlock()
 	return registry
