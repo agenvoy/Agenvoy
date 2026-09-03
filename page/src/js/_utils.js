@@ -120,6 +120,16 @@ function chatPanel(sessionId) {
   return id ? chat.querySelector(`:scope > [data-id="${id}"]`) : chat.querySelector(":scope > main");
 }
 
+let activePins = [];
+
+function setPinChats(list) {
+  activePins = Array.isArray(list) ? list : [];
+}
+
+function pinChats() {
+  return activePins;
+}
+
 async function prunePinChat(config) {
   if (!config.pin_chat.length) {
     return;

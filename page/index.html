@@ -138,29 +138,20 @@
             <button class="harness" type="button" @click="harness_click" name="Voice mode" :if="LENGTH(pin) < 1">
               <span class="material-symbols-outlined"> robot_2 </span>
             </button>
-            <button
-              type="button"
-              @click="style_switch"
-              name="To top"
-              data-style="1"
-              :if="LENGTH(pin) > 1"
-            >
+            <button type="button" @click="style_switch" name="To top" data-style="1" :if="LENGTH(pin) > 1">
               <span class="material-symbols-outlined"> top_panel_close </span>
             </button>
-            <button
-              type="button"
-              @click="style_switch"
-              name="To right"
-              data-style="0"
-              :if="LENGTH(pin) > 1"
-            >
+            <button type="button" @click="style_switch" name="To right" data-style="0" :if="LENGTH(pin) > 1">
               <span class="material-symbols-outlined"> right_panel_close </span>
             </button>
           </header>
           <!---->
           <div class="logo">
-            <img src="public/logo-min.svg" alt="Logo" />
-            <p>Agenvoy</p>
+            <section>
+              <img src="public/logo-min.svg" alt="Logo" />
+              <p>Agenvoy</p>
+            </section>
+            <span>請先前往 <a href="/?page=config&tab=Model">Config > Model</a> 添加模型</span>
           </div>
           <!---->
           <section class="messages">

@@ -251,12 +251,18 @@ body[data-rendered="1"] section.right-content section.chat {
           margin-top: 0;
           opacity: 0.03;
 
-          img {
-            width: 16rem;
-            height: 16rem;
+          > section {
+            img {
+              width: 16rem;
+              height: 16rem;
+            }
+
+            p {
+              display: none;
+            }
           }
 
-          p {
+          > span {
             display: none;
           }
         }
@@ -399,7 +405,7 @@ body[data-rendered="1"] section.right-content section.chat {
       > div.logo {
         z-index: 0;
         display: flex;
-        flex-flow: row;
+        flex-flow: column;
         justify-content: center;
         align-items: center;
         gap: 1rem;
@@ -407,18 +413,58 @@ body[data-rendered="1"] section.right-content section.chat {
         padding-bottom: 1rem;
         width: 100%;
 
+        > section {
+          display: flex;
+          flex-flow: row;
+          justify-content: center;
+          align-items: center;
+          gap: 0.5rem;
+
+          img {
+            width: 2.5rem;
+            height: 2.5rem;
+          }
+
+          p {
+            font-size: x-large;
+          }
+        }
+        > span {
+          display: none;
+          font-size: small;
+          color: var(--gray-3);
+
+          a {
+            color: var(--gray-3);
+            text-decoration: underline;
+          }
+        }
+      }
+
+      @include message.styles;
+      @include input.styles;
+    }
+
+    &[data-model="0"] > main[data-id] > div.logo {
+      position: static;
+      transform: none;
+      margin-top: -8rem;
+      opacity: 1;
+
+      > section {
         img {
           width: 2.5rem;
           height: 2.5rem;
         }
 
         p {
-          font-size: x-large;
+          display: block;
         }
       }
 
-      @include message.styles;
-      @include input.styles;
+      > span {
+        display: block;
+      }
     }
 
     > main {

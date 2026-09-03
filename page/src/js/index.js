@@ -30,9 +30,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   params.chat = params.chat || "";
 
-  await prunePinChat(config);
+  const models = await fetchModels();
+  const hasModel = hasRealModel(models);
+  if (hasModel) {
+    await prunePinChat(config);
+  }
+  setPinChats(hasModel || models === null ? config.pin_chat.slice() : []);
 
-  const pinnedChats = config.pin_chat.slice();
+  const pinnedChats = pinChats();
   if (isWide() && pinnedChats.includes(params.chat)) {
     params.chat = "";
     history.replaceState({}, "", getLink({ page: params.page }));
@@ -338,7 +343,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
           setSession(params.chat);
           subscribe(params.chat);
-          getModelList(params.chat);
+          getModelList(params.chat, models);
           getReasoningList(params.chat);
           getRuleList();
           renderWorkDirMark();

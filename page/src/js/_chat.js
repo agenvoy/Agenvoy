@@ -37,7 +37,7 @@ async function renderChatList() {
     }
   }
 
-  const pinned = readConfig().pin_chat || [];
+  const pinned = pinChats();
 
   for (const e of list) {
     if (pinned.includes(e.id)) {
