@@ -23,6 +23,11 @@ type providerInfo struct {
 	Methods map[string]string `json:"methods"`
 }
 
+type providerState struct {
+	providerInfo
+	LoggedIn bool `json:"logged_in"`
+}
+
 var providerCatalog = []providerInfo{
 	{"openai", "OpenAI", map[string]string{"api_key": "pay per token"}},
 	{"codex", "OpenAI Codex", map[string]string{"oauth": "Codex subscription"}},
@@ -48,9 +53,28 @@ func findProvider(id string) *providerInfo {
 	return nil
 }
 
+func providerLoggedIn(id string) bool {
+	switch id {
+	case "codex":
+		return oauthCodex.HasToken()
+	case "copilot":
+		return oauthCopilot.HasToken()
+	case "grok-oauth":
+		return oauthGrokOauth.HasToken()
+	}
+	return false
+}
+
 func ListProviders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"providers": providerCatalog})
+		list := make([]providerState, 0, len(providerCatalog))
+		for _, provider := range providerCatalog {
+			list = append(list, providerState{
+				providerInfo: provider,
+				LoggedIn:     providerLoggedIn(provider.ID),
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"providers": list})
 	}
 }
 
