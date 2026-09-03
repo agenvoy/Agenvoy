@@ -90,7 +90,8 @@ div.tool-confirm {
     }
   }
 
-  input[type="password"] {
+  input[type="password"],
+  div.action input.reason {
     padding: 0.5rem 0.625rem;
     width: 100%;
     box-sizing: border-box;
@@ -126,6 +127,11 @@ div.tool-confirm {
     gap: 0.5rem;
 
     flex-wrap: wrap;
+
+    input.reason {
+      flex: 1 1 12rem;
+      min-width: 0;
+    }
 
     button {
       padding: 0.25rem 0.75rem;

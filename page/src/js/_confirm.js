@@ -2,7 +2,7 @@ const CONFIRM_OPTIONS = [
   { label: "yes", body: { approve: true }, style: "approve" },
   { label: "yes, don't ask again", body: { approve: true, remember: true }, style: "approve" },
   { label: "yes, allow this turn", body: { approve: true, allow_turn: true }, style: "approve" },
-  { label: "no", body: { approve: false }, style: "reject" },
+  { label: "no", body: { approve: false }, style: "reject", reason: true },
   { label: "abort task", body: { approve: false, abort: true }, style: "abort" },
 ];
 
@@ -28,6 +28,34 @@ async function resolveToolConfirm(sessionId, requestId, body, dom) {
     console.error("resolveToolConfirm", err);
   }
   dom.remove();
+}
+
+function askRejectReason(card, done) {
+  const action = card.querySelector("div.action");
+  if (!action) {
+    done("");
+    return;
+  }
+
+  const field = _("input", {
+    type: "text",
+    class: "reason",
+    autocomplete: "off",
+    placeholder: "Why not? tell it what to do instead (enter to skip)",
+  });
+  const send = _("button", { type: "button", class: "reject" }, [_("p", "send")]);
+  const row = _("div.action", [field, send]);
+
+  send.addEventListener("click", () => done(field.value.trim()));
+  field.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      done(field.value.trim());
+    }
+  });
+
+  action.replaceWith(row);
+  field.focus();
 }
 
 function renderToolConfirm(event, sessionId) {
@@ -89,6 +117,15 @@ function renderToolConfirm(event, sessionId) {
         }
         payload.password = field.value;
         note.textContent = "";
+      }
+      if (option.reason) {
+        askRejectReason(card, (text) => {
+          if (text !== "") {
+            payload.reason = text;
+          }
+          resolveToolConfirm(sessionId, requestId, payload, card);
+        });
+        return;
       }
       resolveToolConfirm(sessionId, requestId, payload, card);
     });
