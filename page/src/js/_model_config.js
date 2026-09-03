@@ -268,7 +268,7 @@ async function renderModel() {
 
   const active = [];
   for (const provider of catalog) {
-    if (keys.includes(providerKeyName(provider.id))) {
+    if (provider.logged_in || keys.includes(providerKeyName(provider.id))) {
       active.push(provider.id);
     }
   }

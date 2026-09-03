@@ -1,15 +1,17 @@
 const CHAT_ID = /^(chat-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(tg|dc)-[0-9a-f]{64})$/i;
 const SESSION_ID = /^((chat|cli|temp)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(tg|dc)-[0-9a-f]{64})$/i;
 
+const MODEL_AUTO = "auto";
+
 let modelList = [];
-let currentModel = "auto";
+let currentModel = MODEL_AUTO;
 
 function modelLabel(name) {
   return name.slice(name.indexOf("@") + 1) || name;
 }
 
 function ensureModel() {
-  return currentModel || "auto";
+  return currentModel || MODEL_AUTO;
 }
 
 function markModel(name) {
@@ -25,24 +27,54 @@ function markModel(name) {
   }
 }
 
-async function getModelList(sessionId) {
-  modelList = [];
+async function fetchModels() {
   try {
     const response = await fetch(`${API}/v1/models`);
     if (!response.ok) {
-      return;
+      return null;
     }
-    modelList = (await response.json()).models || [];
+    return (await response.json()).models || [];
   } catch (err) {
     console.error("loadModelList", err);
+    return null;
+  }
+}
+
+function hasRealModel(list) {
+  return Array.isArray(list) && list.some((name) => name !== MODEL_AUTO);
+}
+
+async function getModelList(sessionId, preloaded) {
+  modelList = [];
+  const list = preloaded === undefined ? await fetchModels() : preloaded;
+  if (list === null) {
     return;
   }
-  if (modelList.length === 0) {
+  modelList = list;
+
+  if (!hasRealModel(modelList)) {
+    markModelMissing();
     return;
+  }
+
+  const chat = $("section.chat");
+  if (chat) {
+    chat.dataset.model = "1";
   }
 
   currentModel = (await getSessionModel(sessionId)) || modelList[0];
   markModel(currentModel);
+}
+
+function markModelMissing() {
+  const chat = $("section.chat");
+  if (!chat) {
+    return;
+  }
+  chat.dataset.model = "0";
+  for (const dom of chat.querySelectorAll("header, div.input, section.messages")) {
+    dom.remove();
+  }
 }
 
 function selectModel(name) {

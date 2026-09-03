@@ -8,7 +8,7 @@ let subscribeBound = false;
 
 function subscribeTargets(sessionId) {
   const list = [];
-  const pinned = isWide() ? readConfig().pin_chat || [] : [];
+  const pinned = isWide() ? pinChats() : [];
   for (const id of [sessionId].concat(pinned)) {
     if (typeof id === "string" && id !== "" && !list.includes(id)) {
       list.push(id);

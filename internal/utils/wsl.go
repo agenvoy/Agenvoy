@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 var (
@@ -45,4 +46,20 @@ func WSLTag() string {
 
 func IsWSL() bool {
 	return WSLTag() != ""
+}
+
+func WSLChromePath() string {
+	if !IsWSL() {
+		return ""
+	}
+	for _, path := range []string{
+		"/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
+		"/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+		"/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+	} {
+		if go_pkg_filesystem_reader.Exists(path) {
+			return path
+		}
+	}
+	return ""
 }
