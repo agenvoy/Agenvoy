@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+
 	"github.com/bwmarrin/discordgo"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 
@@ -19,7 +21,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -160,8 +161,8 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	}
 
 	if hasAttachment {
-		if hasVoiceAttachment(in) && !config.VoiceEnabled() {
-			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, "Please enable it with `/enable-voice enable` first.")
+		if hasVoiceAttachment(in) && !audioTool.STTEnabled() {
+			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, "No speech-to-text model selected · pick one with `/model stt` first.")
 			return nil
 		}
 		attachments := saveAttachments(ctx, b, in)

@@ -52,7 +52,7 @@ func newDaemon() error {
 }
 
 func waitDaemonReady(ctx context.Context, timeout time.Duration, tick func(time.Duration)) error {
-	last := fmt.Errorf("no probe ran")
+	var last error
 	start := time.Now()
 	deadline := start.Add(timeout)
 	for {

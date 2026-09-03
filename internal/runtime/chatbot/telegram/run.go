@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+
 	"github.com/go-telegram/bot/models"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -22,7 +24,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
@@ -184,8 +185,8 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	}
 
 	if hasAttachment {
-		if slices.ContainsFunc(attachInputs, inputHasVoice) && !config.VoiceEnabled() {
-			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "Please enable it with <code>/enable-voice enable</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !audioTool.STTEnabled() {
+			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "No speech-to-text model selected · pick one with <code>/model stt</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 			return nil
 		}
 		var attachments []chatbot.SavedAttachment
