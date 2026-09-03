@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agenvoy</title>
     <link rel="icon" type="image/svg+xml" href="public/logo-min.svg" />
+    <link rel="manifest" href="public/manifest.json" />
+    <link rel="apple-touch-icon" href="public/icon-192.png" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Agenvoy" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,keep,keep_off,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal,top_panel_close"
@@ -135,9 +142,7 @@
               type="button"
               @click="style_switch"
               name="To top"
-              data-hide="1"
               data-style="1"
-              data-desktop="1"
               :if="LENGTH(pin) > 1"
             >
               <span class="material-symbols-outlined"> top_panel_close </span>
@@ -146,9 +151,7 @@
               type="button"
               @click="style_switch"
               name="To right"
-              data-hide="1"
               data-style="0"
-              data-desktop="1"
               :if="LENGTH(pin) > 1"
             >
               <span class="material-symbols-outlined"> right_panel_close </span>

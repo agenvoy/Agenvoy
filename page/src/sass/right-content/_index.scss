@@ -24,6 +24,7 @@
     background-color: white;
     overflow-x: hidden;
     transition: 0.2s;
+    border-left: 1px solid var(--gray-2);
 
     margin-left: var(--width-left-tab-collaspse);
     width: calc(100% - var(--width-left-tab-collaspse));

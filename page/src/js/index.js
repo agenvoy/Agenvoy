@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   const config = readConfig();
   let params = praseURL();
 
@@ -29,6 +29,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
   params.chat = params.chat || "";
+
+  await prunePinChat(config);
 
   const pinnedChats = config.pin_chat.slice();
   if (isWide() && pinnedChats.includes(params.chat)) {

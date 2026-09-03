@@ -83,7 +83,7 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            transform: translateY(calc(100% + 0.25rem));
+            transform: translateY(calc(-100% - 0.25rem));
             padding: 0 0.5rem;
             line-height: 1.25rem;
             font-size: x-small;
@@ -308,7 +308,7 @@
               position: absolute;
               bottom: 0;
               left: 0;
-              transform: translateY(calc(100% + 0.25rem));
+              transform: translateY(calc(-100% - 0.25rem));
               padding: 0 0.5rem;
               line-height: 1.25rem;
               font-size: x-small;

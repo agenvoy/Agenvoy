@@ -7,7 +7,7 @@
 }
 
 @mixin styles {
-  section.left-tab {
+  > section.left-tab {
     display: flex;
     flex-flow: column;
     height: 100%;
@@ -26,7 +26,7 @@
 
       &[data-collapsed="0"] {
         width: var(--width-left-tab);
-        box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
+        box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
 
         @include show.styles;
       }
