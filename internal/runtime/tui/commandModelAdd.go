@@ -201,12 +201,6 @@ func runOAuthFlow(ctx context.Context, prov string) {
 	var err error
 	switch prov {
 	case "copilot":
-		if oauthCopilot.HasToken() {
-			if cerr := oauthCopilot.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
 			send(OAuthInfo{
 				url:      code.VerificationURI,
@@ -214,22 +208,10 @@ func runOAuthFlow(ctx context.Context, prov string) {
 			})
 		})
 	case "codex":
-		if oauthCodex.HasToken() {
-			if cerr := oauthCodex.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	case "grok-oauth":
-		if oauthGrokOauth.HasToken() {
-			if cerr := oauthGrokOauth.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
