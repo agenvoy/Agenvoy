@@ -6,7 +6,7 @@
 
 - Go 1.25.1 or later
 - macOS or another environment supporting Go, SQLite, and the `go-pkg` sandbox dependencies
-- At least one configured model-provider credential; Telegram, Discord, voice, and KuraDB need their respective credentials. Image generation is temporarily unavailable.
+- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. KuraDB needs its respective credential. Image generation is temporarily unavailable.
 
 ## Installation
 
@@ -58,10 +58,18 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 
 | Keychain entry | Used by |
 |---|---|
-| `OPENAI_API_KEY` | OpenAI and KuraDB |
+| `OPENAI_API_KEY` | OpenAI, OpenAI audio models, and KuraDB |
 | `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN` | Chat-bot integrations |
-| `GEMINI_API_KEY` | Voice replies and `transcribe_media`; without it the tool is not registered |
+| `GEMINI_API_KEY` | Gemini audio models and voice features |
+
+### Audio model routing
+
+Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `off` to disable the corresponding capability. The available models are loaded from configured OpenAI and Gemini providers. Telegram and Discord voice output is temporarily unavailable, but the local `generate_audio` tool and audio model settings remain available for local use and future channel support.
+
+### Chatbot integrations
+
+Agenvoy currently supports Telegram and Discord. Both integrations use outbound connections from the local daemon, so the host does not need to expose an inbound port or public endpoint. Configuration requires only the corresponding bot token. Other chatbot platforms are out of scope unless they provide a meaningful security improvement.
 
 ### Runtime configuration
 
@@ -389,7 +397,6 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | | `reasoning_guide` | Full reasoning rules by `topic` |
 | Support | `calculate` | Arithmetic, unit and currency conversion |
 | | `store_secret` | Masked prompt, stored in the keychain |
-| Conditional | `transcribe_media` | Audio and video to text — needs `GEMINI_API_KEY` |
 | Conditional | `generate_image` | Text to image, saved to disk — excluded while the image generator is off |
 | | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
 

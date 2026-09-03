@@ -6,7 +6,7 @@
 
 - Go 1.25.1 或更新版本
 - macOS 或支援 Go、SQLite 與 `go-pkg/sandbox` 相依套件的環境
-- 至少一組模型供應商憑證；透過 TUI 設定 API key 或 OAuth
+- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token，語音轉文字與文字轉語音需要選定音訊模型及其 provider 憑證，KuraDB 需要各自的憑證
 
 ## 安裝
 
@@ -58,10 +58,18 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 | Keychain 項目                                        | 用途                                                  |
 | ---------------------------------------------------- | ----------------------------------------------------- |
-| `OPENAI_API_KEY`                                     | OpenAI 與 KuraDB                                      |
+| `OPENAI_API_KEY`                                     | OpenAI、OpenAI 音訊模型與 KuraDB                  |
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
-| `GEMINI_API_KEY`                                     | 語音回覆與 `transcribe_media`；未設定時該工具不會註冊 |
+| `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
+
+### 音訊模型路由
+
+語音轉文字與文字轉語音模型，分別獨立於 session、dispatcher、summary 與圖片設定。在 TUI 中使用 `/model stt` 或 `/model tts` 設定；選擇 `off` 可停用對應功能。可用模型會從已設定的 OpenAI 與 Gemini provider 載入。Telegram 與 Discord 的語音輸出目前暫時無法使用，但本機 `generate_audio` 工具與音訊模型設定仍可供本機使用，並保留給未來頻道支援。
+
+
+Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向外連線，因此主機不需要開放入站連接埠或公開端點；設定時只需要提供對應的 bot token。其他聊天機器人平台除非能帶來明確的安全性改善，否則不在目前規劃內。
+
 
 ### Runtime 設定
 
@@ -93,7 +101,11 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 ### TUI 執行模式
 
-目前 runtime 內建 10 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
+目前 runtime 內建 13 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
+
+### 音訊模型路由
+
+語音轉文字與文字轉語音模型，會與 session、dispatcher、summary 及圖片設定分開配置。在 TUI 中使用 `/model stt` 或 `/model tts`；選擇 `off` 可停用對應能力。可用模型來自已設定的 OpenAI 與 Gemini provider。Telegram 與 Discord 的語音輸出目前暫時無法使用，但本機 `generate_audio` 工具與音訊模型設定仍可供本機使用，並保留給未來頻道支援。
 
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
@@ -169,7 +181,7 @@ agen
 
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成來源         |
+| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成與 STT／TTS 模型         |
 | `/mcp`                          | 列出 MCP server；新增、登入、重連、查看工具、設定單一工具權限、移除                   |
 | `/switch` `/new`                | 切換 session 或建立新的（名稱會檢查重複）                                             |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
@@ -267,7 +279,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
-| `GET` `POST`    | `/v1/model`                     | **local** — 模型路由：`dispatcher`／`summary`／`image`，讀取時另附 `image_options`。三個欄位放的東西不同類：`dispatcher` 與 `summary` 填已註冊的模型名（`prefix@model`），`image` 填的是 provider endpoint（`openai`／`codex`／`grok`／`grok-oauth`／`gemini`）——因為各 provider 的圖片模型寫死在 `go-llm-router` 內，選的是來源不是模型；`image_options` 只列出當前有憑證的 provider。`POST` 為部分更新：未帶（或 `null`）的欄位不動，`""` 清除，`image` 另接受 `off` 作為 `""` 的別名。模型未註冊、provider 不存在、或該 provider 沒有憑證一律拒絕且整批不寫。兩個動詞回傳同一種物件 |
+| `GET` `POST`    | `/v1/model/audio`               | **local** — 讀取或設定語音轉文字（`stt`）與文字轉語音（`tts`）模型；可用選項來自已設定的 OpenAI 與 Gemini provider |
 
 **Session**
 
@@ -405,7 +417,6 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                            |
 | 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                   |
 |            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                |
-| 條件註冊   | `transcribe_media`                | 音訊／影片轉文字——需 `GEMINI_API_KEY`                                                  |
 | 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                      |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                 |
 

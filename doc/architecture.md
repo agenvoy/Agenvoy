@@ -46,7 +46,7 @@ graph TB
     Update --> Installer[Official update script]
 ```
 
-The runtime ships 10 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints.
+The runtime ships 13 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints. Audio routing separately selects speech-to-text and text-to-speech models from the configured OpenAI and Gemini providers; Telegram and Discord voice output is temporarily unavailable.
 
 ## Execution Modes
 

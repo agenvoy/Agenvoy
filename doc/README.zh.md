@@ -34,9 +34,11 @@
 - **一套沙箱工具庫** — 在 Agenvoy、Claude Code、Codex 等 Agent 間共用同一套工具庫。
 - **即時執行回饋** — 將節流後的命令輸出串流至 TUI 與 Web 儀表板，同時保留完整的最終結果。
 - **Skill 感知模型路由** — 將符合的 Skill 說明帶入 Agent 選擇，讓 dispatcher 依實際任務契約挑選模型。
-- **來源感知確認流程** — 將核准提示送回原始 CLI、Web、Telegram 或 Discord 頻道，避免跨頻道攔截。
+- **音訊模型路由** — 從已設定的 OpenAI 或 Gemini provider 中，分別選擇語音轉文字與文字轉語音模型。
 - **可擴充整合** — 連接 stdio 或 HTTP MCP server，支援 OAuth 登入並即時刷新遠端工具清單。
 - **自架執行** — 在自己的機器上執行排程、記憶與檔案搜尋。
+- **本機優先的 Agent** — Agent 直接執行在你的個人電腦上，使用本機檔案、工具、記憶與排程，不必將工作移交給託管服務。
+- **私有聊天機器人存取** — Telegram 與 Discord 透過 token 連回本機 daemon，不需要曝光主機或設定入站網路。
 - **Agent 應用 + MCP 伺服器** — 由同一個 binary 同時提供兩種角色。
 
 ## 你可以用它做什麼
@@ -215,6 +217,12 @@ Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI �
   <a href="https://youtu.be/n8tHHSCwOjE">▶ 觀看 Web 儀表板操作影片</a>
 </p>
 
+## 聊天機器人整合
+
+Agenvoy 目前只支援 **Telegram 與 Discord** 作為聊天機器人頻道。兩者都由本機 daemon 主動向外連線，因此不需要將主機暴露到公開網際網路；使用者只要提供 bot token，不必設定入站連接埠、反向代理或其他網路環境。除非後續平台能帶來明確的安全性改善，否則不會擴充其他聊天機器人平台。
+
+語音輸出目前暫時無法在 Telegram 與 Discord 使用；音訊模型設定仍可供本機工具使用，並保留給未來頻道支援。
+
 ## 一鍵安裝
 
 > MacBook 建議額外執行 `sudo pmset -c sleep 0`，避免休眠中斷排程。
@@ -229,12 +237,12 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 
 一組省錢好上手的模型配置：
 
-- 申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，用於：
-  - `gpt-oss-20b` 作為 **dispatcher** 模型
-  - `gpt-oss-120b` 作為 **fallback** 與 **summary** 模型
+- 申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，使用 `gpt-oss-20b` 作為 **dispatcher** 模型。
 - 用訂閱制當作 **主力** 模型：
   - OpenAI ChatGPT Plus（$20/月）
   - SuperGrok（$30/月）
+
+NVIDIA NIM 已不再支援 `gpt-oss-120b`，因此不再將它列為 fallback 或 summary 模型推薦。
 
 ---
 
