@@ -5,12 +5,12 @@
 </p>
 
 <p align="center">
-  <strong>台灣自研的開源 AI Agent Harness — 自行建立、測試並重用工具</strong>
+  <strong>在自己的電腦上執行的開源 AI Agent：可建立工具、完成工作，也能與其他 Agent 共用</strong>
 </p>
 
 <p align="center">
-  單一 Go binary，自架在你自己的電腦上：處理多步驟工作、搜尋本機檔案、排程重複任務，<br>
-  並透過 MCP 把沙箱工具庫分享給 Claude Code、Codex 等 Agent。
+  一個單一 Go 執行檔，直接在你的電腦上運作。它能處理多步驟任務、搜尋本機檔案、安排重複工作，<br>
+  也能透過 MCP 與 Claude Code、Codex 等 Agent 共用安全沙箱中的工具。
 </p>
 
 <p align="center">
@@ -28,26 +28,22 @@
   <a href="../README.md">English</a> · <strong>繁體中文</strong>
 </p>
 
-## 為什麼是 Agenvoy
+## 為什麼選擇 Agenvoy
 
-- **工具自我擴充** — 缺少工具時直接建立，不會停在原地。
-- **一套沙箱工具庫** — 在 Agenvoy、Claude Code、Codex 等 Agent 間共用同一套工具庫。
-- **即時執行回饋** — 將節流後的命令輸出串流至 TUI 與 Web 儀表板，同時保留完整的最終結果。
-- **Skill 感知模型路由** — 將符合的 Skill 說明帶入 Agent 選擇，讓 dispatcher 依實際任務契約挑選模型。
-- **音訊模型路由** — 從已設定的 OpenAI 或 Gemini provider 中，分別選擇語音轉文字與文字轉語音模型。
-- **可擴充整合** — 連接 stdio 或 HTTP MCP server，支援 OAuth 登入並即時刷新遠端工具清單。
-- **自架執行** — 在自己的機器上執行排程、記憶與檔案搜尋。
-- **本機優先的 Agent** — Agent 直接執行在你的個人電腦上，使用本機檔案、工具、記憶與排程，不必將工作移交給託管服務。
-- **私有聊天機器人存取** — Telegram 與 Discord 透過 token 連回本機 daemon，不需要曝光主機或設定入站網路。
-- **Agent 應用 + MCP 伺服器** — 由同一個 binary 同時提供兩種角色。
+Agenvoy 把 AI Agent 放在你的個人電腦上執行：檔案、工具、排程與記憶都由你掌控。它不只回答問題，也能實際執行任務，並在需要時建立新工具。
+
+- **遇到缺口可建立工具** — 找不到合適工具時，可建立、測試並保留新工具供後續使用。
+- **工具可跨 Agent 共用** — Agenvoy、Claude Code、Codex 等 Agent 可使用同一套沙箱工具。
+- **看得到執行過程** — 命令輸出會同步顯示在 TUI 與 Web 儀表板，最後仍會提供完整結果。
+- **依任務選擇合適模型** — 依 Skill 與任務需求路由模型，也可分別設定圖片生成模型、語音轉文字（STT）與文字轉語音（TTS）。
+- **可串接外部服務** — 支援 stdio 與 HTTP MCP server、OAuth 登入，以及遠端工具清單即時更新。
+- **本機優先、保有控制權** — 檔案搜尋、排程與記憶在你的機器上執行，不必把工作交給託管服務。
+- **可私下從聊天軟體存取** — Telegram 與 Discord 由本機 daemon 主動連線，不需公開你的主機。
 
 ## 你可以用它做什麼
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 問即時問題，拿到即時答案
+<details>
+<summary><strong>問即時問題，拿到即時答案（Web Search／Tool Generate）</strong></summary>
 
 > 台北現在天氣如何？
 >
@@ -55,10 +51,12 @@
 >
 > 如果缺工具，它會自己建立。
 
-</td>
-<td width="50%" valign="top">
+[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
 
-### 一句話變成自動化流程
+</details>
+
+<details>
+<summary><strong>一句話變成自動化流程（Scheduler）</strong></summary>
 
 > 每天早上 8 點回報台積電股價
 >
@@ -70,24 +68,12 @@
 >
 > 然後自動建立排程。
 
-</td>
-</tr>
-<tr>
-<td>
-
-[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
-
-</td>
-<td>
-
 [![](https://i.ytimg.com/vi/5To3joKlFpU/maxresdefault.jpg)](https://youtu.be/5To3joKlFpU)
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
+</details>
 
-### 直接詢問你的本機檔案
+<details>
+<summary><strong>直接詢問你的本機檔案（File Search／RAG）</strong></summary>
 
 > 找出去年所有發票
 >
@@ -95,32 +81,23 @@
 >
 > Agent 會搜尋你的本機檔案並直接回答。
 
-</td>
-<td width="50%" valign="top">
+[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
 
-### 完成多步驟工作
+</details>
+
+<details>
+<summary><strong>完成多步驟工作（Skills／Sub-agents）</strong></summary>
 
 > 幫我整理今天的 GitHub commits，並生成進度報告
 >
 > Agent 會拆解任務、呼叫工具、整合結果，再回覆給你。
 
-</td>
-</tr>
-<tr>
-<td>
-
-[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
-
-</td>
-<td>
-
 [![](https://i.ytimg.com/vi/nIV1xz_HIJg/maxresdefault.jpg)](https://youtu.be/nIV1xz_HIJg)
 
-</td>
-</tr>
-</table>
+</details>
 
-### 能跟你已經在用的 Agent 一起工作
+<details>
+<summary><strong>能跟你已經在用的 Agent 一起工作（MCP Server）</strong></summary>
 
 > Agenvoy 也是一個 MCP server。
 >
@@ -170,6 +147,8 @@
 </tr>
 </table>
 
+</details>
+
 ## 適合誰使用
 
 Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI 工作流：
@@ -180,69 +159,94 @@ Agenvoy 適合開發者、技術營運，以及需要超越聊天能力的 AI �
 
 ---
 
-## 核心能力
+## 從瀏覽器操控你的 Agent
 
-| 能力         | 說明                                                |
-| :----------- | :-------------------------------------------------- |
-| 自動工具生成 | 缺工具時自行建立並保存                              |
-| 自我排程     | 一句話建立定時任務                                  |
-| 長期記憶     | 保留重要資訊與上下文                                |
-| 圖片生成     | 透過已設定的 provider 生成圖片                           |
-| 即時命令輸出 | 將 `run_command` 進度串流至 TUI 與 Web 儀表板            |
-| 安全檔案邊界 | 存取敏感路徑或 `$HOME` 外路徑前要求確認                  |
-| MCP OAuth    | 登入 HTTP MCP server，並將 token 保存至作業系統 keychain |
-| 知識筆記     | 回答前先讀你留下的筆記                              |
-| 檔案搜尋     | 從本機檔案回答問題                                  |
-| Sub-Agent    | 多 Agent 協作                                       |
-| MCP client   | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新） |
-| MCP server   | 讓任何 MCP 相容 Agent 使用你的沙箱工具              |
-| 推理指引     | 透過 `reasoning_guide(topic=...)` 按需載入規則      |
-| Tool Market  | 分享與安裝工具                                      |
-| 語音轉錄     | 音訊與影片轉文字                                    |
-| 自我改進     | 執行失敗後自動修正                                  |
-
----
-
-## Web 儀表板
-
-當你的機器上已啟動 daemon，直接在瀏覽器開啟 **[web.agenvoy.com](https://web.agenvoy.com)** 即可連上儀表板。
+在瀏覽器管理 session、工具、排程與記憶。儀表板內建於執行檔中 — 啟動 daemon 後開啟 [http://127.0.0.1:17989](http://127.0.0.1:17989)。由你自己的機器提供服務，資料不離開你的裝置。
 
 <p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">
-    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web 儀表板示範" width="640">
+  <a href="https://youtu.be/oaXxrTNvLaU">
+    <img src="https://img.youtube.com/vi/oaXxrTNvLaU/maxresdefault.jpg" alt="Agenvoy Web 儀表板示範" width="640">
   </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">▶ 觀看 Web 儀表板操作影片</a>
 </p>
 
 ## 聊天機器人整合
 
-Agenvoy 目前只支援 **Telegram 與 Discord** 作為聊天機器人頻道。兩者都由本機 daemon 主動向外連線，因此不需要將主機暴露到公開網際網路；使用者只要提供 bot token，不必設定入站連接埠、反向代理或其他網路環境。除非後續平台能帶來明確的安全性改善，否則不會擴充其他聊天機器人平台。
+目前支援 **Telegram 與 Discord**。Agenvoy 的本機 daemon 會主動連向這些平台，因此你只要設定 bot token：不必開放入站連接埠、不必架反向代理，也不必把自己的主機公開到網路上。
 
-語音輸出目前暫時無法在 Telegram 與 Discord 使用；音訊模型設定仍可供本機工具使用，並保留給未來頻道支援。
+自 **v0.34.4** 起，Telegram 與 Discord 暫停「語音輸入後自動以語音回覆」的預設流程；仍可使用 STT／TTS 生成音訊，並將音訊檔傳送到頻道。
+
+---
 
 ## 一鍵安裝
 
-> MacBook 建議額外執行 `sudo pmset -c sleep 0`，避免休眠中斷排程。
+<details open>
+<summary><strong>macOS／Linux 發行版</strong></summary>
+
+在終端機執行：
 
 ```bash
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 ```
 
+> **macOS 提示：**若使用 MacBook 執行排程，建議額外執行：
+>
+> ```bash
+> sudo pmset -c sleep 0
+> ```
+>
+> 避免電腦休眠而中斷排程。
+
+</details>
+
+<details>
+<summary><strong>Windows（透過 WSL）</strong></summary>
+
+請先以系統管理員身分開啟 PowerShell，查看並安裝一個 Linux 發行版：
+
+```powershell
+wsl --online --list
+wsl --install <發行版名稱>
+```
+
+完成安裝、重新開機並進入 WSL 終端機後，執行：
+
+```bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+```
+
+</details>
+
+## 建議的模型設定
+
+以下是一組容易上手、成本較低的配置：
+
+1. 選擇一個訂閱制模型作為日常主要模型，例如：
+   - OpenAI ChatGPT Plus（$20／月）
+   - SuperGrok（$30／月）
+2. **如果有多種 provider 的需求**，可以申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，並將 `gpt-oss-20b` 設為 **dispatcher** 模型，搭配智慧路由，兼顧快速回應。
+
 ---
 
-## 開發者建議
+## 核心能力
 
-一組省錢好上手的模型配置：
-
-- 申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，使用 `gpt-oss-20b` 作為 **dispatcher** 模型。
-- 用訂閱制當作 **主力** 模型：
-  - OpenAI ChatGPT Plus（$20/月）
-  - SuperGrok（$30/月）
-
-NVIDIA NIM 已不再支援 `gpt-oss-120b`，因此不再將它列為 fallback 或 summary 模型推薦。
+| 能力         | 說明                                                     |
+| :----------- | :------------------------------------------------------- |
+| 自動工具生成 | 缺工具時自行建立並保存                                   |
+| 自我排程     | 一句話建立定時任務                                       |
+| 長期記憶     | 保留重要資訊與上下文                                     |
+| 圖片生成     | 透過已設定的 provider 生成圖片                           |
+| 即時命令輸出 | 將 `run_command` 進度串流至 TUI 與 Web 儀表板            |
+| 安全檔案邊界 | 存取敏感路徑或 `$HOME` 外路徑前要求確認                  |
+| MCP OAuth    | 登入 HTTP MCP server，並將 token 保存至作業系統 keychain |
+| 知識筆記     | 回答前先讀你留下的筆記                                   |
+| 檔案搜尋     | 從本機檔案回答問題                                       |
+| Sub-Agent    | 多 Agent 協作                                            |
+| MCP client   | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新）      |
+| MCP server   | 讓任何 MCP 相容 Agent 使用你的沙箱工具                   |
+| 推理指引     | 透過 `reasoning_guide(topic=...)` 按需載入規則           |
+| Tool Market  | 分享與安裝工具                                           |
+| 語音轉錄     | 音訊與影片轉文字                                         |
+| 自我改進     | 執行失敗後自動修正                                       |
 
 ---
 

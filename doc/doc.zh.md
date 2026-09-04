@@ -5,8 +5,8 @@
 ## 前置需求
 
 - Go 1.25.1 或更新版本
-- macOS 或支援 Go、SQLite 與 `go-pkg/sandbox` 相依套件的環境
-- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token，語音轉文字與文字轉語音需要選定音訊模型及其 provider 憑證，KuraDB 需要各自的憑證
+- macOS 或 Linux；Windows 請先安裝 WSL Linux 發行版，並在 WSL 終端機內執行 Agenvoy
+- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token。語音轉文字、文字轉語音與圖片生成各需選定對應模型／provider 及其憑證；KuraDB 需要對應憑證
 
 ## 安裝
 
@@ -16,6 +16,17 @@
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 agen
 ```
+
+### Windows（透過 WSL）
+
+請先以系統管理員身分開啟 PowerShell，查看並安裝一個 Linux 發行版：
+
+```powershell
+wsl --online --list
+wsl --install <發行版名稱>
+```
+
+完成安裝、重新開機並進入 WSL 終端機後，再執行[官方安裝程式](#官方安裝程式)。
 
 ### 從原始碼建置
 
@@ -63,13 +74,15 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
 | `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
 
-### 音訊模型路由
+### 音訊與圖片模型路由
 
-語音轉文字與文字轉語音模型，分別獨立於 session、dispatcher、summary 與圖片設定。在 TUI 中使用 `/model stt` 或 `/model tts` 設定；選擇 `off` 可停用對應功能。可用模型會從已設定的 OpenAI 與 Gemini provider 載入。Telegram 與 Discord 的語音輸出目前暫時無法使用，但本機 `generate_audio` 工具與音訊模型設定仍可供本機使用，並保留給未來頻道支援。
+語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model` 設定；選擇 `off` 可停用對應能力。STT／TTS 可用模型會從已設定的 OpenAI 與 Gemini provider 載入，圖片生成則需要已設定的支援圖片 provider。
 
+自 **v0.34.4** 起，Telegram 與 Discord 暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機 `generate_audio` 工具與音訊模型設定仍可使用，並可將產生的音訊檔傳送到任一頻道。
+
+### 聊天機器人整合
 
 Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向外連線，因此主機不需要開放入站連接埠或公開端點；設定時只需要提供對應的 bot token。其他聊天機器人平台除非能帶來明確的安全性改善，否則不在目前規劃內。
-
 
 ### Runtime 設定
 
@@ -102,10 +115,6 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 ### TUI 執行模式
 
 目前 runtime 內建 13 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
-
-### 音訊模型路由
-
-語音轉文字與文字轉語音模型，會與 session、dispatcher、summary 及圖片設定分開配置。在 TUI 中使用 `/model stt` 或 `/model tts`；選擇 `off` 可停用對應能力。可用模型來自已設定的 OpenAI 與 Gemini provider。Telegram 與 Discord 的語音輸出目前暫時無法使用，但本機 `generate_audio` 工具與音訊模型設定仍可供本機使用，並保留給未來頻道支援。
 
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
@@ -181,7 +190,7 @@ agen
 
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成與 STT／TTS 模型         |
+| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成、STT 與 TTS 模型 |
 | `/mcp`                          | 列出 MCP server；新增、登入、重連、查看工具、設定單一工具權限、移除                   |
 | `/switch` `/new`                | 切換 session 或建立新的（名稱會檢查重複）                                             |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |

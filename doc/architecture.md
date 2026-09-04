@@ -4,219 +4,136 @@
 
 ## Overview
 
-Agenvoy is a local Go agent runtime that combines an interactive terminal interface, a local HTTP daemon, chatbot integrations, and MCP client/server capabilities. The runtime shares one execution engine for model routing, session-aware tools, skills, and persistent history.
+Agenvoy is a local Go agent runtime. One execution engine powers the interactive TUI, browser dashboard, Telegram and Discord, and the stdin MCP server. It routes each request to a configured model, runs Skills and sandboxed tools, persists session history, and can create tools when a capability is missing.
 
 ```mermaid
 graph TB
-    User[User / Client] --> Entry[CLI or HTTP Entry]
-    Entry --> TUI[TUI]
-    Entry --> Daemon[Local Daemon]
-    Entry --> MCPServer[MCP Server]
+    User[User] --> TUI[CLI / TUI]
+    User --> Dashboard[Local Web Dashboard]
+    User --> Channels[Telegram / Discord]
+    Client[Claude Code / Codex / MCP Client] --> MCPServer[stdin MCP Server]
     TUI --> Exec[Agent Execution]
+    Dashboard --> Daemon[Local Daemon]
+    Channels --> Daemon
     Daemon --> Exec
-    MCPServer --> Tools[Tool Registry]
+    MCPServer --> Tools[Shared Tool Registry]
     Exec --> Router[Model Router]
     Exec --> Tools
-    Exec --> Sessions[Session & Memory]
-    Tools --> Guard[Permission & Sandbox]
-    Daemon --> Chat[Telegram / Discord]
-    Tools --> MCPClient[External MCP Clients]
+    Exec --> Sessions[Sessions & Memory]
+    Tools --> Guard[Permissions & Sandbox]
+    Tools --> External[MCP / Web / Local Services]
 ```
 
 ## Module: Entry Points
 
-The `cmd/app` binary runs the TUI by default. `agen stop` stops the daemon, `agen update` runs the official updater, and non-terminal stdin activates the MCP server.
-
-```mermaid
-graph TB
-    subgraph CLI[cmd/app]
-        Args[Arguments] --> Dispatch{Mode}
-        Dispatch --> TUIEntry[Interactive TUI]
-        Dispatch --> Cli[cli]
-        Dispatch --> Run[run]
-        Dispatch --> Stop[stop]
-        Dispatch --> Update[update]
-        Stdin[Non-TTY stdin] --> MCP[MCP server]
-    end
-    TUIEntry --> TUIRuntime[TUI runtime]
-    Cli --> TUIRuntime
-    Run --> TUIRuntime
-    TUIRuntime --> Execution[Agent execution]
-    Stop --> RuntimeState[Runtime state]
-    Update --> Installer[Official update script]
-```
-
-The runtime ships 13 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints. Audio routing separately selects speech-to-text and text-to-speech models from the configured OpenAI and Gemini providers; Telegram and Discord voice output is temporarily unavailable.
-
-## Execution Modes
-
-Agenvoy supports a process-local execution-mode toggle in the TUI. Press `Shift+F` while the input area is empty to switch between the default mode and fast mode; the header shows `[fast]` when enabled. The executor, dispatcher, summary, and related model calls pass the selected mode to `go-llm-router` v0.5.1. Supported provider backends can map `provider.ModeFast` to a faster service tier, while the default mode preserves normal provider behavior. The toggle is held in memory and is not persisted in `config.json`.
+The `agen` binary opens the TUI by default. The local daemon serves the browser dashboard at `http://127.0.0.1:17989`; Telegram and Discord connect outward from that daemon, so no inbound port or public host is required. When stdin is not a terminal, `agen` serves local tools through newline-delimited JSON-RPC MCP instead of opening the TUI.
 
 ```mermaid
 graph LR
-    Input[Empty TUI input] --> Toggle[Shift+F]
-    Toggle --> State{Process-local mode}
-    State -->|Default| Default[provider.ModeDefault]
-    State -->|Fast| Fast[provider.ModeFast]
-    Default --> Calls[Executor / dispatcher / summary calls]
-    Fast --> Calls
-    Calls --> Router[go-llm-router v0.5.1]
-    Router --> Providers[Supported provider backends]
+    CLI[agen] --> Mode{Invocation}
+    Mode -->|terminal| TUI[Interactive TUI]
+    Mode -->|--daemon| Daemon[Local daemon]
+    Mode -->|non-TTY stdin| MCP[MCP server]
+    Mode -->|stop / update| Maintenance[Lifecycle command]
+    Dashboard[Browser] --> Daemon
+    Telegram[Telegram] --> Daemon
+    Discord[Discord] --> Daemon
 ```
 
-## Module: Daemon and HTTP API
+## Module: Agent Execution and Model Routing
 
-The daemon initializes the filesystem, runtime limits, ToriiDB/history storage, registered tools, agents, schedulers, chatbots, and Gin routes. The HTTP API binds to `127.0.0.1` and covers two tiers: an agent-execution surface (send, chat completions, sessions, models, SSE logs, pending-task recovery) reachable without extra checks, and a much larger config/management surface — credentials, providers, MCP servers and their OAuth logins, rules, knowledge, schedule automation, the skill/tool allowlist, and read-only session-artifact/error-memory inspection — gated behind an additional `localhostOnly()` middleware since it touches credentials, config files, or process state. The web dashboard that drives the config tier lives in `page/`, is embedded into the binary at build time, and is served from `/` by the same daemon; `AGENVOY_PAGE_DIR` swaps the embedded copy for files on disk during development.
+The runtime matches a request to a Skill when applicable, then uses the Skill description and task text to select the primary model and fallbacks. It separately configures the dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) roles. This enables task-aware model routing instead of one model handling every operation. For multi-provider setups, `gpt-oss-20b` through NVIDIA NIM can optionally act as a fast dispatcher.
 
 ```mermaid
 graph TB
-    subgraph Daemon[Daemon Runtime]
-        Init[Filesystem & Runtime Init] --> Storage[SQLite / History Store]
-        Storage --> ToolInit[Tool Registration]
-        ToolInit --> AgentInit[Agent Registry & Skill Scanner]
-        AgentInit --> Services[Scheduler & Integrations]
-        Services --> Routes[Gin Routes]
-        Config[config.json Watcher] --> Reload[Reload agents / integrations]
-        Reload --> AgentInit
-    end
-    Routes --> ExecAPI[Agent-execution API<br/>send · chat/completions · tools · sessions · models · SSE logs]
-    Routes --> ConfigAPI[Config / management API<br/>keys · providers · MCP · rules/knowledge · schedule · allowlist · torii inspection]
-    Routes --> Page[Embedded dashboard<br/>page/ served at /]
-    ConfigAPI --> LocalGuard[localhostOnly guard]
-    ExecAPI --> Client[CLI / TUI / remote agents]
-    LocalGuard --> Page
+    Input[User request] --> Skill{Match Skill?}
+    Skill --> Select[Resolve primary model & fallbacks]
+    Select --> Session[Build session context]
+    Session --> Prompt[Compose system prompt + tools]
+    Prompt --> Model[Selected model]
+    Model --> Result{Response}
+    Result -->|tool call| ToolExec[Tool executor]
+    ToolExec --> Model
+    Result -->|context limit| Compact[Compact history]
+    Compact --> Model
+    Result -->|send failure| Fallback[Fallback model]
+    Fallback --> Model
+    Result -->|final answer| Output[Channel / TUI / dashboard reply]
 ```
 
-## Module: Agent Execution and Routing
+## Module: Tools, Skills, and Sandbox
 
-A request is matched to a Skill or a configured model. The matched Skill description is passed to the selector as a task hint, while the request origin is propagated through execution and tool calls. The executor builds system prompts and a session, sends messages to the selected model, loops through tool calls, trims context when needed, and moves to fallback agents when a send attempt fails.
+Built-in tools, generated API/script tools, installed extensions, and MCP tools share one registry. Tools load their full schema only when needed to keep routine requests lightweight. Before execution, filesystem and command actions pass permission checks, confirmation gates, shell validation, and OS-level sandbox rules. If live data needs a tool that does not exist, the agent can build, test, and retain a new tool.
 
 ```mermaid
 graph TB
-    subgraph Execution[Agent Execution]
-        Input[User input] --> Match[Match Skill]
-        Match --> Resolve[Resolve primary & fallback agents<br/>with Skill hint]
-        Resolve --> Session[Build AgentSession<br/>with request origin]
-        Session --> Prompt[Build system prompts]
-        Prompt --> Send[Send to model]
-        Send --> Response{Response}
-        Response -->|Tool call| ToolExec[Tool executor]
-        ToolExec --> Send
-        Response -->|Context limit| Trim[Trim / compact]
-        Trim --> Send
-        Response -->|Send failure| Fallback[Fallback agent]
-        Fallback --> Send
-        Response -->|Final text| Output[Events & response]
-    end
+    Builtin[Built-in tools] --> Registry[Tool registry]
+    Generated[Generated API / Script tools] --> Registry
+    Extension[Extensions] --> Registry
+    Remote[External MCP tools] --> Registry
+    Skill[Skills] --> Agent[Agent execution]
+    Registry --> Agent
+    Agent --> Check[Permission / confirmation / validation]
+    Check --> Sandbox[OS sandbox]
+    Sandbox --> Result[Tool result]
 ```
 
-## Module: Tool Registry and Sandbox
+## Module: Sessions, Memory, and Task Lifecycle
 
-Built-in tools and discovered API, script, extension, and MCP tools enter one registry (`internal/runtime/toolAdapter` plus `internal/runtime/mcp`). Fourteen tools ship with full schemas — `ask_user`, `calculate`, `chat_history`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`; every other entry starts as a name and a description, and its parameters are injected on first use through `find_tools(mode=search)`. Before execution, file and command operations pass through allow rules, confirmation gates, shell validation, and sandbox enforcement. Paths outside `$HOME` and commands outside the allowlist are collected rather than refused: they raise a confirmation that also demands the operating-system password, and the grant is scoped to that session and that path or binary. A tool that carries a `mode` is gated by it: `list`/`read`/`search` are treated as read-only and skip confirmation, while `remove`/`restore` always confirm even on an otherwise auto-approved tool. Reasoning rules are fetched on demand through the single `reasoning_guide(topic=...)` tool.
+Every request belongs to a session. Sessions retain configuration, model choices, messages, summaries, logs, usage, and pending questions. Origin prefixes keep interactive work with the correct listener: local CLI/TUI, web, Telegram, and Discord each resume only their own pending request. Tasks are registered before they compete for a per-session concurrency slot, so queued work remains visible and cancellable.
 
 ```mermaid
 graph TB
-    subgraph Tools[Tool System]
-        Builtins[Built-in tools] --> Registry[Tool registry]
-        Adapters[API / Script / Extension adapters] --> Registry
-        MCPDiscovery[MCP discovery] --> Registry
-        Registry --> Executor[Tool executor]
-        Executor --> Paths[Path & permission checks]
-        Executor --> Allow[Allow / confirmation gate]
-        Executor --> Shell[Shell AST validator]
-        Paths --> Sandbox[Sandbox]
-        Allow --> Sandbox
-        Shell --> Sandbox
-        Sandbox --> Result[Tool result]
-    end
+    Request[Request] --> Session[Session]
+    Session --> History[History + summary]
+    Session --> Logs[Action + usage logs]
+    Session --> Pending[Pending question / confirmation]
+    Pending --> Origin{Origin}
+    Origin --> CLI[CLI / TUI]
+    Origin --> Web[Dashboard]
+    Origin --> TG[Telegram]
+    Origin --> DC[Discord]
+    Request --> Register[Register task]
+    Register --> Gate{Session slot free?}
+    Gate -->|yes| Execute[Run agent]
+    Gate -->|no| Queue[Queued & cancellable]
+    Queue --> Execute
+    Execute --> Finish[Completed / failed / canceled]
 ```
 
-## Module: Sessions, History, and Pending Work
+## Module: Daemon, Dashboard, and Chat Channels
 
-Sessions are identified by a prefix that also determines their origin: `cli-` for local CLI/TUI work, `tg-` for Telegram, `dc-` for Discord, `chat-` for web/API work, and `temp-` for short-lived work. The TUI session picker ranks these groups, places the current session first, and exposes `all` plus one tab per detected prefix when multiple groups exist. A daemon-side `fsnotify` watcher observes newly created session directories and logs the session ID and configured name.
-
-Session configuration is persisted in the history SQLite database. Persona fields include a normalized lowercase `self_id`, limited to 32 ASCII letters, digits, `_`, and `-`; non-empty values are unique. The daemon migrates legacy `bot.json`, legacy bot markdown, session `config.json`, and `status.json` into SQLite/state tables during startup. New session creation persists the database row and creates the session directory before session logs are written.
-
-## Module: Sessions, History, and Pending Work
-
-Sessions persist configuration, model selection, message history, summaries, logs, usage, and pending interactive work. History appends deltas to `history.json` and mirrors searchable content to SQLite. Pending questions and confirmations retain their origin prefix; CLI, web, Telegram, and Discord listeners consume only matching work before resuming through the registered handler.
+The daemon initializes storage, tools, agents, schedules, chat channels, and the local HTTP API. Its dashboard is embedded in the binary and served by the same localhost-only daemon. Telegram and Discord require only their bot tokens because the daemon initiates the connection. Since **v0.34.4**, the default voice-input-to-voice-output loop is paused for those channels; STT/TTS tools can still generate audio files and send them through either channel.
 
 ```mermaid
 graph TB
-    subgraph Sessions[Session & Memory]
-        Request[Request] --> Config[Session config]
-        Request --> History[history.json delta append]
-        History --> SQLite[SQLite history index]
-        History --> Summary[Summary metadata]
-        Request --> Logs[action.log / usage.log]
-        Pending[ask_user / confirmation] --> Origin[Origin prefix<br/>cli- · chat- · tg- · dc-]
-        Origin --> MatchListener[Matching channel listener]
-        MatchListener --> Meta[Pending task metadata]
-        Meta --> Resume[Resume handler]
-        Resume --> Request
-        Reset[Reset] --> History
-        Reset --> SQLite
-        ResetAll[ResetAll] --> Summary
-    end
+    Daemon[Local daemon] --> API[HTTP API on 127.0.0.1:17989]
+    API --> Dashboard[Embedded dashboard]
+    Daemon --> Scheduler[Schedules]
+    Daemon --> Telegram[Telegram bot]
+    Daemon --> Discord[Discord bot]
+    Telegram --> Attachment[Attachments + optional STT]
+    Discord --> Attachment
+    Attachment --> ChannelRun[Agent execution]
+    ChannelRun --> Delivery[Text / file delivery]
+    Scheduler --> ScheduledRun[Scheduled agent run]
 ```
 
-## Module: Runtime Monitoring
+## Module: MCP Client and Server
 
-The daemon starts a background monitor that samples every 30 seconds. It reports high CPU usage at or above 80%, Go process memory at or above 2 GiB, and loss of TCP connectivity to `1.1.1.1:443`; recovery events are logged when each condition clears. When CPU is high, the monitor also queries the top three processes with `ps` when available. These records are emitted through the daemon log stream and are independent of agent session execution.
-
-## Module: Task Lifecycle, Concurrency, and Cancellation
-
-Every execution registers itself in `status.json` — and registers its cancel function — _before_ competing for a per-session concurrency slot, so a task queued behind the limit stays observable and cancellable instead of blocking invisibly. Each task records the PID of the process running it; any reader that finds a task whose PID is no longer alive treats it as stale and clears it, so a killed or crashed process cannot leave a session permanently marked online.
-
-Concurrency is per session (`MaxSessionTasks`, defaulting to four times the CPU count). Sessions never block or cancel one another, and exceeding the limit queues a task rather than rejecting it.
+Agenvoy connects to external MCP servers over stdio or streamable HTTP, refreshes their tools when their catalog changes, and can complete OAuth sign-in while storing credentials in the operating-system keychain. In the other direction, running `agen` with non-terminal stdin exposes the same sandboxed local tools to Claude Code, Codex, OpenCode, and other MCP-compatible clients.
 
 ```mermaid
-graph TB
-    subgraph Lifecycle[Task Lifecycle]
-        Start[Execute] --> Register[Register task and PID in status.json]
-        Register --> CancelReg[Register cancel func under task ID]
-        CancelReg --> Gate{Concurrency slot free}
-        Gate -->|Yes| Run[Run agent loop]
-        Gate -->|No| Queue[Queued: visible and cancellable]
-        Queue --> Run
-        Run --> Terminal[Completed / Failed / Canceled]
-        Terminal --> Clear[Remove task from status.json]
-    end
-    CancelAPI[POST /v1/session/:id/cancel/:once_id] --> Registry[Task ID to cancel func registry]
-    Registry --> Run
-    StaleCheck[Reader finds dead PID] --> Clear
-```
-
-## Module: Chat and MCP Integrations
-
-Telegram and Discord use a shared event pipeline with channel-specific authorization, attachment handling, origin-matched pending confirmations, formatting, and push delivery. Web result, SSE, pending, and multilog handlers preserve file-delivery markers through transport; the dashboard strips them only when rendering visible text. External MCP servers are consumed through stdio or streamable HTTP via the official `modelcontextprotocol/go-sdk` client in `internal/runtime/mcp`; tool-list change notifications trigger re-registration, and server instructions are injected into the agent system prompt. HTTP servers marked `auth: oauth` authorize through `mcp.Login`: the daemon opens a loopback callback listener on `localhost:17988`, performs dynamic client registration when the provider allows it, and stores the resulting token and client id in the OS keychain. A pre-registered client can be supplied instead, and the redirect URL can be pasted back when the browser cannot reach the listener. Agenvoy can also expose local tools as a stdin JSON-RPC MCP server (`mcp.NewServer()`).
-
-```mermaid
-graph TB
-    subgraph Integrations[Integrations]
-        Telegram[Telegram] --> Auth[Authorization & session match]
-        Discord[Discord] --> Auth
-        Auth --> Attachments[Save attachments / optional transcription]
-        Attachments --> ChatRun[Run agent with channel origin]
-        ChatRun --> Events[Agent events]
-        Events --> Confirm[Origin-matched confirmation]
-        Confirm --> Format[Channel formatter]
-        Events --> FileMarker[Preserve SEND_FILE metadata]
-        FileMarker --> Format
-        Format --> Reply[Reply / status / push]
-
-        MCPConfig[mcp.json] --> Transport{Transport}
-        Transport --> SDKClient[go-sdk client]
-        SDKClient --> MCPTools[Registered MCP tools]
-        SDKClient --> Refresh[tools/list_changed refresh]
-        Refresh --> MCPTools
-        SDKClient --> Instructions[Server instructions → system prompt]
-        OAuth[auth: oauth] --> Callback[Loopback listener :17988]
-        Callback --> Token[Token + client id in keychain]
-        Token --> SDKClient
-        ExternalClient[External MCP client] --> LocalMCP[stdin JSON-RPC server]
-        LocalMCP --> Tools[Local tool registry]
-    end
+graph LR
+    Config[mcp.json] --> MCPClient[MCP client]
+    MCPClient --> Stdio[stdio MCP server]
+    MCPClient --> HTTP[HTTP MCP server]
+    Stdio --> Registry[Tool registry]
+    HTTP --> Registry
+    External[Claude Code / Codex / OpenCode] --> MCPServer[agen stdin MCP server]
+    MCPServer --> Registry
+    OAuth[OAuth callback] --> Keychain[OS keychain]
+    Keychain --> MCPClient
 ```
 
 ## Data Flow
@@ -224,93 +141,50 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant User
-    participant TUI as TUI / HTTP
-    participant Exec as Agent Executor
-    participant Router as Model Router
-    participant Tools as Tool Executor
-    participant Store as Session Store
+    participant Entry as TUI / Web / Channel / MCP
+    participant Exec as Agent executor
+    participant Router as Model router
+    participant Tools as Tool executor
+    participant Store as Session store
 
-    User->>TUI: Submit request
-    TUI->>Exec: Run with session context
-    Exec->>Store: Load history and summary
-    Exec->>Router: Send prompt and tool definitions
+    User->>Entry: Submit request
+    Entry->>Exec: Run with origin and session
+    Exec->>Store: Load history and configuration
+    Exec->>Router: Send prompt and available tools
     Router-->>Exec: Model response
     alt Tool call
         Exec->>Tools: Validate and execute
-        Tools-->>Exec: Tool result
+        Tools-->>Exec: Result
         Exec->>Router: Continue
     else Final response
-        Exec->>Store: Append history and usage
-        Exec-->>TUI: Publish final events
-        TUI-->>User: Render reply
+        Exec->>Store: Append history, logs, and usage
+        Exec-->>Entry: Publish result
+        Entry-->>User: Render text or deliver file
     end
-```
-
-## State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> Initialized
-    Initialized --> Ready: Tools and agents loaded
-    Ready --> Selecting: Request received
-    Selecting --> Queued: No concurrency slot
-    Queued --> Running: Slot released
-    Selecting --> Running: Agent resolved
-    Running --> WaitingConfirmation: Tool confirmation
-    WaitingConfirmation --> Running: Approved or skipped
-    Running --> WaitingUser: ask_user pending
-    WaitingUser --> Running: Answers received
-    Running --> Compacting: Context limit
-    Compacting --> Running: Trimmed
-    Running --> Fallback: Send failure
-    Fallback --> Running: Fallback selected
-    Running --> Completed: Final response
-    Running --> Canceled: Cancel requested
-    Queued --> Canceled: Cancel requested
-    Running --> Failed: Unrecoverable error
-    Completed --> Ready
-    Canceled --> Ready
-    Failed --> Ready
-    Ready --> [*]: Shutdown
 ```
 
 ## Security Boundaries
 
-- The HTTP daemon binds to `127.0.0.1`; selected endpoints apply an additional localhost-only guard.
-- File operations resolve through `boundary.Resolve`, which applies denied-path and sensitive-file checks before execution.
-- Command execution is subject to allow rules, AST-based shell validation, and OS-level sandbox policies (`sandbox-exec` on macOS, `bwrap` on Linux).
-- Restricted paths and non-allowlisted commands are not refused outright: they raise a confirmation that also requires the operating-system password, and the grant is bound to that session plus that specific path or binary. Channels that cannot collect a password — HTTP API, chat bots, subagents — receive the call back as skipped. There is no elevated or `/sudo` mode; per-request authorization replaced it.
-- `$HOME` is always writable, no setup needed. To write outside it the agent attaches `write_paths` to that call; the paths are bound in only after you approve the prompt with your system password.
-- `run` mode bypasses confirmation only for its request; sandbox and denied-path protections still apply.
-- Credentials are stored through the operating-system keychain integration, not in the repository.
+- The dashboard and management API bind to `127.0.0.1`; the host is not exposed for normal browser or chatbot use.
+- Telegram and Discord use outbound connections from the local daemon and need only a bot token.
+- File writes outside `$HOME` and non-allowlisted commands require explicit confirmation; approval is scoped to the session and requested path or binary.
+- Command execution is validated and sandboxed (`sandbox-exec` on macOS and `bwrap` on Linux).
+- Credentials, including provider and MCP OAuth tokens, are stored in the operating-system keychain rather than the repository.
 
 ## Persistence Layout
 
 ```mermaid
 flowchart LR
-    Config[~/.config/agenvoy/config.json] --> Limits[Runtime limits]
+    Config[~/.config/agenvoy/config.json] --> Runtime[Runtime settings]
     Config --> Sessions[Session directories]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
-    Sessions --> Pending[pending metadata]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History search]
-    SQLite --> SessionRow[session: name · self_id · model · reasoning · persona]
-    SQLite --> StateRow[state: active tasks and owning PID]
-    SQLite --> ActionRow[action_history: finished runs and their tool results]
-    SQLite --> UsageRow[usage: per-model token spend, 28-day retention]
-    Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 tool cache]
-    Torii --> SessionHist[db_1 session conversation]
-    Torii --> ErrorMemory[db_2 tool-error memory]
-    Torii --> Knowledge[db_3 operator knowledge]
-    Torii --> Online[db_4 running-task presence]
-    MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP clients]
+    Store[~/.config/agenvoy/.store] --> Knowledge[Knowledge / error memory / tool cache]
     Tools[~/.config/agenvoy/tools] --> Registry[Tool registry]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill scanner]
-    Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rules]
-    Allow[allow_skill · allow_tool] --> Gate[Confirmation gate]
-    Config --> CmdDeny[config.json denied_command · denied_path: hard denylist]
-    Schedule[crons.json · tasks.json] --> Scheduler[Scheduler]
-    Auth[.telegram · .discord] --> Channels[Authorized chats]
+    MCP[~/.config/agenvoy/mcp.json] --> MCPClient[MCP clients]
+    Schedules[crons.json / tasks.json] --> Scheduler[Scheduler]
 ```
 
 ---

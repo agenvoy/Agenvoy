@@ -31,25 +31,20 @@
 
 ## Why Agenvoy
 
-- **Self-extending tools** — Builds the missing tool instead of stopping.
-- **One sandboxed tool library** — Shares the same tool library across Agenvoy, Claude Code, Codex, and other agents.
-- **Live command feedback** — Streams throttled command output to the TUI and Web dashboard while preserving the complete final result.
-- **Skill-aware model routing** — Passes matched Skill descriptions into agent selection so the dispatcher can choose models against the actual task contract.
-- **Audio model routing** — Select separate speech-to-text and text-to-speech models from the configured OpenAI or Gemini providers.
-- **Origin-aware confirmations** — Routes approval prompts back to the originating CLI, Web, Telegram, or Discord channel without cross-channel interception.
-- **Extensible integrations** — Connects stdio or HTTP MCP servers, supports OAuth login, and refreshes remote tool catalogs.
-- **Self-hosted execution** — Runs scheduling, memory, and file search on your own machine.
-- **Local-first agent** — Runs on your personal computer, where the agent can safely work with your files, tools, memory, and schedules without moving them to a hosted service.
-- **Private chatbot access** — Telegram and Discord connect back to the local daemon with a token, so users do not need to expose their host or configure inbound networking.
-- **Agent app and MCP server** — Provides both roles from the same binary.
+Agenvoy runs AI agents on your personal computer: you stay in control of files, tools, schedules, and memory. It does more than answer questions—it performs work and can build new tools when needed.
+
+- **Builds tools when there is a gap** — Creates, tests, and retains a new tool when no suitable one exists.
+- **Shares tools across agents** — Agenvoy, Claude Code, Codex, and other agents can use the same sandboxed tool library.
+- **Shows execution as it happens** — Streams command output to the TUI and Web dashboard while preserving the complete final result.
+- **Routes to the right model for the task** — Routes models by Skill and task requirements; configure separate image generation, speech-to-text (STT), and text-to-speech (TTS) models.
+- **Connects external services** — Supports stdio and HTTP MCP servers, OAuth login, and live remote tool-catalog refreshes.
+- **Local-first and in your control** — File search, schedules, and memory run on your machine rather than a hosted service.
+- **Private access from chat platforms** — The local daemon initiates connections to Telegram and Discord, so you do not need to expose your host.
 
 ## What you can do with it
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### Ask for live answers
+<details>
+<summary><strong>Ask live questions and get live answers (Web Search / Tool Generate)</strong></summary>
 
 > What's the weather in Taipei?
 >
@@ -57,10 +52,12 @@
 >
 > If a tool doesn't exist, it builds one.
 
-</td>
-<td width="50%" valign="top">
+[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
 
-### Turn one sentence into automation
+</details>
+
+<details>
+<summary><strong>Turn one sentence into automation (Scheduler)</strong></summary>
 
 > Report TSMC stock price every morning at 8am
 >
@@ -72,24 +69,12 @@
 >
 > Then creates the schedule automatically.
 
-</td>
-</tr>
-<tr>
-<td>
-
-[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
-
-</td>
-<td>
-
 [![](https://i.ytimg.com/vi/5To3joKlFpU/maxresdefault.jpg)](https://youtu.be/5To3joKlFpU)
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
+</details>
 
-### Ask your local files questions
+<details>
+<summary><strong>Ask questions about your local files (File Search / RAG)</strong></summary>
 
 > Find all invoices from last year
 >
@@ -97,32 +82,23 @@
 >
 > The agent searches your local files and answers directly.
 
-</td>
-<td width="50%" valign="top">
+[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
 
-### Finish multi-step work
+</details>
+
+<details>
+<summary><strong>Finish multi-step work (Skills / Sub-agents)</strong></summary>
 
 > Summarize today's GitHub commits and generate a progress report
 >
 > The agent breaks down the task, calls tools, combines results, and replies.
 
-</td>
-</tr>
-<tr>
-<td>
-
-[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
-
-</td>
-<td>
-
 [![](https://i.ytimg.com/vi/nIV1xz_HIJg/maxresdefault.jpg)](https://youtu.be/nIV1xz_HIJg)
 
-</td>
-</tr>
-</table>
+</details>
 
-### Works with the agents you already use
+<details>
+<summary><strong>Work with the agents you already use (MCP Server)</strong></summary>
 
 > Agenvoy is also an MCP server.
 >
@@ -172,6 +148,8 @@
 </tr>
 </table>
 
+</details>
+
 ## Who it's for
 
 Agenvoy is for developers, technical operators, and AI-heavy workflows that need more than chat:
@@ -179,6 +157,74 @@ Agenvoy is for developers, technical operators, and AI-heavy workflows that need
 - People who want a self-hosted agent with sandbox guardrails
 - Teams that want reusable tools across agents
 - Users who need automation, file search, and scheduled reporting in one place
+
+---
+
+## Drive Your Agent From the Browser
+
+Manage sessions, tools, schedules, and memory from a browser. The dashboard ships inside the binary — start the daemon and open http://127.0.0.1:17989. It is served by your own machine, so nothing leaves your device.
+
+<p align="center">
+  <a href="https://youtu.be/oaXxrTNvLaU">
+    <img src="https://img.youtube.com/vi/oaXxrTNvLaU/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
+  </a>
+</p>
+
+## Chatbot Integrations
+
+Agenvoy currently supports **Telegram and Discord** as chatbot channels. The local daemon initiates outbound connections to these platforms, so you only need to configure a bot token—without exposing inbound ports, setting up a reverse proxy, or making your host public.
+
+Since **v0.34.4**, Telegram and Discord have paused the default flow that automatically replies to voice input with voice output. You can still use STT/TTS tools to generate audio and send the resulting audio files to either channel.
+
+---
+
+## One-line install
+
+<details open>
+<summary><strong>macOS / Linux distributions</strong></summary>
+
+Run this in a terminal:
+
+```bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+```
+
+> **macOS tip:** If you run schedules on a MacBook, also run:
+>
+> ```bash
+> sudo pmset -c sleep 0
+> ```
+>
+> This prevents sleep from interrupting schedules.
+
+</details>
+
+<details>
+<summary><strong>Windows (via WSL)</strong></summary>
+
+First open PowerShell as an administrator, then list and install a Linux distribution:
+
+```powershell
+wsl --online --list
+wsl --install <distribution-name>
+```
+
+After installation, restart your computer, open a WSL terminal, and run:
+
+```bash
+curl -fsSL https://agenvoy.com/scripts/install.sh | bash
+```
+
+</details>
+
+## Developer Recommendations
+
+A cost-effective model setup to get started:
+
+1. Choose a subscription model for everyday primary use, such as:
+   - OpenAI ChatGPT Plus ($20/mo)
+   - SuperGrok ($30/mo)
+2. **If you need multiple providers**, you can apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token and set `gpt-oss-20b` as the **dispatcher** model. This enables intelligent routing with fast responses.
 
 ---
 
@@ -196,55 +242,12 @@ Agenvoy is for developers, technical operators, and AI-heavy workflows that need
 | MCP server           | Expose sandboxed tools to any MCP-compatible agent                       |
 | Reasoning guides     | On-demand rules via `reasoning_guide(topic=...)`                         |
 | Tool Market          | Share and install tools                                                  |
-| Image generation     | Generate images through a configured provider                         |
-| Live command output  | Stream `run_command` progress to the TUI and Web dashboard            |
-| Secure file boundary | Confirm sensitive paths and out-of-home access before granting them   |
-| MCP OAuth            | Log in to HTTP MCP servers and persist tokens in the OS keychain      |
+| Image generation     | Generate images through a configured provider                            |
+| Live command output  | Stream `run_command` progress to the TUI and Web dashboard               |
+| Secure file boundary | Confirm sensitive paths and out-of-home access before granting them      |
+| MCP OAuth            | Log in to HTTP MCP servers and persist tokens in the OS keychain         |
 | Transcription        | Audio and video to text                                                  |
 | Self-improvement     | Auto-fixes after execution failures                                      |
-
----
-
-## Web Dashboard
-
-Open **[web.agenvoy.com](https://web.agenvoy.com)** in your browser to reach the dashboard once the daemon is running on your machine.
-
-<p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">
-    <img src="https://img.youtube.com/vi/n8tHHSCwOjE/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/n8tHHSCwOjE">▶ Watch the Web Dashboard walkthrough</a>
-</p>
-
-## Chatbot Integrations
-
-Agenvoy currently supports **Telegram and Discord** as its chatbot channels. Both use outbound connections from the daemon, so your host does not need to be exposed to the public internet. Users only need to provide a bot token instead of configuring inbound ports, reverse proxies, or other network plumbing. Additional chatbot platforms will be considered only when they offer a meaningful security improvement.
-
-Voice output is temporarily unavailable in Telegram and Discord; audio model settings remain available for local tool use and future channel support.
-
-## One-line install
-
-> On MacBook, also run `sudo pmset -c sleep 0` to prevent sleep from interrupting schedules.
-
-```bash
-curl -fsSL https://agenvoy.com/scripts/install.sh | bash
-```
-
----
-
-## Developer Recommendations
-
-A cost-effective model setup to get started:
-
-- Apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token for `gpt-oss-20b` as the **dispatcher** model.
-- Use a subscription plan as your **primary** model:
-  - OpenAI ChatGPT Plus ($20/mo)
-  - SuperGrok ($30/mo)
-
-NVIDIA NIM no longer supports `gpt-oss-120b`, so it is no longer recommended as a fallback or summary model.
 
 ---
 
