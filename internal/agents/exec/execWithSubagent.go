@@ -128,7 +128,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
-		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills),
+		SystemPrompts: BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName()),
 		OldHistories:  maxHistory,
 		ToolHistories: []provider.Message{},
 		Tools:         []provider.Message{},

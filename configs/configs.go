@@ -108,6 +108,50 @@ var ReadOnlyCommand []byte
 //go:embed jsons/tui_tools.json
 var TUITools []byte
 
+// * Official Guide
+
+//go:embed prompts/official_guides/claude-fable-5.md
+var officialGuideClaudeFable5 string
+
+//go:embed prompts/official_guides/claude-opus-5.md
+var officialGuideClaudeOpus5 string
+
+//go:embed prompts/official_guides/claude-opus-4.md
+var officialGuideClaudeOpus4 string
+
+//go:embed prompts/official_guides/claude-sonnet-5.md
+var officialGuideClaudeSonnet5 string
+
+//go:embed prompts/official_guides/claude-sonnet-4.md
+var officialGuideClaudeSonnet4 string
+
+//go:embed prompts/official_guides/claude-haiku-4.md
+var officialGuideClaudeHaiku4 string
+
+//go:embed prompts/official_guides/gpt-6.md
+var officialGuideGPT6 string
+
+//go:embed prompts/official_guides/gpt-5.md
+var officialGuideGPT5 string
+
+//go:embed prompts/official_guides/gemini.md
+var officialGuideGemini string
+
+//go:embed prompts/official_guides/common.md
+var OfficialGuideCommon string
+
+var OfficialGuides = map[string]string{
+	"claude-fable-5":  officialGuideClaudeFable5,
+	"claude-opus-5":   officialGuideClaudeOpus5,
+	"claude-opus-4":   officialGuideClaudeOpus4,
+	"claude-sonnet-5": officialGuideClaudeSonnet5,
+	"claude-sonnet-4": officialGuideClaudeSonnet4,
+	"claude-haiku-4":  officialGuideClaudeHaiku4,
+	"gpt-6":           officialGuideGPT6,
+	"gpt-5":           officialGuideGPT5,
+	"gemini":          officialGuideGemini,
+}
+
 const (
 	PoisonRefusal     = "無法執行此操作"
 	GuardrailSentinel = "[KARAPPO]"

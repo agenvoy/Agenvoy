@@ -73,17 +73,17 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		AllowAll:       true,
 	}
 
-	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills)
+	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills, data.ModelName())
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 	}
 }
 
-func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner, excludeSkills []string) *agentTypes.AgentSession {
+func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) *agentTypes.AgentSession {
 	var systemPrompts []provider.Message
 	if req.agentMode {
-		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills)
+		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills, model)
 	}
 	systemPrompts = append(systemPrompts, req.systemPrompts...)
 

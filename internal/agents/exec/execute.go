@@ -62,6 +62,13 @@ type ExecuteMeta struct {
 	Sender            string
 }
 
+func (m ExecuteMeta) ModelName() string {
+	if m.Agent == nil {
+		return ""
+	}
+	return m.Agent.Name()
+}
+
 type (
 	allowAllCtxKey   struct{}
 	parentEventsKey  struct{}

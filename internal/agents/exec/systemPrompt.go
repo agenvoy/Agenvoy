@@ -21,12 +21,12 @@ import (
 
 const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) []provider.Message {
+func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
 	}
-	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills)})
+	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills, model)})
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
@@ -64,7 +64,7 @@ func mcpInstructionsSection() string {
 	return sb.String()
 }
 
-func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string) string {
+func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
 	systemOS := host().os
 	var extraSection string
 	if extra := strings.TrimSpace(extraSystemPrompt); extra != "" {
@@ -107,6 +107,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.AvailableKnowledge}}", knowledgeSection(),
+		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
 }
@@ -118,6 +119,17 @@ func knowledgeSection() string {
 	return "\n## Knowledge\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_knowledge` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"
 }
 
+func officialGuideSection(model string) string {
+	guide := ""
+	for key, one := range configs.OfficialGuides {
+		if strings.Contains(model, key) {
+			guide = "\n\n" + strings.TrimSpace(one)
+			break
+		}
+	}
+	return "\n" + strings.TrimSpace(configs.OfficialGuideCommon) + guide + "\n"
+}
+
 func buildPermissionModeSection(allowAll bool) string {
 	if allowAll {
 		return strings.TrimRight(configs.PermissionAlwaysAllow, "\n")
@@ -125,7 +137,7 @@ func buildPermissionModeSection(allowAll bool) string {
 	return strings.TrimRight(configs.PermissionSingleConfirm, "\n")
 }
 
-func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) string {
+func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) string {
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = skillsHeader + list
@@ -139,8 +151,8 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string) []provider.Message {
-	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills)}}
+func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) []provider.Message {
+	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills, model)}}
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
