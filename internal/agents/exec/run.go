@@ -32,9 +32,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 
 	sessionOverride := sessionID
 	if name, effective := sessionManager.CheckAssign(trimInput); name != "" {
-		id := sessionManager.GetSessionID(name)
+		id := sessionManager.GetSessionIDBySelfID(name)
 		if id == "" {
-			return fmt.Errorf("session %q not found", name)
+			return fmt.Errorf("no session with self id %q", name)
 		}
 		sessionOverride = id
 		trimInput = strings.TrimSpace(effective)

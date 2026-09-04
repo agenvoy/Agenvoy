@@ -16,7 +16,7 @@ func Register() {
 		SystemUse:   false,
 		AlwaysLoad:  false,
 		AlwaysAllow: false,
-		Concurrent:  true,
+		Concurrent:  false,
 		Timeout:     15 * time.Minute,
 		Description: `[system-default] Generates an image from a text prompt and writes it to disk.
 Use for 畫一張 / 生成圖片 / make me an image, and for edits when a reference image is given.

@@ -38,6 +38,6 @@ A subagent's return value is the complete, integrated report as plain text — n
 
 Tier letters do not apply here: a leg is assigned, not routed. Walk fastest-first, take the first that can do the leg:
 
-`deepseek-flash` → `grok` → `*-luna` → `claude-haiku` → `gemini-flash` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`
+`deepseek-flash` → `gemini-flash` → `claude-haiku` → `*-luna` → `grok` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`
 
 Collection lands in the first half. Pass `*-terra` only to cross-verify many sources through a long tool loop; needing `*-sol`/`claude-opus` means split further, and take one — or any open-weight model under `100b`, where tool-calling turns unreliable — only as the sole candidate. **Pair with `reasoning: low`**: gathering needs no depth, and depth multiplies across every leg. `-sol`/`-terra`/`-luna` are rungs, not versions.

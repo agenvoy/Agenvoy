@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS action_history (
     reasoning     TEXT    NOT NULL DEFAULT '',
     objective     TEXT    NOT NULL DEFAULT '',
     tool_results  TEXT    NOT NULL DEFAULT '',
-    todos         TEXT    NOT NULL DEFAULT '',
     reply         TEXT    NOT NULL DEFAULT ''
 );
 

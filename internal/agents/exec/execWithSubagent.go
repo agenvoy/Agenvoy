@@ -24,13 +24,14 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
 const maxConcurrentSubagents = 3
 
 var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
 
-func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string) (string, error) {
+func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string, ignoreHistory bool) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
@@ -94,9 +95,15 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if extra := strings.TrimSpace(systemPrompt); extra != "" {
 		charter += "\n\n---\n\n" + extra
 	}
+	pendingTask := interactive.CreateExecPending(sessionID, task, "", allowAll)
+	pendingPath := filesystem.PendingMetaPath(sessionID, pendingTask)
+
 	execData := ExecuteMeta{
 		Agent:             agent,
 		WorkDir:           workDir,
+		PendingTask:       pendingTask,
+		KeepPending:       true,
+		IgnoreHistory:     ignoreHistory,
 		Content:           task,
 		ExcludeTools:      excluded,
 		ExcludeSkills:     tools.TUIOnlySkills,
@@ -105,7 +112,10 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		AllowAll:          allowAll,
 	}
 
-	oldRecords, maxRecords := sessionHistory.Get(sessionID)
+	var oldRecords, maxRecords []sessionHistory.Record
+	if !ignoreHistory {
+		oldRecords, maxRecords = sessionHistory.Get(sessionID)
+	}
 	oldHistory := sessionHistory.Messages(oldRecords)
 	maxHistory := sessionHistory.Messages(maxRecords)
 
@@ -127,8 +137,10 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		UserSendAt:    sendAt,
 		UserInput:     provider.Message{Role: "user", Content: prefixed},
 	}
-	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxRecords)); summary != "" {
-		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
+	if !ignoreHistory {
+		if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxRecords)); summary != "" {
+			session.SummaryMessage = provider.Message{Role: "user", Content: summary}
+		}
 	}
 
 	if isSchedule(ctx) {
@@ -236,22 +248,32 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		retryHint = fmt.Sprintf(" Re-dispatch this leg with a model other than %s; the rest of the fan-out is unaffected.", agent.Name())
 	}
 
-	if err := <-errCh; err != nil {
-		if str := strings.TrimSpace(sb.String()); str != "" {
+	execErr := <-errCh
+	result := strings.TrimSpace(sb.String())
+
+	if execErr == nil && result != "" {
+		interactive.CleanupPending(sessionID, pendingTask)
+		return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessionID, usageLine, result), nil
+	}
+
+	interactive.CompactPending(sessionID, pendingTask)
+	partialHint := ""
+	if go_pkg_filesystem_reader.Exists(pendingPath) {
+		partialHint = fmt.Sprintf(" Whatever this leg already gathered is kept at %s; have the next leg read_files that path first and continue from there instead of restarting the lookup.", pendingPath)
+	}
+
+	if execErr != nil {
+		if result != "" {
 			slog.Debug("subagent partial output discarded",
 				slog.String("session", sessionID),
 				slog.String("model", agent.Name()),
-				slog.String("output", go_pkg_utils.TruncateString(str, 2048)))
+				slog.String("output", go_pkg_utils.TruncateString(result, 2048)))
 		}
-		return "", fmt.Errorf("subagent %s failed: %w.%s", agent.Name(), err, retryHint)
+		return "", fmt.Errorf("subagent %s failed: %w.%s%s", agent.Name(), execErr, retryHint, partialHint)
 	}
 
-	result := strings.TrimSpace(sb.String())
-	if result == "" {
-		return "", fmt.Errorf("subagent %s finished without producing any text (%s).%s",
-			agent.Name(), usageLine, retryHint)
-	}
-	return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessionID, usageLine, result), nil
+	return "", fmt.Errorf("subagent %s finished without producing any text (%s).%s%s",
+		agent.Name(), usageLine, retryHint, partialHint)
 }
 
 func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentTypes.Event) {
@@ -284,13 +306,7 @@ func ensureSubagentSession(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		if idle := sessionManager.FindTemp(); idle != "" {
-			if _, err := sessionManager.ResetAll(idle); err != nil {
-				slog.Debug("ensureSubagentSession ResetAll, opening a fresh session instead",
-					slog.String("session", idle),
-					slog.String("error", err.Error()))
-			} else {
-				return idle, nil
-			}
+			return idle, nil
 		}
 		id, err := sessionManager.New("temp-")
 		if err != nil {

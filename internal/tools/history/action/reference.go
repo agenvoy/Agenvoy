@@ -11,6 +11,16 @@ var referenceTool = map[string]bool{
 	"download_file":  true,
 }
 
+var writeTool = map[string]bool{
+	"edit_file":  true,
+	"edit_skill": true,
+	"edit_tool":  true,
+}
+
+func IsRetained(name string) bool {
+	return isReference(name) || writeTool[name]
+}
+
 func isReference(name string) bool {
 	if referenceTool[name] {
 		return true

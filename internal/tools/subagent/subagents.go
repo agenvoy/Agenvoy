@@ -72,6 +72,10 @@ One call per subtask, three at a time. Protocol and model ladder → reasoning_g
 					"default":     "low",
 					"description": "mode=invoke: thinking depth, used only when the run lands in a temp session; a resolved `name` uses that session's own setting. Keep `low` — gathering needs none and depth multiplies across the fan-out. Raise it only for a leg whose own written output must reason rather than gather.",
 				},
+				"new": map[string]any{
+					"type":        "boolean",
+					"description": "mode=invoke: start the leg with a clean slate — prior conversation history, summary and past tool records of whatever session it lands in are ignored for this run (nothing is deleted). Omitted: true when no session is named, false when `name` or `session_id` resolves to one. Pass false to continue a session's earlier work — including a temp session whose previous leg failed, so the new leg sees what was already gathered.",
+				},
 				"system_prompt": map[string]any{
 					"type":        "string",
 					"description": "mode=invoke: extra role or constraints appended to the subagent's system prompt.",

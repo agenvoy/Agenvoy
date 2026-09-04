@@ -1,6 +1,7 @@
 package interactive
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -201,7 +203,7 @@ func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	meta.TaskHash = taskHash
 	meta.SessionID = sessionID
 
-	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, true); err != nil {
+	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, false); err != nil {
 		return fmt.Errorf("WriteFile json: %w", err)
 	}
 	return nil
@@ -235,10 +237,52 @@ func DeletePending(sessionID, taskHash string) {
 	os.Remove(filesystem.PendingMetaPath(sessionID, taskHash))
 }
 
+func CompactPending(sessionID, taskHash string) {
+	if taskHash == "" {
+		return
+	}
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	if err != nil {
+		return
+	}
+
+	kept := make([]ToolResult, 0, len(meta.ToolResults))
+	for _, one := range meta.ToolResults {
+		if !actionHistory.IsRetained(one.Name) {
+			continue
+		}
+		one.Args = minify(one.Args)
+		one.Result = minify(one.Result)
+		kept = append(kept, one)
+	}
+	meta.ToolResults = kept
+
+	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+		slog.Debug("CompactPending", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+	}
+}
+
+func minify(str string) string {
+	trimmed := strings.TrimSpace(str)
+	if trimmed == "" {
+		return ""
+	}
+	var buf bytes.Buffer
+	if json.Compact(&buf, []byte(trimmed)) == nil {
+		return buf.String()
+	}
+	return strings.Join(strings.Fields(trimmed), " ")
+}
+
 func CleanupPending(sessionID, taskHash string) {
 	if taskHash == "" {
 		return
 	}
+	CompactPending(sessionID, taskHash)
+
 	src := filesystem.PendingMetaPath(sessionID, taskHash)
 	if !go_pkg_filesystem_reader.Exists(src) {
 		return

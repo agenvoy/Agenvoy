@@ -57,10 +57,6 @@ func render(item entry, r record, full bool) string {
 		fmt.Fprintf(&b, "\n\nobjective:\n%s", r.Objective)
 	}
 
-	for _, t := range r.Todos {
-		fmt.Fprintf(&b, "\n\ntodo [%s] %s", t.Status, t.Content)
-	}
-
 	var withheld []string
 	for _, t := range r.ToolResults {
 		if !full && !isReference(t.Name) {

@@ -453,7 +453,7 @@ func runSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 			slog.String("error", err.Error()))
 	}
 
-	output, err := exec.ExecWithSubagent(exec.WithSchedule(exec.WithDcPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, "")
+	output, err := exec.ExecWithSubagent(exec.WithSchedule(exec.WithDcPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, "", false)
 	if err != nil {
 		return "", err
 	}
