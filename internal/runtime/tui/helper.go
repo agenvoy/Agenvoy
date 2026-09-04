@@ -64,7 +64,7 @@ func targetSession(input, currentId string) string {
 		return ""
 	}
 
-	id := session.GetSessionID(name)
+	id := session.GetSessionIDBySelfID(name)
 	if id == "" {
 		return name
 	}

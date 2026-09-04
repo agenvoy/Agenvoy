@@ -32,8 +32,6 @@ func scanTools() *toolbox {
 	box.scriptBox = scriptAdapter.New("script_")
 	for _, dir := range []string{
 		filesystem.SystemToolsDir,
-		filesystem.LegacyScriptToolsDir,
-		filesystem.LegacyWorkScriptToolsDir,
 		filesystem.ScriptToolsDir,
 		filesystem.WorkScriptToolsDir,
 	} {
@@ -53,8 +51,6 @@ func scanTools() *toolbox {
 	box.apiBox = apiAdapter.New("api_")
 	_ = box.apiBox.Builtin(extensions.APIs, "apis")
 	for _, dir := range []string{
-		filesystem.LegacyAPIToolsDir,
-		filesystem.LegacyWorkAPIToolsDir,
 		filesystem.APIToolsDir,
 		filesystem.WorkAPIToolsDir,
 	} {

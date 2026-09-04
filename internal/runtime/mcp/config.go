@@ -55,7 +55,7 @@ func Save(cfg Config) error {
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(filesystem.McpPath), true); err != nil {
 		return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
 	}
-	if err := go_pkg_filesystem.WriteJSON(filesystem.McpPath, cfg, true); err != nil {
+	if err := go_pkg_filesystem.WriteJSON(filesystem.McpPath, cfg, false); err != nil {
 		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
 	}
 	return nil

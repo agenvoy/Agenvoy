@@ -25,11 +25,11 @@ var reasoningLevels = func() []string {
 type invokeParams struct {
 	Mode         string   `json:"mode,omitempty"`
 	Task         string   `json:"task"`
-	Name         string   `json:"name,omitempty"`
-	SessionID    string   `json:"session_id,omitempty"`
+	SelfID       string   `json:"self_id,omitempty"`
 	Model        string   `json:"model,omitempty"`
 	Reasoning    string   `json:"reasoning,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
+	New          *bool    `json:"new,omitempty"`
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 }
 
@@ -39,11 +39,9 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 		return "", fmt.Errorf("task is required when mode=invoke")
 	}
 
-	sessionID := strings.TrimSpace(params.SessionID)
-	if name := strings.TrimSpace(params.Name); name != "" {
-		if found := session.GetSessionIDBySelfID(name); found != "" {
-			sessionID = found
-		}
+	sessionID := ""
+	if selfID := strings.TrimSpace(params.SelfID); selfID != "" {
+		sessionID = session.GetSessionIDBySelfID(selfID)
 	}
 
 	model := strings.TrimSpace(params.Model)
@@ -63,6 +61,11 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 		excludeTools = []string{}
 	}
 
+	ignoreHistory := sessionID == ""
+	if params.New != nil {
+		ignoreHistory = *params.New
+	}
+
 	return exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning,
-		strings.TrimSpace(params.SystemPrompt), excludeTools, e.SessionID)
+		strings.TrimSpace(params.SystemPrompt), excludeTools, e.SessionID, ignoreHistory)
 }

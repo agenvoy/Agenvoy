@@ -62,6 +62,10 @@ func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, 
 	}
 	limit = min(limit, maxSearchLimit)
 
+	if e.IgnoreHistory {
+		return "no history found", nil
+	}
+
 	if match == "keyword" {
 		return keywordHandler(ctx, e.SessionID, keyword, timeRange, limit)
 	}

@@ -51,21 +51,6 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) UnmarshalJSON(data []byte) error {
-	type alias Config
-	aux := struct {
-		*alias
-		LegacyPlannerModel string `json:"planner_model,omitempty"`
-	}{alias: (*alias)(c)}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	if c.DispatcherModel == "" && aux.LegacyPlannerModel != "" {
-		c.DispatcherModel = aux.LegacyPlannerModel
-	}
-	return nil
-}
-
 func Get() (map[string]any, error) {
 	dic, err := go_pkg_filesystem.ReadJSON[map[string]any](filesystem.ConfigPath)
 	if err != nil {

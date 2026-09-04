@@ -89,7 +89,7 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	session.Histories = sessionHistory.Messages(oldHistory)
 	session.BaseLen = len(session.Histories)
 
-	session.SystemPrompts = BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, overrideID, execData.AllowAll, execData.ExcludeSkills)
+	session.SystemPrompts = BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, overrideID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName())
 	if summary := summary.GetPrompt(overrideID, OldestMessageTime(maxHistory)); summary != "" {
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}

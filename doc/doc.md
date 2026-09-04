@@ -5,8 +5,8 @@
 ## Prerequisites
 
 - Go 1.25.1 or later
-- macOS or another environment supporting Go, SQLite, and the `go-pkg` sandbox dependencies
-- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. KuraDB needs its respective credential. Image generation is temporarily unavailable.
+- macOS or Linux; on Windows, install a WSL Linux distribution first and run Agenvoy inside its WSL terminal
+- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. Image generation requires a configured image-capable provider.
 
 ## Installation
 
@@ -16,6 +16,17 @@
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 agen
 ```
+
+### Windows (via WSL)
+
+Open PowerShell as an administrator, then list and install a Linux distribution:
+
+```powershell
+wsl --online --list
+wsl --install <distribution-name>
+```
+
+Restart, open the installed WSL distribution, then run the [official installer](#official-installer) in its terminal.
 
 ### Build from source
 
@@ -58,18 +69,18 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 
 | Keychain entry | Used by |
 |---|---|
-| `OPENAI_API_KEY` | OpenAI, OpenAI audio models, and KuraDB |
+| `OPENAI_API_KEY` | OpenAI and OpenAI audio models |
 | `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN` | Chat-bot integrations |
 | `GEMINI_API_KEY` | Gemini audio models and voice features |
 
 ### Audio model routing
 
-Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `off` to disable the corresponding capability. The available models are loaded from configured OpenAI and Gemini providers. Telegram and Discord voice output is temporarily unavailable, but the local `generate_audio` tool and audio model settings remain available for local use and future channel support.
+Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `off` to disable the corresponding capability. The available models are loaded from configured OpenAI and Gemini providers. Since **v0.34.4**, Telegram and Discord pause only the default flow that automatically returns voice output after voice input. The local `generate_audio` tool and audio model settings remain available: you can generate audio and send the resulting file to either channel.
 
 ### Chatbot integrations
 
-Agenvoy currently supports Telegram and Discord. Both integrations use outbound connections from the local daemon, so the host does not need to expose an inbound port or public endpoint. Configuration requires only the corresponding bot token. Other chatbot platforms are out of scope unless they provide a meaningful security improvement.
+Agenvoy currently supports Telegram and Discord. Both integrations use outbound connections from the local daemon, so the host does not need to expose an inbound port or public endpoint. Configuration requires only the corresponding bot token. Since **v0.34.4**, their automatic voice-input-to-voice-output default is paused; STT/TTS tools can still create audio files for delivery through either channel. Other chatbot platforms are out of scope unless they provide a meaningful security improvement.
 
 ### Runtime configuration
 
@@ -98,7 +109,7 @@ When the input area is empty, press `Shift+F` to toggle fast mode. The header di
 
 ### Agent selection and confirmation routing
 
-When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone.
+When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone. While assembling the prompt, Agenvoy adds its common official operating guide and, when configured, the guide that matches the selected model.
 
 Interactive requests also carry an origin prefix. CLI confirmations are consumed only by the TUI, web requests by the web confirmation stream, and Telegram or Discord requests by their matching channel listeners. Non-TUI confirmations expire after five minutes, preventing one channel from intercepting or indefinitely holding another channel's prompt.
 
@@ -168,16 +179,15 @@ Type a message to run it in the current session. Everything else is a slash comm
 
 | Command | Purpose |
 |---|---|
-| `/model` | Add or remove providers, pick the session / dispatcher / summary model, set the image generator |
+| `/model` | Add or remove providers; pick the session / dispatcher / summary model; set image generation, STT, and TTS models |
 | `/mcp` | List MCP servers; add, log in, reconnect, inspect tools, set per-tool permission, remove |
 | `/switch` `/new` | Switch to another session, or create one (names are conflict-checked) |
 | `/bot` | Rename the current session or edit its persona |
 | `/memory` | `compact` / `reset` / `summary` for the current session |
 | `/dangerous` | Remove a session, or edit the skill / command allowlists |
-| `/discord` `/telegram` `/voice` | Enable or disable each channel; tokens are validated before they are stored |
+| `/discord` `/telegram` `/voice` | Enable or disable each channel; tokens are validated before they are stored. Voice attachments can be transcribed when STT is configured; automatic voice replies are paused since v0.34.4. |
 | `/startup` | Enable or disable launching the daemon on login (launchd agent on macOS, systemd user unit on Linux) |
 | `/admin-channel` | Pick which authorized chat receives new-chat verification codes |
-| `/kuradb` | Install, update or reconnect KuraDB as an MCP server |
 | `/cron` `/task` | Add, edit or remove recurring and one-shot scheduled work |
 | `/pending` | List and resume interrupted tasks (`ask_user`, error recovery) |
 | `/resume` `/log` `/usage` | Reload the visible transcript, open `action.log` in `$PAGER`, show per-model token usage |
@@ -256,7 +266,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` | `/v1/models` | List registered models (OpenAI `{data:[...]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
-| `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, plus `image_options` on read. The three fields hold different kinds of value: `dispatcher` and `summary` name a registered model (`prefix@model`), while `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router` — `image_options` lists only the providers that currently hold credentials. `POST` is a partial update: a field left out (or `null`) is untouched, `""` clears it, and `off` is accepted for `image` as an alias of `""`. An unregistered model, an unknown provider, or a provider with no credentials is rejected and nothing is written. Both verbs return the same object. |
+| `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, `stt`, and `tts`; on read it also returns `image_options`, `image_providers`, and `audio_providers`. `dispatcher` and `summary` name registered models (`prefix@model`); `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router`. `stt` and `tts` name a model from the respective options exposed by `GET /v1/model/audio`. `POST` is a partial update: an omitted (or `null`) field is unchanged, `""` clears it, and `off` clears only `image`. Unknown models, providers, or unavailable audio models are rejected and nothing is written. Both verbs return the same object. |
+| `GET` | `/v1/model/audio` | **local** — list the available `stt_options` and `tts_options`, derived from configured OpenAI and Gemini providers. |
 
 **Sessions**
 
@@ -400,7 +411,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Conditional | `generate_image` | Text to image, saved to disk — excluded while the image generator is off |
 | | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
 
-Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry.
+Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Targets apply in listed order, so overlapping edits must be sequenced against the evolving file.
 
 ## Architecture
 

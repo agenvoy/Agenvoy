@@ -35,7 +35,7 @@ func SaveTasks(tasks []TaskEntry) error {
 	if tasks == nil {
 		tasks = []TaskEntry{}
 	}
-	return go_pkg_filesystem.WriteJSON(filesystem.TasksPath, tasks, true)
+	return go_pkg_filesystem.WriteJSON(filesystem.TasksPath, tasks, false)
 }
 
 func AppendTask(t TaskEntry) error {

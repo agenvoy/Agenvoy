@@ -1,4 +1,4 @@
-package cooldown
+package retryHandler
 
 import (
 	"strings"

@@ -18,7 +18,7 @@ func Register() {
 		SystemUse:   false,
 		AlwaysLoad:  false,
 		AlwaysAllow: false,
-		Concurrent:  true,
+		Concurrent:  false,
 		Timeout:     5 * time.Minute,
 		Description: `[system-default] Speaks text with the configured text-to-speech model and writes the audio to disk.
 Use for 唸出來 / 生成語音 / 轉成語音檔 / read this aloud.
