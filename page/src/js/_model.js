@@ -103,7 +103,7 @@ function openModelPicker() {
       selectModel(name);
       close();
     });
-    list.appendChild(_("label", [box, _("div", [_("strong", modelLabel(name))])]));
+    list.appendChild(_("label", [box, _("div", [_("strong", name)])]));
   }
 
   cancel.addEventListener("click", close);
