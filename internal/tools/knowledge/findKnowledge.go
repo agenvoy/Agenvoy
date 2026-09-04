@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/knowledge"
@@ -32,7 +33,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"search", "list", "read"},
-					"description": "search: names of the notes matching the keywords, most matched first. list: the name of every note. read: one whole note, by name. Omitted: keywords selects search, name selects read, otherwise list.",
+					"description": "search: names of the notes whose name or body matches the keywords, most matched first. list: names matching the keywords by name alone. read: one whole note, by name. Omitted: keywords selects search, name selects read, otherwise list.",
 					"default":     "search",
 				},
 				"keywords": map[string]any{
@@ -40,7 +41,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 					"items": map[string]any{
 						"type": "string",
 					},
-					"description": "mode=search: terms to look for, matched case-insensitively as substrings. Send several — synonyms and both languages of a term — since a note matching more of them ranks higher.",
+					"description": "mode=search / mode=list: terms to look for, matched case-insensitively as substrings; required for both, a call without them lists nothing. Send several — synonyms and both languages of a term — since a note matching more of them ranks higher.",
 				},
 				"name": map[string]any{
 					"type":        "string",
@@ -80,13 +81,14 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 
 			switch mode {
 			case "list":
-				records := knowledge.List()
-				if len(records) == 0 {
-					return "no note", nil
+				if !slices.ContainsFunc(params.Keywords, func(one string) bool {
+					return strings.TrimSpace(one) != ""
+				}) {
+					return "skipped: keywords is required when mode=list", nil
 				}
-				names := make([]string, 0, len(records))
-				for _, record := range records {
-					names = append(names, record.Name)
+				names := knowledge.ListNames(params.Keywords)
+				if len(names) == 0 {
+					return "no matching note", nil
 				}
 				return marshal(names)
 			case "read":
