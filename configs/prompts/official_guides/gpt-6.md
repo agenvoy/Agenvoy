@@ -13,7 +13,6 @@
 
 ## Subagents
 
-- Delegate whenever parallel work would save time or improve quality — whether you are the root agent or a subagent
 - Messages to other agents and your final answer are read by people: keep proper spaces between words and numbers
 
 ## Testing

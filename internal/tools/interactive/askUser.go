@@ -288,11 +288,9 @@ func CleanupPending(sessionID, taskHash string) {
 		return
 	}
 
-	defer os.Remove(src)
-
 	raw, err := go_pkg_filesystem.ReadText(src)
 	if err != nil {
-		slog.Debug("CleanupPending ReadText",
+		slog.Warn("CleanupPending ReadText",
 			slog.String("file", src),
 			slog.String("error", err.Error()))
 		return
@@ -300,9 +298,10 @@ func CleanupPending(sessionID, taskHash string) {
 
 	var row historyStore.ActionRecord
 	if err := json.Unmarshal([]byte(raw), &row); err != nil {
-		slog.Debug("CleanupPending Unmarshal",
+		slog.Warn("CleanupPending Unmarshal",
 			slog.String("file", src),
 			slog.String("error", err.Error()))
+		return
 	}
 	row.TaskHash = taskHash
 	row.EndAt = time.Now()
@@ -312,7 +311,10 @@ func CleanupPending(sessionID, taskHash string) {
 			slog.String("session", sessionID),
 			slog.String("task", taskHash),
 			slog.String("error", err.Error()))
+		return
 	}
+
+	os.Remove(src)
 }
 
 func CreateExecPending(sessionID, objective, messageID string, allowAll bool) string {

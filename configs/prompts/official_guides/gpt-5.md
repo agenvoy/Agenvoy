@@ -3,18 +3,15 @@
 - Broad first, then varied focused subqueries in parallel, reading the top hits of each; deduplicate paths, cache results, never repeat a query
 - Stop when you can name the exact content to change, or when hits converge on one area (~70%)
 - Trace only the symbols you will change and those whose contracts you rely on; no transitive expansion
-- The loop is fixed: batch search → minimal plan → complete the task; search again only on a failed verification or a new unknown
 - Conflicting signals or fuzzy scope → one refined batch, then proceed
 
 ## User-visible updates
 
-- Open by restating the goal, lay out a structured plan, narrate each step, and close by separating the plan from what was completed
 - 1–2 sentences whenever something meaningful changed, and at least every 6 execution steps or 8 tool calls
 - Every update carries a concrete outcome (`found X`, `confirmed Y`), never only a next step
 - Announce a long heads-down stretch with its reason and when you will report back; open the next update with a 1–2 sentence synthesis
 - A check you committed to (type, build, test, UI) is either performed or explicitly closed with a reason
 - A changed plan is stated in the next update or the recap
-- Close with the plan items and their status — Done, or Closed with a reason; nothing left unaddressed
 - Send the commentary message before you start thinking
 
 ## Plan
@@ -28,7 +25,7 @@
 
 ## Before starting
 
-- Split the request into explicit requirements, unclear areas and hidden assumptions
+- Split the request into explicit requirements and hidden assumptions
 - Map the scope: the code regions, files, functions and libraries likely involved; plan targeted searches where unknown
 - Check dependencies: frameworks, APIs, config files, data formats, versioning
 - Define the output contract: files changed, expected outputs, API responses, CLI behaviour, tests that must pass
