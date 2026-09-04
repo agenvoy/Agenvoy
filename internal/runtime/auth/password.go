@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -13,12 +14,18 @@ const (
 )
 
 func Cached(ctx context.Context) bool {
+	if os.Geteuid() == 0 {
+		return true
+	}
 	probeCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
 	defer cancel()
 	return exec.CommandContext(probeCtx, "sudo", "-n", "-v").Run() == nil
 }
 
 func Verify(ctx context.Context, password string) error {
+	if os.Geteuid() == 0 {
+		return nil
+	}
 	if Cached(ctx) {
 		return nil
 	}
