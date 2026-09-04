@@ -6,7 +6,7 @@
 
 - Go 1.25.1 或更新版本
 - macOS 或 Linux；Windows 請先安裝 WSL Linux 發行版，並在 WSL 終端機內執行 Agenvoy
-- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token。語音轉文字、文字轉語音與圖片生成各需選定對應模型／provider 及其憑證；KuraDB 需要對應憑證
+- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token。語音轉文字、文字轉語音與圖片生成各需選定對應模型／provider 及其憑證
 
 ## 安裝
 
@@ -69,7 +69,7 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 | Keychain 項目                                        | 用途                                                  |
 | ---------------------------------------------------- | ----------------------------------------------------- |
-| `OPENAI_API_KEY`                                     | OpenAI、OpenAI 音訊模型與 KuraDB                  |
+| `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                         |
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
 | `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
@@ -114,13 +114,13 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 ### TUI 執行模式
 
-目前 runtime 內建 13 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
+目前 runtime 內建 12 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
 
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
 
-請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。
+請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。建立 prompt 時，Agenvoy 會加入共用官方操作指南，並在有設定時加入符合目前所選模型的專屬指南。
 
 互動請求也會攜帶來源前綴。CLI 確認僅由 TUI 接收，Web 請求由 Web 確認串流處理，Telegram 與 Discord 則由各自對應的頻道 listener 接收。非 TUI 確認會在五分鐘後逾時，避免某個頻道攔截或長期占用其他頻道的提示。
 
@@ -199,7 +199,6 @@ agen
 | `/discord` `/telegram` `/voice` | 啟用或停用各通道；token 會先驗證再存入                                                |
 | `/startup`                      | 啟用或停用登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit） |
 | `/admin-channel`                | 選擇由哪個已授權對話接收新對話驗證碼                                                  |
-| `/kuradb`                       | 安裝、更新或重連 KuraDB（以 MCP server 形式）                                         |
 | `/cron` `/task`                 | 新增、編輯或移除週期性與一次性排程                                                    |
 | `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
 | `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 開啟 `action.log`、查看各模型 token 用量                    |
@@ -288,7 +287,8 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
-| `GET` `POST`    | `/v1/model/audio`               | **local** — 讀取或設定語音轉文字（`stt`）與文字轉語音（`tts`）模型；可用選項來自已設定的 OpenAI 與 Gemini provider |
+| `GET` `POST`    | `/v1/model`               | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
+| `GET`           | `/v1/model/audio`         | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。 |
 
 **Session**
 

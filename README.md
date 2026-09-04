@@ -5,13 +5,12 @@
 </p>
 
 <p align="center">
-  <strong>Self-hosted AI agent harness that builds, tests, and reuses its own tools</strong>
+  <strong>Make AI do the work on your computer—not just talk about it</strong>
 </p>
 
 <p align="center">
-  Open source, single Go binary. Runs on your own machine, handles multi-step work, searches local files,<br>
-  schedules recurring tasks, and shares its sandboxed tool library with Claude Code, Codex,<br>
-  and any other MCP client.
+  Open source, single Go binary that runs on your computer. From live research and file work to automation,<br>
+  Agenvoy takes action and delivers results; through MCP, it shares sandboxed tools with Claude Code, Codex, and other agents.
 </p>
 
 <p align="center">
@@ -31,15 +30,15 @@
 
 ## Why Agenvoy
 
-Agenvoy runs AI agents on your personal computer: you stay in control of files, tools, schedules, and memory. It does more than answer questions—it performs work and can build new tools when needed.
+A chat can give you an answer; work needs a result. Agenvoy breaks requests into steps, calls tools, and delivers outcomes on your computer—while you retain control of files, tools, schedules, and working context.
 
-- **Builds tools when there is a gap** — Creates, tests, and retains a new tool when no suitable one exists.
-- **Shares tools across agents** — Agenvoy, Claude Code, Codex, and other agents can use the same sandboxed tool library.
-- **Shows execution as it happens** — Streams command output to the TUI and Web dashboard while preserving the complete final result.
-- **Routes to the right model for the task** — Routes models by Skill and task requirements; configure separate image generation, speech-to-text (STT), and text-to-speech (TTS) models.
-- **Connects external services** — Supports stdio and HTTP MCP servers, OAuth login, and live remote tool-catalog refreshes.
-- **Local-first and in your control** — File search, schedules, and memory run on your machine rather than a hosted service.
-- **Private access from chat platforms** — The local daemon initiates connections to Telegram and Discord, so you do not need to expose your host.
+- **Turns conversation into deliverable work** — Research live data, organize files, and complete multi-step tasks with an agent that acts and reports the result.
+- **Fills capability gaps itself** — Creates, tests, and keeps a new tool when no suitable one exists, ready to reuse next time.
+- **Shares one tool library across agents** — Agenvoy, Claude Code, Codex, and other agents use the same sandboxed tools instead of rebuilding them.
+- **Keeps automation running** — Create schedules in one sentence; recurring work runs in your environment and pushes the result.
+- **Makes every step visible and controllable** — Command output streams to the TUI and Web dashboard, while sensitive paths and restricted actions still require confirmation.
+- **Connects models and external services freely** — Route models by task and configure image generation, STT, TTS, stdio/HTTP MCP servers, and OAuth.
+- **Provides private access from anywhere** — The local daemon connects outward to Telegram and Discord, without making your host public or opening inbound ports.
 
 ## What you can do with it
 
@@ -152,11 +151,12 @@ Agenvoy runs AI agents on your personal computer: you stay in control of files, 
 
 ## Who it's for
 
-Agenvoy is for developers, technical operators, and AI-heavy workflows that need more than chat:
+If you want AI to complete work—not merely respond—within an environment you control, Agenvoy is for you:
 
-- People who want a self-hosted agent with sandbox guardrails
-- Teams that want reusable tools across agents
-- Users who need automation, file search, and scheduled reporting in one place
+- People who want to turn research, file work, and recurring reporting into reusable automation
+- Developers who want a self-hosted agent with local data control and sandbox guardrails
+- Teams that want Claude Code, Codex, and other agents to share tools instead of rebuilding them
+- Technical operators who need private access to a local agent through the Web, Telegram, or Discord
 
 ---
 

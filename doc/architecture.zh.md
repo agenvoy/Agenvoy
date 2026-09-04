@@ -65,7 +65,7 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 session 指派與 Skill；Skill 描述會成為 dispatcher 的任務提示。執行器建立帶有來源、附件與 session context 的 prompt，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 session 指派與 Skill；Skill 描述會成為 dispatcher 的任務提示。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 ```mermaid
 graph TB
@@ -73,7 +73,7 @@ graph TB
     Assign --> Match[比對 Skill]
     Match --> Resolve[解析主要／Fallback Agent]
     Resolve --> Session[建立 Agent Session]
-    Session --> Prompt[建立 Prompt 與工具定義]
+    Session --> Prompt[建立 Prompt、官方模型指南與工具定義]
     Prompt --> Model[模型呼叫]
     Model --> Result{回應}
     Result -->|工具呼叫| ToolExec[工具執行器]

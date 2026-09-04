@@ -6,7 +6,7 @@
 
 - Go 1.25.1 or later
 - macOS or Linux; on Windows, install a WSL Linux distribution first and run Agenvoy inside its WSL terminal
-- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. KuraDB needs its respective credential. Image generation requires a configured image-capable provider.
+- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. Image generation requires a configured image-capable provider.
 
 ## Installation
 
@@ -69,7 +69,7 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 
 | Keychain entry | Used by |
 |---|---|
-| `OPENAI_API_KEY` | OpenAI, OpenAI audio models, and KuraDB |
+| `OPENAI_API_KEY` | OpenAI and OpenAI audio models |
 | `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN` | Chat-bot integrations |
 | `GEMINI_API_KEY` | Gemini audio models and voice features |
@@ -109,7 +109,7 @@ When the input area is empty, press `Shift+F` to toggle fast mode. The header di
 
 ### Agent selection and confirmation routing
 
-When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone.
+When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone. While assembling the prompt, Agenvoy adds its common official operating guide and, when configured, the guide that matches the selected model.
 
 Interactive requests also carry an origin prefix. CLI confirmations are consumed only by the TUI, web requests by the web confirmation stream, and Telegram or Discord requests by their matching channel listeners. Non-TUI confirmations expire after five minutes, preventing one channel from intercepting or indefinitely holding another channel's prompt.
 
@@ -188,7 +188,6 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/discord` `/telegram` `/voice` | Enable or disable each channel; tokens are validated before they are stored. Voice attachments can be transcribed when STT is configured; automatic voice replies are paused since v0.34.4. |
 | `/startup` | Enable or disable launching the daemon on login (launchd agent on macOS, systemd user unit on Linux) |
 | `/admin-channel` | Pick which authorized chat receives new-chat verification codes |
-| `/kuradb` | Install, update or reconnect KuraDB as an MCP server |
 | `/cron` `/task` | Add, edit or remove recurring and one-shot scheduled work |
 | `/pending` | List and resume interrupted tasks (`ask_user`, error recovery) |
 | `/resume` `/log` `/usage` | Reload the visible transcript, open `action.log` in `$PAGER`, show per-model token usage |
@@ -267,7 +266,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` | `/v1/models` | List registered models (OpenAI `{data:[...]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
-| `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, plus `image_options` on read. The three fields hold different kinds of value: `dispatcher` and `summary` name a registered model (`prefix@model`), while `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router` — `image_options` lists only the providers that currently hold credentials. `POST` is a partial update: a field left out (or `null`) is untouched, `""` clears it, and `off` is accepted for `image` as an alias of `""`. An unregistered model, an unknown provider, or a provider with no credentials is rejected and nothing is written. Both verbs return the same object. |
+| `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, `stt`, and `tts`; on read it also returns `image_options`, `image_providers`, and `audio_providers`. `dispatcher` and `summary` name registered models (`prefix@model`); `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router`. `stt` and `tts` name a model from the respective options exposed by `GET /v1/model/audio`. `POST` is a partial update: an omitted (or `null`) field is unchanged, `""` clears it, and `off` clears only `image`. Unknown models, providers, or unavailable audio models are rejected and nothing is written. Both verbs return the same object. |
+| `GET` | `/v1/model/audio` | **local** — list the available `stt_options` and `tts_options`, derived from configured OpenAI and Gemini providers. |
 
 **Sessions**
 
