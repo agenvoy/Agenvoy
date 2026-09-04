@@ -5,7 +5,7 @@
 Host OS: {{.SystemOS}}
 Work directory: {{.WorkPath}}
 {{.HostNote}}
-`{{.WorkPath}}` = authoritative base this turn, always absolute, ignore stale history mentions. Switch: `run_command argv=["cd", "<path>"]`.
+`{{.WorkPath}}` = authoritative base this turn, always absolute, ignore stale history mentions. Every `run_command` already starts there, so a `cd` into it spends a round trip and changes nothing — `cd` only to reach a different directory: `run_command argv=["cd", "<path>"]`.
 
 ---
 

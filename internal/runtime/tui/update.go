@@ -14,7 +14,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -908,40 +907,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			line += " · " + msg.detail
 		}
 		return t, tea.Println(hintStyle.Render(line) + "\n")
-
-	case KuradbAction:
-		sid := strings.TrimSpace(t.currentSessionID)
-		switch msg.action {
-		case "setup":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb setup")+"\n"),
-				runKuradbSetup(sid),
-			)
-		case "update":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb updating · rebuild + reconnect")+"\n"),
-				runKuradbUpdate(sid),
-			)
-		case "reconnect":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb reconnecting")+"\n"),
-				runKuradbReconnect(sid),
-			)
-		}
-		return t, nil
-
-	case KuradbDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb %s: %v", msg.action, msg.err)) + "\n")
-		}
-		name, _ := kuradb.Registered()
-		switch msg.action {
-		case "update":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb updated · "+name+" connected") + "\n")
-		case "reconnect":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb reconnected · "+name) + "\n")
-		}
-		return t, tea.Println(hintStyle.Render("⎯ kuradb registered · "+name+" connected") + "\n")
 
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
