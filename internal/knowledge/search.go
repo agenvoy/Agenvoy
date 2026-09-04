@@ -15,13 +15,37 @@ type Hit struct {
 	Hits int    `json:"hits"`
 }
 
-func Search(keywords []string, limit int) []Hit {
+func normalize(keywords []string) []string {
 	terms := make([]string, 0, len(keywords))
 	for _, one := range keywords {
 		if one = strings.ToLower(strings.TrimSpace(one)); one != "" {
 			terms = append(terms, one)
 		}
 	}
+	return terms
+}
+
+func ListNames(keywords []string) []string {
+	terms := normalize(keywords)
+	if len(terms) == 0 {
+		return nil
+	}
+
+	out := []string{}
+	for _, record := range List() {
+		name := strings.ToLower(record.Name)
+		for _, term := range terms {
+			if strings.Contains(name, term) {
+				out = append(out, record.Name)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func Search(keywords []string, limit int) []Hit {
+	terms := normalize(keywords)
 	if len(terms) == 0 {
 		return []Hit{}
 	}

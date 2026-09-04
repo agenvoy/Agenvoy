@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb/googleRSS"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
@@ -41,7 +43,7 @@ func Register() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,
-		Description: `[system-default] Live web lookup — DuckDuckGo results and Google News headlines together, returned as {"web":[…],"news":[…]}.
+		Description: `[system-default] Live web lookup — DuckDuckGo results and Google News headlines together, returned as {"web":[...],"news":[...]}.
 Use for named entities, post-cutoff facts, versions, prices, 新聞 / 最新消息 / 現在怎麼樣了 / 查一下.
 Results are snippets: a result link worth citing → fetch_page. A URL already in hand → fetch_page directly.`,
 		Parameters: map[string]any{
@@ -149,9 +151,9 @@ Results are snippets: a result link worth citing → fetch_page. A URL already i
 				return "", fmt.Errorf("web: %s; news: %s", out.WebError, out.NewsError)
 			}
 
-			raw, err := json.Marshal(out)
+			raw, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 			}
 			return string(raw), nil
 		},

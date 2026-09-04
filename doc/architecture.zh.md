@@ -4,313 +4,201 @@
 
 ## 概覽
 
-Agenvoy 是以 Go 撰寫的本機 Agent 執行環境，整合互動式終端介面、本機 HTTP daemon、聊天機器人整合，以及 MCP client／server 功能。所有進入路徑共用模型路由、session-aware 工具、Skill 與持久化歷史的同一執行引擎。
+Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務路由模型、呼叫沙箱工具，並將 session、排程與歷史保留在本機。
 
 ```mermaid
 graph TB
-    User[使用者／Client] --> Entry[CLI 或 HTTP 入口]
-    Entry --> TUI[TUI]
+    User[使用者／MCP Client] --> Entry[CLI、TUI、Web API 或聊天頻道]
     Entry --> Daemon[本機 Daemon]
-    Entry --> MCPServer[MCP Server]
-    TUI --> Exec[Agent 執行]
-    Daemon --> Exec
+    Entry --> MCPServer[stdin MCP Server]
+    Daemon --> Exec[Agent 執行器]
     MCPServer --> Tools[工具註冊表]
     Exec --> Router[模型路由器]
+    Exec --> Skills[Skill 比對]
     Exec --> Tools
-    Exec --> Sessions[Session 與記憶]
-    Tools --> Guard[權限與沙箱]
-    Daemon --> Chat[Telegram／Discord]
-    Tools --> MCPClient[外部 MCP Clients]
+    Exec --> Sessions[Session／歷史／記憶]
+    Tools --> Guard[確認、權限與沙箱]
+    Daemon --> Channels[Telegram／Discord]
+    Daemon --> Scheduler[排程器]
+    Tools --> MCPClient[外部 MCP Server]
 ```
 
-## 模組：進入點
+## 模組：進入點與執行模式
 
-`cmd/app` 二進位檔預設啟動 TUI。`agen stop` 停止 daemon，`agen update` 執行官方更新器，而非終端 stdin 會啟動 MCP server。
+`cmd/app` 預設開啟 TUI；`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
+
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS。多 provider 的配置可選擇以 NVIDIA NIM 的 `gpt-oss-20b` 作為 dispatcher，取得智慧路由與快速回應。
 
 ```mermaid
 graph TB
-    subgraph CLI[cmd/app]
-        Args[參數] --> Dispatch{模式}
-        Dispatch --> TUIEntry[互動式 TUI]
-        Dispatch --> Cli[cli]
-        Dispatch --> Run[run]
-        Dispatch --> Stop[stop]
-        Dispatch --> Update[update]
-        Stdin[非 TTY stdin] --> MCP[MCP server]
-    end
-    TUIEntry --> TUIRuntime[TUI 執行環境]
-    Cli --> TUIRuntime
-    Run --> TUIRuntime
-    TUIRuntime --> Execution[Agent 執行]
-    Stop --> RuntimeState[Runtime 狀態]
-    Update --> Installer[官方更新腳本]
+    Input[CLI／TUI 輸入] --> Mode{啟動模式}
+    Mode --> TUI[互動式 TUI]
+    Mode --> DaemonCmd[Daemon]
+    Mode --> MCP[非 TTY stdin：MCP Server]
+    TUI --> Fast{輸入區為空時 Shift+F}
+    Fast --> Default[預設模式]
+    Fast --> FastMode[Fast mode]
+    Default --> Calls[模型呼叫]
+    FastMode --> Calls
+    Calls --> Router[go-llm-router]
 ```
 
-目前 runtime 內建 10 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點。
+## 模組：Daemon、Web 與 HTTP API
 
-## 執行模式
-
-Agenvoy 支援在 TUI 中切換只存在於目前行程的執行模式。當輸入區為空時按下 `Shift+F`，即可在預設模式與 fast mode 之間切換；啟用時標題列會顯示 `[fast]`。執行器、dispatcher、summary 與相關模型呼叫會將選定模式傳給 `go-llm-router` v0.5.1。支援的 provider backend 可將 `provider.ModeFast` 對應到更快速的服務層級；預設模式則維持一般 provider 行為。此切換狀態只保存在記憶體中，不會寫入 `config.json`。
-
-```mermaid
-graph LR
-    Input[輸入區為空] --> Toggle[Shift+F]
-    Toggle --> State{行程內模式}
-    State -->|預設| Default[provider.ModeDefault]
-    State -->|Fast| Fast[provider.ModeFast]
-    Default --> Calls[執行器／dispatcher／summary 呼叫]
-    Fast --> Calls
-    Calls --> Router[go-llm-router v0.5.1]
-    Router --> Providers[支援的 provider backend]
-```
-
-## 模組：Daemon 與 HTTP API
-
-Daemon 初始化檔案系統、runtime limits、ToriiDB／history 儲存、已註冊工具、Agent、排程器、聊天整合與 Gin routes。HTTP API 僅綁定 `127.0.0.1`，分兩層：不需額外檢查即可用的 Agent 執行層（send、chat completions、session、模型、SSE log、pending task 恢復），以及規模大得多的設定／管理層——憑證、provider、MCP server 與其 OAuth 登入、rule、知識、schedule 自動化、skill／工具白名單、以及唯讀的 session artifact／error memory 查閱——這層額外掛上 `localhostOnly()` middleware，因為會動到憑證、設定檔或行程狀態。驅動設定層的 web dashboard 位於 `page/`，建置時嵌入二進位檔並由同一個 daemon 從 `/` 提供；開發時可用 `AGENVOY_PAGE_DIR` 改讀磁碟上的檔案。
+Daemon 初始化檔案系統、設定、歷史儲存、工具、Agent、Skill scanner、排程與聊天頻道，並把 dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 綁定 `127.0.0.1`；Agent 執行、session、模型與 SSE log 可由一般 API surface 使用，而憑證、provider、MCP、規則、知識、排程與白名單等設定／管理操作另受 `localhostOnly()` 保護。
 
 ```mermaid
 graph TB
     subgraph Daemon[Daemon 執行環境]
-        Init[檔案系統與 Runtime 初始化] --> Storage[SQLite／History Store]
-        Storage --> ToolInit[工具註冊]
-        ToolInit --> AgentInit[Agent 註冊表與 Skill Scanner]
-        AgentInit --> Services[Scheduler 與整合服務]
+        Init[初始化] --> Store[SQLite／ToriiDB／Session Store]
+        Store --> Register[工具、Agent 與 Skill 註冊]
+        Register --> Services[排程器與頻道整合]
         Services --> Routes[Gin Routes]
-        Config[config.json Watcher] --> Reload[重新載入 Agent／整合]
-        Reload --> AgentInit
+        Config[config.json 監看] --> Reload[重新載入設定與整合]
+        Reload --> Register
     end
-    Routes --> ExecAPI[Agent 執行層 API<br/>send · chat/completions · 工具 · session · 模型 · SSE log]
-    Routes --> ConfigAPI[設定／管理層 API<br/>憑證 · provider · MCP · rule/知識 · schedule · 白名單 · torii 查閱]
-    Routes --> Page[內嵌 dashboard<br/>page/ 由 / 提供]
+    Routes --> Dashboard[內嵌 Web Dashboard]
+    Routes --> ExecAPI[Agent 執行 API]
+    Routes --> ConfigAPI[設定／管理 API]
     ConfigAPI --> LocalGuard[localhostOnly 守衛]
-    ExecAPI --> Client[CLI／TUI／遠端 Agent]
-    LocalGuard --> Page
 ```
 
-## 模組：Agent 執行與路由
+## 模組：Agent 執行、Skill 與模型路由
 
-請求會比對至 Skill 或已設定模型。符合的 Skill 說明會作為任務提示傳給 selector，而請求來源則會一路傳遞至執行與工具呼叫。執行器建立 system prompt 與 session，將訊息傳給選定模型，迭代處理工具呼叫；需要時裁剪 context，若傳送失敗則轉移至 fallback Agent。
+每個請求先檢查 session 指派與 Skill；Skill 描述會成為 dispatcher 的任務提示。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 ```mermaid
 graph TB
-    subgraph Execution[Agent 執行]
-        Input[使用者輸入] --> Match[比對 Skill]
-        Match --> Resolve[依 Skill 提示解析<br/>主要與 Fallback Agent]
-        Resolve --> Session[建立含請求來源的<br/>AgentSession]
-        Session --> Prompt[建立 System Prompts]
-        Prompt --> Send[傳送至模型]
-        Send --> Response{回應}
-        Response -->|工具呼叫| ToolExec[工具執行器]
-        ToolExec --> Send
-        Response -->|Context 限制| Trim[裁剪／Compact]
-        Trim --> Send
-        Response -->|傳送失敗| Fallback[Fallback Agent]
-        Fallback --> Send
-        Response -->|最終文字| Output[事件與回應]
-    end
+    Request[使用者請求] --> Assign[Session 指派]
+    Assign --> Match[比對 Skill]
+    Match --> Resolve[解析主要／Fallback Agent]
+    Resolve --> Session[建立 Agent Session]
+    Session --> Prompt[建立 Prompt、官方模型指南與工具定義]
+    Prompt --> Model[模型呼叫]
+    Model --> Result{回應}
+    Result -->|工具呼叫| ToolExec[工具執行器]
+    ToolExec --> Model
+    Result -->|Context 限制| Compact[裁剪／摘要]
+    Compact --> Model
+    Result -->|傳送失敗| Fallback[Fallback Agent]
+    Fallback --> Model
+    Result -->|最終回應| Events[回傳事件與結果]
 ```
 
 ## 模組：工具註冊表與沙箱
 
-內建工具與探索到的 API、script、extension、MCP 工具進入同一份註冊表（`internal/runtime/toolAdapter` 與 `internal/runtime/mcp`）。14 個工具帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘初始僅有名稱與描述，參數於首次使用時經 `find_tools(mode=search)` 注入。執行前，檔案與命令操作需通過允許規則、確認閘門、shell 驗證與沙箱強制。`$HOME` 以外的路徑與白名單外的指令不會直接被拒，而是被收集後發出同時要求作業系統密碼的確認，核准範圍僅限該 session 與該路徑或該執行檔。帶 `mode` 的工具由該值決定權限：`list`／`read`／`search` 視為唯讀、免確認；`remove`／`restore` 一律要求確認，即使該工具本身為自動放行。推理規則透過單一的 `reasoning_guide(topic=...)` 按需取得。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。完整 schema 的核心工具會直接提供給模型；其他工具於需要時才透過 `find_tools` 載入。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具；Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。
+
+檔案與命令操作都需經過路徑檢查、允許規則、確認閘門、shell AST 驗證及作業系統沙箱。`$HOME` 外的寫入和非白名單命令需取得該 session 對應的系統層確認；讀取仍受作業系統本身的存取控制。
 
 ```mermaid
 graph TB
-    subgraph Tools[工具系統]
-        Builtins[內建工具] --> Registry[工具註冊表]
-        Adapters[API／Script／Extension Adapters] --> Registry
-        MCPDiscovery[MCP 探索] --> Registry
-        Registry --> Executor[工具執行器]
-        Executor --> Paths[路徑與權限檢查]
-        Executor --> Allow[Allow／確認閘門]
-        Executor --> Shell[Shell AST Validator]
-        Paths --> Sandbox[Sandbox]
-        Allow --> Sandbox
-        Shell --> Sandbox
-        Sandbox --> Result[工具結果]
-    end
+    Builtins[內建工具] --> Registry[工具註冊表]
+    Local[API／Script／Extension 工具] --> Registry
+    Remote[MCP 工具] --> Registry
+    Registry --> Discover[find_tools 按需載入 schema]
+    Discover --> Execute[工具執行器]
+    Execute --> Check[路徑、允許規則與確認]
+    Check --> Shell[Shell AST 驗證]
+    Shell --> Sandbox[OS 沙箱]
+    Sandbox --> Result[工具結果]
+    Missing[缺少工具] --> Generate[Tool Generate：建立、測試、保存]
+    Generate --> Registry
 ```
 
-## 模組：Session、歷史與 Pending 工作
+## 模組：Session、歷史、排程與監控
 
-Session ID 的前綴同時代表請求來源：`cli-` 是本機 CLI／TUI、`tg-` 是 Telegram、`dc-` 是 Discord、`chat-` 是 Web／API、`temp-` 是短期工作。TUI session 選擇器會依群組排序，將目前 session 排在最前；偵測到至少兩個群組時，顯示 `all` 與各前綴分頁。Daemon 透過 `fsnotify` 監看新建立的 session 目錄，並在 log 記錄 session ID 與設定名稱。
-
-Session 設定持久化於 history SQLite 資料庫。Persona 的 `self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會將舊版 `bot.json`、舊版 bot markdown、session `config.json` 與 `status.json` 遷移至 SQLite／state table。新建 session 會先保存資料庫列並建立目錄，再寫入 session log。
-
-## 模組：Session、歷史與 Pending 工作
-
-Session 持久保存設定、模型選擇、訊息歷史、摘要、log、usage 與互動中的 pending 工作。History 會以 delta 方式追加到 `history.json`，並同步可搜尋內容至 SQLite。待回答問題與確認會保留來源前綴；CLI、Web、Telegram 與 Discord listener 只會接收符合來源的工作，再透過已註冊的 handler 恢復。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。歷史、摘要、使用量、log 與 pending 工作依 session 保存，SQLite 提供搜尋與 session 設定；同一來源的 listener 才會消費其待回答問題或確認。排程器可執行週期或單次的 scheduler skill。Daemon 另每 30 秒監控 CPU、Go process 記憶體與網路連線，將異常與恢復寫入 daemon log。
 
 ```mermaid
 graph TB
-    subgraph Sessions[Session 與記憶]
-        Request[請求] --> Config[Session 設定]
-        Request --> History[history.json Delta Append]
-        History --> SQLite[SQLite History Index]
-        History --> Summary[Summary Metadata]
-        Request --> Logs[action.log／usage.log]
-        Pending[ask_user／確認] --> Origin[來源前綴<br/>cli- · chat- · tg- · dc-]
-        Origin --> MatchListener[符合來源的頻道 Listener]
-        MatchListener --> Meta[Pending Task Metadata]
-        Meta --> Resume[Resume Handler]
-        Resume --> Request
-        Reset[Reset] --> History
-        Reset --> SQLite
-        ResetAll[ResetAll] --> Summary
-    end
+    Request[請求] --> Session[Session 設定]
+    Request --> History[history.json]
+    History --> SQLite[SQLite 搜尋索引]
+    History --> Summary[滾動摘要]
+    Request --> Logs[action.log／usage.log]
+    Pending[ask_user／確認] --> Origin[來源前綴]
+    Origin --> Listener[對應頻道 Listener]
+    Listener --> Resume[恢復執行]
+    Scheduler[Scheduler Skill] --> Execute[Agent 執行]
+    Monitor[30 秒 Runtime Monitor] --> DaemonLog[Daemon Log]
 ```
 
-## 模組：Runtime 監控
+## 模組：聊天頻道與 MCP 整合
 
-Daemon 啟動背景監控器，每 30 秒取樣一次。CPU 使用率達 80% 以上、Go process 記憶體達 2 GiB 以上，或對 `1.1.1.1:443` 的 TCP 連線中斷時會記錄警告；條件解除後會記錄恢復事件。CPU 過高時，若可用也會以 `ps` 查詢前三名 CPU 使用程序。這些紀錄會進入 daemon log stream，與 Agent session 執行彼此獨立。
+Telegram 與 Discord 由本機 daemon 主動連線，因此不需開放入站連接埠或公開主機；設定只需要對應 bot token。兩個頻道都支援附件保存與選擇性 STT 轉錄、依來源配對的確認、格式化回覆及音訊檔傳送。自 **v0.34.4** 起，暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機仍可使用 STT／TTS 生成音訊並將檔案傳送到頻道。
 
-## 模組：任務生命週期、併發與取消
-
-每次執行都會**先**把任務登記進 `status.json`、並登記自己的取消函式，**才**去競爭該 session 的併發名額，因此被上限擋住而排隊中的任務依然看得到、也取消得掉，不會無聲卡住。每筆任務都記錄執行它的行程 PID；任何讀取端只要發現某筆任務的 PID 已不存在，就視為 stale 並清除——被砍掉或崩潰的行程因此無法讓 session 永久停留在 online 狀態。
-
-併發上限是 per session（`MaxSessionTasks`，預設為 CPU 數量的四倍）。不同 session 之間不會互相阻塞或取消，超過上限的任務是排隊等待，而不是被拒絕。
+外部 MCP server 可經 stdio 或 streamable HTTP 連接；工具清單變更時會重新註冊工具，server instructions 會加入 Agent system prompt。HTTP MCP server 可走 OAuth，token 與 client id 會存於作業系統 keychain。Agenvoy 本身也能以 stdin JSON-RPC MCP server 將本機沙箱工具提供給 Claude Code、Codex、OpenCode 與其他 MCP Client。
 
 ```mermaid
 graph TB
-    subgraph Lifecycle[任務生命週期]
-        Start[Execute] --> Register[於 status.json 登記任務與 PID]
-        Register --> CancelReg[以任務 ID 登記取消函式]
-        CancelReg --> Gate{併發名額是否可用}
-        Gate -->|是| Run[執行 Agent 迴圈]
-        Gate -->|否| Queue[排隊中：可觀察、可取消]
-        Queue --> Run
-        Run --> Terminal[完成／失敗／已取消]
-        Terminal --> Clear[從 status.json 移除任務]
-    end
-    CancelAPI[POST /v1/session/:id/cancel/:once_id] --> Registry[任務 ID 對應取消函式的登記表]
-    Registry --> Run
-    StaleCheck[讀取端發現 PID 已死] --> Clear
-```
+    Telegram[Telegram] --> Auth[授權與來源比對]
+    Discord[Discord] --> Auth
+    Auth --> Attachments[附件保存／選擇性 STT]
+    Attachments --> ChatExec[執行 Agent]
+    ChatExec --> Format[頻道格式化]
+    Format --> Reply[文字或檔案回覆]
 
-## 模組：聊天與 MCP 整合
-
-Telegram 與 Discord 採用共用 event pipeline，但保有頻道專屬的授權、附件處理、依來源配對的 pending confirmation、格式化與 push delivery。Web 的 result、SSE、pending 與 multilog handler 會在傳輸流程保留檔案標記，dashboard 僅在顯示文字時移除。外部 MCP server 經 `internal/runtime/mcp` 內的官方 `modelcontextprotocol/go-sdk` client，以 stdio 或 streamable HTTP 連線；工具清單變更通知會觸發重新註冊，server instructions 會注入 agent system prompt。標記 `auth: oauth` 的 HTTP server 透過 `mcp.Login` 授權：daemon 會在 `localhost:17988` 開啟 loopback callback listener，供應商允許時執行動態 client 註冊，並將取得的 token 與 client id 存入作業系統 keychain。也可改用預先註冊的 client；瀏覽器連不到 listener 時可將 redirect URL 貼回。Agenvoy 也能以 stdin JSON-RPC MCP server（`mcp.NewServer()`）暴露本機工具。
-
-```mermaid
-graph TB
-    subgraph Integrations[整合]
-        Telegram[Telegram] --> Auth[授權與 Session Match]
-        Discord[Discord] --> Auth
-        Auth --> Attachments[保存附件／選擇性轉錄]
-        Attachments --> ChatRun[帶頻道來源執行 Agent]
-        ChatRun --> Events[Agent Events]
-        Events --> Confirm[依來源配對確認]
-        Confirm --> Format[頻道格式化]
-        Events --> FileMarker[保留 SEND_FILE Metadata]
-        FileMarker --> Format
-        Format --> Reply[回覆／狀態／Push]
-
-        MCPConfig[mcp.json] --> Transport{Transport}
-        Transport --> SDKClient[go-sdk Client]
-        SDKClient --> MCPTools[已註冊 MCP Tools]
-        SDKClient --> Refresh[tools/list_changed 刷新]
-        Refresh --> MCPTools
-        SDKClient --> Instructions[Server instructions → system prompt]
-        OAuth[auth: oauth] --> Callback[Loopback listener :17988]
-        Callback --> Token[Token 與 client id 存入 keychain]
-        Token --> SDKClient
-        ExternalClient[外部 MCP Client] --> LocalMCP[stdin JSON-RPC Server]
-        LocalMCP --> Tools[本機工具註冊表]
-    end
+    MCPConfig[mcp.json] --> Transport{stdio／HTTP}
+    Transport --> MCPClient[官方 go-sdk Client]
+    MCPClient --> RemoteTools[MCP 工具註冊]
+    MCPClient --> OAuth[OAuth／Keychain]
+    External[外部 MCP Client] --> LocalMCP[stdin JSON-RPC MCP Server]
+    LocalMCP --> Registry[本機工具註冊表]
 ```
 
 ## 資料流
 
 ```mermaid
 sequenceDiagram
-    participant User as 使用者
-    participant TUI as TUI／HTTP
+    participant User as 使用者／頻道／MCP Client
+    participant Entry as TUI／Web／聊天整合
     participant Exec as Agent 執行器
     participant Router as 模型路由器
     participant Tools as 工具執行器
     participant Store as Session Store
 
-    User->>TUI: 提交請求
-    TUI->>Exec: 帶 Session Context 執行
-    Exec->>Store: 載入 History 與 Summary
-    Exec->>Router: 傳送 Prompt 與工具定義
+    User->>Entry: 提交請求
+    Entry->>Exec: 帶來源與 Session context 執行
+    Exec->>Store: 載入歷史與摘要
+    Exec->>Router: Prompt、Skill 提示與工具定義
     Router-->>Exec: 模型回應
     alt 工具呼叫
         Exec->>Tools: 驗證並執行
         Tools-->>Exec: 工具結果
         Exec->>Router: 繼續執行
     else 最終回應
-        Exec->>Store: 追加 History 與 Usage
-        Exec-->>TUI: 發布最終事件
-        TUI-->>User: 顯示回覆
+        Exec->>Store: 追加歷史與用量
+        Exec-->>Entry: 發布事件與結果
+        Entry-->>User: 顯示回覆或傳送檔案
     end
-```
-
-## 狀態機
-
-```mermaid
-stateDiagram-v2
-    [*] --> Initialized
-    Initialized --> Ready: 工具與 Agent 已載入
-    Ready --> Selecting: 收到請求
-    Selecting --> Queued: 無可用併發名額
-    Queued --> Running: 名額釋出
-    Selecting --> Running: Agent 已解析
-    Running --> WaitingConfirmation: 工具確認
-    WaitingConfirmation --> Running: 已核准或略過
-    Running --> WaitingUser: ask_user Pending
-    WaitingUser --> Running: 已收到答案
-    Running --> Compacting: Context 限制
-    Compacting --> Running: 已裁剪
-    Running --> Fallback: 傳送失敗
-    Fallback --> Running: 已選擇 Fallback
-    Running --> Completed: 最終回應
-    Running --> Canceled: 收到取消請求
-    Queued --> Canceled: 收到取消請求
-    Running --> Failed: 無法復原的錯誤
-    Completed --> Ready
-    Canceled --> Ready
-    Failed --> Ready
-    Ready --> [*]: 關閉
 ```
 
 ## 安全邊界
 
-- HTTP daemon 綁定 `127.0.0.1`；部分 endpoint 另有 localhost-only guard。
-- 檔案操作一律走 `boundary.Resolve`，在執行前套用 denied path 與 sensitive-file 檢查。
-- 命令執行受 allow rule、AST-based shell validation 與作業系統層沙箱限制（macOS `sandbox-exec`、Linux `bwrap`）。
-- 受限路徑與白名單外指令不會直接被拒：它們會發出同時要求作業系統密碼的確認，核准綁定該 session 與該路徑或該執行檔。收不到密碼的通道（HTTP API、聊天機器人、subagent）會拿回 skipped。已無 elevated 或 `/sudo` 模式，改由逐次請求授權取代。
-- `$HOME` 一律可寫，無需設定。要寫到 `$HOME` 以外時，agent 在該次呼叫自行附上 `write_paths`，經確認與系統密碼核准後才額外綁進沙箱。
-- `run` 模式只略過該次 request 的確認，不會略過 sandbox 與 denied-path 保護。
-- 憑證透過作業系統 keychain integration 保存，不放在 repository 中。
+- Daemon 綁定 `127.0.0.1`；設定與管理 endpoint 另有 localhost-only 守衛。
+- 檔案路徑會先經 `boundary.Resolve` 的 denied path 與敏感檔案檢查。
+- 命令執行受 allow rule、shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。
+- 受限路徑與白名單外命令會要求確認與作業系統驗證；無法提供驗證的 HTTP API、聊天頻道與 subagent 會略過受限呼叫，不會提權。
+- 憑證與 OAuth token 存在作業系統 keychain，不寫入 repository。
 
 ## 持久化結構
 
 ```mermaid
 flowchart LR
-    Config[~/.config/agenvoy/config.json] --> Limits[Runtime Limits]
-    Config --> Sessions[Session Directories]
+    Config[~/.config/agenvoy/config.json] --> Runtime[Runtime 設定]
+    Config --> Sessions[Session 目錄]
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
-    Sessions --> Pending[Pending Metadata]
-    SQLite[~/.config/agenvoy/.store/history.db] --> Search[History Search]
-    SQLite --> SessionRow[session：名稱 · self_id · 模型 · reasoning · persona]
-    SQLite --> StateRow[state：執行中任務與所屬 PID]
-    SQLite --> ActionRow[action_history：已完成的 run 與其工具結果]
-    SQLite --> UsageRow[usage：各模型 token 花費，保留 28 天]
-    Torii[~/.config/agenvoy/.store/db_0..db_3] --> ToolCache[db_0 工具快取]
-    Torii --> SessionHist[db_1 session 對話]
-    Torii --> ErrorMemory[db_2 工具錯誤記憶]
-    Torii --> Knowledge[db_3 operator 知識]
-    Torii --> Online[db_4 執行中任務的存活紀錄]
+    Sessions --> Pending[Pending 工作]
+    SQLite[~/.config/agenvoy/.store/history.db] --> Search[歷史／Session 搜尋]
+    Torii[~/.config/agenvoy/.store/db_0..db_4] --> Cache[工具快取]
+    Torii --> Vectors[對話、錯誤與知識]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]
-    Prompts[~/.config/agenvoy/prompts] --> Rules[Session prompt rule]
-    Allow[allow_skill · allow_tool] --> Gate[確認機制]
-    Config --> CmdDeny[config.json denied_command · denied_path：硬性黑名單]
-    Schedule[crons.json · tasks.json] --> Scheduler[排程器]
-    Auth[.telegram · .discord] --> Channels[已授權對話]
+    Schedules[crons.json／tasks.json] --> Scheduler[Scheduler]
+    Auth[.telegram／.discord] --> Channels[已授權頻道]
 ```
 
 ---

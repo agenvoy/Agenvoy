@@ -101,7 +101,7 @@ func (t TUI) viewThinking() string {
 
 	sb.WriteString(systemStyle.Render(t.spinner.View()))
 	sb.WriteString(" ")
-	sb.WriteString(systemStyle.Render(verb + "…"))
+	sb.WriteString(systemStyle.Render(verb + "..."))
 	sb.WriteString(" ")
 	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, " · ") + ")"))
 

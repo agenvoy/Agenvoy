@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"html"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/tools"
-	"github.com/pardnchiu/agenvoy/internal/tools/external/stt"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 	go_bot_line "github.com/pardnchiu/go-bot/line"
@@ -28,19 +25,9 @@ const (
 	Line
 )
 
-var VoiceMarkerRegex = regexp.MustCompile(`\[SEND_VOICE:([^\]]+)\]`)
-
 type SavedAttachment struct {
 	Path       string
 	Transcribe bool
-}
-
-func RuntimeExcludeTools(autoTranscribed bool) []string {
-	excluded := append([]string{}, tools.TUIOnlyTools...)
-	if autoTranscribed {
-		excluded = append(excluded, "transcribe_media")
-	}
-	return excluded
 }
 
 func TranscribeSavedAttachments(ctx context.Context, attachments []SavedAttachment) ([]string, []string, error) {
@@ -54,7 +41,7 @@ func TranscribeSavedAttachments(ctx context.Context, attachments []SavedAttachme
 			paths = append(paths, attachment.Path)
 			continue
 		}
-		text, err := stt.Transcribe(ctx, attachment.Path, "")
+		text, err := filesystem.TranscribeMedia(ctx, attachment.Path)
 		if err != nil {
 			return nil, nil, fmt.Errorf("transcribe %s: %w", attachment.Path, err)
 		}
@@ -63,12 +50,6 @@ func TranscribeSavedAttachments(ctx context.Context, attachments []SavedAttachme
 		}
 	}
 	return transcripts, paths, nil
-}
-
-type VoiceExtractResult struct {
-	CleanText string
-	Texts     []string
-	AutoReply bool
 }
 
 func SendAdminCode(ctx context.Context, ch Channel, targetID, text string) error {
@@ -162,26 +143,4 @@ func AppendReplyFooter(ch Channel, text, footer string, hasMedia bool, execError
 		}
 	}
 	return text
-}
-
-func ExtractVoiceMarkers(replyText string, autoTranscribed bool) VoiceExtractResult {
-	var texts []string
-	for _, match := range VoiceMarkerRegex.FindAllStringSubmatch(replyText, -1) {
-		if t := strings.TrimSpace(match[1]); t != "" {
-			texts = append(texts, t)
-		}
-	}
-	clean := strings.TrimSpace(VoiceMarkerRegex.ReplaceAllString(replyText, ""))
-	autoReply := false
-	if autoTranscribed && len(texts) == 0 {
-		if t := utils.CleanVoiceReplyText(clean); t != "" {
-			texts = append(texts, t)
-			autoReply = true
-		}
-	}
-	return VoiceExtractResult{
-		CleanText: clean,
-		Texts:     texts,
-		AutoReply: autoReply,
-	}
 }

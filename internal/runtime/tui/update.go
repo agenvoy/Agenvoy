@@ -14,7 +14,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/kuradb"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -81,6 +80,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return CancelRunConfirm{yes: chosen == "yes"}
 					},
 				}
+				return t, nil
+			}
+			if t.textarea.Value() != "" {
+				t.textarea.Reset()
+				t.textarea.SetHeight(1)
+				t.inputHistoryIdx = -1
 				return t, nil
 			}
 
@@ -343,6 +348,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "image":
 			next, cmd, _ := t.commandImageModel()
 			return next, cmd
+		case "stt":
+			next, cmd, _ := t.commandSTTModel()
+			return next, cmd
+		case "tts":
+			next, cmd, _ := t.commandTTSModel()
+			return next, cmd
 		}
 		return t, nil
 
@@ -574,6 +585,24 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
+
+	case NoteListed:
+		return t.runNoteListed(msg)
+
+	case NotePick:
+		return t.runNotePick(msg)
+
+	case NoteLoaded:
+		return t.runNoteLoaded(msg)
+
+	case NoteTitleSubmit:
+		return t.runNoteTitleSubmit(msg)
+
+	case NoteBodySubmit:
+		return t, t.noteSaveCmd(msg)
+
+	case NoteSaved:
+		return t.runNoteSaved(msg)
 
 	case BotSaved:
 		if msg.err != nil {
@@ -908,32 +937,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case VoiceAction:
-		if msg.action == "enable" && voiceNeedsGeminiKey() {
-			next, cmd := t.openVoiceKeyPrompt()
-			return next, cmd
-		}
-		return t, setVoice(msg.action)
-
-	case VoiceKeySubmit:
-		token := strings.TrimSpace(msg.token)
-		if token == "" {
-			return t, tea.Println(errorStyle.Render("[!] voice enable: GEMINI_API_KEY is required") + "\n")
-		}
-		if err := keychain.Set("GEMINI_API_KEY", token); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice keychain.Set: %v", err)) + "\n")
-		}
-		if err := config.SaveKey("GEMINI_API_KEY"); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice session.SaveKey: %v", err)) + "\n")
-		}
-		return t, setVoice("enable")
-
-	case VoiceDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] voice %s: %v", msg.action, msg.err)) + "\n")
-		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ voice %sd", msg.action)) + "\n")
-
 	case StartupAction:
 		return t, setStartup(msg.action)
 
@@ -946,40 +949,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			line += " · " + msg.detail
 		}
 		return t, tea.Println(hintStyle.Render(line) + "\n")
-
-	case KuradbAction:
-		sid := strings.TrimSpace(t.currentSessionID)
-		switch msg.action {
-		case "setup":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb setup")+"\n"),
-				runKuradbSetup(sid),
-			)
-		case "update":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb updating · rebuild + reconnect")+"\n"),
-				runKuradbUpdate(sid),
-			)
-		case "reconnect":
-			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ kuradb reconnecting")+"\n"),
-				runKuradbReconnect(sid),
-			)
-		}
-		return t, nil
-
-	case KuradbDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] kuradb %s: %v", msg.action, msg.err)) + "\n")
-		}
-		name, _ := kuradb.Registered()
-		switch msg.action {
-		case "update":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb updated · "+name+" connected") + "\n")
-		case "reconnect":
-			return t, tea.Println(hintStyle.Render("⎯ kuradb reconnected · "+name) + "\n")
-		}
-		return t, tea.Println(hintStyle.Render("⎯ kuradb registered · "+name+" connected") + "\n")
 
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
@@ -1022,6 +991,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SummaryModelSelect:
 		next, cmd := t.runSummaryModelSelect(msg.name)
 		agents.Reload()
+		return next, cmd
+
+	case AudioModelSelect:
+		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
 		return next, cmd
 
 	case ImageModelSelect:

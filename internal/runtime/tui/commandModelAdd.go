@@ -175,7 +175,7 @@ func (t TUI) startOAuthPopup() (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:     popupOAuth,
-		title:    fmt.Sprintf("%s OAuth · waiting for device code…", strings.ToUpper(prov[:1])+prov[1:]),
+		title:    fmt.Sprintf("%s OAuth · waiting for device code...", strings.ToUpper(prov[:1])+prov[1:]),
 		subtitle: "browser will open automatically once the code is ready",
 		oauth: &oauthState{
 			provider: prov,
@@ -201,12 +201,6 @@ func runOAuthFlow(ctx context.Context, prov string) {
 	var err error
 	switch prov {
 	case "copilot":
-		if oauthCopilot.HasToken() {
-			if cerr := oauthCopilot.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
 			send(OAuthInfo{
 				url:      code.VerificationURI,
@@ -214,22 +208,10 @@ func runOAuthFlow(ctx context.Context, prov string) {
 			})
 		})
 	case "codex":
-		if oauthCodex.HasToken() {
-			if cerr := oauthCodex.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	case "grok-oauth":
-		if oauthGrokOauth.HasToken() {
-			if cerr := oauthGrokOauth.ClearToken(); cerr != nil {
-				send(OAuthFailed{err: fmt.Errorf("ClearToken: %w", cerr)})
-				return
-			}
-		}
 		_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
@@ -569,7 +551,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			ids := fetchModelIDs(ctx, url, prov)
 			send(CompatModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", prov)) + "\n")
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", prov)) + "\n")
 	}
 
 	if fn, ok := modelsProviders[t.modelAdd.provider]; ok {
@@ -590,7 +572,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			}
 			send(RemoteModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models…", label)) + "\n")
+		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", label)) + "\n")
 	}
 
 	t.popup = &Popup{

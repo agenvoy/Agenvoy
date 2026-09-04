@@ -29,7 +29,6 @@ var eventLabel = map[string]string{
 	"http_request":          "Send",
 	"calculate":             "Calc",
 	"test_tool":             "Test",
-	"transcribe_media":      "Transcribe",
 	"send_to_chatbot":       "Push",
 	"list_chatbot":          "Chatbots",
 	"mcp__kura__search_rag": "RAG",
@@ -48,21 +47,22 @@ var hiddenEvent = map[string]bool{
 	"error_history":       true,
 	"file_history":        true,
 	"mcp__kura__list_rag": true,
-	"schedules/list":      true,
 }
 
-func HideToolEvent(name, raw string) bool {
-	if name == "" {
-		return true
-	}
-	if hiddenEvent[name] {
-		return true
-	}
+func parseToolArgs(raw string) map[string]any {
 	var argMap map[string]any
 	if raw != "" {
 		_ = json.Unmarshal([]byte(raw), &argMap)
 	}
-	return hiddenEvent[name+"/"+eventMode(name, argMap)]
+	return argMap
+}
+
+func hideToolEvent(name, mode string) bool {
+	return name == "" || hiddenEvent[name] || mode == "list" || hiddenEvent[name+"/"+mode]
+}
+
+func HideToolEvent(name, raw string) bool {
+	return hideToolEvent(name, eventMode(name, parseToolArgs(raw)))
 }
 
 var primaryArgKeys = []string{
@@ -80,13 +80,10 @@ var eventModeLabel = map[string]map[string]string{
 }
 
 func FormatToolEvent(name, raw string) string {
-	if name == "" || hiddenEvent[name] {
+	argMap := parseToolArgs(raw)
+	mode := eventMode(name, argMap)
+	if hideToolEvent(name, mode) {
 		return ""
-	}
-
-	var argMap map[string]any
-	if raw != "" {
-		_ = json.Unmarshal([]byte(raw), &argMap)
 	}
 
 	arg := func(keys ...string) string {
@@ -97,11 +94,6 @@ func FormatToolEvent(name, raw string) string {
 				}
 			}
 		}
-		return ""
-	}
-
-	mode := eventMode(name, argMap)
-	if hiddenEvent[name] || hiddenEvent[name+"/"+mode] {
 		return ""
 	}
 
@@ -140,7 +132,7 @@ func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string
 		if mode != "invoke" {
 			return ""
 		}
-		if target := arg("name", "session_id"); target != "" {
+		if target := arg("self_id"); target != "" {
 			return target
 		}
 		return arg("model")

@@ -40,32 +40,25 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				},
 				"targets": map[string]any{
 					"type":        "array",
-					"description": "mode=patch: the edits to that file — read_files it first so every anchor matches the current bytes. Each item is {old_string, new_string[, replace_all][, row]} or {insert_string, row}, never both. Items carrying row apply highest-row first so line numbers stay valid against the original; the rest then apply in listed order, so sequence overlapping old_string items yourself.",
+					"description": "mode=patch: the edits to that file — read_files it first so every old_string matches the current bytes, minus the \"12\\t\" line-number prefix that read_files adds. Each item is {old_string, new_string}: new_string takes the place of old_string, empty deletes it, and to add lines you repeat old_string at the start of new_string. Items apply in the order listed, so sequence overlapping edits yourself.",
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
 							"old_string": map[string]any{
 								"type":        "string",
-								"description": "Exact text to replace, indentation included. Must be unique unless replace_all or row disambiguates. Omit with insert_string.",
+								"description": "Exact text to replace, indentation included — copy it from the file bytes, never with the line-number prefix. Must match once unless replace_all is set; extend it with surrounding lines until it does.",
 							},
 							"new_string": map[string]any{
 								"type":        "string",
-								"description": "Replacement text; empty deletes old_string. With row, deletes only that line's occurrence. Ignored when insert_string is set.",
+								"description": "What old_string becomes. Empty deletes it. To insert, start with old_string unchanged and append the new lines after it.",
 							},
 							"replace_all": map[string]any{
 								"type":        "boolean",
 								"description": "Replace every occurrence instead of the single unique one — for renames.",
 								"default":     false,
 							},
-							"insert_string": map[string]any{
-								"type":        "string",
-								"description": "New line(s) inserted before row — the existing line shifts down, nothing is replaced. Requires row; cannot combine with old_string.",
-							},
-							"row": map[string]any{
-								"type":        "integer",
-								"description": "1-based line number. With old_string: which occurrence to edit. With insert_string: the line to insert before.",
-							},
 						},
+						"required": []string{"old_string", "new_string"},
 					},
 				},
 				"version": map[string]any{
@@ -89,6 +82,10 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
+			}
+
+			if err := rejectElided(params.Content, params.Targets); err != nil {
+				return "", err
 			}
 
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))

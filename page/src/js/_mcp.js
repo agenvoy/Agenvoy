@@ -466,7 +466,7 @@ function closeMcpLogin() {
 
 function startMcpLogin(name) {
   closeMcpLogin();
-  renderMcpOAuth(false, "waiting for the provider…");
+  renderMcpOAuth(false, "waiting for the provider...");
 
   mcpStream = new EventSource(`${API}/v1/mcp/oauth?name=${encodeURIComponent(name)}`);
   mcpStream.onmessage = function (e) {

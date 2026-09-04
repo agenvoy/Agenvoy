@@ -34,7 +34,7 @@ func SaveCrons(crons []CronEntry) error {
 	if crons == nil {
 		crons = []CronEntry{}
 	}
-	return go_pkg_filesystem.WriteJSON(filesystem.CronsPath, crons, true)
+	return go_pkg_filesystem.WriteJSON(filesystem.CronsPath, crons, false)
 }
 
 func AppendCron(c CronEntry) error {

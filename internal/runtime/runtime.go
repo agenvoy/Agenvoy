@@ -41,7 +41,7 @@ func Read() (*Runtime, error) {
 }
 
 func write(r *Runtime) error {
-	if err := go_pkg_filesystem.WriteJSON(path(), r, true); err != nil {
+	if err := go_pkg_filesystem.WriteJSON(path(), r, false); err != nil {
 		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
 	}
 	return nil

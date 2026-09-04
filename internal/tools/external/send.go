@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -101,7 +103,7 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 		default:
 			requestBody, err := json.Marshal(body)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 			}
 
 			req, err = http.NewRequestWithContext(reqCtx, method, api, strings.NewReader(string(requestBody)))
@@ -145,9 +147,9 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 		Body:       string(respBody),
 	}
 
-	output, err := json.Marshal(result)
+	output, err := utils.MarshalPlain(result)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 	}
 
 	return string(output), nil

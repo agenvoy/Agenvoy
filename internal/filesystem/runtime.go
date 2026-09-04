@@ -81,17 +81,6 @@ func LoadRuntime() error {
 	}
 	LinePort = limits.LinePort
 
-	// * legacy parameter keep for now
-	var legacy struct {
-		MaxSkillIterations int `json:"max_skill_iterations"`
-	}
-	if data, ok := raw["limits"]; ok && len(data) > 0 {
-		_ = json.Unmarshal(data, &legacy)
-	}
-	if legacy.MaxSkillIterations > 0 {
-		limits.MaxToolIterations = legacy.MaxSkillIterations
-		changed = true
-	}
 	if limits.MaxToolIterations <= 0 {
 		limits.MaxToolIterations = MaxToolIterations
 		changed = true

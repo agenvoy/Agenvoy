@@ -19,10 +19,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -174,10 +174,9 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		return nil
 	}
 
-	autoTranscribed := false
 	if hasAttachment {
-		if slices.ContainsFunc(attachInputs, inputHasVoice) && !config.VoiceEnabled() {
-			if _, err := b.client.Send(ctx, target, "⚠️ voice transcription is disabled. enable it with /voice in the Agenvoy TUI first."); err != nil {
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !audioTool.STTEnabled() {
+			if _, err := b.client.Send(ctx, target, "⚠️ no speech-to-text model selected · pick one with /model stt first."); err != nil {
 				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (voice disabled)",
 					slog.String("source", target),
 					slog.String("error", err.Error()))
@@ -220,8 +219,6 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 			}
 			return nil
 		}
-		autoTranscribed = len(transcripts) > 0
-
 		if len(transcripts) > 0 || len(paths) > 0 {
 			var lines []string
 			if content != "" {
@@ -289,7 +286,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        content,
-		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
+		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       true,
 		Sender:         sourceName(in),
@@ -319,7 +316,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	})
 
 	replyText, _ := utils.ExtractFileMarkers(strings.TrimSpace(result.ReplyText))
-	replyText = chatbot.ExtractVoiceMarkers(replyText, false).CleanText
+	replyText = strings.TrimSpace(replyText)
 	if replyText == "" {
 		return fmt.Errorf("no reply")
 	}

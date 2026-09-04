@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -53,14 +54,6 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	for i := range order {
 		order[i] = i
 	}
-	sort.SliceStable(order, func(a, b int) bool {
-		ra, rb := targets[order[a]].Row, targets[order[b]].Row
-		if ra > 0 && rb > 0 {
-			return ra > rb
-		}
-		return ra > 0 && rb == 0
-	})
-
 	before := content
 	var skipped []int
 	for _, i := range order {
@@ -71,9 +64,6 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		if err != nil {
 			if conflict := batchConflict(before, content, absPath, targets, order, i); conflict != "" {
 				return "", fmt.Errorf("targets[%d]: %s", i, conflict)
-			}
-			if content != before && strings.Contains(err.Error(), "row") {
-				return "", fmt.Errorf("targets[%d]: %w — those row numbers count the earlier targets in this same call, which are not on disk because nothing was written; re-reading the file gives different numbers, so either keep this exact set of targets and use the numbers above, or send this target on its own", i, err)
 			}
 			return "", fmt.Errorf("targets[%d]: %w", i, err)
 		}
@@ -108,55 +98,48 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	return fmt.Sprintf("successfully updated %s", absPath) + note + unrecorded, nil
 }
 
+func rejectElided(content string, targets []patchTarget) error {
+	values := []string{content}
+	for _, one := range targets {
+		values = append(values, one.OldString, one.NewString)
+	}
+	if slices.ContainsFunc(values, toolTypes.IsElided) {
+		return fmt.Errorf("%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", toolTypes.Elided)
+	}
+	return nil
+}
+
 type patchTarget struct {
-	OldString    string `json:"old_string"`
-	NewString    string `json:"new_string"`
-	ReplaceAll   bool   `json:"replace_all"`
-	InsertString string `json:"insert_string"`
-	Row          int    `json:"row"`
+	OldString  string `json:"old_string"`
+	NewString  string `json:"new_string"`
+	ReplaceAll bool   `json:"replace_all"`
 }
 
 func applyTarget(content string, target patchTarget, absPath string) (string, error) {
-	switch {
-	case target.InsertString != "":
-		if target.OldString != "" {
-			return "", fmt.Errorf("insert_string cannot be combined with old_string")
-		}
-		if target.Row <= 0 {
-			return "", fmt.Errorf("row is required when insert_string is set")
-		}
-		return insertAtRow(content, target.InsertString, target.Row)
-
-	case target.OldString != "":
-		old := target.OldString
-		new := target.NewString
-		if old == new {
-			return content, nil
-		}
-		if !strings.Contains(content, old) {
-			return "", anchorNotFound(content, old, absPath)
-		}
-
-		search := old
-		if new == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
-			search = old + "\n"
-		}
-
-		switch {
-		case target.ReplaceAll:
-			return strings.ReplaceAll(content, search, new), nil
-		case target.Row > 0:
-			return replaceAtRow(content, search, new, target.Row)
-		default:
-			if rows := rowsOf(content, search); len(rows) > 1 {
-				return "", fmt.Errorf("%s occurs on rows %v of %s; set row to one of them or replace_all", old, rows, absPath)
-			}
-			return strings.Replace(content, search, new, 1), nil
-		}
-
-	default:
-		return "", fmt.Errorf("either old_string or insert_string is required")
+	old := target.OldString
+	new := target.NewString
+	if old == "" {
+		return "", fmt.Errorf("old_string is required")
 	}
+	if old == new {
+		return content, nil
+	}
+	if !strings.Contains(content, old) {
+		return "", anchorNotFound(content, old, absPath)
+	}
+
+	search := old
+	if new == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
+		search = old + "\n"
+	}
+
+	if target.ReplaceAll {
+		return strings.ReplaceAll(content, search, new), nil
+	}
+	if rows := rowsOf(content, search); len(rows) > 1 {
+		return "", fmt.Errorf("%s occurs on rows %v of %s; extend old_string until it matches once, or set replace_all", old, rows, absPath)
+	}
+	return strings.Replace(content, search, new, 1), nil
 }
 
 func batchConflict(original, current, absPath string, targets []patchTarget, order []int, at int) string {
@@ -171,9 +154,6 @@ func batchConflict(original, current, absPath string, targets []patchTarget, ord
 			break
 		}
 		other := targets[j].OldString
-		if other == "" {
-			other = targets[j].InsertString
-		}
 		if other != "" && (strings.Contains(old, other) || strings.Contains(other, old)) {
 			by = append(by, fmt.Sprintf("targets[%d]", j))
 		}
@@ -214,23 +194,6 @@ func anchorNotFound(content, old, absPath string) error {
 	return fmt.Errorf("%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
 }
 
-func replaceAtRow(content, search, new string, row int) (string, error) {
-	idx := 0
-	for {
-		i := strings.Index(content[idx:], search)
-		if i < 0 {
-			break
-		}
-		pos := idx + i
-		line := strings.Count(content[:pos], "\n") + 1
-		if line == row {
-			return content[:pos] + new + content[pos+len(search):], nil
-		}
-		idx = pos + 1
-	}
-	return "", fmt.Errorf("no match for %q at row %d; it is on rows %v", search, row, rowsOf(content, search))
-}
-
 func rowsOf(content, search string) []int {
 	var rows []int
 	for idx := 0; ; {
@@ -242,25 +205,4 @@ func rowsOf(content, search string) []int {
 		rows = append(rows, strings.Count(content[:pos], "\n")+1)
 		idx = pos + 1
 	}
-}
-
-func insertAtRow(content, insert string, row int) (string, error) {
-	lines := strings.Split(content, "\n")
-	lineCount := len(lines)
-	if lineCount > 0 && lines[lineCount-1] == "" {
-		lineCount--
-	}
-	if row < 1 || row > lineCount+1 {
-		return "", fmt.Errorf("row %d out of range (file has %d lines)", row, lineCount)
-	}
-
-	insert = strings.TrimSuffix(insert, "\n")
-	insert = strings.TrimSuffix(insert, "\r")
-
-	idx := row - 1
-	out := make([]string, 0, len(lines)+1)
-	out = append(out, lines[:idx]...)
-	out = append(out, strings.Split(insert, "\n")...)
-	out = append(out, lines[idx:]...)
-	return strings.Join(out, "\n"), nil
 }

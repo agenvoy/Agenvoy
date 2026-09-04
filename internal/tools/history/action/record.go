@@ -17,7 +17,6 @@ type record struct {
 	Reasoning   string   `json:"reasoning,omitempty"`
 	Objective   string   `json:"objective,omitempty"`
 	ToolResults []result `json:"tool_results,omitempty"`
-	Todos       []todo   `json:"todos,omitempty"`
 	Reply       string   `json:"reply,omitempty"`
 }
 
@@ -25,11 +24,6 @@ type result struct {
 	Name   string `json:"name"`
 	Args   string `json:"args,omitempty"`
 	Result string `json:"result"`
-}
-
-type todo struct {
-	Content string `json:"content"`
-	Status  string `json:"status"`
 }
 
 type entry struct {
@@ -41,6 +35,9 @@ type entry struct {
 func entries(e *toolTypes.Executor) ([]entry, error) {
 	if e == nil || e.SessionID == "" {
 		return nil, fmt.Errorf("no session: task history is recorded per session")
+	}
+	if e.IgnoreHistory {
+		return nil, nil
 	}
 	return entriesOf(e.SessionID)
 }

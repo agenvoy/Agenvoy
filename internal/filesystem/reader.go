@@ -1,7 +1,6 @@
 package filesystem
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -25,6 +24,10 @@ var imageExts = map[string]bool{
 }
 
 func ReadFile(ctx context.Context, path string, offset, limit int) (string, error) {
+	if IsMedia(path) {
+		return TranscribeMedia(ctx, path)
+	}
+
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".pdf":
@@ -118,33 +121,24 @@ func sliceLines(text, path string, offset, limit int) string {
 	if text == "" {
 		return fmt.Sprintf("%s is empty", path)
 	}
-	if offset <= 1 && limit >= maxReadSize {
-		return text
+
+	lines := strings.Split(text, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
 	}
+	if len(lines) == 0 {
+		return fmt.Sprintf("%s is empty", path)
+	}
+
+	start := max(offset, 1) - 1
+	if start >= len(lines) {
+		return fmt.Sprintf("offset %d exceeds(%s) %d", offset, path, len(lines))
+	}
+	end := min(start+limit, len(lines))
 
 	var sb strings.Builder
-	scanner := bufio.NewScanner(strings.NewReader(text))
-	scanner.Buffer(make([]byte, maxReadSize), maxReadSize)
-	line := 0
-	written := 0
-	for scanner.Scan() {
-		line++
-		if line < offset {
-			continue
-		}
-		if written >= limit {
-			break
-		}
-		sb.WriteString(scanner.Text())
-		sb.WriteByte('\n')
-		written++
-	}
-
-	if sb.Len() == 0 {
-		if line == 0 {
-			return fmt.Sprintf("%s is empty", path)
-		}
-		return fmt.Sprintf("offset %d exceeds(%s) %d", offset, path, line)
+	for i := start; i < end; i++ {
+		fmt.Fprintf(&sb, "%d\t%s\n", i+1, lines[i])
 	}
 	return sb.String()
 }

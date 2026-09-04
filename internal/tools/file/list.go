@@ -2,10 +2,11 @@ package file
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/pardnchiu/agenvoy/internal/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -27,9 +28,9 @@ func listBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery) 
 		}
 	}
 
-	raw, err := json.Marshal(out)
+	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", fmt.Errorf("utils.MarshalPlain: %w", err)
 	}
 	return string(raw) + budget.notice(), nil
 }

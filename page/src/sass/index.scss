@@ -70,6 +70,10 @@ body {
     transition: none !important;
   }
 
+  &:not([data-icons="1"]) .material-symbols-outlined {
+    visibility: hidden;
+  }
+
   @include left-tab.styles;
   @include right-content.styles;
   @include toast.styles;
@@ -104,6 +108,7 @@ span.material-symbols-outlined {
   text-align: center;
   font-size: medium;
   pointer-events: none;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
@@ -294,6 +299,32 @@ div.popup {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+          }
+        }
+
+        button.remove {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex-shrink: 0;
+          width: 1.25rem;
+          height: 1.25rem;
+          color: var(--gray-3);
+          cursor: pointer;
+          transition: 0.2s;
+
+          span {
+            font-size: 1.125rem;
+          }
+
+          @media (hover: hover) {
+            &:hover {
+              color: var(--error);
+            }
+          }
+
+          &:active {
+            transform: scale(0.94);
           }
         }
       }

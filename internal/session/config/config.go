@@ -25,8 +25,9 @@ type Config struct {
 	TelegramUsername string        `json:"telegram_username"`
 	LineEnabled      bool          `json:"line_enabled"`
 	LineUsername     string        `json:"line_username"`
-	EnableVoice      bool          `json:"enable_voice"`
 	ImageGenerator   string        `json:"image_generator"`
+	STTModel         string        `json:"stt_model"`
+	TTSModel         string        `json:"tts_model"`
 	AdminChannel     string        `json:"admin_channel"`
 }
 
@@ -50,21 +51,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", filesystem.ConfigPath, err)
 	}
 	return &cfg, nil
-}
-
-func (c *Config) UnmarshalJSON(data []byte) error {
-	type alias Config
-	aux := struct {
-		*alias
-		LegacyPlannerModel string `json:"planner_model,omitempty"`
-	}{alias: (*alias)(c)}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	if c.DispatcherModel == "" && aux.LegacyPlannerModel != "" {
-		c.DispatcherModel = aux.LegacyPlannerModel
-	}
-	return nil
 }
 
 func Get() (map[string]any, error) {
@@ -107,11 +93,6 @@ func Save(cfg *Config) error {
 	maps.Copy(oldDic, newDic)
 	delete(oldDic, "planner_model")
 	return Write(oldDic)
-}
-
-func VoiceEnabled() bool {
-	cfg, err := Load()
-	return err == nil && cfg != nil && cfg.EnableVoice
 }
 
 func SaveKey(key string) error {

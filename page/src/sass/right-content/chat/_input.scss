@@ -178,6 +178,10 @@
           }
         }
 
+        &.harness[data-selected="1"] {
+          color: var(--accent);
+        }
+
         &.left:after {
           left: -0.5rem;
         }

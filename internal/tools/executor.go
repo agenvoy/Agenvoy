@@ -28,8 +28,6 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	apiToolbox.Builtin(extensions.APIs, "apis")
 
 	for _, dir := range []string{
-		filesystem.LegacyAPIToolsDir,
-		filesystem.LegacyWorkAPIToolsDir,
 		filesystem.APIToolsDir,
 		filesystem.WorkAPIToolsDir,
 	} {
@@ -62,8 +60,6 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	scriptToolbox := scriptAdapter.New("script_")
 	for _, dir := range []string{
 		filesystem.SystemToolsDir,
-		filesystem.LegacyScriptToolsDir,
-		filesystem.LegacyWorkScriptToolsDir,
 		filesystem.ScriptToolsDir,
 		filesystem.WorkScriptToolsDir,
 	} {

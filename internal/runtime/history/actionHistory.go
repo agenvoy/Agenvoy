@@ -1,6 +1,7 @@
 package historyStore
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,6 @@ type ActionRecord struct {
 	Reasoning   string          `json:"reasoning,omitempty"`
 	Objective   string          `json:"objective,omitempty"`
 	ToolResults json.RawMessage `json:"tool_results,omitempty"`
-	Todos       json.RawMessage `json:"todos,omitempty"`
 	Reply       string          `json:"reply,omitempty"`
 }
 
@@ -24,7 +24,11 @@ func rawText(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
 	}
-	return string(raw)
+	var buf bytes.Buffer
+	if json.Compact(&buf, raw) != nil {
+		return string(raw)
+	}
+	return buf.String()
 }
 
 func textRaw(text string) json.RawMessage {
@@ -44,41 +48,39 @@ func WriteAction(ctx context.Context, sessionID string, r ActionRecord) error {
 
 	if _, err := conn.ExecContext(ctx, `
 	INSERT INTO action_history
-	(session_id, task_hash, end_at, model, reasoning, objective, tool_results, todos, reply)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(session_id, task_hash, end_at, model, reasoning, objective, tool_results, reply)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(session_id, task_hash) DO UPDATE SET
 		end_at        = excluded.end_at,
 		model         = excluded.model,
 		reasoning     = excluded.reasoning,
 		objective     = excluded.objective,
 		tool_results  = excluded.tool_results,
-		todos         = excluded.todos,
 		reply         = excluded.reply`,
 		sessionID, r.TaskHash, r.EndAt.UnixNano(), r.Model, r.Reasoning, r.Objective,
-		rawText(r.ToolResults), rawText(r.Todos), r.Reply); err != nil {
+		rawText(r.ToolResults), r.Reply); err != nil {
 		return fmt.Errorf("sql.DB ExecContext [INSERT action_history]: %w", err)
 	}
 	return nil
 }
 
-const actionColumns = `task_hash, end_at, model, reasoning, objective, tool_results, todos, reply`
+const actionColumns = `task_hash, end_at, model, reasoning, objective, tool_results, reply`
 
 func scanAction(rows interface {
 	Scan(dest ...any) error
 }) (ActionRecord, error) {
 	var (
-		one              ActionRecord
-		endAt            int64
-		toolResults, tds string
+		one         ActionRecord
+		endAt       int64
+		toolResults string
 	)
 	if err := rows.Scan(&one.TaskHash, &endAt, &one.Model, &one.Reasoning, &one.Objective,
-		&toolResults, &tds, &one.Reply); err != nil {
+		&toolResults, &one.Reply); err != nil {
 		return ActionRecord{}, fmt.Errorf("sql.Rows Scan [SELECT action_history]: %w", err)
 	}
 
 	one.EndAt = time.Unix(0, endAt)
 	one.ToolResults = textRaw(toolResults)
-	one.Todos = textRaw(tds)
 	return one, nil
 }
 

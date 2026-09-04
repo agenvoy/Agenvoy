@@ -39,6 +39,7 @@ func New() *gin.Engine {
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())
 	r.GET("/v1/model", localhostOnly(), handler.GetModelRouting())
 	r.POST("/v1/model", localhostOnly(), handler.SetModelRouting())
+	r.GET("/v1/model/audio", localhostOnly(), handler.ListAudioModels())
 
 	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
 

@@ -80,12 +80,12 @@ function pendingCard(question, index, total) {
 
 function pendingInput(question, index) {
   if (question.secret) {
-    const dom = _("input", { type: "password", placeholder: "輸入回答…" });
+    const dom = _("input", { type: "password", placeholder: "輸入回答..." });
     dom.addEventListener("input", () => (pendingAnswers[index] = dom.value));
     return dom;
   }
 
-  const dom = _("textarea", { rows: "3", placeholder: "輸入回答…" });
+  const dom = _("textarea", { rows: "3", placeholder: "輸入回答..." });
   dom.addEventListener("input", () => (pendingAnswers[index] = dom.value));
   dom.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.shiftKey || e.isComposing) {
@@ -169,6 +169,27 @@ async function listResumable(sessionId) {
   }
 }
 
+async function deletePending(sessionId, taskHash) {
+  const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(taskHash)}`;
+  try {
+    const response = await fetch(url, { method: "DELETE" });
+    if (!response.ok && response.status !== 404) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+      return false;
+    }
+  } catch (err) {
+    console.error("deletePending", err);
+    alert(err.message || "failed");
+    return false;
+  }
+  if (pendingTask && pendingTask.sessionId === sessionId && pendingTask.taskHash === taskHash) {
+    clearPending(sessionId);
+    pendingTask = null;
+  }
+  return true;
+}
+
 async function renderResumeMark(sessionId) {
   const panel = chatPanel(sessionId);
   const dom = panel ? panel.querySelector(":scope > header button[data-has]") : null;
@@ -233,8 +254,28 @@ async function openResumePicker(sessionId) {
       startResume(sid, one.task_hash);
     });
 
+    const remove = _("button", { type: "button", class: "remove" }, [
+      _("span.material-symbols-outlined", "delete"),
+    ]);
+    remove.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm(`Discard this pending task?\n\n${title}`)) {
+        return;
+      }
+      if (!(await deletePending(sid, one.task_hash))) {
+        return;
+      }
+      row.remove();
+      renderResumeMark(sid);
+      if (!list.querySelector("label")) {
+        list.appendChild(_("p.empty", "none yet · every task in this chat is finished or still running"));
+      }
+    });
+
     const hint = one.has_questions ? "waiting on questions · opens them here to answer" : "interrupted run · continues where it stopped";
-    list.appendChild(_("label", [box, _("div", [_("strong", title), _("p", hint)])]));
+    const row = _("label", [box, _("div", [_("strong", title), _("p", hint)]), remove]);
+    list.appendChild(row);
   }
 }
 

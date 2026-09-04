@@ -42,13 +42,14 @@ type TUI struct {
 	pendingResume *ResumeExec
 	lastInput     string
 
-	popup        *Popup
-	popupQueue   []Pending
-	botBodyDraft string
-	mcpAdd       *mcpAddDraft
-	mcpClient    *mcpClientDraft
-	mcpOAuth     *oauthState
-	modelAdd     *modelAddItem
+	popup         *Popup
+	popupQueue    []Pending
+	botBodyDraft  string
+	noteBodyDraft string
+	mcpAdd        *mcpAddDraft
+	mcpClient     *mcpClientDraft
+	mcpOAuth      *oauthState
+	modelAdd      *modelAddItem
 
 	selector *CmdSelector
 

@@ -80,9 +80,9 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 
 	label := utils.ShortenSessionID(sid)
 	if mode == "all" {
-		t.activity = "resetting (history + summary)…"
+		t.activity = "resetting (history + summary)..."
 		return t, tea.Batch(
-			tea.Println(hintStyle.Render(fmt.Sprintf("⎯ clearing history and summary for %s…", label))+"\n"),
+			tea.Println(hintStyle.Render(fmt.Sprintf("⎯ clearing history and summary for %s...", label))+"\n"),
 			t.spinner.Tick,
 			func() tea.Msg {
 				keys, err := exec.ResetSessionAll(sid)
@@ -91,9 +91,9 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 		)
 	}
 
-	t.activity = "resetting (summary refresh first)…"
+	t.activity = "resetting (summary refresh first)..."
 	return t, tea.Batch(
-		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s, then clearing history…", label))+"\n"),
+		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s, then clearing history...", label))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()

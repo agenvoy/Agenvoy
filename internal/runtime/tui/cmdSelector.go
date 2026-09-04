@@ -33,19 +33,19 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model", "add / remove provider · pick session / dispatch / summary model · image generator"},
+	{"model", "add / remove provider · pick session / dispatch / summary model · image / stt / tts"},
 	{"mcp", "list MCP servers · add · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
 	{"dangerous", "remove-session / allow-skill"},
 	{"memory", "compact / reset / summary · manage session memory"},
 	{"bot", "edit / rename current session · name / self id / description (persona)"},
+	{"rule", "list / add / edit rule · title + description"},
+	{"knowledge", "list / add / edit knowledge · title + description"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"line", "enable / disable LINE bot · Q&A only · channel secret + access token on enable"},
-	{"voice", "enable / disable voice message · gemini tts"},
 	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
-	{"kuradb", "setup / update KuraDB RAG as an MCP server"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>/ln@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},

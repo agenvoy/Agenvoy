@@ -246,28 +246,22 @@ func truncateWriteArgs(argsJSON string) string {
 	if json.Unmarshal([]byte(argsJSON), &m) != nil {
 		return argsJSON
 	}
-	const omitted = "[ARGUMENT ELIDED FROM HISTORY TO SAVE CONTEXT — NOT THE FILE'S CONTENT. The full text was sent and written to disk successfully. Do NOT re-write this file to restore it.]"
-	const maxKeptAnchor = 2 << 10
 
-	dics := []map[string]any{m}
+	kept := map[string]any{}
+	for key, value := range m {
+		if key == "content" || key == "targets" {
+			continue
+		}
+		kept[key] = value
+	}
 	if targets, ok := m["targets"].([]any); ok {
-		for _, t := range targets {
-			if tm, ok := t.(map[string]any); ok {
-				dics = append(dics, tm)
-			}
-		}
+		kept["edits"] = len(targets)
 	}
-	for _, dic := range dics {
-		for _, field := range []string{"content", "new_string"} {
-			if _, ok := dic[field]; ok {
-				dic[field] = omitted
-			}
-		}
-		if str, ok := dic["old_string"].(string); ok && len(str) > maxKeptAnchor {
-			dic["old_string"] = omitted
-		}
+	if content, ok := m["content"].(string); ok {
+		kept["wrote_bytes"] = len(content)
 	}
-	out, err := json.Marshal(m)
+
+	out, err := json.Marshal(kept)
 	if err != nil {
 		return argsJSON
 	}

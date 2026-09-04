@@ -10,7 +10,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -52,7 +51,7 @@ func PushLineResult(ctx context.Context, payload exec.PushPayload) {
 	}
 
 	cleanText, _ := utils.ExtractFileMarkers(text)
-	message := chatbot.ExtractVoiceMarkers(cleanText, false).CleanText
+	message := strings.TrimSpace(cleanText)
 	if message == "" {
 		return
 	}

@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+
 	"github.com/bwmarrin/discordgo"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -20,13 +21,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	geminiSummary "github.com/pardnchiu/go-llm-router/core/gemini/summary"
 )
 
 func channelName(in go_bot_discord.Input) string {
@@ -161,10 +160,9 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		return nil
 	}
 
-	autoTranscribed := false
 	if hasAttachment {
-		if hasVoiceAttachment(in) && !config.VoiceEnabled() {
-			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, "Please enable it with `/enable-voice enable` first.")
+		if hasVoiceAttachment(in) && !audioTool.STTEnabled() {
+			_, _ = b.client.Send(ctx, in.ChannelID, in.MessageID, "No speech-to-text model selected · pick one with `/model stt` first.")
 			return nil
 		}
 		attachments := saveAttachments(ctx, b, in)
@@ -182,7 +180,6 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				lines = append(lines, content)
 			}
 			lines = append(lines, transcripts...)
-			autoTranscribed = len(transcripts) > 0
 			if len(paths) > 0 {
 				lines = append(lines, "[Discord attachments]")
 				for _, p := range paths {
@@ -245,7 +242,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		Skill:          matchedSkill,
 		Content:        content,
 		Input:          content,
-		ExcludeTools:   chatbot.RuntimeExcludeTools(autoTranscribed),
+		ExcludeTools:   tools.TUIOnlyTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 		ReplyMessageID: in.MessageID,
@@ -267,7 +264,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				slog.String("error", err.Error()))
 		}
 	}
-	markStatus("thinking…")
+	markStatus("thinking...")
 
 	events := make(chan agentTypes.Event, 128)
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
@@ -304,17 +301,12 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 	cleanText, attachmentPaths := utils.ExtractFileMarkers(replyText)
 	replyText = cleanText
 
-	voiceResult := chatbot.ExtractVoiceMarkers(replyText, autoTranscribed)
-	replyText = voiceResult.CleanText
-	voiceTexts := voiceResult.Texts
-	autoVoiceReply := voiceResult.AutoReply
-
 	model := doneEvent.Model
 	if model == "" && agent != nil {
 		model = agent.Name()
 	}
 	footer := utils.FormatEventFooterContext(ctx, doneEvent.Duration, model, doneEvent.Usage)
-	hasMedia := len(attachmentPaths) > 0 || len(voiceTexts) > 0
+	hasMedia := len(attachmentPaths) > 0
 	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, execErrors)
 
 	chunks := chatbot.Chunk(chatbot.Discord, replyText)
@@ -334,7 +326,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		replyTo = ""
 	}
 
-	if len(voiceTexts) == 0 && len(attachmentPaths) == 0 {
+	if len(attachmentPaths) == 0 {
 		return nil
 	}
 
@@ -349,62 +341,6 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		client := b.client
 		paths := attachmentPaths
 		go sendAttachments(bgCtx, client, in.ChannelID, channel, replyToID, paths)
-	}
-
-	if len(voiceTexts) > 0 {
-		bgCtx := context.WithoutCancel(ctx)
-		channel := channelName(in)
-		channelID := in.ChannelID
-		reply := replyToID
-		client := b.client
-		texts := voiceTexts
-		summarizeTexts := autoVoiceReply
-		sessID := sess.ID
-		go func() {
-			sendFailure := func(errMsg string) {
-				text := fmt.Sprintf("-# ⎿ ⚠️ SendVoice failed (background)\n-# ⎿ `%s`", errMsg)
-				if _, err := client.Send(bgCtx, channelID, reply, text); err != nil {
-					slog.Error("github.com/pardnchiu/go-bot/discord Bot.client.Send (notify)",
-						slog.String("session", sessID),
-						slog.String("channel", channel),
-						slog.String("error", err.Error()))
-				}
-			}
-			apiKey := strings.TrimSpace(keychain.Get("GEMINI_API_KEY"))
-			if apiKey == "" {
-				slog.Error("keychain.Get GEMINI_API_KEY missing",
-					slog.String("session", sessID),
-					slog.String("channel", channel))
-				sendFailure("GEMINI_API_KEY missing")
-				return
-			}
-			for _, text := range texts {
-				if summarizeTexts {
-					summary, err := geminiSummary.VoiceReply(bgCtx, text)
-					if err != nil {
-						slog.Debug("gemini summary VoiceReply",
-							slog.String("session", sessID),
-							slog.String("channel", channel),
-							slog.String("error", err.Error()))
-						summary = utils.VoiceReplyText(text)
-					}
-					if strings.TrimSpace(summary) == "" {
-						summary = utils.VoiceReplyText(text)
-					}
-					text = summary
-				}
-				if strings.TrimSpace(text) == "" {
-					continue
-				}
-				if _, err := client.SendVoice(bgCtx, channelID, reply, text, apiKey); err != nil {
-					slog.Error("github.com/pardnchiu/go-bot/discord Bot.client.SendVoice",
-						slog.String("session", sessID),
-						slog.String("channel", channel),
-						slog.String("error", err.Error()))
-					sendFailure(err.Error())
-				}
-			}
-		}()
 	}
 
 	return nil

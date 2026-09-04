@@ -27,10 +27,10 @@ func (t TUI) commandSummary() (TUI, tea.Cmd, bool) {
 	t.running = true
 	t.runStartedAt = time.Now()
 	t.runTarget = utils.ShortenSessionID(sid)
-	t.activity = "regenerating summary…"
+	t.activity = "regenerating summary..."
 
 	return t, tea.Batch(
-		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s…", utils.ShortenSessionID(sid)))+"\n"),
+		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ refreshing summary for %s...", utils.ShortenSessionID(sid)))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()

@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", async function () {
+  revealIconsWhenReady();
+
   const config = readConfig();
   let params = praseURL();
 
@@ -238,9 +240,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       model_add: function () {
         selectProviderAdd();
       },
-      model_routing: function () {
-        selectModelRouting();
-      },
       model_filter: function (e) {
         modelFilterChange(e);
       },
@@ -446,3 +445,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     },
   });
 });
+
+function revealIconsWhenReady() {
+  const reveal = () => {
+    document.body.dataset.icons = "1";
+  };
+  if (!document.fonts) {
+    reveal();
+    return;
+  }
+  // * detection can never leave the icons invisible: a stalled font load still reveals
+  setTimeout(reveal, 3000);
+  document.fonts.ready
+    .then(() => document.fonts.load('24px "Material Symbols Outlined"'))
+    .finally(reveal);
+}

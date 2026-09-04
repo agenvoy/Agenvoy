@@ -53,12 +53,6 @@ var (
 	WorkAPIToolsDir    string
 	WorkScriptToolsDir string
 	WorkSkillsDir      string
-
-	// DELETE will deprecated
-	LegacyAPIToolsDir        string
-	LegacyScriptToolsDir     string
-	LegacyWorkAPIToolsDir    string
-	LegacyWorkScriptToolsDir string
 )
 
 const (
@@ -107,9 +101,6 @@ func Init() error {
 		ScheduleSkillTrashDir = filepath.Join(ScheduleSkillsDir, ".Trash")
 		SkillTrashDir = filepath.Join(SkillsDir, ".Trash")
 
-		LegacyAPIToolsDir = filepath.Join(AgenvoyDir, "api_tools")
-		LegacyScriptToolsDir = filepath.Join(AgenvoyDir, "script_tools")
-
 		DownloadDir = filepath.Join(AgenvoyDir, "download")
 		DownloadTrashDir = filepath.Join(DownloadDir, ".Trash")
 		SessionsTrashDir = filepath.Join(SessionsDir, ".Trash")
@@ -122,9 +113,6 @@ func Init() error {
 		WorkAPIToolsDir = filepath.Join(WorkAgenvoyDir, "tools", "api")
 		WorkScriptToolsDir = filepath.Join(WorkAgenvoyDir, "tools", "script")
 		WorkSkillsDir = filepath.Join(WorkAgenvoyDir, "skills")
-
-		LegacyWorkAPIToolsDir = filepath.Join(WorkAgenvoyDir, "api_tools")
-		LegacyWorkScriptToolsDir = filepath.Join(WorkAgenvoyDir, "script_tools")
 	})
 
 	for _, dir := range []string{

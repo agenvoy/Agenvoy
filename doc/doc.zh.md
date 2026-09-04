@@ -5,8 +5,8 @@
 ## 前置需求
 
 - Go 1.25.1 或更新版本
-- macOS 或支援 Go、SQLite 與 `go-pkg/sandbox` 相依套件的環境
-- 至少一組模型供應商憑證；透過 TUI 設定 API key 或 OAuth
+- macOS 或 Linux；Windows 請先安裝 WSL Linux 發行版，並在 WSL 終端機內執行 Agenvoy
+- 至少一組模型供應商憑證；Telegram 與 Discord 需要各自的 bot token。語音轉文字、文字轉語音與圖片生成各需選定對應模型／provider 及其憑證
 
 ## 安裝
 
@@ -16,6 +16,17 @@
 curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 agen
 ```
+
+### Windows（透過 WSL）
+
+請先以系統管理員身分開啟 PowerShell，查看並安裝一個 Linux 發行版：
+
+```powershell
+wsl --online --list
+wsl --install <發行版名稱>
+```
+
+完成安裝、重新開機並進入 WSL 終端機後，再執行[官方安裝程式](#官方安裝程式)。
 
 ### 從原始碼建置
 
@@ -58,10 +69,20 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 | Keychain 項目                                        | 用途                                                  |
 | ---------------------------------------------------- | ----------------------------------------------------- |
-| `OPENAI_API_KEY`                                     | OpenAI 與 KuraDB                                      |
+| `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                         |
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
-| `GEMINI_API_KEY`                                     | 語音回覆與 `transcribe_media`；未設定時該工具不會註冊 |
+| `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
+
+### 音訊與圖片模型路由
+
+語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model` 設定；選擇 `off` 可停用對應能力。STT／TTS 可用模型會從已設定的 OpenAI 與 Gemini provider 載入，圖片生成則需要已設定的支援圖片 provider。
+
+自 **v0.34.4** 起，Telegram 與 Discord 暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機 `generate_audio` 工具與音訊模型設定仍可使用，並可將產生的音訊檔傳送到任一頻道。
+
+### 聊天機器人整合
+
+Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向外連線，因此主機不需要開放入站連接埠或公開端點；設定時只需要提供對應的 bot token。其他聊天機器人平台除非能帶來明確的安全性改善，否則不在目前規劃內。
 
 ### Runtime 設定
 
@@ -93,13 +114,13 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 ### TUI 執行模式
 
-目前 runtime 內建 10 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
+目前 runtime 內建 12 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
 
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
 
-請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。
+請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。建立 prompt 時，Agenvoy 會加入共用官方操作指南，並在有設定時加入符合目前所選模型的專屬指南。
 
 互動請求也會攜帶來源前綴。CLI 確認僅由 TUI 接收，Web 請求由 Web 確認串流處理，Telegram 與 Discord 則由各自對應的頻道 listener 接收。非 TUI 確認會在五分鐘後逾時，避免某個頻道攔截或長期占用其他頻道的提示。
 
@@ -169,7 +190,7 @@ agen
 
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成來源         |
+| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成、STT 與 TTS 模型 |
 | `/mcp`                          | 列出 MCP server；新增、登入、重連、查看工具、設定單一工具權限、移除                   |
 | `/switch` `/new`                | 切換 session 或建立新的（名稱會檢查重複）                                             |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
@@ -178,7 +199,6 @@ agen
 | `/discord` `/telegram` `/voice` | 啟用或停用各通道；token 會先驗證再存入                                                |
 | `/startup`                      | 啟用或停用登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit） |
 | `/admin-channel`                | 選擇由哪個已授權對話接收新對話驗證碼                                                  |
-| `/kuradb`                       | 安裝、更新或重連 KuraDB（以 MCP server 形式）                                         |
 | `/cron` `/task`                 | 新增、編輯或移除週期性與一次性排程                                                    |
 | `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
 | `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 開啟 `action.log`、查看各模型 token 用量                    |
@@ -221,7 +241,7 @@ printf '%s\n' \
 
 ### Web 與檔案回應顯示
 
-後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:…]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
+後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:...]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
 
 ### HTTP API
 
@@ -264,10 +284,11 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method          | Path                            | 說明                                                 |
 | --------------- | ------------------------------- | ---------------------------------------------------- |
-| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[…]}` 格式,含 `auto`） |
+| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
-| `GET` `POST`    | `/v1/model`                     | **local** — 模型路由：`dispatcher`／`summary`／`image`，讀取時另附 `image_options`。三個欄位放的東西不同類：`dispatcher` 與 `summary` 填已註冊的模型名（`prefix@model`），`image` 填的是 provider endpoint（`openai`／`codex`／`grok`／`grok-oauth`／`gemini`）——因為各 provider 的圖片模型寫死在 `go-llm-router` 內，選的是來源不是模型；`image_options` 只列出當前有憑證的 provider。`POST` 為部分更新：未帶（或 `null`）的欄位不動，`""` 清除，`image` 另接受 `off` 作為 `""` 的別名。模型未註冊、provider 不存在、或該 provider 沒有憑證一律拒絕且整批不寫。兩個動詞回傳同一種物件 |
+| `GET` `POST`    | `/v1/model`               | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
+| `GET`           | `/v1/model/audio`         | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。 |
 
 **Session**
 
@@ -327,7 +348,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `POST`       | `/v1/mcp/remove`         | **local** — 移除 MCP server                                                                                                                                                                                                 |
 | `GET`        | `/v1/mcp/status`         | **local** — 各 server 連線狀態                                                                                                                                                                                              |
 | `POST`       | `/v1/mcp/reconnect`      | **local** — 重連全部 MCP client 並重新註冊工具                                                                                                                                                                              |
-| `GET`        | `/v1/mcp/oauth?name=X`   | **local** — 單一 HTTP MCP server 的 SSE OAuth 登入,與 `/v1/provider/:provider/oauth` 同形狀:先送 `{"url":…}` 供瀏覽器開啟,結束送 `{"done":true,"ok":…}`(登入後重連失敗時附 `reconnect_error`)。10 分鐘逾時,客戶端斷線即中止 |
+| `GET`        | `/v1/mcp/oauth?name=X`   | **local** — 單一 HTTP MCP server 的 SSE OAuth 登入,與 `/v1/provider/:provider/oauth` 同形狀:先送 `{"url":...}` 供瀏覽器開啟,結束送 `{"done":true,"ok":...}`(登入後重連失敗時附 `reconnect_error`)。10 分鐘逾時,客戶端斷線即中止 |
 | `POST`       | `/v1/mcp/oauth/callback` | **local** — `{name, url}`。瀏覽器連不到 daemon 的 `localhost:17988` loopback listener 時,把 redirect URL 貼回來,code 由 query 取出。該 server 沒有等待中的登入回 400                                                        |
 | `POST`       | `/v1/mcp/oauth/client`   | **local** — `{name, client_id, client_secret?, redirect_uri?}`。給拒絕動態註冊的 server 用的預先註冊 client;`redirect_uri` 預設 `http://localhost:17988/callback`,須與 provider console 完全一致。寫入前先清掉既有 token    |
 | `DELETE`     | `/v1/mcp/oauth`          | **local** — `{name}`。同時清除該 server 的 token 與 client 註冊                                                                                                                                                             |
@@ -405,7 +426,6 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                            |
 | 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                   |
 |            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                |
-| 條件註冊   | `transcribe_media`                | 音訊／影片轉文字——需 `GEMINI_API_KEY`                                                  |
 | 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                      |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                 |
 

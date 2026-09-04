@@ -203,7 +203,7 @@ func newSession(ctx context.Context, data exec.ExecuteMeta, sessionID string) (*
 	if scanner == nil {
 		scanner = agents.Scanner()
 	}
-	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.ExcludeSkills)
+	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.ExcludeSkills, data.ModelName())
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
 	session.Histories = sessionHistory.Messages(oldHistory)

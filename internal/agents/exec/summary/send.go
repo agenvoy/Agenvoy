@@ -8,8 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -22,7 +22,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 	if bot := agents.SummaryBot(); bot != nil {
 		sender = bot
 	}
-	if picked := cooldown.Check(sender, agents.Registry()); picked != nil {
+	if picked := retryHandler.Check(sender, agents.Registry()); picked != nil {
 		sender = picked
 	}
 

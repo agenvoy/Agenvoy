@@ -25,6 +25,9 @@ func New() error {
 	if err := addSessionSelfID(c); err != nil {
 		return err
 	}
+	if err := migrateActionColumns(c); err != nil {
+		return err
+	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
 	}
@@ -235,4 +238,35 @@ func GetStartAt(sessionID string) int64 {
 	WHERE session_id = ?
 	`, sessionID).Scan(&ts)
 	return ts
+}
+
+func migrateActionColumns(c *go_sqlkit_core.Connector) error {
+	rows, err := c.Query(`PRAGMA table_info(action_history)`)
+	if err != nil {
+		return fmt.Errorf("sql.DB Query [PRAGMA table_info action_history]: %w", err)
+	}
+	defer rows.Close()
+
+	existing := make(map[string]bool)
+	for rows.Next() {
+		var (
+			cid, notNull, pk int
+			name, dataType   string
+			defaultValue     any
+		)
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info action_history]: %w", err)
+		}
+		existing[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("sql.Rows Err [PRAGMA table_info action_history]: %w", err)
+	}
+
+	if existing["todos"] {
+		if _, err := c.Exec(`ALTER TABLE action_history DROP COLUMN todos`); err != nil {
+			return fmt.Errorf("sql.DB Exec [ALTER TABLE action_history DROP COLUMN todos]: %w", err)
+		}
+	}
+	return nil
 }

@@ -13,8 +13,8 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -93,7 +93,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	picked := []string{}
 	seen := map[string]bool{}
 
-	bot = cooldown.Check(bot, registry)
+	bot = retryHandler.Check(bot, registry)
 
 	if bot != nil {
 		agentJson, err := json.Marshal(registry.Entries)
@@ -118,7 +118,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode())
 				cancel()
 				if sendErr == nil {
-					cooldown.Clear(bot.Name())
+					retryHandler.Clear(bot.Name())
 					if resp != nil && len(resp.Choices) > 0 {
 						if content, ok := resp.Choices[0].Message.Content.(string); ok {
 							raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
@@ -131,7 +131,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 									if _, ok := known[n]; !ok {
 										continue
 									}
-									if cooldown.IsCoolingDown(n) {
+									if retryHandler.IsCoolingDown(n) {
 										dead[n] = true
 										continue
 									}
@@ -146,9 +146,9 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				dead[bot.Name()] = true
 				rateLimited := sendCode == 429
 				if rateLimited {
-					cooldown.Register(bot.Name())
+					retryHandler.Register(bot.Name())
 				}
-				next := cooldown.Check(nil, registry)
+				next := retryHandler.Check(nil, registry)
 				hasNext := next != nil && !dead[next.Name()]
 				if ctx.Err() == nil && !rateLimited {
 					slog.Debug("dispatcher routing failed",

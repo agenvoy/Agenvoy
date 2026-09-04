@@ -16,8 +16,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/cooldown"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -30,6 +30,7 @@ import (
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -54,9 +55,18 @@ type ExecuteMeta struct {
 	Reasoning         string
 	AllowAll          bool
 	PendingTask       string
+	KeepPending       bool
+	IgnoreHistory     bool
 	ReplyMessageID    string
 	HistoryContent    string
 	Sender            string
+}
+
+func (m ExecuteMeta) ModelName() string {
+	if m.Agent == nil {
+		return ""
+	}
+	return m.Agent.Name()
 }
 
 type (
@@ -197,6 +207,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	exec.CancelExecution = execCancel
+	exec.IgnoreHistory = data.IgnoreHistory
 
 	keepPending := true
 	if !session.Stateless && session.ID != "" {
@@ -213,9 +224,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, allowAll)
 		}
 		defer func() {
-			if !keepPending {
-				interactive.CleanupPending(session.ID, exec.PendingTask)
+			if keepPending || data.KeepPending {
+				return
 			}
+			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
 	}
@@ -225,11 +237,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	cfg, _ := config.Load()
-	if go_pkg_keychain.Get("GEMINI_API_KEY") == "" {
-		data.ExcludeTools = append(data.ExcludeTools, "transcribe_media")
-	}
 	if !imageTool.Enabled() {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
+	}
+	if !audioTool.TTSEnabled() {
+		data.ExcludeTools = append(data.ExcludeTools, "generate_audio")
 	}
 	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
 		(cfg == nil || !cfg.DiscordEnabled || go_pkg_keychain.Get("DISCORD_TOKEN") == "") {
@@ -238,7 +250,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 	if strings.HasPrefix(session.ID, "ln-") {
 		data.ExcludeTools = append(data.ExcludeTools,
-			"generate_image", "ask_user", "store_secret")
+			"generate_image", "generate_audio", "ask_user", "store_secret")
 	}
 
 	if len(data.ExcludeTools) > 0 {
@@ -313,6 +325,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 	sendFailCount := 0
 	timeoutRetryCount := 0
+	rateLimitRetryCount := 0
 	oldHistoriesCompacted := false
 	firstAttempt := true
 
@@ -446,6 +459,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			alreadyCall = make(map[string]string)
 			sendFailCount = 0
 			timeoutRetryCount = 0
+			rateLimitRetryCount = 0
 			emptyCount = 0
 			compactFailed = false
 			continue
@@ -463,8 +477,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
 			modelName := data.Agent.Name()
 
-			if reason := cooldown.Reason(err, sendCode); reason != "" {
-				cooldown.Register(modelName)
+			reason, retryWait := retryHandler.Handle(modelName, err, sendCode, rateLimitRetryCount)
+			if reason != "" {
 				slog.Debug("data.Agent.Send "+reason+", model cooldown registered",
 					slog.String("session", session.ID),
 					slog.String("name", modelName))
@@ -519,6 +533,24 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
+			if retryWait > 0 {
+				rateLimitRetryCount++
+				slog.Debug("data.Agent.Send rate limited, retrying same model",
+					slog.String("session", session.ID),
+					slog.String("name", modelName),
+					slog.Int("attempt", rateLimitRetryCount),
+					slog.Duration("wait", retryWait))
+				select {
+				case <-execCtx.Done():
+					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+					interactive.DeletePending(session.ID, exec.PendingTask)
+					keepPending = false
+					return execCtx.Err()
+				case <-time.After(retryWait):
+				}
+				continue
+			}
+
 			next, nextName := nextAgent(execCtx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
 			if next != nil {
 				slog.Debug("data.Agent.Send failed, switching model",
@@ -538,6 +570,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				alreadyCall = make(map[string]string)
 				sendFailCount = 0
 				timeoutRetryCount = 0
+				rateLimitRetryCount = 0
 				emptyCount = 0
 				compactFailed = false
 				continue
@@ -564,9 +597,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
-		cooldown.Clear(data.Agent.Name())
+		retryHandler.Clear(data.Agent.Name())
 		sendFailCount = 0
 		timeoutRetryCount = 0
+		rateLimitRetryCount = 0
 
 		usage.Input += resp.Usage.Input
 		usage.Output += resp.Usage.Output
@@ -729,7 +763,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	})
 	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
 	if err == nil {
-		cooldown.Clear(data.Agent.Name())
+		retryHandler.Clear(data.Agent.Name())
 	}
 	if err == nil && len(resp.Choices) > 0 {
 		usage.Input += resp.Usage.Input
