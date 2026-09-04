@@ -82,6 +82,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return t, nil
 			}
+			if t.textarea.Value() != "" {
+				t.textarea.Reset()
+				t.textarea.SetHeight(1)
+				t.inputHistoryIdx = -1
+				return t, nil
+			}
 
 		case tea.KeyRunes:
 			if !t.running && t.selector == nil && strings.TrimSpace(t.textarea.Value()) == "" {
