@@ -13,7 +13,7 @@ import (
 )
 
 func isSkipped(href string) (bool, int, string) {
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	for _, prefix := range []string{"skip4xx:", "skip5xx:", "skipEmpty:"} {
 		entry, ok := db.Get(context.Background(), skipKey(prefix, href))
 		if !ok {
@@ -31,7 +31,7 @@ func skipKey(prefix, href string) string {
 }
 
 func addToSkippedMap(href string, status int, title string) {
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	val := fmt.Sprintf("%d|%s", status, strings.TrimSpace(title))
 	if status >= 500 {
 		if err := db.Set(context.Background(), skipKey("skip5xx:", href), val, torii.TTL(int64(skippedExpired.Seconds()))); err != nil {

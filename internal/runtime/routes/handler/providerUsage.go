@@ -37,7 +37,7 @@ func readUsageCache(id string) (usageEntry, bool) {
 	if !torii.Ready() {
 		return usageEntry{}, false
 	}
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	if db == nil {
 		return usageEntry{}, false
 	}
@@ -56,7 +56,7 @@ func writeUsageCache(id string, entry usageEntry) {
 	if !torii.Ready() {
 		return
 	}
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	if db == nil {
 		return
 	}
@@ -75,7 +75,7 @@ func DropUsageCache(id string) {
 	if !torii.Ready() {
 		return
 	}
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	if db == nil {
 		return
 	}

@@ -373,7 +373,6 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` `POST` `DELETE` | `/v1/toriidb/:db/*key`, `/v1/toriidb` | **local** — the single ToriiDB gate. `GET` on a plain key returns one entry, on a pattern (`*`) returns every matching entry — narrowed server-side by `?contains=<substr>` (case-insensitive, matched against the value) and `?after=<unix seconds>` (entry mtime); `?keys=1` returns names only and `?search=<text>&limit=` runs vector search. `POST` `{db,key,value,expire_at,vector}` writes with an absolute expiry, or `{db,keys,ttl}` re-expires existing keys by relative seconds; `DELETE` `{db,keys}` removes. Every process other than the daemon reaches ToriiDB only through here, so tool cache, chat vectors, knowledge, error memory and pending liveness are shared across the TUI and the daemon. |
 | `GET` | `/v1/torii/error` | **local** — read the tool-error memory store; unfiltered when `tool`/`keyword` are both omitted. |
 
 ## Tool Reference

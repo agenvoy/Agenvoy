@@ -32,7 +32,7 @@ func Replace(sessionID string, messages []Record) error {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile: %w", err)
 	}
 
-	db := torii.Remote(torii.DBSessionHist)
+	db := torii.DB(torii.DBSessionHist)
 	keys := db.Keys(context.Background(), sessionID+":*")
 	if len(keys) > 0 {
 		db.Del(context.Background(), keys...)

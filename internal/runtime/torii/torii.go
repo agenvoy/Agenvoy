@@ -1,16 +1,19 @@
 package torii
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	toriidb "github.com/pardnchiu/toriidb/core/store"
+	go_pkg_filesystem_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
+	toriidb_daemon "github.com/pardnchiu/toriidb/core/daemon"
 )
 
+const openAIKeyName = "OPENAI_API_KEY"
+
 const (
-	SetDefault    = toriidb.SetDefault
 	DBToolCache   = 0 // All tool cache
 	DBSessionHist = 1 // Session conversation
 	DBErrorMemory = 2 // Tool error
@@ -18,20 +21,41 @@ const (
 	DBOnline      = 4
 )
 
+type ScanOption = toriidb_daemon.ScanOption
+
 var (
 	once     sync.Once
 	initErr  error
-	instance *toriidb.Store
+	instance *toriidb_daemon.Daemon
+	embedder bool
 )
 
 func Init(path string) error {
 	once.Do(func() {
-		s, err := toriidb.New(path)
+		d, err := toriidb_daemon.New(path, go_pkg_filesystem_keychain.Get(openAIKeyName))
 		if err != nil {
 			initErr = fmt.Errorf("toriidb.New: %w", err)
 			return
 		}
-		instance = s
+		if err := d.Start(); err != nil {
+			d.Close()
+			initErr = fmt.Errorf("toriidb.Start: %w", err)
+			return
+		}
+		instance = d
+
+		// * the answer comes from whichever process owns the store, so a client
+		// * gets the server's real state instead of guessing from its own keychain;
+		// * on error assume it exists and let ErrNoEmbedder correct us per call
+		ctx, cancel := bound(context.Background())
+		defer cancel()
+
+		embedder = true
+		if has, err := d.HasEmbedder(ctx); err == nil {
+			embedder = has
+		} else {
+			slog.Debug("torii.HasEmbedder", slog.String("error", err.Error()))
+		}
 	})
 	return initErr
 }
@@ -41,22 +65,12 @@ func Close() {
 		return
 	}
 	if err := instance.Close(); err != nil {
-		slog.Warn("store.Close", slog.String("error", err.Error()))
+		slog.Warn("torii.Close", slog.String("error", err.Error()))
 	}
 }
 
 func Ready() bool {
 	return instance != nil
-}
-
-func DB(idx int) *toriidb.Session {
-	session := instance.Session()
-	if err := session.Select(idx); err != nil {
-		slog.Error("store.DB.Select",
-			slog.Int("index", idx),
-			slog.String("error", err.Error()))
-	}
-	return session
 }
 
 func TTL(seconds int64) *int64 {

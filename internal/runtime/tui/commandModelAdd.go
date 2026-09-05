@@ -44,6 +44,7 @@ type modelAddItem struct {
 type ModelAddProviderPick struct{ provider string }
 type ModelAddAPIKeyReplace struct{ replace string }
 type ModelAddAPIKeySubmit struct{ key string }
+type ModelAddVectorNotice struct{}
 type ModelAddCompatNameSubmit struct{ name string }
 type ModelAddCompatURLSubmit struct{ url string }
 type ModelAddCompatKeySubmit struct{ key string }
@@ -330,7 +331,24 @@ func (t TUI) runModelAddAPIKeySubmit(key string) (TUI, tea.Cmd) {
 	if t.modelAdd.provider == "cloudflare" {
 		return t.openModelAddGatewayID()
 	}
+	if t.modelAdd.provider == "openai" {
+		return t.openVectorRestartNotice()
+	}
 	return t.openModelAddModelPick()
+}
+
+func (t TUI) openVectorRestartNotice() (TUI, tea.Cmd) {
+	t.popup = &Popup{
+		kind:     popupSingleSelect,
+		title:    "OpenAI key saved · vector storage needs a daemon restart",
+		subtitle: "run  agen stop && agen  to enable it · entries written before the restart keep no vector",
+		options:  []string{"OK"},
+		values:   []string{"ok"},
+		onConfirm: func(string) any {
+			return ModelAddVectorNotice{}
+		},
+	}
+	return t, nil
 }
 
 func (t TUI) openModelAddAccountID() (TUI, tea.Cmd) {

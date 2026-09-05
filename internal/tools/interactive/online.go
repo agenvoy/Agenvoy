@@ -19,7 +19,7 @@ func onlineKey(sessionID, taskHash string) string {
 }
 
 func markOnline(sessionID, taskHash string) {
-	db := torii.Remote(torii.DBOnline)
+	db := torii.DB(torii.DBOnline)
 	if err := db.Set(context.Background(), onlineKey(sessionID, taskHash), "1", torii.TTL(onlineTTL)); err != nil {
 		slog.Debug("markOnline",
 			slog.String("session", sessionID),
@@ -29,7 +29,7 @@ func markOnline(sessionID, taskHash string) {
 }
 
 func IsOnline(sessionID, taskHash string) bool {
-	_, ok := torii.Remote(torii.DBOnline).Get(context.Background(), onlineKey(sessionID, taskHash))
+	_, ok := torii.DB(torii.DBOnline).Get(context.Background(), onlineKey(sessionID, taskHash))
 	return ok
 }
 
@@ -66,7 +66,7 @@ func KeepOnline(sessionID, taskHash string) func() {
 	return func() {
 		once.Do(func() {
 			close(done)
-			torii.Remote(torii.DBOnline).Del(context.Background(), onlineKey(sessionID, taskHash))
+			torii.DB(torii.DBOnline).Del(context.Background(), onlineKey(sessionID, taskHash))
 		})
 	}
 }

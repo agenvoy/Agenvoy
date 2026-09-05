@@ -118,7 +118,7 @@ func Store(sessionID, callID, toolName, args, result string) {
 	if err != nil {
 		return
 	}
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	if err := db.Set(context.Background(), keyPrefix(sessionID, toolName)+callID, string(raw), torii.TTL(ttlSeconds)); err != nil {
 		slog.Debug("toolcache Store",
 			slog.String("session", sessionID),
@@ -127,7 +127,7 @@ func Store(sessionID, callID, toolName, args, result string) {
 }
 
 func FindRecent(sessionID, toolName, args string) (string, bool) {
-	db := torii.Remote(torii.DBToolCache)
+	db := torii.DB(torii.DBToolCache)
 	want := canonical(toolName, args)
 	var best toolHistory
 	found := false

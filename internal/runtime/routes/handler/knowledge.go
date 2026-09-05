@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -53,17 +54,9 @@ func CreateKnowledge() gin.HandlerFunc {
 			return
 		}
 
-		name, err := knowledge.Name(body.Name, body.Content)
+		name, err := knowledge.Create(body.Name, body.Content)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if _, exists := knowledge.Read(name); exists {
-			c.JSON(http.StatusConflict, gin.H{"error": "knowledge already exists"})
-			return
-		}
-		if err := knowledge.Write(name, body.Content); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(knowledgeStatus(err), gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"name": name})
@@ -81,40 +74,25 @@ func UpdateKnowledge() gin.HandlerFunc {
 			return
 		}
 
-		name, err := knowledge.Key(body.Name)
+		target, err := knowledge.Update(body.Name, body.Rename, body.Content)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(knowledgeStatus(err), gin.H{"error": err.Error()})
 			return
-		}
-		if _, exists := knowledge.Read(name); !exists {
-			c.JSON(http.StatusNotFound, gin.H{"error": "knowledge not found"})
-			return
-		}
-
-		target := name
-		if strings.TrimSpace(body.Rename) != "" {
-			target, err = knowledge.Name(body.Rename, body.Content)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			if target != name {
-				if _, exists := knowledge.Read(target); exists {
-					c.JSON(http.StatusConflict, gin.H{"error": "knowledge already exists"})
-					return
-				}
-			}
-		}
-
-		if err := knowledge.Write(target, body.Content); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if target != name {
-			knowledge.Delete(name)
 		}
 		c.JSON(http.StatusOK, gin.H{"name": target})
 	}
+}
+
+func knowledgeStatus(err error) int {
+	switch {
+	case errors.Is(err, knowledge.ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, knowledge.ErrExists):
+		return http.StatusConflict
+	case errors.Is(err, knowledge.ErrWrite):
+		return http.StatusInternalServerError
+	}
+	return http.StatusBadRequest
 }
 
 func DeleteKnowledge() gin.HandlerFunc {

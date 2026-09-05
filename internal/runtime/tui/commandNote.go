@@ -10,21 +10,94 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/knowledge"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 )
 
 const noteTimeout = 10 * time.Second
 
 type noteSpec struct {
-	label    string
-	listPath string
-	listKey  string
-	itemPath string
+	label  string
+	list   func(ctx context.Context) ([]string, error)
+	read   func(ctx context.Context, name string) (noteEntry, error)
+	create func(ctx context.Context, name, content string) (string, error)
+	update func(ctx context.Context, origin, rename, content string) (string, error)
 }
 
 var noteSpecs = map[string]noteSpec{
-	"rule":      {"rule", "/v1/rules", "rules", "/v1/rule"},
-	"knowledge": {"knowledge", "/v1/knowledges", "knowledges", "/v1/knowledge"},
+	"rule": {
+		label:  "rule",
+		list:   ruleList,
+		read:   ruleRead,
+		create: ruleCreate,
+		update: ruleUpdate,
+	},
+	"knowledge": {
+		label:  "knowledge",
+		list:   knowledgeList,
+		read:   knowledgeRead,
+		create: knowledgeCreate,
+		update: knowledgeUpdate,
+	},
+}
+
+func knowledgeList(context.Context) ([]string, error) {
+	records := knowledge.List()
+	names := make([]string, 0, len(records))
+	for _, one := range records {
+		if one.Name != "" {
+			names = append(names, one.Name)
+		}
+	}
+	return names, nil
+}
+
+func knowledgeRead(_ context.Context, name string) (noteEntry, error) {
+	record, ok := knowledge.Read(name)
+	if !ok {
+		return noteEntry{}, knowledge.ErrNotFound
+	}
+	return noteEntry{Name: record.Name, Content: record.Content}, nil
+}
+
+func knowledgeCreate(_ context.Context, name, content string) (string, error) {
+	return knowledge.Create(name, content)
+}
+
+func knowledgeUpdate(_ context.Context, origin, rename, content string) (string, error) {
+	return knowledge.Update(origin, rename, content)
+}
+
+func ruleList(ctx context.Context) ([]string, error) {
+	out, err := daemon.Get[map[string][]noteEntry](ctx, "/v1/rules", nil)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(out["rules"]))
+	for _, one := range out["rules"] {
+		if one.Name != "" {
+			names = append(names, one.Name)
+		}
+	}
+	return names, nil
+}
+
+func ruleRead(ctx context.Context, name string) (noteEntry, error) {
+	return daemon.Get[noteEntry](ctx, "/v1/rule/"+url.PathEscape(name), nil)
+}
+
+func ruleCreate(ctx context.Context, name, content string) (string, error) {
+	out, err := daemon.Post[noteEntry](ctx, "/v1/rule", map[string]any{"name": name, "content": content})
+	return out.Name, err
+}
+
+func ruleUpdate(ctx context.Context, origin, rename, content string) (string, error) {
+	body := map[string]any{"name": origin, "content": content}
+	if rename != origin {
+		body["rename"] = rename
+	}
+	out, err := daemon.Patch[noteEntry](ctx, "/v1/rule", body)
+	return out.Name, err
 }
 
 type noteEntry struct {
@@ -79,17 +152,11 @@ func (t TUI) commandNote(kind string) (TUI, tea.Cmd, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), noteTimeout)
 		defer cancel()
 
-		out, err := daemon.Get[map[string][]noteEntry](ctx, spec.listPath, nil)
+		names, err := spec.list(ctx)
 		if err != nil {
 			return NoteListed{kind: kind, err: err}
 		}
 
-		names := make([]string, 0, len(out[spec.listKey]))
-		for _, one := range out[spec.listKey] {
-			if one.Name != "" {
-				names = append(names, one.Name)
-			}
-		}
 		sort.Strings(names)
 		return NoteListed{kind: kind, names: names}
 	}, true
@@ -126,7 +193,7 @@ func (t TUI) runNotePick(msg NotePick) (TUI, tea.Cmd) {
 		ctx, cancel := context.WithTimeout(context.Background(), noteTimeout)
 		defer cancel()
 
-		out, err := daemon.Get[noteEntry](ctx, spec.itemPath+"/"+url.PathEscape(name), nil)
+		out, err := spec.read(ctx, name)
 		if err != nil {
 			return NoteLoaded{kind: kind, name: name, err: err}
 		}
@@ -187,24 +254,17 @@ func (t TUI) noteSaveCmd(msg NoteBodySubmit) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), noteTimeout)
 		defer cancel()
 
-		var out noteEntry
+		var name string
 		var err error
 		if msg.origin == "" {
-			out, err = daemon.Post[noteEntry](ctx, spec.itemPath, map[string]any{
-				"name":    msg.title,
-				"content": msg.body,
-			})
+			name, err = spec.create(ctx, msg.title, msg.body)
 		} else {
-			body := map[string]any{"name": msg.origin, "content": msg.body}
-			if msg.title != msg.origin {
-				body["rename"] = msg.title
-			}
-			out, err = daemon.Patch[noteEntry](ctx, spec.itemPath, body)
+			name, err = spec.update(ctx, msg.origin, msg.title, msg.body)
 		}
 		if err != nil {
 			return NoteSaved{kind: msg.kind, name: msg.title, err: err}
 		}
-		return NoteSaved{kind: msg.kind, name: out.Name}
+		return NoteSaved{kind: msg.kind, name: name}
 	}
 }
 

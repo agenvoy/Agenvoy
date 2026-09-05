@@ -3,12 +3,19 @@ package knowledge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+)
+
+var (
+	ErrNotFound = errors.New("knowledge not found")
+	ErrExists   = errors.New("knowledge already exists")
+	ErrWrite    = errors.New("knowledge write failed")
 )
 
 type Record struct {
@@ -73,7 +80,7 @@ func Key(name string) (string, error) {
 }
 
 func Read(name string) (Record, bool) {
-	entry, ok := torii.Remote(torii.DBKnowledge).Get(context.Background(), name)
+	entry, ok := torii.DB(torii.DBKnowledge).Get(context.Background(), name)
 	if !ok {
 		return Record{}, false
 	}
@@ -90,15 +97,15 @@ func Write(name, content string) error {
 	if err != nil {
 		return fmt.Errorf("json.Marshal: %w", err)
 	}
-	return torii.Remote(torii.DBKnowledge).Set(context.Background(), name, string(raw), nil)
+	return torii.DB(torii.DBKnowledge).Set(context.Background(), name, string(raw), nil)
 }
 
 func Delete(name string) bool {
-	return torii.Remote(torii.DBKnowledge).Del(context.Background(), name) > 0
+	return torii.DB(torii.DBKnowledge).Del(context.Background(), name) > 0
 }
 
 func List() []Record {
-	entries := torii.Remote(torii.DBKnowledge).Scan(context.Background(), "*", torii.ScanOption{})
+	entries := torii.DB(torii.DBKnowledge).Scan(context.Background(), "*", torii.ScanOption{})
 
 	out := make([]Record, 0, len(entries))
 	for _, entry := range entries {
@@ -111,4 +118,48 @@ func List() []Record {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+func Create(name, content string) (string, error) {
+	key, err := Name(name, content)
+	if err != nil {
+		return "", err
+	}
+	if _, exists := Read(key); exists {
+		return "", ErrExists
+	}
+	if err := Write(key, content); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrWrite, err)
+	}
+	return key, nil
+}
+
+func Update(name, rename, content string) (string, error) {
+	key, err := Key(name)
+	if err != nil {
+		return "", err
+	}
+	if _, exists := Read(key); !exists {
+		return "", ErrNotFound
+	}
+
+	target := key
+	if strings.TrimSpace(rename) != "" {
+		if target, err = Name(rename, content); err != nil {
+			return "", err
+		}
+		if target != key {
+			if _, exists := Read(target); exists {
+				return "", ErrExists
+			}
+		}
+	}
+
+	if err := Write(target, content); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrWrite, err)
+	}
+	if target != key {
+		Delete(key)
+	}
+	return target, nil
 }
