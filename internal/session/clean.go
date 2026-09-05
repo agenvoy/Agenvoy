@@ -75,12 +75,6 @@ func clearSessionRows(sessionID string) bool {
 			slog.String("error", err.Error()))
 		return false
 	}
-	if err := historyStore.DeleteState(ctx, sessionID); err != nil {
-		slog.Warn("historyStore.DeleteState",
-			slog.String("session", sessionID),
-			slog.String("error", err.Error()))
-		return false
-	}
 	if err := historyStore.DeleteSession(ctx, sessionID); err != nil {
 		slog.Warn("historyStore.DeleteSession",
 			slog.String("session", sessionID),

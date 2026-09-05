@@ -24,6 +24,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
 type SessionInfo struct {
@@ -55,11 +56,7 @@ func ListSessions() gin.HandlerFunc {
 			slog.Warn("historyStore.ListSessionRows",
 				slog.String("error", err.Error()))
 		}
-		states, err := historyStore.ListStateRows(c.Request.Context())
-		if err != nil {
-			slog.Warn("historyStore.ListStateRows",
-				slog.String("error", err.Error()))
-		}
+		counts := interactive.ActiveCounts()
 
 		entries := make([]entry, 0, len(dirs))
 		for _, dir := range dirs {
@@ -68,7 +65,7 @@ func ListSessions() gin.HandlerFunc {
 				continue
 			}
 
-			status := configStatus.FromRow(states[sid])
+			status := configStatus.FromCount(counts[sid])
 
 			switch filter {
 			case "active":
@@ -290,10 +287,6 @@ func DeleteSession() gin.HandlerFunc {
 			}
 		}
 		if err := historyStore.Clear(sid); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if err := historyStore.DeleteState(c.Request.Context(), sid); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

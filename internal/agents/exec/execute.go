@@ -25,7 +25,6 @@ import (
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -108,8 +107,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	var onceID string
 	if session.ID != "" {
 		onceID = go_pkg_utils.UUID()
-		configStatus.Online(session.ID)
-		defer configStatus.Idle(session.ID)
 		registerCancel(onceID, execCancel)
 		defer unregisterCancel(onceID)
 

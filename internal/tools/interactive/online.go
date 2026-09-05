@@ -3,6 +3,7 @@ package interactive
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,39 @@ func markOnline(sessionID, taskHash string) {
 			slog.String("task", taskHash),
 			slog.String("error", err.Error()))
 	}
+}
+
+func ClearOnline() int {
+	db := torii.DB(torii.DBOnline)
+	keys := db.Keys(context.Background(), "action:*")
+	if len(keys) == 0 {
+		return 0
+	}
+	return db.Del(context.Background(), keys...)
+}
+
+func ActiveCount(sessionID string) int {
+	if sessionID == "" {
+		return 0
+	}
+	return len(torii.DB(torii.DBOnline).Keys(context.Background(), onlineKey(sessionID, "*")))
+}
+
+func ActiveCounts() map[string]int {
+	keys := torii.DB(torii.DBOnline).Keys(context.Background(), "action:*")
+	dic := make(map[string]int, len(keys))
+	for _, key := range keys {
+		rest, ok := strings.CutPrefix(key, "action:")
+		if !ok {
+			continue
+		}
+		sessionID, _, ok := strings.Cut(rest, ":")
+		if !ok || sessionID == "" {
+			continue
+		}
+		dic[sessionID]++
+	}
+	return dic
 }
 
 func IsOnline(sessionID, taskHash string) bool {

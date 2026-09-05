@@ -102,7 +102,6 @@ func newTUI() {
 			slog.String("error", err.Error()))
 		return
 	}
-	knowledge.Migrate()
 	defer torii.Close()
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {

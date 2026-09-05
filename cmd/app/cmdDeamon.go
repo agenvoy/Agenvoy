@@ -40,12 +40,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -208,6 +208,11 @@ func cmdDaemon() {
 	}
 	defer torii.Close()
 
+	if n := interactive.ClearOnline(); n > 0 {
+		slog.Info("cleared stale in-flight markers",
+			slog.Int("count", n))
+	}
+
 	if err := filesystem.OpenDB(); err != nil {
 		slog.Error("filesystem.OpenDB",
 			slog.String("error", err.Error()))
@@ -252,7 +257,6 @@ func cmdDaemon() {
 		slog.Warn("runtime.Init",
 			slog.String("error", err.Error()))
 	}
-	configStatus.Reset()
 
 	if path, err := webapp.Install(context.Background()); err != nil {
 		slog.Warn("webapp.Install",

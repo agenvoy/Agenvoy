@@ -93,10 +93,4 @@ CREATE INDEX IF NOT EXISTS idx_session_name    ON session(name)       WHERE name
 CREATE UNIQUE INDEX IF NOT EXISTS idx_session_self_id
     ON session(self_id) WHERE self_id <> '';
 
-CREATE TABLE IF NOT EXISTS state (
-    session_id TEXT    PRIMARY KEY,
-    state      TEXT    NOT NULL DEFAULT 'idle',
-    in_action  INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_state_state ON state(state);
+DROP TABLE IF EXISTS state;
