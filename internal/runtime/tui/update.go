@@ -60,7 +60,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			return t, nil
+			return t.handleInterrupt()
 
 		case tea.KeyEsc:
 			if t.selector != nil {

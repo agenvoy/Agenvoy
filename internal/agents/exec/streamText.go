@@ -30,7 +30,7 @@ func streamSend(
 		stream, streamErr := streamer.SendStream(ctx, messages, tools, reasoning, mode)
 		switch {
 		case streamErr == nil:
-			out, textSent, reasonSent, err = consumeStream(stream, events, shownReasoning)
+			out, textSent, reasonSent, err = consumeStream(ctx, stream, events, shownReasoning)
 			return out, streamErrorCode(err), textSent, reasonSent, err
 		case !errors.Is(streamErr, provider.ErrStreamUnsupported):
 			return nil, streamErrorCode(streamErr), false, false, streamErr
@@ -44,7 +44,7 @@ func streamSend(
 	if err != nil {
 		return nil, code, false, false, err
 	}
-	textSent, reasonSent = replayOutput(resp, events, shownReasoning)
+	textSent, reasonSent = replayOutput(ctx, resp, events, shownReasoning)
 	return resp, code, textSent, reasonSent, nil
 }
 
@@ -56,17 +56,17 @@ func streamErrorCode(err error) int {
 	return 0
 }
 
-func replayOutput(resp *provider.Output, events chan<- agentTypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
+func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agentTypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
 	if resp == nil || len(resp.Choices) == 0 {
 		return false, false
 	}
 
 	message := resp.Choices[0].Message
-	reason := lineEmitter{events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
+	reason := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
 	reason.write(message.ReasoningContent)
 	reason.close()
 
-	text := lineEmitter{events: events, kind: agentTypes.EventText, emitDelta: true}
+	text := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventText, emitDelta: true}
 	if str, ok := message.Content.(string); ok {
 		text.write(str)
 	}
@@ -75,9 +75,9 @@ func replayOutput(resp *provider.Output, events chan<- agentTypes.Event, shownRe
 	return text.sent, reason.sent
 }
 
-func consumeStream(stream <-chan provider.StreamEvent, events chan<- agentTypes.Event, shownReasoning *[]string) (*provider.Output, bool, bool, error) {
-	text := lineEmitter{events: events, kind: agentTypes.EventText, emitDelta: true}
-	reason := lineEmitter{events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
+func consumeStream(ctx context.Context, stream <-chan provider.StreamEvent, events chan<- agentTypes.Event, shownReasoning *[]string) (*provider.Output, bool, bool, error) {
+	text := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventText, emitDelta: true}
+	reason := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
 
 	var content, reasoning strings.Builder
 	var usage provider.Usage
@@ -87,7 +87,20 @@ func consumeStream(stream <-chan provider.StreamEvent, events chan<- agentTypes.
 	var toolCalls []provider.ToolCall
 	frames := 0
 
-	for ev := range stream {
+consume:
+	for {
+		var ev provider.StreamEvent
+		select {
+		case <-ctx.Done():
+			streamErr = ctx.Err()
+			break consume
+		case received, ok := <-stream:
+			if !ok {
+				break consume
+			}
+			ev = received
+		}
+
 		frames++
 		switch ev.Type {
 		case provider.StreamEventText:
@@ -170,6 +183,7 @@ func consumeStream(stream <-chan provider.StreamEvent, events chan<- agentTypes.
 }
 
 type lineEmitter struct {
+	ctx         context.Context
 	events      chan<- agentTypes.Event
 	kind        agentTypes.EventType
 	emitDelta   bool
@@ -256,7 +270,21 @@ func (e *lineEmitter) releaseDelta() {
 	rest = rest[e.headerBytes:]
 	e.headerBytes = 0
 	if rest != "" {
-		e.events <- agentTypes.Event{Type: agentTypes.EventTextDelta, Text: rest}
+		e.push(agentTypes.Event{Type: agentTypes.EventTextDelta, Text: rest})
+	}
+}
+
+// * a blocked consumer must not outlive cancellation: give up the event and go
+// * quiet so the caller's goroutine can return
+func (e *lineEmitter) push(ev agentTypes.Event) {
+	if e.ctx == nil {
+		e.events <- ev
+		return
+	}
+	select {
+	case e.events <- ev:
+	case <-e.ctx.Done():
+		e.stopped = true
 	}
 }
 
@@ -267,7 +295,7 @@ func (e *lineEmitter) feed(text string) {
 
 	if e.emitDelta {
 		if e.headerDone {
-			e.events <- agentTypes.Event{Type: agentTypes.EventTextDelta, Text: text}
+			e.push(agentTypes.Event{Type: agentTypes.EventTextDelta, Text: text})
 		} else {
 			e.deltaHold.WriteString(text)
 		}
@@ -293,7 +321,7 @@ func (e *lineEmitter) emit(line string) {
 	if !ok || e.duplicate(line) {
 		return
 	}
-	e.events <- agentTypes.Event{Type: e.kind, Text: line}
+	e.push(agentTypes.Event{Type: e.kind, Text: line})
 	e.sent = true
 }
 

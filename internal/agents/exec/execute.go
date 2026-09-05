@@ -62,6 +62,12 @@ type ExecuteMeta struct {
 	Sender            string
 }
 
+const (
+	sendStopGrace   = 3 * time.Second
+	fanoutSendGrace = 3 * time.Second
+	fanoutStopGrace = 5 * time.Second
+)
+
 func (m ExecuteMeta) ModelName() string {
 	if m.Agent == nil {
 		return ""
@@ -162,12 +168,25 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						}
 					}
 				}
-				original <- ev
+				select {
+				case original <- ev:
+				case <-execCtx.Done():
+					select {
+					case original <- ev:
+					case <-time.After(fanoutSendGrace):
+						return
+					}
+				}
 			}
 		}()
 		defer func() {
 			close(fanoutEvents)
-			<-done
+			select {
+			case <-done:
+			case <-time.After(fanoutStopGrace):
+				slog.Warn("event fanout did not drain; abandoning it",
+					slog.String("session", sid))
+			}
 			if isDcPush {
 				text := strings.TrimSpace(pushTextBuf.String())
 				if text != "" {
@@ -369,7 +388,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		stopSend := func() {
 			cancelSend()
-			<-sendDone
+			select {
+			case <-sendDone:
+			case <-time.After(sendStopGrace):
+				slog.Warn("stream did not stop after cancel; abandoning it",
+					slog.String("model", sendAgent.Name()),
+					slog.String("grace", sendStopGrace.String()))
+			}
 		}
 
 		watchdog := time.NewTimer(UnresponsiveProbeInterval)
