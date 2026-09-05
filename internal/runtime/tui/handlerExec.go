@@ -119,6 +119,8 @@ type agentExecDone struct {
 	err error
 }
 
+const interruptWindow = 3 * time.Second
+
 func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask, historyContent string) {
 	ctx, cancel := context.WithCancel(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
 	send(agentExec{cancel: cancel})
@@ -476,4 +478,21 @@ func (t *TUI) flushTableBuf() []tea.Cmd {
 		sb.WriteString(line)
 	}
 	return []tea.Cmd{tea.Println(sb.String() + "\n")}
+}
+
+func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
+	if !t.interruptAt.IsZero() && time.Since(t.interruptAt) <= interruptWindow {
+		t.quitting = true
+		return t, tea.Sequence(
+			tea.Println(hintStyle.Render("⎯ force quit")+"\n"),
+			tea.Quit,
+		)
+	}
+
+	t.interruptAt = time.Now()
+	if t.running && t.cancelExec != nil {
+		t.cancelExec()
+		return t, tea.Println(hintStyle.Render("⎯ cancelling · ctrl+c again to force quit") + "\n")
+	}
+	return t, tea.Println(hintStyle.Render("⎯ ctrl+c again to quit") + "\n")
 }

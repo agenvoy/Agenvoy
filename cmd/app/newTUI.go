@@ -44,14 +44,6 @@ func newTUI() {
 		slog.Warn("filesystem.LoadRuntime",
 			slog.String("error", err.Error()))
 	}
-	if err := torii.Init(filesystem.StoreDir); err != nil {
-		slog.Error("store.Init",
-			slog.String("error", err.Error()))
-		return
-	}
-	knowledge.Migrate()
-	defer torii.Close()
-
 	if err := filesystem.OpenDB(); err != nil {
 		slog.Error("filesystem.OpenDB",
 			slog.String("error", err.Error()))
@@ -74,6 +66,12 @@ func newTUI() {
 	}
 	defer usagelog.Close()
 	usagelog.Migrate()
+
+	if err := knowledge.New(); err != nil {
+		slog.Warn("knowledge.New",
+			slog.String("error", err.Error()))
+	}
+	defer knowledge.Close()
 
 	imageTool.Register()
 	audioTool.Register()
@@ -98,6 +96,13 @@ func newTUI() {
 		return
 	}
 	fmt.Fprint(os.Stderr, "\r\033[K")
+
+	if err := torii.Init(filesystem.StoreDir); err != nil {
+		slog.Error("store.Init",
+			slog.String("error", err.Error()))
+		return
+	}
+	defer torii.Close()
 
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",

@@ -67,6 +67,9 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 }
 
 func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
+	if !torii.HasEmbedder() {
+		return
+	}
 	if content, ok := msg.Content.(string); ok {
 		msg.Content = sessionHistory.StripPrefix(content)
 	}
@@ -75,7 +78,7 @@ func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.M
 		return
 	}
 	key := fmt.Sprintf("%s:%d", sessionID, time.Now().UnixNano())
-	db := torii.Remote(torii.DBSessionHist)
+	db := torii.DB(torii.DBSessionHist)
 	value := string(msgBytes)
 
 	if setErr := db.SetVector(ctx, key, value, nil); setErr != nil {

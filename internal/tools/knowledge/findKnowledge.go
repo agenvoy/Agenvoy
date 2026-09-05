@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/knowledge"
@@ -12,28 +11,30 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
+const Name = "find_knowledge"
+
 func init() {
 	registFindKnowledge()
 }
 
 func registFindKnowledge() {
 	toolRegister.Regist(toolRegister.Def{
-		Name:        "find_knowledge",
+		Name:        Name,
 		SystemUse:   true,
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Notes the operator wrote — house rules, conventions, background this workspace assumes.
-mode=search for 我們的規範是什麼 / 這個專案怎麼做, and before answering anything a local convention would override; mode=list for 有哪些筆記.
-Both return names only, never content — judge which names matter, then mode=read those, one call each, issued together.
+mode=search for 我們的規範是什麼 / 這個專案怎麼做 / 有哪些筆記, and before answering anything a local convention would override.
+It returns names only, never content — judge which names matter, then mode=read those, one call each, issued together.
 Past runs and conversation → chat_history; files on disk → find_files.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
-					"enum":        []string{"search", "list", "read"},
-					"description": "search: names of the notes whose name or body matches the keywords, most matched first. list: names matching the keywords by name alone. read: one whole note, by name. Omitted: keywords selects search, name selects read, otherwise list.",
+					"enum":        []string{"search", "read"},
+					"description": "search: names of the notes whose name or body matches the keywords, most matched first. read: one whole note, by name. Omitted: name selects read, otherwise search.",
 					"default":     "search",
 				},
 				"keywords": map[string]any{
@@ -41,15 +42,15 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 					"items": map[string]any{
 						"type": "string",
 					},
-					"description": "mode=search / mode=list: terms to look for, matched case-insensitively as substrings; required for both, a call without them lists nothing. Send several — synonyms and both languages of a term — since a note matching more of them ranks higher.",
+					"description": "mode=search: terms to look for, matched case-insensitively as substrings; required, a call without them lists nothing. Send several — synonyms and both languages of a term — since a note matching more of them ranks higher.",
 				},
 				"name": map[string]any{
 					"type":        "string",
-					"description": "mode=read: the note name, exactly as list or a search hit spells it.",
+					"description": "mode=read: the note name, exactly as a search hit spells it.",
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "mode=search: notes to return, most matched first; never above 20. Ignored when mode=list.",
+					"description": "mode=search: notes to return, most matched first; never above 20.",
 					"default":     knowledge.DefaultLimit,
 				},
 			},
@@ -69,28 +70,13 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))
 			if mode == "" {
-				switch {
-				case len(params.Keywords) > 0:
-					mode = "search"
-				case strings.TrimSpace(params.Name) != "":
+				mode = "search"
+				if len(params.Keywords) == 0 && strings.TrimSpace(params.Name) != "" {
 					mode = "read"
-				default:
-					mode = "list"
 				}
 			}
 
 			switch mode {
-			case "list":
-				if !slices.ContainsFunc(params.Keywords, func(one string) bool {
-					return strings.TrimSpace(one) != ""
-				}) {
-					return "skipped: keywords is required when mode=list", nil
-				}
-				names := knowledge.ListNames(params.Keywords)
-				if len(names) == 0 {
-					return "no matching note", nil
-				}
-				return marshal(names)
 			case "read":
 				name := strings.TrimSpace(params.Name)
 				if name == "" {
@@ -112,7 +98,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 				}
 				return marshal(hits)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: search, list, read", mode)
+			return "", fmt.Errorf("unknown mode %q; available: search, read", mode)
 		},
 	})
 }

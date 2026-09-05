@@ -3,6 +3,7 @@ package historyStore
 import (
 	_ "embed"
 	"fmt"
+	"strings"
 
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
 
@@ -28,8 +29,17 @@ func New() error {
 	if err := migrateActionColumns(c); err != nil {
 		return err
 	}
+	rebuild, err := retokenizeMessages(c)
+	if err != nil {
+		return err
+	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
+	}
+	if rebuild {
+		if _, err := c.Exec(`INSERT INTO messages_fts5(messages_fts5) VALUES('rebuild')`); err != nil {
+			return fmt.Errorf("sql.DB Exec [rebuild messages_fts5]: %w", err)
+		}
 	}
 	if err := syncColumns(c); err != nil {
 		return err
@@ -37,6 +47,24 @@ func New() error {
 
 	conn = c
 	return nil
+}
+
+func retokenizeMessages(c *go_sqlkit_core.Connector) (bool, error) {
+	var schema string
+	if err := c.Read.QueryRow(`
+	SELECT COALESCE(MAX(sql), '')
+	FROM sqlite_master
+	WHERE type = 'table' AND name = 'messages_fts5'`).Scan(&schema); err != nil {
+		return false, fmt.Errorf("sql.DB QueryRow [sqlite_master messages_fts5]: %w", err)
+	}
+	if schema == "" || strings.Contains(schema, "trigram") {
+		return false, nil
+	}
+
+	if _, err := c.Exec(`DROP TABLE messages_fts5`); err != nil {
+		return false, fmt.Errorf("sql.DB Exec [DROP TABLE messages_fts5]: %w", err)
+	}
+	return true, nil
 }
 
 func syncColumns(c *go_sqlkit_core.Connector) error {

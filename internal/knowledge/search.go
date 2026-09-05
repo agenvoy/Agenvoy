@@ -1,13 +1,16 @@
 package knowledge
 
 import (
-	"sort"
+	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 )
 
 const (
 	DefaultLimit = 5
 	MaxLimit     = 20
+	trigramMin   = 3
 )
 
 type Hit struct {
@@ -25,52 +28,76 @@ func normalize(keywords []string) []string {
 	return terms
 }
 
-func ListNames(keywords []string) []string {
-	terms := normalize(keywords)
-	if len(terms) == 0 {
-		return nil
-	}
-
-	out := []string{}
-	for _, record := range List() {
-		name := strings.ToLower(record.Name)
-		for _, term := range terms {
-			if strings.Contains(name, term) {
-				out = append(out, record.Name)
-				break
-			}
-		}
-	}
-	return out
-}
-
 func Search(keywords []string, limit int) []Hit {
 	terms := normalize(keywords)
-	if len(terms) == 0 {
+	if len(terms) == 0 || conn == nil {
 		return []Hit{}
 	}
 	if limit <= 0 || limit > MaxLimit {
 		limit = DefaultLimit
 	}
 
-	out := make([]Hit, 0, limit)
-	for _, record := range List() {
-		body := strings.ToLower(record.Name + "\n" + record.Content)
-		matched := 0
-		for _, term := range terms {
-			if strings.Contains(body, term) {
-				matched++
-			}
+	counts := make(map[string]int)
+	for _, term := range terms {
+		for _, name := range matchNames(term) {
+			counts[name]++
 		}
-		if matched == 0 {
-			continue
-		}
-		out = append(out, Hit{Name: record.Name, Hits: matched})
+	}
+	if len(counts) == 0 {
+		return []Hit{}
 	}
 
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Hits > out[j].Hits })
+	out := make([]Hit, 0, len(counts))
+	for _, name := range slices.Sorted(maps.Keys(counts)) {
+		out = append(out, Hit{Name: name, Hits: counts[name]})
+	}
+	slices.SortStableFunc(out, func(a, b Hit) int { return b.Hits - a.Hits })
+
 	if len(out) > limit {
 		out = out[:limit]
 	}
 	return out
+}
+
+func matchNames(term string) []string {
+	if len([]rune(term)) >= trigramMin {
+		return queryNames(`
+		SELECT name
+		FROM knowledge_fts5
+		WHERE knowledge_fts5 MATCH ?
+		`, phrase(term))
+	}
+
+	return queryNames(`
+	SELECT name
+	FROM knowledge
+	WHERE name LIKE '%'||?||'%' OR content LIKE '%'||?||'%'
+	`, term, term)
+}
+
+func phrase(term string) string {
+	return `"` + strings.ReplaceAll(term, `"`, `""`) + `"`
+}
+
+func queryNames(query string, args ...any) []string {
+	rows, err := conn.Read.Query(query, args...)
+	if err != nil {
+		slog.Debug("knowledge match",
+			slog.String("error", err.Error()))
+		return nil
+	}
+	defer rows.Close()
+
+	var list []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil
+		}
+		list = append(list, name)
+	}
+	if rows.Err() != nil {
+		return nil
+	}
+	return list
 }

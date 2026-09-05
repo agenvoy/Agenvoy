@@ -38,6 +38,7 @@ type TUI struct {
 	running       bool
 	emitted       bool
 	cancelExec    context.CancelFunc
+	interruptAt   time.Time
 	runStartedAt  time.Time
 	pendingResume *ResumeExec
 	lastInput     string

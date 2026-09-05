@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS message_meta (
 
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts5 USING fts5(
     role, content,
-    content=messages, content_rowid=id
+    content=messages, content_rowid=id,
+    tokenize='trigram'
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_messages_after_insert AFTER INSERT ON messages BEGIN
@@ -93,10 +94,4 @@ CREATE INDEX IF NOT EXISTS idx_session_name    ON session(name)       WHERE name
 CREATE UNIQUE INDEX IF NOT EXISTS idx_session_self_id
     ON session(self_id) WHERE self_id <> '';
 
-CREATE TABLE IF NOT EXISTS state (
-    session_id TEXT    PRIMARY KEY,
-    state      TEXT    NOT NULL DEFAULT 'idle',
-    in_action  INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_state_state ON state(state);
+DROP TABLE IF EXISTS state;

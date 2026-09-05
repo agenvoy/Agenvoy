@@ -18,11 +18,6 @@ var (
 	fieldRegex       = regexp.MustCompile(`(?m)^(\w+):\s*(.+)$`)
 )
 
-type legacyStatus struct {
-	State string `json:"state"`
-	Count int    `json:"count"`
-}
-
 type legacyBot struct {
 	Name      string `json:"name"`
 	Model     string `json:"model,omitempty"`
@@ -67,21 +62,12 @@ func migrateSessionRow(sessionID string) int {
 	botPath := filesystem.BotPath(sessionID)
 	legacyPath := filesystem.LegacyBotPath(sessionID)
 	configPath := filesystem.SessionConfigPath(sessionID)
-	statusPath := filesystem.StatusPath(sessionID)
 
 	hasBot := go_pkg_filesystem_reader.Exists(botPath)
 	hasLegacy := go_pkg_filesystem_reader.Exists(legacyPath)
 	hasConfig := go_pkg_filesystem_reader.Exists(configPath)
-	hasStatus := go_pkg_filesystem_reader.Exists(statusPath)
-	if !hasBot && !hasLegacy && !hasConfig && !hasStatus {
-		return 0
-	}
-
-	if hasStatus {
-		migrateStatusRow(sessionID, statusPath)
-	}
 	if !hasBot && !hasLegacy && !hasConfig {
-		return 1
+		return 0
 	}
 
 	row := SessionRow{SessionID: sessionID}
@@ -137,32 +123,6 @@ func migrateSessionRow(sessionID string) int {
 		return -1
 	}
 	return 1
-}
-
-func migrateStatusRow(sessionID, statusPath string) {
-	status, err := go_pkg_filesystem.ReadJSON[legacyStatus](statusPath)
-	if err != nil {
-		slog.Warn("session migrate: status.json",
-			slog.String("session", sessionID),
-			slog.String("error", err.Error()))
-	} else if _, ok, readErr := ReadState(context.Background(), sessionID); readErr == nil && !ok {
-		if err := WriteState(context.Background(), StateRow{
-			SessionID: sessionID,
-			State:     status.State,
-			InAction:  status.Count,
-		}); err != nil {
-			slog.Warn("session migrate: WriteState",
-				slog.String("session", sessionID),
-				slog.String("error", err.Error()))
-			return
-		}
-	}
-
-	if err := os.Remove(statusPath); err != nil && !os.IsNotExist(err) {
-		slog.Warn("session migrate: os.Remove",
-			slog.String("path", statusPath),
-			slog.String("error", err.Error()))
-	}
 }
 
 func applyBot(row *SessionRow, bot legacyBot) {

@@ -116,7 +116,7 @@ func AddProviderKey() gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			DropUsageCache(prov)
+			DropQuotaCache(prov)
 			c.JSON(http.StatusOK, gin.H{"ok": true})
 			return
 		}
@@ -158,7 +158,7 @@ func AddProviderKey() gin.HandlerFunc {
 			return
 		}
 
-		DropUsageCache(prov)
+		DropQuotaCache(prov)
 
 		if prov == "cloudflare" {
 			if err := keychain.Set("CLOUDFLARE_ACCOUNT_ID", accountID); err != nil {
@@ -223,7 +223,7 @@ func ProviderOAuth() gin.HandlerFunc {
 			emit(gin.H{"done": true, "ok": false, "error": err.Error()})
 			return
 		}
-		DropUsageCache(prov)
+		DropQuotaCache(prov)
 		emit(gin.H{"done": true, "ok": true})
 	}
 }
@@ -251,7 +251,7 @@ func ClearProviderOAuth() gin.HandlerFunc {
 			return
 		}
 
-		DropUsageCache(prov)
+		DropQuotaCache(prov)
 		imageTool.Prune(c.Request.Context())
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}

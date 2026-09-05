@@ -143,6 +143,12 @@ github.com/pardnchiu/go-sqlkit v0.1.0 h1:xvUwDI8/Q6sCGkdr3XVcLfXoVQuzLMIUxDoT7W4
 github.com/pardnchiu/go-sqlkit v0.1.0/go.mod h1:wzFocv7SFi8NYjWVi5zo34ot3ECcsrJ0pmWubalyIhY=
 github.com/pardnchiu/toriidb v0.5.2 h1:u0TJH1QNkLU13zAOvhNJFc2jzOotiKJV2PdEt+09Io8=
 github.com/pardnchiu/toriidb v0.5.2/go.mod h1:7PhjiK8cParJPHM79kPr0af06Pwi0LHoqil0lnf8nFY=
+github.com/pardnchiu/toriidb v0.6.0 h1:e1O7nvrytfMx3tgpb0+womVscsaBcowzVx50cTZrOxY=
+github.com/pardnchiu/toriidb v0.6.0/go.mod h1:7PhjiK8cParJPHM79kPr0af06Pwi0LHoqil0lnf8nFY=
+github.com/pardnchiu/toriidb v0.6.1 h1:mcnR3tKAm1+CLsQCVWWMGwiJ/Z/v/2ZVGqnxSQH5uyE=
+github.com/pardnchiu/toriidb v0.6.1/go.mod h1:7PhjiK8cParJPHM79kPr0af06Pwi0LHoqil0lnf8nFY=
+github.com/pardnchiu/toriidb v0.6.2 h1:y0oLmFIT3/mNkbxTZTx463bYhvw89VltOZmwGQsj4mY=
+github.com/pardnchiu/toriidb v0.6.2/go.mod h1:7PhjiK8cParJPHM79kPr0af06Pwi0LHoqil0lnf8nFY=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
 github.com/pelletier/go-toml/v2 v2.2.4/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

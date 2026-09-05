@@ -3,6 +3,7 @@ package interactive
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,8 +11,8 @@ import (
 )
 
 const (
-	onlineTTL      = 5
-	onlineInterval = 3 * time.Second
+	onlineTTL      = 60
+	onlineInterval = 55 * time.Second
 )
 
 func onlineKey(sessionID, taskHash string) string {
@@ -19,7 +20,7 @@ func onlineKey(sessionID, taskHash string) string {
 }
 
 func markOnline(sessionID, taskHash string) {
-	db := torii.Remote(torii.DBOnline)
+	db := torii.DB(torii.DBOnline)
 	if err := db.Set(context.Background(), onlineKey(sessionID, taskHash), "1", torii.TTL(onlineTTL)); err != nil {
 		slog.Debug("markOnline",
 			slog.String("session", sessionID),
@@ -28,8 +29,41 @@ func markOnline(sessionID, taskHash string) {
 	}
 }
 
+func ClearOnline() int {
+	db := torii.DB(torii.DBOnline)
+	keys := db.Keys(context.Background(), "action:*")
+	if len(keys) == 0 {
+		return 0
+	}
+	return db.Del(context.Background(), keys...)
+}
+
+func ActiveCount(sessionID string) int {
+	if sessionID == "" {
+		return 0
+	}
+	return len(torii.DB(torii.DBOnline).Keys(context.Background(), onlineKey(sessionID, "*")))
+}
+
+func ActiveCounts() map[string]int {
+	keys := torii.DB(torii.DBOnline).Keys(context.Background(), "action:*")
+	dic := make(map[string]int, len(keys))
+	for _, key := range keys {
+		rest, ok := strings.CutPrefix(key, "action:")
+		if !ok {
+			continue
+		}
+		sessionID, _, ok := strings.Cut(rest, ":")
+		if !ok || sessionID == "" {
+			continue
+		}
+		dic[sessionID]++
+	}
+	return dic
+}
+
 func IsOnline(sessionID, taskHash string) bool {
-	_, ok := torii.Remote(torii.DBOnline).Get(context.Background(), onlineKey(sessionID, taskHash))
+	_, ok := torii.DB(torii.DBOnline).Get(context.Background(), onlineKey(sessionID, taskHash))
 	return ok
 }
 
@@ -66,7 +100,7 @@ func KeepOnline(sessionID, taskHash string) func() {
 	return func() {
 		once.Do(func() {
 			close(done)
-			torii.Remote(torii.DBOnline).Del(context.Background(), onlineKey(sessionID, taskHash))
+			torii.DB(torii.DBOnline).Del(context.Background(), onlineKey(sessionID, taskHash))
 		})
 	}
 }
