@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/knowledge"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
 	scriptAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
+	toolKnowledge "github.com/pardnchiu/agenvoy/internal/tools/knowledge"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -22,6 +25,12 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	var tools []provider.Tool
 	if err := json.Unmarshal(toolRegister.JSON(), &tools); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+	}
+
+	if len(knowledge.List()) == 0 {
+		tools = slices.DeleteFunc(tools, func(t provider.Tool) bool {
+			return t.Function.Name == toolKnowledge.Name
+		})
 	}
 
 	apiToolbox := apiAdapter.New("api_")

@@ -1,14 +1,16 @@
 package knowledge
 
 import (
-	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
+)
 
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+var (
+	ErrNotFound = errors.New("knowledge not found")
+	ErrExists   = errors.New("knowledge already exists")
+	ErrWrite    = errors.New("knowledge write failed")
 )
 
 type Record struct {
@@ -73,42 +75,117 @@ func Key(name string) (string, error) {
 }
 
 func Read(name string) (Record, bool) {
-	entry, ok := torii.Remote(torii.DBKnowledge).Get(context.Background(), name)
-	if !ok {
+	if conn == nil {
 		return Record{}, false
 	}
-	var record Record
-	if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
+
+	record := Record{Name: name}
+	if err := conn.Read.QueryRow(`
+	SELECT content, updated_at
+	FROM knowledge
+	WHERE name = ?
+	`, name).Scan(&record.Content, &record.UpdatedAt); err != nil {
 		return Record{}, false
 	}
-	record.Name = name
 	return record, true
 }
 
 func Write(name, content string) error {
-	raw, err := json.Marshal(Record{Name: name, Content: content, UpdatedAt: time.Now().Unix()})
-	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
+	if conn == nil {
+		return fmt.Errorf("internal/knowledge: New has not run")
 	}
-	return torii.Remote(torii.DBKnowledge).Set(context.Background(), name, string(raw), nil)
+
+	_, err := conn.Exec(`
+	INSERT INTO knowledge (name, content, updated_at)
+	VALUES (?, ?, ?)
+	ON CONFLICT(name)
+	DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
+	`, name, content, time.Now().Unix())
+	return err
 }
 
 func Delete(name string) bool {
-	return torii.Remote(torii.DBKnowledge).Del(context.Background(), name) > 0
+	if conn == nil {
+		return false
+	}
+
+	result, err := conn.Exec(`DELETE FROM knowledge WHERE name = ?`, name)
+	if err != nil {
+		return false
+	}
+	affected, err := result.RowsAffected()
+	return err == nil && affected > 0
 }
 
 func List() []Record {
-	entries := torii.Remote(torii.DBKnowledge).Scan(context.Background(), "*", torii.ScanOption{})
+	if conn == nil {
+		return nil
+	}
 
-	out := make([]Record, 0, len(entries))
-	for _, entry := range entries {
+	rows, err := conn.Read.Query(`
+	SELECT name, content, updated_at
+	FROM knowledge
+	ORDER BY name
+	`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	out := []Record{}
+	for rows.Next() {
 		var record Record
-		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
-			continue
+		if err := rows.Scan(&record.Name, &record.Content, &record.UpdatedAt); err != nil {
+			return nil
 		}
-		record.Name = entry.Key
 		out = append(out, record)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	if rows.Err() != nil {
+		return nil
+	}
 	return out
+}
+
+func Create(name, content string) (string, error) {
+	key, err := Name(name, content)
+	if err != nil {
+		return "", err
+	}
+	if _, exists := Read(key); exists {
+		return "", ErrExists
+	}
+	if err := Write(key, content); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrWrite, err)
+	}
+	return key, nil
+}
+
+func Update(name, rename, content string) (string, error) {
+	key, err := Key(name)
+	if err != nil {
+		return "", err
+	}
+	if _, exists := Read(key); !exists {
+		return "", ErrNotFound
+	}
+
+	target := key
+	if strings.TrimSpace(rename) != "" {
+		if target, err = Name(rename, content); err != nil {
+			return "", err
+		}
+		if target != key {
+			if _, exists := Read(target); exists {
+				return "", ErrExists
+			}
+		}
+	}
+
+	if err := Write(target, content); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrWrite, err)
+	}
+	if target != key {
+		Delete(key)
+	}
+	return target, nil
 }

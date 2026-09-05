@@ -75,7 +75,7 @@ func New() *gin.Engine {
 	r.POST("/v1/keys", localhostOnly(), handler.SetKey())
 
 	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
-	r.GET("/v1/providers/usage", localhostOnly(), handler.ListProviderUsage())
+	r.GET("/v1/providers/quota", localhostOnly(), handler.ListProviderQuota())
 	r.POST("/v1/provider/:provider/key", localhostOnly(), handler.AddProviderKey())
 	r.GET("/v1/provider/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
 	r.DELETE("/v1/provider/:provider/oauth", localhostOnly(), handler.ClearProviderOAuth())
@@ -122,9 +122,6 @@ func New() *gin.Engine {
 	r.POST("/v1/config/startup", localhostOnly(), handler.SetStartup())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
-	r.GET("/v1/toriidb/:db/*key", localhostOnly(), handler.ReadTorii())
-	r.POST("/v1/toriidb", localhostOnly(), handler.WriteTorii())
-	r.DELETE("/v1/toriidb", localhostOnly(), handler.RemoveTorii())
 
 	r.GET("/v1/channel", localhostOnly(), handler.GetChannel())
 	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())

@@ -14,11 +14,17 @@ type Result struct {
 	Sender    string
 }
 
+const ftsMinRunes = 3
+
 var searchTimeRanges = map[string]time.Duration{
 	"1d": 24 * time.Hour,
 	"7d": 7 * 24 * time.Hour,
 	"1m": 30 * 24 * time.Hour,
 	"1y": 365 * 24 * time.Hour,
+}
+
+func escapeLike(keyword string) string {
+	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(keyword)
 }
 
 func Search(sessionID, keyword, timeRange string, limit int) ([]Result, error) {
@@ -28,8 +34,12 @@ func Search(sessionID, keyword, timeRange string, limit int) ([]Result, error) {
 
 	jsonStart := GetStartAt(sessionID)
 
-	escaped := strings.ReplaceAll(keyword, `"`, `""`)
-	ftsQuery := fmt.Sprintf(`"%s"`, escaped)
+	match := `AND m.id IN (SELECT rowid FROM messages_fts5 WHERE messages_fts5 MATCH ?)`
+	term := fmt.Sprintf(`"%s"`, strings.ReplaceAll(keyword, `"`, `""`))
+	if len([]rune(keyword)) < ftsMinRunes {
+		match = `AND m.content LIKE ? ESCAPE '\'`
+		term = "%" + escapeLike(keyword) + "%"
+	}
 
 	var after int64
 	if d, ok := searchTimeRanges[timeRange]; ok {
@@ -45,12 +55,12 @@ func Search(sessionID, keyword, timeRange string, limit int) ([]Result, error) {
 	SELECT m.send_at, m.role, m.content, m.sender
 	FROM messages m
 	WHERE m.session_id = ?
-	AND m.id IN (SELECT rowid FROM messages_fts5 WHERE messages_fts5 MATCH ?)
+	`+match+`
 	AND m.send_at >= ?
 	AND m.send_at < ?
 	ORDER BY m.send_at DESC
 	LIMIT ?
-	`, sessionID, ftsQuery, after, before, limit)
+	`, sessionID, term, after, before, limit)
 	if err != nil {
 		return nil, fmt.Errorf("sql.DB Query [SELECT messages]: %w", err)
 	}

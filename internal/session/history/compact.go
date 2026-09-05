@@ -71,7 +71,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 }
 
 func clean(sessionID string, before int64) {
-	db := torii.Remote(torii.DBSessionHist)
+	db := torii.DB(torii.DBSessionHist)
 	keys := db.Keys(context.Background(), sessionID+":*")
 	if len(keys) == 0 {
 		return

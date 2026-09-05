@@ -44,7 +44,7 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 	}
 
 	key := fmt.Sprintf("%s:%d", record.ToolName, now.UnixNano())
-	db := torii.Remote(torii.DBErrorMemory)
+	db := torii.DB(torii.DBErrorMemory)
 	value := string(raw)
 	expireAt := torii.TTL(ttlSeconds)
 

@@ -26,6 +26,7 @@ import (
 const (
 	skippedExpired    = 12 * time.Hour
 	emptySkipExpired  = 72 * time.Hour
+	skip4xxExpired    = 90 * 24 * time.Hour
 	maxMarkdownLength = 100 << 10
 	defaultScroll     = 3
 )

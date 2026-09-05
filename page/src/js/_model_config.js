@@ -1,6 +1,6 @@
 const providerProbe = {};
-let providerUsage = null;
-let providerUsageLoading = null;
+let providerQuota = null;
+let providerQuotaLoading = null;
 let modelView = "add";
 let modelProvider = "";
 let modelOpen = "";
@@ -123,7 +123,7 @@ async function deleteProvider(prefix) {
   }
 
   delete providerProbe[prefix];
-  providerUsage = null;
+  providerQuota = null;
   selectProviderAdd();
 }
 
@@ -138,7 +138,7 @@ async function removeProviderKey(id) {
   }
 
   delete providerProbe[id];
-  providerUsage = null;
+  providerQuota = null;
   selectProviderAdd();
 }
 
@@ -166,31 +166,31 @@ async function registeredModels() {
   return [];
 }
 
-function fetchProviderUsage() {
-  if (providerUsage) {
-    return Promise.resolve(providerUsage);
+function fetchProviderQuota() {
+  if (providerQuota) {
+    return Promise.resolve(providerQuota);
   }
-  if (providerUsageLoading) {
-    return providerUsageLoading;
+  if (providerQuotaLoading) {
+    return providerQuotaLoading;
   }
 
-  providerUsageLoading = fetch(`${API}/v1/providers/usage`)
-    .then((response) => (response.ok ? response.json() : { usage: {} }))
+  providerQuotaLoading = fetch(`${API}/v1/providers/quota`)
+    .then((response) => (response.ok ? response.json() : { quota: {} }))
     .then((body) => {
-      providerUsage = body.usage || {};
-      return providerUsage;
+      providerQuota = body.quota || {};
+      return providerQuota;
     })
     .catch((err) => {
-      console.error("fetchProviderUsage", err);
+      console.error("fetchProviderQuota", err);
       return {};
     })
     .finally(() => {
-      providerUsageLoading = null;
+      providerQuotaLoading = null;
     });
-  return providerUsageLoading;
+  return providerQuotaLoading;
 }
 
-function applyUsageBadges(usage) {
+function applyQuotaBadges(quotas) {
   const dom = modelDom();
   if (!dom.list) {
     return;
@@ -201,7 +201,7 @@ function applyUsageBadges(usage) {
     if (existing) {
       existing.remove();
     }
-    const quota = usageLabel((usage || {})[card.dataset.name]);
+    const quota = quotaLabel((quotas || {})[card.dataset.name]);
     if (!quota) {
       continue;
     }
@@ -211,7 +211,7 @@ function applyUsageBadges(usage) {
   }
 }
 
-function usageLabel(entry) {
+function quotaLabel(entry) {
   if (!entry || entry.value === undefined) {
     return null;
   }
@@ -264,7 +264,7 @@ async function renderModel() {
   }
 
   const [catalog, registered, keys] = await Promise.all([providerCatalog(), registeredModels(), storedKeys()]);
-  const usage = providerUsage;
+  const quotas = providerQuota;
 
   const active = [];
   for (const provider of catalog) {
@@ -309,7 +309,7 @@ async function renderModel() {
     const total = count(prefix);
     const children = [_("strong", label[prefix] || prefix), _("p", `${total} model${total === 1 ? "" : "s"}`)];
 
-    const quota = usageLabel((usage || {})[prefix]);
+    const quota = quotaLabel((quotas || {})[prefix]);
     if (quota) {
       const badge = _("span.quota", quota.text);
       badge.dataset.state = quota.state;
@@ -330,8 +330,8 @@ async function renderModel() {
     dom.list.appendChild(card);
   }
 
-  if (!providerUsage) {
-    fetchProviderUsage().then(applyUsageBadges);
+  if (!providerQuota) {
+    fetchProviderQuota().then(applyQuotaBadges);
   }
 
   if (dom.form) {
@@ -670,10 +670,19 @@ async function saveProviderKey(id, body) {
     return;
   }
 
+  if (id === "openai") {
+    alert(
+      "OpenAI key saved.\n\n" +
+        "Vector storage needs a daemon restart before it works:\n" +
+        "    agen stop && agen\n\n" +
+        "Entries written before the restart keep no vector.",
+    );
+  }
+
   modelOpen = "";
   const prefix = id === "compat" ? `compat[${body.name}]` : id;
   delete providerProbe[prefix];
-  providerUsage = null;
+  providerQuota = null;
   selectProvider(prefix);
 }
 
@@ -738,7 +747,7 @@ function startProviderOAuth(id) {
     }
     modelOpen = "";
     delete providerProbe[id];
-    providerUsage = null;
+    providerQuota = null;
     selectProvider(id);
   };
   modelStream.onerror = function () {

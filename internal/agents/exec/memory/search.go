@@ -18,7 +18,7 @@ func Search(ctx context.Context, tool, keyword string, limit int) string {
 		return "keyword is required when tool is not specified"
 	}
 
-	db := torii.Remote(torii.DBErrorMemory)
+	db := torii.DB(torii.DBErrorMemory)
 
 	pattern := "*"
 	if tool != "" {
@@ -45,11 +45,11 @@ func List(limit int) []Record {
 	if limit > 200 {
 		limit = 200
 	}
-	db := torii.Remote(torii.DBErrorMemory)
+	db := torii.DB(torii.DBErrorMemory)
 	return scanWithFilter(context.Background(), db, "*", func(Record) bool { return true }, limit)
 }
 
-func vectorSearch(ctx context.Context, db *torii.Client, pattern, keyword string, limit int) []Record {
+func vectorSearch(ctx context.Context, db *torii.Session, pattern, keyword string, limit int) []Record {
 	keys, err := db.VSearch(ctx, keyword, pattern, limit)
 	if err != nil || len(keys) == 0 {
 		return nil
@@ -75,7 +75,7 @@ func vectorSearch(ctx context.Context, db *torii.Client, pattern, keyword string
 	return out
 }
 
-func keywordScan(ctx context.Context, db *torii.Client, tool, keyword string, limit int) []Record {
+func keywordScan(ctx context.Context, db *torii.Session, tool, keyword string, limit int) []Record {
 	if tool != "" {
 		msg := getMessage(keyword)
 		if msg == "unknown" {
@@ -106,7 +106,7 @@ func keywordScan(ctx context.Context, db *torii.Client, tool, keyword string, li
 	}, limit)
 }
 
-func scanWithFilter(ctx context.Context, db *torii.Client, pattern string, match func(Record) bool, cap int) []Record {
+func scanWithFilter(ctx context.Context, db *torii.Session, pattern string, match func(Record) bool, cap int) []Record {
 	entries := db.Scan(ctx, pattern, torii.ScanOption{})
 	if len(entries) == 0 {
 		return nil
@@ -161,7 +161,7 @@ func clampLimit(limit int) int {
 }
 
 func Read(hash string) string {
-	db := torii.Remote(torii.DBErrorMemory)
+	db := torii.DB(torii.DBErrorMemory)
 	for _, entry := range db.Scan(context.Background(), "*", torii.ScanOption{Contains: hash}) {
 		var record Record
 		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {

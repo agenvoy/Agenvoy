@@ -391,7 +391,6 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method | Path              | 說明                                                                     |
 | ------ | ----------------- | ------------------------------------------------------------------------ |
-| `GET` `POST` `DELETE` | `/v1/toriidb/:db/*key`、`/v1/toriidb` | **local** — ToriiDB 的唯一入口。`GET` 帶純 key 回單筆，帶 `*` 樣式回全部命中，並可用 `?contains=<substr>`（比對 value，不分大小寫）與 `?after=<unix 秒>`（entry 異動時間）在伺服器端縮小範圍；`?keys=1` 只回名稱、`?search=<text>&limit=` 走向量搜尋；`POST` `{db,key,value,expire_at,vector}` 以絕對時間戳寫入，或 `{db,keys,ttl}` 以相對秒數重設既有 key 的到期；`DELETE` `{db,keys}` 刪除。daemon 以外的行程一律只能經由此端點碰 ToriiDB，所以 tool cache、對話向量、knowledge、error memory 與 pending 存活在 TUI 與 daemon 之間是共用的 |
 | `GET`  | `/v1/torii/error` | **local** — 查閱工具錯誤記憶；`tool`／`keyword` 皆未帶時回傳無過濾全表掃 |
 
 ## 工具參考

@@ -168,11 +168,6 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	for _, sid := range msg.ids {
 		deleteSessionHistKeys(sid)
 		historyStore.Clear(sid)
-		if err := historyStore.DeleteState(context.Background(), sid); err != nil {
-			slog.Warn("historyStore.DeleteState",
-				slog.String("session", sid),
-				slog.String("error", err.Error()))
-		}
 		if err := historyStore.DeleteSession(context.Background(), sid); err != nil {
 			slog.Warn("historyStore.DeleteSession",
 				slog.String("session", sid),
@@ -236,7 +231,7 @@ func pickAlternateSession(exclude ...string) string {
 }
 
 func deleteSessionHistKeys(sid string) int {
-	db := torii.Remote(torii.DBSessionHist)
+	db := torii.DB(torii.DBSessionHist)
 	keys := db.Keys(context.Background(), sid+":*")
 	if len(keys) == 0 {
 		return 0

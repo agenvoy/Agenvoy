@@ -58,8 +58,6 @@ func waitDaemonReady(ctx context.Context, timeout time.Duration, tick func(time.
 	for {
 		if _, err := daemon.Get[map[string]any](ctx, "/v1/info/version", nil); err != nil {
 			last = fmt.Errorf("http: %w", err)
-		} else if _, err := daemon.Get[map[string]any](ctx, "/v1/toriidb/0/__ready__", nil); err != nil {
-			last = fmt.Errorf("toriidb: %w", err)
 		} else {
 			return nil
 		}
