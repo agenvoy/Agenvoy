@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS message_meta (
 
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts5 USING fts5(
     role, content,
-    content=messages, content_rowid=id
+    content=messages, content_rowid=id,
+    tokenize='trigram'
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_messages_after_insert AFTER INSERT ON messages BEGIN
