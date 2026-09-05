@@ -23,36 +23,36 @@ import (
 )
 
 const (
-	providerUsageTimeout = 15 * time.Second
-	providerUsageTTL     = 180
-	usageKeyPrefix       = "provider:usage:"
+	providerQuotaTimeout = 15 * time.Second
+	providerQuotaTTL     = 180
+	quotaKeyPrefix       = "provider:quota:"
 )
 
-type usageEntry struct {
+type quotaEntry struct {
 	Kind  string  `json:"kind"`
 	Value float64 `json:"value"`
 }
 
-func readUsageCache(id string) (usageEntry, bool) {
+func readQuotaCache(id string) (quotaEntry, bool) {
 	if !torii.Ready() {
-		return usageEntry{}, false
+		return quotaEntry{}, false
 	}
 	db := torii.DB(torii.DBToolCache)
 	if db == nil {
-		return usageEntry{}, false
+		return quotaEntry{}, false
 	}
-	record, ok := db.Get(context.Background(), usageKeyPrefix+id)
+	record, ok := db.Get(context.Background(), quotaKeyPrefix+id)
 	if !ok {
-		return usageEntry{}, false
+		return quotaEntry{}, false
 	}
-	var entry usageEntry
+	var entry quotaEntry
 	if err := json.Unmarshal([]byte(record.Value()), &entry); err != nil {
-		return usageEntry{}, false
+		return quotaEntry{}, false
 	}
 	return entry, true
 }
 
-func writeUsageCache(id string, entry usageEntry) {
+func writeQuotaCache(id string, entry quotaEntry) {
 	if !torii.Ready() {
 		return
 	}
@@ -64,14 +64,14 @@ func writeUsageCache(id string, entry usageEntry) {
 	if err != nil {
 		return
 	}
-	if err := db.Set(context.Background(), usageKeyPrefix+id, string(raw), torii.TTL(providerUsageTTL)); err != nil {
-		slog.Debug("provider usage cache",
+	if err := db.Set(context.Background(), quotaKeyPrefix+id, string(raw), torii.TTL(providerQuotaTTL)); err != nil {
+		slog.Debug("provider quota cache",
 			slog.String("provider", id),
 			slog.String("error", err.Error()))
 	}
 }
 
-func DropUsageCache(id string) {
+func DropQuotaCache(id string) {
 	if !torii.Ready() {
 		return
 	}
@@ -79,16 +79,16 @@ func DropUsageCache(id string) {
 	if db == nil {
 		return
 	}
-	db.Del(context.Background(), usageKeyPrefix+id)
+	db.Del(context.Background(), quotaKeyPrefix+id)
 }
 
-type usageSource struct {
+type quotaSource struct {
 	id   string
 	kind string
 	fn   func(context.Context, provider.Config) (float64, error)
 }
 
-var usageSources = []usageSource{
+var quotaSources = []quotaSource{
 	{"codex", "percent", openaicodex.Usage},
 	{"grok-oauth", "percent", grokoauth.Usage},
 	{"copilot", "percent", copilot.Usage},
@@ -96,29 +96,29 @@ var usageSources = []usageSource{
 	{"deepseek", "balance", deepseek.Usage},
 }
 
-func ListProviderUsage() gin.HandlerFunc {
+func ListProviderQuota() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		refresh := c.Query("refresh") == "1" || strings.EqualFold(c.Query("refresh"), "true")
 
-		ctx, cancel := context.WithTimeout(c.Request.Context(), providerUsageTimeout)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), providerQuotaTimeout)
 		defer cancel()
 
 		var (
-			mu    sync.Mutex
-			wg    sync.WaitGroup
-			usage = make(map[string]gin.H, len(usageSources))
+			mu     sync.Mutex
+			wg     sync.WaitGroup
+			quotas = make(map[string]gin.H, len(quotaSources))
 		)
 
-		for _, source := range usageSources {
+		for _, source := range quotaSources {
 			if refresh {
-				DropUsageCache(source.id)
-			} else if cached, ok := readUsageCache(source.id); ok {
-				usage[source.id] = gin.H{"kind": cached.Kind, "value": cached.Value, "cached": true}
+				DropQuotaCache(source.id)
+			} else if cached, ok := readQuotaCache(source.id); ok {
+				quotas[source.id] = gin.H{"kind": cached.Kind, "value": cached.Value, "cached": true}
 				continue
 			}
 
 			wg.Add(1)
-			go func(source usageSource) {
+			go func(source quotaSource) {
 				defer wg.Done()
 
 				entry := gin.H{"kind": source.kind}
@@ -127,7 +127,7 @@ func ListProviderUsage() gin.HandlerFunc {
 					var value float64
 					if value, err = source.fn(ctx, cfg); err == nil {
 						entry["value"] = value
-						writeUsageCache(source.id, usageEntry{Kind: source.kind, Value: value})
+						writeQuotaCache(source.id, quotaEntry{Kind: source.kind, Value: value})
 					}
 				}
 				if err != nil {
@@ -135,12 +135,12 @@ func ListProviderUsage() gin.HandlerFunc {
 				}
 
 				mu.Lock()
-				usage[source.id] = entry
+				quotas[source.id] = entry
 				mu.Unlock()
 			}(source)
 		}
 		wg.Wait()
 
-		c.JSON(http.StatusOK, gin.H{"usage": usage})
+		c.JSON(http.StatusOK, gin.H{"quota": quotas})
 	}
 }

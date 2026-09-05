@@ -206,7 +206,6 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 		return
 	}
-	knowledge.Migrate()
 	defer torii.Close()
 
 	if err := filesystem.OpenDB(); err != nil {
@@ -231,6 +230,13 @@ func cmdDaemon() {
 	}
 	defer usagelog.Close()
 	usagelog.Migrate()
+
+	if err := knowledge.New(); err != nil {
+		slog.Warn("knowledge.New",
+			slog.String("error", err.Error()))
+	}
+	defer knowledge.Close()
+	knowledge.Migrate()
 
 	bootPhase("storage")
 

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	onlineTTL      = 5
-	onlineInterval = 3 * time.Second
+	onlineTTL      = 60
+	onlineInterval = 55 * time.Second
 )
 
 func onlineKey(sessionID, taskHash string) string {

@@ -17,8 +17,8 @@ const (
 	DBToolCache   = 0 // All tool cache
 	DBSessionHist = 1 // Session conversation
 	DBErrorMemory = 2 // Tool error
-	DBKnowledge   = 3 // Knowledge
-	DBOnline      = 4
+	DBKnowledge   = 3 // * Legacy knowledge, read once by knowledge.Migrate
+	DBOnline      = 3
 )
 
 type ScanOption = toriidb_daemon.ScanOption

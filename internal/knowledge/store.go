@@ -1,15 +1,10 @@
 package knowledge
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
-
-	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
 var (
@@ -80,43 +75,74 @@ func Key(name string) (string, error) {
 }
 
 func Read(name string) (Record, bool) {
-	entry, ok := torii.DB(torii.DBKnowledge).Get(context.Background(), name)
-	if !ok {
+	if conn == nil {
 		return Record{}, false
 	}
-	var record Record
-	if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
+
+	record := Record{Name: name}
+	if err := conn.Read.QueryRow(`
+	SELECT content, updated_at
+	FROM knowledge
+	WHERE name = ?
+	`, name).Scan(&record.Content, &record.UpdatedAt); err != nil {
 		return Record{}, false
 	}
-	record.Name = name
 	return record, true
 }
 
 func Write(name, content string) error {
-	raw, err := json.Marshal(Record{Name: name, Content: content, UpdatedAt: time.Now().Unix()})
-	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
+	if conn == nil {
+		return fmt.Errorf("internal/knowledge: New has not run")
 	}
-	return torii.DB(torii.DBKnowledge).Set(context.Background(), name, string(raw), nil)
+
+	_, err := conn.Exec(`
+	INSERT INTO knowledge (name, content, updated_at)
+	VALUES (?, ?, ?)
+	ON CONFLICT(name)
+	DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
+	`, name, content, time.Now().Unix())
+	return err
 }
 
 func Delete(name string) bool {
-	return torii.DB(torii.DBKnowledge).Del(context.Background(), name) > 0
+	if conn == nil {
+		return false
+	}
+
+	result, err := conn.Exec(`DELETE FROM knowledge WHERE name = ?`, name)
+	if err != nil {
+		return false
+	}
+	affected, err := result.RowsAffected()
+	return err == nil && affected > 0
 }
 
 func List() []Record {
-	entries := torii.DB(torii.DBKnowledge).Scan(context.Background(), "*", torii.ScanOption{})
+	if conn == nil {
+		return nil
+	}
 
-	out := make([]Record, 0, len(entries))
-	for _, entry := range entries {
+	rows, err := conn.Read.Query(`
+	SELECT name, content, updated_at
+	FROM knowledge
+	ORDER BY name
+	`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	out := []Record{}
+	for rows.Next() {
 		var record Record
-		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
-			continue
+		if err := rows.Scan(&record.Name, &record.Content, &record.UpdatedAt); err != nil {
+			return nil
 		}
-		record.Name = entry.Key
 		out = append(out, record)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	if rows.Err() != nil {
+		return nil
+	}
 	return out
 }
 

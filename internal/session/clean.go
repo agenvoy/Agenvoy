@@ -11,6 +11,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
 func Clean() {
@@ -85,6 +86,11 @@ func clearSessionRows(sessionID string) bool {
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return false
+	}
+
+	db := torii.DB(torii.DBSessionHist)
+	if keys := db.Keys(ctx, sessionID+":*"); len(keys) > 0 {
+		db.Del(ctx, keys...)
 	}
 	return true
 }

@@ -67,6 +67,12 @@ func newTUI() {
 	defer usagelog.Close()
 	usagelog.Migrate()
 
+	if err := knowledge.New(); err != nil {
+		slog.Warn("knowledge.New",
+			slog.String("error", err.Error()))
+	}
+	defer knowledge.Close()
+
 	imageTool.Register()
 	audioTool.Register()
 	chatbotTool.Register()
