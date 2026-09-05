@@ -670,6 +670,15 @@ async function saveProviderKey(id, body) {
     return;
   }
 
+  if (id === "openai") {
+    alert(
+      "OpenAI key saved.\n\n" +
+        "Vector storage needs a daemon restart before it works:\n" +
+        "    agen stop && agen\n\n" +
+        "Entries written before the restart keep no vector.",
+    );
+  }
+
   modelOpen = "";
   const prefix = id === "compat" ? `compat[${body.name}]` : id;
   delete providerProbe[prefix];
