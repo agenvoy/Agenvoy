@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -112,6 +113,12 @@ func addDefaultCrons() {
 	usagelog.Retain()
 	if _, err := st.cron.Add("0 4 * * *", usagelog.Retain); err != nil {
 		slog.Warn("cron usageRetain",
+			slog.String("error", err.Error()))
+	}
+
+	sessionHistory.PruneVectorless()
+	if _, err := st.cron.Add("0 4 * * *", sessionHistory.PruneVectorless); err != nil {
+		slog.Warn("cron pruneVectorless",
 			slog.String("error", err.Error()))
 	}
 

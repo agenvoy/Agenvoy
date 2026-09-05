@@ -67,6 +67,9 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 }
 
 func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
+	if !torii.HasEmbedder() {
+		return
+	}
 	if content, ok := msg.Content.(string); ok {
 		msg.Content = sessionHistory.StripPrefix(content)
 	}

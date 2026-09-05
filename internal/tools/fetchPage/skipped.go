@@ -47,7 +47,7 @@ func addToSkippedMap(href string, status int, title string) {
 		}
 		return
 	}
-	if err := db.Set(context.Background(), skipKey("skip4xx:", href), val, nil); err != nil {
+	if err := db.Set(context.Background(), skipKey("skip4xx:", href), val, torii.TTL(int64(skip4xxExpired.Seconds()))); err != nil {
 		slog.Debug("store.DB.Set",
 			slog.String("error", err.Error()))
 	}

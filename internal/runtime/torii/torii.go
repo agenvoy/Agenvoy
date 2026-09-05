@@ -73,6 +73,10 @@ func Ready() bool {
 	return instance != nil
 }
 
+func HasEmbedder() bool {
+	return instance != nil && embedder
+}
+
 func TTL(seconds int64) *int64 {
 	ts := time.Now().Unix() + seconds
 	return &ts
