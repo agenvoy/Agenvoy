@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )

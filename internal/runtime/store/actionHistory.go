@@ -40,7 +40,7 @@ func textRaw(text string) json.RawMessage {
 
 func WriteAction(ctx context.Context, sessionID string, r ActionRecord) error {
 	if conn == nil {
-		return fmt.Errorf("internal/runtime/history: New has not run")
+		return fmt.Errorf("internal/runtime/store: New has not run")
 	}
 	if sessionID == "" || r.TaskHash == "" {
 		return fmt.Errorf("session_id and task_hash are required")

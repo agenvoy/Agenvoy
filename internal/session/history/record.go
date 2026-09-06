@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 

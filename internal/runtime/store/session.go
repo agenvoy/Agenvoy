@@ -68,7 +68,7 @@ func scanSession(rows interface {
 
 func WriteSession(ctx context.Context, r SessionRow) error {
 	if conn == nil {
-		return fmt.Errorf("internal/runtime/history: New has not run")
+		return fmt.Errorf("internal/runtime/store: New has not run")
 	}
 	if r.SessionID == "" {
 		return fmt.Errorf("session_id is required")

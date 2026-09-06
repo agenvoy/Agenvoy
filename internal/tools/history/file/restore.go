@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -25,7 +25,7 @@ func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 
 	case version > 0:
 		out, err := historyStore.RestoreTo(ctx, version, meta)
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/history: RestoreTo [%d]: %w", version, err)
+			return "", fmt.Errorf("internal/runtime/store: RestoreTo [%d]: %w", version, err)
 		}
 		return out, nil
 	case taskID == "":
@@ -48,7 +48,7 @@ func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 
 	for _, filter := range filters {
 		lines, err := historyStore.Undo(ctx, filter, meta)
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/history: Undo: %w", err)
+			return "", fmt.Errorf("internal/runtime/store: Undo: %w", err)
 		}
 		if len(lines) == 0 {
 			if filter.Path != "" {
