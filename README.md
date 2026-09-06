@@ -274,7 +274,10 @@ Full documentation at **[agenvoy.com/docs](https://agenvoy.com/docs/)**
 
 ## License
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+This project is dual-licensed.
+
+- **Open source** — [GNU Affero General Public License v3.0](LICENSE). You may use, modify and distribute it, provided derivative works and any network-accessible service built on it are released under the same license, source included.
+- **Commercial** — for use that cannot meet the AGPL-3.0 source-disclosure requirement, a commercial license is available. See [COMMERCIAL.md](COMMERCIAL.md).
 
 ## Author
 

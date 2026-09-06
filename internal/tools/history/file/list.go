@@ -9,7 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/utils"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -38,7 +38,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 
 	list, err := historyStore.List(ctx, filter)
 	if err != nil {
-		return "", fmt.Errorf("internal/runtime/history: List: %w", err)
+		return "", fmt.Errorf("internal/runtime/store: List: %w", err)
 	}
 	if len(list) == 0 {
 		return "no recorded changes", nil

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aymanbagabas/go-udiff"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -27,7 +27,7 @@ func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, e
 
 		list, err := historyStore.Newest(ctx, historyStore.Filter{Path: path, Limit: 1})
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/history: Newest: %w", err)
+			return "", fmt.Errorf("internal/runtime/store: Newest: %w", err)
 		}
 		if len(list) == 0 {
 			blocks = append(blocks, fmt.Sprintf("%s\nno recorded changes", path))

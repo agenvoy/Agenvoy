@@ -15,7 +15,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
