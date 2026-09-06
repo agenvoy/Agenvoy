@@ -191,12 +191,12 @@ function formatTool(body) {
 function formatDone(body) {
   const model = (body.split(/\s+/)[0] || "").includes("=") ? "" : body.split(/\s+/)[0] || "";
   const duration = /\bdur=(\S+)/.exec(body);
-  const input = /\bin=(\d+)/.exec(body);
+  const input = /\bin=(\d+)(?:\s*\((\d+)%\))?/.exec(body);
   const output = /\bout=(\d+)/.exec(body);
   return {
     model: model,
     duration: duration ? compactDuration(duration[1]) : "",
-    input: input ? compactToken(input[1]) : "",
+    input: input ? compactToken(input[1]) + (input[2] ? `(${input[2]}%)` : "") : "",
     output: output ? compactToken(output[1]) : "",
   };
 }

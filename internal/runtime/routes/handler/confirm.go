@@ -110,8 +110,8 @@ func emitWebConfirms() {
 		if len(req.Restricted) > 0 {
 			event.PasswordCached = auth.Cached(context.Background())
 		}
-		trackConfirm(req.SessionID, id, event)
-		pubsub.Pub(req.SessionID, event)
+		trackConfirm(req.DeliverTo, id, event)
+		pubsub.Pub(req.DeliverTo, event)
 	}
 }
 

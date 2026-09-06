@@ -18,6 +18,7 @@ type Issue struct {
 	Description string `json:"description"`
 	File        string `json:"file"`
 	Line        int    `json:"line"`
+	CodeSnippet string `json:"code_snippet"`
 	Suggestion  string `json:"suggestion"`
 }
 
@@ -39,7 +40,31 @@ type Result struct {
 const (
 	longFunctionThreshold = 50
 	deepNestingThreshold  = 3
+	snippetRunes          = 120
 )
+
+var sourceCache = map[string][]string{}
+
+func sourceLine(p token.Position) string {
+	lines, ok := sourceCache[p.Filename]
+	if !ok {
+		raw, err := os.ReadFile(p.Filename)
+		if err != nil {
+			sourceCache[p.Filename] = nil
+			return ""
+		}
+		lines = strings.Split(string(raw), "\n")
+		sourceCache[p.Filename] = lines
+	}
+	if p.Line < 1 || p.Line > len(lines) {
+		return ""
+	}
+	text := strings.TrimSpace(lines[p.Line-1])
+	if runes := []rune(text); len(runes) > snippetRunes {
+		return string(runes[:snippetRunes])
+	}
+	return text
+}
 
 var ignoredDirs = map[string]struct{}{
 	".git": {}, "node_modules": {}, "vendor": {}, "dist": {}, "build": {},
@@ -110,6 +135,7 @@ func analyzeFile(fset *token.FileSet, path, root string, result *Result) {
 				Description: "Go 1.18+ 應使用 any 取代 interface{}",
 				File:        rel,
 				Line:        pos.Line,
+				CodeSnippet: sourceLine(pos),
 				Suggestion:  "將 interface{} 替換為 any",
 			})
 		}
@@ -178,6 +204,7 @@ func checkUnusedImport(fset *token.FileSet, imp *ast.ImportSpec, used map[string
 			Description: fmt.Sprintf("套件 '%s' 可能未被使用", path),
 			File:        rel,
 			Line:        pos.Line,
+			CodeSnippet: sourceLine(pos),
 			Suggestion:  "移除未使用的 import；若為 side-effect 請改為 `_ \"...\"`",
 		})
 	}
@@ -219,6 +246,7 @@ func analyzeFunction(fset *token.FileSet, fn *ast.FuncDecl, rel string, result *
 			Description: fmt.Sprintf("函式 '%s' 有 %d 行", fn.Name.Name, lineCount),
 			File:        rel,
 			Line:        start.Line,
+			CodeSnippet: sourceLine(start),
 			Suggestion:  "拆分為多個小函式，遵循單一職責原則",
 		})
 	}
@@ -235,6 +263,7 @@ func analyzeFunction(fset *token.FileSet, fn *ast.FuncDecl, rel string, result *
 			Description: fmt.Sprintf("函式 '%s' 巢狀深度 %d 層", fn.Name.Name, depth),
 			File:        rel,
 			Line:        start.Line,
+			CodeSnippet: sourceLine(start),
 			Suggestion:  "使用 early return 或抽出子函式降低巢狀深度",
 		})
 	}
@@ -400,6 +429,7 @@ func checkDiscardedReturn(fset *token.FileSet, assign *ast.AssignStmt, rel strin
 		Description: "使用 `_ = f()` 顯式丟棄回傳值，需確認是否應處理 error",
 		File:        rel,
 		Line:        pos.Line,
+		CodeSnippet: sourceLine(pos),
 		Suggestion:  "若回傳含 error 請處理；若為 fire-and-forget 請加註解說明",
 	})
 }

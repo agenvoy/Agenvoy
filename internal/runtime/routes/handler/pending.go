@@ -160,7 +160,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 				scanner.Scan()
 			}
 			err := exec.Run(
-				ctx,
+				agentTypes.WithOrigin(ctx, "chat-"),
 				agents.DispatcherBot(),
 				agents.Registry(),
 				scanner,

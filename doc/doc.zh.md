@@ -334,7 +334,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method | Path                            | 說明                                   |
 | ------ | ------------------------------- | -------------------------------------- |
 | `GET`  | `/v1/providers`                 | **local** — 列出 provider 及其可用操作 |
-| `GET` | `/v1/providers/usage` | **local** — `codex`、`grok-oauth`、`copilot` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
+| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
 | `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key               |
 | `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
@@ -353,17 +353,17 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `POST`       | `/v1/mcp/oauth/client`   | **local** — `{name, client_id, client_secret?, redirect_uri?}`。給拒絕動態註冊的 server 用的預先註冊 client;`redirect_uri` 預設 `http://localhost:17988/callback`,須與 provider console 完全一致。寫入前先清掉既有 token    |
 | `DELETE`     | `/v1/mcp/oauth`          | **local** — `{name}`。同時清除該 server 的 token 與 client 註冊                                                                                                                                                             |
 
-**Rule、知識與 Skill**
+**Rule、筆記與 Skill**
 
-| Method                  | Path                  | 說明                                                                                     |
-| ----------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
-| `GET`                   | `/v1/rules`           | **local** — 列出 `prompts/` 底下的 session prompt rule（`.md`）                          |
-| `GET`                   | `/v1/rule/*name`      | **local** — 讀取單一 rule                                                                |
-| `POST` `PATCH` `DELETE` | `/v1/rule`            | **local** — 建立／更新（可帶 `rename`）／刪除 rule                                       |
-| `GET`                   | `/v1/knowledges`      | **local** — 列出 operator 筆記（名稱、大小、`updated_at`）,資料存於 ToriiDB 而非檔案系統 |
-| `GET`                   | `/v1/knowledge/*name` | **local** — 讀取單筆筆記                                                                 |
-| `POST` `PATCH` `DELETE` | `/v1/knowledge`       | **local** — 建立／更新／刪除筆記,未給名稱時以首行為名                                    |
-| `GET`                   | `/v1/skills`          | **local** — 列出已安裝的 skill                                                           |
+| Method                  | Path             | 說明                                                                                                  |
+| ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET`                   | `/v1/rules`      | **local** — 列出 `prompts/` 底下的 session prompt rule（`.md`）                                       |
+| `GET`                   | `/v1/rule/*name` | **local** — 讀取單一 rule                                                                             |
+| `POST` `PATCH` `DELETE` | `/v1/rule`       | **local** — 建立／更新（可帶 `rename`）／刪除 rule                                                    |
+| `GET`                   | `/v1/notes`      | **local** — 列出 operator 筆記（名稱、大小、`updated_at`）,資料存於 history.db 的 note 表而非檔案系統 |
+| `GET`                   | `/v1/note/*name` | **local** — 讀取單筆筆記                                                                              |
+| `POST` `PATCH` `DELETE` | `/v1/note`       | **local** — 建立／更新／刪除筆記,未給名稱時以首行為名                                                 |
+| `GET`                   | `/v1/skills`     | **local** — 列出已安裝的 skill                                                                        |
 
 **排程與自動化**
 
@@ -421,14 +421,14 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `http_request`                    | 原始 HTTP 呼叫，含 multipart 上傳                                                      |
 | 狀態       | `chat_history`                    | 本 session 的執行紀錄與對話（`mode=list\|read\|search`）                               |
 |            | `error_history`                   | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`）                            |
-|            | `find_knowledge`                  | 操作者自己寫的筆記，存於 ToriiDB（`mode=search\|list\|read`）；search 與 list 只回名稱 |
+|            | `find_note`                       | 操作者自己寫的筆記，存於 SQLite（`mode=search\|list\|read`）；search 與 list 只回名稱  |
 |            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                            |
 | 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                   |
 |            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                |
 | 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                      |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                 |
 
-13 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_knowledge`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。
+13 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。
 
 ## 架構
 

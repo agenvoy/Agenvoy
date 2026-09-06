@@ -56,16 +56,31 @@ AST 驅動的專案原始碼分析，產生優化建議報告（Go / Python / Ja
 ```
 1. Detect    →  偵測專案主要語言（依 go.mod / tsconfig.json / package.json / pyproject.toml）
 2. Analyze   →  呼叫對應分析器（AST + 字串掃描）
-3. Evaluate  →  計算指標並依嚴重度排序問題
-4. Gate      →  檢查 No-Op 條件；若命中則跳過 Generate / Save，僅輸出無需處理訊息
-5. Generate  →  產生優化建議報告（繁體中文），套用 Recommendation Principles 過濾
-6. Save      →  `mkdir -p {PROJECT_PATH}/.doc/code-reviewer/` 後寫入 `{yyyy-MM-dd_HH-mm}.md`
+3. Evaluate  →  計算指標並依嚴重度排序問題；比對 Convention Adherence 的規範檔
+4. Validate  →  逐條回原始碼確認錨點；確認不了的直接刪除（見 Validation Pass）
+5. Gate      →  檢查 No-Op 條件；若命中則跳過 Generate / Save，僅輸出無需處理訊息
+6. Generate  →  產生優化建議報告（繁體中文），套用 Recommendation Principles 過濾
+7. Save      →  `mkdir -p {PROJECT_PATH}/.doc/code-reviewer/` 後寫入 `{yyyy-MM-dd_HH-mm}.md`
 ```
+
+### Validation Pass
+
+Evaluate 產出的每一條問題與建議，在寫進報告前獨立確認一次：宣稱不存在的符號，回檔案確認它真的不存在；宣稱違反規範，確認那條規則的原文存在且作用範圍涵蓋該檔案。確認不過的**移出清單**，不降級為 Low 保留。
+
+**為何：** 假陽性侵蝕整份報告——讀者被一條錯的建議浪費時間之後，對的那幾條也會被跳過。這一關與嚴重度排序是兩個獨立的軸。
+
+### Convention Adherence
+
+專案根目錄或子目錄存在 `CLAUDE.md` / `AGENTS.md` 時，把「違反這些規範」列為與架構 / 效能 / 安全並列的一個維度。
+
+- **作用範圍**：一個檔案只受**它自己所在目錄與各層父目錄**的規範檔約束。`internal/note/new.go` 比對 `internal/note/CLAUDE.md`、`internal/CLAUDE.md`、根目錄的 `CLAUDE.md`；`page/CLAUDE.md` 與它無關。
+- **引用原文**：每條違規逐字引用被違反的那一行，並標出規範檔路徑。引不出原文代表那不是規範違反，是個人偏好，刪掉。
+- **消音優先**：程式碼旁有 `//nolint` / `# noqa` / 註解說明取捨時，視為作者已知並做過決定，不列——除非該取捨與規範原文直接衝突。
 
 ### No-Op 條件（同時滿足時不產檔）
 
 1. `issue_counts` 的 critical / high / medium / low 皆為 0
-2. 套用 Recommendation Principles 後，架構 / 效能 / 安全三段**皆無有效建議**（即都會寫「未觀察到需處理事項」）
+2. 套用 Recommendation Principles 後，架構 / 效能 / 安全 / 規範遵循四段**皆無有效建議**（即都會寫「未觀察到需處理事項」）
 3. 未觀察到超標 metric（見 `scripts/recommendation_principles.md` 例外欄位定義）
 
 命中時的行為：
@@ -116,6 +131,8 @@ Output: JSON 包含：
 - [ ] AST 工具鏈可用時使用 AST；否則降級為字串掃描並標註
 - [ ] 每個問題包含檔案位置與建議
 - [ ] 報告依嚴重度排序
+- [ ] **已跑過 Validation Pass**；錨點確認不了的建議已移除而非降級
+- [ ] 規範違反逐條可引用 `CLAUDE.md` / `AGENTS.md` 原文，且該規範檔位於該檔案的路徑或父路徑
 - [ ] **已套用 `scripts/recommendation_principles.md` 自我檢查，無違反項目**
 - [ ] **已檢查 No-Op 條件**；命中時跳過建立目錄與寫檔，僅輸出無需處理訊息
 - [ ] 若產檔：`.doc/code-reviewer/` 目錄已建立（若不存在）

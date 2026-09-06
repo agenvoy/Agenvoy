@@ -64,7 +64,7 @@ function renderEvent(view, event) {
     const footer = assistantFooter({
       send_at: sendAt(),
       duration: compactDuration(event.duration),
-      input: compactToken(usage.input_tokens),
+      input: event.usage_input || "",
       output: compactToken(usage.output_tokens),
     });
     view.footer.replaceWith(footer);

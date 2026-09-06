@@ -82,13 +82,16 @@ A credential is never requested through ask_user and never appears in a message,
 }
 
 func SecretPrompt(ctx context.Context, sessionID, question string) (string, error) {
-	if !runtime.HasListener(sessionID) {
+	origin := originFor(ctx, sessionID)
+	if !runtime.HasListener(origin) {
 		return "", fmt.Errorf("store_secret requires an interactive channel (TUI / Telegram / Discord)")
 	}
 
 	reply, err := runtime.Ask(ctx, runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
+		Origin:    origin,
+		DeliverTo: deliverFor(ctx, sessionID),
 		ToolName:  "store_secret",
 		AskUser: &runtime.UserPayload{
 			Questions: []runtime.Question{{Question: question, Secret: true}},
