@@ -103,7 +103,10 @@ function parseActionLog(content) {
 
       case "assistant":
         pending = pending || logItem(sendAt);
-        pending.content += (pending.resumed ? "\n\n---\n\n" : pending.content ? "\n\n" : "") + body;
+        if (pending.resumed) {
+          pending.content = "";
+        }
+        pending.content += (pending.content ? "\n\n" : "") + body;
         pending.resumed = false;
         pending.meta.send_at = sendAt;
         break;

@@ -298,6 +298,7 @@ function newStreamItem(init, sessionId) {
   ]);
   think.hidden = !init.trace;
   think.open = true;
+  think.dataset.streaming = "1";
 
   const model = _("p", init.model || "...");
   const answer = _("section.md-render");

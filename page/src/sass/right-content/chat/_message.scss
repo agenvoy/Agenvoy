@@ -225,6 +225,11 @@
             }
           }
 
+          &.reasoning[data-streaming] > .md-render {
+            max-height: 16rem;
+            overflow-y: hidden;
+          }
+
           &.files ul {
             margin: 0.5rem 0;
             padding-left: 1.25rem;

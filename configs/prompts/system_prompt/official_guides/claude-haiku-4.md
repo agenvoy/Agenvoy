@@ -1,6 +1,6 @@
 ## Long documents
 
-- Pull the quotes that bear on the task first, then answer from those quotes
+- Pull the quotes that bear on the task first, then answer from them
 
 ## Long horizon
 

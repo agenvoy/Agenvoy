@@ -177,14 +177,14 @@ document.addEventListener("DOMContentLoaded", async function () {
       rule_delete: function () {
         deleteEditing("rule");
       },
-      knowledge_save: function () {
-        saveFeature("knowledge");
+      note_save: function () {
+        saveFeature("note");
       },
-      knowledge_reset: function () {
-        resetFeature("knowledge");
+      note_reset: function () {
+        resetFeature("note");
       },
-      knowledge_delete: function () {
-        deleteEditing("knowledge");
+      note_delete: function () {
+        deleteEditing("note");
       },
       schedule_save: function () {
         commitSchedule();
@@ -217,7 +217,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         openReasoningPicker();
       },
       memory_pick: function () {
-        openMemoryPicker(panelSession(this));
+        openMemoryPicker(panelSession(this) || currentSessionId);
       },
       resume_pick: function () {
         openResumePicker(panelSession(this));
@@ -332,6 +332,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           subscribe("");
         }
         bindSelectPicker();
+        bindFileLink();
         bindInputDrop();
         bindChatMenu();
         renderChatList();
@@ -410,7 +411,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         if (params.page === "features") {
-          const kind = { Rules: "rule", Knowledge: "knowledge" }[params.tab];
+          const kind = { Rules: "rule", Note: "note" }[params.tab];
           if (kind) {
             resetFeature(kind);
             renderFeature(kind);

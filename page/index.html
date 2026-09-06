@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,keep,keep_off,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal,top_panel_close"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,keep,keep_off,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,right_panel_open,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal,top_panel_close"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
     <link
@@ -274,6 +274,8 @@
             </section>
           </div>
         </section>
+        <!---->
+        <div class="subview"></div>
       </section>
       <!---->
       <section :elif="params.page == features" class="feature">
@@ -311,33 +313,33 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Knowledge" class="editor">
+        <section :elif="params.tab == Note" class="editor">
           <div class="side">
-            <button type="button" class="new" @click="knowledge_reset">
+            <button type="button" class="new" @click="note_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>Add Knowledge</p>
+              <p>Add Note</p>
             </button>
             <details class="group" open>
               <summary>
-                Knowledge
+                Note
                 <span class="material-symbols-outlined"> keyboard_arrow_down </span>
               </summary>
-              <div class="list" id="knowledge-list"></div>
+              <div class="list" id="note-list"></div>
             </details>
           </div>
-          <form id="knowledge-form">
+          <form id="note-form">
             <span>Name</span>
             <input
-              id="knowledge-title"
+              id="note-title"
               type="text"
               maxlength="32"
-              placeholder="Name this knowledge (defaults to the first line)"
+              placeholder="Name this note (defaults to the first line)"
             />
             <span>Content</span>
-            <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
+            <textarea id="note-content" rows="12" placeholder="What the agent should know"></textarea>
             <footer>
-              <button type="button" class="remove" @click="knowledge_delete">delete</button>
-              <button type="button" class="submit" @click="knowledge_save">add</button>
+              <button type="button" class="remove" @click="note_delete">delete</button>
+              <button type="button" class="submit" @click="note_save">add</button>
             </footer>
           </form>
         </section>

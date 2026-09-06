@@ -15,7 +15,7 @@ const RULE_TEMPLATE = `# Role
 -
 `;
 
-const KNOWLEDGE_TEMPLATE = `# <topic>
+const NOTE_TEMPLATE = `# <topic>
 
 ## Summary
 
@@ -32,17 +32,17 @@ const KNOWLEDGE_TEMPLATE = `# <topic>
 
 const FEATURE_SPEC = {
   rule: { list: "/v1/rules", item: "/v1/rule", key: "rules", tab: "Rules", template: RULE_TEMPLATE },
-  knowledge: {
-    list: "/v1/knowledges",
-    item: "/v1/knowledge",
-    key: "knowledges",
-    tab: "Knowledge",
-    template: KNOWLEDGE_TEMPLATE,
+  note: {
+    list: "/v1/notes",
+    item: "/v1/note",
+    key: "notes",
+    tab: "Note",
+    template: NOTE_TEMPLATE,
     titleOptional: true,
   },
 };
 
-const featureEditing = { rule: "", knowledge: "" };
+const featureEditing = { rule: "", note: "" };
 
 function featureDom(kind) {
   return {

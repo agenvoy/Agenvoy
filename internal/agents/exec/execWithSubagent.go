@@ -91,7 +91,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 	excluded := append(append(subagentExcludeBase, tools.TUIOnlyTools...), excludedTools...)
 
-	charter := configs.SubagentCharter
+	charter := configs.SubagentPrompt
 	if extra := strings.TrimSpace(systemPrompt); extra != "" {
 		charter += "\n\n---\n\n" + extra
 	}
