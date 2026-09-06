@@ -217,7 +217,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         openReasoningPicker();
       },
       memory_pick: function () {
-        openMemoryPicker(panelSession(this));
+        openMemoryPicker(panelSession(this) || currentSessionId);
       },
       resume_pick: function () {
         openResumePicker(panelSession(this));

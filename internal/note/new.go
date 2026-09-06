@@ -46,6 +46,12 @@ func renameLegacyTable(c *go_sqlkit_core.Connector) error {
 		return nil
 	}
 
+	tx, err := c.Write.Begin()
+	if err != nil {
+		return fmt.Errorf("sql.DB Begin [rename knowledge]: %w", err)
+	}
+	defer tx.Rollback()
+
 	for _, stmt := range []string{
 		`DROP TRIGGER IF EXISTS trigger_knowledge_after_insert`,
 		`DROP TRIGGER IF EXISTS trigger_knowledge_after_delete`,
@@ -53,9 +59,12 @@ func renameLegacyTable(c *go_sqlkit_core.Connector) error {
 		`DROP TABLE IF EXISTS knowledge_fts5`,
 		`ALTER TABLE knowledge RENAME TO note`,
 	} {
-		if _, err := c.Exec(stmt); err != nil {
-			return fmt.Errorf("sql.DB Exec [%s]: %w", stmt, err)
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("sql.Tx Exec [%s]: %w", stmt, err)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("sql.Tx Commit [rename knowledge]: %w", err)
 	}
 	return nil
 }
