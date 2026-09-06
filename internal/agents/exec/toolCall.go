@@ -28,7 +28,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
+func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("askUserInBackground panic recovered",
@@ -54,8 +54,22 @@ func askUserInBackground(sessionID, taskHash, rawArgs string, toolResults []inte
 		return
 	}
 
-	hash := interactive.SaveAndEnqueueAskUser(sessionID, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
+	hash := interactive.SaveAndEnqueueAskUser(sessionID, origin, deliverTo, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
 	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
+}
+
+func originFor(ctx context.Context, sessionID string) string {
+	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+		return origin
+	}
+	return runtime.OriginOf(sessionID)
+}
+
+func deliverFor(ctx context.Context, sessionID string) string {
+	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+		return id
+	}
+	return sessionID
 }
 
 const confirmTimeout = 5 * time.Minute
@@ -424,11 +438,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			approved := false
 			verified := false
 			reason := ""
-			if runtime.HasListener(sessionData.ID) {
+			origin := originFor(ctx, sessionData.ID)
+			if runtime.HasListener(origin) {
 				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
 				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:       runtime.KindToolConfirm,
 					SessionID:  sessionData.ID,
+					Origin:     origin,
+					DeliverTo:  deliverFor(ctx, sessionData.ID),
 					ToolName:   toolName,
 					ToolArgs:   toolArg,
 					Restricted: restrictedList,
@@ -550,7 +567,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 			toolResults := toolResults(sessionData)
 
-			go askUserInBackground(sessionData.ID, exec.PendingTask, slot.args, toolResults, exec.EditedFiles())
+			go askUserInBackground(sessionData.ID, originFor(ctx, sessionData.ID), deliverFor(ctx, sessionData.ID), exec.PendingTask, slot.args, toolResults, exec.EditedFiles())
 			if exec.CancelExecution != nil {
 				exec.CancelExecution()
 			}

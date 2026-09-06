@@ -28,6 +28,10 @@
   <strong>English</strong> · <a href="./doc/README.zh.md">繁體中文</a>
 </p>
 
+## Taiwan-developed AI Agent Harness
+
+Agenvoy is a Taiwan-developed AI Agent Harness built to turn conversation into completed work on your computer. It coordinates models, context, tools, real-time data, task routing, memory, schedules, and execution in one workflow, while keeping control of your files and environment in your hands. Through the Web interface, it also supports hands-free voice interaction with natural speech, wake-word detection, and interruptible spoken replies; the full result remains available in the chat.
+
 ## Why Agenvoy
 
 A chat can give you an answer; work needs a result. Agenvoy breaks requests into steps, calls tools, and delivers outcomes on your computer—while you retain control of files, tools, schedules, and working context.
@@ -169,6 +173,8 @@ Manage sessions, tools, schedules, and memory from a browser. The dashboard ship
     <img src="https://img.youtube.com/vi/oaXxrTNvLaU/maxresdefault.jpg" alt="Agenvoy Web Dashboard demo" width="640">
   </a>
 </p>
+
+---
 
 ## Chatbot Integrations
 

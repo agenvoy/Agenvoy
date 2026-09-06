@@ -88,7 +88,7 @@ func Send() gin.HandlerFunc {
 		}
 
 		events := make(chan agentTypes.Event, 64)
-		execCtx := context.WithoutCancel(c.Request.Context())
+		execCtx := agentTypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
 		wrapped := withFollowup(execCtx, sessionID, pubsub.Wrap(execCtx, sessionID, events, 64))
 
 		go func() {

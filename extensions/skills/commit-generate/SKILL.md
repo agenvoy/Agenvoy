@@ -13,13 +13,21 @@ description: Generate bilingual (English + Traditional Chinese) commit message f
 
 ## Steps
 
-1. 使用 Bash 工具執行 `git diff --cached` 取得 staged diff
-2. 若輸出為空，回應：「目前沒有 staged 變更，請先執行 `git add` 選擇要提交的檔案。」並停止
+1. 同一輪並行取得四份資料（彼此無依賴）：
+   - `git diff --cached` — 本次要描述的變更，唯一的內容來源
+   - `git status --short` — 找出與 staged 檔案相關但未 stage 的檔案
+   - `git log --oneline -10` — 本 repo 實際在用的 tag 詞彙與描述顆粒度
+   - `git branch --show-current` — 分支名常帶意圖（`fix/token-expiry`）
+2. 若 `git diff --cached` 為空，回應：「目前沒有 staged 變更，請先執行 `git add` 選擇要提交的檔案。」並停止
 3. 判斷是否為跨主題變更（見 **Multi-Topic Detection**）
 4. 依 **Tag Upgrade Signals** 由上而下掃描訊號，命中即強制升級 Tag，未命中才可依意圖選 lower tag
 5. 套用下方規則產生 commit message
 6. 若命中跨主題：先輸出拆分建議，再輸出單一概括 message；否則直接輸出 message
 7. 輸出為純文字，不加額外說明
+
+**四份資料的權重：** `git diff --cached` 決定寫什麼——message 只描述 staged 的內容，未 stage 的改動不寫進去。`git log` 與分支名只影響**用詞**（同一個模組在既有 log 裡叫什麼、慣用哪個 tag），不影響 Tag 的選擇；**Tag Upgrade Signals** 與 **Output Format** 蓋過 log 裡的任何既有寫法，既有 log 與本規範衝突時以本規範為準。
+
+**未 stage 的相關檔案：** `git status --short` 顯示與 staged 檔案同模組、卻停在 ` M` 的檔案時，在 message 之前加一行提醒並列出檔名。不改變「只描述 staged 內容」的規則——提醒的是使用者可能漏 `git add`，判斷權在他。
 
 ## Multi-Topic Detection
 

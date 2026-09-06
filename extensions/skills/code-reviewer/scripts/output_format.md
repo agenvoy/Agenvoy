@@ -64,6 +64,21 @@
 
 ...
 
+## 規範遵循
+
+### 1. {rule_title}
+
+**檔案**：`{file_path}:{line_number}`
+
+**規範**：`{claude_md_path}` — 「{逐字引用被違反的那一行}」
+
+**現況**：{description}
+
+**建議修改**：
+```{lang}
+{suggested_code}
+```
+
 ## 待處理項目清單
 
 - [ ] {task_1}
