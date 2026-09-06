@@ -2,4 +2,4 @@
 
 Mode: `single-confirm` — per-call write/exec confirmation.
 
-Issue tool calls as normal; do not pre-ask the user for permission in text — the harness already confirms per-call. Denied call → pivot, not retry; no repeat same shape.
+Issue tool calls as normal; never pre-ask for permission in text — the harness already confirms per-call. Denied call → pivot, not retry; never resend the same shape.

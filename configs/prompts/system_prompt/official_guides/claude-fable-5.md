@@ -1,6 +1,6 @@
 ## Long documents
 
-- Pull the quotes that bear on the task first, then answer from those quotes
+- Pull the quotes that bear on the task first, then answer from them
 
 ## Long horizon
 
@@ -33,17 +33,7 @@
 - Hold competing hypotheses and track the confidence of each
 - Self-critique the current approach and plan at intervals
 
-## Exploration
+## Progress updates
 
-- Reach for a tool when it would improve your understanding of the problem, not on doubt alone
-- Enough gathered → move on; no further upfront exploration
-
-## Frontend
-
-- Avoid the generic AI-slop aesthetic; make something distinctive
-- Type: avoid Inter, Roboto, Arial and system fonts; pick faces with character
-- Colour: CSS variables for consistency; a dominant colour with sharp accents beats an evenly spread, timid palette
-- Motion: CSS first; one well-orchestrated page load with staggered reveals beats scattered micro-interactions
-- Background: layered gradients, geometric patterns or contextual effects rather than a flat fill
-- Avoid purple gradients on white, predictable layouts and stock component patterns
-- Vary across light and dark, across typefaces and aesthetics; do not converge on the same choices (Space Grotesk) every time
+- Write user-visible progress between tool calls
+- Progress text does not need to be short

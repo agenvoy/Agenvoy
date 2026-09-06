@@ -1,9 +1,10 @@
 ## Long documents
 
-- Pull the quotes that bear on the task first, then answer from those quotes
+- Pull the quotes that bear on the task first, then answer from them
 
 ## Long horizon
 
+- Track the remaining context budget and order the work and the wind-down against it
 - Context compacts near the limit and the run continues, so never wind down early over token budget
 - Write progress and state to memory before the context refreshes
 - Spend the whole output context; do not leave large uncommitted work when little remains
@@ -32,11 +33,3 @@
 - Cross-check across several sources
 - Hold competing hypotheses and track the confidence of each
 - Self-critique the current approach and plan at intervals
-
-## Verification
-
-- Self-checking suffices; do not re-verify the same output repeatedly
-
-## Progress
-
-- Write user-visible progress updates during agentic work

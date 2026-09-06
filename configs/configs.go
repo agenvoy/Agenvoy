@@ -7,23 +7,8 @@ import (
 
 // * Prompts
 
-//go:embed prompts/agent_selector.md
-var AgentSelector string
-
 //go:embed prompts/skill_execution.md
 var SkillExecution string
-
-//go:embed prompts/compact_exec_prompt.md
-var CompactExecPrompt string
-
-//go:embed prompts/old_history_extract_prompt.md
-var OldHistoryExtractPrompt string
-
-//go:embed prompts/compact_history_prompt.md
-var CompactHistoryPrompt string
-
-//go:embed prompts/summary_prompt.md
-var SummaryPrompt string
 
 //go:embed prompts/summary_context.md
 var SummaryContext string
@@ -31,14 +16,29 @@ var SummaryContext string
 //go:embed prompts/followup.md
 var FollowupPrompt string
 
+//go:embed prompts/system_prompt/agent_selector.md
+var AgentSelector string
+
+//go:embed prompts/system_prompt/memory/compact_exec_prompt.md
+var CompactExecPrompt string
+
+//go:embed prompts/system_prompt/memory/old_history_extract_prompt.md
+var OldHistoryExtractPrompt string
+
+//go:embed prompts/system_prompt/memory/compact_history_prompt.md
+var CompactHistoryPrompt string
+
+//go:embed prompts/system_prompt/memory/summary_prompt.md
+var SummaryPrompt string
+
 //go:embed prompts/system_prompt/system_prompt.md
 var SystemPrompt string
 
 //go:embed prompts/system_prompt/chatcompletions.md
 var ChatCompletionsSystemPrompt string
 
-//go:embed prompts/default_session_prompt.md
-var DefaultSessionPrompt string
+//go:embed prompts/system_prompt/default_rule.md
+var DefaultRule string
 
 //go:embed prompts/system_prompt/permission/always_allow.md
 var PermissionAlwaysAllow string
@@ -105,13 +105,13 @@ var TUITools []byte
 
 // * Official Guide
 
-//go:embed prompts/official_guides/*.md
+//go:embed prompts/system_prompt/official_guides/*.md
 var officialGuideFS embed.FS
 
 var OfficialGuides = loadOfficialGuides()
 
 func loadOfficialGuides() map[string]string {
-	const dir = "prompts/official_guides"
+	const dir = "prompts/system_prompt/official_guides"
 	entries, err := officialGuideFS.ReadDir(dir)
 	if err != nil {
 		return nil

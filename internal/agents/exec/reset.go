@@ -7,6 +7,7 @@ import (
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )
 
 func ForceSummary(ctx context.Context, sessionID string) (int, error) {
@@ -44,6 +45,10 @@ func ResetSessionWithSummary(ctx context.Context, sessionID string) (int, error)
 		if err := agentSummary.Generate(ctx, sessionID, histories); err != nil {
 			return 0, fmt.Errorf("summary refresh failed; reset aborted to avoid context loss: %w", err)
 		}
+	}
+
+	if raw, _ := sessionSummary.Get(sessionID); len(raw) == 0 {
+		return 0, fmt.Errorf("this session has no summary to keep; reset aborted to avoid context loss — clear it with mode=all instead")
 	}
 
 	ClearSteer(sessionID)

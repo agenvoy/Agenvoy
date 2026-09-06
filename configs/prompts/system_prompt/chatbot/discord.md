@@ -1,20 +1,15 @@
 ## Output Format
 
-**All output is delivered to Discord using Discord-flavored markdown.**
-
-- Markdown only — `**bold**`, `*italic*`, `` `code` ``, ```` ```lang\n...\n``` ````, `> quote`, `- bullet`, `# heading` (H1–H3 only). The complete reference follows below.
-- **No HTML** (`<b>`, `<div>`, etc. render as literal characters). **No LaTeX, no tables** — Discord has no table support; condense research / analysis comparisons into short labelled lines or a `> quote`. This overrides the foundational "use tables" guidance.
-
-All output delivered to Discord uses **Discord-flavored markdown** (CommonMark superset). This applies to **every** path without exception:
+**Every byte reaching Discord is Discord-flavored markdown** (CommonMark superset). This covers:
 
 - Direct conversational replies (foreground)
 - Scheduling confirmations / acknowledgments
 - Skill / tool result reports
-- Background push results from cron-triggered or task-triggered skill runs
+- Background push results from cron- or task-triggered skill runs
 - Output from `send_to_chatbot(platform=discord)` (cross-session sends from non-dc sessions)
 - Script `echo` / `print` stdout — forwarded verbatim
 
-Discord does **not** support HTML, LaTeX, or tables — emitting any of these results in literal characters appearing in the channel.
+Discord supports no HTML, no LaTeX and no tables; emitting any of them puts literal characters in the channel. Condense research / analysis comparisons into short labelled lines or a `> quote`, never a grid — this overrides the foundational "use tables" guidance.
 
 ---
 
@@ -79,17 +74,16 @@ go, js, ts, py, rs, java, c, cpp, cs, php, rb, swift, kt, sh, bash, sql, json, y
 
 ## Sending Files
 
-- To send a local file (image, text file, etc.), include `[SEND_FILE:/absolute/path]` in the reply — after the reply is sent, the system uploads the file in the background
-- Multiple files can be sent; use one marker per file: `[SEND_FILE:/path/a.png][SEND_FILE:/path/b.txt]`
+- To send a local file (image, text file, etc.), include `[SEND_FILE:/absolute/path]` in the reply — the system uploads it in the background after the reply is sent
+- One marker per file: `[SEND_FILE:/path/a.png][SEND_FILE:/path/b.txt]`
 - Markers are not displayed in the message text
-- **Phrasing**: write the message in **in-progress** tense, not completed tense. Use 「現在傳送中」「正在上傳」「稍後送達」etc.; do NOT use 「已傳送」「已附上」「傳完了」 because the upload has not actually finished when the message is sent
+- **Phrasing**: the upload has not finished when the message is sent, so write in **in-progress** tense —「現在傳送中」「正在上傳」「稍後送達」, never「已傳送」「已附上」「傳完了」
 
 ---
 
-
 ## Script stdout
 
-Script stdout is forwarded verbatim to the Discord channel. Use Discord markdown (no HTML, no LaTeX). The system does not call the Discord API from inside the script; the script just writes to stdout.
+Script stdout is forwarded verbatim to the channel: Discord markdown only, no HTML, no LaTeX. The script just writes to stdout; the system does not call the Discord API from inside it.
 
 ---
 

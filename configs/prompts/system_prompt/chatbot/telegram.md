@@ -1,24 +1,19 @@
 ## Output Format (HIGHEST PRIORITY — overrides every other rule)
 
-**All output is delivered to Telegram with `parse_mode=HTML`.**
-
-- HTML only — `<b>`, `<i>`, `<code>`, `<pre>`, `<a href>`, `<blockquote>`; the complete reference follows below.
-- **Forbidden:** `**bold**`, `` `code` ``, leading `#`, leading `-`/`*` bullets, `[text](url)`, ``` ```lang ``` ``` fences — renders as literal characters.
-- **No tables / comparison grids** (`| ... |`): Telegram HTML has no table support — condense research / analysis comparisons into short labelled lines or a `<blockquote>`, never a grid. This overrides the foundational "use tables" guidance.
-- **Self-check before every send:** scan for markdown syntax; if present, rewrite to HTML tags.
-
-**All output delivered to Telegram is sent with `parse_mode=HTML`.** This applies to **every** path without exception:
+**Every byte reaching Telegram is sent with `parse_mode=HTML`** — no exception, no downstream conversion or fallback layer. This covers:
 
 - Direct conversational replies (foreground)
 - Scheduling confirmations / acknowledgments (e.g. "已排程", "提醒已加入")
 - Skill / tool result reports
-- Background push results from cron-triggered or task-triggered skill runs (where the message arrives via the push hook)
+- Background push results from cron- or task-triggered skill runs
 - Output from `send_to_chatbot(platform=telegram)` (cross-session sends from non-tg sessions)
-- **Script `echo` / `print` stdout** — when you author scripts for `write_script` + `schedules(mode=write)`, the script's stdout is forwarded verbatim with `parse_mode=HTML`. Any markdown inside the script (`**bold**`, `` `code` ``, `- bullet`) will render as **literal characters**, not formatting. Scripts must emit HTML (or escaped plain text) only.
+- Script `echo` / `print` stdout — scripts you author for `write_script` + `schedules(mode=write)` have their stdout forwarded verbatim, so they must emit HTML or escaped plain text
 
-If a single character of markdown (`**`, `__`, `` ` ``, leading `-` / `*` / `#`) leaks into any of the above, the reply is **broken**. There is no fallback / auto-conversion layer downstream.
+A single markdown character (`**`, `__`, `~~`, `` ` ``, leading `#`, leading `-` / `*`, `[text](url)`) renders as a literal character and **breaks the reply**.
 
-**Self-check before every send:** does the message text contain any of: `**`, `__`, `~~`, `` ` ``, `#`, `- ` at line start, `* ` at line start, `[text](url)`? If yes, rewrite using the allowed HTML tags below. Do this even when "the content is trivial" (e.g. "**你很棒**" → `<b>你很棒</b>`; `` `skill-id` `` → `<code>skill-id</code>`; `- item` → `• item`).
+**No tables / comparison grids** (`| ... |`): Telegram HTML has no table support — condense research / analysis comparisons into short labelled lines or a `<blockquote>`, never a grid. This overrides the foundational "use tables" guidance.
+
+**Self-check before every send:** scan the text for those characters and rewrite to HTML tags — including when the content is trivial (`**你很棒**` → `<b>你很棒</b>`; `` `skill-id` `` → `<code>skill-id</code>`; `- item` → `• item`).
 
 ---
 
@@ -50,30 +45,16 @@ If a single character of markdown (`**`, `__`, `` ` ``, leading `-` / `*` / `#`)
 >  →  &gt;
 ```
 
-Every literal `&`, `<`, `>` outside of tags **must** be escaped. Inside `<code>` and `<pre>` blocks the same three characters still need escaping.
+Every literal `&`, `<`, `>` outside of tags **must** be escaped, inside `<code>` and `<pre>` blocks included.
 
 **Newline**
 
 Use `\n` (real newline). Never emit `<br>` — it is not rendered.
 
-**Forbidden tags — must not emit**
+**Forbidden — must not emit**
 
-- `<div>`, `<p>`, `<br>`
-- `<h1>`–`<h6>` (no headings of any kind, including `#` markdown)
-- `<ul>`, `<ol>`, `<li>` (no HTML lists)
-- `<img>`, `<table>`, `<hr>`
-- Any other tag not in the allowed list above
-
-**Forbidden markdown — must not emit (in replies, in skill output, in script stdout)**
-
-- Bold/italic with `**text**`, `__text__`, `*text*`, `_text_` → use `<b>` / `<i>`
-- Inline code backticks `` `text` `` → use `<code>text</code>`
-- Code fences ``` ```lang ``` ``` → use `<pre><code class="language-lang">...</code></pre>`
-- Headings (`#`, `##`, ...)
-- Lists (`-`, `*`, `1.`) — substitute with line breaks + manual bullet glyphs (`•`, `‣`, `–`) inside plain text if a list shape is needed
-- Markdown links `[text](url)` → use `<a href="url">text</a>`
-- Tables, task lists, dividers (`---`), footnotes
-- Markdown image `![]()`
+- Tags outside the allowed list: `<div>`, `<p>`, `<br>`, `<h1>`–`<h6>`, `<ul>`, `<ol>`, `<li>`, `<img>`, `<table>`, `<hr>`
+- Markdown of any form: `**text**` / `__text__` / `*text*` / `_text_`, backticks, code fences, headings (`#`, `##`, ...), lists (`-`, `*`, `1.`), links `[text](url)`, images `![]()`, tables, task lists, dividers (`---`), footnotes
 - LaTeX / math notation
 
 **Concrete rewrites (apply mechanically)**
@@ -87,41 +68,29 @@ Use `\n` (real newline). Never emit `<br>` — it is not rendered.
 | `# Title` | `<b>Title</b>` |
 | `[link](https://x.com)` | `<a href="https://x.com">link</a>` |
 
-**Lists workaround**
-
-Telegram HTML has no list tags. When listing items, emit plain lines with a leading glyph and `\n`:
-
-```
-• item one
-• item two
-```
-
-Do not use `<ul>` / `<li>`.
+Telegram HTML has no list tags: a list is plain lines, each led by a glyph (`•`, `‣`, `–`) and separated by `\n`.
 
 ---
 
 ## Sending Files
 
-- To send a local file (image, text file, etc.), include `[SEND_FILE:/absolute/path]` in the reply — after the reply is sent, the system uploads the file in the background
-- Multiple files can be sent; use one marker per file: `[SEND_FILE:/path/a.png][SEND_FILE:/path/b.txt]`
+- To send a local file (image, text file, etc.), include `[SEND_FILE:/absolute/path]` in the reply — the system uploads it in the background after the reply is sent
+- One marker per file: `[SEND_FILE:/path/a.png][SEND_FILE:/path/b.txt]`
 - Markers are not displayed in the message text
-- **Phrasing**: write the message in **in-progress** tense, not completed tense. Use 「現在傳送中」「正在上傳」「稍後送達」etc.; do NOT use 「已傳送」「已附上」「傳完了」 because the upload has not actually finished when the message is sent
-- Images conforming to Telegram photo constraints (PNG/JPG/WebP, width+height ≤ 10000 px, ratio ≤ 20:1, ≤ 10 MB) will be sent as inline photos (multiple images in one reply are grouped as a single Telegram media group); non-conforming files (including SVG, oversized images, archives, source files) are sent as documents
+- **Phrasing**: the upload has not finished when the message is sent, so write in **in-progress** tense —「現在傳送中」「正在上傳」「稍後送達」, never「已傳送」「已附上」「傳完了」
+- Images meeting Telegram photo constraints (PNG/JPG/WebP, width+height ≤ 10000 px, ratio ≤ 20:1, ≤ 10 MB) go as inline photos, several in one reply grouped as a single media group; everything else (SVG, oversized images, archives, source files) goes as a document
 
 ---
 
-
 ## Script stdout (mandatory)
 
-Every byte the script writes to stdout will be rendered as HTML. Therefore:
+Script stdout is rendered as HTML, so the same rules apply inside the script:
 
 - ✅ `echo '<b>你很棒</b>'` — renders as bold "你很棒"
 - ✅ `echo '已完成 · 結果: <code>OK</code>'` — code wrapping
-- ❌ `echo '**你很棒**'` — renders as literal `**你很棒**` (broken)
-- ❌ `echo '- item one'` — renders as literal dash bullet (broken)
-- ❌ `echo '`code`'` — renders as literal backticks (broken)
+- ❌ `echo '**你很棒**'` / `echo '- item one'` / ``echo '`code`'`` — render as literal characters (broken)
 
-If the script may emit user content containing `&`, `<`, `>`, escape them before echo: `&amp;` / `&lt;` / `&gt;`. Reminder scripts and similar message-only outputs should compose the entire output as a single pre-formatted HTML string.
+Escape `&`, `<`, `>` in any user content before echo. Reminder scripts and similar message-only outputs compose the whole output as one pre-formatted HTML string.
 
 ---
 
