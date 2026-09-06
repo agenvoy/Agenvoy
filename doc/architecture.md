@@ -4,7 +4,7 @@
 
 ## Overview
 
-Agenvoy is a local Go agent runtime. One execution engine powers the interactive TUI, browser dashboard, Telegram and Discord, and the stdin MCP server. It routes each request to a configured model, runs Skills and sandboxed tools, persists session history, and can create tools when a capability is missing.
+Agenvoy is a local Go agent runtime. One execution engine powers the interactive TUI, browser dashboard, Telegram and Discord, and the stdin MCP server. It routes each request to a configured model, runs Skills and sandboxed tools, persists session history, notes, schedules, and usage locally, and can create tools when a capability is missing.
 
 ```mermaid
 graph TB
@@ -63,7 +63,7 @@ graph TB
 
 ## Module: Tools, Skills, and Sandbox
 
-Built-in tools, generated API/script tools, installed extensions, and MCP tools share one registry. Tools load their full schema only when needed to keep routine requests lightweight. Before execution, filesystem and command actions pass permission checks, confirmation gates, shell validation, and OS-level sandbox rules. If live data needs a tool that does not exist, the agent can build, test, and retain a new tool.
+Built-in tools, generated API/script tools, installed extensions, and MCP tools share one registry. Tools load their full schema only when needed to keep routine requests lightweight. Before execution, filesystem and command actions pass denied-path and sensitive-path checks, confirmation gates, package-name or shell validation, and OS-level sandbox rules. Command policy is denylist-based: configured denied commands are rejected; commands not on the denylist can still require the normal confirmation flow. If live data needs a tool that does not exist, the agent can build, test, and retain a new tool.
 
 ```mermaid
 graph TB
@@ -80,7 +80,7 @@ graph TB
 
 ## Module: Sessions, Memory, and Task Lifecycle
 
-Every request belongs to a session. Sessions retain configuration, model choices, messages, summaries, logs, usage, and pending questions. Origin prefixes keep interactive work with the correct listener: local CLI/TUI, web, Telegram, and Discord each resume only their own pending request. Tasks are registered before they compete for a per-session concurrency slot, so queued work remains visible and cancellable.
+Every request belongs to a session. Session configuration is stored in SQLite; sessions retain messages, summaries, logs, usage, and pending questions. Active tasks publish short-lived `action:<session>:<task>` markers in ToriiDB and refresh them while running, so pending lists expose only tasks that can actually be resumed. Origin prefixes keep interactive work with the correct listener: local CLI/TUI, web, Telegram, and Discord each resume only their own pending request. Tasks are registered before they compete for a per-session concurrency slot, so queued work remains visible and cancellable.
 
 ```mermaid
 graph TB
@@ -103,7 +103,7 @@ graph TB
 
 ## Module: Daemon, Dashboard, and Chat Channels
 
-The daemon initializes storage, tools, agents, schedules, chat channels, and the local HTTP API. Its dashboard is embedded in the binary and served by the same localhost-only daemon. Telegram and Discord require only their bot tokens because the daemon initiates the connection. Since **v0.34.4**, the default voice-input-to-voice-output loop is paused for those channels; STT/TTS tools can still generate audio files and send them through either channel.
+The daemon initializes ToriiDB before SQLite, clears stale in-flight markers, then opens the history database and migrates notes before starting the local HTTP server. Its dashboard is embedded in the binary and served by the same localhost-only daemon. Telegram and Discord require only their bot tokens because the daemon initiates the connection. Since **v0.34.4**, the default voice-input-to-voice-output loop is paused for those channels; STT/TTS tools can still generate audio files and send them through either channel.
 
 ```mermaid
 graph TB
@@ -167,7 +167,7 @@ sequenceDiagram
 
 - The dashboard and management API bind to `127.0.0.1`; the host is not exposed for normal browser or chatbot use.
 - Telegram and Discord use outbound connections from the local daemon and need only a bot token.
-- File writes outside `$HOME` and non-allowlisted commands require explicit confirmation; approval is scoped to the session and requested path or binary.
+- Denied paths and denied commands are hard rejected. Sensitive paths, writes outside `$HOME`, and other restricted actions require explicit confirmation and, where supported, system verification; approval is scoped to the session and requested path or binary.
 - Command execution is validated and sandboxed (`sandbox-exec` on macOS and `bwrap` on Linux).
 - Credentials, including provider and MCP OAuth tokens, are stored in the operating-system keychain rather than the repository.
 
@@ -180,7 +180,11 @@ flowchart LR
     Sessions --> History[history.json]
     Sessions --> Summary[summary.json]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[History search]
-    Store[~/.config/agenvoy/.store] --> Knowledge[Knowledge / error memory / tool cache]
+    SQLite --> Note[Notes]
+    Torii0[~/.config/agenvoy/.store/db_0] --> ToolCache[Tool cache]
+    Torii1[~/.config/agenvoy/.store/db_1] --> SessionMemory[Session conversation vectors]
+    Torii2[~/.config/agenvoy/.store/db_2] --> ErrorMemory[Error memory]
+    Torii3[~/.config/agenvoy/.store/db_3] --> Online[In-flight task markers]
     Tools[~/.config/agenvoy/tools] --> Registry[Tool registry]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill scanner]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClient[MCP clients]
