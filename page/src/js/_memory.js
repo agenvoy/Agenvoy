@@ -1,6 +1,8 @@
 async function memoryPost(action, body, sessionId) {
   const sid = sessionId || currentSessionId;
   if (!sid) {
+    console.error("memoryPost", action, "no session id", { sessionId: sessionId, currentSessionId: currentSessionId });
+    alert(`${action} failed: no session selected`);
     return null;
   }
 
@@ -98,11 +100,11 @@ async function memoryReset(sessionId) {
   if (!confirm("Clear the whole conversation?")) {
     return;
   }
-  const keep = confirm("Keep the summary? (cancel wipes it as well)");
-  const result = await memoryPost("reset", { mode: keep ? "summary" : "all" }, sessionId);
+  const wipe = confirm("Wipe the summary too? (cancel keeps it)");
+  const result = await memoryPost("reset", { mode: wipe ? "all" : "summary" }, sessionId);
   if (!result) {
     return;
   }
-  alert(`conversation cleared · ${result.removed || 0} removed${keep ? " · summary kept" : ""}`);
+  alert(`conversation cleared · ${result.removed || 0} removed${wipe ? "" : " · summary kept"}`);
   window.location.reload();
 }

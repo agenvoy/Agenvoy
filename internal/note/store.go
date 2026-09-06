@@ -1,4 +1,4 @@
-package knowledge
+package note
 
 import (
 	"errors"
@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("knowledge not found")
-	ErrExists   = errors.New("knowledge already exists")
-	ErrWrite    = errors.New("knowledge write failed")
+	ErrNotFound = errors.New("note not found")
+	ErrExists   = errors.New("note already exists")
+	ErrWrite    = errors.New("note write failed")
 )
 
 type Record struct {
@@ -82,7 +82,7 @@ func Read(name string) (Record, bool) {
 	record := Record{Name: name}
 	if err := conn.Read.QueryRow(`
 	SELECT content, updated_at
-	FROM knowledge
+	FROM note
 	WHERE name = ?
 	`, name).Scan(&record.Content, &record.UpdatedAt); err != nil {
 		return Record{}, false
@@ -92,11 +92,11 @@ func Read(name string) (Record, bool) {
 
 func Write(name, content string) error {
 	if conn == nil {
-		return fmt.Errorf("internal/knowledge: New has not run")
+		return fmt.Errorf("internal/note: New has not run")
 	}
 
 	_, err := conn.Exec(`
-	INSERT INTO knowledge (name, content, updated_at)
+	INSERT INTO note (name, content, updated_at)
 	VALUES (?, ?, ?)
 	ON CONFLICT(name)
 	DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
@@ -109,7 +109,7 @@ func Delete(name string) bool {
 		return false
 	}
 
-	result, err := conn.Exec(`DELETE FROM knowledge WHERE name = ?`, name)
+	result, err := conn.Exec(`DELETE FROM note WHERE name = ?`, name)
 	if err != nil {
 		return false
 	}
@@ -124,7 +124,7 @@ func List() []Record {
 
 	rows, err := conn.Read.Query(`
 	SELECT name, content, updated_at
-	FROM knowledge
+	FROM note
 	ORDER BY name
 	`)
 	if err != nil {

@@ -8,7 +8,8 @@ function renderEvent(view, event) {
 
   if (type === "EventTextDelta") {
     view.streamed = true;
-    view.text += resumeMark(view) + (event.text || "");
+    dropResumedText(view);
+    view.text += event.text || "";
     renderAnswer(view);
     return;
   }
@@ -17,8 +18,9 @@ function renderEvent(view, event) {
     if (view.streamed) {
       return;
     }
+    dropResumedText(view);
     const join = view.textStarted ? "\n" : "";
-    view.text += resumeMark(view) + join + (event.text || "");
+    view.text += join + (event.text || "");
     view.textStarted = true;
     renderAnswer(view);
     return;
@@ -57,6 +59,7 @@ function renderEvent(view, event) {
   if (type === "EventDone") {
     view.stop?.remove();
     view.think.open = false;
+    delete view.think.dataset.streaming;
     const usage = event.usage || {};
     const footer = assistantFooter({
       send_at: sendAt(),
@@ -83,12 +86,13 @@ function renderAnswer(view) {
   scrollToBottom(true, view.session);
 }
 
-function resumeMark(view) {
+function dropResumedText(view) {
   if (!view.resumed) {
-    return "";
+    return;
   }
   view.resumed = false;
-  return "\n\n---\n\n";
+  view.text = "";
+  view.textStarted = false;
 }
 
 function renderReasoning(view, line) {
@@ -100,6 +104,7 @@ function renderReasoning(view, line) {
   view.think.hidden = false;
   view.resumed = Boolean(view.text);
   render(view.reasoning, view.trace, view.session);
+  view.reasoning.scrollTop = view.reasoning.scrollHeight;
 }
 
 function renderSuggest(view) {

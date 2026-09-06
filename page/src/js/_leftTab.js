@@ -1,6 +1,6 @@
 const feature = {
   Rules: "contract",
-  Knowledge: "book_2",
+  Note: "book_2",
   Skills: "lightbulb_2",
   Schedule: "schedule",
 };

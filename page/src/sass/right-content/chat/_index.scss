@@ -20,6 +20,24 @@ body[data-rendered="1"] section.right-content section.chat {
     height: 100%;
     overflow: hidden;
 
+    @media (min-width: 1280px) {
+      &:not(:has(> div.subview:empty)) {
+        > main {
+          width: 67%;
+          height: 100% !important;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+        }
+
+        > section {
+          display: none;
+        }
+
+        > div.subview {
+          right: 0;
+        }
+      }
+    }
+
     &[data-style="0"] {
       > section > section.messages,
       > section > div.input {
@@ -434,6 +452,76 @@ body[data-rendered="1"] section.right-content section.chat {
 
       @include message.styles;
       @include input.styles;
+    }
+
+    > div.subview {
+      z-index: 1000;
+      position: absolute;
+      display: flex;
+      top: 0;
+      right: -33%;
+      width: 33%;
+      height: 100%;
+      box-shadow: -0.5rem 0 1rem -0.25rem #0000000f;
+      background-color: #fff;
+
+      > article {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+
+        > header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-shrink: 0;
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid #0000000f;
+
+          > p {
+            flex: 1;
+            overflow: hidden;
+            font-size: 0.75rem;
+            color: #666;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            direction: rtl;
+            text-align: left;
+          }
+
+          > button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: none;
+            border-radius: 0.25rem;
+            background-color: transparent;
+            cursor: pointer;
+
+            > span {
+              font-size: 1rem;
+              color: #666;
+            }
+
+            @media (hover: hover) {
+              &:hover {
+                background-color: #0000000a;
+              }
+            }
+          }
+        }
+
+        > iframe.body {
+          flex: 1;
+          width: 100%;
+          border: none;
+        }
+      }
     }
 
     &[data-model="0"] > main[data-id] > div.logo {

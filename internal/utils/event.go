@@ -43,7 +43,7 @@ var hiddenEvent = map[string]bool{
 	"reasoning_guide":     true,
 	"find_tools":          true,
 	"chat_history":        true,
-	"find_knowledge":      true,
+	"find_note":           true,
 	"error_history":       true,
 	"file_history":        true,
 	"mcp__kura__list_rag": true,

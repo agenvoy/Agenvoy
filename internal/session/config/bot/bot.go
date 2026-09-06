@@ -63,7 +63,7 @@ func SavePersona(sessionID, selfID, name, body string) error {
 		name = sessionID
 	}
 	if body == "" {
-		body = configs.DefaultSessionPrompt
+		body = configs.DefaultRule
 	}
 
 	row, _ := read(sessionID)
@@ -182,7 +182,7 @@ func Save(sessionID, name, body string, force bool) error {
 		name = sessionID
 	}
 	if body == "" {
-		body = configs.DefaultSessionPrompt
+		body = configs.DefaultRule
 	}
 
 	row, exists := read(sessionID)

@@ -1,4 +1,4 @@
-package knowledge
+package note
 
 import (
 	"log/slog"
@@ -63,14 +63,14 @@ func matchNames(term string) []string {
 	if len([]rune(term)) >= trigramMin {
 		return queryNames(`
 		SELECT name
-		FROM knowledge_fts5
-		WHERE knowledge_fts5 MATCH ?
+		FROM note_fts5
+		WHERE note_fts5 MATCH ?
 		`, phrase(term))
 	}
 
 	return queryNames(`
 	SELECT name
-	FROM knowledge
+	FROM note
 	WHERE name LIKE '%'||?||'%' OR content LIKE '%'||?||'%'
 	`, term, term)
 }
@@ -82,7 +82,7 @@ func phrase(term string) string {
 func queryNames(query string, args ...any) []string {
 	rows, err := conn.Read.Query(query, args...)
 	if err != nil {
-		slog.Debug("knowledge match",
+		slog.Debug("note match",
 			slog.String("error", err.Error()))
 		return nil
 	}

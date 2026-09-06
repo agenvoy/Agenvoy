@@ -10,7 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/knowledge"
+	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 )
 
@@ -32,17 +32,17 @@ var noteSpecs = map[string]noteSpec{
 		create: ruleCreate,
 		update: ruleUpdate,
 	},
-	"knowledge": {
-		label:  "knowledge",
-		list:   knowledgeList,
-		read:   knowledgeRead,
-		create: knowledgeCreate,
-		update: knowledgeUpdate,
+	"note": {
+		label:  "note",
+		list:   noteList,
+		read:   noteRead,
+		create: noteCreate,
+		update: noteUpdate,
 	},
 }
 
-func knowledgeList(context.Context) ([]string, error) {
-	records := knowledge.List()
+func noteList(context.Context) ([]string, error) {
+	records := note.List()
 	names := make([]string, 0, len(records))
 	for _, one := range records {
 		if one.Name != "" {
@@ -52,20 +52,20 @@ func knowledgeList(context.Context) ([]string, error) {
 	return names, nil
 }
 
-func knowledgeRead(_ context.Context, name string) (noteEntry, error) {
-	record, ok := knowledge.Read(name)
+func noteRead(_ context.Context, name string) (noteEntry, error) {
+	record, ok := note.Read(name)
 	if !ok {
-		return noteEntry{}, knowledge.ErrNotFound
+		return noteEntry{}, note.ErrNotFound
 	}
 	return noteEntry{Name: record.Name, Content: record.Content}, nil
 }
 
-func knowledgeCreate(_ context.Context, name, content string) (string, error) {
-	return knowledge.Create(name, content)
+func noteCreate(_ context.Context, name, content string) (string, error) {
+	return note.Create(name, content)
 }
 
-func knowledgeUpdate(_ context.Context, origin, rename, content string) (string, error) {
-	return knowledge.Update(origin, rename, content)
+func noteUpdate(_ context.Context, origin, rename, content string) (string, error) {
+	return note.Update(origin, rename, content)
 }
 
 func ruleList(ctx context.Context) ([]string, error) {

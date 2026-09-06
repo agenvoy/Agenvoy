@@ -1,0 +1,11 @@
+@use "base";
+@use "right-content/md-render";
+
+@include base.styles;
+
+body {
+  padding: 1.5rem 2rem 5rem;
+  background-color: #fff;
+}
+
+@include md-render.styles;

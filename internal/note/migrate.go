@@ -1,4 +1,4 @@
-package knowledge
+package note
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func Migrate() {
 
 // * ensure v0.35.2: toriidb to sqlite
 func migrateTorii() {
-	db := torii.DB(torii.DBKnowledge)
+	db := torii.DB(torii.DBNote)
 	entries := db.Scan(context.Background(), "*", torii.ScanOption{})
 
 	imported := 0
@@ -29,13 +29,13 @@ func migrateTorii() {
 		if _, exists := Read(entry.Key); !exists {
 			var record Record
 			if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
-				slog.Debug("knowledge migrate: json.Unmarshal",
+				slog.Debug("note migrate: json.Unmarshal",
 					slog.String("name", entry.Key),
 					slog.String("error", err.Error()))
 				continue
 			}
 			if err := Write(entry.Key, record.Content); err != nil {
-				slog.Warn("knowledge migrate: Write",
+				slog.Warn("note migrate: Write",
 					slog.String("name", entry.Key),
 					slog.String("error", err.Error()))
 				continue
@@ -46,7 +46,7 @@ func migrateTorii() {
 	}
 
 	if imported > 0 {
-		slog.Info("knowledge migrated into SQLite",
+		slog.Info("note migrated into SQLite",
 			slog.Int("count", imported),
 			slog.String("from", "toriidb"))
 	}
@@ -54,14 +54,14 @@ func migrateTorii() {
 
 // * ensure v0.32.4: file to toriidb
 func migrateFiles() {
-	dir := filesystem.KnowledgeDir
+	dir := filesystem.NoteDir
 	if !go_pkg_filesystem_reader.IsDir(dir) {
 		return
 	}
 
 	files, err := go_pkg_filesystem_reader.ListFiles(dir)
 	if err != nil {
-		slog.Warn("knowledge migrate: ListFiles", slog.String("error", err.Error()))
+		slog.Warn("note migrate: ListFiles", slog.String("error", err.Error()))
 		return
 	}
 
@@ -78,14 +78,14 @@ func migrateFiles() {
 		path := filepath.Join(dir, one.Name)
 		content, err := go_pkg_filesystem.ReadText(path)
 		if err != nil {
-			slog.Warn("knowledge migrate: ReadText",
+			slog.Warn("note migrate: ReadText",
 				slog.String("path", path),
 				slog.String("error", err.Error()))
 			continue
 		}
 
 		if err := Write(name, content); err != nil {
-			slog.Warn("knowledge migrate: Write",
+			slog.Warn("note migrate: Write",
 				slog.String("name", name),
 				slog.String("error", err.Error()))
 			continue
@@ -94,7 +94,7 @@ func migrateFiles() {
 	}
 
 	if imported > 0 {
-		slog.Info("knowledge migrated into SQLite",
+		slog.Info("note migrated into SQLite",
 			slog.Int("count", imported),
 			slog.String("from", dir))
 	}

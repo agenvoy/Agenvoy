@@ -291,7 +291,7 @@ async function renderChat(sessionId) {
 }
 
 function assistantFooter(meta) {
-  const children = [copyBtn(), knowledgeBtn()];
+  const children = [copyBtn(), noteBtn()];
   if (meta.canceled) {
     children.push(_("p.canceled", "canceled"));
   }

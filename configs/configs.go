@@ -7,23 +7,8 @@ import (
 
 // * Prompts
 
-//go:embed prompts/agent_selector.md
-var AgentSelector string
-
 //go:embed prompts/skill_execution.md
 var SkillExecution string
-
-//go:embed prompts/compact_exec_prompt.md
-var CompactExecPrompt string
-
-//go:embed prompts/old_history_extract_prompt.md
-var OldHistoryExtractPrompt string
-
-//go:embed prompts/compact_history_prompt.md
-var CompactHistoryPrompt string
-
-//go:embed prompts/summary_prompt.md
-var SummaryPrompt string
 
 //go:embed prompts/summary_context.md
 var SummaryContext string
@@ -31,42 +16,51 @@ var SummaryContext string
 //go:embed prompts/followup.md
 var FollowupPrompt string
 
+//go:embed prompts/system_prompt/agent_selector.md
+var AgentSelector string
+
+//go:embed prompts/system_prompt/memory/compact_exec_prompt.md
+var CompactExecPrompt string
+
+//go:embed prompts/system_prompt/memory/old_history_extract_prompt.md
+var OldHistoryExtractPrompt string
+
+//go:embed prompts/system_prompt/memory/compact_history_prompt.md
+var CompactHistoryPrompt string
+
+//go:embed prompts/system_prompt/memory/summary_prompt.md
+var SummaryPrompt string
+
 //go:embed prompts/system_prompt/system_prompt.md
 var SystemPrompt string
 
-//go:embed prompts/system_prompt/chatcompletions_system_prompt.md
+//go:embed prompts/system_prompt/chatcompletions.md
 var ChatCompletionsSystemPrompt string
 
-//go:embed prompts/default_session_prompt.md
-var DefaultSessionPrompt string
+//go:embed prompts/system_prompt/default_rule.md
+var DefaultRule string
 
-//go:embed prompts/system_prompt/always_allow.md
+//go:embed prompts/system_prompt/permission/always_allow.md
 var PermissionAlwaysAllow string
 
-//go:embed prompts/system_prompt/single_confirm.md
+//go:embed prompts/system_prompt/permission/single_confirm.md
 var PermissionSingleConfirm string
 
-//go:embed prompts/system_prompt/subagent_charter.md
-var SubagentCharter string
+//go:embed prompts/system_prompt/subagent.md
+var SubagentPrompt string
 
 //go:embed prompts/system_prompt/wsl_host.md
 var WSLHost string
 
 // * Prompts > systemPrompt > Chatbot
 
-//go:embed prompts/system_prompt/chatbot/telegram_system_prompt.md
+//go:embed prompts/system_prompt/chatbot/telegram.md
 var TelegramSystemPrompt string
 
-//go:embed prompts/system_prompt/chatbot/telegram_format.md
-var TelegramFormat string
-
-//go:embed prompts/system_prompt/chatbot/discord_system_prompt.md
+//go:embed prompts/system_prompt/chatbot/discord.md
 var DiscordSystemPrompt string
 
-//go:embed prompts/system_prompt/chatbot/discord_format.md
-var DiscordFormat string
-
-//go:embed prompts/system_prompt/chatbot/line_system_prompt.md
+//go:embed prompts/system_prompt/chatbot/line.md
 var LineSystemPrompt string
 
 // * Prompts > Guide
@@ -114,33 +108,27 @@ var TUITools []byte
 
 // * Official Guide
 
-//go:embed prompts/official_guides/*.md
+//go:embed prompts/system_prompt/official_guides/*.md
 var officialGuideFS embed.FS
 
-var OfficialGuideCommon, OfficialGuides = loadOfficialGuides()
+var OfficialGuides = loadOfficialGuides()
 
-func loadOfficialGuides() (string, map[string]string) {
-	const dir = "prompts/official_guides"
+func loadOfficialGuides() map[string]string {
+	const dir = "prompts/system_prompt/official_guides"
 	entries, err := officialGuideFS.ReadDir(dir)
 	if err != nil {
-		return "", nil
+		return nil
 	}
 
-	common := ""
 	guides := make(map[string]string, len(entries))
 	for _, entry := range entries {
 		raw, err := officialGuideFS.ReadFile(dir + "/" + entry.Name())
 		if err != nil {
 			continue
 		}
-		key := strings.TrimSuffix(entry.Name(), ".md")
-		if key == "common" {
-			common = string(raw)
-			continue
-		}
-		guides[key] = string(raw)
+		guides[strings.TrimSuffix(entry.Name(), ".md")] = string(raw)
 	}
-	return common, guides
+	return guides
 }
 
 const (

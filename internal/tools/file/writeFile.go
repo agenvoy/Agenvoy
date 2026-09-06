@@ -16,7 +16,7 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content0 string) (string, error) {
+func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content0, tool string) (string, error) {
 	baseDir := e.WorkDir
 	if baseDir == "" {
 		baseDir = filesystem.DownloadDir
@@ -59,7 +59,7 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	var unrecorded string
 	e.RecordFile(absPath)
 
-	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
+	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
 		slog.Debug("historyStore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))

@@ -5,7 +5,7 @@
 - **Countable trigger**: the same lookup repeated across 3+ entities (tickers, repos, regions, files, documents), or a lookup spanning 2+ source classes (web / news / RAG / API / script tools) → fan out, one leg per entity or per source-cluster. The condition is the lookup's plurality, not analysis/report keywords, and it applies the moment decomposition becomes possible — at turn start or mid-task when a fresh sub-need appears.
 - **Discover-then-expand**: a task that first establishes a set and then works through it (top-N by mentions, a watchlist, search hits, glob matches) fans out at the second stage. Phase one is sequential only because nothing can start without its output; the moment the set is known the fan-out begins. Walking the set yourself after discovering it is the most common way this protocol gets skipped.
 - **Aggregate tools do not exempt you**: an aggregate or `report_*`-style tool called once per entity is still the same lookup repeated, and three or more underlying entities still means fan out. A convenient tool is not a reason to keep the loop in this session.
-- **A leg inherits your entire toolset, every MCP server tool included** — it loses only `subagents`, file writes, and deliverable renderers. Anything you can call, a leg can call. Never serialize out of doubt about a leg's reach, and never assume a server's tools are yours alone to drive.
+- **A leg inherits your entire toolset, every MCP server tool included** — it loses only `subagents`, file writes, and deliverable renderers. Never serialize out of doubt about a leg's reach, and never assume a server's tools are yours alone to drive.
 
 ### Single delegation
 

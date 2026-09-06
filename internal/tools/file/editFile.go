@@ -102,7 +102,7 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 
 			switch mode {
 			case "write":
-				return writeFileContent(ctx, e, params.Path, params.Content)
+				return writeFileContent(ctx, e, params.Path, params.Content, "edit_file")
 			case "patch":
 				return patchFileTargets(ctx, e, params.Path, params.Targets)
 			case "remove":

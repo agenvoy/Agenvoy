@@ -41,7 +41,7 @@ var commands = []Command{
 	{"memory", "compact / reset / summary · manage session memory"},
 	{"bot", "edit / rename current session · name / self id / description (persona)"},
 	{"rule", "list / add / edit rule · title + description"},
-	{"knowledge", "list / add / edit knowledge · title + description"},
+	{"note", "list / add / edit note · title + description"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
 	{"line", "enable / disable LINE bot · Q&A only · channel secret + access token on enable"},
