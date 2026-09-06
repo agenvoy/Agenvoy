@@ -37,16 +37,13 @@ func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.Skil
 }
 
 func channelSystemPrompt(sessionID string) string {
-	var template, format string
 	switch {
 	case strings.HasPrefix(sessionID, "tg-"):
-		template, format = configs.TelegramSystemPrompt, configs.TelegramFormat
+		return configs.TelegramSystemPrompt
 	case strings.HasPrefix(sessionID, "dc-"):
-		template, format = configs.DiscordSystemPrompt, configs.DiscordFormat
-	default:
-		return ""
+		return configs.DiscordSystemPrompt
 	}
-	return strings.NewReplacer("{{.ChatbotFormat}}", strings.TrimSpace(format)).Replace(template)
+	return ""
 }
 
 func mcpInstructionsSection() string {
