@@ -4,7 +4,7 @@
 
 ## 概覽
 
-Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務路由模型、呼叫沙箱工具，並將 session、排程與歷史保留在本機。
+Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務路由模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
 
 ```mermaid
 graph TB
@@ -45,7 +45,7 @@ graph TB
 
 ## 模組：Daemon、Web 與 HTTP API
 
-Daemon 初始化檔案系統、設定、歷史儲存、工具、Agent、Skill scanner、排程與聊天頻道，並把 dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 綁定 `127.0.0.1`；Agent 執行、session、模型與 SSE log 可由一般 API surface 使用，而憑證、provider、MCP、規則、知識、排程與白名單等設定／管理操作另受 `localhostOnly()` 保護。
+Daemon 初始化檔案系統、設定、ToriiDB、SQLite 歷史儲存、工具、Agent、Skill scanner、排程與聊天頻道；啟動時會清除過期的執行中標記，完成筆記遷移後才提供本機 HTTP API。Dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 綁定 `127.0.0.1`；Agent 執行、session、模型與 SSE log 可由一般 API surface 使用，而憑證、provider、MCP、規則、筆記、排程與白名單等設定／管理操作另受 `localhostOnly()` 保護。
 
 ```mermaid
 graph TB
@@ -87,9 +87,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。完整 schema 的核心工具會直接提供給模型；其他工具於需要時才透過 `find_tools` 載入。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具；Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。
-
-檔案與命令操作都需經過路徑檢查、允許規則、確認閘門、shell AST 驗證及作業系統沙箱。`$HOME` 外的寫入和非白名單命令需取得該 session 對應的系統層確認；讀取仍受作業系統本身的存取控制。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，將長篇報告寫入工作目錄；缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。檔案與命令操作都需經過 denied path、敏感路徑、確認閘門、套件名稱或 shell 驗證及作業系統沙箱。命令政策採 denylist：命中使用者設定的拒絕清單即硬拒，其他命令仍可能進入一般確認流程。
 
 ```mermaid
 graph TB
@@ -108,7 +106,7 @@ graph TB
 
 ## 模組：Session、歷史、排程與監控
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。歷史、摘要、使用量、log 與 pending 工作依 session 保存，SQLite 提供搜尋與 session 設定；同一來源的 listener 才會消費其待回答問題或確認。排程器可執行週期或單次的 scheduler skill。Daemon 另每 30 秒監控 CPU、Go process 記憶體與網路連線，將異常與恢復寫入 daemon log。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
@@ -177,9 +175,8 @@ sequenceDiagram
 ## 安全邊界
 
 - Daemon 綁定 `127.0.0.1`；設定與管理 endpoint 另有 localhost-only 守衛。
-- 檔案路徑會先經 `boundary.Resolve` 的 denied path 與敏感檔案檢查。
-- 命令執行受 allow rule、shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。
-- 受限路徑與白名單外命令會要求確認與作業系統驗證；無法提供驗證的 HTTP API、聊天頻道與 subagent 會略過受限呼叫，不會提權。
+- denied path 與 denied command 會直接拒絕；敏感路徑、`$HOME` 外寫入及其他受限操作則要求明確確認，支援時再要求系統驗證。
+- 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。
 - 憑證與 OAuth token 存在作業系統 keychain，不寫入 repository。
 
 ## 持久化結構
@@ -192,8 +189,11 @@ flowchart LR
     Sessions --> Summary[summary.json]
     Sessions --> Pending[Pending 工作]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[歷史／Session 搜尋]
-    Torii[~/.config/agenvoy/.store/db_0..db_4] --> Cache[工具快取]
-    Torii --> Vectors[對話、錯誤與知識]
+    SQLite --> Notes[Notes]
+    Torii0[~/.config/agenvoy/.store/db_0] --> ToolCache[工具快取]
+    Torii1[~/.config/agenvoy/.store/db_1] --> SessionMemory[對話向量]
+    Torii2[~/.config/agenvoy/.store/db_2] --> ErrorMemory[錯誤記憶]
+    Torii3[~/.config/agenvoy/.store/db_3] --> Online[執行中標記]
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]

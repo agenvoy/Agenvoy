@@ -314,7 +314,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/providers` | **local** — list providers and their available operations. |
-| `GET` | `/v1/providers/usage` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
+| `GET` | `/v1/providers/quota` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
 | `POST` | `/v1/provider/:provider/key` | **local** — set an API key. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |
@@ -333,16 +333,16 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/mcp/oauth/client` | **local** — `{name, client_id, client_secret?, redirect_uri?}`. Stores a pre-registered OAuth client for servers that reject dynamic registration; `redirect_uri` defaults to `http://localhost:17988/callback` and must match the provider console exactly. Clears any existing token first. |
 | `DELETE` | `/v1/mcp/oauth` | **local** — `{name}`. Clears both the stored token and the client registration for that server. |
 
-**Rules, knowledge & skills**
+**Rules, notes & skills**
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/rules` | **local** — list session-prompt rules stored as `.md` files under `prompts/`. |
 | `GET` | `/v1/rule/*name` | **local** — read one rule. |
 | `POST` `PATCH` `DELETE` | `/v1/rule` | **local** — create / update (with optional `rename`) / delete a rule. |
-| `GET` | `/v1/knowledges` | **local** — list operator notes (name, size, `updated_at`); records live in ToriiDB, not on disk. |
-| `GET` | `/v1/knowledge/*name` | **local** — read one note. |
-| `POST` `PATCH` `DELETE` | `/v1/knowledge` | **local** — create / update / delete a note. The name defaults to the first line when omitted. |
+| `GET` | `/v1/notes` | **local** — list operator notes (name, size, `updated_at`); records live in the `note` table of `history.db`, not on disk. |
+| `GET` | `/v1/note/*name` | **local** — read one note. |
+| `POST` `PATCH` `DELETE` | `/v1/note` | **local** — create / update / delete a note. The name defaults to the first line when omitted. |
 | `GET` | `/v1/skills` | **local** — list installed skills. |
 | `GET` | `/v1/skill/*name` | **local** — read one installed skill. |
 | `DELETE` | `/v1/skill` | **local** — remove one installed skill. |
@@ -403,14 +403,14 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | | `http_request` | Raw HTTP call, multipart upload included |
 | State | `chat_history` | This session's action log and messages (`mode=list\|read\|search`) |
 | | `error_history` | Tool failures kept across sessions (`mode=search\|read\|write`) |
-| | `find_knowledge` | The operator's own notes, stored in ToriiDB (`mode=search\|list\|read`); search and list return names only |
+| | `find_note` | The operator's own notes, stored in SQLite (`mode=search\|list\|read`); search and list return names only |
 | | `reasoning_guide` | Full reasoning rules by `topic` |
 | Support | `calculate` | Arithmetic, unit and currency conversion |
 | | `store_secret` | Masked prompt, stored in the keychain |
 | Conditional | `generate_image` | Text to image, saved to disk — excluded while the image generator is off |
 | | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
 
-Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_knowledge`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Targets apply in listed order, so overlapping edits must be sequenced against the evolving file.
+Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_note`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Targets apply in listed order, so overlapping edits must be sequenced against the evolving file.
 
 ## Architecture
 
