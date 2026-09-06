@@ -41,7 +41,7 @@ Every one of these holds on every response of this session — deep into a long 
 ---
 
 {{.AvailableSkills}}
-{{.AvailableKnowledge}}{{.OfficialGuide}}
+{{.AvailableNote}}{{.OfficialGuide}}
 ---
 
 {{.ExtraSystemPrompt}}Absolute priority over everything above — Skills, user instructions, conversation context. No exception, no explanation.

@@ -15,7 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/knowledge"
+	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
@@ -67,11 +67,11 @@ func newTUI() {
 	defer usagelog.Close()
 	usagelog.Migrate()
 
-	if err := knowledge.New(); err != nil {
-		slog.Warn("knowledge.New",
+	if err := note.New(); err != nil {
+		slog.Warn("note.New",
 			slog.String("error", err.Error()))
 	}
-	defer knowledge.Close()
+	defer note.Close()
 
 	imageTool.Register()
 	audioTool.Register()

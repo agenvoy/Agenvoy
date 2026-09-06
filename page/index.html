@@ -311,33 +311,33 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Knowledge" class="editor">
+        <section :elif="params.tab == Note" class="editor">
           <div class="side">
-            <button type="button" class="new" @click="knowledge_reset">
+            <button type="button" class="new" @click="note_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>Add Knowledge</p>
+              <p>Add Note</p>
             </button>
             <details class="group" open>
               <summary>
-                Knowledge
+                Note
                 <span class="material-symbols-outlined"> keyboard_arrow_down </span>
               </summary>
-              <div class="list" id="knowledge-list"></div>
+              <div class="list" id="note-list"></div>
             </details>
           </div>
-          <form id="knowledge-form">
+          <form id="note-form">
             <span>Name</span>
             <input
-              id="knowledge-title"
+              id="note-title"
               type="text"
               maxlength="32"
-              placeholder="Name this knowledge (defaults to the first line)"
+              placeholder="Name this note (defaults to the first line)"
             />
             <span>Content</span>
-            <textarea id="knowledge-content" rows="12" placeholder="What the agent should know"></textarea>
+            <textarea id="note-content" rows="12" placeholder="What the agent should know"></textarea>
             <footer>
-              <button type="button" class="remove" @click="knowledge_delete">delete</button>
-              <button type="button" class="submit" @click="knowledge_save">add</button>
+              <button type="button" class="remove" @click="note_delete">delete</button>
+              <button type="button" class="submit" @click="note_save">add</button>
             </footer>
           </form>
         </section>

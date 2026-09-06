@@ -1,4 +1,4 @@
-package toolKnowledge
+package toolNote
 
 import (
 	"context"
@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/knowledge"
+	"github.com/pardnchiu/agenvoy/internal/note"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-const Name = "find_knowledge"
+const Name = "find_note"
 
 func init() {
-	registFindKnowledge()
+	registFindNote()
 }
 
-func registFindKnowledge() {
+func registFindNote() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        Name,
 		SystemUse:   true,
@@ -51,7 +51,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 				"limit": map[string]any{
 					"type":        "integer",
 					"description": "mode=search: notes to return, most matched first; never above 20.",
-					"default":     knowledge.DefaultLimit,
+					"default":     note.DefaultLimit,
 				},
 			},
 		},
@@ -82,7 +82,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 				if name == "" {
 					return "", fmt.Errorf("name is required when mode=read")
 				}
-				record, ok := knowledge.Read(name)
+				record, ok := note.Read(name)
 				if !ok {
 					return "", fmt.Errorf("no note named %q", name)
 				}
@@ -92,7 +92,7 @@ Past runs and conversation → chat_history; files on disk → find_files.`,
 				if len(params.Keywords) == 0 {
 					return "", fmt.Errorf("keywords is required when mode=search")
 				}
-				hits := knowledge.Search(params.Keywords, params.Limit)
+				hits := note.Search(params.Keywords, params.Limit)
 				if len(hits) == 0 {
 					return "no matching note", nil
 				}

@@ -279,7 +279,7 @@ function copyBtn() {
   return dom;
 }
 
-function knowledgeBtn() {
+function noteBtn() {
   const dom = _("button", { name: "Add knoledge" }, [_("span.material-symbols-outlined", "book_2")]);
   dom.addEventListener("click", async function () {
     const bubble = dom.closest("div.assistant");
@@ -292,7 +292,7 @@ function knowledgeBtn() {
 
     dom.disabled = true;
     try {
-      const response = await fetch(`${API}/v1/knowledge`, {
+      const response = await fetch(`${API}/v1/note`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: content }),
@@ -306,7 +306,7 @@ function knowledgeBtn() {
       icon.textContent = "check_circle";
       setTimeout(() => (icon.textContent = "book_2"), 1000);
     } catch (err) {
-      console.error("knowledgeBtn", err);
+      console.error("noteBtn", err);
     } finally {
       dom.disabled = false;
     }
