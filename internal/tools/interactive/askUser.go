@@ -606,7 +606,21 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 	return msg.String(), sb.String(), nil
 }
 
-func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string, files []string) string {
+func originFor(ctx context.Context, sessionID string) string {
+	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+		return origin
+	}
+	return runtime.OriginOf(sessionID)
+}
+
+func deliverFor(ctx context.Context, sessionID string) string {
+	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+		return id
+	}
+	return sessionID
+}
+
+func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string, files []string) string {
 	taskHash := existingTaskHash
 	if taskHash == "" {
 		taskHash = go_pkg_utils.UUID()
@@ -674,6 +688,8 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 	if _, err := runtime.AskUser(runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
+		Origin:    origin,
+		DeliverTo: deliverTo,
 		ToolName:  "ask_user",
 		AskUser:   &runtime.UserPayload{Questions: questions},
 	}, onResolve); err != nil {
@@ -684,13 +700,16 @@ func SaveAndEnqueueAskUser(sessionID string, questions []runtime.Question, objec
 }
 
 func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Question) ([]any, error) {
-	if !runtime.HasListener(sessionID) {
+	origin := originFor(ctx, sessionID)
+	if !runtime.HasListener(origin) {
 		return nil, fmt.Errorf("ask_user requires an interactive channel (TUI / Telegram / Discord)")
 	}
 
 	reply, err := runtime.Ask(ctx, runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
+		Origin:    origin,
+		DeliverTo: deliverFor(ctx, sessionID),
 		ToolName:  "ask_user",
 		AskUser:   &runtime.UserPayload{Questions: questions},
 	})

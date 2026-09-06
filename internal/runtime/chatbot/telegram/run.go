@@ -316,7 +316,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	events := make(chan agentTypes.Event, 128)
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
-		execCtx := exec.SuppressDcPush(ctx)
+		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "tg-")
 		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
 		if execErr != nil {
 			slog.Debug("exec",

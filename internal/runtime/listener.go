@@ -127,7 +127,7 @@ func (l *Listener[CID, MID]) cleanStaleCur() {
 
 func (l *Listener[CID, MID]) emit(ctx context.Context) {
 	accept := func(r Request) bool {
-		chatID, err := l.transport.LookupChatID(r.SessionID)
+		chatID, err := l.transport.LookupChatID(r.DeliverTo)
 		if err != nil {
 			return true
 		}
@@ -153,11 +153,11 @@ func (l *Listener[CID, MID]) emit(ctx context.Context) {
 }
 
 func (l *Listener[CID, MID]) sendPrompt(ctx context.Context, id string, req Request) {
-	chatID, err := l.transport.LookupChatID(req.SessionID)
+	chatID, err := l.transport.LookupChatID(req.DeliverTo)
 	if err != nil {
 		slog.Debug("connector.LookupChatID",
 			slog.String("prefix", l.prefix),
-			slog.String("session", req.SessionID),
+			slog.String("session", req.DeliverTo),
 			slog.String("error", err.Error()))
 		Resolve(id, Reply{Error: fmt.Errorf("LookupChatID: %w", err)})
 		return

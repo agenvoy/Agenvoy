@@ -151,7 +151,11 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 	SaveUserInputHistory(ctx, sessionID, userText)
 
-	subCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
+	deliverTo := agentTypes.DeliverToFrom(ctx)
+	if deliverTo == "" {
+		deliverTo = agentTypes.SessionIDFrom(ctx)
+	}
+	subCtx, cancel := context.WithTimeout(agentTypes.WithDeliverTo(ctx, deliverTo), time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
 	defer cancel()
 
 	parentEvents, ok := ctx.Value(parentEventsKey{}).(chan<- agentTypes.Event)

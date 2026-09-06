@@ -99,7 +99,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	events := make(chan agentTypes.Event, 128)
 	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
 	go func() {
-		execCtx := exec.SuppressDcPush(ctx)
+		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "tg-")
 		if execErr := exec.Execute(execCtx, execData, sess, wrapped, allowAll); execErr != nil {
 			slog.Debug("ask_user resume: exec",
 				slog.String("session", sessionID),

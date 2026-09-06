@@ -2,11 +2,13 @@ package tui
 
 import (
 	"fmt"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -88,14 +90,12 @@ func (t TUI) viewThinking() string {
 	if t.currentModel != "" {
 		detail = append(detail, t.currentModel)
 	}
-	if t.lastIn+t.lastOut+t.lastCacheRead+t.lastCacheCreate > 0 {
-		totalIn := t.lastIn + t.lastCacheRead + t.lastCacheCreate
-		if t.lastCacheRead > 0 && totalIn > 0 {
-			hitPct := int(float64(t.lastCacheRead) / float64(totalIn) * 100)
-			detail = append(detail, fmt.Sprintf("↑ %s(%d%%) ↓ %s", go_pkg_utils.CompactNumber(totalIn), hitPct, go_pkg_utils.CompactNumber(t.lastOut)))
-		} else {
-			detail = append(detail, fmt.Sprintf("↑ %s ↓ %s", go_pkg_utils.CompactNumber(totalIn), go_pkg_utils.CompactNumber(t.lastOut)))
-		}
+	if in := agentTypes.FormatInput(agentTypes.InputTotals(&provider.Usage{
+		Input:       t.lastIn,
+		CacheRead:   t.lastCacheRead,
+		CacheCreate: t.lastCacheCreate,
+	})); in != "" {
+		detail = append(detail, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(t.lastOut)))
 	}
 	detail = append(detail, "esc to interrupt")
 

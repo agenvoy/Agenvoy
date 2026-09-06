@@ -33,6 +33,8 @@ type Request struct {
 	ID         string
 	Kind       Kind
 	SessionID  string
+	Origin     string
+	DeliverTo  string
 	ToolName   string
 	ToolArgs   string
 	Restricted []string
@@ -102,11 +104,22 @@ func RegisterListener(prefix string) (<-chan struct{}, func()) {
 	}
 }
 
-func HasListener(sessionID string) bool {
+var knownOrigins = []string{"cli-", "chat-", "tg-", "dc-"}
+
+func OriginOf(sessionID string) string {
+	for _, prefix := range knownOrigins {
+		if strings.HasPrefix(sessionID, prefix) {
+			return prefix
+		}
+	}
+	return ""
+}
+
+func HasListener(origin string) bool {
 	listenerMu.RLock()
 	defer listenerMu.RUnlock()
 	for _, l := range listeners {
-		if l.prefix == "" || strings.HasPrefix(sessionID, l.prefix) {
+		if l.prefix == "" || strings.HasPrefix(origin, l.prefix) {
 			return true
 		}
 	}
@@ -116,6 +129,12 @@ func HasListener(sessionID string) bool {
 func Ask(ctx context.Context, req Request) (Reply, error) {
 	if req.ID == "" {
 		req.ID = go_pkg_utils.UUID()
+	}
+	if req.Origin == "" {
+		req.Origin = OriginOf(req.SessionID)
+	}
+	if req.DeliverTo == "" {
+		req.DeliverTo = req.SessionID
 	}
 	req.Ctx = ctx
 	req.EnqueueAt = time.Now()
@@ -128,7 +147,7 @@ func Ask(ctx context.Context, req Request) (Reply, error) {
 	mu.Lock()
 	entries[req.ID] = e
 	mu.Unlock()
-	signalFor(req.SessionID)
+	signalFor(req.Origin)
 
 	defer func() {
 		mu.Lock()
@@ -158,7 +177,7 @@ func PickNextMatch(prefix string, accept func(Request) bool) (id string, req Req
 		if e.claimed {
 			continue
 		}
-		if prefix != "" && !strings.HasPrefix(e.req.SessionID, prefix) {
+		if prefix != "" && !strings.HasPrefix(e.req.Origin, prefix) {
 			continue
 		}
 		if e.req.Ctx != nil && e.req.Ctx.Err() != nil {
@@ -183,6 +202,12 @@ func AskUser(req Request, onResolve func(Reply)) (string, error) {
 	if req.ID == "" {
 		req.ID = go_pkg_utils.UUID()
 	}
+	if req.Origin == "" {
+		req.Origin = OriginOf(req.SessionID)
+	}
+	if req.DeliverTo == "" {
+		req.DeliverTo = req.SessionID
+	}
 	req.Ctx = context.Background()
 	req.EnqueueAt = time.Now()
 
@@ -196,7 +221,7 @@ func AskUser(req Request, onResolve func(Reply)) (string, error) {
 	mu.Lock()
 	entries[req.ID] = e
 	mu.Unlock()
-	signalFor(req.SessionID)
+	signalFor(req.Origin)
 
 	return req.ID, nil
 }
@@ -230,11 +255,11 @@ func EntryExists(id string) bool {
 	return ok
 }
 
-func signalFor(sessionID string) {
+func signalFor(origin string) {
 	listenerMu.RLock()
 	defer listenerMu.RUnlock()
 	for _, l := range listeners {
-		if l.prefix != "" && !strings.HasPrefix(sessionID, l.prefix) {
+		if l.prefix != "" && !strings.HasPrefix(origin, l.prefix) {
 			continue
 		}
 		select {

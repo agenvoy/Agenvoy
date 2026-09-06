@@ -9,6 +9,7 @@ import (
 	"time"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -364,17 +365,8 @@ func formatEventFooter(duration time.Duration, model string, usage *provider.Usa
 		parts = append(parts, model)
 	}
 
-	if usage != nil && (usage.Input > 0 || usage.CacheRead > 0 || usage.CacheCreate > 0 || usage.Output > 0) {
-		totalInput := usage.Input + usage.CacheRead + usage.CacheCreate
-		hitPct := 0
-		if usage.CacheRead > 0 && totalInput > 0 {
-			hitPct = int(float64(usage.CacheRead) / float64(totalInput) * 100)
-		}
-		if hitPct > 0 {
-			parts = append(parts, fmt.Sprintf("↑ %s(%d%%) ↓ %s", go_pkg_utils.CompactNumber(totalInput), hitPct, go_pkg_utils.CompactNumber(usage.Output)))
-		} else {
-			parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", go_pkg_utils.CompactNumber(totalInput), go_pkg_utils.CompactNumber(usage.Output)))
-		}
+	if in := agentTypes.FormatInput(agentTypes.InputTotals(usage)); in != "" {
+		parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(usage.Output)))
 	}
 	return strings.Join(parts, " · ")
 }

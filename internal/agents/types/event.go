@@ -175,6 +175,7 @@ type Event struct {
 	Result          string              `json:"result,omitempty"`
 	Model           string              `json:"model,omitempty"`
 	Usage           *provider.Usage     `json:"usage,omitempty"`
+	UsageInput      string              `json:"usage_input,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`
 	Todos           []TodoItem          `json:"todos,omitempty"`
 	Suggests        []string            `json:"suggests,omitempty"`
@@ -203,3 +204,12 @@ const (
 	TodoInProgress = "in_progress"
 	TodoCompleted  = "completed"
 )
+
+func (e Event) MarshalJSON() ([]byte, error) {
+	type alias Event
+	shadow := alias(e)
+	if shadow.UsageInput == "" {
+		shadow.UsageInput = FormatInput(InputTotals(e.Usage))
+	}
+	return json.Marshal(shadow)
+}

@@ -92,10 +92,10 @@ func formatActionEvent(event agentTypes.Event) string {
 			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
 		}
 		if event.Usage != nil {
-			total := event.Usage.Input + event.Usage.CacheRead
+			total, hitPct := agentTypes.InputTotals(event.Usage)
 			in := fmt.Sprintf("in=%d", total)
-			if event.Usage.CacheRead > 0 && total > 0 {
-				in = fmt.Sprintf("%s (%.0f%%)", in, float64(event.Usage.CacheRead)/float64(total)*100)
+			if hitPct > 0 {
+				in = fmt.Sprintf("%s (%d%%)", in, hitPct)
 			}
 			parts = append(parts, in, fmt.Sprintf("out=%d", event.Usage.Output))
 		}
