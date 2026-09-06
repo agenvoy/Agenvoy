@@ -332,6 +332,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           subscribe("");
         }
         bindSelectPicker();
+        bindFileLink();
         bindInputDrop();
         bindChatMenu();
         renderChatList();

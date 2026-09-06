@@ -224,6 +224,91 @@ function openAgenvoyFile(path) {
   fetch(`${API}/v1/file/open?path=${encodeURIComponent(path)}`).catch((err) => console.error("openAgenvoyFile", err));
 }
 
+const DOC_EXTENSION = ["md", "markdown", "txt", "text"];
+const PAGE_EXTENSION = ["html", "htm"];
+
+function pathExtension(path) {
+  const name = String(path || "").split("/").pop();
+  const at = name.lastIndexOf(".");
+  return at > 0 ? name.slice(at + 1).toLowerCase() : "";
+}
+
+function isDocumentPath(path) {
+  const ext = pathExtension(path);
+  return DOC_EXTENSION.includes(ext) || PAGE_EXTENSION.includes(ext);
+}
+
+function closeSubview() {
+  const box = document.querySelector("section.chat > div.subview");
+  if (box) {
+    box.innerHTML = "";
+  }
+}
+
+async function openFileInSubview(path) {
+  const box = document.querySelector("section.chat > div.subview");
+  if (!box) {
+    openAgenvoyFile(path);
+    return;
+  }
+
+  const frame = _("iframe.body", { title: path });
+  const close = _("button", { name: "Close" }, [_("span.material-symbols-outlined", "right_panel_open")]);
+  close.addEventListener("click", closeSubview);
+  box.innerHTML = "";
+  box.appendChild(_("article", [_("header", [close, _("p", `\u200E${path}`)]), frame]));
+
+  const ext = pathExtension(path);
+  if (PAGE_EXTENSION.includes(ext)) {
+    frame.src = `${API}/v1/file?path=${encodeURIComponent(path)}`;
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/file?path=${encodeURIComponent(path)}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || response.status);
+    }
+    frame.srcdoc = subviewDocument(`<section class="md-render">${renderMarkdownHTML(await response.text())}</section>`);
+  } catch (err) {
+    console.error("openFileInSubview", err);
+    frame.srcdoc = subviewDocument(`<p>Failed to open "${escapeSubviewText(path)}": ${escapeSubviewText(err.message)}</p>`);
+  }
+}
+
+function escapeSubviewText(text) {
+  return String(text == null ? "" : text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function subviewDocument(body) {
+  return `<!doctype html><html><head><meta charset="utf-8"><base href="${location.origin}${location.pathname}"><link rel="stylesheet" href="public/subview.css"></head><body>${body}</body></html>`;
+}
+
+function openPath(path) {
+  if (isDocumentPath(path)) {
+    openFileInSubview(path);
+    return;
+  }
+  openAgenvoyFile(path);
+}
+
+function bindFileLink() {
+  document.addEventListener(
+    "click",
+    function (e) {
+      const link = e.target.closest("a.md-file-link");
+      if (!link || !isDocumentPath(link.textContent)) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      openFileInSubview(link.textContent);
+    },
+    true,
+  );
+}
+
 function fileBox(files) {
   const list = _("ul");
   const box = _("details.files", [
@@ -252,7 +337,7 @@ function renderFileBox(box, files) {
     const link = _("a", { href: path }, path);
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      openAgenvoyFile(path);
+      openPath(path);
     });
     list.appendChild(_("li", [link]));
   }
