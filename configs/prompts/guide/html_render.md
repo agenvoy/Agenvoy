@@ -76,15 +76,31 @@ Mobile-first. Base styles are the phone; each query widens it.
 - **MapLibre needs `map.resize()`** or it stretches.
 - **Every chart, map and canvas needs a height that works at 480px** — a percentage height in an auto-height parent collapses to zero.
 - `img`, `svg`, `canvas`, `iframe` carry `max-width: 100%`. Use `clamp()` for type and spacing.
+- **Anything interactive keeps a visible keyboard focus ring** — sortable headers, links, controls.
 
 #### Visual direction
 
-Decide before writing markup and state the four choices in one line as you build. Without them every page lands on the same default — system sans, blue accent, rounded white cards on grey — which reads as unconsidered however correct the data is.
+Decide before writing markup and state the direction in one line as you build. Without it every page lands on the same default — system sans, blue accent, rounded white cards on grey — which reads as unconsidered however correct the data is. A brief that pins an axis wins on that axis, its own words exactly; the axes it leaves open are yours to choose on.
 
-- **Typography** — a specific pairing and a scale; vary weight and size with intent.
-- **Palette** — one accent plus a neutral ramp, chosen for the subject. Financial, scientific, editorial and monitoring content do not share a palette. Semantic colours are separate from the accent.
+Name the subject, its reader, and the page's one job before choosing anything. Distinctive choices come out of that subject's own world — its instruments, artifacts and vernacular — rather than out of a palette that would fit any dataset.
+
+- **Typography** — a display face and a body face chosen as a pair, with a scale whose weights and widths are deliberate. The type treatment is part of what makes the page memorable, not a neutral delivery vehicle for the numbers.
+- **Palette** — 4–6 named values: one accent, a neutral ramp, semantic colours kept apart from the accent. Financial, scientific, editorial and monitoring content do not share a palette. They are written once into `T` and read back as `T.*`, so no hex literal appears in the markup.
 - **Spacing** — one rhythm (4px or 8px base) applied to padding, gaps and vertical spacing alike.
 - **Background** — flat white is a default, not a decision. Consider a tinted surface or a dark canvas.
-- **Motion** — only where it carries meaning. Honour `prefers-reduced-motion`.
+- **Motion** — one orchestrated moment (a load sequence, a scroll reveal) lands harder than micro-interactions scattered across the page, and the scattered version is what reads as machine-generated. Honour `prefers-reduced-motion`.
+- **Signature** — the one element the page is remembered by. Spend boldness there and keep everything around it quiet.
 
-A stated direction wins. Otherwise name the one you are taking rather than defaulting silently.
+Three looks arrive by default rather than by choice, and they turn up whatever the subject is: cream ground near `#F4F1EA` with a high-contrast serif display and a terracotta accent; near-black ground with a single acid-green or vermilion accent; broadsheet with hairline rules, zero border-radius and dense newspaper columns. Each is right when the brief asks for it — on a free axis, spend the freedom somewhere else.
+
+Structure carries information: numbering, eyebrows, dividers and labels either encode something true about the content or they decorate it. `01 / 02 / 03` fits a real sequence and misleads on a set of peers.
+
+Match execution to the direction — maximalist needs elaborate follow-through, minimal needs precision in spacing, type and detail.
+
+Labels name what the reader recognises rather than what the pipeline produced, and a panel with no data says what is missing and what would fill it.
+
+#### Plan, critique, build
+
+Write the token block before any markup: palette values, type roles (display / body / utility), the layout concept in one sentence, the signature element. Read it back against the brief — a part that would come out identical for any other page on this subject is a default, so change it and name what changed. The code then follows the revised plan, every colour and type decision traceable to it.
+
+Keep selector specificity flat as you write: a class rule and an element rule covering the same box (`.section` against `section`) cancel each other, and it surfaces as vertical spacing that silently goes missing between blocks.
