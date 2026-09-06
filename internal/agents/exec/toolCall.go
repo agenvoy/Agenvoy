@@ -236,9 +236,10 @@ func invalidateReadFileCache(alreadyCall map[string]string, writeArgsJSON string
 }
 
 var isWriteLikeTool = map[string]bool{
-	"edit_file":  true,
-	"edit_skill": true,
-	"edit_tool":  true,
+	"edit_file":    true,
+	"edit_skill":   true,
+	"edit_tool":    true,
+	"write_report": true,
 }
 
 func truncateWriteArgs(argsJSON string) string {

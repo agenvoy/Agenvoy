@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -66,10 +69,7 @@ func mcpInstructionsSection() string {
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
 	systemOS := host().os
-	var extraSection string
-	if extra := strings.TrimSpace(extraSystemPrompt); extra != "" {
-		extraSection = "---\n\n## Additional Instructions\n\n" + extra + "\n\n---\n\n"
-	}
+	extraSection := strings.TrimSpace(extraSystemPrompt)
 
 	template := configs.SystemPrompt
 
@@ -108,6 +108,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
+		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
 }
@@ -119,15 +120,35 @@ func noteSection() string {
 	return "\n## Note\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_note` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"
 }
 
+func agentGuideSection(workDir string) string {
+	for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
+		path := filepath.Join(workDir, name)
+		if !go_pkg_filesystem_reader.IsFile(path) {
+			continue
+		}
+
+		content, err := go_pkg_filesystem.ReadText(path)
+		if err != nil {
+			slog.Debug("agent guide ReadText",
+				slog.String("path", path),
+				slog.String("error", err.Error()))
+			continue
+		}
+		if content = strings.TrimSpace(content); content == "" {
+			continue
+		}
+		return "`" + path + "`\n\n" + content
+	}
+	return ""
+}
+
 func officialGuideSection(model string) string {
-	guide := ""
 	for key, one := range configs.OfficialGuides {
 		if strings.Contains(model, key) {
-			guide = "\n\n" + strings.TrimSpace(one)
-			break
+			return strings.TrimSpace(one)
 		}
 	}
-	return "\n" + strings.TrimSpace(configs.OfficialGuideCommon) + guide + "\n"
+	return ""
 }
 
 func buildPermissionModeSection(allowAll bool) string {
@@ -148,6 +169,8 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.AvailableSkills}}", skillsSection,
+		"{{.AvailableNote}}", noteSection(),
+		"{{.OfficialGuide}}", officialGuideSection(model),
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 

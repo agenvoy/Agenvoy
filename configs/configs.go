@@ -114,30 +114,24 @@ var TUITools []byte
 //go:embed prompts/official_guides/*.md
 var officialGuideFS embed.FS
 
-var OfficialGuideCommon, OfficialGuides = loadOfficialGuides()
+var OfficialGuides = loadOfficialGuides()
 
-func loadOfficialGuides() (string, map[string]string) {
+func loadOfficialGuides() map[string]string {
 	const dir = "prompts/official_guides"
 	entries, err := officialGuideFS.ReadDir(dir)
 	if err != nil {
-		return "", nil
+		return nil
 	}
 
-	common := ""
 	guides := make(map[string]string, len(entries))
 	for _, entry := range entries {
 		raw, err := officialGuideFS.ReadFile(dir + "/" + entry.Name())
 		if err != nil {
 			continue
 		}
-		key := strings.TrimSuffix(entry.Name(), ".md")
-		if key == "common" {
-			common = string(raw)
-			continue
-		}
-		guides[key] = string(raw)
+		guides[strings.TrimSuffix(entry.Name(), ".md")] = string(raw)
 	}
-	return common, guides
+	return guides
 }
 
 const (
