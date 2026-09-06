@@ -9,7 +9,7 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 

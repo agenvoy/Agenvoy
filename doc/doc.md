@@ -418,7 +418,7 @@ See [Architecture](./architecture.md) for module relationships, data flows, and 
 
 ## License
 
-This project is licensed under the [Apache License 2.0](../LICENSE).
+This project is dual-licensed: [AGPL-3.0](../LICENSE) for open source use, or a commercial license for use that cannot meet its source-disclosure requirement — see [COMMERCIAL.md](../COMMERCIAL.md).
 
 ***
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )

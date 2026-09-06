@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/history"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )

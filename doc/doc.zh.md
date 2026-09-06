@@ -436,7 +436,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 ## License
 
-本專案以 [Apache License 2.0](../LICENSE) 授權。
+本專案採雙授權：開源使用適用 [AGPL-3.0](../LICENSE)，無法滿足其原始碼公開義務者可洽詢商業授權，詳見 [COMMERCIAL.zh.md](./COMMERCIAL.zh.md)。
 
 ---
 
