@@ -40,6 +40,11 @@ async function renderChatList() {
   const pinned = pinChats();
 
   for (const e of list) {
+    const panel = document.querySelector(`section.chat > section[data-id="${e.id}"]`);
+    if (panel) {
+      panel.dataset.hint = e.self_id || e.id;
+    }
+
     if (pinned.includes(e.id)) {
       if (pinDom) {
         pinDom.appendChild(pinListItem(e.id, e.name || e.id));

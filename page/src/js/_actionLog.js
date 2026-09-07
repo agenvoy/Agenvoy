@@ -110,9 +110,6 @@ function parseActionLog(content) {
         break;
 
       case "skill_result":
-        pending = pending || logItem(sendAt);
-        pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + "⏵ skill `" + body + "`";
-        pending.resumed = Boolean(pending.content);
         break;
 
       case "assistant":

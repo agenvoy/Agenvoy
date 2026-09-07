@@ -1,6 +1,7 @@
 const API = window.location.origin;
 const SKIP_EVENTS = [
   "EventConnected",
+  "EventSkillResult",
   "EventTextDone",
   "EventAgentSelect",
   "EventSummaryGenerate",

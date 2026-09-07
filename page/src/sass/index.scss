@@ -205,7 +205,6 @@ div.popup {
       }
 
       pre,
-      input,
       textarea {
         margin: 0;
         line-height: inherit;
@@ -223,22 +222,6 @@ div.popup {
         word-break: break-all;
         color: transparent;
         background-color: transparent;
-      }
-
-      input {
-        display: block;
-        padding: 0;
-        width: 100%;
-        border: none;
-        outline: none;
-        background-color: transparent;
-        color: var(--ink);
-        font: inherit;
-        line-height: inherit;
-
-        &::placeholder {
-          color: var(--gray-3);
-        }
       }
 
       textarea {
