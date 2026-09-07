@@ -52,6 +52,10 @@ func LoadSchedule(name string) (Schedule, error) {
 }
 
 func WriteSchedule(name, description, body string) error {
+	if bodyRegex.MatchString(strings.TrimLeft(body, " \t\r\n")) {
+		return writeScheduleRaw(name, strings.TrimSpace(strings.TrimLeft(body, " \t\r\n"))+"\n")
+	}
+
 	var sb strings.Builder
 	sb.WriteString("---\nname: ")
 	sb.WriteString(name)
@@ -66,6 +70,15 @@ func WriteSchedule(name, description, body string) error {
 	sb.WriteString("\n")
 	content := sb.String()
 
+	dir := filesystem.ScheduleSkillDir(name)
+	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
+		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
+	}
+
+	return writeScheduleRaw(name, content)
+}
+
+func writeScheduleRaw(name, content string) error {
 	dir := filesystem.ScheduleSkillDir(name)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
 		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)

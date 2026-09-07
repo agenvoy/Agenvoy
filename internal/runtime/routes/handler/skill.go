@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"io/fs"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -66,9 +69,63 @@ func GetSkill() gin.HandlerFunc {
 			"path":        one.AbsPath,
 			"source":      runtime.SkillSource(one.AbsPath),
 			"content":     one.Content,
+			"files":       skillFiles(one.AbsPath),
 			"deletable":   deletableSkill(one.AbsPath),
 		})
 	}
+}
+
+const skillFileMaxBytes = 256 << 10
+
+var skillFileDirs = []string{"scripts", "references", "assets"}
+
+type skillFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+func skillFiles(skillPath string) []skillFile {
+	dir := filepath.Dir(skillPath)
+	out := make([]skillFile, 0)
+
+	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if strings.HasPrefix(entry.Name(), ".") {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if entry.IsDir() || path == skillPath {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil || info.Size() > skillFileMaxBytes {
+			return nil
+		}
+		content, err := go_pkg_filesystem.ReadText(path)
+		if err != nil || !utf8.ValidString(content) {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		root, _, ok := strings.Cut(rel, "/")
+		if !ok || !slices.Contains(skillFileDirs, root) {
+			return nil
+		}
+		out = append(out, skillFile{Path: rel, Content: content})
+		return nil
+	})
+
+	slices.SortFunc(out, func(a, b skillFile) int {
+		return strings.Compare(a.Path, b.Path)
+	})
+	return out
 }
 
 func DeleteSkill() gin.HandlerFunc {

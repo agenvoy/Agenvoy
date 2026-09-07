@@ -87,6 +87,7 @@ function skillTabDom() {
     list: $("#skill-list"),
     name: $("#skill-name"),
     content: $("#skill-content"),
+    files: $("#skill-files"),
     allowList: $("#skill-allow-list"),
     remove: document.querySelector("#skill-form button.remove"),
   };
@@ -159,11 +160,39 @@ async function openSkillTab(name) {
   skillTabName = body.name || name;
   skillTabPath = body.path || "";
   dom.name.value = body.source ? `${skillTabName} · ${body.source}` : skillTabName;
-  dom.content.value = body.content || "";
+  const files = [{ path: "SKILL.md", content: body.content || "" }].concat(body.files || []);
+  dom.content.value = files[0].content;
+  renderSkillFiles(dom, files);
   dom.form.dataset.editing = "1";
   delete dom.form.dataset.view;
   delete dom.allowList.dataset.open;
   dom.remove.style.display = body.deletable ? "" : "none";
+}
+
+function renderSkillFiles(dom, files) {
+  if (!dom.files) {
+    return;
+  }
+
+  dom.files.innerHTML = "";
+  if (files.length === 0) {
+    return;
+  }
+
+  const buttons = [];
+  for (const one of files) {
+    const button = _("button", { type: "button" }, one.path);
+    button.dataset.selected = "0";
+    button.addEventListener("click", function () {
+      for (const other of buttons) {
+        other.dataset.selected = other === button ? "1" : "0";
+      }
+      dom.content.value = one.content || "";
+    });
+    buttons.push(button);
+    dom.files.appendChild(button);
+  }
+  buttons[0].dataset.selected = "1";
 }
 
 async function openSkillConfig() {
@@ -174,6 +203,7 @@ async function openSkillConfig() {
 
   skillTabName = "";
   skillTabPath = "";
+  renderSkillFiles(dom, []);
   delete dom.form.dataset.editing;
   dom.form.dataset.view = "config";
   markSelectedCard(dom.list, "");

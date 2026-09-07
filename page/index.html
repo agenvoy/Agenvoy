@@ -350,7 +350,7 @@
             <section class="tools" id="skill-allow-list"></section>
             <span>Name</span>
             <input id="skill-name" type="text" disabled />
-            <span>Content</span>
+            <nav class="tab" id="skill-files"></nav>
             <textarea id="skill-content" rows="20" disabled></textarea>
             <footer>
               <button type="button" class="remove" @click="skill_delete">delete</button>
@@ -381,15 +381,8 @@
               maxlength="64"
               placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
             />
-            <span>Description</span>
-            <input
-              id="schedule-description"
-              type="text"
-              maxlength="256"
-              placeholder="Describe when it fires and what it does"
-            />
-            <span>Content</span>
-            <textarea id="schedule-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
+            <nav class="tab" id="schedule-files"></nav>
+            <textarea id="schedule-content" rows="16" placeholder="SKILL.md · frontmatter + body"></textarea>
             <span>Session</span>
             <select id="schedule-session"></select>
             <nav class="tab" id="schedule-type"></nav>
