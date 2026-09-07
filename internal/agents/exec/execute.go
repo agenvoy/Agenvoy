@@ -723,7 +723,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if isGuardrailRefusal(stripped) {
 				sendText(events, configs.PoisonRefusal)
 				emitChangedFiles()
-				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
+				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
@@ -768,7 +768,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		emitChangedFiles()
-		events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
+		events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
 
 		keepPending = false
 		return nil
@@ -798,14 +798,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if isGuardrailRefusal(summaryStripped) {
 				sendText(events, configs.PoisonRefusal)
 				emitChangedFiles()
-				events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
+				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
 			sendText(events, summaryStripped)
 			emitChangedFiles()
-			events <- agentTypes.Event{Type: agentTypes.EventDone, Model: data.Agent.Name(), Usage: &usage, Duration: time.Since(execStart)}
+			events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false
 			return nil

@@ -1,0 +1,30 @@
+[
+  {
+    "path": "quickui/QuickUI.js",
+    "url": "https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"
+  },
+  {
+    "path": "fontawesome/css/fontawesome.min.css",
+    "url": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css"
+  },
+  {
+    "path": "fontawesome/css/brands.min.css",
+    "url": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css"
+  },
+  {
+    "path": "fontawesome/webfonts/fa-brands-400.woff2",
+    "url": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/webfonts/fa-brands-400.woff2"
+  },
+  {
+    "path": "material-symbols/material-symbols-outlined.woff2",
+    "url": "https://fonts.gstatic.com/l/font?kit=kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsLjBuVYLBe0_J50BJIyidsFVuzSwh6Y0X4Avx7fjS_K1lLGrFWv5EAUOQ51NQQQa3Nzg9YjButJIKiy_F1RHiLZsraVRJTwQBIZsuS9IN7VtU0KvNx1zqPD99QIt8sk5gnTFmm8wuRKGuSFJzc&skey=b8dc2088854b122f&v=v369"
+  },
+  {
+    "path": "cloud.pardn.io/nanomd-pre-test-v1.js",
+    "url": "https://cloud.pardn.io/nanomd-pre-test-v1.js"
+  },
+  {
+    "path": "cloud.pardn.io/voice.js",
+    "url": "https://cloud.pardn.io/voice.js"
+  }
+]

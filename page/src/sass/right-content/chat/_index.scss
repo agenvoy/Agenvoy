@@ -23,7 +23,7 @@ body[data-rendered="1"] section.right-content section.chat {
     @media (min-width: 1280px) {
       &:not(:has(> div.subview:empty)) {
         > main {
-          width: 67%;
+          width: 50% !important;
           height: 100% !important;
           box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
         }
@@ -459,8 +459,8 @@ body[data-rendered="1"] section.right-content section.chat {
       position: absolute;
       display: flex;
       top: 0;
-      right: -33%;
-      width: 33%;
+      right: -50%;
+      width: 50%;
       height: 100%;
       box-shadow: -0.5rem 0 1rem -0.25rem #0000000f;
       background-color: #fff;

@@ -205,11 +205,12 @@ const (
 	TodoCompleted  = "completed"
 )
 
-func (e Event) MarshalJSON() ([]byte, error) {
-	type alias Event
-	shadow := alias(e)
-	if shadow.UsageInput == "" {
-		shadow.UsageInput = FormatInput(InputTotals(e.Usage))
+func DoneEvent(model string, usage *provider.Usage, duration time.Duration) Event {
+	return Event{
+		Type:       EventDone,
+		Model:      model,
+		Usage:      usage,
+		Duration:   duration,
+		UsageInput: FormatInput(InputTotals(usage)),
 	}
-	return json.Marshal(shadow)
 }
