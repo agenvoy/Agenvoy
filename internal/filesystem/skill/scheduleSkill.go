@@ -29,43 +29,22 @@ func ReadSchedule(name string) (string, error) {
 	return result, nil
 }
 
-type Schedule struct {
-	Name        string
-	Description string
-	Body        string
-}
-
-func LoadSchedule(name string) (Schedule, error) {
-	raw, err := ReadSchedule(name)
-	if err != nil {
-		return Schedule{}, err
+func WriteSchedule(name, body string) error {
+	if bodyRegex.MatchString(strings.TrimLeft(body, " \t\r\n")) {
+		return writeScheduleRaw(name, strings.TrimSpace(strings.TrimLeft(body, " \t\r\n"))+"\n")
 	}
 
-	out := Schedule{
-		Name: name,
-		Body: strings.TrimSpace(bodyRegex.ReplaceAllString(raw, "")),
-	}
-	if header, _, err := getFront([]byte(raw)); err == nil {
-		out.Description = getDescription(header)
-	}
-	return out, nil
-}
-
-func WriteSchedule(name, description, body string) error {
 	var sb strings.Builder
 	sb.WriteString("---\nname: ")
 	sb.WriteString(name)
 	sb.WriteString("\n")
-	if description = strings.TrimSpace(description); description != "" {
-		sb.WriteString("description: ")
-		sb.WriteString(description)
-		sb.WriteString("\n")
-	}
 	sb.WriteString("---\n\n")
 	sb.WriteString(strings.TrimSpace(body))
 	sb.WriteString("\n")
-	content := sb.String()
+	return writeScheduleRaw(name, sb.String())
+}
 
+func writeScheduleRaw(name, content string) error {
 	dir := filesystem.ScheduleSkillDir(name)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
 		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)

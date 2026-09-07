@@ -63,7 +63,8 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 	executeStart := time.Now()
 
 	events <- agentTypes.Event{
-		Type: agentTypes.EventAgentSelect,
+		Type:     agentTypes.EventAgentSelect,
+		TaskHash: pendingTask,
 	}
 
 	agent, fallbacks, err := ResolveAgent(ctx, bot, registry, routingInput, matchedSkill != nil, SkillHint(matchedSkill), sessionOverride)
@@ -71,8 +72,9 @@ func Run(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentReg
 		return fmt.Errorf("ResolveAgent: %w", err)
 	}
 	agentResult := agentTypes.Event{
-		Type: agentTypes.EventAgentResult,
-		Text: strings.TrimSpace(agent.Name()),
+		Type:     agentTypes.EventAgentResult,
+		Text:     strings.TrimSpace(agent.Name()),
+		TaskHash: pendingTask,
 	}
 	events <- agentResult
 	sessionLog.Record(sessionOverride, agentResult)

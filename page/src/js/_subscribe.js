@@ -92,9 +92,6 @@ function subscribe(sessionId) {
     if (streamWasDown) {
       streamWasDown = false;
       renderChatList();
-      for (const id of subscribedSessions) {
-        renderResumeMark(id);
-      }
     }
   };
   subscription.onerror = (err) => {
@@ -143,7 +140,10 @@ function parseEvent(event) {
   }
 
   if (event.type === "EventPending") {
-    renderResumeMark(sessionId);
+    setPaused(sessionId, true);
+    if (event.text) {
+      loadPending(sessionId, event.text);
+    }
     return;
   }
 
@@ -156,25 +156,38 @@ function parseEvent(event) {
     return;
   }
 
+  const task = event.task_hash || "";
   let view = streamOf(sessionId);
+  if (view && task && view.task && view.task !== task) {
+    view = null;
+  }
   if (!view) {
     if (event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError") return;
     if (!chatMessages(sessionId)) return;
-    view = newStreamItem({}, sessionId);
+    view = newStreamItem({ task: task }, sessionId);
     setStream(sessionId, view);
     if (active) {
       announced = false;
     }
   }
+  if (task && !view.task) {
+    view.task = task;
+  }
+  if (task && taskAwait.has(sessionId)) {
+    taskAwait.delete(sessionId);
+    writeTaskCookie(sessionId, task);
+    setInputTask(sessionId, task);
+  }
 
+  setPaused(sessionId, false);
   renderEvent(view, event);
 
   if (event.type === "EventCanceled" || event.type === "EventError") {
     setTask(sessionId, "");
+    setInputTask(sessionId, "");
     setStream(sessionId, null);
     clearTodo(sessionId);
     clearPending(sessionId);
-    renderResumeMark(sessionId);
     if (active) {
       clearTimeout(announceTimer);
       announceTimer = 0;
@@ -185,10 +198,10 @@ function parseEvent(event) {
 
   if (event.type === "EventDone") {
     setTask(sessionId, "");
+    setInputTask(sessionId, "");
     setStream(sessionId, null);
     clearTodo(sessionId);
     clearPending(sessionId);
-    renderResumeMark(sessionId);
     if (!active) {
       return;
     }

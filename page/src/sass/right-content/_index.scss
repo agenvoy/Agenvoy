@@ -21,7 +21,7 @@
   section.right-content {
     position: relative;
     height: 100%;
-    background-color: white;
+    background-color: #fff;
     overflow-x: hidden;
     transition: 0.2s;
     border-left: 1px solid var(--gray-2);
@@ -104,7 +104,7 @@ div.tool-confirm {
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(20, 97, 220, 0.15);
+      box-shadow: 0 0 0 3px var(--accent-light);
     }
   }
 
@@ -151,8 +151,8 @@ div.tool-confirm {
 
       &.abort {
         background-color: transparent;
-        border: 1px solid var(--red-5, #d33);
-        color: var(--red-5, #d33);
+        border: 1px solid var(--error);
+        color: var(--error);
       }
     }
   }

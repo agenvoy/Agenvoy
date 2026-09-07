@@ -1,8 +1,8 @@
 const feature = {
   Rules: "contract",
   Note: "book_2",
-  Skills: "lightbulb_2",
   Schedule: "schedule",
+  Skills: "lightbulb_2",
 };
 
 const configTab = {

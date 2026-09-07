@@ -42,7 +42,7 @@ graph LR
 
 ## Module: Agent Execution and Model Routing
 
-The runtime matches a request to a Skill when applicable, then uses the Skill description and task text to select the primary model and fallbacks. It separately configures the dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) roles. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. This enables task-aware model routing instead of one model handling every operation. For multi-provider setups, `gpt-oss-20b` through NVIDIA NIM can optionally act as a fast dispatcher.
+The runtime matches a request to a Skill when applicable, then uses the Skill description and task text to select the primary model and fallbacks. It separately configures the dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) roles. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. This enables task-aware model routing instead of one model handling every operation. For multi-provider setups, `nvidia/nemotron-3.5-lightning-30b-a3b` through NVIDIA NIM can optionally act as a fast dispatcher.
 
 ```mermaid
 graph TB

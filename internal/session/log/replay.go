@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	lineRegex     = regexp.MustCompile(`^\[([^\]]+)\]\[([^\]]*)\]\[([^\]]+)\]\s*(.*)$`)
+	lineRegex     = regexp.MustCompile(`^\[([^\]]+)\]\[([^\]]*)\]\[([^\]]+)\](?:\[([^\]]*)\])?\s*(.*)$`)
 	metaWrapRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n`)
 	cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 )
@@ -42,11 +42,11 @@ func RecentEvents(sessionID string, limit int) []agentTypes.Event {
 
 func ParseLine(line string) (agentTypes.Event, bool) {
 	m := lineRegex.FindStringSubmatch(line)
-	if len(m) < 5 {
+	if len(m) < 6 {
 		return agentTypes.Event{}, false
 	}
 	kind := m[3]
-	body := strings.ReplaceAll(m[4], ActionNewlineMarker, "\n")
+	body := strings.ReplaceAll(m[5], ActionNewlineMarker, "\n")
 
 	switch kind {
 	case "user", "steer":

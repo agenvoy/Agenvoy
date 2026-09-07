@@ -47,6 +47,9 @@ func parseActionLine(raw string) (parsedAction, bool) {
 		hash = mid
 		kind = third
 		rest = after
+		if _, tail, ok := cutBracket(rest); ok {
+			rest = tail
+		}
 	} else {
 		hash = sessionTUI.Default
 		kind = mid

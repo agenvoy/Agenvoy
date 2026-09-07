@@ -38,7 +38,6 @@ function renderEvent(view, event) {
   }
 
   if (type === "EventCanceled") {
-    view.stop?.remove();
     view.think.open = false;
     const canceled = assistantFooter({
       send_at: sendAt(),
@@ -57,7 +56,6 @@ function renderEvent(view, event) {
   }
 
   if (type === "EventDone") {
-    view.stop?.remove();
     view.think.open = false;
     delete view.think.dataset.streaming;
     const usage = event.usage || {};
@@ -104,7 +102,6 @@ function renderReasoning(view, line) {
   view.think.hidden = false;
   view.resumed = Boolean(view.text);
   render(view.reasoning, view.trace, view.session);
-  view.reasoning.scrollTop = view.reasoning.scrollHeight;
 }
 
 function renderSuggest(view) {

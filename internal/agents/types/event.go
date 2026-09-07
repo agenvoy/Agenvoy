@@ -167,6 +167,7 @@ func (e EventType) String() string {
 type Event struct {
 	Type            EventType           `json:"type"`
 	OnceID          string              `json:"once_id,omitempty"`
+	TaskHash        string              `json:"task_hash,omitempty"`
 	Source          string              `json:"source,omitempty"`
 	Text            string              `json:"text,omitempty"`
 	ToolName        string              `json:"tool_name,omitempty"`

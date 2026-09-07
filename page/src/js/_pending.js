@@ -32,6 +32,7 @@ async function loadPending(sessionId, taskHash) {
     dom.appendChild(pendingCard(questions[i], i, questions.length));
   }
   dom.dataset.index = "0";
+  setInputTask(sessionId, taskHash);
   scrollToBottom(true, sessionId);
 }
 
@@ -138,8 +139,24 @@ function answerPending(index, total) {
   resumePending(task, answers);
 }
 
+async function cancelPending(sessionId) {
+  if (!pendingTask || pendingTask.sessionId !== sessionId) {
+    return;
+  }
+  const taskHash = pendingTask.taskHash;
+  if (!confirm("Cancel this task?")) {
+    return;
+  }
+  clearPending(sessionId);
+  setInputTask(sessionId, "");
+  clearTaskCookie(sessionId);
+  await deletePending(sessionId, taskHash);
+}
+
 async function resumePending(task, answers) {
   const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/task/${encodeURIComponent(task.taskHash)}/resume`;
+  writeTaskCookie(task.sessionId, task.taskHash);
+  setInputTask(task.sessionId, task.taskHash);
 
   try {
     const response = await fetch(url, {
@@ -190,92 +207,61 @@ async function deletePending(sessionId, taskHash) {
   return true;
 }
 
-async function renderResumeMark(sessionId) {
-  const panel = chatPanel(sessionId);
-  const dom = panel ? panel.querySelector(":scope > header button[data-has]") : null;
+function clearPendingHint(sessionId) {
+  const dom = chatPart("pending", sessionId);
   if (!dom) {
     return;
   }
+  for (const old of dom.querySelectorAll(":scope > button.hint")) {
+    old.remove();
+  }
+}
 
-  dom.dataset.has = "0";
-  if (!sessionId) {
+function hintBlocked(sessionId) {
+  const dom = chatPart("pending", sessionId);
+  const confirmDom = chatPart("confirm", sessionId);
+  return !dom || dom.childElementCount > 0 || (confirmDom && confirmDom.childElementCount > 0);
+}
+
+async function renderPendingHint(sessionId) {
+  if (!sessionId || hintBlocked(sessionId)) {
     return;
   }
 
   const tasks = await listResumable(sessionId);
-  if (tasks.length > 0) {
-    dom.dataset.has = "1";
+  const mine = readTaskCookie();
+  if (mine && mine.session === sessionId) {
+    const own = tasks.find((one) => one.task_hash === mine.task);
+    if (!own) {
+      clearTaskCookie(sessionId);
+    } else if (own.has_questions) {
+      loadPending(sessionId, own.task_hash);
+      return;
+    }
   }
-}
-
-async function openResumePicker(sessionId) {
-  const sid = sessionId || currentSessionId;
-  if (!sid) {
+  if (tasks.length === 0 || hintBlocked(sessionId)) {
     return;
   }
 
-  const list = _("div.list");
-  const cancel = _("button", { type: "button" }, "cancel");
-  const root = _("div.popup", [_("div.panel", [_("strong", "Pending"), list, _("footer", [cancel])])]);
-  root.id = "resume-popup";
-
-  const close = () => root.remove();
-  cancel.addEventListener("click", close);
-  root.addEventListener("click", (e) => {
-    if (e.target === root) close();
-  });
-  document.body.appendChild(root);
-
-  const tasks = await listResumable(sid);
-  if (!root.isConnected) {
-    return;
-  }
-
-  if (tasks.length === 0) {
-    list.appendChild(_("p.empty", "none yet · every task in this chat is finished or still running"));
-    return;
-  }
-
+  const dom = chatPart("pending", sessionId);
   for (const one of tasks) {
     const title = String(one.objective || "").replace(/\s+/g, " ").trim() || one.task_hash;
-    const box = _("input", { type: "radio", name: "resume-pick", value: one.task_hash });
-
-    box.addEventListener("change", () => {
-      box.checked = false;
+    const dot = _("button", { type: "button", class: "hint" }, [
+      _("span.material-symbols-outlined", "live_help"),
+      _("p", title),
+    ]);
+    dot.addEventListener("click", () => {
+      writeTaskCookie(sessionId, one.task_hash);
       if (one.has_questions) {
-        close();
-        loadPending(sid, one.task_hash);
+        loadPending(sessionId, one.task_hash);
         return;
       }
       if (!confirm(`Resume in this chat?\n\n${title}`)) {
         return;
       }
-      close();
-      startResume(sid, one.task_hash);
+      startResume(sessionId, one.task_hash);
     });
-
-    const remove = _("button", { type: "button", class: "remove" }, [
-      _("span.material-symbols-outlined", "delete"),
-    ]);
-    remove.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!confirm(`Discard this pending task?\n\n${title}`)) {
-        return;
-      }
-      if (!(await deletePending(sid, one.task_hash))) {
-        return;
-      }
-      row.remove();
-      renderResumeMark(sid);
-      if (!list.querySelector("label")) {
-        list.appendChild(_("p.empty", "none yet · every task in this chat is finished or still running"));
-      }
-    });
-
-    const hint = one.has_questions ? "waiting on questions · opens them here to answer" : "interrupted run · continues where it stopped";
-    const row = _("label", [box, _("div", [_("strong", title), _("p", hint)]), remove]);
-    list.appendChild(row);
+    dom.appendChild(dot);
   }
 }
 
