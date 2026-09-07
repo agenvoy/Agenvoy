@@ -29,7 +29,7 @@ func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessio
 
 func sendEmptyData(events chan<- agentTypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time) {
 	sendText(events, emptyDataReply)
-	events <- agentTypes.Event{Type: agentTypes.EventDone, Model: model, Usage: usage, Duration: time.Since(start)}
+	events <- agentTypes.DoneEvent(model, usage, time.Since(start))
 	interactive.FinalizePending(sessionID, taskHash, emptyDataReply)
 }
 

@@ -255,8 +255,10 @@ async function openFileInSubview(path) {
   const frame = _("iframe.body", { title: path });
   const close = _("button", { name: "Close" }, [_("span.material-symbols-outlined", "right_panel_open")]);
   close.addEventListener("click", closeSubview);
+  const open = _("button", { name: "Open with system app" }, [_("span.material-symbols-outlined", "open_in_new")]);
+  open.addEventListener("click", () => openAgenvoyFile(path));
   box.innerHTML = "";
-  box.appendChild(_("article", [_("header", [close, _("p", `\u200E${path}`)]), frame]));
+  box.appendChild(_("article", [_("header", [close, _("p", `\u200E${path}`), open]), frame]));
 
   const ext = pathExtension(path);
   if (PAGE_EXTENSION.includes(ext)) {
@@ -282,7 +284,7 @@ function escapeSubviewText(text) {
 }
 
 function subviewDocument(body) {
-  return `<!doctype html><html><head><meta charset="utf-8"><base href="${location.origin}${location.pathname}"><link rel="stylesheet" href="public/subview.css"></head><body>${body}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><base href="${location.origin}${location.pathname}"><link rel="stylesheet" href="public/index.css"></head><body class="subview">${body}</body></html>`;
 }
 
 function openPath(path) {

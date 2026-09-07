@@ -1,4 +1,4 @@
-const LESSON_LIST_LIMIT = 50;
+const LESSON_LIST_LIMIT = 200;
 const LESSON_PAGE_SIZE = 10;
 const LESSON_OUTCOMES = [
   ["All", ""],

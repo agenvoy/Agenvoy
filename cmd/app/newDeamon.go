@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"syscall"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 )
 
 func newDaemon() error {
@@ -49,24 +47,4 @@ func newDaemon() error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return fmt.Errorf("daemon did not become ready within 10s; check %s", filesystem.DaemonLogPath)
-}
-
-func waitDaemonReady(ctx context.Context, timeout time.Duration, tick func(time.Duration)) error {
-	var last error
-	start := time.Now()
-	deadline := start.Add(timeout)
-	for {
-		if _, err := daemon.Get[map[string]any](ctx, "/v1/info/version", nil); err != nil {
-			last = fmt.Errorf("http: %w", err)
-		} else {
-			return nil
-		}
-		if !time.Now().Before(deadline) {
-			return last
-		}
-		if tick != nil {
-			tick(time.Since(start))
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
 }

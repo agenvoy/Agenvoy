@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", async function () {
   revealIconsWhenReady();
+  watchServer();
 
   const config = readConfig();
   let params = praseURL();
@@ -457,4 +458,12 @@ function revealIconsWhenReady() {
   document.fonts.ready
     .then(() => document.fonts.load('24px "Material Symbols Outlined"'))
     .finally(reveal);
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function (err) {
+      console.error(err);
+    });
+  });
 }
