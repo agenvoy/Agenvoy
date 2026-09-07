@@ -3,6 +3,8 @@ name: extension-upload
 description: Package a script tool under ~/.config/agenvoy/tools/script/ into a tar.gz and publish to pkg.agenvoy.com registry. Keyword picker, dep/key detection, config-stored email (ask + lowercase + persist), ask version, email verification gate, multipart upload with downgrade/unique guards.
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Extension Uploader
 
 Packages an Agenvoy script tool directory into a marketplace tarball and uploads it to pkg.agenvoy.com. The source root is fixed at `~/.config/agenvoy/tools/script/`. If the user provides a keyword (e.g. `yt`), only matching subdirectories are listed.
@@ -161,12 +163,12 @@ Call `ask_user`. Put the detection list in the `detail` field (hint-style subtit
 
 ### 4. Take `name` and `summary` from tool.json
 
-Use `tool.json` as the source of truth — **do not** ask_user to confirm:
+`tool.json` is the source of truth for these fields:
 
 - `manifest.name` = `tool.json::name` verbatim
 - `manifest.summary` = first line of `tool.json::description`, truncated to 120 chars
 
-If either fails §6 validation (name pattern / summary length), §6 will ask_user to fix. Do not prompt proactively here.
+If either fails §6 validation (name pattern / summary length), §6 handles it with `ask_user`.
 
 ### 4.5 Ask version
 
@@ -295,7 +297,7 @@ If `tar` is blocked, tell the user:
 
 ### 8. Upload to pkg.agenvoy.com (registry)
 
-Fixed endpoint: `https://pkg.agenvoy.com/upload` (**do not** let the user change the URL; **never** `ask_user` for an endpoint).
+Fixed endpoint: `https://pkg.agenvoy.com/upload` — it is not configurable.
 
 `manifest.email` is the registration email (pure email string); keep it for the §9 report. `read_file` `<extension_dir>/manifest.json` to obtain the **full JSON string** for `fields.manifest` below (the worker will `JSON.parse(manifest)` and re-validate).
 
@@ -350,7 +352,7 @@ A verification code was sent to <email> (valid 60s). Enter the 6-digit code:
 
 If blank or not 6 digits → re-prompt up to 3 times; abort with "verification code format invalid, upload cancelled".
 
-**Do not** swap `ask_user` for code guessing / pre-fill / `popupSecret` — the code is not a secret, expires in 60s, and plaintext echo helps the user paste it correctly.
+Collect the code with `ask_user`; guessing / pre-fill / `popupSecret` are not substitutes — the code is not a secret, expires in 60s, and plaintext echo helps the user paste it correctly.
 
 #### 8.3 Second POST with the code
 
@@ -428,16 +430,16 @@ Upload-stage failure (§8.1 / §8.2 / §8.3) → show `✅ packaged` plus `❌ p
 - Never lower §6 standards by accepting `1.0`, `v1.0.0`, `1.0.0-beta` etc.
 - Never skip §1.5 or §2.5 structure checks (tool.json must exist, script.py and script.js are mutually exclusive, type:script requires a script)
 - Never bypass the §0 picker by guessing `extension_dir`; the source root is **fixed** at `~/.config/agenvoy/tools/script/` — do not scan `.extension/` / `api/` / anywhere else
-- Never force `ask_user` to collect a keyword when the skill is invoked without one — list all subdirectories directly (the user explicitly wants to browse everything)
+- Invoked without a keyword → skip `ask_user` — list all subdirectories directly (the user explicitly wants to browse everything)
 - Never fall back to "list everything" when a provided keyword yields zero hits — abort and ask for a more precise keyword
-- Never override §2 `type` via path inference or `ask_user`; this skill only packages `type:script`
+- This skill only packages `type:script`; §2 `type` is fixed
 - Never skip §2.7 health check; a syntax failure means the tool is broken — shipping it would crash on install
 - Never replace `py_compile` / `node --check` in §2.7 with "run the whole script" — top-level reads on stdin would hang
-- Never `ask_user` for `name` or `summary` in §4; `tool.json` is the source of truth, §6 handles validation fallback
+- `name` and `summary` in §4 come from `tool.json`; §6 handles the validation fallback
 - Never skip §4.5; the user must confirm `version` in the main flow — do not hardcode `1.0.0` or rely on §6 fallback
 - Never accept `v` prefix, pre-release suffix, or build metadata (`+sha`) in §4.5; strict `^\d+\.\d+\.\d+$`
 - Never treat a blank reply as an error in §4.5; blank = "use default", accept directly and do not re-prompt
-- Never change the §8 endpoint `https://pkg.agenvoy.com/upload`; do not `ask_user` for a URL or fall back to staging / custom domains
+- The §8 endpoint is fixed at `https://pkg.agenvoy.com/upload`; staging / custom domains are not options
 - Never skip the first §8.1 POST (the one that triggers the email) and jump to §8.3 with a guessed code; the code must come from the worker email and be entered by the user
 - Never use `popupSecret` to collect the code in §8.2; the code is not a secret, expires in 60s, plaintext echo helps the user paste it
 - Never use `run_command` with `curl` / `wget`; uploads must use `http_request` with `content_type=multipart`, binary read from `files[].path`

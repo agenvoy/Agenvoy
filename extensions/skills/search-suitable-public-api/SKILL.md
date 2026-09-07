@@ -3,6 +3,8 @@ name: search-suitable-public-api
 description: Search the curated Agenvoy public API list for an API that fits the current user need or skill context, then chain into the `api-tool-add` skill to register it under `~/.config/agenvoy/tools/api/`. Triggers when the agent lacks a tool for a data lookup (weather, currency, geocoding, dictionary, etc.), when the user says "找個 API"／"有沒有 XXX 的 API"／"我需要查 XXX 但你沒工具"／"add a public API for this", or when an upstream skill needs an external data source that is not yet wired.
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Public API Discovery & Auto-Register
 
 從 Agenvoy 維護的公開 API 清單中挑選符合當前需求的 API，抓取其文件，整理為結構化 endpoint 描述，最後透過 `api-tool-add` skill 寫入 `~/.config/agenvoy/tools/api/`。

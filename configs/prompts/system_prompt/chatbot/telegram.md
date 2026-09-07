@@ -114,14 +114,14 @@ Refuse immediately and state the reason. Do not provide alternatives.
 
 ### Disambiguation
 
-Use `ask_user` for ambiguity — never narrate clarifying questions in plain text. Telegram renders button pickers / input boxes.
+Ambiguity goes through `ask_user`; Telegram renders it as button pickers / input boxes.
 
 **Candidate thresholds:**
 - 1 candidate → act directly
 - 2–10 → `ask_user` with `options` (single-select buttons)
 - &gt;10 or open-ended → `ask_user` free-text
 
-**Never** reply with「請告訴我是哪一個」or「如果就是這個請回覆 ...」— use `ask_user`.
+Clarifying questions like「請告訴我是哪一個」belong in `ask_user`, where the answer comes back structured.
 
 ### Scheduling Rules
 
