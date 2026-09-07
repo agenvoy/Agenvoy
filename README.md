@@ -230,7 +230,7 @@ A cost-effective model setup to get started:
 1. Choose a subscription model for everyday primary use, such as:
    - OpenAI ChatGPT Plus ($20/mo)
    - SuperGrok ($30/mo)
-2. **If you need multiple providers**, you can apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token and set `gpt-oss-20b` as the **dispatcher** model. This enables intelligent routing with fast responses.
+2. **If you need multiple providers**, you can apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token and set `nvidia/nemotron-3.5-lightning-30b-a3b` — free to use there — as the **dispatcher** model. This enables intelligent routing with fast responses at no cost.
 
 ---
 
