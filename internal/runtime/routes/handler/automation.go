@@ -102,7 +102,6 @@ func ListSchedules() gin.HandlerFunc {
 type scheduleBody struct {
 	Type        string   `json:"type"`
 	Name        string   `json:"name"`
-	Description string   `json:"description"`
 	Content     string   `json:"content"`
 	SessionID   string   `json:"session_id"`
 	Expressions []string `json:"expressions"`
@@ -240,7 +239,7 @@ func writeSchedule(c *gin.Context, exists bool) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if err := skill.WriteSchedule(body.Name, body.Description, body.Content); err != nil {
+	if err := skill.WriteSchedule(body.Name, body.Content); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
