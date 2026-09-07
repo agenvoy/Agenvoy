@@ -16,15 +16,78 @@ let currentSessionId = "";
 const streamViews = new Map();
 const taskIds = new Map();
 
-function showStop(sessionId, show) {
-  const view = streamOf(sessionId);
-  if (!view) {
+const TASK_COOKIE = "agenvoy_task";
+const taskAwait = new Set();
+
+function readTaskCookie() {
+  const hit = document.cookie.split("; ").find((one) => one.startsWith(TASK_COOKIE + "="));
+  if (!hit) {
+    return null;
+  }
+  const [session, task] = decodeURIComponent(hit.slice(TASK_COOKIE.length + 1)).split("|");
+  return session && task ? { session: session, task: task } : null;
+}
+
+function writeTaskCookie(sessionId, taskHash) {
+  if (!sessionId || !taskHash) {
     return;
   }
-  view.paused = !show;
-  if (view.stop) {
-    view.stop.hidden = !show;
+  const value = encodeURIComponent(sessionId + "|" + taskHash);
+  document.cookie = `${TASK_COOKIE}=${value}; path=/; max-age=604800; samesite=lax`;
+  renderSendMode(sessionId);
+}
+
+function clearTaskCookie(sessionId) {
+  document.cookie = `${TASK_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  renderSendMode(sessionId);
+}
+
+const inputTasks = new Map();
+
+function setInputTask(sessionId, taskHash) {
+  const id = sessionId || currentSessionId;
+  if (!id) {
+    return;
   }
+  if (taskHash) {
+    inputTasks.set(id, taskHash);
+  } else {
+    inputTasks.delete(id);
+  }
+  renderSendMode(id);
+}
+
+function setPaused(sessionId, paused) {
+  const view = streamOf(sessionId);
+  if (!view || view.paused === paused) {
+    return;
+  }
+  view.paused = paused;
+}
+
+function renderSendMode(sessionId) {
+  const panel = chatPanel(sessionId);
+  const input = panel ? panel.querySelector(":scope > div.input") : null;
+  if (!input) {
+    return;
+  }
+
+  const hash = inputTasks.get(sessionId || currentSessionId) || "";
+  if (hash) {
+    input.dataset.taskid = hash;
+  } else {
+    delete input.dataset.taskid;
+  }
+
+  const dom = input.querySelector("button.send");
+  if (!dom) {
+    return;
+  }
+  const box = input.querySelector("textarea");
+  const stop = hash !== "" && (!box || box.value.trim() === "");
+  dom.dataset.mode = stop ? "stop" : "send";
+  dom.setAttribute("name", stop ? "Cancel" : "Send");
+  dom.querySelector("span").textContent = stop ? "stop" : "send";
 }
 
 function streamOf(sessionId) {
@@ -146,6 +209,7 @@ async function send(content, target) {
     setStream(sessionId, newStreamItem({}, sessionId));
     clearTodo(sessionId);
   }
+  taskAwait.add(sessionId);
   pushEcho(sessionId, content);
   scrollToBottom(true, sessionId);
 
@@ -228,6 +292,7 @@ function setSession(sessionId) {
   url.searchParams.set("page", "chat");
   url.searchParams.set("chat", sessionId);
   history.replaceState({}, "", url);
+  renderSendMode(sessionId);
 }
 
 function atBottom(sessionId) {
@@ -318,9 +383,7 @@ function newStreamItem(init, sessionId) {
   const source = sourceBox(init.text || "");
   const files = fileBox([]);
   const footer = _("footer");
-  const stop = _("button.stop", { type: "button" }, [_("span.material-symbols-outlined", "stop"), _("p", "cancel")]);
-  stop.addEventListener("click", () => stopRunning(sid));
-  const body = _("section", [model, think, answer, source, files, footer, stop]);
+  const body = _("section", [model, think, answer, source, files, footer]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
 
   chatMessages(sid).appendChild(dom);
@@ -336,7 +399,6 @@ function newStreamItem(init, sessionId) {
     source: source,
     files: files,
     footer: footer,
-    stop: stop,
     text: init.text || "",
     answered: false,
     streamed: false,

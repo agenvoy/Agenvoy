@@ -140,7 +140,7 @@ function parseEvent(event) {
   }
 
   if (event.type === "EventPending") {
-    showStop(sessionId, false);
+    setPaused(sessionId, true);
     if (event.text) {
       loadPending(sessionId, event.text);
     }
@@ -173,12 +173,18 @@ function parseEvent(event) {
   if (task && !view.task) {
     view.task = task;
   }
+  if (task && taskAwait.has(sessionId)) {
+    taskAwait.delete(sessionId);
+    writeTaskCookie(sessionId, task);
+    setInputTask(sessionId, task);
+  }
 
-  showStop(sessionId, true);
+  setPaused(sessionId, false);
   renderEvent(view, event);
 
   if (event.type === "EventCanceled" || event.type === "EventError") {
     setTask(sessionId, "");
+    setInputTask(sessionId, "");
     setStream(sessionId, null);
     clearTodo(sessionId);
     clearPending(sessionId);
@@ -192,6 +198,7 @@ function parseEvent(event) {
 
   if (event.type === "EventDone") {
     setTask(sessionId, "");
+    setInputTask(sessionId, "");
     setStream(sessionId, null);
     clearTodo(sessionId);
     clearPending(sessionId);

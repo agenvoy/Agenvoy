@@ -159,7 +159,7 @@ div.popup {
   justify-content: center;
   align-items: center;
   padding: 1rem;
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: #0000001a;
 
   > div.panel {
     display: flex;
@@ -172,8 +172,8 @@ div.popup {
     min-height: 0;
     overflow: hidden;
     border-radius: 0.75rem;
-    background-color: white;
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.18);
+    background-color: #fff;
+    box-shadow: 0 1rem 3rem #0000001a;
 
     > strong {
       font-size: small;
@@ -201,7 +201,7 @@ div.popup {
       overflow: hidden;
 
       &:has(textarea[data-dragging]) {
-        border: 1px dashed #000;
+        border: 1px dashed var(--black);
       }
 
       pre,
@@ -365,11 +365,11 @@ div.popup {
 
         &.submit {
           background-color: var(--black);
-          color: white;
+          color: #fff;
 
           @media (hover: hover) {
             &:hover {
-              color: white;
+              color: #fff;
               opacity: 0.85;
             }
           }

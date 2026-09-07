@@ -283,9 +283,6 @@ async function renderChat(sessionId) {
       );
       if (item.paused) {
         view.paused = true;
-        if (view.stop) {
-          view.stop.hidden = true;
-        }
       }
       setStream(sessionId, view);
       renderTodo(item.todos, sessionId);

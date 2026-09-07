@@ -25,7 +25,7 @@ body[data-rendered="1"] section.right-content section.chat {
         > main {
           width: 50% !important;
           height: 100% !important;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -75,7 +75,7 @@ body[data-rendered="1"] section.right-content section.chat {
       &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
         > main {
           width: 67%;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -88,7 +88,7 @@ body[data-rendered="1"] section.right-content section.chat {
           position: absolute;
           left: 0;
           width: 67%;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -113,7 +113,7 @@ body[data-rendered="1"] section.right-content section.chat {
           position: absolute;
           left: 0;
           width: 67%;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -176,7 +176,7 @@ body[data-rendered="1"] section.right-content section.chat {
       &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
         > main {
           width: 67%;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -190,7 +190,7 @@ body[data-rendered="1"] section.right-content section.chat {
           left: 0;
           bottom: 0;
           height: 67%;
-          box-shadow: 0 -0.5rem 1rem -0.25rem #0000000f;
+          box-shadow: 0 -0.5rem 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -217,7 +217,7 @@ body[data-rendered="1"] section.right-content section.chat {
           left: 0;
           bottom: 0;
           height: 67%;
-          box-shadow: 0 -0.5rem 1rem -0.25rem #0000000f;
+          box-shadow: 0 -0.5rem 1rem -0.25rem #0000001a;
         }
 
         > section {
@@ -338,7 +338,7 @@ body[data-rendered="1"] section.right-content section.chat {
           display: block;
           width: 1px;
           height: 0.75rem;
-          background-color: #000;
+          background-color: var(--black);
         }
 
         button {
@@ -377,7 +377,7 @@ body[data-rendered="1"] section.right-content section.chat {
             left: -0.25rem;
             width: 2rem;
             height: 2rem;
-            background-color: #0000001d;
+            background-color: #0000001a;
             border-radius: 50%;
             opacity: 0;
             transition: 0.2s;
@@ -394,7 +394,7 @@ body[data-rendered="1"] section.right-content section.chat {
             font-size: x-small;
             white-space: nowrap;
             color: #fff;
-            background-color: #000;
+            background-color: var(--black);
             border-radius: 0.625rem;
             opacity: 0;
             pointer-events: none;
@@ -461,7 +461,7 @@ body[data-rendered="1"] section.right-content section.chat {
       right: -50%;
       width: 50%;
       height: 100%;
-      box-shadow: -0.5rem 0 1rem -0.25rem #0000000f;
+      box-shadow: -0.5rem 0 1rem -0.25rem #0000001a;
       background-color: #fff;
 
       > article {
@@ -477,7 +477,7 @@ body[data-rendered="1"] section.right-content section.chat {
           gap: 0.5rem;
           flex-shrink: 0;
           padding: 0.75rem 1rem;
-          border-bottom: 1px solid #0000000f;
+          border-bottom: 1px solid #0000001a;
 
           > p {
             flex: 1;
@@ -509,7 +509,7 @@ body[data-rendered="1"] section.right-content section.chat {
 
             @media (hover: hover) {
               &:hover {
-                background-color: #0000000a;
+                background-color: #0000001a;
               }
             }
           }
