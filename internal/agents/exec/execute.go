@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
@@ -105,6 +106,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	defer execCancel()
 
 	var onceID string
+	var runTaskHash *atomic.Pointer[string]
 	if session.ID != "" {
 		onceID = go_pkg_utils.UUID()
 		registerCancel(onceID, execCancel)
@@ -131,6 +133,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
 		stateless := session.Stateless
+		runTaskHash = &atomic.Pointer[string]{}
+		taskHashRef := runTaskHash
 		go func() {
 			defer close(done)
 			defer func() {
@@ -143,6 +147,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			for ev := range fanoutEvents {
 				if ev.OnceID == "" && ev.Source == "" {
 					ev.OnceID = runOnceID
+				}
+				if ev.TaskHash == "" && ev.Source == "" {
+					if h := taskHashRef.Load(); h != nil {
+						ev.TaskHash = *h
+					}
 				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
@@ -246,6 +255,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
+		if runTaskHash != nil {
+			hash := exec.PendingTask
+			runTaskHash.Store(&hash)
+		}
 	}
 
 	if data.Skill != nil {

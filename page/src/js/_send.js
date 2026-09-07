@@ -15,6 +15,17 @@ let currentSessionId = "";
 const streamViews = new Map();
 const taskIds = new Map();
 
+function showStop(sessionId, show) {
+  const view = streamOf(sessionId);
+  if (!view) {
+    return;
+  }
+  view.paused = !show;
+  if (view.stop) {
+    view.stop.hidden = !show;
+  }
+}
+
 function streamOf(sessionId) {
   return streamViews.get(sessionId || currentSessionId) || null;
 }
@@ -126,7 +137,8 @@ async function send(content, target) {
 
   const dom = chatMessages(sessionId);
   clearPending(sessionId);
-  if (streamOf(sessionId)) {
+  const running = streamOf(sessionId);
+  if (running && !running.paused) {
     appendUserText(dom, content);
   } else {
     dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
@@ -314,6 +326,7 @@ function newStreamItem(init, sessionId) {
 
   const view = {
     session: sid,
+    task: init.task || "",
     body: body,
     model: model,
     think: think,

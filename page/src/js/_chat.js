@@ -272,7 +272,17 @@ async function renderChat(sessionId) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.rule === "assistant" && i === items.length - 1) {
-      setStream(sessionId, newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content }, sessionId));
+      const view = newStreamItem(
+        { model: item.meta.model, trace: item.Reasoning, text: item.content, task: item.task },
+        sessionId,
+      );
+      if (item.paused) {
+        view.paused = true;
+        if (view.stop) {
+          view.stop.hidden = true;
+        }
+      }
+      setStream(sessionId, view);
       renderTodo(item.todos, sessionId);
       continue;
     }

@@ -138,8 +138,15 @@ body[data-rendered="1"] section.right-content section.feature {
       form#skill-form:not([data-editing="1"]) > span,
       form#skill-form:not([data-editing="1"]) > input,
       form#skill-form:not([data-editing="1"]) > textarea,
+      form#skill-form:not([data-editing="1"]) > nav,
       form#skill-form:not([data-editing="1"]) > footer {
         display: none;
+      }
+
+      form#skill-form > nav.tab,
+      form#schedule-form > nav.tab {
+        flex-flow: row wrap;
+        gap: 0.5rem;
       }
 
       form#schedule-form > select {

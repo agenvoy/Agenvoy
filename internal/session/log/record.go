@@ -27,7 +27,7 @@ func Append(sessionID, str string) {
 	if str == "" {
 		return
 	}
-	appendAction(sessionID, withTimestamp("user", flatten(str)))
+	appendAction(sessionID, withTimestamp("user", "", flatten(str)))
 }
 
 func Steer(sessionID, str string) {
@@ -36,7 +36,7 @@ func Steer(sessionID, str string) {
 		return
 	}
 	flushAssistant(sessionID, agentTypes.Event{})
-	appendAction(sessionID, withTimestamp("steer", flatten(str)))
+	appendAction(sessionID, withTimestamp("steer", "", flatten(str)))
 }
 
 func Record(sessionID string, event agentTypes.Event) {
@@ -98,7 +98,7 @@ func flushAssistant(sessionID string, event agentTypes.Event) {
 		return
 	}
 
-	line := withTimestamp("assistant", flatten(full))
+	line := withTimestamp("assistant", event.TaskHash, flatten(full))
 	appendAction(sessionID, line)
 }
 

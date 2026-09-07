@@ -1,4 +1,4 @@
-const ACTION_LINE = /^\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s?([\s\S]*)$/;
+const ACTION_LINE = /^\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\](?:\[([^\]]*)\])?\s?([\s\S]*)$/;
 const ACTION_NEWLINE = "\u001f";
 const DURATION_UNIT = { ns: 1e-6, us: 1e-3, "\u00b5s": 1e-3, ms: 1, s: 1000, m: 60000, h: 3600000 };
 
@@ -22,7 +22,15 @@ function parseActionLog(content) {
 
     const sendAt = match[1].slice(0, 16);
     const kind = match[3];
-    const body = match[4].split(ACTION_NEWLINE).join("\n").trim();
+    const task = match[4] || "";
+    const body = match[5].split(ACTION_NEWLINE).join("\n").trim();
+
+    if (pending && task && pending.task && pending.task !== task) {
+      close();
+    }
+    if (pending && kind !== "pending") {
+      pending.paused = false;
+    }
 
     switch (kind) {
       case "user":
@@ -95,6 +103,12 @@ function parseActionLog(content) {
         break;
       }
 
+      case "pending":
+        if (pending) {
+          pending.paused = true;
+        }
+        break;
+
       case "skill_result":
         pending = pending || logItem(sendAt);
         pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + "⏵ skill `" + body + "`";
@@ -138,6 +152,10 @@ function parseActionLog(content) {
         break;
       }
     }
+
+    if (pending && task && !pending.task) {
+      pending.task = task;
+    }
   }
   close();
 
@@ -147,6 +165,7 @@ function parseActionLog(content) {
 function logItem(sendAt) {
   return {
     rule: "assistant",
+    task: "",
     content: "",
     Reasoning: "",
     files: [],

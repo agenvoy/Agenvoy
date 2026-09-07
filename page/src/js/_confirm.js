@@ -64,6 +64,7 @@ function renderToolConfirm(event, sessionId) {
   if (!requestId || !dom) {
     return;
   }
+  clearPendingHint(sessionId);
   if (dom.querySelector(`div.tool-confirm[data-id="${requestId}"]`)) {
     return;
   }

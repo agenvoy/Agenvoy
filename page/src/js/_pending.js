@@ -190,21 +190,50 @@ async function deletePending(sessionId, taskHash) {
   return true;
 }
 
-async function renderResumeMark(sessionId) {
-  const panel = chatPanel(sessionId);
-  const dom = panel ? panel.querySelector(":scope > header button[data-has]") : null;
+function clearPendingHint(sessionId) {
+  const dom = chatPart("pending", sessionId);
   if (!dom) {
     return;
   }
+  for (const old of dom.querySelectorAll(":scope > button.hint")) {
+    old.remove();
+  }
+}
 
-  dom.dataset.has = "0";
-  if (!sessionId) {
+function hintBlocked(sessionId) {
+  const dom = chatPart("pending", sessionId);
+  const confirmDom = chatPart("confirm", sessionId);
+  return !dom || dom.childElementCount > 0 || (confirmDom && confirmDom.childElementCount > 0);
+}
+
+async function renderPendingHint(sessionId) {
+  if (!sessionId || hintBlocked(sessionId)) {
     return;
   }
 
   const tasks = await listResumable(sessionId);
-  if (tasks.length > 0) {
-    dom.dataset.has = "1";
+  if (tasks.length === 0 || hintBlocked(sessionId)) {
+    return;
+  }
+
+  const dom = chatPart("pending", sessionId);
+  for (const one of tasks) {
+    const title = String(one.objective || "").replace(/\s+/g, " ").trim() || one.task_hash;
+    const dot = _("button", { type: "button", class: "hint" }, [
+      _("span.material-symbols-outlined", "live_help"),
+      _("p", title),
+    ]);
+    dot.addEventListener("click", () => {
+      if (one.has_questions) {
+        loadPending(sessionId, one.task_hash);
+        return;
+      }
+      if (!confirm(`Resume in this chat?\n\n${title}`)) {
+        return;
+      }
+      startResume(sessionId, one.task_hash);
+    });
+    dom.appendChild(dot);
   }
 }
 
@@ -267,7 +296,6 @@ async function openResumePicker(sessionId) {
         return;
       }
       row.remove();
-      renderResumeMark(sid);
       if (!list.querySelector("label")) {
         list.appendChild(_("p.empty", "none yet · every task in this chat is finished or still running"));
       }

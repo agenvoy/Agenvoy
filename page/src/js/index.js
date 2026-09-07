@@ -220,9 +220,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       memory_pick: function () {
         openMemoryPicker(panelSession(this) || currentSessionId);
       },
-      resume_pick: function () {
-        openResumePicker(panelSession(this));
-      },
       style_switch: function () {
         const style = this.dataset.style;
         const chat = $("section.chat");
@@ -349,11 +346,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           getRuleList();
           renderWorkDirMark();
           renderChat(params.chat);
-          renderResumeMark(params.chat);
+          renderPendingHint(params.chat);
 
           for (const pinned of pinnedChats) {
             renderChat(pinned);
-            renderResumeMark(pinned);
+            renderPendingHint(pinned);
           }
 
           if (!voiceDisabled && config.harness_enable) {

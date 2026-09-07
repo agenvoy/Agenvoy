@@ -117,6 +117,10 @@
         color: var(--gray-3);
         transition: 0.2s;
 
+        &[hidden] {
+          display: none;
+        }
+
         span {
           font-size: 1rem;
         }
