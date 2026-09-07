@@ -3,6 +3,8 @@ name: extension-install
 description: Install an Agenvoy extension from pkg.agenvoy.com registry (browse/pick) or local tarball into ~/.config/agenvoy/tools/.extension/<type>/<name>@<version>/. Extracts tar.gz, validates manifest (email field, type api/script only), installs deps, stores keychain keys, atomically moves staged dir. Collisions handled by Overwrite/Rename/Cancel popup.
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Extension Installer
 
 Takes a packager-produced tarball, installs it as an extension visible to the runtime scanner.
@@ -14,7 +16,7 @@ Takes a packager-produced tarball, installs it as an extension visible to the ru
 - **Provided** → skip to §1 and extract the local file (offline / already-downloaded case)
 - **Missing** → run §0 list + pick + download, then proceed to §1
 
-`pkg.agenvoy.com` is the fixed registry endpoint. **Never** `ask_user` for a URL or switch to another source.
+`pkg.agenvoy.com` is the fixed registry endpoint — it is not a choice, so there is nothing to ask about.
 
 ## Flow
 
@@ -108,7 +110,7 @@ If extraction fails, or staging contains 0 / >1 subdirectories, abort with:
 
 Missing file → abort with "manifest.json missing in tarball, refuse to install".
 
-Validate each field (**any failure aborts** — do not `ask_user` to fix):
+Validate each field (any failure aborts; a broken manifest is a packager-side defect, so abort and report it):
 
 | Field | Condition |
 |---|---|
@@ -252,13 +254,13 @@ rm -rf ~/.config/agenvoy/tools/.extension/.staging
 
 ## Forbidden
 
-- Never `ask_user` for a different registry endpoint in §0; the endpoint is fixed at `https://pkg.agenvoy.com`
+- The §0 registry endpoint is fixed at `https://pkg.agenvoy.com`
 - Never fetch the tar binary via `http_request` in §0.3; binary belongs to `download_file` (cannot go through a string body)
 - Never skip the §0.3 sha256 comparison (when the response carries `sha256`); mismatch means the tar is corrupted or substituted
 - Never extract directly into the install path; always isolate through `.staging/`. Any failure in validation / deps / key steps must `rm -rf .staging`
-- Never `ask_user` to patch a missing manifest field in step 2; validation failure means the tarball is broken at the packager side — abort
+- A missing manifest field in step 2 means the tarball is broken at the packager side — abort and report
 - Never skip the dual `command -v <dep>` check in step 3 (once before install, once after)
-- Never alter the step 4 `store_secret` flow; do not `ask_user` for a plaintext key and then forward it to store_secret (that pulls the value into LLM context)
+- Keep the step 4 `store_secret` flow as written; routing a plaintext key through `ask_user` first would pull the value into LLM context)
 - Never hardcode a single package manager; always use `uname -s` + probe order
 - Never rewrite `tool.json::name`; keep whatever the manifest carries. The runtime tool registry uses it as the key. (Authors must ensure the name matches Gemini / Vertex AI rules `[a-zA-Z_][a-zA-Z0-9_.:-]*` at publish time.)
 - Never add author / email / safe-email prefixes to the install dir; the name is fixed at `<manifest.name>@<manifest.version>`; collisions are resolved via the §6 popup

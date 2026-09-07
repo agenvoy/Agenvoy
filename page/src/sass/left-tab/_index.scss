@@ -26,7 +26,7 @@
 
       &[data-collapsed="0"] {
         width: var(--width-left-tab);
-        box-shadow: 0.5rem 0 1rem -0.25rem #0000000f;
+        box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
 
         @include show.styles;
       }
@@ -194,7 +194,7 @@
           font-size: x-small;
           white-space: nowrap;
           color: #fff;
-          background-color: #000;
+          background-color: var(--black);
           border-radius: 0.625rem;
           opacity: 0;
           pointer-events: none;
@@ -250,7 +250,7 @@
         border-radius: 0.625rem;
         background-color: #fff;
         border: 1px solid var(--gray-2);
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.14);
+        box-shadow: 0 0.5rem 1.5rem #0000001a;
         cursor: default;
 
         &[data-show="1"] {
@@ -344,7 +344,7 @@
           font-size: x-small;
           white-space: nowrap;
           color: #fff;
-          background-color: #000;
+          background-color: var(--black);
           border-radius: 0.625rem;
           opacity: 0;
           pointer-events: none;

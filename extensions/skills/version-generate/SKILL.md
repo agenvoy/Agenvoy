@@ -3,6 +3,8 @@ name: version-generate
 description: 從最新的 git tag 到 HEAD 生成結構化變更日誌並推薦新版本。當使用者請求生成變更日誌、發行說明或版本升級文件時使用。
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # 版本產生器
 
 從最新的 git tag 到 HEAD 生成 `.doc/version-generate/vA.B.C.md` 變更日誌（含 frontmatter 與可追溯欄位），同步維護 `.doc/version-generate/CHANGELOG.md` 主索引。

@@ -352,8 +352,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/schedule` | **local** — list cron entries and one-off tasks as one `schedules` array, each tagged `type=cron\|task`; `?type=` narrows to one. |
-| `GET` | `/v1/schedule/*skill` | **local** — read a scheduler skill split into `name` / `description` / `body` (frontmatter parsed off). |
-| `POST` `PATCH` | `/v1/schedule` | **local** — create/update a scheduler skill from `name` / `description` / `content` (the frontmatter is composed server-side) and rebind its whole entry set to `type=cron\|task`; switching type drops the entries the skill held under the other one. |
+| `GET` | `/v1/schedule/*skill` | **local** — read a scheduler skill as `name` / `body` (raw SKILL.md, frontmatter included) / `files` (the other files in its folder). |
+| `POST` `PATCH` | `/v1/schedule` | **local** — create/update a scheduler skill from `name` / `content` (`content` carrying its own frontmatter is written as-is, otherwise the frontmatter is composed server-side) and rebind its whole entry set to `type=cron\|task`; switching type drops the entries the skill held under the other one. |
 | `DELETE` | `/v1/schedule` | **local** — delete a skill's entries (`type` narrows to one, omitted removes both); trashes the skill when nothing else binds it. |
 | `POST` | `/v1/schedule/run` | **local** — fire a schedule now (`202 Accepted`). |
 

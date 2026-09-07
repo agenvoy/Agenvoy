@@ -1,0 +1,11 @@
+@use "right-content/md-render";
+
+@mixin styles {
+  display: block;
+  width: auto;
+  height: auto;
+  padding: 1.5rem 2rem 5rem;
+  background-color: #fff;
+
+  @include md-render.styles;
+}

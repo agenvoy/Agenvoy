@@ -12,21 +12,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Agenvoy" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_2,add_comment,alarm,arrow_back,arrow_downward_alt,arrow_upward_alt,bar_chart,book_2,cached,cell_tower,check_circle,checklist,close,cognition_2,construction,content_copy,contract,delete,deployed_code,desktop_windows,docs,electrical_services,folder,for_you,history,keep,keep_off,key,keyboard_arrow_down,lightbulb_2,more_horiz,network_cell,progress_activity,radio_button_unchecked,right_panel_close,right_panel_open,robot_2,running_with_errors,schedule,send,settings,signal_cellular_0_bar,signal_cellular_1_bar,signal_cellular_2_bar,signal_cellular_3_bar,signal_cellular_4_bar,stacks,stop,terminal,top_panel_close"
-    />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/brands.min.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css"
-    />
+    <link rel="stylesheet" href="/vendor/fontawesome/css/brands.min.css" />
+    <link rel="stylesheet" href="/vendor/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="public/index.css" />
-    <script defer src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@v0.6.21/dist/QuickUI.js"></script>
+    <script defer src="/vendor/quickui/QuickUI.js"></script>
 
-    <script src="public/index.js"></script>
-    <script src="https://cloud.pardn.io/nanomd-pre-test-v1.js"></script>
-    <script src="https://cloud.pardn.io/voice.js"></script>
+    <script defer src="public/index.js"></script>
+    <script defer src="/vendor/cloud.pardn.io/nanomd-pre-test-v1.js"></script>
+    <script defer src="/vendor/cloud.pardn.io/voice.js"></script>
   </head>
   <body id="app" data-rendered="0">
     <!---->
@@ -140,9 +133,6 @@
             <button type="button" @click="history_open" name="History" data-hide="1">
               <span class="material-symbols-outlined"> history </span>
             </button>
-            <button type="button" @click="resume_pick" name="Pending" data-has="0">
-              <span class="material-symbols-outlined"> running_with_errors </span>
-            </button>
             <button type="button" @click="style_switch" name="To top" data-style="1" :if="LENGTH(pin) > 1">
               <span class="material-symbols-outlined"> top_panel_close </span>
             </button>
@@ -156,7 +146,7 @@
               <img src="public/logo-min.svg" alt="Logo" />
               <p>Agenvoy</p>
             </section>
-            <span>請先前往 <a href="/?page=config&tab=Model">Config > Model</a> 添加模型</span>
+            <span>Add a model in <a href="/?page=config&tab=Model">Config > Model</a> to get started</span>
           </div>
           <!---->
           <section class="messages">
@@ -207,7 +197,7 @@
           </div>
         </main>
         <!---->
-        <section :for="(chat, i) in pin" :data-index="i" :data-id="{{chat.id}}">
+        <section :for="(chat, i) in pin" :data-index="i" :data-id="{{chat.id}}" :data-hint="{{chat.id}}">
           <header>
             <!--<p></p>
             <div></div>-->
@@ -225,9 +215,6 @@
             </button>
             <button type="button" @click="history_open" name="History" data-hide="1">
               <span class="material-symbols-outlined"> history </span>
-            </button>
-            <button type="button" @click="resume_pick" name="Pending" data-has="0">
-              <span class="material-symbols-outlined"> running_with_errors </span>
             </button>
           </header>
           <!---->
@@ -371,7 +358,7 @@
             <section class="tools" id="skill-allow-list"></section>
             <span>Name</span>
             <input id="skill-name" type="text" disabled />
-            <span>Content</span>
+            <nav class="tab" id="skill-files"></nav>
             <textarea id="skill-content" rows="20" disabled></textarea>
             <footer>
               <button type="button" class="remove" @click="skill_delete">delete</button>
@@ -402,15 +389,8 @@
               maxlength="64"
               placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
             />
-            <span>Description</span>
-            <input
-              id="schedule-description"
-              type="text"
-              maxlength="256"
-              placeholder="Describe when it fires and what it does"
-            />
-            <span>Content</span>
-            <textarea id="schedule-content" rows="16" placeholder="SKILL.md body · what runs when it fires"></textarea>
+            <nav class="tab" id="schedule-files"></nav>
+            <textarea id="schedule-content" rows="16" placeholder="SKILL.md · frontmatter + body"></textarea>
             <span>Session</span>
             <select id="schedule-session"></select>
             <nav class="tab" id="schedule-type"></nav>
@@ -734,5 +714,13 @@
     </section>
     <!---->
     <section class="toast" id="toast"></section>
+    <!---->
+    <section class="hint" data-hide="1">
+      <div>
+        <img src="public/logo-min.svg" alt="Logo" />
+        <p>Cannot reach the server</p>
+        <p id="hint-retry">Retrying in 5s &middot; check that the daemon is running</p>
+      </div>
+    </section>
   </body>
 </html>

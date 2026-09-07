@@ -19,6 +19,8 @@ description: |
   流程：解析訊息抽出「要做什麼」「何時觸發」→ 缺項用 ask_user 補問 → 生成 skill 檔案至 ~/.config/agenvoy/skills/scheduler/<short>-<hash8>/SKILL.md（無 scheduler- 前綴，hash 用於避免命名衝突）→ 呼叫 schedules(mode=write) 綁定時間 → 回報。
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Scheduler Skill 建立器
 
 ## 目的
@@ -61,16 +63,11 @@ scheduler 採 skill-based 觸發：到時間時，daemon 讀 `scheduler/<short>/
 2. **時間 token 存在？**（上表任一）
    - 否 → 呼叫 `ask_user` tool：`{"questions":[{"question":"什麼時候執行？例：5 分鐘後 / 每 5 分鐘 / 明天 9 點"}]}`
 
-收到 `ask_user` 回傳的 `answers` 後，把答案併入原訊息重跑步驟 0；兩者都齊才進步驟 1。
+兩項都缺時，同一個 `ask_user` 的 `questions` 帶兩題送出。收到回傳的 `answers` 後，把答案併入原訊息重跑步驟 0；兩者都齊才進步驟 1。
 
-**強制使用 tool call、禁止用純文字輸出問題**：
+**問題一律用 `ask_user` tool call 送出**：`ask_user` 走 `pending.Ask` 阻塞等待 reply，harness 開 popup／prompt 收答案，agent 收到結構化 `answers` 後接著執行。TUI／CLI／Web／Telegram／Discord 都支援；只有 chat completions 端點沒有這個通道。
 
-- ❌ 輸出 `什麼時候執行？例：5 分鐘後 / ...` 作為 assistant 文字回應 → **流程中斷**（TUI／CLI 不會把使用者下一句話視為這題的回答）
-- ✅ 呼叫 `ask_user` tool 帶 `questions` → harness 開 popup／prompt 收答案，回到 agent 主迴圈繼續
-
-**為何**：`ask_user` tool 走 `pending.Ask` 阻塞等待 reply，agent 自動收到結構化 `answers` 後續執行；純文字輸出則 turn 結束、context 不接續，使用者下次輸入會被視為**新任務**而非答案。
-
-**反例**（這些**必須**先 `ask_user` tool call 補時間，禁止直接進 init）：
+**需要補問的例子**：
 
 | 訊息 | 為何要 ask_user |
 |---|---|
@@ -78,13 +75,7 @@ scheduler 採 skill-based 觸發：到時間時，daemon 讀 `scheduler/<short>/
 | 「等等」「之後」「找時間」 | 模糊詞不算明確 token |
 | 「下班後」「有空時」 | 無可正規化為 cron／datetime 的時間值 |
 
-**禁止行為**（違反視為流程失敗）：
-
-- ❌ 訊息無時間 token 仍跑 `run_command python3 .../init_scheduler_skill.py`
-- ❌ 用「+10m」「+5m」「+1h」當預設值補齊未指定的時間
-- ❌ 推論「使用者大概是想要 N 分鐘後」之類腦補
-- ❌ 缺時段（如「每天」沒說幾點）時自動填「09:00」
-- ❌ **以純文字輸出問題替代 `ask_user` tool call**（mini model 易犯，違反「ambiguity 用 tool 而非 text」）
+時間以使用者說的為準：沒說就用 `ask_user` 問，不用預設值（`+10m`、`09:00`）或推測補齊。
 
 ### 1. 解析需求
 
@@ -102,7 +93,7 @@ scheduler 採 skill-based 觸發：到時間時，daemon 讀 `scheduler/<short>/
 | 5 分鐘後叫我喝水 | 喝水提醒 | +5m（one-shot） |
 | 每天抓 HN 頭條給我 | 抓 HN 頭條摘要 | 每天（recurring，**步驟 0 已要求補問時段**） |
 
-一次 `ask_user` 一題，依需要追問。**禁止假設**。
+缺項一律以 `ask_user` **tool call** 補齊；`questions` 是 array，當下所有缺項寫成多題一起送。
 
 ### 2. 時間正規化 + 選 tool
 
@@ -122,12 +113,14 @@ scheduler 採 skill-based 觸發：到時間時，daemon 讀 `scheduler/<short>/
 
 ### 3. 初始化 skill 目錄（**強制走 init 腳本**）
 
+> **腳本路徑**：`run_command` 的 CWD 是使用者的工作目錄，**不是本 skill 目錄**，相對路徑 `scripts/...` 必定找不到（實測會讓 agent 反覆 glob 找檔案，白燒數輪）。本 skill 只服務 Agenvoy、安裝位置固定，一律用絕對路徑 `~/.config/agenvoy/skills/.system/scheduler-skill-creator/scripts/`。
+
 > **禁止直接用 `write_file` 建立 SKILL.md** —— LLM 容易寫成 `<short>.md` 而非 `<short>/SKILL.md`，或誤加 `scheduler-` 前綴；也無法自行產生 hash suffix。必須先跑 init 腳本。
 
 用 `run_command` 執行：
 
 ```bash
-python3 scripts/init_scheduler_skill.py <short-name>
+python3 ~/.config/agenvoy/skills/.system/scheduler-skill-creator/scripts/init_scheduler_skill.py <short-name>
 ```
 
 `<short-name>` 由步驟 1 的任務描述推導（kebab-case、**不含 `scheduler-` 前綴**、**不含 hash**）。腳本會：
@@ -140,57 +133,36 @@ python3 scripts/init_scheduler_skill.py <short-name>
 
 **重綁定既有 skill 的時間**（user 說「把那個 X 改成 Y」）：不再跑 init 腳本，直接用既存 full name 進步驟 5；既存 full name 可從先前回報訊息找，或 `find_files(mode=list)` 列出 `~/.config/agenvoy/skills/scheduler/` 選擇。
 
-### 3.5 工具／skill 搭配探索（步驟 4 前置）
+### 4. 建構 skill 內容（**委派 `/skill-creator`**）
 
-填 skill body 之前**必須**確認會用到的 skill／tool 真實存在，否則觸發時 subagent 找不到 → 直接 abort、使用者拿不到結果。
+目錄與名稱在步驟 3 已經定案，這一步只做內容。**呼叫 `/skill-creator`**，用它的「編輯現有 Skill」路徑填內容，不要在這裡自己重寫一套設計流程。
 
-**Skill 優先於 tool**：skill 是預先封裝好的高階流程（含 prompt 規則／步驟／格式），tool 是低階呼叫；同樣的任務若有對應 skill，body 寫 `/<skill-name>` 比直接組 tool call 更穩定且符合既有設計。
+```
+/skill-creator 編輯現有 skill：~/.config/agenvoy/skills/scheduler/<short>-<hash8>/
+任務：<步驟 1 收集到的行為細節>
+```
 
-**強制探索順序**（**禁止跳順序、禁止只跑其中一步**）：
+**交給 `/skill-creator` 的部分**（照它的步驟走）：
 
-1. **讀 system prompt 的 `## Skills` 區段**（你的 context 內已有）：把使用者意圖（步驟 1 的「任務」）對照所有 skill 的 `description`，列出**任何描述提及相關主題的候選**。例：
-   - 「分析比特幣」「BTC 價格」→ `bitcoin-lookup`（描述含「BTC／Bitcoin／比特幣價格／行情／分析」）
-   - 「彙整 commit 訊息」→ `commit-generate`
-   - 「跑程式碼 review」→ `code-reviewer`
-2. **逐個 `run_skill` 驗證**候選：activate 成功代表存在，body 改寫成 `任務：呼叫 /<skill-name> 觸發本任務`。失敗（skill 不存在）才往下一步。
-3. **無匹配 skill 時，`find_edit_tool(mode=search)` 找 raw tool**：抽出步驟 1 任務的動詞，對每個動詞呼一次。回傳的 tool name 才能寫進 body：
-
-   ```
-   find_tools({"mode": "search", "query": "fetch stock price"})
-   find_tools({"mode": "search", "query": "yahoo finance"})
-   ```
-
-4. **`find_edit_tool(mode=search)` 也找不到**（例：使用者要求「打卡」但無此 tool 也無對應 skill）→ 回 `ask_user`：「目前環境沒有可完成 X 的 skill／tool，可以改成 Y 嗎？」。**禁止**寫不存在的 skill／tool name 進 body。
-
-**判定原則**：
-
-| 情境 | body 怎麼寫 |
+| 它的步驟 | 在這裡的作用 |
 |---|---|
-| 有 skill 命中（步驟 2 activate 成功）| `任務：呼叫 /<skill-name>，把結果整理成「## 輸出格式」要求的形式` |
-| 無 skill 但有 tool（步驟 3 search 命中）| `任務：呼叫 <tool-name>，參數 ...` |
-| 兩者都無（步驟 4）| 中止 init，先 `ask_user` 確認替代方案 |
+| 一：透過具體範例理解 | 已由步驟 1 完成，把結果直接給它，**不要再問一次** |
+| 二：規劃可重用內容 | 決定要不要 `scripts/` |
+| **二點五：工具／Skill 搭配探索** | 讀 `## Skills` → `find_edit_tool(mode=search)` → 都沒有才寫 `scripts/*.py` |
+| 四：編輯 | `edit_skill(mode=patch)` 取代模板的 `[TODO: ...]` |
 
-**常用 skill／tool 速查**（先想想再去 activate／search）：
+**這裡的額外約束**（`/skill-creator` 不知道排程的規則，必須由你把關）：
 
-| 任務類型 | 候選 skill（優先） | 候選 tool（退一步） |
-|---|---|---|
-| 比特幣行情／分析 | `bitcoin-lookup` | `search_web` → `fetch_page` |
-| 一般股價／財經 | （視 `## Skills` 是否有對應）| `search_web` → `fetch_page` |
-| HN／RSS 摘要 | （視是否有 digest skill）| `search_web`（`source: news`）|
-| 網頁／API 抓取 | — | `fetch_page`／`http_request`／`api_*` |
-| 程式碼 review | `code-reviewer` | — |
-| Commit／版號 | `commit-generate`／`version-generate` | — |
-| 計算 | — | `calculator` |
-| 純文字提醒（無 IO） | — | 不需 tool，body 直接寫死要輸出的文字 |
+- **不准跑 `init_skill.py`**（它會用自己的命名規則在 `skills/` 底下另開一個目錄）。目錄已存在，走「編輯現有 Skill」路徑
+- **不准改名、不准搬位置** —— 名稱固定 `<short>-<hash8>`，位置固定 `~/.config/agenvoy/skills/scheduler/<short>-<hash8>/`
+- **不准跑步驟五（打包）** —— 排程 skill 不外流
+- **body 引用的 skill／tool 必須確認存在**：skill 以 system prompt 的 `## Skills` 清單為準（那份清單已在 context 裡，**不要用 `run_skill` activate 驗證** —— 每次 activate 都是一輪往返加一整份 SKILL.md 進 context）；tool 名稱以 `find_edit_tool(mode=search)` 的回傳為準。觸發時 subagent 找不到會直接 abort，使用者拿不到結果也看不到原因
+- **`scripts/` 寫進 `scheduler/<short>-<hash8>/scripts/`**，不用 `edit_tool` 產全域工具
 
-**`scheduler-skill-creator` 與 `scheduler/` 下任何 skill 不算候選** —— 前者是本流程自己、不能遞迴；後者是 scheduler 用內部 skill（透過 `schedules(mode=write)` 綁定觸發、不能用 `/<name>` 從 body 呼叫）。
+**必填欄位**：
 
-### 4. 填充 skill body
-
-用 `edit_skill(mode=patch)` 取代模板中的 `[TODO: ...]` 段：
-
-- `description:` ← 步驟 1 收集到的「一句話描述」
-- `## 任務` ← 步驟 1 收集到的「行為細節」，引用**步驟 3.5 已確認存在**的 tool 名稱與參數
+- `description:` ← 步驟 1 的「一句話描述」
+- `## 任務` ← 步驟 1 的「行為細節」，引用已確認存在的 skill／tool
 - `## 輸出格式` ← 期望輸出形式
 
 **禁止**在 skill body 內加任何「推送到 channel」「呼叫 http_request 給 Discord」「呼叫 MCP discord tool」之類的 notify 指令 —— scheduler 觸發後 runtime 自動把輸出送回原 caller channel（Discord 來源送回原頻道、CLI／HTTP 來源送回 action.log）。Skill body 只需專注產出**任務結果文字**。
@@ -272,7 +244,7 @@ scheduler 觸發後，runtime 會把 subagent 產出的最終文字自動送回 
 
 **步驟 2** 正規化：`schedules(mode=write)(target="cron", time="*/5 * * * *", ...)`
 
-**步驟 3** `run_command python3 scripts/init_scheduler_skill.py tsmc-stock-watch`
+**步驟 3** `run_command python3 ~/.config/agenvoy/skills/.system/scheduler-skill-creator/scripts/init_scheduler_skill.py tsmc-stock-watch`
 
 stdout：
 ```
@@ -311,6 +283,8 @@ description: 每 5 分鐘抓取台積電 2330.TW 即時股價並提醒。
 - **不**用 `write_file` 直接建立 SKILL.md —— 必須走 `init_scheduler_skill.py`，避免結構錯誤（`<name>.md` vs `<name>/SKILL.md`）
 - **不**在 short name、frontmatter、skill_name 任何位置加 `scheduler-` 前綴
 - **不**留 `[TODO: ...]` 佔位符在最終 skill —— 步驟 4 須把所有 TODO 替換為具體內容
-- **不**用任意預設值補齊時間 —— 缺時間就 `ask_user` 問清楚，不要「應該是 9 點」之類腦補
+- 時間以使用者說的為準；沒說就用 `ask_user` 問，不用預設值或推測補齊
 - **不**跳過步驟 5 的 `schedules(mode=write)` —— skill 建立但沒綁時間 = 排程不會觸發
 - **不**在 body 引用未經 `find_edit_tool(mode=search)` 確認存在的 tool name —— 觸發時 subagent 找不到 tool 會直接 abort，使用者拿不到結果也看不到錯誤原因
+- **不**用 `edit_tool` 產全域 `script_*`／`api_*` 工具 —— 排程要的腳本寫進自己的 `scripts/`（步驟 4），全域工具是 tool generate 的職責，兩者不混用
+- **不**讓步驟 4 委派出去的 `/skill-creator` 跑 `init_skill.py` 或 `package_skill.py` —— 前者會用它自己的命名規則在 `skills/` 底下另開目錄（排程綁的是 `scheduler/<short>-<hash8>`，綁不到就不會觸發），後者產出的 `.skill` 排程用不到

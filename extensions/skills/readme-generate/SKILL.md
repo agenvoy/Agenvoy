@@ -3,6 +3,8 @@ name: readme-generate
 description: 從原始碼分析自動生成雙語 README。當使用者請求為專案建立 README、需要從程式碼庫生成 README.md（英文）和 README.zh.md（中文）、或希望為其函式庫/套件建立一致的多語言文件時使用。
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # README 產生器
 
 透過分析專案原始碼來生成專業的雙語 README 文件。

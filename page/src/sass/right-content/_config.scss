@@ -360,9 +360,9 @@ body[data-rendered="1"] section.right-content section.config {
     }
 
     &:focus {
-      background-color: white;
+      background-color: #fff;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(20, 97, 220, 0.15);
+      box-shadow: 0 0 0 3px var(--accent-light);
     }
   }
 
@@ -438,11 +438,11 @@ body[data-rendered="1"] section.right-content section.config {
 
       &.submit {
         background-color: var(--black);
-        color: white;
+        color: #fff;
 
         @media (hover: hover) {
           &:hover {
-            color: white;
+            color: #fff;
             opacity: 0.85;
           }
         }
@@ -500,9 +500,9 @@ body[data-rendered="1"] section.right-content section.config {
         @include rangeRow;
       }
 
-      @each $level, $color in (info: #ffffff, debug: #7aa2f7, warn: #bb9af7, error: #f7768e) {
+      @each $level in (info, debug, warn, error) {
         pre > span[data-level="#{$level}"] {
-          color: $color;
+          color: var(--log-#{$level});
         }
 
         &[data-target="#{$level}"] pre > span:not([data-level="#{$level}"]) {
@@ -526,7 +526,7 @@ body[data-rendered="1"] section.right-content section.config {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: x-small;
         line-height: 1.5;
-        color: #ffffff;
+        color: #fff;
         background-color: var(--black);
         border-radius: 0.5rem;
         white-space: pre-wrap;

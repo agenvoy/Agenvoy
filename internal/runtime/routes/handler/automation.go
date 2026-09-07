@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
@@ -68,16 +69,16 @@ func GetScheduleSkill() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "skill is required"})
 			return
 		}
-		one, err := skill.LoadSchedule(name)
+		raw, err := skill.ReadSchedule(name)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"skill":       one.Name,
-			"name":        one.Name,
-			"description": one.Description,
-			"body":        one.Body,
+			"skill": name,
+			"name":  name,
+			"body":  raw,
+			"files": skillFiles(filesystem.ScheduleSkillPath(name)),
 		})
 	}
 }
@@ -101,7 +102,6 @@ func ListSchedules() gin.HandlerFunc {
 type scheduleBody struct {
 	Type        string   `json:"type"`
 	Name        string   `json:"name"`
-	Description string   `json:"description"`
 	Content     string   `json:"content"`
 	SessionID   string   `json:"session_id"`
 	Expressions []string `json:"expressions"`
@@ -239,7 +239,7 @@ func writeSchedule(c *gin.Context, exists bool) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if err := skill.WriteSchedule(body.Name, body.Description, body.Content); err != nil {
+	if err := skill.WriteSchedule(body.Name, body.Content); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

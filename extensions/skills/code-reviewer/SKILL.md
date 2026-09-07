@@ -3,6 +3,8 @@ name: code-reviewer
 description: Analyze project source code and generate optimization suggestions. Use when user wants code review, performance optimization advice, security hardening recommendations, or architecture improvement suggestions.
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Code Reviewer
 
 AST 驅動的專案原始碼分析，產生優化建議報告（Go / Python / JavaScript / TypeScript）。

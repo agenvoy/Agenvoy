@@ -31,6 +31,12 @@ func Set(dispatcherBot agentTypes.Agent, summaryBot agentTypes.Agent, agentRegis
 	scanner = skillScanner
 }
 
+func MarkLoaded() {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+	loaded = true
+}
+
 func SetRefresher(fn RefreshFunc) {
 	mu.Lock()
 	defer mu.Unlock()

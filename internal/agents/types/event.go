@@ -167,6 +167,7 @@ func (e EventType) String() string {
 type Event struct {
 	Type            EventType           `json:"type"`
 	OnceID          string              `json:"once_id,omitempty"`
+	TaskHash        string              `json:"task_hash,omitempty"`
 	Source          string              `json:"source,omitempty"`
 	Text            string              `json:"text,omitempty"`
 	ToolName        string              `json:"tool_name,omitempty"`
@@ -205,11 +206,12 @@ const (
 	TodoCompleted  = "completed"
 )
 
-func (e Event) MarshalJSON() ([]byte, error) {
-	type alias Event
-	shadow := alias(e)
-	if shadow.UsageInput == "" {
-		shadow.UsageInput = FormatInput(InputTotals(e.Usage))
+func DoneEvent(model string, usage *provider.Usage, duration time.Duration) Event {
+	return Event{
+		Type:       EventDone,
+		Model:      model,
+		Usage:      usage,
+		Duration:   duration,
+		UsageInput: FormatInput(InputTotals(usage)),
 	}
-	return json.Marshal(shadow)
 }

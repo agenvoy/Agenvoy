@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
@@ -84,19 +83,6 @@ func newTUI() {
 		}
 	}
 
-	fmt.Fprint(os.Stderr, "waiting for daemon to be ready...")
-	shown := -1
-	if err := waitDaemonReady(context.Background(), 3*time.Minute, func(elapsed time.Duration) {
-		if sec := int(elapsed.Seconds()); sec != shown {
-			shown = sec
-			fmt.Fprintf(os.Stderr, "\r\033[Kwaiting for daemon to be ready... %ds", sec)
-		}
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "\ndaemon not reachable: %v\ncheck %s\n", err, filesystem.DaemonLogPath)
-		return
-	}
-	fmt.Fprint(os.Stderr, "\r\033[K")
-
 	if err := torii.Init(filesystem.StoreDir); err != nil {
 		slog.Error("store.Init",
 			slog.String("error", err.Error()))
@@ -122,6 +108,7 @@ func newTUI() {
 
 	agents.Set(selectorBot, summaryBot, registry, scanner)
 	agents.SetRefresher(refreshHost)
+	agents.MarkLoaded()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

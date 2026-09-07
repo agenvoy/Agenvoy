@@ -41,6 +41,11 @@ async function renderChatList() {
   const pinned = pinChats();
 
   for (const e of list) {
+    const panel = document.querySelector(`section.chat > section[data-id="${e.id}"]`);
+    if (panel) {
+      panel.dataset.hint = e.self_id || e.id;
+    }
+
     if (pinned.includes(e.id)) {
       if (pinDom) {
         pinDom.appendChild(pinListItem(e.id, e.name || e.id));
@@ -280,7 +285,14 @@ async function renderChat(sessionId) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.rule === "assistant" && i === items.length - 1) {
-      setStream(sessionId, newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content }, sessionId));
+      const view = newStreamItem(
+        { model: item.meta.model, trace: item.Reasoning, text: item.content, task: item.task },
+        sessionId,
+      );
+      if (item.paused) {
+        view.paused = true;
+      }
+      setStream(sessionId, view);
       renderTodo(item.todos, sessionId);
       continue;
     }

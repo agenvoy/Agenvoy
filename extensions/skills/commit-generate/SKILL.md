@@ -3,6 +3,8 @@ name: commit-generate
 description: Generate bilingual (English + Traditional Chinese) commit message from git changes.
 ---
 
+> **本 Skill 為 Agenvoy 內部最佳化版本**，依 Agenvoy 的執行環境撰寫（`run_command` 的 CWD、`~/.config/agenvoy/skills/.system/` 安裝位置、`edit_skill`／`schedules`／`find_edit_tool` 等工具、subagent 與排程的觸發路徑），**不保證適配其他 AI harness**。
+
 # Commit Message Generator
 
 從 git diff 產生雙語 commit message（英文 subject + 繁體中文 body）。

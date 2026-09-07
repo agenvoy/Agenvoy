@@ -19,6 +19,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -55,7 +56,9 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 	}
 
 	hash := interactive.SaveAndEnqueueAskUser(sessionID, origin, deliverTo, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
-	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventPending, Text: hash})
+	event := agentTypes.Event{Type: agentTypes.EventPending, Text: hash, TaskHash: hash}
+	sessionLog.Record(sessionID, event)
+	pubsub.Pub(sessionID, event)
 }
 
 func originFor(ctx context.Context, sessionID string) string {

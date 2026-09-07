@@ -311,6 +311,11 @@ func cmdDaemon() {
 			slog.String("error", err.Error()))
 	}
 
+	if err := webapp.SyncAsset(context.Background()); err != nil {
+		slog.Warn("webapp.SyncAsset",
+			slog.String("error", err.Error()))
+	}
+
 	if path, err := webapp.Install(context.Background()); err != nil {
 		slog.Warn("webapp.Install",
 			slog.String("error", err.Error()))

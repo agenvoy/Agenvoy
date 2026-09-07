@@ -370,8 +370,8 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method         | Path                  | 說明                                             |
 | -------------- | --------------------- | ------------------------------------------------ |
 | `GET`          | `/v1/schedule`        | **local** — 以單一 `schedules` 陣列列出 cron 與單次任務，每筆帶 `type=cron\|task`；`?type=` 可只取其一 |
-| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，拆成 `name`／`description`／`body`（frontmatter 已解析） |
-| `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`description`／`content` 建立／更新 scheduler skill（frontmatter 由後端組出）並整組重綁到 `type=cron\|task`；切換 type 時同步刪除該 skill 在另一邊的排程 |
+| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，回 `name`／`body`（SKILL.md 原文，含 frontmatter）／`files`（該資料夾內的其他檔案） |
+| `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`content` 建立／更新 scheduler skill（`content` 自帶 frontmatter 則原樣寫入，否則由後端組出）並整組重綁到 `type=cron\|task`；切換 type 時同步刪除該 skill 在另一邊的排程 |
 | `DELETE`       | `/v1/schedule`        | **local** — 刪除該 skill 的排程（帶 `type` 只刪一邊，不帶則兩邊都刪）；刪除後若無其他綁定則將 skill 移入 .Trash |
 | `POST`         | `/v1/schedule/run`    | **local** — 立即觸發排程（`202 Accepted`） |
 

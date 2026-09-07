@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", async function () {
   revealIconsWhenReady();
+  watchServer();
 
   const config = readConfig();
   let params = praseURL();
@@ -98,6 +99,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       },
       chat_input: function () {
         this.nextElementSibling.textContent = this.value + "\n";
+        renderSendMode(panelSession(this));
       },
       chat_keydown: function (e) {
         if (e.key !== "Enter" || e.shiftKey || e.isComposing) {
@@ -107,6 +109,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         submit(this);
       },
       send_click: function () {
+        if (this.dataset.mode === "stop") {
+          const sid = panelSession(this) || currentSessionId;
+          if (pendingTask && pendingTask.sessionId === sid) {
+            cancelPending(sid);
+          } else {
+            stopRunning(sid);
+          }
+          return;
+        }
         submit(this);
       },
       harness_click: function (e) {
@@ -218,9 +229,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       },
       memory_pick: function () {
         openMemoryPicker(panelSession(this) || currentSessionId);
-      },
-      resume_pick: function () {
-        openResumePicker(panelSession(this));
       },
       style_switch: function () {
         const style = this.dataset.style;
@@ -351,11 +359,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           getRuleList();
           renderWorkDirMark();
           renderChat(params.chat);
-          renderResumeMark(params.chat);
+          renderPendingHint(params.chat);
 
           for (const pinned of pinnedChats) {
             renderChat(pinned);
-            renderResumeMark(pinned);
+            renderPendingHint(pinned);
           }
 
           if (!voiceDisabled && config.harness_enable) {
@@ -460,4 +468,12 @@ function revealIconsWhenReady() {
   document.fonts.ready
     .then(() => document.fonts.load('24px "Material Symbols Outlined"'))
     .finally(reveal);
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function (err) {
+      console.error(err);
+    });
+  });
 }

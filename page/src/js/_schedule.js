@@ -1,4 +1,9 @@
-const SCHEDULE_TEMPLATE = `# <title>
+const SCHEDULE_TEMPLATE = `---
+name: <name>
+description: <what it does and when it fires>
+---
+
+# <title>
 
 ## Task
 
@@ -43,8 +48,8 @@ function scheduleDom() {
     type: $("#schedule-type"),
     session: $("#schedule-session"),
     name: $("#schedule-name"),
-    description: $("#schedule-description"),
     content: $("#schedule-content"),
+    files: $("#schedule-files"),
     entries: $("#schedule-entries"),
     submit: document.querySelector("#schedule-form > footer button.submit"),
     test: document.querySelector("#schedule-form > footer button.test"),
@@ -286,8 +291,8 @@ async function openSchedule(name) {
     }
     const body = await response.json();
     dom.name.value = name;
-    dom.description.value = body.description || "";
     dom.content.value = body.body || "";
+    renderScheduleFiles(dom, body.body || "", body.files || []);
   } catch (err) {
     console.error("openSchedule", err);
     scheduleError(err.message || "failed");
@@ -304,11 +309,43 @@ async function openSchedule(name) {
   renderScheduleEntries();
 }
 
+function renderScheduleFiles(dom, body, files) {
+  if (!dom.files) {
+    return;
+  }
+
+  dom.files.innerHTML = "";
+  dom.content.readOnly = false;
+
+  let draft = body;
+  const all = [{ path: "SKILL.md", content: body }].concat(files);
+  const buttons = [];
+
+  for (const one of all) {
+    const button = _("button", { type: "button" }, one.path);
+    button.dataset.selected = "0";
+    button.addEventListener("click", function () {
+      if (!dom.content.readOnly) {
+        draft = dom.content.value;
+      }
+      for (const other of buttons) {
+        other.dataset.selected = other === button ? "1" : "0";
+      }
+      const own = one.path === "SKILL.md";
+      dom.content.value = own ? draft : one.content || "";
+      dom.content.readOnly = !own;
+    });
+    buttons.push(button);
+    dom.files.appendChild(button);
+  }
+  buttons[0].dataset.selected = "1";
+}
+
 function resetSchedule() {
   const dom = scheduleDom();
   if (dom.name) dom.name.value = "";
-  if (dom.description) dom.description.value = "";
   if (dom.content) dom.content.value = SCHEDULE_TEMPLATE;
+  renderScheduleFiles(dom, SCHEDULE_TEMPLATE, []);
   scheduleEditing = "";
   scheduleType = "cron";
   scheduleEntries = [];
@@ -349,7 +386,6 @@ async function saveSchedule() {
   const body = {
     type: scheduleType,
     name: name,
-    description: dom.description ? dom.description.value.trim() : "",
     content: dom.content ? dom.content.value : "",
     session_id: sessionID,
     expressions: scheduleEntries,
