@@ -16,12 +16,12 @@ func ListErrorMemory() gin.HandlerFunc {
 		tool := strings.TrimSpace(c.Query("tool"))
 		keyword := strings.TrimSpace(c.Query("keyword"))
 
-		if tool == "" && keyword == "" {
+		if keyword == "" {
 			limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
 			if err != nil {
 				limit = 50
 			}
-			c.JSON(http.StatusOK, gin.H{"records": memory.List(limit)})
+			c.JSON(http.StatusOK, gin.H{"records": memory.List(tool, limit)})
 			return
 		}
 
