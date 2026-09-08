@@ -41,8 +41,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/new":
 		return t.commandNew(parts)
 
-	case "/dangerous":
-		return t.commandDangerous(parts)
+	case "/remove-session":
+		return t.commandRemoveSession()
+
+	case "/allow-skill":
+		return t.commandAllowSkill(parts)
 
 	case "/compact":
 		return t.commandCompact()

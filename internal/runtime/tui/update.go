@@ -875,17 +875,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(seq...)
 
-	case DangerousSelect:
-		switch msg.action {
-		case "remove-session":
-			next, cmd, _ := t.commandRemoveSession()
-			return next, cmd
-		case "allow-skill":
-			next, cmd, _ := t.commandAllowSkill(nil)
-			return next, cmd
-		}
-		return t, nil
-
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
