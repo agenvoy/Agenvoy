@@ -44,8 +44,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/dangerous":
 		return t.commandDangerous(parts)
 
-	case "/memory":
-		return t.commandMemory(parts)
+	case "/compact":
+		return t.commandCompact()
+
+	case "/reset":
+		return t.commandReset()
 
 	case "/bot":
 		return t.commandBot(parts)
@@ -67,9 +70,6 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 
 	case "/telegram":
 		return t.commandTelegram(parts)
-
-	case "/startup":
-		return t.commandStartup(parts)
 
 	case "/admin-channel":
 		return t.commandAdminChannel(parts)
