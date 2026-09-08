@@ -33,6 +33,7 @@ type Request struct {
 	ID         string
 	Kind       Kind
 	SessionID  string
+	TaskHash   string
 	Origin     string
 	DeliverTo  string
 	ToolName   string
@@ -245,6 +246,23 @@ func Resolve(id string, r Reply) {
 	select {
 	case e.replyCh <- r:
 	default:
+	}
+}
+
+func DropTask(sessionID, taskHash string) {
+	if taskHash == "" {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for id, e := range entries {
+		if e.req.TaskHash != taskHash {
+			continue
+		}
+		if sessionID != "" && e.req.SessionID != sessionID && e.req.DeliverTo != sessionID {
+			continue
+		}
+		delete(entries, id)
 	}
 }
 

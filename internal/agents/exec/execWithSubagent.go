@@ -255,6 +255,20 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	execErr := <-errCh
 	result := strings.TrimSpace(sb.String())
 
+	if execErr == nil && result == "" {
+		if info, ok := interactive.LoadPendingInfo(sessionID, pendingTask); ok && info.HasQuestions {
+			answered, resumeUsage := waitSubagentResume(subCtx, sessionID, parentEvents, displayName)
+			if answered != "" {
+				result = answered
+				totalUsage.Input += resumeUsage.Input
+				totalUsage.Output += resumeUsage.Output
+				totalUsage.CacheCreate += resumeUsage.CacheCreate
+				totalUsage.CacheRead += resumeUsage.CacheRead
+				usageLine = fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", totalUsage.Input+totalUsage.CacheRead+totalUsage.CacheCreate, totalUsage.Output, totalUsage.CacheRead, totalUsage.CacheCreate)
+			}
+		}
+	}
+
 	if execErr == nil && result != "" {
 		interactive.CleanupPending(sessionID, pendingTask)
 		return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessionID, usageLine, result), nil
@@ -278,6 +292,49 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	return "", fmt.Errorf("subagent %s finished without producing any text (%s).%s%s",
 		agent.Name(), usageLine, retryHint, partialHint)
+}
+
+func waitSubagentResume(ctx context.Context, sessionID string, parent chan<- agentTypes.Event, displayName string) (string, provider.Usage) {
+	var usage provider.Usage
+	sub := pubsub.Sub(sessionID, 128)
+	defer sub.Close()
+
+	var sb strings.Builder
+	for {
+		select {
+		case <-ctx.Done():
+			return "", usage
+
+		case ev, ok := <-sub.Events():
+			if !ok {
+				return "", usage
+			}
+			passSubagentEvent(parent, displayName, ev)
+
+			switch ev.Type {
+			case agentTypes.EventText:
+				if ev.Text == "" {
+					continue
+				}
+				if sb.Len() > 0 {
+					sb.WriteByte('\n')
+				}
+				sb.WriteString(ev.Text)
+
+			case agentTypes.EventDone:
+				if ev.Usage != nil {
+					usage.Input += ev.Usage.Input
+					usage.Output += ev.Usage.Output
+					usage.CacheCreate += ev.Usage.CacheCreate
+					usage.CacheRead += ev.Usage.CacheRead
+				}
+				return strings.TrimSpace(sb.String()), usage
+
+			case agentTypes.EventCanceled, agentTypes.EventError:
+				return strings.TrimSpace(sb.String()), usage
+			}
+		}
+	}
 }
 
 func passSubagentEvent(parent chan<- agentTypes.Event, name string, ev agentTypes.Event) {

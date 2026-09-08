@@ -1,17 +1,18 @@
 let pendingTask = null;
 let pendingAnswers = [];
 
-async function loadPending(sessionId, taskHash) {
+async function loadPending(sessionId, taskHash, ownerId) {
   const dom = chatPart("pending", sessionId);
   if (!dom || !sessionId || !taskHash) {
     return;
   }
+  const owner = ownerId || sessionId;
 
   clearPending(sessionId);
 
   let questions = [];
   try {
-    const url = `${API}/v1/session/${encodeURIComponent(sessionId)}/task/${encodeURIComponent(taskHash)}/questions`;
+    const url = `${API}/v1/session/${encodeURIComponent(owner)}/task/${encodeURIComponent(taskHash)}/questions`;
     const response = await fetch(url);
     if (!response.ok) {
       return;
@@ -25,13 +26,14 @@ async function loadPending(sessionId, taskHash) {
     return;
   }
 
-  pendingTask = { sessionId: sessionId, taskHash: taskHash, questions: questions };
+  pendingTask = { sessionId: sessionId, owner: owner, taskHash: taskHash, questions: questions };
   pendingAnswers = questions.map((q) => (q.multi_select ? [] : ""));
 
   for (let i = 0; i < questions.length; i++) {
     dom.appendChild(pendingCard(questions[i], i, questions.length));
   }
   dom.dataset.index = "0";
+  dom.dataset.task = taskHash;
   setInputTask(sessionId, taskHash);
   scrollToBottom(true, sessionId);
 }
@@ -43,10 +45,32 @@ function clearPending(sessionId) {
   }
   dom.innerHTML = "";
   delete dom.dataset.index;
+  delete dom.dataset.task;
   if (!pendingTask || !sessionId || pendingTask.sessionId === sessionId) {
     pendingTask = null;
     pendingAnswers = [];
   }
+}
+
+function closePendingTask(sessionId, taskHash) {
+  if (!taskHash) {
+    return;
+  }
+
+  const dom = chatPart("pending", sessionId);
+  if (!dom) {
+    return;
+  }
+
+  for (const hint of dom.querySelectorAll(`button.hint[data-task="${taskHash}"]`)) {
+    hint.remove();
+  }
+
+  if (dom.dataset.task !== taskHash) {
+    return;
+  }
+  clearPending(sessionId);
+  setInputTask(sessionId, "");
 }
 
 function pendingCard(question, index, total) {
@@ -147,14 +171,16 @@ async function cancelPending(sessionId) {
   if (!confirm("Cancel this task?")) {
     return;
   }
+  const owner = pendingTask.owner || sessionId;
   clearPending(sessionId);
   setInputTask(sessionId, "");
   clearTaskCookie(sessionId);
-  await deletePending(sessionId, taskHash);
+  await deletePending(owner, taskHash);
 }
 
 async function resumePending(task, answers) {
-  const url = `${API}/v1/session/${encodeURIComponent(task.sessionId)}/task/${encodeURIComponent(task.taskHash)}/resume`;
+  const owner = task.owner || task.sessionId;
+  const url = `${API}/v1/session/${encodeURIComponent(owner)}/task/${encodeURIComponent(task.taskHash)}/resume`;
   writeTaskCookie(task.sessionId, task.taskHash);
   setInputTask(task.sessionId, task.taskHash);
 
@@ -246,7 +272,7 @@ async function renderPendingHint(sessionId) {
   const dom = chatPart("pending", sessionId);
   for (const one of tasks) {
     const title = String(one.objective || "").replace(/\s+/g, " ").trim() || one.task_hash;
-    const dot = _("button", { type: "button", class: "hint" }, [
+    const dot = _("button", { type: "button", class: "hint", "data-task": one.task_hash }, [
       _("span.material-symbols-outlined", "live_help"),
       _("p", title),
     ]);
