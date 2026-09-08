@@ -55,7 +55,11 @@ A chat can give you an answer; work needs a result. Agenvoy breaks requests into
 >
 > If a tool doesn't exist, it builds one.
 
-[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
+<p align="center">
+  <a href="https://youtu.be/floMBsAfziY">
+    <img src="https://img.youtube.com/vi/floMBsAfziY/maxresdefault.jpg" alt="Web Search / Tool Generate demo" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -72,7 +76,11 @@ A chat can give you an answer; work needs a result. Agenvoy breaks requests into
 >
 > Then creates the schedule automatically.
 
-[![](https://i.ytimg.com/vi/5To3joKlFpU/maxresdefault.jpg)](https://youtu.be/5To3joKlFpU)
+<p align="center">
+  <a href="https://youtu.be/5To3joKlFpU">
+    <img src="https://img.youtube.com/vi/5To3joKlFpU/maxresdefault.jpg" alt="Scheduler demo" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -85,7 +93,11 @@ A chat can give you an answer; work needs a result. Agenvoy breaks requests into
 >
 > The agent searches your local files and answers directly.
 
-[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
+<p align="center">
+  <a href="https://youtu.be/vqoQ6Qvl8qU">
+    <img src="https://img.youtube.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg" alt="File Search / RAG demo" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -96,7 +108,11 @@ A chat can give you an answer; work needs a result. Agenvoy breaks requests into
 >
 > The agent breaks down the task, calls tools, combines results, and replies.
 
-[![](https://i.ytimg.com/vi/nIV1xz_HIJg/maxresdefault.jpg)](https://youtu.be/nIV1xz_HIJg)
+<p align="center">
+  <a href="https://youtu.be/nIV1xz_HIJg">
+    <img src="https://img.youtube.com/vi/nIV1xz_HIJg/maxresdefault.jpg" alt="Skills / Sub-agents demo" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -228,6 +244,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 A cost-effective model setup to get started:
 
 1. Choose a subscription model for everyday primary use, such as:
+   - GitHub Copilot ($10/mo) — pick `gpt-5.6-luna`: its quota drains slowly enough for daily use and it is capable enough for most work
    - OpenAI ChatGPT Plus ($20/mo)
    - SuperGrok ($30/mo)
 2. **For a free trial**, you can apply for a free **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token and try `nvidia/nemotron-3.5-lightning-30b-a3b`. It is not a large model, but it is a good choice for trying out Agenvoy at no cost.
