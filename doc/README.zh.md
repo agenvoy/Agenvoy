@@ -55,7 +55,11 @@ Agenvoy 為台灣自研的 AI Agent Harness，將對話轉化為在你的電腦�
 >
 > 如果缺工具，它會自己建立。
 
-[![](https://i.ytimg.com/vi/floMBsAfziY/maxresdefault.jpg)](https://youtu.be/floMBsAfziY)
+<p align="center">
+  <a href="https://youtu.be/floMBsAfziY">
+    <img src="https://img.youtube.com/vi/floMBsAfziY/maxresdefault.jpg" alt="網路搜尋／工具生成示範" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -72,7 +76,11 @@ Agenvoy 為台灣自研的 AI Agent Harness，將對話轉化為在你的電腦�
 >
 > 然後自動建立排程。
 
-[![](https://i.ytimg.com/vi/5To3joKlFpU/maxresdefault.jpg)](https://youtu.be/5To3joKlFpU)
+<p align="center">
+  <a href="https://youtu.be/5To3joKlFpU">
+    <img src="https://img.youtube.com/vi/5To3joKlFpU/maxresdefault.jpg" alt="排程示範" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -85,7 +93,11 @@ Agenvoy 為台灣自研的 AI Agent Harness，將對話轉化為在你的電腦�
 >
 > Agent 會搜尋你的本機檔案並直接回答。
 
-[![](https://i.ytimg.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg)](https://youtu.be/vqoQ6Qvl8qU)
+<p align="center">
+  <a href="https://youtu.be/vqoQ6Qvl8qU">
+    <img src="https://img.youtube.com/vi/vqoQ6Qvl8qU/maxresdefault.jpg" alt="檔案搜尋／RAG 示範" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -96,7 +108,11 @@ Agenvoy 為台灣自研的 AI Agent Harness，將對話轉化為在你的電腦�
 >
 > Agent 會拆解任務、呼叫工具、整合結果，再回覆給你。
 
-[![](https://i.ytimg.com/vi/nIV1xz_HIJg/maxresdefault.jpg)](https://youtu.be/nIV1xz_HIJg)
+<p align="center">
+  <a href="https://youtu.be/nIV1xz_HIJg">
+    <img src="https://img.youtube.com/vi/nIV1xz_HIJg/maxresdefault.jpg" alt="Skill／子代理示範" width="640">
+  </a>
+</p>
 
 </details>
 
@@ -226,6 +242,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 以下是一組容易上手、成本較低的配置：
 
 1. 選擇一個訂閱制模型作為日常主要模型，例如：
+   - GitHub Copilot（$10／月）—— 指定 `gpt-5.6-luna`，額度損耗夠慢、能力也夠日常使用
    - OpenAI ChatGPT Plus（$20／月）
    - SuperGrok（$30／月）
 2. **如果想免費嚐鮮**，可以申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，試用 `nvidia/nemotron-3.5-lightning-30b-a3b`。它不是大型模型，但適合免費體驗 Agenvoy。
