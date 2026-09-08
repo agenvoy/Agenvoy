@@ -42,7 +42,7 @@ graph LR
 
 ## Module: Agent Execution and Model Routing
 
-The runtime matches a request to a Skill when applicable, then uses the Skill description and task text to select the primary model and fallbacks. It separately configures the dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) roles. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. This enables task-aware model routing instead of one model handling every operation. For multi-provider setups, `nvidia/nemotron-3.5-lightning-30b-a3b` through NVIDIA NIM can optionally act as a fast dispatcher.
+The runtime matches a request to a Skill when applicable, then selects the configured primary model and fallbacks. Dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) are separate optional roles. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. The NVIDIA NIM `nvidia/nemotron-3.5-lightning-30b-a3b` model is documented as a free, non-large model for trying Agenvoy, not as a required dispatcher or primary model.
 
 ```mermaid
 graph TB
@@ -63,7 +63,7 @@ graph TB
 
 ## Module: Tools, Skills, and Sandbox
 
-Built-in tools, generated API/script tools, installed extensions, and MCP tools share one registry. Tools load their full schema only when needed to keep routine requests lightweight. Before execution, filesystem and command actions pass denied-path and sensitive-path checks, confirmation gates, package-name or shell validation, and OS-level sandbox rules. Command policy is denylist-based: configured denied commands are rejected; commands not on the denylist can still require the normal confirmation flow. If live data needs a tool that does not exist, the agent can build, test, and retain a new tool.
+Built-in tools, generated API/script tools, installed extensions, and MCP tools share one registry. Tools load their full schema only when needed to keep routine requests lightweight. Before execution, the executor checks denied and sensitive paths, command policy, confirmation requirements, argument validation, and the OS sandbox. A normal tool confirmation asks whether to allow that specific tool call. Restricted paths and package-management operations additionally require system verification where the channel supports it. Denied paths and configured denied commands are hard rejected; commands outside the denylist are not an allowlist failure, though they can still enter the normal confirmation flow. If live data needs a tool that does not exist, the agent can build, test, and retain a new tool.
 
 ```mermaid
 graph TB
@@ -80,7 +80,7 @@ graph TB
 
 ## Module: Sessions, Memory, and Task Lifecycle
 
-Every request belongs to a session. Session configuration is stored in SQLite; sessions retain messages, summaries, logs, usage, and pending questions. Active tasks publish short-lived `action:<session>:<task>` markers in ToriiDB and refresh them while running, so pending lists expose only tasks that can actually be resumed. Origin prefixes keep interactive work with the correct listener: local CLI/TUI, web, Telegram, and Discord each resume only their own pending request. Tasks are registered before they compete for a per-session concurrency slot, so queued work remains visible and cancellable.
+Every request belongs to a session. Session configuration is stored in SQLite; sessions retain messages, summaries, logs, usage, and pending questions. Active tasks publish short-lived `action:<session>:<task>` markers in ToriiDB and refresh them while running, so pending lists expose only tasks that can actually be resumed. Pending requests have two routing keys: `Origin` selects the listener (CLI/TUI, web, Telegram, or Discord), while `DeliverTo` selects the session window that receives the prompt and result. A subagent runs in its own session but inherits the parent origin and delivers confirmations and `ask_user` prompts back to the parent session. Tasks are registered before they compete for a per-session concurrency slot, so queued work remains visible and cancellable.
 
 ```mermaid
 graph TB
@@ -88,11 +88,12 @@ graph TB
     Session --> History[History + summary]
     Session --> Logs[Action + usage logs]
     Session --> Pending[Pending question / confirmation]
-    Pending --> Origin{Origin}
-    Origin --> CLI[CLI / TUI]
-    Origin --> Web[Dashboard]
-    Origin --> TG[Telegram]
-    Origin --> DC[Discord]
+    Pending --> Routing{Origin + DeliverTo}
+    Routing --> CLI[CLI / TUI]
+    Routing --> Web[Dashboard]
+    Routing --> TG[Telegram]
+    Routing --> DC[Discord]
+    Subagent[Subagent session] -->|deliver to parent| Pending
     Request --> Register[Register task]
     Register --> Gate{Session slot free?}
     Gate -->|yes| Execute[Run agent]
@@ -103,7 +104,7 @@ graph TB
 
 ## Module: Daemon, Dashboard, and Chat Channels
 
-The daemon initializes ToriiDB before SQLite, clears stale in-flight markers, then opens the history database and migrates notes before starting the local HTTP server. Its dashboard is embedded in the binary and served by the same localhost-only daemon. Telegram and Discord require only their bot tokens because the daemon initiates the connection. Since **v0.34.4**, the default voice-input-to-voice-output loop is paused for those channels; STT/TTS tools can still generate audio files and send them through either channel.
+The daemon initializes ToriiDB before SQLite, clears stale in-flight markers, then opens the history database and migrates notes before starting the local HTTP server. It registers the web confirmation listener before serving the loopback API. Its dashboard is embedded in the binary and served by the same localhost-only daemon. Telegram and Discord require only their bot tokens because the daemon initiates the connection. Since **v0.34.4**, the default voice-input-to-voice-output loop is paused for those channels; STT/TTS tools can still generate audio files and send them through either channel.
 
 ```mermaid
 graph TB

@@ -37,14 +37,15 @@ var commands = []Command{
 	{"mcp", "list MCP servers · add · per-server login, reconnect, tools, remove"},
 	{"switch", "switch / change current session via picker"},
 	{"new", "create / add new session · name conflict-checked"},
-	{"dangerous", "remove-session / allow-skill"},
-	{"memory", "compact / reset / summary · manage session memory"},
+	{"remove-session", "delete current session"},
+	{"allow-skill", "always-allow skill (skip permission) · global / project"},
+	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis · confirm required"},
+	{"reset", "reset / refresh current session · double-confirm · summary regen first then drop history + task history + action.log"},
 	{"bot", "edit / rename current session · name / self id / description (persona)"},
 	{"rule", "list / add / edit rule · title + description"},
 	{"note", "list / add / edit note · title + description"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
-	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},
@@ -101,6 +102,10 @@ func queryCmdSelector(content string) (query string, ok bool) {
 	return rest, true
 }
 
+func isDangerCommand(name string) bool {
+	return strings.HasPrefix(name, "allow-") || name == "remove-session"
+}
+
 func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {
 	query = strings.ToLower(query)
 
@@ -120,7 +125,7 @@ func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {
 			label: "/" + c.name,
 			desc:  c.desc,
 		}
-		if strings.HasPrefix(c.name, "allow-") {
+		if isDangerCommand(c.name) {
 			item.isAllow = true
 			if strings.HasPrefix(c.desc, "!(") {
 				if i := strings.IndexByte(c.desc, ')'); i >= 0 {

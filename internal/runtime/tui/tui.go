@@ -11,6 +11,7 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -62,6 +63,11 @@ func Run(ctx context.Context) error {
 
 	restoreSlog := installSlogTUI()
 	defer restoreSlog()
+
+	pubsub.SetForwarder(func(sessionID string, ev agentTypes.Event) {
+		publishEventToDaemon(ctx, sessionID, ev)
+	})
+	defer pubsub.SetForwarder(nil)
 
 	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
 		publishEventToDaemon(ctx, sessionID, agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason})

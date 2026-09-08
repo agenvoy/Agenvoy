@@ -56,9 +56,12 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 	}
 
 	hash := interactive.SaveAndEnqueueAskUser(sessionID, origin, deliverTo, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
-	event := agentTypes.Event{Type: agentTypes.EventPending, Text: hash, TaskHash: hash}
+	event := agentTypes.Event{Type: agentTypes.EventPending, Text: hash, TaskHash: hash, PendingSession: sessionID}
 	sessionLog.Record(sessionID, event)
 	pubsub.Pub(sessionID, event)
+	if deliverTo != "" && deliverTo != sessionID {
+		pubsub.Pub(deliverTo, event)
+	}
 }
 
 func originFor(ctx context.Context, sessionID string) string {

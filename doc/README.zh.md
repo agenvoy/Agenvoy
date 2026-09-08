@@ -228,7 +228,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 1. 選擇一個訂閱制模型作為日常主要模型，例如：
    - OpenAI ChatGPT Plus（$20／月）
    - SuperGrok（$30／月）
-2. **如果有多種 provider 的需求**，可以申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，並將可免費使用的 `nvidia/nemotron-3.5-lightning-30b-a3b` 設為 **dispatcher** 模型，搭配智慧路由，兼顧快速回應且不花錢。
+2. **如果想免費嚐鮮**，可以申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，試用 `nvidia/nemotron-3.5-lightning-30b-a3b`。它不是大型模型，但適合免費體驗 Agenvoy。
 
 ---
 

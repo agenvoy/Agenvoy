@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,6 +55,52 @@ func GetAgent() []agentTypes.AgentEntry {
 		}
 	}
 	return cfg.Models
+}
+
+var providerPriority = []string{"codex", "openai", "grok-oauth", "grok", "claude", "copilot", "openrouter"}
+
+func providerRank(name string) int {
+	provider, _, ok := strings.Cut(name, "@")
+	if !ok {
+		return len(providerPriority)
+	}
+	if i := slices.Index(providerPriority, provider); i >= 0 {
+		return i
+	}
+	return len(providerPriority)
+}
+
+func modelKey(name string) string {
+	_, model, ok := strings.Cut(name, "@")
+	if !ok {
+		return name
+	}
+	if i := strings.LastIndex(model, "/"); i >= 0 {
+		model = model[i+1:]
+	}
+	return model
+}
+
+func byProviderPreference(names []string) []string {
+	order := make([]string, 0, len(names))
+	group := make(map[string][]string, len(names))
+	for _, n := range names {
+		key := modelKey(n)
+		if _, ok := group[key]; !ok {
+			order = append(order, key)
+		}
+		group[key] = append(group[key], n)
+	}
+
+	out := make([]string, 0, len(names))
+	for _, key := range order {
+		list := group[key]
+		slices.SortStableFunc(list, func(a, b string) int {
+			return providerRank(a) - providerRank(b)
+		})
+		out = append(out, list...)
+	}
+	return out
 }
 
 func SkillHint(s *skill.Skill) string {
@@ -174,7 +221,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		picked = append(picked, n)
 		seen[n] = true
 	}
-	return picked, dead
+	return byProviderPreference(picked), dead
 }
 
 func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {

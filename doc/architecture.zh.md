@@ -4,7 +4,7 @@
 
 ## 概覽
 
-Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務路由模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
+Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務選擇模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
 
 ```mermaid
 graph TB
@@ -25,9 +25,9 @@ graph TB
 
 ## 模組：進入點與執行模式
 
-`cmd/app` 預設開啟 TUI；`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
+`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
 
-輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS。多 provider 的配置可選擇以 NVIDIA NIM 的 `nvidia/nemotron-3.5-lightning-30b-a3b` 作為 dispatcher，取得智慧路由與快速回應。
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS。`nvidia/nemotron-3.5-lightning-30b-a3b` 是 NVIDIA NIM 提供的免費、非大型模型，適合免費嚐鮮 Agenvoy，不是必要的 dispatcher 或主要模型。
 
 ```mermaid
 graph TB
@@ -65,7 +65,7 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 session 指派與 Skill；Skill 描述會成為 dispatcher 的任務提示。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 session 指派與 Skill；Skill 描述會作為模型選擇提示。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 ```mermaid
 graph TB
@@ -87,7 +87,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，將長篇報告寫入工作目錄；缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。檔案與命令操作都需經過 denied path、敏感路徑、確認閘門、套件名稱或 shell 驗證及作業系統沙箱。命令政策採 denylist：命中使用者設定的拒絕清單即硬拒，其他命令仍可能進入一般確認流程。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，將長篇報告寫入工作目錄；缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
 
 ```mermaid
 graph TB
@@ -106,7 +106,7 @@ graph TB
 
 ## 模組：Session、歷史、排程與監控
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener；subagent 的 `DeliverTo` 會把提問送回父層 session。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
@@ -115,7 +115,7 @@ graph TB
     History --> SQLite[SQLite 搜尋索引]
     History --> Summary[滾動摘要]
     Request --> Logs[action.log／usage.log]
-    Pending[ask_user／確認] --> Origin[來源前綴]
+    Pending[ask_user／工具確認] --> Origin[來源前綴]
     Origin --> Listener[對應頻道 Listener]
     Listener --> Resume[恢復執行]
     Scheduler[Scheduler Skill] --> Execute[Agent 執行]

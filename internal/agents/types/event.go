@@ -45,6 +45,7 @@ var eventTypeByName = map[string]EventType{
 	"EventCanceled":        EventCanceled,
 	"EventSuggest":         EventSuggest,
 	"EventPending":         EventPending,
+	"EventPendingEnd":      EventPendingEnd,
 	"EventClientToolCall":  EventClientToolCall,
 	"EventFileChanged":     EventFileChanged,
 }
@@ -93,6 +94,7 @@ const (
 	EventClientToolCall
 	EventFileChanged
 	EventToolProgress
+	EventPendingEnd
 )
 
 func (e EventType) String() string {
@@ -157,6 +159,8 @@ func (e EventType) String() string {
 		return "EventSuggest"
 	case EventPending:
 		return "EventPending"
+	case EventPendingEnd:
+		return "EventPendingEnd"
 	case EventClientToolCall:
 		return "EventClientToolCall"
 	default:
@@ -168,6 +172,7 @@ type Event struct {
 	Type            EventType           `json:"type"`
 	OnceID          string              `json:"once_id,omitempty"`
 	TaskHash        string              `json:"task_hash,omitempty"`
+	PendingSession  string              `json:"pending_session,omitempty"`
 	Source          string              `json:"source,omitempty"`
 	Text            string              `json:"text,omitempty"`
 	ToolName        string              `json:"tool_name,omitempty"`
