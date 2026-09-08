@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -50,24 +49,17 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	}
 	change := historyStore.CaptureContent(absPath, content)
 
-	order := make([]int, len(targets))
-	for i := range order {
-		order[i] = i
+	if conflict := insertedAnchor(targets); conflict != "" {
+		return "", fmt.Errorf("%s", conflict)
 	}
+
 	before := content
-	var skipped []int
-	for _, i := range order {
-		updated, err := applyTarget(content, targets[i], absPath)
-		if updated == content && err == nil {
-			skipped = append(skipped, i)
-		}
-		if err != nil {
-			if conflict := batchConflict(before, content, absPath, targets, order, i); conflict != "" {
-				return "", fmt.Errorf("targets[%d]: %s", i, conflict)
-			}
-			return "", fmt.Errorf("targets[%d]: %w", i, err)
-		}
-		content = updated
+	spans, skipped, err := planTargets(content, targets, absPath)
+	if err != nil {
+		return "", err
+	}
+	for _, one := range slices.Backward(spans) {
+		content = content[:one.start] + one.text + content[one.end:]
 	}
 	if content == before {
 		return fmt.Sprintf("no write: every target in %s already matches its new_string, so the file is unchanged", absPath), nil
@@ -92,7 +84,7 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 
 	note := ""
 	if len(skipped) > 0 {
-		sort.Ints(skipped)
+		slices.Sort(skipped)
 		note = fmt.Sprintf("\n%d of %d targets were already applied and were skipped: %v", len(skipped), len(targets), skipped)
 	}
 	return fmt.Sprintf("successfully updated %s", absPath) + note + unrecorded, nil
@@ -115,55 +107,95 @@ type patchTarget struct {
 	ReplaceAll bool   `json:"replace_all"`
 }
 
-func applyTarget(content string, target patchTarget, absPath string) (string, error) {
-	old := target.OldString
-	new := target.NewString
-	if old == "" {
-		return "", fmt.Errorf("old_string is required")
+func insertedAnchor(targets []patchTarget) string {
+	for i, one := range targets {
+		old := strings.TrimRight(one.OldString, "\n")
+		if old == "" {
+			continue
+		}
+		for j := range i {
+			if !strings.Contains(targets[j].NewString, old) {
+				continue
+			}
+			return fmt.Sprintf("targets[%d]: %q also occurs inside targets[%d].new_string. Every anchor resolves against the bytes already on disk, so this target cannot reach text another target inserts. Nothing was written — merge the two targets into one, or send them in separate calls", i, old, j)
+		}
 	}
-	if old == new {
-		return content, nil
-	}
-	if !strings.Contains(content, old) {
-		return "", anchorNotFound(content, old, absPath)
-	}
-
-	search := old
-	if new == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
-		search = old + "\n"
-	}
-
-	if target.ReplaceAll {
-		return strings.ReplaceAll(content, search, new), nil
-	}
-	if rows := rowsOf(content, search); len(rows) > 1 {
-		return "", fmt.Errorf("%s occurs on rows %v of %s; extend old_string until it matches once, or set replace_all", old, rows, absPath)
-	}
-	return strings.Replace(content, search, new, 1), nil
+	return ""
 }
 
-func batchConflict(original, current, absPath string, targets []patchTarget, order []int, at int) string {
-	old := targets[at].OldString
-	if old == "" || strings.Contains(current, old) || !strings.Contains(original, old) {
-		return ""
+type patchSpan struct {
+	target int
+	start  int
+	end    int
+	text   string
+}
+
+func planTargets(content string, targets []patchTarget, absPath string) ([]patchSpan, []int, error) {
+	var spans []patchSpan
+	var skipped []int
+
+	for i, one := range targets {
+		old := one.OldString
+		if old == "" {
+			return nil, nil, fmt.Errorf("targets[%d]: old_string is required", i)
+		}
+		if old == one.NewString {
+			skipped = append(skipped, i)
+			continue
+		}
+		if !strings.Contains(content, old) {
+			return nil, nil, fmt.Errorf("targets[%d]: %w", i, anchorNotFound(content, old, absPath))
+		}
+
+		search := old
+		if one.NewString == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
+			search = old + "\n"
+		}
+
+		at := offsetsOf(content, search)
+		if len(at) > 1 && !one.ReplaceAll {
+			return nil, nil, fmt.Errorf("targets[%d]: %q occurs on rows %v of %s; extend old_string until it matches once, or set replace_all", i, old, rowsAt(content, at), absPath)
+		}
+		if !one.ReplaceAll {
+			at = at[:1]
+		}
+		for _, pos := range at {
+			spans = append(spans, patchSpan{target: i, start: pos, end: pos + len(search), text: one.NewString})
+		}
 	}
 
-	var by []string
-	for _, j := range order {
-		if j == at {
-			break
-		}
-		other := targets[j].OldString
-		if other != "" && (strings.Contains(old, other) || strings.Contains(other, old)) {
-			by = append(by, fmt.Sprintf("targets[%d]", j))
+	slices.SortFunc(spans, func(a, b patchSpan) int { return a.start - b.start })
+	for k := 1; k < len(spans); k++ {
+		if spans[k].start < spans[k-1].end {
+			return nil, nil, fmt.Errorf("targets[%d] and targets[%d] both cover row %d of %s, so applying one would destroy the other's anchor. Nothing was written — merge them into one target, or send them in separate calls", spans[k-1].target, spans[k].target, rowAt(content, spans[k].start), absPath)
 		}
 	}
-	culprit := "an earlier target in this same call"
-	if len(by) > 0 {
-		culprit = strings.Join(by, " and ")
-	}
+	return spans, skipped, nil
+}
 
-	return fmt.Sprintf("%q is still present in %s on disk, but %s rewrote that region earlier in this same call, so the anchor was already gone when this target ran. Nothing was written. Re-reading the file shows the anchor and produces this same failure — merge the overlapping targets into one target, or send them in separate calls", old, absPath, culprit)
+func offsetsOf(content, search string) []int {
+	var at []int
+	for idx := 0; ; {
+		i := strings.Index(content[idx:], search)
+		if i < 0 {
+			return at
+		}
+		pos := idx + i
+		at = append(at, pos)
+		idx = pos + len(search)
+	}
+}
+
+func rowAt(content string, pos int) int {
+	return strings.Count(content[:pos], "\n") + 1
+}
+
+func rowsAt(content string, at []int) []int {
+	rows := make([]int, 0, len(at))
+	for _, pos := range at {
+		rows = append(rows, rowAt(content, pos))
+	}
+	return rows
 }
 
 func anchorNotFound(content, old, absPath string) error {
@@ -192,17 +224,4 @@ func anchorNotFound(content, old, absPath string) error {
 		return fmt.Errorf("%q is not found in %s and nothing there resembles it; the file holds %d lines — re-read it and build the anchor from its current bytes", old, absPath, len(lines))
 	}
 	return fmt.Errorf("%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
-}
-
-func rowsOf(content, search string) []int {
-	var rows []int
-	for idx := 0; ; {
-		i := strings.Index(content[idx:], search)
-		if i < 0 {
-			return rows
-		}
-		pos := idx + i
-		rows = append(rows, strings.Count(content[:pos], "\n")+1)
-		idx = pos + 1
-	}
 }

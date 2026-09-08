@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	"github.com/pardnchiu/agenvoy/internal/runtime/startup"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )
@@ -48,6 +49,10 @@ func main() {
 
 		case "update":
 			runUpdate()
+			return
+
+		case "startup":
+			runStartup(os.Args[2:])
 			return
 
 		case "--daemon":
@@ -134,6 +139,38 @@ func printUsage() {
 	fmt.Println("  agen                                            Attach TUI; spawn server daemon if not running")
 	fmt.Println("  agen stop                                       Stop the running server daemon")
 	fmt.Println("  agen update                                     Update agen to the latest release")
+	fmt.Println("  agen startup <enable|disable>                   Launch the daemon on login (launchd / systemd user unit)")
+}
+
+func runStartup(args []string) {
+	action := ""
+	if len(args) > 0 {
+		action = strings.ToLower(strings.TrimSpace(args[0]))
+	}
+	if action != "enable" && action != "disable" {
+		fmt.Fprintln(os.Stderr, "Usage: agen startup <enable|disable>")
+		os.Exit(1)
+	}
+
+	if err := filesystem.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "filesystem.Init: %v\n", err)
+		os.Exit(1)
+	}
+
+	var (
+		detail string
+		err    error
+	)
+	if action == "enable" {
+		detail, err = startup.Enable()
+	} else {
+		detail, err = startup.Disable()
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "startup %s: %v\n", action, err)
+		os.Exit(1)
+	}
+	fmt.Printf("startup %sd · %s\n", action, detail)
 }
 
 func runUpdate() {

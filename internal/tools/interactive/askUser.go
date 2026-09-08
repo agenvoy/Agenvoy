@@ -15,6 +15,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
@@ -60,6 +61,7 @@ type answeredQuestion struct {
 type pendingMeta struct {
 	TaskHash     string                `json:"task_hash"`
 	SessionID    string                `json:"session_id"`
+	DeliverTo    string                `json:"deliver_to,omitempty"`
 	MessageID    string                `json:"message_id,omitempty"`
 	Model        string                `json:"model,omitempty"`
 	Reasoning    string                `json:"reasoning,omitempty"`
@@ -603,14 +605,19 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		pendingMu.Unlock()
 	}
 
-	return msg.String(), sb.String(), nil
-}
-
-func originFor(ctx context.Context, sessionID string) string {
-	if origin := agentTypes.OriginFrom(ctx); origin != "" {
-		return origin
+	runtime.DropTask(sessionID, taskHash)
+	endEvent := agentTypes.Event{
+		Type:           agentTypes.EventPendingEnd,
+		Text:           taskHash,
+		TaskHash:       taskHash,
+		PendingSession: sessionID,
 	}
-	return runtime.OriginOf(sessionID)
+	pubsub.Pub(sessionID, endEvent)
+	if meta.DeliverTo != "" && meta.DeliverTo != sessionID {
+		pubsub.Pub(meta.DeliverTo, endEvent)
+	}
+
+	return msg.String(), sb.String(), nil
 }
 
 func deliverFor(ctx context.Context, sessionID string) string {
@@ -618,6 +625,13 @@ func deliverFor(ctx context.Context, sessionID string) string {
 		return id
 	}
 	return sessionID
+}
+
+func originFor(ctx context.Context, sessionID string) string {
+	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+		return origin
+	}
+	return runtime.OriginOf(sessionID)
 }
 
 func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runtime.Question, objective string, completed, nextSteps []string, toolResults []ToolResult, existingTaskHash string, files []string) string {
@@ -657,6 +671,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
 		MessageID:   messageID,
+		DeliverTo:   deliverTo,
 		Model:       model,
 		Reasoning:   reasoning,
 		Objective:   objective,
@@ -688,6 +703,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 	if _, err := runtime.AskUser(runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
+		TaskHash:  taskHash,
 		Origin:    origin,
 		DeliverTo: deliverTo,
 		ToolName:  "ask_user",

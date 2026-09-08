@@ -142,8 +142,13 @@ function parseEvent(event) {
   if (event.type === "EventPending") {
     setPaused(sessionId, true);
     if (event.text) {
-      loadPending(sessionId, event.text);
+      loadPending(sessionId, event.text, event.pending_session);
     }
+    return;
+  }
+
+  if (event.type === "EventPendingEnd") {
+    closePendingTask(sessionId, event.text || event.task_hash);
     return;
   }
 

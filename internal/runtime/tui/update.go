@@ -357,20 +357,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case MemoryScopeSelect:
-		switch msg.scope {
-		case "compact":
-			next, cmd, _ := t.commandCompact()
-			return next, cmd
-		case "reset":
-			next, cmd, _ := t.commandReset()
-			return next, cmd
-		case "summary":
-			next, cmd, _ := t.commandSummary()
-			return next, cmd
-		}
-		return t, nil
-
 	case UsageScopeSelect:
 		switch msg.scope {
 		case "session":
@@ -869,10 +855,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.finishResetSession(msg)
 		return next, cmd
 
-	case SummaryDone:
-		next, cmd := t.finishSummary(msg)
-		return next, cmd
-
 	case CompactConfirm:
 		if !msg.yes {
 			return t, nil
@@ -928,30 +910,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ line %sd · daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
-
-	case DangerousSelect:
-		switch msg.action {
-		case "remove-session":
-			next, cmd, _ := t.commandRemoveSession()
-			return next, cmd
-		case "allow-skill":
-			next, cmd, _ := t.commandAllowSkill(nil)
-			return next, cmd
-		}
-		return t, nil
-
-	case StartupAction:
-		return t, setStartup(msg.action)
-
-	case StartupDone:
-		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] startup %s: %v", msg.action, msg.err)) + "\n")
-		}
-		line := fmt.Sprintf("⎯ startup %sd", msg.action)
-		if msg.detail != "" {
-			line += " · " + msg.detail
-		}
-		return t, tea.Println(hintStyle.Render(line) + "\n")
 
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
