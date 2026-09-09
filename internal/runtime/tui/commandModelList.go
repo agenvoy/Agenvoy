@@ -21,9 +21,6 @@ func (t TUI) commandModelList() (TUI, tea.Cmd, bool) {
 	lines = append(lines, hintStyle.Render(fmt.Sprintf("⎯ %d model(s) configured", len(cfg.Models))))
 	for _, m := range cfg.Models {
 		label := "  " + m.Name
-		if m.Description != "" {
-			label += " · " + m.Description
-		}
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += " · [dispatcher]"
 		}

@@ -260,7 +260,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, allowAll)
+			runModel := ""
+			if data.Agent != nil {
+				runModel = data.Agent.Name()
+			}
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {

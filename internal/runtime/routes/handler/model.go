@@ -353,3 +353,73 @@ func SetModelRouting() gin.HandlerFunc {
 		c.JSON(http.StatusOK, modelRouting(c, cfg))
 	}
 }
+
+func GetModelPriority() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		names := make([]string, 0, len(cfg.Models))
+		for _, one := range cfg.Models {
+			if name := strings.TrimSpace(one.Name); name != "" {
+				names = append(names, name)
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"models": names})
+	}
+}
+
+func SetModelPriority() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Models []string `json:"models"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ordered := make([]config.ModelEntry, 0, len(cfg.Models))
+		taken := make(map[string]bool, len(body.Models))
+		for _, name := range body.Models {
+			name = strings.TrimSpace(name)
+			if name == "" || taken[name] {
+				continue
+			}
+			idx := slices.IndexFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == name })
+			if idx == -1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + name})
+				return
+			}
+			taken[name] = true
+			ordered = append(ordered, cfg.Models[idx])
+		}
+		for _, one := range cfg.Models {
+			if !taken[one.Name] {
+				ordered = append(ordered, one)
+			}
+		}
+
+		cfg.Models = ordered
+		if err := config.Save(cfg); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		agents.Reload()
+
+		names := make([]string, 0, len(ordered))
+		for _, one := range ordered {
+			names = append(names, one.Name)
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "models": names})
+	}
+}

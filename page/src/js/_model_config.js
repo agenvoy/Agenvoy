@@ -14,6 +14,7 @@ function modelDom() {
     list: $("#model-list"),
     catalog: $("#model-catalog"),
     routing: $("#model-routing"),
+    priority: $("#model-priority"),
     models: $("#model-models"),
   };
 }
@@ -343,6 +344,134 @@ async function renderModel() {
   }
   renderProviderCatalog(catalog, prefixes);
   renderModelRouting(registered);
+  renderModelPriority();
+}
+
+const PRIORITY_NOTE = [
+  "Fallback under auto only — this order does not change which agent gets selected.",
+  "A hand-off walks downward and never back up, so the last entry is your final line of defense.",
+  "Cache never carries across providers, but keep copies of the same model adjacent anyway: capability then steps down instead of jumping.",
+];
+
+async function modelPriority() {
+  try {
+    const response = await fetch(`${API}/v1/model/priority`);
+    if (response.ok) {
+      return ((await response.json()) || {}).models || [];
+    }
+  } catch (err) {
+    console.error("modelPriority", err);
+  }
+  return [];
+}
+
+async function saveModelPriority(names) {
+  try {
+    const response = await fetch(`${API}/v1/model/priority`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ models: names }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      modelError(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveModelPriority", err);
+    modelError(err.message || "failed");
+  }
+  renderModelPriority();
+}
+
+let priorityDrag = -1;
+
+function priorityRow(name, rank, total, move) {
+  const rankText = `#${rank + 1}`;
+  const label = _("div.label", [
+    _("strong", name),
+    _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
+  ]);
+  const row = _("div.routing", [label, _("span.material-symbols-outlined.grip", "drag_indicator")]);
+
+  row.draggable = true;
+  row.dataset.rank = String(rank);
+
+  row.addEventListener("dragstart", (e) => {
+    priorityDrag = rank;
+    row.dataset.dragging = "1";
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(rank));
+  });
+  row.addEventListener("dragend", () => {
+    priorityDrag = -1;
+    for (const one of document.querySelectorAll("#model-priority div.routing")) {
+      delete one.dataset.dragging;
+      delete one.dataset.drop;
+    }
+  });
+  row.addEventListener("dragover", (e) => {
+    if (priorityDrag === -1 || priorityDrag === rank) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    row.dataset.drop = priorityDrag < rank ? "below" : "above";
+  });
+  row.addEventListener("dragleave", () => {
+    delete row.dataset.drop;
+  });
+  row.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const from = priorityDrag === -1 ? Number(e.dataTransfer.getData("text/plain")) : priorityDrag;
+    delete row.dataset.drop;
+    if (Number.isNaN(from) || from === rank) {
+      return;
+    }
+    move(from, rank);
+  });
+
+  return row;
+}
+
+async function renderModelPriority() {
+  const dom = modelDom();
+  if (!dom.priority) {
+    return;
+  }
+
+  const names = await modelPriority();
+  if (modelView !== "add") {
+    return;
+  }
+
+  dom.priority.innerHTML = "";
+  dom.priority.dataset.open = "1";
+
+  const move = (from, to) => {
+    const next = names.slice();
+    const [one] = next.splice(from, 1);
+    next.splice(to, 0, one);
+    saveModelPriority(next);
+  };
+
+  const box = _("section");
+  if (names.length === 0) {
+    box.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
+  } else {
+    for (const line of PRIORITY_NOTE) {
+      box.appendChild(_("p.note", line));
+    }
+    names.forEach((name, rank) => box.appendChild(priorityRow(name, rank, names.length, move)));
+  }
+
+  dom.priority.appendChild(
+    _("details.group", { open: "" }, [
+      _("summary", ["Model Priority", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
+      box,
+    ]),
+  );
 }
 
 async function modelRouting() {

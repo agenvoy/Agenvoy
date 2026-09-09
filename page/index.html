@@ -289,10 +289,14 @@
             </details>
           </div>
           <form id="rule-form">
-            <span>Name</span>
-            <input id="rule-title" type="text" placeholder="Name this rule" />
-            <span>Content</span>
-            <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
+            <label for="rule-title">
+              <span>Name</span>
+              <input id="rule-title" type="text" placeholder="Name this rule" />
+            </label>
+            <label for="rule-content">
+              <span>Content</span>
+              <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
+            </label>
             <footer>
               <button type="button" class="remove" @click="rule_delete">delete</button>
               <button type="button" class="submit" @click="rule_save">add</button>
@@ -315,15 +319,19 @@
             </details>
           </div>
           <form id="note-form">
-            <span>Name</span>
-            <input
-              id="note-title"
-              type="text"
-              maxlength="32"
-              placeholder="Name this note (defaults to the first line)"
-            />
-            <span>Content</span>
-            <textarea id="note-content" rows="12" placeholder="What the agent should know"></textarea>
+            <label for="note-title">
+              <span>Name</span>
+              <input
+                id="note-title"
+                type="text"
+                maxlength="32"
+                placeholder="Name this note (defaults to the first line)"
+              />
+            </label>
+            <label for="note-content">
+              <span>Content</span>
+              <textarea id="note-content" rows="12" placeholder="What the agent should know"></textarea>
+            </label>
             <footer>
               <button type="button" class="remove" @click="note_delete">delete</button>
               <button type="button" class="submit" @click="note_save">add</button>
@@ -348,8 +356,10 @@
           <form id="skill-form">
             <p class="empty">select skills</p>
             <section class="tools" id="skill-allow-list"></section>
-            <span>Name</span>
-            <input id="skill-name" type="text" disabled />
+            <label for="skill-name">
+              <span>Name</span>
+              <input id="skill-name" type="text" disabled />
+            </label>
             <nav class="tab" id="skill-files"></nav>
             <textarea id="skill-content" rows="20" disabled></textarea>
             <footer>
@@ -374,17 +384,21 @@
             </details>
           </div>
           <form id="schedule-form">
-            <span>Name</span>
-            <input
-              id="schedule-name"
-              type="text"
-              maxlength="64"
-              placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
-            />
+            <label for="schedule-name">
+              <span>Name</span>
+              <input
+                id="schedule-name"
+                type="text"
+                maxlength="64"
+                placeholder="Skill folder name · A-Z a-z 0-9 _ - only, e.g. daily-hn-digest"
+              />
+            </label>
             <nav class="tab" id="schedule-files"></nav>
             <textarea id="schedule-content" rows="16" placeholder="SKILL.md · frontmatter + body"></textarea>
-            <span>Session</span>
-            <select id="schedule-session"></select>
+            <label for="schedule-session">
+              <span>Session</span>
+              <select id="schedule-session"></select>
+            </label>
             <nav class="tab" id="schedule-type"></nav>
             <section class="tools" id="schedule-entries"></section>
             <footer>
@@ -428,6 +442,7 @@
             </nav>
             <section class="tools" id="model-catalog"></section>
             <section class="tools" id="model-routing"></section>
+            <section class="tools" id="model-priority"></section>
             <section class="tools" id="model-models"></section>
           </form>
         </section>
@@ -447,8 +462,10 @@
             </details>
           </div>
           <form id="mcp-form" data-transport="stdio">
-            <span>Name</span>
-            <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
+            <label for="mcp-name">
+              <span>Name</span>
+              <input id="mcp-name" type="text" maxlength="64" placeholder="Server name" />
+            </label>
             <nav class="tab" id="mcp-transport" @click="mcp_transport">
               <button type="button" name="stdio" data-selected="1">stdio · local command</button>
               <button type="button" name="http">http · remote endpoint</button>
@@ -458,22 +475,32 @@
               <option value="oauth">oauth</option>
             </select>
             <div class="field" data-transport="stdio">
-              <span>Command</span>
-              <input id="mcp-command" type="text" placeholder="Command, e.g. npx" />
-              <span>Arguments</span>
-              <textarea id="mcp-args" rows="3" placeholder="Arguments · one per line"></textarea>
-              <span>Environment</span>
-              <textarea id="mcp-env" rows="3" placeholder="Environment · KEY=value per line"></textarea>
+              <label for="mcp-command">
+                <span>Command</span>
+                <input id="mcp-command" type="text" placeholder="Command, e.g. npx" />
+              </label>
+              <label for="mcp-args">
+                <span>Arguments</span>
+                <textarea id="mcp-args" rows="3" placeholder="Arguments · one per line"></textarea>
+              </label>
+              <label for="mcp-env">
+                <span>Environment</span>
+                <textarea id="mcp-env" rows="3" placeholder="Environment · KEY=value per line"></textarea>
+              </label>
             </div>
             <div class="field" data-transport="http">
-              <span>URL</span>
-              <input id="mcp-url" type="text" placeholder="https://example.com/mcp" />
-              <span>Headers</span>
-              <textarea
-                id="mcp-headers"
-                rows="3"
-                placeholder="Headers · Key: value per line · a bare Authorization value gets a Bearer prefix"
-              ></textarea>
+              <label for="mcp-url">
+                <span>URL</span>
+                <input id="mcp-url" type="text" placeholder="https://example.com/mcp" />
+              </label>
+              <label for="mcp-headers">
+                <span>Headers</span>
+                <textarea
+                  id="mcp-headers"
+                  rows="3"
+                  placeholder="Headers · Key: value per line · a bare Authorization value gets a Bearer prefix"
+                ></textarea>
+              </label>
             </div>
             <section class="oauth" id="mcp-oauth"></section>
             <section class="tools" id="mcp-tools"></section>
@@ -502,21 +529,25 @@
             </details>
           </div>
           <form id="keychain-form" autocomplete="off">
-            <span>Name</span>
-            <input
-              id="keychain-name"
-              type="text"
-              maxlength="128"
-              autocomplete="off"
-              placeholder="Key name, e.g. GEMINI_API_KEY"
-            />
-            <span>Value</span>
-            <input
-              id="keychain-value"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Value · stored in the OS keychain, never shown again"
-            />
+            <label for="keychain-name">
+              <span>Name</span>
+              <input
+                id="keychain-name"
+                type="text"
+                maxlength="128"
+                autocomplete="off"
+                placeholder="Key name, e.g. GEMINI_API_KEY"
+              />
+            </label>
+            <label for="keychain-value">
+              <span>Value</span>
+              <input
+                id="keychain-value"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Value · stored in the OS keychain, never shown again"
+              />
+            </label>
             <footer>
               <button type="button" class="remove" @click="keychain_delete">delete</button>
               <button type="button" class="submit" @click="keychain_save">add</button>
@@ -545,8 +576,10 @@
             <div class="status" id="channel-status"></div>
             <section class="tools" id="channel-chats"></section>
             <section class="tools" id="channel-admin"></section>
-            <span>Token</span>
-            <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
+            <label for="channel-token">
+              <span>Token</span>
+              <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
+            </label>
             <footer>
               <button type="button" class="remove" @click="channel_disable">disable</button>
               <button type="button" class="submit" @click="channel_enable">enable</button>

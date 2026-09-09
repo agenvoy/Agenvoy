@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -79,6 +80,12 @@ type pendingMeta struct {
 }
 
 var pendingMu sync.Mutex
+
+func modelAvailable(name string) bool {
+	registry := agents.Registry()
+	agent, ok := registry.Registry[name]
+	return ok && agent != nil
+}
 
 func registAskUser() {
 	toolRegister.Regist(toolRegister.Def{
@@ -319,12 +326,15 @@ func CleanupPending(sessionID, taskHash string) {
 	os.Remove(src)
 }
 
-func CreateExecPending(sessionID, objective, messageID string, allowAll bool) string {
+func CreateExecPending(sessionID, objective, messageID, model string, allowAll bool) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	model, reasoning := configBot.GetModel(sessionID)
+	sessionModel, reasoning := configBot.GetModel(sessionID)
+	if strings.TrimSpace(model) == "" {
+		model = sessionModel
+	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning, AllowAll: allowAll}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))
 	}
@@ -477,7 +487,14 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 	}
 
 	if meta.Model != "" {
-		configBot.SetModel(sessionID, meta.Model, meta.Reasoning)
+		model := meta.Model
+		if model != configBot.DefaultModel && !modelAvailable(model) {
+			slog.Info("resume: recorded model is gone, falling back to auto",
+				slog.String("session", sessionID),
+				slog.String("model", meta.Model))
+			model = configBot.DefaultModel
+		}
+		configBot.SetModel(sessionID, model, meta.Reasoning)
 	}
 
 	var msg strings.Builder

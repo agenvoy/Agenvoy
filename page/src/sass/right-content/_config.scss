@@ -315,9 +315,17 @@ body[data-rendered="1"] section.right-content section.config {
     @include contentFilter;
   }
 
+  label {
+    display: flex;
+    flex-flow: column;
+    gap: 0.375rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  label > span,
   > span,
   > div.field > span {
-    margin-bottom: -0.375rem;
     font-size: small;
     font-weight: 500;
     color: var(--gray-3);
@@ -691,8 +699,7 @@ body section.right-content section.config {
       display: block;
     }
 
-    &[data-enabled="1"] input#channel-token,
-    &[data-enabled="1"] > span:has(+ input#channel-token) {
+    &[data-enabled="1"] label[for="channel-token"] {
       display: none;
     }
 
@@ -814,10 +821,10 @@ body section.right-content section.config {
     &[data-view="provider"] > nav#model-filter,
     &[data-view="provider"] > section#model-catalog,
     &[data-view="provider"] > section#model-routing,
+    &[data-view="provider"] > section#model-priority,
     &[data-view="admin"] > section#channel-chats,
     &[data-view="admin"] > div.status,
-    &[data-view="admin"] > input#channel-token,
-    &[data-view="admin"] > span:has(+ input#channel-token),
+    &[data-view="admin"] > label[for="channel-token"],
     &[data-view="admin"] > footer,
     &[data-view="channel"] > section#channel-admin {
       display: none;
@@ -827,7 +834,8 @@ body section.right-content section.config {
       gap: 0.25rem;
     }
 
-    section.tools#model-routing {
+    section.tools#model-routing,
+    section.tools#model-priority {
       gap: 0.5rem;
       padding: 0;
       background: none;
@@ -860,7 +868,8 @@ body section.right-content section.config {
     }
 
     section.tools#model-catalog,
-    section.tools#model-routing {
+    section.tools#model-routing,
+    section.tools#model-priority {
       > details.group {
         width: 100%;
 
@@ -898,11 +907,20 @@ body section.right-content section.config {
           margin-top: 0.5rem;
           width: 100%;
 
+          > p.note {
+            margin: -0.25rem 0;
+            font-size: small;
+            font-weight: 300;
+            line-height: 1.5;
+            color: var(--gray-3);
+          }
+
           @media (min-width: 1024px) {
             flex-flow: row wrap;
             align-items: flex-start;
 
-            > p.empty {
+            > p.empty,
+            > p.note {
               width: 100%;
             }
 
@@ -912,6 +930,36 @@ body section.right-content section.config {
             }
           }
         }
+      }
+    }
+
+    section#model-priority div.routing {
+      cursor: grab;
+
+      > span.grip {
+        flex: 0 0 auto;
+        font-size: medium;
+        color: var(--gray-3);
+        opacity: 0.5;
+      }
+
+      @media (hover: hover) {
+        &:hover > span.grip {
+          opacity: 1;
+        }
+      }
+
+      &[data-dragging="1"] {
+        opacity: 0.4;
+        cursor: grabbing;
+      }
+
+      &[data-drop="above"] {
+        box-shadow: inset 0 2px 0 0 var(--accent);
+      }
+
+      &[data-drop="below"] {
+        box-shadow: inset 0 -2px 0 0 var(--accent);
       }
     }
 
@@ -1052,7 +1100,9 @@ body section.right-content section.config {
           background-color: transparent;
           border: none;
         }
+
       }
+
 
       > strong.group {
         margin-top: 0.75rem;
