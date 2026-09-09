@@ -176,34 +176,34 @@
   }
 
   details .md-render {
-    font-size: 14px;
+    font-size: small;
 
     .md-h1 {
-      font-size: 22px;
+      font-size: x-large;
     }
 
     .md-h2 {
-      font-size: 16px;
+      font-size: medium;
     }
 
     .md-h3 {
-      font-size: 14px;
+      font-size: small;
     }
 
     .md-h4 {
-      font-size: 11px;
+      font-size: x-small;
     }
 
     .md-h5 {
-      font-size: 8px;
+      font-size: xx-small;
     }
 
     .md-h6 {
-      font-size: 7px;
+      font-size: xx-small;
     }
 
     pre.md-code {
-      font-size: 11px;
+      font-size: x-small;
     }
   }
 }

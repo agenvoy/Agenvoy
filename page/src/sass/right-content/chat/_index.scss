@@ -405,7 +405,7 @@ body[data-rendered="1"] section.right-content section.chat {
             width: 1.5rem;
             height: 1.5rem;
             line-height: 1.5rem;
-            font-size: 1.25rem;
+            font-size: large;
           }
         }
       }
@@ -482,7 +482,7 @@ body[data-rendered="1"] section.right-content section.chat {
           > p {
             flex: 1;
             overflow: hidden;
-            font-size: 0.75rem;
+            font-size: small;
             color: #666;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -503,7 +503,7 @@ body[data-rendered="1"] section.right-content section.chat {
             cursor: pointer;
 
             > span {
-              font-size: 1rem;
+              font-size: medium;
               color: #666;
             }
 

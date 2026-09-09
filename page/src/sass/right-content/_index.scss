@@ -74,14 +74,14 @@ div.tool-confirm {
     padding: 0.375rem 0.5rem;
     border-radius: 0.375rem;
     background-color: var(--warn-bg);
-    font-size: 0.75rem;
+    font-size: small;
     line-height: 1.125rem;
     color: var(--warn);
     overflow-wrap: anywhere;
   }
 
   p.note {
-    font-size: 0.75rem;
+    font-size: small;
     line-height: 1.125rem;
     color: var(--error);
 

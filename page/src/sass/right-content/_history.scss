@@ -176,7 +176,7 @@
             padding: 0.125rem 0.5rem;
             border-radius: 0.75rem;
             background-color: var(--gray-2);
-            font-size: 0.75rem;
+            font-size: small;
             font-weight: 300;
             color: var(--gray-3);
           }
@@ -201,7 +201,7 @@
             transition: 0.2s;
 
             > span.material-symbols-outlined {
-              font-size: 1rem;
+              font-size: medium;
             }
 
             @media (hover: hover) {

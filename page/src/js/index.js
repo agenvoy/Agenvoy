@@ -308,6 +308,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       channel_disable: function () {
         disableChannel();
       },
+      system_lang: function () {
+        saveSystemLang();
+      },
     },
     when: {
       before_render: function () {
@@ -397,6 +400,9 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
           if (params.tab === "Channel") {
             renderChannel();
+          }
+          if (params.tab === "System") {
+            renderSystem();
           }
         }
 

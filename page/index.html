@@ -553,6 +553,18 @@
             </footer>
           </form>
         </section>
+
+        <section :elif="params.tab == System" class="editor system">
+          <form id="system-form">
+            <div class="card">
+              <div class="label">
+                <strong>Reply language</strong>
+                <p>auto follows each message · any other value fixes every reply</p>
+              </div>
+              <select id="system-lang" @change="system_lang"></select>
+            </div>
+          </form>
+        </section>
       </section>
       <!---->
       <section :elif="params.page == monitor" class="config monitor">

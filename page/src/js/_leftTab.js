@@ -10,6 +10,7 @@ const configTab = {
   MCP: "electrical_services",
   Keychain: "key",
   Channel: "cell_tower",
+  System: "tune",
 };
 
 const monitorTab = {

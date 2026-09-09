@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -85,8 +86,9 @@ func prompt(needTitle bool) string {
 
 	return strings.TrimSpace(strings.NewReplacer(
 		"{{.Shape}}", shape,
+		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.TitleRule}}", rule,
-	).Replace(configs.FollowupPrompt))
+	).Replace(filesystem.ApplyReplyLang(configs.FollowupPrompt)))
 }
 
 func pick() agentTypes.Agent {

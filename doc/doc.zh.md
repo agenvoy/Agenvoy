@@ -94,6 +94,9 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 | `limits.agent_send_timeout_seconds` |     `600` | 模型請求逾時秒數              |
 | `limits.max_history_messages`       |      `24` | 保留的近期歷史訊息數          |
 | `limits.max_history_bytes`          | `5242880` | 歷史訊息大小上限（位元組）    |
+| `reply_lang`                        |  `"auto"` | 回覆語言。`auto` 維持原本「跟隨使用者訊息語言」的行為；其他值一律強制以該語言回覆 |
+
+`reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
 套件內建預設值（目前不會從 `config.json` 讀取）：
 
@@ -386,6 +389,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method       | Path                  | 說明                                                                                                                                                              |
 | ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效 |
+| `GET` `POST` | `/v1/config/system` | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型 |
 
 **查閱**
 
