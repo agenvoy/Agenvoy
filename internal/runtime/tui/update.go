@@ -918,6 +918,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		agents.Reload()
 		return next, cmd
 
+	case ReplyLanguageSelect:
+		return t.runReplyLanguageSelect(msg.code)
+
 	case AudioModelSelect:
 		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
 		return next, cmd

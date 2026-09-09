@@ -98,6 +98,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/key":
 		return t.commandKey(parts)
 
+	case "/reply-language":
+		return t.commandReplyLanguage()
+
 	case "/pending":
 		return t.commandPending()
 
