@@ -1,32 +1,21 @@
 const LESSON_LIST_LIMIT = 200;
 const LESSON_PAGE_SIZE = 10;
-const LESSON_OUTCOMES = [
-  ["All", ""],
-  ["Resolved", "resolved"],
-  ["Failed", "failed"],
-  ["Abandoned", "abandoned"],
-];
-
 function lessonDom() {
   return {
     all: $("#lesson-all"),
     list: $("#lesson-list"),
     body: $("#lesson-body"),
-    filter: $("#lesson-filter"),
     pager: $("#lesson-pager"),
   };
 }
 
-function lessonLink(tool, offset, outcome) {
+function lessonLink(tool, offset) {
   const params = { page: "monitor", tab: "Lessons" };
   if (tool) {
     params.target = tool;
   }
   if (offset > 0) {
     params.offset = offset;
-  }
-  if (outcome) {
-    params.outcome = outcome;
   }
   return getLink(params);
 }
@@ -66,31 +55,15 @@ function lessonGroups(records) {
     .sort((a, b) => Number(b.records[0].timestamp) - Number(a.records[0].timestamp));
 }
 
-function renderLessonFilter(dom, tool, outcome) {
-  if (!dom.filter) {
-    return;
-  }
-
-  dom.filter.innerHTML = "";
-  for (const [label, value] of LESSON_OUTCOMES) {
-    const button = _("button", { type: "button" }, label);
-    button.dataset.selected = outcome === value ? "1" : "0";
-    button.addEventListener("click", () => {
-      window.location.href = lessonLink(tool, 0, value);
-    });
-    dom.filter.appendChild(button);
-  }
-}
-
-function renderLessonPager(dom, tool, outcome, offset, total) {
+function renderLessonPager(dom, tool, offset, total) {
   dom.pager.innerHTML = "";
   if (total <= LESSON_PAGE_SIZE) {
     return;
   }
 
   const last = Math.floor((total - 1) / LESSON_PAGE_SIZE) * LESSON_PAGE_SIZE;
-  const prev = _("a", { href: lessonLink(tool, Math.max(offset - LESSON_PAGE_SIZE, 0), outcome) }, "prev");
-  const next = _("a", { href: lessonLink(tool, Math.min(offset + LESSON_PAGE_SIZE, last), outcome) }, "next");
+  const prev = _("a", { href: lessonLink(tool, Math.max(offset - LESSON_PAGE_SIZE, 0)) }, "prev");
+  const next = _("a", { href: lessonLink(tool, Math.min(offset + LESSON_PAGE_SIZE, last)) }, "next");
   if (offset <= 0) {
     prev.dataset.disabled = "1";
   }
@@ -104,9 +77,7 @@ function renderLessonPager(dom, tool, outcome, offset, total) {
 }
 
 function lessonRecord(one) {
-  const outcome = textNode("p", one.outcome || "");
-  outcome.dataset.outcome = one.outcome || "";
-  const parts = [_("div.head", [textNode("strong", lessonClock(one.timestamp)), outcome])];
+  const parts = [_("div.head", [textNode("strong", lessonClock(one.timestamp))])];
 
   for (const [label, text] of [
     ["Cause", one.cause],
@@ -125,7 +96,7 @@ function lessonRecord(one) {
   return _("div.record", parts);
 }
 
-async function renderLessonPage(pickedTool, offset, outcome) {
+async function renderLessonPage(pickedTool, offset) {
   const dom = lessonDom();
   if (!dom.list || !dom.body) {
     return;
@@ -134,17 +105,14 @@ async function renderLessonPage(pickedTool, offset, outcome) {
   dom.list.innerHTML = "";
   dom.body.innerHTML = "";
   dom.pager.innerHTML = "";
-  renderLessonFilter(dom, pickedTool, outcome);
 
-  const records = (await fetchLessonRecords())
-    .filter((one) => outcome === "" || one.outcome === outcome)
-    .sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+  const records = (await fetchLessonRecords()).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
 
   const groups = lessonGroups(records);
   const tool = groups.some((group) => group.tool === pickedTool) ? pickedTool : "";
 
   if (dom.all) {
-    dom.all.href = lessonLink("", 0, outcome);
+    dom.all.href = lessonLink("", 0);
     dom.all.dataset.selected = tool === "" ? "1" : "0";
   }
 
@@ -155,7 +123,7 @@ async function renderLessonPage(pickedTool, offset, outcome) {
 
   for (const group of groups) {
     const count = group.records.length;
-    const card = _("a.card", { href: lessonLink(group.tool, 0, outcome) }, [
+    const card = _("a.card", { href: lessonLink(group.tool, 0) }, [
       textNode("strong", group.tool),
       textNode("p", `${count} record${count === 1 ? "" : "s"} · ${lessonClock(group.records[0].timestamp)}`),
     ]);
@@ -170,5 +138,5 @@ async function renderLessonPage(pickedTool, offset, outcome) {
   for (const one of picked.slice(start, start + LESSON_PAGE_SIZE)) {
     dom.body.appendChild(lessonRecord(one));
   }
-  renderLessonPager(dom, tool, outcome, start, picked.length);
+  renderLessonPager(dom, tool, start, picked.length);
 }

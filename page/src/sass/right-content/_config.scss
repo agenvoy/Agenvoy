@@ -817,6 +817,7 @@ body section.right-content section.config {
     &[data-view="admin"] > section#channel-chats,
     &[data-view="admin"] > div.status,
     &[data-view="admin"] > input#channel-token,
+    &[data-view="admin"] > span:has(+ input#channel-token),
     &[data-view="admin"] > footer,
     &[data-view="channel"] > section#channel-admin {
       display: none;

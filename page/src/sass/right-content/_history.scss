@@ -127,13 +127,6 @@
             color: var(--gray-3);
           }
 
-          > p[data-outcome="resolved"] {
-            color: var(--okay);
-          }
-
-          > p[data-outcome="failed"] {
-            color: var(--error);
-          }
         }
 
         div.todo {

@@ -414,7 +414,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             renderHistoryPage(params.target || "", Number(params.offset) || 0);
           }
           if (params.tab === "Lessons") {
-            renderLessonPage(params.target || "", Number(params.offset) || 0, params.outcome || "");
+            renderLessonPage(params.target || "", Number(params.offset) || 0);
           }
           if (params.tab === "Details") {
             renderDetailsPage(params.target || "", params.hash || "", params.item || "");

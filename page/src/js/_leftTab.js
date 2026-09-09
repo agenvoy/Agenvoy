@@ -68,9 +68,6 @@ function getLink(params) {
   if (params.item) {
     path += `&item=${encodeURIComponent(params.item)}`;
   }
-  if (params.outcome) {
-    path += `&outcome=${encodeURIComponent(params.outcome)}`;
-  }
   if (params.keyword) {
     path += `&keyword=${encodeURIComponent(params.keyword)}`;
   }

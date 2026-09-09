@@ -13,8 +13,11 @@ description: Generate bilingual (English + Traditional Chinese) commit message f
 
 僅處理 staged 變更。若無 staged 檔案，直接報錯並停止，不 fallback 到工作區 diff。
 
+**不呼叫 `ask_user`。** 本 skill 沒有任何需要使用者決定的參數：範圍固定是 staged、輸出格式固定、Tag 由訊號決定。有 staged 就直接分析並輸出 message，沒有 staged 就回步驟 2 的那句話。詢問「要不要產生 staged 變更的 commit message」等於把已經確定的事再問一次，使用者按 enter 才能繼續，純粹是多一輪往返。
+
 ## Steps
 
+0. 直接開始，不做任何確認詢問
 1. 同一輪並行取得四份資料（彼此無依賴）：
    - `git diff --cached` — 本次要描述的變更，唯一的內容來源
    - `git status --short` — 找出與 staged 檔案相關但未 stage 的檔案

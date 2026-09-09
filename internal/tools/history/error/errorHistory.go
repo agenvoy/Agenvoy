@@ -28,16 +28,16 @@ func registErrorHistory() {
 		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `Tool failures kept across sessions: what broke, why, what was done about it, and whether that worked.
-Search it before a second retry when no error hint was injected, read one by hash when a tool answers "no data: {hash}", write once a non-trivial fix is confirmed or a strategy is confirmed dead.
-A past run's own steps → chat_history; the full recovery loop → reasoning_guide(topic=tool_error).`,
+		Description: `Tool failures kept across sessions, each paired with the fix that resolved it.
+Search it before a second retry when no error hint was injected, read one by hash when a tool answers "no data: {hash}", write once a non-trivial fix is confirmed working.
+Only outcome=resolved is stored; failed and abandoned are discarded. A past run's own steps → chat_history; the full recovery loop → reasoning_guide(topic=tool_error).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"search", "read", "write"},
-					"description": "search: past records by keyword — resolved means apply it, failed or abandoned means avoid it. read: one record by hash. write: persist this error. Omitted: hash → read, outcome → write, otherwise search.",
+					"description": "search: past records by keyword — each carries the fix that worked, so apply it. read: one record by hash. write: persist an error and the fix that resolved it. Omitted: hash → read, outcome → write, otherwise search.",
 					"default":     "search",
 				},
 				"keyword": map[string]any{
@@ -80,7 +80,7 @@ A past run's own steps → chat_history; the full recovery loop → reasoning_gu
 				"outcome": map[string]any{
 					"type":        "string",
 					"enum":        []string{"resolved", "failed", "abandoned"},
-					"description": "mode=write: resolved = the fix worked; failed = strategy confirmed non-working; abandoned = 3+ approaches tried.",
+					"description": "mode=write: resolved = the fix worked and is stored; failed and abandoned are discarded, not stored.",
 				},
 			},
 		},
@@ -105,6 +105,7 @@ A past run's own steps → chat_history; the full recovery loop → reasoning_gu
 
 			params.Mode = strings.TrimSpace(params.Mode)
 			params.Hash = strings.TrimSpace(params.Hash)
+			params.Action = strings.TrimSpace(params.Action)
 			params.Outcome = strings.TrimSpace(params.Outcome)
 			if params.Mode == "" {
 				params.Mode = "search"
@@ -140,7 +141,7 @@ A past run's own steps → chat_history; the full recovery loop → reasoning_gu
 					Keywords: params.Keywords,
 					Symptom:  strings.TrimSpace(params.Symptom),
 					Cause:    strings.TrimSpace(params.Cause),
-					Action:   strings.TrimSpace(params.Action),
+					Action:   params.Action,
 					Outcome:  params.Outcome,
 				}
 				if err := requireRecord(record); err != nil {

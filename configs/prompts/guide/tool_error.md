@@ -23,6 +23,6 @@ If a tool result starts with `[RETRY_REQUIRED]`, retry immediately with the fixe
 
 ## On success or exhaustion, record
 
-- Non-trivial fix confirmed working, a strategy confirmed non-working, or 3+ approaches exhausted → call `error_history(mode=write)` with the matching outcome (`resolved` / `failed` / `abandoned`).
+- Non-trivial fix confirmed working → call `error_history(mode=write)` with `outcome=resolved`. Only that outcome is stored; `failed` and `abandoned` are discarded, so a dead end is not worth writing up.
 - Skip `error_history(mode=write)` for trivial typos, 1st-retry fixes, or transient errors (network blip, timeout) that don't generalize.
 - Batch `error_history(mode=write)` with other tool calls in the same turn; only call it alone when no other call remains.
