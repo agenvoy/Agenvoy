@@ -3,7 +3,6 @@ let providerQuota = null;
 let providerQuotaLoading = null;
 let modelView = "add";
 let modelProvider = "";
-let modelOpen = "";
 let modelAbort = null;
 let modelStream = null;
 const modelOAuth = { id: "", code: "", url: "" };
@@ -629,18 +628,14 @@ function selectProviderAdd() {
 }
 
 function providerDetails(provider, method, added) {
-  const label = MODEL_CUSTOM.includes(provider.id) ? "custom" : method;
+  const label = providerGroup(provider, method);
   const pill = _("span", label);
   pill.dataset.method = label;
 
-  const summary = _("summary", [_("strong", provider.label), _("div.pills", [pill])]);
-  const details = _("details.provider", [summary, providerCredentialForm(provider, method, added)]);
-  details.dataset.added = added ? "1" : "0";
-  details.open = modelOpen === provider.id;
-  details.addEventListener("toggle", () => {
-    modelOpen = details.open ? provider.id : "";
-  });
-  return details;
+  const head = _("div.head", [_("strong", provider.label), _("div.pills", [pill])]);
+  const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
+  card.dataset.added = added ? "1" : "0";
+  return card;
 }
 
 const MODEL_CUSTOM = ["cloudflare", "compat"];
@@ -648,7 +643,7 @@ const MODEL_CUSTOM = ["cloudflare", "compat"];
 function modelFilter() {
   const nav = $("#model-filter");
   const active = nav && nav.querySelector('button[data-selected="1"]');
-  return active ? active.name : "all";
+  return active ? active.name : MODEL_GROUPS[0];
 }
 
 function setModelFilter(value) {
@@ -675,17 +670,16 @@ function modelFilterChange(e) {
 }
 
 function matchModelFilter(provider, filter) {
-  const custom = MODEL_CUSTOM.includes(provider.id);
-  if (filter === "custom") {
-    return custom;
-  }
-  if (custom) {
-    return filter === "all";
-  }
-  if (filter === "all") {
-    return true;
+  if (MODEL_CUSTOM.includes(provider.id)) {
+    return filter === "custom";
   }
   return Object.keys(provider.methods || {}).includes(filter);
+}
+
+const MODEL_GROUPS = ["oauth", "api_key", "custom"];
+
+function providerGroup(provider, method) {
+  return MODEL_CUSTOM.includes(provider.id) ? "custom" : method;
 }
 
 function renderProviderCatalog(catalog, added) {
@@ -700,25 +694,16 @@ function renderProviderCatalog(catalog, added) {
   const filter = modelFilter();
   const visible = catalog.filter((item) => matchModelFilter(item, filter));
 
-  const append = (provider) => {
-    const method = Object.keys(provider.methods || {})[0] || "";
-    dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
-  };
-
-  for (const provider of visible.filter((item) => !added.includes(item.id))) {
-    append(provider);
+  for (const group of MODEL_GROUPS) {
+    const list = visible.filter((item) => providerGroup(item, providerMethod(catalog, item.id)) === group);
+    if (list.length === 0) {
+      continue;
+    }
+    for (const provider of list) {
+      const method = Object.keys(provider.methods || {})[0] || "";
+      dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
+    }
   }
-
-  const done = visible.filter((item) => added.includes(item.id));
-  if (done.length === 0) {
-    return;
-  }
-  const box = _("section");
-  for (const provider of done) {
-    const method = Object.keys(provider.methods || {})[0] || "";
-    box.appendChild(providerDetails(provider, method, true));
-  }
-  dom.catalog.appendChild(_("details.group", [_("summary", ["Added", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]));
 }
 
 function providerCredentialForm(provider, method, added) {
@@ -733,7 +718,7 @@ function providerCredentialForm(provider, method, added) {
     }
     const start = _("button.submit", { type: "button" }, submitLabel);
     start.addEventListener("click", () => startProviderOAuth(provider.id));
-    return _("div.row", [_("p", "browser login · the daemon waits for the callback"), start]);
+    return _("div.row.end", [start]);
   }
 
   if (method === "custom") {
@@ -808,7 +793,6 @@ async function saveProviderKey(id, body) {
     );
   }
 
-  modelOpen = "";
   const prefix = id === "compat" ? `compat[${body.name}]` : id;
   delete providerProbe[prefix];
   providerQuota = null;
@@ -841,7 +825,6 @@ function startProviderOAuth(id) {
   modelOAuth.id = id;
   modelOAuth.code = "";
   modelOAuth.url = "";
-  modelOpen = id;
   modelView = "add";
   renderModel();
 
@@ -874,8 +857,7 @@ function startProviderOAuth(id) {
       renderModel();
       return;
     }
-    modelOpen = "";
-    delete providerProbe[id];
+      delete providerProbe[id];
     providerQuota = null;
     selectProvider(id);
   };

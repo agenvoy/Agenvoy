@@ -11,9 +11,16 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
+func startupEnabled() bool {
+	if recorded, ok := startup.Recorded(); ok {
+		return recorded
+	}
+	return startup.Enabled()
+}
+
 func GetStartup() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"enabled": startup.Enabled()})
+		c.JSON(http.StatusOK, gin.H{"enabled": startupEnabled(), "installed": startup.Enabled()})
 	}
 }
 
@@ -44,7 +51,7 @@ func SetStartup() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"ok": true, "enabled": startup.Enabled(), "detail": detail})
+		c.JSON(http.StatusOK, gin.H{"ok": true, "enabled": startupEnabled(), "installed": startup.Enabled(), "detail": detail})
 	}
 }
 

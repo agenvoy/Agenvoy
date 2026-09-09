@@ -58,6 +58,7 @@ func Enable() (string, error) {
 	if _, err := run("systemctl", "--user", "enable", unitName); err != nil {
 		return "", err
 	}
+	record(true)
 	return path + " · takes effect at next login", nil
 }
 
@@ -67,6 +68,7 @@ func Disable() (string, error) {
 		return "", err
 	}
 	if !go_pkg_filesystem_reader.Exists(path) {
+		record(false)
 		return "already off", nil
 	}
 	if _, err := run("systemctl", "--user", "disable", unitName); err != nil {
@@ -78,6 +80,7 @@ func Disable() (string, error) {
 	if _, err := run("systemctl", "--user", "daemon-reload"); err != nil {
 		return "", err
 	}
+	record(false)
 	return path + " removed · running daemon untouched", nil
 }
 

@@ -435,8 +435,7 @@
           </div>
           <form id="model-form" data-view="add">
             <nav class="tab" id="model-filter" @click="model_filter">
-              <button type="button" name="all" data-selected="1">All</button>
-              <button type="button" name="oauth">OAuth</button>
+              <button type="button" name="oauth" data-selected="1">OAuth</button>
               <button type="button" name="api_key">API Key</button>
               <button type="button" name="custom">Custom</button>
             </nav>
@@ -598,6 +597,16 @@
                 <p>auto follows each message · any other value fixes every reply</p>
               </div>
               <select id="system-lang" @change="system_lang"></select>
+            </div>
+            <div class="card">
+              <div class="label">
+                <strong>Launch on login</strong>
+                <p>writes a launch agent · applies at your next login, never touches the running daemon</p>
+              </div>
+              <select id="system-startup" @change="system_startup">
+                <option value="disabled">disabled</option>
+                <option value="enabled">enabled</option>
+              </select>
             </div>
           </form>
         </section>

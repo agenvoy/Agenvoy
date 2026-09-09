@@ -311,6 +311,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       system_lang: function () {
         saveSystemLang();
       },
+      system_startup: function () {
+        saveSystemStartup();
+      },
     },
     when: {
       before_render: function () {

@@ -51,6 +51,7 @@ func Enable() (string, error) {
 	if err := go_pkg_filesystem.WriteFile(path, plist(exe, home), 0644); err != nil {
 		return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
 	}
+	record(true)
 	return path + " · takes effect at next login", nil
 }
 
@@ -60,11 +61,13 @@ func Disable() (string, error) {
 		return "", err
 	}
 	if !go_pkg_filesystem_reader.Exists(path) {
+		record(false)
 		return "already off", nil
 	}
 	if err := os.Remove(path); err != nil {
 		return "", fmt.Errorf("os.Remove: %w", err)
 	}
+	record(false)
 	return path + " removed · running daemon untouched", nil
 }
 

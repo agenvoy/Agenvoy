@@ -46,6 +46,7 @@ var commands = []Command{
 	{"note", "list / add / edit note · title + description"},
 	{"discord", "enable / disable Discord bot · gateway validated on enable"},
 	{"telegram", "enable / disable Telegram bot · getMe validated on enable"},
+	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
 	{"admin-channel", "set / clear relay for new-chat verification codes · pick authorized chat or tg@<id>/dc@<id>"},
 	{"cron", "add / remove / edit scheduled recurring task"},
 	{"task", "add / remove / edit one-shot scheduled task"},

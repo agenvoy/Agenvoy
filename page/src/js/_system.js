@@ -10,6 +10,41 @@ async function systemConfig() {
   return { reply_lang: "auto", languages: [] };
 }
 
+async function startupConfig() {
+  try {
+    const response = await fetch(`${API}/v1/config/startup`);
+    if (response.ok) {
+      return ((await response.json()) || {}).enabled === true;
+    }
+  } catch (err) {
+    console.error("startupConfig", err);
+  }
+  return false;
+}
+
+async function saveSystemStartup() {
+  const select = $("#system-startup");
+  if (!select) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/config/startup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable: select.value === "enabled" }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveSystemStartup", err);
+    alert(err.message || "failed");
+  }
+  renderSystem();
+}
+
 async function renderSystem() {
   const select = $("#system-lang");
   if (!select) {
@@ -28,6 +63,11 @@ async function renderSystem() {
     select.appendChild(_("option", { value: current }, current));
   }
   select.value = current;
+
+  const startup = $("#system-startup");
+  if (startup) {
+    startup.value = (await startupConfig()) ? "enabled" : "disabled";
+  }
 }
 
 async function saveSystemLang() {

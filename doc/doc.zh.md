@@ -206,6 +206,7 @@ agen
 | `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
 | `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 開啟 `action.log`、查看各模型 token 用量                    |
 | `/key`                          | 更換已儲存的憑證                                                                      |
+| `/reply-language`               | 選擇所有回覆使用的語言；`auto` 跟隨每則訊息                                            |
 | `/update`                       | 抓取最新 release、重建、離開                                                          |
 | `/clear` `/exit`                | 清除可見對話，或離開 TUI（daemon 繼續執行）                                           |
 | `/<skill>` `/sched-<name>`      | 直接執行已安裝的 skill 或排程項目                                                     |
@@ -388,7 +389,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method       | Path                  | 說明                                                                                                                                                              |
 | ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效 |
+| `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效。兩個動詞都回 `enabled`（設定值，每次變更時記錄於 `config.json` 的 `startup` 鍵）與 `installed`（unit 檔目前是否真的存在）——unit 被 Agenvoy 以外的方式移除時兩者會不一致 |
 | `GET` `POST` | `/v1/config/system` | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型 |
 
 **查閱**

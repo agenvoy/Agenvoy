@@ -136,6 +136,7 @@ body[data-rendered="1"] section.right-content section.feature {
       }
 
       form#skill-form:not([data-editing="1"]) > span,
+      form#skill-form:not([data-editing="1"]) > label,
       form#skill-form:not([data-editing="1"]) > input,
       form#skill-form:not([data-editing="1"]) > textarea,
       form#skill-form:not([data-editing="1"]) > nav,
