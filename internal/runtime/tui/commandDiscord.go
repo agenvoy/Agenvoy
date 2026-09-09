@@ -41,17 +41,20 @@ func (t TUI) commandDiscord(parts []string) (TUI, tea.Cmd, bool) {
 	if cfg, err := config.Load(); err == nil && cfg != nil {
 		enabled = cfg.DiscordEnabled && keychain.Get(discord.Key) != ""
 	}
-	cursor := 0
-	if enabled {
-		cursor = 1
+	if !enabled {
+		next, cmd := t.openDiscordTokenPrompt()
+		return next, cmd, true
 	}
+
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
 		title:   "Discord",
-		options: []string{"enable", "disable"},
-		values:  []string{"enable", "disable"},
-		cursor:  cursor,
+		options: []string{"disable", "revoke chat"},
+		values:  []string{"disable", "revoke"},
 		onConfirm: func(chosen string) any {
+			if chosen == "revoke" {
+				return ChannelRevokeList{channel: "discord"}
+			}
 			return DiscordAction{action: chosen}
 		},
 	}

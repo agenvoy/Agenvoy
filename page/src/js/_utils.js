@@ -5,7 +5,7 @@ function isWide() {
   return document.documentElement.clientWidth >= LEFT_TAB_WIDE;
 }
 
-const AUTO_SCROLL_SLACK = 8;
+const AUTO_SCROLL_SLACK = 64;
 const PIN_CHAT_MAX = 3;
 const PIN_CHAT_SEED = [
   "cli-0ed57a60-d5b7-4fe4-bb14-939f91a8e185",

@@ -68,17 +68,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/mcp":
 		return t.commandMcp(parts)
 
-	case "/discord":
-		return t.commandDiscord(parts)
-
-	case "/telegram":
-		return t.commandTelegram(parts)
+	case "/channel":
+		return t.commandChannel(parts)
 
 	case "/startup":
 		return t.commandStartup(parts)
-
-	case "/admin-channel":
-		return t.commandAdminChannel(parts)
 
 	case "/cron":
 		return t.commandCron(parts)
