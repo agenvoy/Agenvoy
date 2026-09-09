@@ -308,6 +308,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       channel_disable: function () {
         disableChannel();
       },
+      routing_change: function () {
+        saveRoutingModel(this.dataset.kind, this.value);
+      },
+      system_lang: function () {
+        saveSystemLang();
+      },
+      system_startup: function () {
+        saveSystemStartup();
+      },
     },
     when: {
       before_render: function () {
@@ -398,6 +407,9 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (params.tab === "Channel") {
             renderChannel();
           }
+          if (params.tab === "System") {
+            renderSystem();
+          }
         }
 
         if (params.page === "monitor") {
@@ -408,7 +420,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             renderHistoryPage(params.target || "", Number(params.offset) || 0);
           }
           if (params.tab === "Lessons") {
-            renderLessonPage(params.target || "", Number(params.offset) || 0, params.outcome || "");
+            renderLessonPage(params.target || "", Number(params.offset) || 0);
           }
           if (params.tab === "Details") {
             renderDetailsPage(params.target || "", params.hash || "", params.item || "");

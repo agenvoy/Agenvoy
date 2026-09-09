@@ -1,0 +1,28 @@
+[
+  { "code": "en", "name": "English" },
+  {
+    "code": "zh-TW",
+    "name": "繁體中文",
+    "label": "繁體中文（台灣）",
+    "note": " Taiwan vocabulary and phrasing; never Simplified characters, never mainland or Hong Kong wording."
+  },
+  {
+    "code": "zh-HK",
+    "name": "繁體中文",
+    "label": "繁體中文（香港）",
+    "note": " Hong Kong vocabulary and phrasing; never Simplified characters, never Taiwan or mainland wording."
+  },
+  { "code": "zh-CN", "name": "简体中文", "note": " Mainland China vocabulary and phrasing." },
+  { "code": "ja", "name": "日本語" },
+  { "code": "ko", "name": "한국어" },
+  { "code": "es", "name": "Español" },
+  { "code": "fr", "name": "Français" },
+  { "code": "de", "name": "Deutsch" },
+  { "code": "pt", "name": "Português" },
+  { "code": "it", "name": "Italiano" },
+  { "code": "ru", "name": "Русский" },
+  { "code": "vi", "name": "Tiếng Việt" },
+  { "code": "th", "name": "ภาษาไทย" },
+  { "code": "id", "name": "Bahasa Indonesia" },
+  { "code": "ar", "name": "العربية" }
+]

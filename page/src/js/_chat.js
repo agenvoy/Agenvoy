@@ -299,6 +299,9 @@ function assistantFooter(meta) {
   if (meta.canceled) {
     children.push(_("p.canceled", "canceled"));
   }
+  if (meta.error) {
+    children.push(_("p.canceled", meta.error));
+  }
   if (meta.duration) {
     children.push(_("p", meta.duration));
   }

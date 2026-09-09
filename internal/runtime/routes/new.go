@@ -40,6 +40,8 @@ func New() *gin.Engine {
 	r.GET("/v1/model", localhostOnly(), handler.GetModelRouting())
 	r.POST("/v1/model", localhostOnly(), handler.SetModelRouting())
 	r.GET("/v1/model/audio", localhostOnly(), handler.ListAudioModels())
+	r.GET("/v1/model/priority", localhostOnly(), handler.GetModelPriority())
+	r.POST("/v1/model/priority", localhostOnly(), handler.SetModelPriority())
 
 	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
 
@@ -120,6 +122,8 @@ func New() *gin.Engine {
 
 	r.GET("/v1/config/startup", localhostOnly(), handler.GetStartup())
 	r.POST("/v1/config/startup", localhostOnly(), handler.SetStartup())
+	r.GET("/v1/config/system", localhostOnly(), handler.GetSystemConfig())
+	r.POST("/v1/config/system", localhostOnly(), handler.SetSystemConfig())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 

@@ -39,7 +39,10 @@ var (
 	DeniedPath      []string
 	NetWhiteList    []string
 	ReadOnlyCommand []string
+	ReplyLang       = ReplyLangAuto
 )
+
+const ReplyLangAuto = "auto"
 
 const Port = "17989"
 
@@ -96,6 +99,25 @@ func LoadRuntime() error {
 		changed = true
 	}
 	MaxHistoryBytes = limits.MaxHistoryBytes
+
+	ReplyLang = ReplyLangAuto
+	if data, ok := raw["reply_lang"]; ok && len(data) > 0 {
+		var user string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal reply_lang: %w", err)
+		}
+		if user = strings.TrimSpace(user); user != "" {
+			ReplyLang = user
+		}
+	}
+	langRaw, err := json.Marshal(ReplyLang)
+	if err != nil {
+		return fmt.Errorf("json.Marshal reply_lang: %w", err)
+	}
+	if string(raw["reply_lang"]) != string(langRaw) {
+		raw["reply_lang"] = langRaw
+		changed = true
+	}
 
 	if err := json.Unmarshal(configs.SensitivePath, &SensitivePath); err != nil {
 		return fmt.Errorf("embedded sensitive_path: %w", err)

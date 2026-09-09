@@ -102,6 +102,11 @@ function renderReasoning(view, line) {
   view.think.hidden = false;
   view.resumed = Boolean(view.text);
   render(view.reasoning, view.trace, view.session);
+  if (view.reasoned) {
+    return;
+  }
+  view.reasoned = true;
+  scrollToBottom(true, view.session);
 }
 
 function renderSuggest(view) {

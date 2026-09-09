@@ -2,6 +2,7 @@ package agentTypes
 
 import (
 	"context"
+	"encoding/json"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -49,6 +50,22 @@ type AgentRegistry struct {
 
 type AgentEntry struct {
 	Name string `json:"name"`
+}
+
+func (a *AgentEntry) UnmarshalJSON(raw []byte) error {
+	var name string
+	if err := json.Unmarshal(raw, &name); err == nil {
+		a.Name = name
+		return nil
+	}
+	var legacy struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		return err
+	}
+	a.Name = legacy.Name
+	return nil
 }
 
 type AgentSession struct {

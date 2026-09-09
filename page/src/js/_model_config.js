@@ -3,7 +3,6 @@ let providerQuota = null;
 let providerQuotaLoading = null;
 let modelView = "add";
 let modelProvider = "";
-let modelOpen = "";
 let modelAbort = null;
 let modelStream = null;
 const modelOAuth = { id: "", code: "", url: "" };
@@ -14,6 +13,7 @@ function modelDom() {
     list: $("#model-list"),
     catalog: $("#model-catalog"),
     routing: $("#model-routing"),
+    priority: $("#model-priority"),
     models: $("#model-models"),
   };
 }
@@ -305,7 +305,7 @@ async function renderModel() {
     }
   }
 
-  for (const prefix of prefixes) {
+  const providerCard = (prefix) => {
     const total = count(prefix);
     const children = [_("strong", label[prefix] || prefix), _("p", `${total} model${total === 1 ? "" : "s"}`)];
 
@@ -327,7 +327,19 @@ async function renderModel() {
     card.dataset.name = prefix;
     card.dataset.selected = modelView === "provider" && prefix === modelProvider ? "1" : "0";
     card.addEventListener("click", () => selectProvider(prefix));
-    dom.list.appendChild(card);
+    return card;
+  };
+
+  for (const prefix of prefixes.filter((id) => count(id) > 0)) {
+    dom.list.appendChild(providerCard(prefix));
+  }
+
+  const empty = prefixes.filter((id) => count(id) === 0);
+  if (empty.length > 0) {
+    dom.list.appendChild(_("span.group", "No models"));
+    for (const prefix of empty) {
+      dom.list.appendChild(providerCard(prefix));
+    }
   }
 
   if (!providerQuota) {
@@ -343,6 +355,118 @@ async function renderModel() {
   }
   renderProviderCatalog(catalog, prefixes);
   renderModelRouting(registered);
+  renderModelPriority();
+}
+
+async function modelPriority() {
+  try {
+    const response = await fetch(`${API}/v1/model/priority`);
+    if (response.ok) {
+      return ((await response.json()) || {}).models || [];
+    }
+  } catch (err) {
+    console.error("modelPriority", err);
+  }
+  return [];
+}
+
+async function saveModelPriority(names) {
+  try {
+    const response = await fetch(`${API}/v1/model/priority`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ models: names }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      modelError(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveModelPriority", err);
+    modelError(err.message || "failed");
+  }
+  renderModelPriority();
+}
+
+let priorityDrag = -1;
+
+function priorityRow(name, rank, total, move) {
+  const rankText = `#${rank + 1}`;
+  const label = _("div.label", [
+    _("strong", name),
+    _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
+  ]);
+  const row = _("div.routing", [label, _("span.material-symbols-outlined.grip", "drag_indicator")]);
+
+  row.draggable = true;
+  row.dataset.rank = String(rank);
+
+  row.addEventListener("dragstart", (e) => {
+    priorityDrag = rank;
+    row.dataset.dragging = "1";
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(rank));
+  });
+  row.addEventListener("dragend", () => {
+    priorityDrag = -1;
+    for (const one of document.querySelectorAll("#model-priority div.routing")) {
+      delete one.dataset.dragging;
+      delete one.dataset.drop;
+    }
+  });
+  row.addEventListener("dragover", (e) => {
+    if (priorityDrag === -1 || priorityDrag === rank) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    row.dataset.drop = priorityDrag < rank ? "below" : "above";
+  });
+  row.addEventListener("dragleave", () => {
+    delete row.dataset.drop;
+  });
+  row.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const from = priorityDrag === -1 ? Number(e.dataTransfer.getData("text/plain")) : priorityDrag;
+    delete row.dataset.drop;
+    if (Number.isNaN(from) || from === rank) {
+      return;
+    }
+    move(from, rank);
+  });
+
+  return row;
+}
+
+async function renderModelPriority() {
+  const dom = modelDom();
+  if (!dom.priority) {
+    return;
+  }
+
+  const names = await modelPriority();
+  if (modelView !== "add") {
+    return;
+  }
+
+  const box = dom.priority.querySelector("section");
+  if (!box) {
+    return;
+  }
+
+  const move = (from, to) => {
+    const next = names.slice();
+    const [one] = next.splice(from, 1);
+    next.splice(to, 0, one);
+    saveModelPriority(next);
+  };
+
+  for (const row of box.querySelectorAll("div.routing")) {
+    row.remove();
+  }
+  names.forEach((name, rank) => box.appendChild(priorityRow(name, rank, names.length, move)));
 }
 
 async function modelRouting() {
@@ -355,16 +479,14 @@ async function modelRouting() {
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
-        imageProviders: body.image_providers || [],
         stt: body.stt || "",
         tts: body.tts || "",
-        audioProviders: body.audio_providers || [],
       };
     }
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", summary: "", image: "", imageOptions: [], imageProviders: [], stt: "", tts: "", audioProviders: [] };
+  return { dispatcher: "", summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -385,40 +507,25 @@ async function saveRoutingModel(kind, model) {
   renderModel();
 }
 
-function routingLabel(label, providers) {
-  const children = [_("strong", label)];
-  if (providers && providers.length > 0) {
-    children.push(_("p", providers.join(" / ")));
-  }
-  return _("div.label", children);
+function routingSelect(kind) {
+  const dom = modelDom();
+  return dom.routing ? dom.routing.querySelector(`select[data-kind="${kind}"]`) : null;
 }
 
-function routingRow(label, kind, current, options) {
-  const select = _("select");
-  select.appendChild(_("option", { value: "" }, "auto · first registered model"));
+function fillRoutingSelect(kind, current, options, placeholder) {
+  const select = routingSelect(kind);
+  if (!select) {
+    return;
+  }
+  select.innerHTML = "";
+  select.appendChild(_("option", { value: "" }, placeholder));
   for (const name of options) {
     select.appendChild(_("option", { value: name }, name));
   }
-  select.value = current;
-  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
-
-  return _("div.routing", [routingLabel(label), select]);
+  select.value = options.includes(current) ? current : "";
 }
 
-function audioRow(label, kind, current, providers) {
-  const select = _("select");
-  select.dataset.kind = kind;
-  select.appendChild(_("option", { value: "" }, "off"));
-  if (current) {
-    select.appendChild(_("option", { value: current }, current));
-  }
-  select.value = current;
-  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
-
-  return _("div.routing", [routingLabel(label, providers), select]);
-}
-
-async function fillAudioOptions(dom) {
+async function fillAudioOptions(stt, tts) {
   let body = {};
   try {
     const response = await fetch(`${API}/v1/model/audio`);
@@ -431,34 +538,8 @@ async function fillAudioOptions(dom) {
     return;
   }
 
-  for (const [kind, options] of [
-    ["stt", body.stt_options || []],
-    ["tts", body.tts_options || []],
-  ]) {
-    const select = dom.querySelector(`select[data-kind="${kind}"]`);
-    if (!select) {
-      continue;
-    }
-    const current = select.value;
-    select.innerHTML = "";
-    select.appendChild(_("option", { value: "" }, "off"));
-    for (const name of options) {
-      select.appendChild(_("option", { value: name }, name));
-    }
-    select.value = options.includes(current) ? current : "";
-  }
-}
-
-function imageRow(current, added, providers) {
-  const select = _("select");
-  select.appendChild(_("option", { value: "" }, "off"));
-  for (const id of added) {
-    select.appendChild(_("option", { value: id }, id));
-  }
-  select.value = added.includes(current) ? current : "";
-  select.addEventListener("change", () => saveRoutingModel("image", select.value));
-
-  return _("div.routing", [routingLabel("Image", providers), select]);
+  fillRoutingSelect("stt", stt, body.stt_options || [], "off");
+  fillRoutingSelect("tts", tts, body.tts_options || [], "off");
 }
 
 async function renderModelRouting(registered) {
@@ -472,23 +553,10 @@ async function renderModelRouting(registered) {
     return;
   }
 
-  dom.routing.innerHTML = "";
-  dom.routing.dataset.open = "1";
-
-  const box = _("section");
-  if (registered.length === 0) {
-    box.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
-  } else {
-    box.appendChild(routingRow("Dispatcher", "dispatcher", routing.dispatcher, registered));
-    box.appendChild(routingRow("Summary", "summary", routing.summary, registered));
-    box.appendChild(imageRow(routing.image, routing.imageOptions, routing.imageProviders));
-    box.appendChild(audioRow("Speech to text", "stt", routing.stt, routing.audioProviders));
-    box.appendChild(audioRow("Text to speech", "tts", routing.tts, routing.audioProviders));
-  }
-
-  const group = _("details.group", { open: "" }, [_("summary", ["Setting Model", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]);
-  dom.routing.appendChild(group);
-  fillAudioOptions(group);
+  fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
+  fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
+  fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
+  fillAudioOptions(routing.stt, routing.tts);
 }
 
 function selectProvider(prefix) {
@@ -500,18 +568,10 @@ function selectProviderAdd() {
 }
 
 function providerDetails(provider, method, added) {
-  const label = MODEL_CUSTOM.includes(provider.id) ? "custom" : method;
-  const pill = _("span", label);
-  pill.dataset.method = label;
-
-  const summary = _("summary", [_("strong", provider.label), _("div.pills", [pill])]);
-  const details = _("details.provider", [summary, providerCredentialForm(provider, method, added)]);
-  details.dataset.added = added ? "1" : "0";
-  details.open = modelOpen === provider.id;
-  details.addEventListener("toggle", () => {
-    modelOpen = details.open ? provider.id : "";
-  });
-  return details;
+  const head = _("div.head", [_("strong", provider.label)]);
+  const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
+  card.dataset.added = added ? "1" : "0";
+  return card;
 }
 
 const MODEL_CUSTOM = ["cloudflare", "compat"];
@@ -519,7 +579,7 @@ const MODEL_CUSTOM = ["cloudflare", "compat"];
 function modelFilter() {
   const nav = $("#model-filter");
   const active = nav && nav.querySelector('button[data-selected="1"]');
-  return active ? active.name : "all";
+  return active ? active.name : MODEL_GROUPS[0];
 }
 
 function setModelFilter(value) {
@@ -546,17 +606,16 @@ function modelFilterChange(e) {
 }
 
 function matchModelFilter(provider, filter) {
-  const custom = MODEL_CUSTOM.includes(provider.id);
-  if (filter === "custom") {
-    return custom;
-  }
-  if (custom) {
-    return filter === "all";
-  }
-  if (filter === "all") {
-    return true;
+  if (MODEL_CUSTOM.includes(provider.id)) {
+    return filter === "custom";
   }
   return Object.keys(provider.methods || {}).includes(filter);
+}
+
+const MODEL_GROUPS = ["oauth", "api_key", "custom"];
+
+function providerGroup(provider, method) {
+  return MODEL_CUSTOM.includes(provider.id) ? "custom" : method;
 }
 
 function renderProviderCatalog(catalog, added) {
@@ -571,25 +630,16 @@ function renderProviderCatalog(catalog, added) {
   const filter = modelFilter();
   const visible = catalog.filter((item) => matchModelFilter(item, filter));
 
-  const append = (provider) => {
-    const method = Object.keys(provider.methods || {})[0] || "";
-    dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
-  };
-
-  for (const provider of visible.filter((item) => !added.includes(item.id))) {
-    append(provider);
+  for (const group of MODEL_GROUPS) {
+    const list = visible.filter((item) => providerGroup(item, providerMethod(catalog, item.id)) === group);
+    if (list.length === 0) {
+      continue;
+    }
+    for (const provider of list) {
+      const method = Object.keys(provider.methods || {})[0] || "";
+      dom.catalog.appendChild(providerDetails(provider, method, added.includes(provider.id)));
+    }
   }
-
-  const done = visible.filter((item) => added.includes(item.id));
-  if (done.length === 0) {
-    return;
-  }
-  const box = _("section");
-  for (const provider of done) {
-    const method = Object.keys(provider.methods || {})[0] || "";
-    box.appendChild(providerDetails(provider, method, true));
-  }
-  dom.catalog.appendChild(_("details.group", [_("summary", ["Added", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]));
 }
 
 function providerCredentialForm(provider, method, added) {
@@ -604,7 +654,7 @@ function providerCredentialForm(provider, method, added) {
     }
     const start = _("button.submit", { type: "button" }, submitLabel);
     start.addEventListener("click", () => startProviderOAuth(provider.id));
-    return _("div.row", [_("p", "browser login · the daemon waits for the callback"), start]);
+    return _("div.row.end", [start]);
   }
 
   if (method === "custom") {
@@ -679,7 +729,6 @@ async function saveProviderKey(id, body) {
     );
   }
 
-  modelOpen = "";
   const prefix = id === "compat" ? `compat[${body.name}]` : id;
   delete providerProbe[prefix];
   providerQuota = null;
@@ -712,7 +761,6 @@ function startProviderOAuth(id) {
   modelOAuth.id = id;
   modelOAuth.code = "";
   modelOAuth.url = "";
-  modelOpen = id;
   modelView = "add";
   renderModel();
 
@@ -745,8 +793,7 @@ function startProviderOAuth(id) {
       renderModel();
       return;
     }
-    modelOpen = "";
-    delete providerProbe[id];
+      delete providerProbe[id];
     providerQuota = null;
     selectProvider(id);
   };

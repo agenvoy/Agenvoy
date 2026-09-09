@@ -92,6 +92,9 @@ Agenvoy currently supports Telegram and Discord. Both integrations use outbound 
 | `limits.agent_send_timeout_seconds` | `600` | Model-request timeout |
 | `limits.max_history_messages` | `24` | Recent history messages retained |
 | `limits.max_history_bytes` | `5242880` | History-size ceiling |
+| `reply_lang` | `"auto"` | Reply language. `auto` keeps the default behaviour of matching the user's message; any other value forces every reply into that language regardless of what the user writes |
+
+`reply_lang` accepts `auto`, a code listed in `configs/jsons/reply_lang.json` (`en`, `zh-TW`, `zh-HK`, `zh-CN`, `ja`, `ko`, `es`, `fr`, `de`, `pt`, `it`, `ru`, `vi`, `th`, `id`, `ar`) or any other language name, which is passed through to the model as written. `zh-TW` and `zh-HK` are separate: Taiwan and Hong Kong Traditional Chinese differ in vocabulary and phrasing. It applies to the agent system prompt, the `/v1/chat/completions` system prompt and the generated follow-up suggestions. Set it from **Config › System**, which applies it to the running daemon at once; editing `config.json` by hand takes effect at the next daemon start.
 
 Package defaults (not currently read from `config.json`):
 
@@ -192,6 +195,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/pending` | List and resume interrupted tasks (`ask_user`, error recovery) |
 | `/resume` `/log` `/usage` | Reload the visible transcript, open `action.log` in `$PAGER`, show per-model token usage |
 | `/key` | Rotate a stored credential |
+| `/reply-language` | Pick the language every reply is written in; `auto` follows each message |
 | `/update` | Fetch the latest release, rebuild, quit |
 | `/clear` `/exit` | Clear the visible transcript, or leave the TUI (the daemon keeps running) |
 | `/<skill>` `/sched-<name>` | Run an installed skill or a scheduler entry directly |
@@ -367,7 +371,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` `POST` | `/v1/config/startup` | **local** — read/set launch-on-login. `POST` `{enable}` writes or removes the launchd agent (macOS) or systemd user unit (Linux); it never starts or stops the running daemon, and takes effect at the next login. |
+| `GET` `POST` | `/v1/config/startup` | **local** — read/set launch-on-login. `POST` `{enable}` writes or removes the launchd agent (macOS) or systemd user unit (Linux); it never starts or stops the running daemon, and takes effect at the next login. Both verbs answer with `enabled` (the setting, recorded under `startup` in `config.json` whenever it is changed) and `installed` (whether the unit file is actually on disk right now) — they disagree when the unit was removed outside Agenvoy. |
+| `GET` `POST` | `/v1/config/system` | **local** — read/set the System tab. `GET` returns `{reply_lang, languages:[{code,label}]}`, `languages` being the select options with `auto` first. `POST` `{reply_lang}` canonicalises a known code, writes it to `config.json` and applies it to the running daemon immediately; an empty string means `auto`, an unknown value is kept as written and passed to the model as a language name. |
 
 **Inspection**
 

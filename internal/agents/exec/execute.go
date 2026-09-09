@@ -81,7 +81,7 @@ type (
 	parentWorkDirKey struct{}
 )
 
-func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) error {
+func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) (execErr error) {
 	execCtx := agentTypes.WithSessionID(ctx, session.ID)
 	execStart := time.Now()
 
@@ -119,6 +119,15 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		defer markRunning(session.ID)()
 		defer ClearSteer(session.ID)
 
+		stateless := session.Stateless
+		terminalRecorded := &atomic.Bool{}
+		defer func() {
+			if execErr == nil || stateless || terminalRecorded.Load() {
+				return
+			}
+			sessionLog.Record(session.ID, agentTypes.ErrorEvent(execErr))
+		}()
+
 		original := events
 		runOnceID := onceID
 		fanoutEvents := make(chan agentTypes.Event, 64)
@@ -132,7 +141,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
-		stateless := session.Stateless
 		runTaskHash = &atomic.Pointer[string]{}
 		taskHashRef := runTaskHash
 		go func() {
@@ -155,6 +163,12 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
+				}
+				if ev.Source == "" {
+					switch ev.Type {
+					case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError, agentTypes.EventExecError:
+						terminalRecorded.Store(true)
+					}
 				}
 				if !stateless && ev.Source == "" {
 					sessionLog.Record(sid, ev)
@@ -246,7 +260,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, allowAll)
+			runModel := ""
+			if data.Agent != nil {
+				runModel = data.Agent.Name()
+			}
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {

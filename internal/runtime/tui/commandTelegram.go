@@ -41,17 +41,20 @@ func (t TUI) commandTelegram(parts []string) (TUI, tea.Cmd, bool) {
 	if cfg, err := config.Load(); err == nil && cfg != nil {
 		enabled = cfg.TelegramEnabled && keychain.Get(telegram.Key) != ""
 	}
-	cursor := 0
-	if enabled {
-		cursor = 1
+	if !enabled {
+		next, cmd := t.openTelegramTokenPrompt()
+		return next, cmd, true
 	}
+
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
 		title:   "Telegram",
-		options: []string{"enable", "disable"},
-		values:  []string{"enable", "disable"},
-		cursor:  cursor,
+		options: []string{"disable", "revoke chat"},
+		values:  []string{"disable", "revoke"},
 		onConfirm: func(chosen string) any {
+			if chosen == "revoke" {
+				return ChannelRevokeList{channel: "telegram"}
+			}
 			return TelegramAction{action: chosen}
 		},
 	}

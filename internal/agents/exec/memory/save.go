@@ -27,6 +27,10 @@ type Record struct {
 }
 
 func Save(ctx context.Context, sessionID string, record Record) (string, error) {
+	if record.Outcome != "resolved" {
+		return "discarded", nil
+	}
+
 	record.Keywords = getKeywords(record.Keywords)
 	errType := getMessage(record.Symptom + "\n" + record.Cause)
 	if errType != "unknown" {
