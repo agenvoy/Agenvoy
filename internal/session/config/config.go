@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -32,8 +31,27 @@ type Config struct {
 }
 
 type ModelEntry struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name string
+}
+
+func (m ModelEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.Name)
+}
+
+func (m *ModelEntry) UnmarshalJSON(raw []byte) error {
+	var name string
+	if err := json.Unmarshal(raw, &name); err == nil {
+		m.Name = name
+		return nil
+	}
+	var legacy struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		return err
+	}
+	m.Name = legacy.Name
+	return nil
 }
 
 type CompatEntry struct {
@@ -76,10 +94,6 @@ func Save(cfg *Config) error {
 	if err != nil {
 		oldDic = map[string]any{}
 	}
-
-	slices.SortFunc(cfg.Models, func(a, b ModelEntry) int {
-		return strings.Compare(a.Name, b.Name)
-	})
 
 	raw, err := json.Marshal(cfg)
 	if err != nil {

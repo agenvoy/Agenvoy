@@ -46,17 +46,20 @@ func (t TUI) commandLine(parts []string) (TUI, tea.Cmd, bool) {
 	if cfg, err := config.Load(); err == nil && cfg != nil {
 		enabled = cfg.LineEnabled && keychain.Get(line.SecretKey) != "" && keychain.Get(line.TokenKey) != ""
 	}
-	cursor := 0
-	if enabled {
-		cursor = 1
+	if !enabled {
+		next, cmd := t.openLineSecretPrompt()
+		return next, cmd, true
 	}
+
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
 		title:   "LINE",
-		options: []string{"enable", "disable"},
-		values:  []string{"enable", "disable"},
-		cursor:  cursor,
+		options: []string{"disable", "revoke chat"},
+		values:  []string{"disable", "revoke"},
 		onConfirm: func(chosen string) any {
+			if chosen == "revoke" {
+				return ChannelRevokeList{channel: "line"}
+			}
 			return LineAction{action: chosen}
 		},
 	}

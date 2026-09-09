@@ -17,7 +17,7 @@
   font-family: "Material Symbols Outlined";
   font-weight: normal;
   font-style: normal;
-  font-size: 24px;
+  font-size: x-large;
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -307,7 +307,7 @@ div.popup {
           }
 
           p {
-            font-size: 0.75rem;
+            font-size: small;
             font-weight: 300;
             color: var(--gray-3);
             overflow: hidden;
@@ -328,7 +328,7 @@ div.popup {
           transition: 0.2s;
 
           span {
-            font-size: 1.125rem;
+            font-size: large;
           }
 
           @media (hover: hover) {

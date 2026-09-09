@@ -401,6 +401,7 @@ function newStreamItem(init, sessionId) {
     footer: footer,
     text: init.text || "",
     answered: false,
+    reasoned: false,
     streamed: false,
     textStarted: Boolean(init.text),
     trace: init.trace || "",

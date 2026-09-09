@@ -10,15 +10,17 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
+const adminChannelPad = 5
+
 type AdminChannelSubmit struct {
 	value string
 }
 
 func adminChannelLabel(prefix string, e utils.ChatEntry) string {
 	if strings.TrimSpace(e.Name) == "" {
-		return prefix + " · " + e.ID
+		return padToWidth(prefix, adminChannelPad) + e.ID
 	}
-	return prefix + " · " + e.Name + " (" + e.ID + ")"
+	return padToWidth(prefix, adminChannelPad) + e.Name + " (" + e.ID + ")"
 }
 
 func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
@@ -41,7 +43,7 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 		values = append(values, value)
 	}
 
-	add("(clear) · code stays log-only", "")
+	add(padToWidth("off", adminChannelPad)+"log-only", "")
 	for _, e := range utils.ListChats(filesystem.TelegramAuthPath) {
 		add(adminChannelLabel("tg", e), "tg@"+e.ID)
 	}

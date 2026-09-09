@@ -32,9 +32,6 @@ func (t TUI) commandSummaryModel() (TUI, tea.Cmd, bool) {
 
 	for i, m := range cfg.Models {
 		label := m.Name
-		if m.Description != "" {
-			label = fmt.Sprintf("%s  %s", m.Name, hintStyle.Render(m.Description))
-		}
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i + 1

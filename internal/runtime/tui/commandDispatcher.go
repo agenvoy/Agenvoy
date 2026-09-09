@@ -27,9 +27,6 @@ func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 	cursor := 0
 	for i, m := range cfg.Models {
 		label := m.Name
-		if m.Description != "" {
-			label = fmt.Sprintf("%s  %s", m.Name, hintStyle.Render(m.Description))
-		}
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i

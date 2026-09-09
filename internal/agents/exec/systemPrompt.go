@@ -14,6 +14,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -70,7 +71,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	systemOS := host().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
 
-	template := configs.SystemPrompt
+	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
 
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
@@ -102,6 +103,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.SystemOS}}", systemOS,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
+		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
@@ -167,10 +169,11 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 		"{{.SystemOS}}", host().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
+		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
-	).Replace(configs.ChatCompletionsSystemPrompt)
+	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))
 }
 
 func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) []provider.Message {

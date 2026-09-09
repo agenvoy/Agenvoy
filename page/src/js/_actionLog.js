@@ -122,6 +122,16 @@ function parseActionLog(content) {
         pending.meta.send_at = sendAt;
         break;
 
+      case "error": {
+        pending = pending || logItem(sendAt);
+
+        pending.meta.send_at = sendAt;
+        pending.meta.error = body;
+        pending.finished = true;
+        close();
+        break;
+      }
+
       case "canceled": {
         pending = pending || logItem(sendAt);
 

@@ -26,9 +26,6 @@ func (t TUI) commandModelRemove() (TUI, tea.Cmd, bool) {
 	values := make([]string, len(cfg.Models))
 	for i, m := range cfg.Models {
 		label := m.Name
-		if m.Description != "" {
-			label += " · " + m.Description
-		}
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += " · [dispatcher]"
 		}

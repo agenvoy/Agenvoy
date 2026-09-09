@@ -641,8 +641,8 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	var removed []string
 	for _, m := range cfg.Models {
 		if strings.HasPrefix(m.Name, prefix) {
-			if desc, ok := selected[m.Name]; ok {
-				kept = append(kept, config.ModelEntry{Name: m.Name, Description: desc})
+			if _, ok := selected[m.Name]; ok {
+				kept = append(kept, config.ModelEntry{Name: m.Name})
 				delete(selected, m.Name)
 			} else {
 				removed = append(removed, m.Name)
@@ -653,8 +653,8 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	}
 
 	var added []string
-	for fullName, desc := range selected {
-		kept = append(kept, config.ModelEntry{Name: fullName, Description: desc})
+	for fullName := range selected {
+		kept = append(kept, config.ModelEntry{Name: fullName})
 		added = append(added, fullName)
 	}
 	sort.Slice(added, func(i, j int) bool { return added[i] < added[j] })

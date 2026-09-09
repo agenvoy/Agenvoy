@@ -106,6 +106,9 @@ var ReadOnlyCommand []byte
 //go:embed jsons/tui_tools.json
 var TUITools []byte
 
+//go:embed jsons/reply_lang.json
+var ReplyLang []byte
+
 // * Official Guide
 
 //go:embed prompts/system_prompt/official_guides/*.md

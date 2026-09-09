@@ -911,25 +911,75 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(seq...)
 
+	case StartupAction:
+		return t, setStartup(msg.action)
+
+	case StartupDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] startup %s: %v", msg.action, msg.err)) + "\n")
+		}
+		line := fmt.Sprintf("⎯ startup %sd", msg.action)
+		if msg.detail != "" {
+			line += " · " + msg.detail
+		}
+		return t, tea.Println(hintStyle.Render(line) + "\n")
+
+	case ChannelRevokeList:
+		next, cmd := t.openChannelRevokeList(msg.channel)
+		return next, cmd
+
+	case ChannelRevokePick:
+		next, cmd := t.openChannelRevokeConfirm(msg)
+		return next, cmd
+
+	case ChannelRevokeConfirm:
+		if !msg.yes {
+			return t, nil
+		}
+		return t, revokeChannelChat(msg.channel, msg.id, msg.label)
+
+	case ChannelRevokeDone:
+		if msg.err != nil {
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] revoke %s: %v", msg.channel, msg.err)) + "\n")
+		}
+		return t, tea.Println(hintStyle.Render("⎯ revoked · "+msg.name) + "\n")
+
+	case ChannelSelect:
+		switch msg.channel {
+		case "telegram":
+			next, cmd, _ := t.commandTelegram(nil)
+			return next, cmd
+		case "discord":
+			next, cmd, _ := t.commandDiscord(nil)
+			return next, cmd
+		case "line":
+			next, cmd, _ := t.commandLine(nil)
+			return next, cmd
+		case "admin":
+			next, cmd, _ := t.commandAdminChannel(nil)
+			return next, cmd
+		}
+		return t, nil
+
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
 			if _, _, ok := exec.ParseAdminChannel(value); !ok {
-				return t, tea.Println(errorStyle.Render("[!] admin-channel: format must be tg@<chatID>, dc@<channelID> or ln@<sourceID>") + "\n")
+				return t, tea.Println(errorStyle.Render("[!] channel admin: format must be tg@<chatID>, dc@<channelID> or ln@<sourceID>") + "\n")
 			}
 		}
 		cfg, err := config.Load()
 		if err != nil || cfg == nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] admin-channel: session.Load: %v", err)) + "\n")
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] channel admin: session.Load: %v", err)) + "\n")
 		}
 		cfg.AdminChannel = value
 		if err := config.Save(cfg); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] admin-channel: session.Save: %v", err)) + "\n")
+			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] channel admin: session.Save: %v", err)) + "\n")
 		}
 		if value == "" {
-			return t, tea.Println(hintStyle.Render("⎯ admin-channel cleared") + "\n")
+			return t, tea.Println(hintStyle.Render("⎯ channel admin · off (log-only)") + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ admin-channel set · "+value) + "\n")
+		return t, tea.Println(hintStyle.Render("⎯ channel admin · "+value) + "\n")
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -953,6 +1003,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runSummaryModelSelect(msg.name)
 		agents.Reload()
 		return next, cmd
+
+	case ReplyLanguageSelect:
+		return t.runReplyLanguageSelect(msg.code)
 
 	case AudioModelSelect:
 		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
