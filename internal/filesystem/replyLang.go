@@ -20,7 +20,7 @@ type ReplyLangOption struct {
 	Label string `json:"label"`
 }
 
-const replyLangAutoLabel = "[" + ReplyLangAuto + "] follow the language of each message"
+const replyLangAutoLabel = "Auto · follow the language of each message"
 
 var (
 	replyLangList = loadReplyLang()
@@ -56,7 +56,7 @@ func ReplyLangOptions() []ReplyLangOption {
 		if label == "" {
 			label = one.Name
 		}
-		out = append(out, ReplyLangOption{Code: one.Code, Label: "[" + one.Code + "] " + label})
+		out = append(out, ReplyLangOption{Code: one.Code, Label: label})
 	}
 	return out
 }

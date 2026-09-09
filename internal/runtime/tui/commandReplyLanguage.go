@@ -34,11 +34,16 @@ func (t TUI) commandReplyLanguage() (TUI, tea.Cmd, bool) {
 		return t, tea.Println(hintStyle.Render("no languages available") + "\n"), true
 	}
 
+	width := 0
+	for _, one := range state.Languages {
+		width = max(width, len(one.Code)+2)
+	}
+
 	options := make([]string, 0, len(state.Languages))
 	values := make([]string, 0, len(state.Languages))
 	cursor := 0
 	for i, one := range state.Languages {
-		label := one.Label
+		label := fmt.Sprintf("%-*s %s", width, "["+one.Code+"]", one.Label)
 		if one.Code == state.ReplyLang {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i

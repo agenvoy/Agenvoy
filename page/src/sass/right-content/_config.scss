@@ -823,7 +823,7 @@ body section.right-content section.config {
     &[data-view="provider"] > section#model-routing,
     &[data-view="provider"] > section#model-priority,
     &[data-view="admin"] > section#channel-chats,
-    &[data-view="admin"] > div.status,
+    &[data-view="admin"] > label#channel-status-field,
     &[data-view="admin"] > label[for="channel-token"],
     &[data-view="admin"] > footer,
     &[data-view="channel"] > section#channel-admin {

@@ -573,7 +573,10 @@
             </button>
           </div>
           <form id="channel-form" data-view="admin">
-            <div class="status" id="channel-status"></div>
+            <label id="channel-status-field">
+              <span>Channel</span>
+              <div class="status" id="channel-status"></div>
+            </label>
             <section class="tools" id="channel-chats"></section>
             <section class="tools" id="channel-admin"></section>
             <label for="channel-token">
@@ -748,7 +751,7 @@
       <div>
         <img src="public/logo-min.svg" alt="Logo" />
         <p>Cannot reach the server</p>
-        <p id="hint-retry">Retrying in 5s &middot; check that the daemon is running</p>
+        <p id="hint-retry">check that the daemon is running</p>
       </div>
     </section>
   </body>
