@@ -590,6 +590,23 @@ func padToWidth(s string, width int) string {
 	return s
 }
 
+func optionColumn(keys, details []string) []string {
+	width := 0
+	for _, key := range keys {
+		width = max(width, lipgloss.Width(key)+2)
+	}
+
+	out := make([]string, 0, len(keys))
+	for i, key := range keys {
+		detail := ""
+		if i < len(details) {
+			detail = details[i]
+		}
+		out = append(out, strings.TrimRight(padToWidth(key, width)+detail, " "))
+	}
+	return out
+}
+
 func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 	if width <= 0 {
 		width = defaultWrapWidth
