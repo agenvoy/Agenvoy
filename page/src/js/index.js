@@ -308,6 +308,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       channel_disable: function () {
         disableChannel();
       },
+      routing_change: function () {
+        saveRoutingModel(this.dataset.kind, this.value);
+      },
       system_lang: function () {
         saveSystemLang();
       },

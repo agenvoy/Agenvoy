@@ -305,7 +305,7 @@ async function renderModel() {
     }
   }
 
-  for (const prefix of prefixes) {
+  const providerCard = (prefix) => {
     const total = count(prefix);
     const children = [_("strong", label[prefix] || prefix), _("p", `${total} model${total === 1 ? "" : "s"}`)];
 
@@ -327,7 +327,19 @@ async function renderModel() {
     card.dataset.name = prefix;
     card.dataset.selected = modelView === "provider" && prefix === modelProvider ? "1" : "0";
     card.addEventListener("click", () => selectProvider(prefix));
-    dom.list.appendChild(card);
+    return card;
+  };
+
+  for (const prefix of prefixes.filter((id) => count(id) > 0)) {
+    dom.list.appendChild(providerCard(prefix));
+  }
+
+  const empty = prefixes.filter((id) => count(id) === 0);
+  if (empty.length > 0) {
+    dom.list.appendChild(_("span.group", "No models"));
+    for (const prefix of empty) {
+      dom.list.appendChild(providerCard(prefix));
+    }
   }
 
   if (!providerQuota) {
@@ -345,12 +357,6 @@ async function renderModel() {
   renderModelRouting(registered);
   renderModelPriority();
 }
-
-const PRIORITY_NOTE = [
-  "Fallback under auto only — this order does not change which agent gets selected.",
-  "A hand-off walks downward and never back up, so the last entry is your final line of defense.",
-  "Cache never carries across providers, but keep copies of the same model adjacent anyway: capability then steps down instead of jumping.",
-];
 
 async function modelPriority() {
   try {
@@ -445,8 +451,10 @@ async function renderModelPriority() {
     return;
   }
 
-  dom.priority.innerHTML = "";
-  dom.priority.dataset.open = "1";
+  const box = dom.priority.querySelector("section");
+  if (!box) {
+    return;
+  }
 
   const move = (from, to) => {
     const next = names.slice();
@@ -455,22 +463,10 @@ async function renderModelPriority() {
     saveModelPriority(next);
   };
 
-  const box = _("section");
-  if (names.length === 0) {
-    box.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
-  } else {
-    for (const line of PRIORITY_NOTE) {
-      box.appendChild(_("p.note", line));
-    }
-    names.forEach((name, rank) => box.appendChild(priorityRow(name, rank, names.length, move)));
+  for (const row of box.querySelectorAll("div.routing")) {
+    row.remove();
   }
-
-  dom.priority.appendChild(
-    _("details.group", { open: "" }, [
-      _("summary", ["Model Priority", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-      box,
-    ]),
-  );
+  names.forEach((name, rank) => box.appendChild(priorityRow(name, rank, names.length, move)));
 }
 
 async function modelRouting() {
@@ -483,16 +479,14 @@ async function modelRouting() {
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
-        imageProviders: body.image_providers || [],
         stt: body.stt || "",
         tts: body.tts || "",
-        audioProviders: body.audio_providers || [],
       };
     }
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", summary: "", image: "", imageOptions: [], imageProviders: [], stt: "", tts: "", audioProviders: [] };
+  return { dispatcher: "", summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -513,40 +507,25 @@ async function saveRoutingModel(kind, model) {
   renderModel();
 }
 
-function routingLabel(label, providers) {
-  const children = [_("strong", label)];
-  if (providers && providers.length > 0) {
-    children.push(_("p", providers.join(" / ")));
-  }
-  return _("div.label", children);
+function routingSelect(kind) {
+  const dom = modelDom();
+  return dom.routing ? dom.routing.querySelector(`select[data-kind="${kind}"]`) : null;
 }
 
-function routingRow(label, kind, current, options) {
-  const select = _("select");
-  select.appendChild(_("option", { value: "" }, "auto · first registered model"));
+function fillRoutingSelect(kind, current, options, placeholder) {
+  const select = routingSelect(kind);
+  if (!select) {
+    return;
+  }
+  select.innerHTML = "";
+  select.appendChild(_("option", { value: "" }, placeholder));
   for (const name of options) {
     select.appendChild(_("option", { value: name }, name));
   }
-  select.value = current;
-  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
-
-  return _("div.routing", [routingLabel(label), select]);
+  select.value = options.includes(current) ? current : "";
 }
 
-function audioRow(label, kind, current, providers) {
-  const select = _("select");
-  select.dataset.kind = kind;
-  select.appendChild(_("option", { value: "" }, "off"));
-  if (current) {
-    select.appendChild(_("option", { value: current }, current));
-  }
-  select.value = current;
-  select.addEventListener("change", () => saveRoutingModel(kind, select.value));
-
-  return _("div.routing", [routingLabel(label, providers), select]);
-}
-
-async function fillAudioOptions(dom) {
+async function fillAudioOptions(stt, tts) {
   let body = {};
   try {
     const response = await fetch(`${API}/v1/model/audio`);
@@ -559,34 +538,8 @@ async function fillAudioOptions(dom) {
     return;
   }
 
-  for (const [kind, options] of [
-    ["stt", body.stt_options || []],
-    ["tts", body.tts_options || []],
-  ]) {
-    const select = dom.querySelector(`select[data-kind="${kind}"]`);
-    if (!select) {
-      continue;
-    }
-    const current = select.value;
-    select.innerHTML = "";
-    select.appendChild(_("option", { value: "" }, "off"));
-    for (const name of options) {
-      select.appendChild(_("option", { value: name }, name));
-    }
-    select.value = options.includes(current) ? current : "";
-  }
-}
-
-function imageRow(current, added, providers) {
-  const select = _("select");
-  select.appendChild(_("option", { value: "" }, "off"));
-  for (const id of added) {
-    select.appendChild(_("option", { value: id }, id));
-  }
-  select.value = added.includes(current) ? current : "";
-  select.addEventListener("change", () => saveRoutingModel("image", select.value));
-
-  return _("div.routing", [routingLabel("Image", providers), select]);
+  fillRoutingSelect("stt", stt, body.stt_options || [], "off");
+  fillRoutingSelect("tts", tts, body.tts_options || [], "off");
 }
 
 async function renderModelRouting(registered) {
@@ -600,23 +553,10 @@ async function renderModelRouting(registered) {
     return;
   }
 
-  dom.routing.innerHTML = "";
-  dom.routing.dataset.open = "1";
-
-  const box = _("section");
-  if (registered.length === 0) {
-    box.appendChild(_("p.empty", "no models registered yet · add one from a provider first"));
-  } else {
-    box.appendChild(routingRow("Dispatcher", "dispatcher", routing.dispatcher, registered));
-    box.appendChild(routingRow("Summary", "summary", routing.summary, registered));
-    box.appendChild(imageRow(routing.image, routing.imageOptions, routing.imageProviders));
-    box.appendChild(audioRow("Speech to text", "stt", routing.stt, routing.audioProviders));
-    box.appendChild(audioRow("Text to speech", "tts", routing.tts, routing.audioProviders));
-  }
-
-  const group = _("details.group", { open: "" }, [_("summary", ["Setting Model", _("span.material-symbols-outlined", "keyboard_arrow_down")]), box]);
-  dom.routing.appendChild(group);
-  fillAudioOptions(group);
+  fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
+  fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
+  fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
+  fillAudioOptions(routing.stt, routing.tts);
 }
 
 function selectProvider(prefix) {
@@ -628,11 +568,7 @@ function selectProviderAdd() {
 }
 
 function providerDetails(provider, method, added) {
-  const label = providerGroup(provider, method);
-  const pill = _("span", label);
-  pill.dataset.method = label;
-
-  const head = _("div.head", [_("strong", provider.label), _("div.pills", [pill])]);
+  const head = _("div.head", [_("strong", provider.label)]);
   const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
   card.dataset.added = added ? "1" : "0";
   return card;

@@ -440,8 +440,42 @@
               <button type="button" name="custom">Custom</button>
             </nav>
             <section class="tools" id="model-catalog"></section>
-            <section class="tools" id="model-routing"></section>
-            <section class="tools" id="model-priority"></section>
+            <section class="tools" id="model-routing" data-open="1">
+              <strong class="group">Setting Model</strong>
+              <section>
+                <div class="routing">
+                  <div class="label"><strong>Dispatcher</strong></div>
+                  <select data-kind="dispatcher" @change="routing_change"></select>
+                </div>
+                <div class="routing">
+                  <div class="label"><strong>Summary</strong></div>
+                  <select data-kind="summary" @change="routing_change"></select>
+                </div>
+                <div class="routing">
+                  <div class="label"><strong>Image</strong><p>openai / codex / grok / grok-oauth / gemini</p></div>
+                  <select data-kind="image" @change="routing_change"></select>
+                </div>
+                <div class="routing">
+                  <div class="label"><strong>Speech to text</strong><p>openai / gemini</p></div>
+                  <select data-kind="stt" @change="routing_change"></select>
+                </div>
+                <div class="routing">
+                  <div class="label"><strong>Text to speech</strong><p>openai / gemini</p></div>
+                  <select data-kind="tts" @change="routing_change"></select>
+                </div>
+              </section>
+            </section>
+            <section class="tools" id="model-priority" data-open="1">
+              <strong class="group">Model Priority</strong>
+              <section>
+                <p class="note">Fallback under auto only — this order does not change which agent gets selected.</p>
+                <p class="note">A hand-off walks downward and never back up, so the last entry is your final line of defense.</p>
+                <p class="note">
+                  Cache never carries across providers, but keep copies of the same model adjacent anyway: capability then
+                  steps down instead of jumping.
+                </p>
+              </section>
+            </section>
             <section class="tools" id="model-models"></section>
           </form>
         </section>
@@ -505,7 +539,7 @@
             <section class="tools" id="mcp-tools"></section>
             <footer>
               <button type="button" class="remove" @click="mcp_delete">delete</button>
-              <button type="button" @click="mcp_reconnect">reconnect</button>
+              <button type="button" id="mcp-reconnect" @click="mcp_reconnect">reconnect</button>
               <button type="button" id="mcp-login" @click="mcp_login">login</button>
               <button type="button" id="mcp-logout" @click="mcp_logout">logout</button>
               <button type="button" class="submit" @click="mcp_save">add</button>
