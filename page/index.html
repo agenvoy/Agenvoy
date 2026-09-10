@@ -699,13 +699,13 @@
               <input id="history-ago" type="text" placeholder="2d ago" @keydown="history_keydown" />
               <input id="history-span" type="text" placeholder="12h wide" @keydown="history_keydown" />
               <button type="button" class="submit" @click="history_range">search</button>
+              <nav class="tab pager" id="history-pager"></nav>
             </div>
             <section class="entries" id="history-entries"></section>
-            <nav class="pager" id="history-pager"></nav>
           </form>
         </section>
 
-        <section :elif="params.tab == Lessons" class="editor details">
+        <section :elif="params.tab == Lessons" class="editor details lessons">
           <div class="side">
             <a class="new" id="lesson-all">
               <span class="material-symbols-outlined"> stacks </span>
@@ -720,8 +720,14 @@
             </details>
           </div>
           <form>
+            <div class="range">
+              <input id="lesson-keyword" type="search" placeholder="keyword" @keydown="lesson_keydown" />
+              <input id="lesson-ago" type="text" placeholder="2d ago" @keydown="lesson_keydown" />
+              <input id="lesson-span" type="text" placeholder="12h wide" @keydown="lesson_keydown" />
+              <button type="button" class="submit" @click="lesson_range">search</button>
+              <nav class="tab pager" id="lesson-pager"></nav>
+            </div>
             <section class="entries" id="lesson-body"></section>
-            <nav class="pager" id="lesson-pager"></nav>
           </form>
         </section>
 

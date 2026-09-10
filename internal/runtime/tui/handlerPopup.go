@@ -35,13 +35,15 @@ type Popup struct {
 	styledLines []string
 	diffLines   []string
 
-	options    []string
-	optionTail []string
-	values     []string
-	cursor     int
-	multi      map[int]bool
-	onToggle   func(p *Popup, index int)
-	maxVisible int
+	options     []string
+	optionTail  []string
+	values      []string
+	cursor      int
+	multi       map[int]bool
+	onToggle    func(p *Popup, index int)
+	maxVisible  int
+	readOnly    bool
+	enterAction string
 
 	tabs   []string
 	tabIdx int
@@ -57,6 +59,9 @@ type Popup struct {
 	answers     []any
 
 	onConfirm func(chosen string) any
+	onDelete  func(chosen string) any
+	onCancel  func() any
+	back      *Popup
 
 	oauth *oauthState
 }
@@ -190,7 +195,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
 				}
 				return t, tea.Sequence(
-					tea.Println(warnStyle.Render("⎯ restricted path: system password required")+"\n"),
+					tea.Println(msgWarn("restricted path: system password required")+"\n"),
 					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
 						return RestrictedAuthDone{pendingID: id, err: err}
 					}),
@@ -220,10 +225,18 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
 	switch msg.Type {
 	case tea.KeyUp:
-		p.cursor = (p.cursor - 1 + len(p.options)) % len(p.options)
+		if p.readOnly {
+			p.scroll(-1)
+			break
+		}
+		p.move(-1)
 
 	case tea.KeyDown:
-		p.cursor = (p.cursor + 1) % len(p.options)
+		if p.readOnly {
+			p.scroll(1)
+			break
+		}
+		p.move(1)
 
 	case tea.KeyLeft:
 		p.switchTab(-1)
@@ -233,14 +246,34 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyEsc:
 		if p.pendingId == "" {
-			t = t.closePopup()
-		} else {
-			runtime.Resolve(p.pendingId, runtime.Reply{
-				Error: fmt.Errorf("user cancelled"),
-			})
-			t = t.closePopup()
+			return t.escapePopup()
 		}
+		runtime.Resolve(p.pendingId, runtime.Reply{
+			Error: fmt.Errorf("user cancelled"),
+		})
+		t = t.closePopup()
+	case tea.KeyRunes:
+		if p.onDelete == nil || p.pendingId != "" {
+			break
+		}
+		if r := strings.ToLower(string(msg.Runes)); r != "d" {
+			break
+		}
+		chosen := p.options[p.cursor]
+		if p.values != nil && p.cursor < len(p.values) {
+			chosen = p.values[p.cursor]
+		}
+		next := p.onDelete(chosen)
+		if next == nil {
+			break
+		}
+		t = t.closePopup()
+		return t, popupNext(p, func() any { return next })
+
 	case tea.KeyEnter:
+		if !p.readOnly && strings.TrimSpace(p.options[p.cursor]) == "" {
+			break
+		}
 		chosen := p.options[p.cursor]
 		if p.values != nil && p.cursor < len(p.values) {
 			chosen = p.values[p.cursor]
@@ -251,7 +284,7 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if cb == nil {
 				return t, nil
 			}
-			return t, func() tea.Msg { return cb(chosen) }
+			return t, popupNext(p, func() any { return cb(chosen) })
 		}
 
 		resolved, reply := p.advanceOrResolve(chosen)
@@ -261,6 +294,72 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return t, nil
+}
+
+type popupChild struct {
+	parent *Popup
+	msg    tea.Msg
+}
+
+func popupNext(parent *Popup, cb func() any) tea.Cmd {
+	return func() tea.Msg {
+		return popupChild{parent: parent, msg: cb()}
+	}
+}
+
+func (t TUI) runPopupChild(msg popupChild) (tea.Model, tea.Cmd) {
+	if msg.msg == nil {
+		return t, nil
+	}
+	t.popupOrigin = msg.parent
+	next, cmd := t.Update(msg.msg)
+	nt, ok := next.(TUI)
+	if !ok {
+		return next, cmd
+	}
+	nt.popupOrigin = nil
+	if nt.popup == nil || nt.popup == msg.parent || nt.popup.pendingId != "" || nt.popup.back != nil {
+		return nt, cmd
+	}
+	nt.popup.back = msg.parent
+	for one := msg.parent; one != nil; one = one.back {
+		if one.title == nt.popup.title {
+			nt.popup.back = one.back
+			break
+		}
+	}
+	return nt, cmd
+}
+
+func (t TUI) escapePopup() (tea.Model, tea.Cmd) {
+	if back := t.popup.back; back != nil {
+		t.popup = back
+		return t, nil
+	}
+	cb := t.popup.onCancel
+	t = t.closePopup()
+	if cb != nil {
+		return t, func() tea.Msg { return cb() }
+	}
+	return t, nil
+}
+
+func (p *Popup) move(step int) {
+	n := len(p.options)
+	for range n {
+		p.cursor = (p.cursor + step + n) % n
+		if strings.TrimSpace(p.options[p.cursor]) != "" {
+			return
+		}
+	}
+}
+
+func (p *Popup) scroll(step int) {
+	visible := p.maxVisible
+	if visible <= 0 {
+		visible = cmdSelectorMaxVisible
+	}
+	p.cursor = min(max(p.cursor+step, 0), max(len(p.options)-visible, 0))
 }
 
 func (p *Popup) switchTab(step int) {
@@ -294,13 +393,12 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyEsc:
 		if p.pendingId == "" {
-			t = t.closePopup()
-		} else {
-			runtime.Resolve(p.pendingId, runtime.Reply{
-				Error: fmt.Errorf("user cancelled"),
-			})
-			t = t.closePopup()
+			return t.escapePopup()
 		}
+		runtime.Resolve(p.pendingId, runtime.Reply{
+			Error: fmt.Errorf("user cancelled"),
+		})
+		t = t.closePopup()
 
 	case tea.KeyEnter:
 		selected := make([]string, 0, len(p.multi))
@@ -320,7 +418,7 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if cb == nil {
 				return t, nil
 			}
-			return t, func() tea.Msg { return cb(strings.Join(selected, "\x1F")) }
+			return t, popupNext(p, func() any { return cb(strings.Join(selected, "\x1F")) })
 		}
 
 		resolved, reply := p.advanceOrResolve(selected)
@@ -362,7 +460,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if cb == nil {
 				return t, nil
 			}
-			return t, func() tea.Msg { return cb(value) }
+			return t, popupNext(p, func() any { return cb(value) })
 		}
 		if p.skipWithReason {
 			runtime.Resolve(p.pendingId, runtime.Reply{
@@ -384,8 +482,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEsc:
 		if p.pendingId == "" {
-			t = t.closePopup()
-			return t, nil
+			return t.escapePopup()
 		}
 		runtime.Resolve(p.pendingId, runtime.Reply{
 			Error: fmt.Errorf("user cancelled"),

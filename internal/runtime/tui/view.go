@@ -17,7 +17,7 @@ import (
 )
 
 func (t TUI) View() string {
-	if t.quitting || t.execHandoff {
+	if t.quitting {
 		return ""
 	}
 	if t.popup != nil {
@@ -103,7 +103,7 @@ func (t TUI) viewThinking() string {
 	sb.WriteString(" ")
 	sb.WriteString(systemStyle.Render(verb + "..."))
 	sb.WriteString(" ")
-	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, " · ") + ")"))
+	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, "  ") + ")"))
 
 	if block := renderTodoList(t.todos); block != "" {
 		sb.WriteString("\n\n")
@@ -130,8 +130,10 @@ func (t TUI) shortCwd() string {
 }
 
 func splitOptStyle(s string) (head, tail string) {
-	if idx := strings.Index(s, " · "); idx >= 0 {
-		return s[:idx], s[idx:]
+	trimmed := strings.TrimLeft(s, " ")
+	lead := len(s) - len(trimmed)
+	if idx := strings.Index(trimmed, "  "); idx >= 0 {
+		return s[:lead+idx], s[lead+idx:]
 	}
 	return s, ""
 }
@@ -182,6 +184,20 @@ func (t TUI) viewPopup() string {
 			body = append(body, diffNewStyle.Render(diffCell(dl, diffWidth)))
 		}
 	}
+	trimTail := func() {
+		for len(body) > 1 && strings.TrimSpace(body[len(body)-1]) == "" {
+			body = body[:len(body)-1]
+		}
+	}
+	appendFooter := func(hint string) {
+		if p.back != nil && p.kind != popupOAuth {
+			hint = strings.NewReplacer("esc cancel", "esc back", "esc close", "esc back").Replace(hint)
+		}
+		trimTail()
+		body = append(body, "", hintStyle.Render(hint))
+	}
+
+	trimTail()
 	body = append(body, "")
 
 	switch p.kind {
@@ -192,16 +208,20 @@ func (t TUI) viewPopup() string {
 			visible = cmdSelectorMaxVisible
 		}
 		start, end := 0, total
-		windowed := visible > 0 && total > visible
-		if windowed {
-			start, end = windowRange(p.cursor, total, visible)
+		if visible > 0 && total > visible {
+			if p.readOnly {
+				start = min(p.cursor, total-visible)
+				end = start + visible
+			} else {
+				start, end = windowRange(p.cursor, total, visible)
+			}
 		}
 		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
 			var line string
-			if i == p.cursor {
+			if !p.readOnly && i == p.cursor {
 				marker = systemStyle.Render("> ")
 				head, tail := splitOptStyle(opt)
 				line = systemStyle.Render(head)
@@ -216,15 +236,24 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, marker+line)
 		}
-		if windowed {
-			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
+		action := "confirm"
+		if p.enterAction != "" {
+			action = p.enterAction
 		}
-		body = append(body, "")
+		hint := "↑/↓ select  enter " + action + "  esc cancel"
 		if len(p.tabs) > 1 {
-			body = append(body, hintStyle.Render("↑/↓ select · ←/→ filter · enter confirm · esc cancel"))
-		} else {
-			body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+			hint = "↑/↓ select  ←/→ filter  enter " + action + "  esc cancel"
 		}
+		if p.readOnly {
+			hint = "↑/↓ scroll  esc close"
+			if len(p.tabs) > 1 {
+				hint = "↑/↓ scroll  ←/→ filter  esc close"
+			}
+		}
+		if p.onDelete != nil {
+			hint += "  d delete"
+		}
+		appendFooter(hint)
 
 	case popupMultiSelect:
 		total := len(p.options)
@@ -232,11 +261,7 @@ func (t TUI) viewPopup() string {
 		if visible <= 0 {
 			visible = cmdSelectorMaxVisible
 		}
-		start, end := 0, total
-		windowed := total > visible
-		if windowed {
-			start, end = windowRange(p.cursor, total, visible)
-		}
+		start, end := windowRange(p.cursor, total, visible)
 		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
@@ -258,24 +283,19 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
 		}
-		if windowed {
-			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
-		}
-		body = append(body, "")
 		if len(p.tabs) > 1 {
-			body = append(body, hintStyle.Render("↑/↓ move · ←/→ filter · space toggle · enter confirm · esc cancel"))
+			appendFooter("↑/↓ move  ←/→ filter  space toggle  enter confirm  esc cancel")
 		} else {
-			body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+			appendFooter("↑/↓ move  space toggle  enter confirm  esc cancel")
 		}
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))
 		body = append(body, p.input.View())
-		body = append(body, "")
 		if p.multiline {
-			body = append(body, hintStyle.Render("ctrl+s confirm · enter newline · esc cancel"))
+			appendFooter("ctrl+s confirm  enter newline  esc cancel")
 		} else {
-			body = append(body, hintStyle.Render("enter confirm · esc cancel"))
+			appendFooter("enter confirm  esc cancel")
 		}
 
 	case popupSecret:
@@ -286,8 +306,7 @@ func (t TUI) viewPopup() string {
 		secret.SetCursor(cursor)
 		secret.SetWidth(max(width-10, 20))
 		body = append(body, secret.View())
-		body = append(body, "")
-		body = append(body, hintStyle.Render("enter confirm · esc cancel · (input hidden)"))
+		appendFooter("enter confirm  esc cancel  (input hidden)")
 
 	case popupOAuth:
 		if p.oauth != nil {
@@ -298,11 +317,10 @@ func (t TUI) viewPopup() string {
 				body = append(body, hintStyle.Render("code: ")+systemStyle.Render(p.oauth.userCode))
 			}
 		}
-		body = append(body, "")
 		if p.oauth != nil && p.oauth.mcpServer != "" {
-			body = append(body, hintStyle.Render("enter re-open browser · p paste redirect URL · esc cancel"))
+			appendFooter("enter re-open browser  p paste redirect URL  esc cancel")
 		} else {
-			body = append(body, hintStyle.Render("enter re-open browser · esc cancel"))
+			appendFooter("enter re-open browser  esc cancel")
 		}
 	}
 
@@ -319,7 +337,7 @@ func (t TUI) sessionTag() string {
 	if name := t.sessionName(); name != "" {
 		parts = append(parts, hintStyle.Render(name))
 	}
-	return strings.Join(parts, hintStyle.Render(" · ")) + hintStyle.Render("  ")
+	return strings.Join(parts, hintStyle.Render("  ")) + hintStyle.Render("  ")
 }
 
 func (t TUI) sessionName() string {
@@ -338,7 +356,7 @@ func (t TUI) sessionName() string {
 	model, reasoning := configBot.GetModel(sid)
 	modelPart := hintStyle.Render(model)
 	if model != configBot.DefaultModel {
-		modelPart = warnStyle.Render(model)
+		modelPart = warnStyle.Render(modelLabel(model))
 	}
 
 	var reasonPart string

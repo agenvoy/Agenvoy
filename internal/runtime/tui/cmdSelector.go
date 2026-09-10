@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -33,30 +32,28 @@ type Command struct {
 }
 
 var commands = []Command{
-	{"model", "add / remove provider · pick session / dispatch / summary model · image / stt / tts"},
-	{"mcp", "list MCP servers · add · per-server login, reconnect, tools, remove"},
-	{"switch", "switch / change current session via picker"},
-	{"new", "create / add new session · name conflict-checked"},
-	{"remove-session", "delete current session"},
-	{"allow-skill", "always-allow skill (skip permission) · global / project"},
-	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis · confirm required"},
-	{"reset", "reset / refresh current session · double-confirm · summary regen first then drop history + task history + action.log"},
-	{"bot", "edit / rename current session · name / self id / description (persona)"},
-	{"rule", "list / add / edit rule · title + description"},
-	{"note", "list / add / edit note · title + description"},
-	{"channel", "enable / disable Telegram or Discord bot · token validated on enable"},
-	{"startup", "enable / disable launch daemon on login · launchd / systemd user unit"},
-	{"cron", "add / remove / edit scheduled recurring task"},
-	{"task", "add / remove / edit one-shot scheduled task"},
-	{"update", "update / upgrade · fetch latest release · rebuild · quit TUI"},
-	{"resume", "reload visible transcript · last 100 entries from action.log"},
-	{"log", "follow / tail raw daemon.log via $PAGER (less +F) · ctrl-c stops following"},
-	{"usage", "session / total · per-model token usage · 24h / 7d / 28d"},
-	{"pending", "list / resume interrupted tasks · error recovery · ask_user resume"},
-	{"key", "update / rotate keychain value · pick from recorded keys"},
-	{"reply-language", "force every reply into one language · auto follows each message"},
-	{"clear", "clear visible transcript / history · memory untouched"},
-	{"exit", "exit / quit TUI · daemon keeps running"},
+	{"model", "add / remove provider  pick session / dispatch / summary model  image / stt / tts"},
+	{"mcp", "list MCP servers  add  per-server login, reconnect, tools, remove"},
+	{"sessions", "switch current session  enter switch  d delete"},
+	{"new", "create / add new session  name conflict-checked"},
+	{"allow-skill", "always-allow skill (skip permission)  global / project"},
+	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis  confirm required"},
+	{"reset", "reset / refresh current session  double-confirm  summary regen first then drop history + task history + action.log"},
+	{"bot", "edit / rename current session  name / self id / description (persona)"},
+	{"rule", "list / add / edit rule  title + description"},
+	{"note", "list / add / edit note  title + description"},
+	{"channel", "enable / disable Telegram or Discord bot  token validated on enable"},
+	{"startup", "enable / disable launch daemon on login  launchd / systemd user unit"},
+	{"schedule", "recurring (cron) and one-shot (task) in one list  enter fires it now  d deletes it  add / edit by asking the agent"},
+	{"update", "update / upgrade  fetch latest release  rebuild  quit TUI"},
+	{"resume", "reload visible transcript  last 100 entries from action.log"},
+	{"log", "follow / tail raw daemon.log via $PAGER (less +F)  ctrl-c stops following"},
+	{"usage", "per-model token usage  session above, global below  24h / 7d / 28d"},
+	{"pending", "list / resume interrupted tasks  error recovery  ask_user resume"},
+	{"key", "update / rotate keychain value  pick from recorded keys"},
+	{"reply-language", "force every reply into one language  auto follows each message"},
+	{"clear", "clear visible transcript / history  memory untouched"},
+	{"exit", "exit / quit TUI  daemon keeps running"},
 }
 
 func (t TUI) refreshCmdSelector() TUI {
@@ -103,7 +100,7 @@ func queryCmdSelector(content string) (query string, ok bool) {
 }
 
 func isDangerCommand(name string) bool {
-	return strings.HasPrefix(name, "allow-") || name == "remove-session"
+	return strings.HasPrefix(name, "allow-")
 }
 
 func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {
@@ -334,9 +331,6 @@ func renderCmdSelector(p *CmdSelector) string {
 			line += "  " + hintStyle.Render(it.desc)
 		}
 		lines = append(lines, line)
-	}
-	if total > cmdSelectorMaxVisible {
-		lines = append(lines, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -46,19 +46,10 @@ func (t TUI) commandTelegram(parts []string) (TUI, tea.Cmd, bool) {
 		return next, cmd, true
 	}
 
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Telegram",
-		options: []string{"disable", "revoke chat"},
-		values:  []string{"disable", "revoke"},
-		onConfirm: func(chosen string) any {
-			if chosen == "revoke" {
-				return ChannelRevokeList{channel: "telegram"}
-			}
-			return TelegramAction{action: chosen}
-		},
-	}
-	return t, nil, true
+	next, cmd := t.openChannelMenu("telegram", "Telegram", func() any {
+		return TelegramAction{action: "disable"}
+	})
+	return next, cmd, true
 }
 
 func (t TUI) openTelegramTokenPrompt() (TUI, tea.Cmd) {
@@ -66,7 +57,7 @@ func (t TUI) openTelegramTokenPrompt() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "Telegram Bot Token",
 		input:    newPopupInput("", false),
-		subtitle: "from @BotFather · Enter to submit · Esc to cancel",
+		subtitle: "from @BotFather  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return TelegramTokenSubmit{token: strings.TrimSpace(value)}
 		},

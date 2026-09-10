@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -80,21 +82,57 @@ var modelAddProviders = []struct {
 	{"mistral", "Mistral         API key"},
 	{"nvidia", "NVIDIA NIM      API key"},
 	{"openrouter", "OpenRouter      API key"},
-	{"cloudflare", "Cloudflare      Workers AI · API token + account ID"},
+	{"cloudflare", "Cloudflare      Workers AI  API token + account ID"},
 	{"compat", "Local/Custom    Ollama, LM Studio, or custom URL"},
 }
 
+type localCompat struct {
+	name  string
+	label string
+	url   string
+}
+
+var localCompats = []localCompat{
+	{"OLLAMA", "Ollama Local", "http://localhost:11434/v1"},
+	{"LLAMA.CPP", "Llama.cpp Local", "http://localhost:8080/v1"},
+}
+
+const localCompatPrefix = "local:"
+
 func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 	t.modelAdd = &modelAddItem{}
-	options := make([]string, len(modelAddProviders))
-	values := make([]string, len(modelAddProviders))
-	for i, p := range modelAddProviders {
-		options[i] = p.label
-		values[i] = p.name
+	options := make([]string, 0, len(modelAddProviders)+len(localCompats)+1)
+	values := make([]string, 0, len(modelAddProviders)+len(localCompats)+1)
+
+	found := make([]bool, len(localCompats))
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	var wg sync.WaitGroup
+	for i, one := range localCompats {
+		wg.Go(func() {
+			found[i] = len(fetchModelIDs(ctx, one.url, one.name)) > 0
+		})
 	}
+	wg.Wait()
+	cancel()
+
+	for i, one := range localCompats {
+		if found[i] {
+			options = append(options, fmt.Sprintf("%-16s%s", one.label, one.url))
+			values = append(values, localCompatPrefix+one.name)
+		}
+	}
+	if len(options) > 0 {
+		options = append(options, "")
+		values = append(values, "")
+	}
+	for _, p := range modelAddProviders {
+		options = append(options, p.label)
+		values = append(values, p.name)
+	}
+
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Model · global add · provider",
+		title:   "Model  global add  provider",
 		options: options,
 		values:  values,
 		onConfirm: func(chosen string) any {
@@ -108,12 +146,15 @@ func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
 		t.modelAdd = &modelAddItem{}
 	}
+	if instance, ok := strings.CutPrefix(name, localCompatPrefix); ok {
+		return t.runModelAddLocal(instance)
+	}
 	t.modelAdd.provider = name
 	switch name {
 	case "openai":
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
-			title:   "OpenAI · method",
+			title:   "OpenAI  method",
 			options: []string{"API Key  pay per token", "Codex    subscription"},
 			values:  []string{"api-key", "codex"},
 			onConfirm: func(chosen string) any {
@@ -124,7 +165,7 @@ func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
 	case "grok":
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
-			title:   "Grok · method",
+			title:   "Grok  method",
 			options: []string{"API Key  pay per token", "xAI      subscription"},
 			values:  []string{"api-key", "grok-oauth"},
 			onConfirm: func(chosen string) any {
@@ -158,7 +199,7 @@ func (t TUI) modelAddViaOAuth() (TUI, tea.Cmd) {
 		label := strings.ToUpper(prov[:1]) + prov[1:]
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
-			title:   fmt.Sprintf("%s token exists · re-login?", label),
+			title:   fmt.Sprintf("%s token exists  re-login?", label),
 			options: []string{"No   keep existing", "Yes  re-authenticate"},
 			values:  []string{"no", "yes"},
 			onConfirm: func(chosen string) any {
@@ -176,7 +217,7 @@ func (t TUI) startOAuthPopup() (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:     popupOAuth,
-		title:    fmt.Sprintf("%s OAuth · waiting for device code...", strings.ToUpper(prov[:1])+prov[1:]),
+		title:    fmt.Sprintf("%s OAuth  waiting for device code...", strings.ToUpper(prov[:1])+prov[1:]),
 		subtitle: "browser will open automatically once the code is ready",
 		oauth: &oauthState{
 			provider: prov,
@@ -190,7 +231,7 @@ func (t TUI) startOAuthPopup() (TUI, tea.Cmd) {
 
 func (t TUI) runOAuthReLoginPick(replace string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if replace == "yes" {
 		return t.startOAuthPopup()
@@ -232,10 +273,10 @@ func (t TUI) runOAuthInfo(msg OAuthInfo) (TUI, tea.Cmd) {
 	}
 	t.popup.oauth.url = msg.url
 	t.popup.oauth.userCode = msg.userCode
-	title := "OAuth · open browser to authorize"
+	title := "OAuth  open browser to authorize"
 	if t.popup.oauth.provider != "" {
 		label := strings.ToUpper(t.popup.oauth.provider[:1]) + t.popup.oauth.provider[1:]
-		title = fmt.Sprintf("%s OAuth · open browser to authorize", label)
+		title = fmt.Sprintf("%s OAuth  open browser to authorize", label)
 	}
 	t.popup.title = title
 	t.popup.subtitle = ""
@@ -260,9 +301,9 @@ func (t TUI) runOAuthFailed(msg OAuthFailed) (TUI, tea.Cmd) {
 	case errors.Is(msg.err, context.Canceled):
 		return t, nil
 	case errors.Is(msg.err, context.DeadlineExceeded):
-		return t, tea.Println(warnStyle.Render("⎯ oauth timed out · device code expired") + "\n")
+		return t, tea.Println(msgWarn("oauth timed out  device code expired") + "\n")
 	}
-	return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] oauth: %v", msg.err)) + "\n")
+	return t, tea.Println(msgError(fmt.Sprintf("oauth: %v", msg.err)) + "\n")
 }
 
 func (t TUI) openModelAddAPIKey() (TUI, tea.Cmd) {
@@ -271,7 +312,7 @@ func (t TUI) openModelAddAPIKey() (TUI, tea.Cmd) {
 	if keychain.Get(envKey) != "" {
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
-			title:   fmt.Sprintf("%s API key exists · replace?", label),
+			title:   fmt.Sprintf("%s API key exists  replace?", label),
 			options: []string{"No   keep existing", "Yes  overwrite"},
 			values:  []string{"no", "yes"},
 			onConfirm: func(chosen string) any {
@@ -293,7 +334,7 @@ func (t TUI) openModelAddAPIKey() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddAPIKeyReplace(replace string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if replace == "yes" {
 		label := strings.ToUpper(t.modelAdd.provider[:1]) + t.modelAdd.provider[1:]
@@ -312,21 +353,21 @@ func (t TUI) runModelAddAPIKeyReplace(replace string) (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddAPIKeySubmit(key string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	key = strings.TrimSpace(key)
 	if key == "" {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] api key required") + "\n")
+		return t, tea.Println(msgError("api key required") + "\n")
 	}
 	envKey := strings.ToUpper(t.modelAdd.provider) + "_API_KEY"
 	if err := keychain.Set(envKey, key); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 	}
 	if err := config.SaveKey(envKey); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.SaveKey: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.SaveKey: %v", err)) + "\n")
 	}
 	if t.modelAdd.provider == "cloudflare" {
 		return t.openModelAddGatewayID()
@@ -340,8 +381,8 @@ func (t TUI) runModelAddAPIKeySubmit(key string) (TUI, tea.Cmd) {
 func (t TUI) openVectorRestartNotice() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    "OpenAI key saved · vector storage needs a daemon restart",
-		subtitle: "run  agen stop && agen  to enable it · entries written before the restart keep no vector",
+		title:    "OpenAI key saved  vector storage needs a daemon restart",
+		subtitle: "run  agen stop && agen  to enable it  entries written before the restart keep no vector",
 		options:  []string{"OK"},
 		values:   []string{"ok"},
 		onConfirm: func(string) any {
@@ -355,7 +396,7 @@ func (t TUI) openModelAddAccountID() (TUI, tea.Cmd) {
 	if keychain.Get("CLOUDFLARE_ACCOUNT_ID") != "" {
 		t.popup = &Popup{
 			kind:    popupSingleSelect,
-			title:   "Cloudflare account ID exists · replace?",
+			title:   "Cloudflare account ID exists  replace?",
 			options: []string{"No   keep existing", "Yes  overwrite"},
 			values:  []string{"no", "yes"},
 			onConfirm: func(chosen string) any {
@@ -377,7 +418,7 @@ func (t TUI) openModelAddAccountID() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddAccountIDReplace(replace string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if replace == "yes" {
 		t.popup = &Popup{
@@ -395,15 +436,15 @@ func (t TUI) runModelAddAccountIDReplace(replace string) (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddAccountIDSubmit(id string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if id == "" {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] account ID required") + "\n")
+		return t, tea.Println(msgError("account ID required") + "\n")
 	}
 	if err := keychain.Set("CLOUDFLARE_ACCOUNT_ID", id); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 	}
 	return t.openModelAddAPIKey()
 }
@@ -423,7 +464,7 @@ func (t TUI) openModelAddGatewayID() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddGatewayIDPick(chosen string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if chosen == "custom" {
 		t.popup = &Popup{
@@ -438,22 +479,22 @@ func (t TUI) runModelAddGatewayIDPick(chosen string) (TUI, tea.Cmd) {
 	}
 	if err := keychain.Set("CLOUDFLARE_GATEWAY_ID", "default"); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 	}
 	return t.openModelAddModelPick()
 }
 
 func (t TUI) runModelAddGatewayIDSubmit(id string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if id == "" {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] gateway ID required") + "\n")
+		return t, tea.Println(msgError("gateway ID required") + "\n")
 	}
 	if err := keychain.Set("CLOUDFLARE_GATEWAY_ID", id); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 	}
 	return t.openModelAddModelPick()
 }
@@ -472,14 +513,30 @@ func (t TUI) openModelAddCompatName() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddCompatNameSubmit(name string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if name == "" || strings.ContainsAny(name, " \t[]@") {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] invalid provider name (no spaces, brackets, or @)") + "\n")
+		return t, tea.Println(msgError("invalid provider name (no spaces, brackets, or @)") + "\n")
 	}
 	t.modelAdd.compatProvider = strings.ToUpper(name)
 	return t.openModelAddCompatKey()
+}
+
+func (t TUI) runModelAddLocal(instance string) (TUI, tea.Cmd) {
+	idx := slices.IndexFunc(localCompats, func(one localCompat) bool { return one.name == instance })
+	if idx < 0 {
+		t.modelAdd = nil
+		return t, tea.Println(msgError(fmt.Sprintf("unknown local provider %q", instance)) + "\n")
+	}
+	t.modelAdd.provider = "compat"
+	t.modelAdd.compatProvider = instance
+	t.modelAdd.compatURL = localCompats[idx].url
+	if err := config.UpsertCompat(instance, t.modelAdd.compatURL); err != nil {
+		t.modelAdd = nil
+		return t, tea.Println(msgError(fmt.Sprintf("UpsertCompat: %v", err)) + "\n")
+	}
+	return t.openModelAddModelPick()
 }
 
 func (t TUI) openModelAddCompatURL() (TUI, tea.Cmd) {
@@ -497,11 +554,11 @@ func (t TUI) openModelAddCompatURL() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddCompatURLSubmit(url string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if url == "" {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render("[!] url is required") + "\n")
+		return t, tea.Println(msgError("url is required") + "\n")
 	}
 	url = strings.TrimRight(url, "/")
 	if !strings.Contains(url, "://") {
@@ -525,22 +582,22 @@ func (t TUI) openModelAddCompatKey() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddCompatKeySubmit(key string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 	if key != "" {
 		keychainKey := "COMPAT_" + t.modelAdd.compatProvider + "_API_KEY"
 		if err := keychain.Set(keychainKey, key); err != nil {
 			t.modelAdd = nil
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set: %v", err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 		}
 		if err := config.SaveKey(keychainKey); err != nil {
 			t.modelAdd = nil
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.SaveKey: %v", err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("session.SaveKey: %v", err)) + "\n")
 		}
 	}
 	if err := config.UpsertCompat(t.modelAdd.compatProvider, t.modelAdd.compatURL); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] UpsertCompat: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("UpsertCompat: %v", err)) + "\n")
 	}
 	return t.openModelAddModelPick()
 }
@@ -553,7 +610,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	existing := make(map[string]bool, len(cfg.Models))
 	for _, m := range cfg.Models {
@@ -569,7 +626,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			ids := fetchModelIDs(ctx, url, prov)
 			send(CompatModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", prov)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s  fetching models...", prov)) + "\n")
 	}
 
 	if fn, ok := modelsProviders[t.modelAdd.provider]; ok {
@@ -590,7 +647,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			}
 			send(RemoteModelsResult{ids: ids})
 		}()
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · fetching models...", label)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s  fetching models...", label)) + "\n")
 	}
 
 	t.popup = &Popup{
@@ -610,7 +667,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 
 func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 
 	prefix := t.modelAdd.provider + "@"
@@ -634,7 +691,7 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 
 	var kept []config.ModelEntry
@@ -678,7 +735,7 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 
 	if err := config.Save(cfg); err != nil {
 		t.modelAdd = nil
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 
 	agents.Reload()
@@ -694,26 +751,26 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	providerName := t.modelAdd.provider
 	t.modelAdd = nil
 	if len(summary) == 0 {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s models unchanged", providerName)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s models unchanged", providerName)) + "\n")
 	}
-	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s · registry reloaded", strings.Join(summary, " · "))) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("%s  registry reloaded", strings.Join(summary, "  "))) + "\n")
 }
 
 func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 
 	prefix := fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
 
 	if len(msg.ids) == 0 {
 		t.modelAdd = nil
-		return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ %s · no models found at endpoint", prefix)) + "\n")
+		return t, tea.Println(msgWarn(fmt.Sprintf("%s  no models found at endpoint", prefix)) + "\n")
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] config.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("config.Load: %v", err)) + "\n")
 	}
 	existing := make(map[string]bool, len(cfg.Models))
 	for _, m := range cfg.Models {
@@ -730,7 +787,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 		fullName := prefix + id
 		label := id
 		if existing[fullName] {
-			label += " · (added)"
+			label += "  (added)"
 			preSelected[i] = true
 		}
 		options[i] = label
@@ -739,7 +796,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:    popupMultiSelect,
-		title:   fmt.Sprintf("Select %s models (space toggle · enter confirm)", t.modelAdd.compatProvider),
+		title:   fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.compatProvider),
 		options: options,
 		values:  values,
 		multi:   preSelected,
@@ -767,7 +824,7 @@ var modelsProviders = map[string]func(context.Context, provider.Config, provider
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 	if t.modelAdd == nil {
-		return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 
 	prefix := t.modelAdd.provider + "@"
@@ -775,12 +832,12 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 	if len(msg.ids) == 0 {
 		prov := t.modelAdd.provider
 		t.modelAdd = nil
-		return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ %s · no models found at endpoint", prov)) + "\n")
+		return t, tea.Println(msgWarn(fmt.Sprintf("%s  no models found at endpoint", prov)) + "\n")
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] config.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("config.Load: %v", err)) + "\n")
 	}
 	existing := make(map[string]bool, len(cfg.Models))
 	for _, m := range cfg.Models {
@@ -797,7 +854,7 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 		fullName := prefix + id
 		label := id
 		if existing[fullName] {
-			label += " · (added)"
+			label += "  (added)"
 			preSelected[i] = true
 		}
 		options[i] = label
@@ -806,7 +863,7 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:    popupMultiSelect,
-		title:   fmt.Sprintf("Select %s models (space toggle · enter confirm)", t.modelAdd.provider),
+		title:   fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.provider),
 		options: options,
 		values:  values,
 		multi:   preSelected,

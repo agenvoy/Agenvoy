@@ -5,30 +5,69 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-func (t TUI) commandModelList() (TUI, tea.Cmd, bool) {
-	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
+const sessionModelPrefix = "model:"
+
+type SessionModelSelect struct {
+	name string
+}
+
+func modelLabel(name string) string {
+	if a, ok := agents.Registry().Registry[name]; ok && a != nil {
+		return a.Name()
 	}
-	if len(cfg.Models) == 0 {
-		return t, tea.Println(hintStyle.Render("no models configured") + "\n"), true
+	return name
+}
+
+func registeredModelOptions(sid string) (options, values []string, cursor int) {
+	cfg, err := config.Load()
+	if err != nil || cfg == nil || len(cfg.Models) == 0 {
+		return nil, nil, 0
 	}
 
-	lines := make([]string, 0, len(cfg.Models)+1)
-	lines = append(lines, hintStyle.Render(fmt.Sprintf("⎯ %d model(s) configured", len(cfg.Models))))
+	current := ""
+	if sid != "" {
+		current, _ = configBot.GetModel(sid)
+	}
+
+	options = make([]string, 0, len(cfg.Models)+1)
+	values = make([]string, 0, len(cfg.Models)+1)
+
+	auto := configBot.DefaultModel
+	if current == configBot.DefaultModel {
+		auto += "  " + systemStyle.Render("[current]")
+	}
+	options = append(options, auto)
+	values = append(values, sessionModelPrefix+configBot.DefaultModel)
+
 	for _, m := range cfg.Models {
-		label := "  " + m.Name
+		label := modelLabel(m.Name)
+		if m.Name == current {
+			label += "  " + systemStyle.Render("[current]")
+			cursor = len(options)
+		}
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
-			label += " · [dispatcher]"
+			label += "  " + okayStyle.Render("[dispatcher]")
 		}
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
-			label += " · [summary]"
+			label += "  " + okayStyle.Render("[summary]")
 		}
-		lines = append(lines, textStyle.Render(label))
+		options = append(options, label)
+		values = append(values, sessionModelPrefix+m.Name)
 	}
+	return options, values, cursor
+}
 
-	return t, tea.Println(strings.Join(lines, "\n") + "\n"), true
+func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
+	sid := strings.TrimSpace(t.currentSessionID)
+	if sid == "" {
+		return t, tea.Println(msgLog("no active session") + "\n")
+	}
+	configBot.SetModel(sid, name, "")
+	return t, tea.Println(msgLog(fmt.Sprintf("model: %s", modelLabel(name))) + "\n")
 }

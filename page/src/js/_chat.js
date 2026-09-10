@@ -69,13 +69,13 @@ async function renderChatList() {
     }
     if (e.id.startsWith("dc-")) {
       if (discordDom) {
-        discordDom.appendChild(channelListItem(e.id, e.name || e.id));
+        discordDom.appendChild(chatListItem(e.id, e.name || e.id));
       }
       continue;
     }
     if (e.id.startsWith("tg-")) {
       if (telegramDom) {
-        telegramDom.appendChild(channelListItem(e.id, e.name || e.id));
+        telegramDom.appendChild(chatListItem(e.id, e.name || e.id));
       }
     }
   }
@@ -148,20 +148,6 @@ function pinListItem(sessionId, title) {
       "data-selected": sessionId === currentSessionId ? 1 : 0,
     },
     body,
-  );
-}
-
-function channelListItem(sessionId, title) {
-  return _(
-    "div",
-    {
-      "data-id": sessionId,
-      "data-selected": sessionId === currentSessionId ? 1 : 0,
-    },
-    [
-      _("a", { href: getLink({ page: "chat", chat: sessionId }) }, title),
-      ...rowMenu([rowMenuItem("keep", "Pin", "", () => addPinChat(sessionId))]),
-    ],
   );
 }
 

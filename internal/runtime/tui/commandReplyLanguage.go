@@ -28,29 +28,27 @@ func (t TUI) commandReplyLanguage() (TUI, tea.Cmd, bool) {
 
 	state, err := daemon.Get[replyLanguageState](ctx, "/v1/config/system", nil)
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] reply-language: %v", err)) + "\n"), true
+		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n"), true
 	}
 	if len(state.Languages) == 0 {
-		return t, tea.Println(hintStyle.Render("no languages available") + "\n"), true
+		return t, tea.Println(msgLog("no languages available") + "\n"), true
 	}
 
-	width := 0
-	for _, one := range state.Languages {
-		width = max(width, len(one.Code)+2)
-	}
-
-	options := make([]string, 0, len(state.Languages))
+	keys := make([]string, 0, len(state.Languages))
+	details := make([]string, 0, len(state.Languages))
 	values := make([]string, 0, len(state.Languages))
 	cursor := 0
 	for i, one := range state.Languages {
-		label := fmt.Sprintf("%-*s %s", width, "["+one.Code+"]", one.Label)
+		detail := one.Label
 		if one.Code == state.ReplyLang {
-			label += "  " + systemStyle.Render("[current]")
+			detail += "  " + systemStyle.Render("[current]")
 			cursor = i
 		}
-		options = append(options, label)
+		keys = append(keys, "["+one.Code+"]")
+		details = append(details, detail)
 		values = append(values, one.Code)
 	}
+	options := optionColumn(keys, details)
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
@@ -71,7 +69,7 @@ func (t TUI) runReplyLanguageSelect(code string) (TUI, tea.Cmd) {
 
 	state, err := daemon.Post[replyLanguageState](ctx, "/v1/config/system", map[string]any{"reply_lang": code})
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] reply-language: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
 	}
-	return t, tea.Println(hintStyle.Render("⎯ reply language: "+state.ReplyLang) + "\n")
+	return t, tea.Println(msgLog("reply language: "+state.ReplyLang) + "\n")
 }

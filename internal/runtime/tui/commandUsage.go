@@ -20,78 +20,40 @@ var usagePeriods = []struct {
 	{label: "28d", days: 28},
 }
 
-type UsageScopeSelect struct {
-	scope string
-}
-
-func (t TUI) commandUsage(parts []string) (TUI, tea.Cmd, bool) {
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "session":
-			return t.commandUsageSession()
-		case "total":
-			return t.commandUsageTotal()
-		}
-	}
-
-	t.popup = &Popup{
-		kind:  popupSingleSelect,
-		title: "Usage",
-		options: []string{
-			"session  current session only · per-model token usage",
-			"total    every session combined · includes temp / subagent / bot sessions",
-		},
-		values: []string{"session", "total"},
-		onConfirm: func(chosen string) any {
-			return UsageScopeSelect{scope: chosen}
-		},
-	}
-	return t, nil, true
-}
-
-func (t TUI) commandUsageSession() (TUI, tea.Cmd, bool) {
-	sessionID := strings.TrimSpace(t.currentSessionID)
-	if sessionID == "" {
-		return t, tea.Println(hintStyle.Render("⎯ no active session") + "\n"), true
-	}
-
-	return t.renderUsage("Usage by model · current session",
-		func(days int, now time.Time) (map[string]usagelog.ModelUsage, error) {
-			return usagelog.Usage(sessionID, days, now)
-		})
-}
-
-func (t TUI) commandUsageTotal() (TUI, tea.Cmd, bool) {
-	return t.renderUsage("Usage by model · all sessions", usagelog.Total)
-}
-
-func (t TUI) renderUsage(title string, load func(int, time.Time) (map[string]usagelog.ModelUsage, error)) (TUI, tea.Cmd, bool) {
+func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 	now := time.Now()
+	sessionID := strings.TrimSpace(t.currentSessionID)
 
-	summaries := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
-	for i, period := range usagePeriods {
-		summary, err := load(period.days, now)
-		if err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] usage: %v", err)) + "\n"), true
-		}
-		summaries[i] = summary
-	}
-
+	sessions := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
+	totals := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
 	labels := make([]string, len(usagePeriods))
 	for i, period := range usagePeriods {
 		labels[i] = period.label
+		if sessionID != "" {
+			summary, err := usagelog.Usage(sessionID, period.days, now)
+			if err != nil {
+				return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+			}
+			sessions[i] = summary
+		}
+		total, err := usagelog.Total(period.days, now)
+		if err != nil {
+			return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+		}
+		totals[i] = total
 	}
 
-	nameWidth := usageNameWidth(summaries)
+	nameWidth := max(usageNameWidth(sessions), usageNameWidth(totals))
 	popup := &Popup{
 		kind:       popupSingleSelect,
-		title:      title,
+		title:      "Usage by model",
 		subtitle:   hintStyle.Render("  input(cache hit%)/output"),
 		maxVisible: usageMaxVisible,
+		readOnly:   true,
 		tabs:       labels,
 	}
 	popup.onTab = func(p *Popup) {
-		fillUsageOptions(p, summaries, nameWidth)
+		fillUsageOptions(p, sessionID != "", sessions, totals, nameWidth)
 	}
 	popup.onTab(popup)
 
@@ -116,13 +78,36 @@ func usageNameWidth(summaries []map[string]usagelog.ModelUsage) int {
 	return width
 }
 
-func fillUsageOptions(p *Popup, summaries []map[string]usagelog.ModelUsage, nameWidth int) {
+func fillUsageOptions(p *Popup, hasSession bool, sessions, totals []map[string]usagelog.ModelUsage, nameWidth int) {
 	idx := p.tabIdx
-	if idx < 0 || idx >= len(summaries) {
+	if idx < 0 || idx >= len(totals) {
 		idx = 0
 	}
-	summary := summaries[idx]
 
+	options := []string{"session"}
+	tails := []string{""}
+	if hasSession {
+		rows, rowTails := usageRows(sessions[idx], nameWidth)
+		options = append(options, rows...)
+		tails = append(tails, rowTails...)
+	} else {
+		options = append(options, "  no active session")
+		tails = append(tails, "")
+	}
+
+	options = append(options, "", "global")
+	tails = append(tails, "", "")
+	rows, rowTails := usageRows(totals[idx], nameWidth)
+	options = append(options, rows...)
+	tails = append(tails, rowTails...)
+
+	p.options = options
+	p.optionTail = tails
+	p.values = nil
+	p.cursor = 0
+}
+
+func usageRows(summary map[string]usagelog.ModelUsage, nameWidth int) ([]string, []string) {
 	models := make([]string, 0, len(summary))
 	for model, one := range summary {
 		if one.Input == 0 && one.Output == 0 {
@@ -141,18 +126,14 @@ func fillUsageOptions(p *Popup, summaries []map[string]usagelog.ModelUsage, name
 	options := make([]string, 0, len(models))
 	tails := make([]string, 0, len(models))
 	for _, model := range models {
-		options = append(options, fmt.Sprintf("%-*s", nameWidth, model))
+		options = append(options, fmt.Sprintf("  %-*s", nameWidth, model))
 		tails = append(tails, formatUsageCell(summary[model]))
 	}
 	if len(options) == 0 {
-		options = append(options, "no usage")
+		options = append(options, "  no usage")
 		tails = append(tails, "")
 	}
-
-	p.options = options
-	p.optionTail = tails
-	p.values = nil
-	p.cursor = 0
+	return options, tails
 }
 
 func formatUsageCell(u usagelog.ModelUsage) string {

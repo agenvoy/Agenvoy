@@ -73,10 +73,11 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 | `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN` | Chat-bot integrations |
 | `GEMINI_API_KEY` | Gemini audio models and voice features |
+| `COMPAT_<NAME>_API_KEY` | Optional key for a local / custom OpenAI-compatible endpoint named `<NAME>` |
 
 ### Audio model routing
 
-Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `off` to disable the corresponding capability. The available models are loaded from configured OpenAI and Gemini providers. Since **v0.34.4**, Telegram and Discord pause only the default flow that automatically returns voice output after voice input. The local `generate_audio` tool and audio model settings remain available: you can generate audio and send the resulting file to either channel.
+Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `disable` (listed last) to turn the corresponding capability off. The TUI prints `loading models...` while the available models are fetched in parallel from configured OpenAI and Gemini providers. Since **v0.34.4**, Telegram and Discord pause only the default flow that automatically returns voice output after voice input. The local `generate_audio` tool and audio model settings remain available: you can generate audio and send the resulting file to either channel.
 
 ### Chatbot integrations
 
@@ -108,6 +109,8 @@ Package defaults (not currently read from `config.json`):
 
 The runtime ships 12 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints (Ollama, LM Studio, self-hosted gateways).
 
+`/model add` probes a local Ollama (`http://localhost:11434/v1`) and llama.cpp (`http://localhost:8080/v1`) with `GET /models`; each one that answers is listed as **Ollama Local** or **Llama.cpp Local** at the top of the provider list, and picking it records the endpoint under `compats` in `config.json` and goes straight to model selection without asking for a URL or key. Other ports or hosts are added through **Local/Custom**. Local models are registered as `compat[NAME]@<model>`.
+
 When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.5.1 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
 
 ### Agent selection and confirmation routing
@@ -118,7 +121,7 @@ Interactive requests also carry an origin prefix. CLI confirmations are consumed
 
 ### Restricted paths and commands
 
-Paths outside `$HOME` and commands outside the allowlist are not refused outright: `boundary.Resolve` and `tools.RestrictedCommands` collect them and raise a confirmation that also demands the operating-system password (`sudo -v` inside the TUI). Approval is bound to that session and the specific path or binary, and the sudo timestamp is the only clock — there is no second TTL: while that ticket is still valid the prompt appears without a password field.
+Paths outside `$HOME` and paths on the sensitive list (`configs/jsons/sensitive_path.json`, extendable through `sensitive_path` in `config.json`) are not refused outright: `boundary.Resolve` collects them and raises a confirmation that also demands the operating-system password (`sudo -v` inside the TUI, a password field in the web confirmation). `pkg_manage` calls are gated the same way. Approval is bound to that session and the specific path, and the sudo timestamp is the only clock — there is no second TTL: while that ticket is still valid the prompt appears without a password field. `denied_path` and `denied_command` in `config.json` are hard rejects that no approval can lift; any command not on `denied_command` runs, subject to the normal `run_command` confirmation.
 
 Two consequences worth knowing before automating anything:
 
@@ -164,7 +167,7 @@ command = "agen"
 
 ### Session Classification and Monitoring
 
-The TUI session selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, `chat-` for Web/API, and `temp-` for short-lived work. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
+The TUI `/sessions` selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, `chat-` for Web/API, and `temp-` for short-lived work. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
 
 Session personas are stored in the history SQLite database. `self_id` is normalized to lowercase and accepts only up to 32 ASCII letters, digits, `_`, or `-`; non-empty values must be unique. At daemon startup, legacy per-session `bot.json`, bot markdown, `config.json`, and `status.json` files are migrated into SQLite/state tables.
 
@@ -182,19 +185,19 @@ Type a message to run it in the current session. Everything else is a slash comm
 
 | Command | Purpose |
 |---|---|
-| `/model` | Add or remove providers; pick the session / dispatcher / summary model; set image generation, STT, and TTS models |
-| `/mcp` | List MCP servers; add, log in, reconnect, inspect tools, set per-tool permission, remove |
-| `/switch` `/new` | Switch to another session, or create one (names are conflict-checked) |
+| `/model` | Pick the session model (`auto` or a registered model; `d` removes the highlighted model); `add` a provider; set the dispatch, summary, image, STT and TTS models |
+| `/mcp` | List MCP servers (`d` removes one) and `add` new ones; per server: log in, set the OAuth client, pick always-allowed `tools` (first row `all`), reconnect |
+| `/sessions` `/new` | Switch to another session (`d` deletes it), or create one (names are conflict-checked) |
 | `/bot` | Rename the current session or edit its persona |
-| `/memory` | `compact` / `reset` / `summary` for the current session |
-| `/dangerous` | Remove a session, or edit the skill / command allowlists |
-| `/discord` `/telegram` `/voice` | Enable or disable each channel; tokens are validated before they are stored. Voice attachments can be transcribed when STT is configured; automatic voice replies are paused since v0.34.4. |
+| `/compact` `/reset` | Drop redundant exchanges from the current session, or reset it (double-confirmed) |
+| `/allow-skill` | Mark skills as always allowed, globally or for this project |
+| `/rule` `/note` | List, add or edit rules and notes |
+| `/channel` | Enable or disable Telegram / Discord (tokens are validated before they are stored; `d` revokes an authorized chat), or pick the `admin` chat that receives new-chat verification codes (shown only while a channel is enabled) |
 | `/startup` | Enable or disable launching the daemon on login (launchd agent on macOS, systemd user unit on Linux) |
-| `/admin-channel` | Pick which authorized chat receives new-chat verification codes |
-| `/cron` `/task` | Add, edit or remove recurring and one-shot scheduled work |
+| `/schedule` | Recurring (cron) and one-shot (task) entries in one list; `enter` fires one now, `d` deletes it; add or edit by asking the agent |
 | `/pending` | List and resume interrupted tasks (`ask_user`, error recovery) |
-| `/resume` `/log` `/usage` | Reload the visible transcript, open `action.log` in `$PAGER`, show per-model token usage |
-| `/key` | Rotate a stored credential |
+| `/resume` `/log` `/usage` | Reload the visible transcript, follow `daemon.log` in `$PAGER`, show per-model token usage for this session above and all sessions below (24h / 7d / 28d) |
+| `/key` | Edit a stored credential (`d` deletes it) |
 | `/reply-language` | Pick the language every reply is written in; `auto` follows each message |
 | `/update` | Fetch the latest release, rebuild, quit |
 | `/clear` `/exit` | Clear the visible transcript, or leave the TUI (the daemon keeps running) |
@@ -207,9 +210,9 @@ Shortcuts work while the input area is empty:
 | `Shift+W` / `Shift+S` | Cycle the session model backwards / forwards |
 | `Shift+A` / `Shift+D` | Cycle the reasoning level |
 | `Shift+F` | Toggle fast mode |
-| `Shift+T` | Toggle command mode — input runs as a shell command in the current directory, outside the sandbox |
 | `Shift+U` | Provider quota and balance |
-| `Shift+M` | Registered model list |
+
+Inside a popup, `esc` returns to the page that opened it and closes only the first page; list-only popups such as `/usage` scroll instead of selecting.
 
 ### Web and file-response rendering
 
@@ -269,9 +272,10 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` | `/v1/models` | List registered models (OpenAI `{data:[...]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
-| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. `POST` takes `{prefix, models}`; `prefix` is a provider id from `GET /v1/providers` or `compat[NAME]` for a local endpoint. |
 | `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, `stt`, and `tts`; on read it also returns `image_options`, `image_providers`, and `audio_providers`. `dispatcher` and `summary` name registered models (`prefix@model`); `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router`. `stt` and `tts` name a model from the respective options exposed by `GET /v1/model/audio`. `POST` is a partial update: an omitted (or `null`) field is unchanged, `""` clears it, and `off` clears only `image`. Unknown models, providers, or unavailable audio models are rejected and nothing is written. Both verbs return the same object. |
 | `GET` | `/v1/model/audio` | **local** — list the available `stt_options` and `tts_options`, derived from configured OpenAI and Gemini providers. |
+| `GET` `POST` | `/v1/model/priority` | **local** — read / reorder the registered models. The order decides fallback priority; the last entry is the final line of defense. `POST` `{models}` moves the listed names to the front in that order and keeps the rest after them; an unknown name returns 400. |
 
 **Sessions**
 
@@ -282,12 +286,12 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/session` | **local** — create a session; `{prefix}` defaults to `cli-`. |
 | `GET` `POST` `DELETE` | `/v1/session/:id` | **local** — one session's full state: `id`, `self_id`, `name`, `rule`, `state`, `model`, `reasoning`, `levels`, `count`. `POST` is a partial update — `self_id` / `name` / `rule` / `model` / `reasoning` are all optional and a field left out (or `null`) is untouched; `model: ""` resets to `auto`, `reasoning` must be one of `levels`. `GET` and `POST` return the same object. A duplicate `self_id` returns 409. `DELETE` removes the session directory, history, state and vectors. `GET` also takes `?chat=1` to append the raw action log under `chat`, and `?usage=1` to append 24h/7d/28d per-model token usage under `usage` (same aggregation as the TUI `/usage` screen); both are off by default because the log can be large. |
 | `POST` | `/v1/session/:id/event` | **local** — publish an event into a session's stream. |
-| `GET` | `/v1/session/:id/task` | List resumable pending (`ask_user`/confirm) tasks. Tasks whose run is still live are excluded — a run refreshes `action:<session_id>:<task_hash>` in ToriiDB every 3s with a 5s TTL, so a task left behind by a closed window or a killed process reappears here within 5 seconds. |
+| `GET` | `/v1/session/:id/task` | List resumable pending (`ask_user`/confirm) tasks. Tasks whose run is still live are excluded — a run refreshes `action:<session_id>:<task_hash>` in ToriiDB every 55s with a 60s TTL, so a task left behind by a closed window or a killed process reappears here within a minute. |
 | `GET` | `/v1/session/:id/task/:task_hash/questions` | Get a pending task's questions. |
 | `POST` | `/v1/session/:id/task/:task_hash/resume` | Answer a pending task and resume. |
 | `DELETE` | `/v1/session/:id/task/:task_hash` | Discard a pending task without answering it. |
 | `POST` | `/v1/session/:id/cancel/:once_id` | Cancel one running task; 404 when that id is not running in this process. |
-| `POST` | `/v1/session/:id/confirm/:once_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?}`. Restricted paths and non-allowlisted commands cannot be approved here — they need the password check only the TUI can collect, so an approval without it comes back as skipped. |
+| `POST` | `/v1/session/:id/confirm/:once_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?, password?}`. Approving a restricted path or `pkg_manage` call requires `password`, is accepted only from this machine (403 otherwise) and returns 401 when the system password is wrong. 410 when the confirmation is already resolved or expired. |
 | `POST` | `/v1/session/:id/memory` | **local** — one memory operation on the session, picked by `action`: `summary` rebuilds the rolling summary and returns `count`; `compact` drops older messages and returns `removed`; `reset` clears the conversation and returns `removed`, and requires `mode` — `summary` keeps the rolling summary, `all` wipes it too. |
 | `GET` | `/v1/session/:id/task/history` | **local** — completed tasks of this session, newest first: `{task_hash, end_at, objective, model, reasoning}` per row. `?keyword=` filters on the objective and the recorded action text. |
 | `GET` | `/v1/session/:id/task/:task_hash/history` | **local** — the full action record of one completed task, returned as a JSON string under `content`. 404 when that hash has no record. |
@@ -322,7 +326,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `POST` | `/v1/provider/:provider/key` | **local** — set an API key. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |
-| `GET` | `/v1/provider/:provider/models` | **local** — list models available to this provider. |
+| `GET` | `/v1/provider/:provider/models` | **local** — list models available to this provider. `compat` endpoints are not listed yet and return 501; register their model names through `POST /v1/models`. |
 
 **MCP**
 
@@ -365,7 +369,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` `POST` | `/v1/allowlist` | **local** — both allowlists in one object, `skill` and `tool`. `GET` reads `?scope=global\|project` (with `?work_dir=` required for `project`) for the skill block and `?prefix=` to narrow the tool block. `POST` takes `{skill: {name, scope?, work_dir?}}` to toggle one skill and/or `{tool: {prefix, entries}}` to replace just that prefix's auto-approve entries (same call the TUI's `/mcp` → permission makes), so unrelated rules survive; every entry must start with `prefix`, and `prefix*` collapses the rest. A block left out is untouched. |
+| `GET` `POST` | `/v1/allowlist` | **local** — both allowlists in one object, `skill` and `tool`. `GET` reads `?scope=global\|project` (with `?work_dir=` required for `project`) for the skill block and `?prefix=` to narrow the tool block. `POST` takes `{skill: {name, scope?, work_dir?}}` to toggle one skill and/or `{tool: {prefix, entries}}` to replace just that prefix's auto-approve entries (same call the TUI's `/mcp` → tools makes), so unrelated rules survive; every entry must start with `prefix`, and `prefix*` collapses the rest. A block left out is untouched. |
 
 **Configuration**
 
@@ -378,11 +382,13 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/torii/error` | **local** — read the tool-error memory store; unfiltered when `tool`/`keyword` are both omitted. |
+| `GET` | `/v1/torii/error` | **local** — read the tool-error memory (the web **Lessons** tab). Without `keyword` it lists records, optionally narrowed by `tool` (`limit` defaults to 50); with `keyword` it runs the same search the agent uses (`limit` defaults to 16). |
+| `PATCH` | `/v1/torii/error` | **local** — `{id, action}`. Rewrites the action of one lesson; 404 when the id no longer exists. |
+| `GET` | `/v1/daemon` | **local** — the last 28 days of `daemon.log` as `content`, narrowed by `from` / `to` (`yyyy-MM-dd-HH-mm`) and `keyword`. |
 
 ## Tool Reference
 
-26 tools ship in the registry; three more register only when their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
+27 tools are always available; four more are excluded from a run until their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
 
 | Group | Tool | Purpose |
 |---|---|---|
@@ -396,6 +402,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | | `read_files` | Batch-read text, PDF, DOCX, PPTX, CSV or images |
 | | `edit_file` | Create, edit, move aside or restore a file (`mode=write\|patch\|remove\|restore`) |
 | | `file_history` | Recorded versions of every file the tools changed (`mode=list\|read`) |
+| | `write_report` | Save a long-form report as `report-<timestamp>.md` in `~/Downloads` (or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content |
 | Execution | `run_command` | Run a binary in the work directory under sandbox constraints |
 | | `open_file` | Hand a file to the OS default application |
 | | `download_file` | Fetch a binary asset to disk |
@@ -413,9 +420,10 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Support | `calculate` | Arithmetic, unit and currency conversion |
 | | `store_secret` | Masked prompt, stored in the keychain |
 | Conditional | `generate_image` | Text to image, saved to disk — excluded while the image generator is off |
+| | `generate_audio` | Text to speech, saved to disk — excluded while no TTS model is selected |
 | | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled |
 
-Thirteen tools ship with full schemas — `ask_user`, `calculate`, `edit_file`, `fetch_page`, `find_files`, `find_note`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Targets apply in listed order, so overlapping edits must be sequenced against the evolving file.
+Fifteen tools ship with full schemas — `ask_user`, `calculate`, `chat_history`, `edit_file`, `fetch_page`, `find_files`, `find_note`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_report`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Every target is matched against the file as it is on disk before any of them apply, so their order does not matter; an `old_string` that matches more than once without `replace_all`, or two targets covering the same lines, rejects the whole batch without writing.
 
 ## Architecture
 

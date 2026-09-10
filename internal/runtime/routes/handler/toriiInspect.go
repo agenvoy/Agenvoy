@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -42,5 +43,40 @@ func ListErrorMemory() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"records": records})
+	}
+}
+
+func UpdateErrorMemory() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			ID     string `json:"id"`
+			Action string `json:"action"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		body.ID = strings.TrimSpace(body.ID)
+		body.Action = strings.TrimSpace(body.Action)
+		if body.ID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+			return
+		}
+		if body.Action == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "action is required"})
+			return
+		}
+
+		record, err := memory.UpdateAction(c.Request.Context(), body.ID, body.Action)
+		if errors.Is(err, memory.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"record": record})
 	}
 }
