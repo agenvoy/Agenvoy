@@ -76,16 +76,93 @@ function renderLessonPager(dom, tool, offset, total) {
   dom.pager.appendChild(next);
 }
 
-function lessonRecord(one) {
-  const parts = [_("div.head", [textNode("strong", lessonClock(one.timestamp))])];
+async function saveLessonAction(id, action) {
+  try {
+    const response = await fetch(`${API}/v1/torii/error`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: id, action: action }),
+    });
+    if (response.ok) {
+      return true;
+    }
+    pushToast("ERROR", (await response.json()).error || "update failed", nowClock());
+  } catch (err) {
+    console.error("saveLessonAction", err);
+    pushToast("ERROR", "update failed", nowClock());
+  }
+  return false;
+}
 
+function lessonActionEdit(one, head, block, view) {
+  const edit = _("button.submit", { type: "button" }, "edit");
+  const save = _("button.submit", { type: "button" }, "save");
+  const cancel = _("button", { type: "button" }, "cancel");
+  const box = _("textarea");
+
+  const read = () => {
+    box.remove();
+    save.remove();
+    cancel.remove();
+    block.appendChild(view);
+    head.appendChild(edit);
+  };
+
+  edit.addEventListener("click", () => {
+    edit.remove();
+    view.remove();
+    box.value = one.action || "";
+    block.appendChild(box);
+    head.appendChild(cancel);
+    head.appendChild(save);
+    box.focus();
+  });
+
+  cancel.addEventListener("click", read);
+
+  save.addEventListener("click", async () => {
+    const next = box.value.trim();
+    if (!next || next === one.action) {
+      read();
+      return;
+    }
+    save.disabled = true;
+    const ok = await saveLessonAction(one.id, next);
+    save.disabled = false;
+    if (!ok) {
+      return;
+    }
+    one.action = next;
+    view.textContent = next;
+    read();
+  });
+
+  head.appendChild(edit);
+}
+
+function lessonRecord(one) {
+  const head = _("div.head.row", [textNode("strong", lessonClock(one.timestamp))]);
+  const parts = [head];
+
+  let actionBlock = null;
+  let actionView = null;
   for (const [label, text] of [
     ["Cause", one.cause],
     ["Action", one.action],
   ]) {
     if (text) {
-      parts.push(_("div.block", [textNode("strong", label), textNode("p", text)]));
+      const body = textNode("p", text);
+      const block = _("div.block", [textNode("strong", label), body]);
+      if (label === "Action") {
+        actionBlock = block;
+        actionView = body;
+      }
+      parts.push(block);
     }
+  }
+
+  if (one.id && actionBlock) {
+    lessonActionEdit(one, head, actionBlock, actionView);
   }
 
   const keywords = one.keywords || [];
