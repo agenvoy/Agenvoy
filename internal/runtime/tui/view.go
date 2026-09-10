@@ -190,6 +190,9 @@ func (t TUI) viewPopup() string {
 		}
 	}
 	appendFooter := func(hint string) {
+		if p.back != nil && p.kind != popupOAuth {
+			hint = strings.NewReplacer("esc cancel", "esc back", "esc close", "esc back").Replace(hint)
+		}
 		trimTail()
 		body = append(body, "", hintStyle.Render(hint))
 	}
@@ -207,14 +210,19 @@ func (t TUI) viewPopup() string {
 		start, end := 0, total
 		windowed := visible > 0 && total > visible
 		if windowed {
-			start, end = windowRange(p.cursor, total, visible)
+			if p.readOnly {
+				start = min(p.cursor, total-visible)
+				end = start + visible
+			} else {
+				start, end = windowRange(p.cursor, total, visible)
+			}
 		}
 		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
 			marker := "  "
 			var line string
-			if i == p.cursor {
+			if !p.readOnly && i == p.cursor {
 				marker = systemStyle.Render("> ")
 				head, tail := splitOptStyle(opt)
 				line = systemStyle.Render(head)
@@ -230,11 +238,25 @@ func (t TUI) viewPopup() string {
 			body = append(body, marker+line)
 		}
 		if windowed {
-			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
+			if p.readOnly {
+				body = append(body, hintStyle.Render(fmt.Sprintf("  %d-%d/%d", start+1, end, total)))
+			} else {
+				body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
+			}
 		}
-		hint := "↑/↓ select  enter confirm  esc cancel"
+		action := "confirm"
+		if p.enterAction != "" {
+			action = p.enterAction
+		}
+		hint := "↑/↓ select  enter " + action + "  esc cancel"
 		if len(p.tabs) > 1 {
-			hint = "↑/↓ select  ←/→ filter  enter confirm  esc cancel"
+			hint = "↑/↓ select  ←/→ filter  enter " + action + "  esc cancel"
+		}
+		if p.readOnly {
+			hint = "↑/↓ scroll  esc close"
+			if len(p.tabs) > 1 {
+				hint = "↑/↓ scroll  ←/→ filter  esc close"
+			}
 		}
 		if p.onDelete != nil {
 			hint += "  d delete"

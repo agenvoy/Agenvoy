@@ -51,6 +51,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case popupChild:
+		return t.runPopupChild(msg)
+
 	case tea.WindowSizeMsg:
 		t.width = msg.Width
 		t.height = msg.Height
@@ -313,6 +316,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionNewPromptSubmit:
 		return t.runCreateSession(msg.name, msg.body)
 
+	case SessionModelSelect:
+		return t.runSessionModelSelect(msg.name)
+
 	case ModelScopeSelect:
 		switch msg.scope {
 		case "add":
@@ -335,17 +341,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "tts":
 			next, cmd, _ := t.commandTTSModel()
-			return next, cmd
-		}
-		return t, nil
-
-	case UsageScopeSelect:
-		switch msg.scope {
-		case "session":
-			next, cmd, _ := t.commandUsageSession()
-			return next, cmd
-		case "total":
-			next, cmd, _ := t.commandUsageTotal()
 			return next, cmd
 		}
 		return t, nil
@@ -881,7 +876,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
 		}
 		if value == "" {
-			return t, tea.Println(msgLog("channel admin  off (log-only)") + "\n")
+			return t, tea.Println(msgLog("channel admin  disabled (log-only)") + "\n")
 		}
 		return t, tea.Println(msgLog("channel admin  "+value) + "\n")
 

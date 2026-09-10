@@ -49,7 +49,7 @@ var commands = []Command{
 	{"update", "update / upgrade  fetch latest release  rebuild  quit TUI"},
 	{"resume", "reload visible transcript  last 100 entries from action.log"},
 	{"log", "follow / tail raw daemon.log via $PAGER (less +F)  ctrl-c stops following"},
-	{"usage", "session / total  per-model token usage  24h / 7d / 28d"},
+	{"usage", "per-model token usage  session above, global below  24h / 7d / 28d"},
 	{"pending", "list / resume interrupted tasks  error recovery  ask_user resume"},
 	{"key", "update / rotate keychain value  pick from recorded keys"},
 	{"reply-language", "force every reply into one language  auto follows each message"},

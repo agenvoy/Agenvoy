@@ -1,25 +1,57 @@
 package tui
 
 import (
+	"fmt"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-func registeredModelLines() []string {
+const sessionModelPrefix = "model:"
+
+type SessionModelSelect struct {
+	name string
+}
+
+func registeredModelOptions(sid string) (options, values []string, cursor int) {
 	cfg, err := config.Load()
 	if err != nil || cfg == nil || len(cfg.Models) == 0 {
-		return []string{hintStyle.Render("  no models configured")}
+		return nil, nil, 0
 	}
 
-	lines := make([]string, 0, len(cfg.Models)+1)
-	for _, m := range cfg.Models {
-		label := hintStyle.Render("  " + m.Name)
+	current := ""
+	if sid != "" {
+		current, _ = configBot.GetModel(sid)
+	}
+
+	options = make([]string, 0, len(cfg.Models))
+	values = make([]string, 0, len(cfg.Models))
+	for i, m := range cfg.Models {
+		label := m.Name
+		if m.Name == current {
+			label += "  " + systemStyle.Render("[current]")
+			cursor = i
+		}
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[dispatcher]")
 		}
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + systemStyle.Render("[summary]")
 		}
-		lines = append(lines, label)
+		options = append(options, label)
+		values = append(values, sessionModelPrefix+m.Name)
 	}
-	return lines
+	return options, values, cursor
+}
+
+func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
+	sid := strings.TrimSpace(t.currentSessionID)
+	if sid == "" {
+		return t, tea.Println(msgLog("no active session") + "\n")
+	}
+	configBot.SetModel(sid, name, "")
+	return t, tea.Println(msgLog(fmt.Sprintf("model: %s", name)) + "\n")
 }

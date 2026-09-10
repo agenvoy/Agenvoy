@@ -26,7 +26,7 @@ func (t TUI) commandTTSModel() (TUI, tea.Cmd, bool) {
 func (t TUI) commandAudioModel(kind string) (TUI, tea.Cmd, bool) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
 	}
 
 	label, current := "speech-to-text", cfg.STTModel
@@ -36,28 +36,30 @@ func (t TUI) commandAudioModel(kind string) (TUI, tea.Cmd, bool) {
 		available = audioTool.TTSOptions(context.Background())
 	}
 	if len(available) == 0 {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("no %s model available · add openai or gemini with /model add", label)) + "\n"), true
+		return t, tea.Println(msgLog(fmt.Sprintf("no %s model available  add openai or gemini with /model add", label)) + "\n"), true
 	}
 
-	options := make([]string, 0, len(available)+1)
-	values := make([]string, 0, len(available)+1)
+	options := make([]string, 0, len(available)+2)
+	values := make([]string, 0, len(available)+2)
 	cursor := 0
-
-	options = append(options, hintStyle.Render("off"))
-	values = append(values, "")
-	if current == "" || current == "off" {
-		options[0] += "  " + systemStyle.Render("[current]")
-	}
 
 	for i, name := range available {
 		option := name
 		if current == name {
 			option += "  " + systemStyle.Render("[current]")
-			cursor = i + 1
+			cursor = i
 		}
 		options = append(options, option)
 		values = append(values, name)
 	}
+
+	disable := hintStyle.Render("disable")
+	if current == "" || current == "off" {
+		disable += "  " + systemStyle.Render("[current]")
+		cursor = len(options) + 1
+	}
+	options = append(options, "", disable)
+	values = append(values, "", "")
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
@@ -75,7 +77,7 @@ func (t TUI) commandAudioModel(kind string) (TUI, tea.Cmd, bool) {
 func (t TUI) runAudioModelSelect(kind, name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if name == "off" {
 		name = ""
@@ -91,7 +93,7 @@ func (t TUI) runAudioModelSelect(kind, name string) (TUI, tea.Cmd) {
 
 	*current = name
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 	return t, nil
 }

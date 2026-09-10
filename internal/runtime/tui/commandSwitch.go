@@ -166,10 +166,11 @@ func popupSwitch(sid string) *Popup {
 	})
 
 	popup := &Popup{
-		kind:       popupSingleSelect,
-		title:      "Sessions",
-		maxVisible: cmdSelectorMaxVisible,
-		tabs:       sessionTabs(sessions),
+		kind:        popupSingleSelect,
+		title:       "Sessions",
+		maxVisible:  cmdSelectorMaxVisible,
+		enterAction: "switch",
+		tabs:        sessionTabs(sessions),
 	}
 	popup.onTab = func(p *Popup) {
 		fillSwitchOptions(p, sessions, sid)

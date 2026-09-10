@@ -82,7 +82,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		return t.commandLog()
 
 	case "/usage":
-		return t.commandUsage(parts)
+		return t.commandUsage()
 
 	case "/key":
 		return t.commandKey(parts)

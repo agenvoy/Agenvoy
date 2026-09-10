@@ -102,13 +102,17 @@ func (t TUI) openChannelMenu(channel, title string, disable func() any) (TUI, te
 	entries := utils.ListChats(channelAuthPath(channel))
 	prefix := channelPrefix(channel)
 
-	options := make([]string, 0, len(entries)+1)
-	values := make([]string, 0, len(entries)+1)
+	options := make([]string, 0, len(entries)+2)
+	values := make([]string, 0, len(entries)+2)
 	names := make(map[string]string, len(entries))
 	for _, one := range entries {
 		options = append(options, adminChannelLabel(prefix, one))
 		values = append(values, one.ID)
 		names[one.ID] = strings.TrimSpace(one.Name)
+	}
+	if len(entries) > 0 {
+		options = append(options, "")
+		values = append(values, "")
 	}
 	options = append(options, "(disable "+channel+")")
 	values = append(values, "disable")

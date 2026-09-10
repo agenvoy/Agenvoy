@@ -44,9 +44,9 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 	}
 
 	list := mcpStatusList()
-	options := make([]string, 0, len(list)+1)
-	values := make([]string, 0, len(list)+1)
-	tails := make([]string, 0, len(list)+1)
+	options := make([]string, 0, len(list)+2)
+	values := make([]string, 0, len(list)+2)
+	tails := make([]string, 0, len(list)+2)
 
 	maxName, maxTransport := 0, 0
 	for _, s := range list {
@@ -57,6 +57,11 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 		options = append(options, padToWidth(s.Name, maxName+2)+padToWidth(s.Transport, maxTransport+1))
 		values = append(values, "server:"+s.Name)
 		tails = append(tails, mcpStateLabel(s))
+	}
+	if len(list) > 0 {
+		options = append(options, "")
+		values = append(values, "")
+		tails = append(tails, "")
 	}
 	options = append(options, "add")
 	values = append(values, "add")
