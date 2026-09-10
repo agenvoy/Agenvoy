@@ -29,19 +29,19 @@ function historyLink(sessionId, offset) {
   return getLink(params);
 }
 
-function historySubmit() {
+function rangeSubmit(tab, prefix) {
   const url = praseURL();
-  const params = { page: "monitor", tab: "History" };
+  const params = { page: "monitor", tab: tab };
   if (url.target) {
     params.target = url.target;
   }
 
-  const keyword = ($("#history-keyword") ? $("#history-keyword").value : "").trim();
+  const keyword = ($(`#${prefix}-keyword`) ? $(`#${prefix}-keyword`).value : "").trim();
   if (keyword) {
     params.keyword = keyword;
   }
 
-  const agoText = ($("#history-ago") ? $("#history-ago").value : "").trim();
+  const agoText = ($(`#${prefix}-ago`) ? $(`#${prefix}-ago`).value : "").trim();
   if (agoText) {
     const ago = daemonDuration(agoText);
     if (!ago) {
@@ -50,7 +50,7 @@ function historySubmit() {
     }
 
     let span = ago;
-    const spanText = ($("#history-span") ? $("#history-span").value : "").trim();
+    const spanText = ($(`#${prefix}-span`) ? $(`#${prefix}-span`).value : "").trim();
     if (spanText) {
       span = daemonDuration(spanText);
       if (!span) {

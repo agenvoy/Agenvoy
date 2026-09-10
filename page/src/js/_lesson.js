@@ -10,6 +10,7 @@ function lessonDom() {
 }
 
 function lessonLink(tool, offset) {
+  const url = praseURL();
   const params = { page: "monitor", tab: "Lessons" };
   if (tool) {
     params.target = tool;
@@ -17,7 +18,28 @@ function lessonLink(tool, offset) {
   if (offset > 0) {
     params.offset = offset;
   }
+  for (const key of ["keyword", "from", "to"]) {
+    if (url[key]) {
+      params[key] = url[key];
+    }
+  }
   return getLink(params);
+}
+
+function lessonMatch(one, keyword, from, to) {
+  if (keyword) {
+    const text = [one.tool_name, one.symptom, one.cause, one.action, one.outcome, ...(one.keywords || [])]
+      .join("\n")
+      .toLowerCase();
+    if (!text.includes(keyword)) {
+      return false;
+    }
+  }
+  if (!from && !to) {
+    return true;
+  }
+  const stamp = daemonStamp(new Date(Number(one.timestamp) * 1000));
+  return (!from || stamp >= from) && (!to || stamp < to);
 }
 
 async function fetchLessonRecords() {
@@ -209,7 +231,20 @@ async function renderLessonPage(pickedTool, offset) {
     dom.list.appendChild(card);
   }
 
-  const picked = tool ? records.filter((one) => (one.tool_name || "tool") === tool) : records;
+  const url = praseURL();
+  const search = $("#lesson-keyword");
+  if (search && url.keyword) {
+    search.value = url.keyword;
+  }
+
+  const keyword = (url.keyword || "").toLowerCase();
+  const picked = records.filter(
+    (one) => (!tool || (one.tool_name || "tool") === tool) && lessonMatch(one, keyword, url.from || "", url.to || ""),
+  );
+  if (picked.length === 0) {
+    dom.body.appendChild(textNode("p.empty", "no lesson matched"));
+    return;
+  }
 
   const start = Math.min(Math.max(offset, 0), Math.floor((picked.length - 1) / LESSON_PAGE_SIZE) * LESSON_PAGE_SIZE);
   for (const one of picked.slice(start, start + LESSON_PAGE_SIZE)) {

@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
-	"strings"
+	"time"
+
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -19,26 +22,21 @@ func registWriteReport() {
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
-		Description: `Saves one long-form deliverable as a .md file under the work directory and returns the write receipt.
+		Description: `Saves one long-form deliverable as a .md file and returns the write receipt with its path.
 Use for the research / analysis / comparison / report body the reply summarises instead of reprinting.
 Any other file, or a change to a file that already exists → edit_file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"path": map[string]any{
-					"type":        "string",
-					"description": "File name under the work directory, e.g. 'tsmc-2026-09-06.md'. Relative only; it never escapes that directory.",
-				},
 				"content": map[string]any{
 					"type":        "string",
 					"description": "The complete report as markdown, not a diff.",
 				},
 			},
-			"required": []string{"path", "content"},
+			"required": []string{"content"},
 		},
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				Path    string `json:"path"`
 				Content string `json:"content"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
@@ -49,30 +47,15 @@ Any other file, or a change to a file that already exists → edit_file.`,
 				return "", err
 			}
 
-			absPath, err := reportPath(e, params.Path)
-			if err != nil {
-				return "", err
-			}
-			return writeFileContent(ctx, e, absPath, params.Content, "write_report")
+			return writeFileContent(ctx, e, reportPath(), params.Content, "write_report")
 		},
 	})
 }
 
-func reportPath(e *toolTypes.Executor, path string) (string, error) {
-	base := e.WorkDir
-	if base == "" {
-		base = filesystem.DownloadDir
+func reportPath() string {
+	base := filesystem.DownloadDir
+	if home, err := os.UserHomeDir(); err == nil && go_pkg_filesystem_reader.IsDir(filepath.Join(home, "Downloads")) {
+		base = filepath.Join(home, "Downloads")
 	}
-	base = filepath.Clean(base)
-
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return "", fmt.Errorf("path is required")
-	}
-
-	absPath := filepath.Clean(filepath.Join(base, path))
-	if !strings.HasPrefix(absPath, base+string(filepath.Separator)) {
-		return "", fmt.Errorf("path must stay within %s", base)
-	}
-	return absPath, nil
+	return filepath.Join(base, "report-"+time.Now().Format("20060102-150405")+".md")
 }
