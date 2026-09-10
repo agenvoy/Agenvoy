@@ -715,27 +715,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			enableTelegram(msg.token),
 		)
 
-	case CronRemoveSelect:
-		if len(msg.skills) == 0 {
-			return t, nil
-		}
-		next, cmd := t.runCronRemove(msg.skills)
+	case ScheduleTestPick:
+		next, cmd := t.runScheduleTest(msg.skill)
 		return next, cmd
 
-	case TaskRemoveSelect:
-		tasks := listTaskEntries()
-		if msg.idx < 0 || msg.idx >= len(tasks) {
-			return t, tea.Println(msgError("task index out of range") + "\n")
-		}
-		next, cmd := t.openTaskRemoveConfirm(tasks[msg.idx].Skill)
+	case ScheduleRemovePick:
+		next, cmd := t.openScheduleRemoveConfirm(msg.kind, msg.skill)
 		return next, cmd
 
-	case TaskRemoveConfirm:
+	case ScheduleRemoveConfirm:
 		if !msg.yes {
-			next, cmd, _ := t.commandTask()
+			next, cmd := t.reopenSchedule()
 			return next, cmd
 		}
-		next, cmd := t.runTaskRemove(msg.skill)
+		next, cmd := t.runScheduleRemove(msg.kind, msg.skill)
 		return next, cmd
 
 	case CancelRunConfirm:
@@ -857,17 +850,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		next, cmd := t.runKeyDelete(msg.key)
 		return next, cmd
-
-	case ScheduleSelect:
-		switch msg.kind {
-		case "cron":
-			next, cmd, _ := t.commandCron()
-			return next, cmd
-		case "task":
-			next, cmd, _ := t.commandTask()
-			return next, cmd
-		}
-		return t, nil
 
 	case ChannelSelect:
 		switch msg.channel {

@@ -45,7 +45,7 @@ var commands = []Command{
 	{"note", "list / add / edit note  title + description"},
 	{"channel", "enable / disable Telegram or Discord bot  token validated on enable"},
 	{"startup", "enable / disable launch daemon on login  launchd / systemd user unit"},
-	{"schedule", "remove recurring (cron) or one-shot (task) schedule  add / edit by asking the agent"},
+	{"schedule", "recurring (cron) and one-shot (task) in one list  enter fires it now  d deletes it  add / edit by asking the agent"},
 	{"update", "update / upgrade  fetch latest release  rebuild  quit TUI"},
 	{"resume", "reload visible transcript  last 100 entries from action.log"},
 	{"log", "follow / tail raw daemon.log via $PAGER (less +F)  ctrl-c stops following"},
