@@ -21,6 +21,13 @@ func record(enabled bool) {
 	}
 }
 
+func State() bool {
+	if value, ok := Recorded(); ok {
+		return value
+	}
+	return Enabled()
+}
+
 func Recorded() (bool, bool) {
 	dic, err := config.Get()
 	if err != nil {

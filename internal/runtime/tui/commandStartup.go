@@ -24,16 +24,15 @@ func (t TUI) commandStartup(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	cursor := 0
-	if startup.Enabled() {
-		cursor = 1
+	if !startup.State() {
+		return t, setStartup("enable"), true
 	}
+
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
 		title:   "Startup",
-		options: []string{"enable", "disable"},
-		values:  []string{"enable", "disable"},
-		cursor:  cursor,
+		options: []string{"disable"},
+		values:  []string{"disable"},
 		onConfirm: func(chosen string) any {
 			return StartupAction{action: chosen}
 		},
