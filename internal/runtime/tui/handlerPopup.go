@@ -57,6 +57,7 @@ type Popup struct {
 	answers     []any
 
 	onConfirm func(chosen string) any
+	onDelete  func(chosen string) any
 
 	oauth *oauthState
 }
@@ -190,7 +191,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
 				}
 				return t, tea.Sequence(
-					tea.Println(warnStyle.Render("⎯ restricted path: system password required")+"\n"),
+					tea.Println(msgWarn("restricted path: system password required")+"\n"),
 					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
 						return RestrictedAuthDone{pendingID: id, err: err}
 					}),
@@ -240,6 +241,21 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			})
 			t = t.closePopup()
 		}
+	case tea.KeyRunes:
+		if p.onDelete == nil || p.pendingId != "" {
+			break
+		}
+		if r := strings.ToLower(string(msg.Runes)); r != "d" {
+			break
+		}
+		chosen := p.options[p.cursor]
+		if p.values != nil && p.cursor < len(p.values) {
+			chosen = p.values[p.cursor]
+		}
+		cb := p.onDelete
+		t = t.closePopup()
+		return t, func() tea.Msg { return cb(chosen) }
+
 	case tea.KeyEnter:
 		chosen := p.options[p.cursor]
 		if p.values != nil && p.cursor < len(p.values) {

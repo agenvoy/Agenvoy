@@ -8,33 +8,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-type TaskAction struct {
-	action string
-}
-
-func (t TUI) commandTask(parts []string) (TUI, tea.Cmd, bool) {
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "add":
-			return t.commandTaskAdd()
-		case "remove":
-			return t.commandTaskRemove()
-		case "edit":
-			return t.commandTaskEdit()
-		}
-	}
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Task",
-		options: []string{"add", "remove", "edit"},
-		values:  []string{"add", "remove", "edit"},
-		cursor:  0,
-		onConfirm: func(chosen string) any {
-			return TaskAction{action: chosen}
-		},
-	}
-	return t, nil, true
+func (t TUI) commandTask() (TUI, tea.Cmd, bool) {
+	return t.commandTaskRemove()
 }
 
 func listTaskEntries() []runtime.TaskEntry {

@@ -12,33 +12,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-type CronAction struct {
-	action string
-}
-
-func (t TUI) commandCron(parts []string) (TUI, tea.Cmd, bool) {
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "add":
-			return t.commandCronAdd()
-		case "remove":
-			return t.commandCronRemove()
-		case "edit":
-			return t.commandCronEdit()
-		}
-	}
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Cron",
-		options: []string{"add", "remove", "edit"},
-		values:  []string{"add", "remove", "edit"},
-		cursor:  0,
-		onConfirm: func(chosen string) any {
-			return CronAction{action: chosen}
-		},
-	}
-	return t, nil, true
+func (t TUI) commandCron() (TUI, tea.Cmd, bool) {
+	return t.commandCronRemove()
 }
 
 func listCronEntries() []runtime.CronEntry {
@@ -93,7 +68,7 @@ func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
 		return t, nil
 	}
 	if len(agents.Registry().Entries) == 0 {
-		return t, tea.Println(warnStyle.Render("⎯ no model configured · /model global add") + "\n")
+		return t, tea.Println(msgWarn("no model configured  /model global add") + "\n")
 	}
 	t = t.recordInputHistory(content)
 	t.running = true

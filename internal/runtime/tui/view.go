@@ -103,7 +103,7 @@ func (t TUI) viewThinking() string {
 	sb.WriteString(" ")
 	sb.WriteString(systemStyle.Render(verb + "..."))
 	sb.WriteString(" ")
-	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, " · ") + ")"))
+	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, "  ") + ")"))
 
 	if block := renderTodoList(t.todos); block != "" {
 		sb.WriteString("\n\n")
@@ -130,8 +130,10 @@ func (t TUI) shortCwd() string {
 }
 
 func splitOptStyle(s string) (head, tail string) {
-	if idx := strings.Index(s, " · "); idx >= 0 {
-		return s[:idx], s[idx:]
+	trimmed := strings.TrimLeft(s, " ")
+	lead := len(s) - len(trimmed)
+	if idx := strings.Index(trimmed, "  "); idx >= 0 {
+		return s[:lead+idx], s[lead+idx:]
 	}
 	return s, ""
 }
@@ -220,11 +222,14 @@ func (t TUI) viewPopup() string {
 			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		body = append(body, "")
+		hint := "↑/↓ select  enter confirm  esc cancel"
 		if len(p.tabs) > 1 {
-			body = append(body, hintStyle.Render("↑/↓ select · ←/→ filter · enter confirm · esc cancel"))
-		} else {
-			body = append(body, hintStyle.Render("↑/↓ select · enter confirm · esc cancel"))
+			hint = "↑/↓ select  ←/→ filter  enter confirm  esc cancel"
 		}
+		if p.onDelete != nil {
+			hint += "  d delete"
+		}
+		body = append(body, hintStyle.Render(hint))
 
 	case popupMultiSelect:
 		total := len(p.options)
@@ -263,9 +268,9 @@ func (t TUI) viewPopup() string {
 		}
 		body = append(body, "")
 		if len(p.tabs) > 1 {
-			body = append(body, hintStyle.Render("↑/↓ move · ←/→ filter · space toggle · enter confirm · esc cancel"))
+			body = append(body, hintStyle.Render("↑/↓ move  ←/→ filter  space toggle  enter confirm  esc cancel"))
 		} else {
-			body = append(body, hintStyle.Render("↑/↓ move · space toggle · enter confirm · esc cancel"))
+			body = append(body, hintStyle.Render("↑/↓ move  space toggle  enter confirm  esc cancel"))
 		}
 
 	case popupText:
@@ -273,9 +278,9 @@ func (t TUI) viewPopup() string {
 		body = append(body, p.input.View())
 		body = append(body, "")
 		if p.multiline {
-			body = append(body, hintStyle.Render("ctrl+s confirm · enter newline · esc cancel"))
+			body = append(body, hintStyle.Render("ctrl+s confirm  enter newline  esc cancel"))
 		} else {
-			body = append(body, hintStyle.Render("enter confirm · esc cancel"))
+			body = append(body, hintStyle.Render("enter confirm  esc cancel"))
 		}
 
 	case popupSecret:
@@ -287,7 +292,7 @@ func (t TUI) viewPopup() string {
 		secret.SetWidth(max(width-10, 20))
 		body = append(body, secret.View())
 		body = append(body, "")
-		body = append(body, hintStyle.Render("enter confirm · esc cancel · (input hidden)"))
+		body = append(body, hintStyle.Render("enter confirm  esc cancel  (input hidden)"))
 
 	case popupOAuth:
 		if p.oauth != nil {
@@ -300,9 +305,9 @@ func (t TUI) viewPopup() string {
 		}
 		body = append(body, "")
 		if p.oauth != nil && p.oauth.mcpServer != "" {
-			body = append(body, hintStyle.Render("enter re-open browser · p paste redirect URL · esc cancel"))
+			body = append(body, hintStyle.Render("enter re-open browser  p paste redirect URL  esc cancel"))
 		} else {
-			body = append(body, hintStyle.Render("enter re-open browser · esc cancel"))
+			body = append(body, hintStyle.Render("enter re-open browser  esc cancel"))
 		}
 	}
 
@@ -319,7 +324,7 @@ func (t TUI) sessionTag() string {
 	if name := t.sessionName(); name != "" {
 		parts = append(parts, hintStyle.Render(name))
 	}
-	return strings.Join(parts, hintStyle.Render(" · ")) + hintStyle.Render("  ")
+	return strings.Join(parts, hintStyle.Render("  ")) + hintStyle.Render("  ")
 }
 
 func (t TUI) sessionName() string {

@@ -201,12 +201,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return next, cmd
 				}
 				if !noMatches(content) {
-					return t, tea.Println(warnStyle.Render(fmt.Sprintf("⎯ unknown command: %s", strings.Fields(content)[0])) + "\n")
+					return t, tea.Println(msgWarn(fmt.Sprintf("unknown command: %s", strings.Fields(content)[0])) + "\n")
 				}
 			}
 
 			if len(agents.Registry().Entries) == 0 {
-				return t, tea.Println(warnStyle.Render("⎯ no model configured · /model global add") + "\n")
+				return t, tea.Println(msgWarn("no model configured  /model global add") + "\n")
 			}
 
 			t.running = true
@@ -269,7 +269,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		var doneCmds []tea.Cmd
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
-			doneCmds = append(doneCmds, tea.Println(errorStyle.Render(fmt.Sprintf("[!] exec error: %v", msg.err))+"\n"))
+			doneCmds = append(doneCmds, tea.Println(msgError(fmt.Sprintf("exec error: %v", msg.err))+"\n"))
 		}
 		if len(doneCmds) == 0 {
 			return t, nil
@@ -376,9 +376,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case McpReconnectDone:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s reconnect: %v", msg.server, msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("%s reconnect: %v", msg.server, msg.err)) + "\n")
 		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s reconnected", msg.server)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s reconnected", msg.server)) + "\n")
 
 	case McpToolsResult:
 		return t.runMcpToolsResult(msg)
@@ -395,11 +395,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddName:
 		if msg.name == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(errorStyle.Render("[!] mcp name required") + "\n")
+			return t, tea.Println(msgError("mcp name required") + "\n")
 		}
 		if !isValidMcpServerName(msg.name) {
 			t.mcpAdd = nil
-			return t, tea.Println(errorStyle.Render("[!] mcp name must match [A-Za-z0-9_-]") + "\n")
+			return t, tea.Println(msgError("mcp name must match [A-Za-z0-9_-]") + "\n")
 		}
 		t.mcpAdd.name = msg.name
 		next, cmd := t.openMcpAddTransport()
@@ -421,7 +421,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddCommand:
 		if msg.command == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(errorStyle.Render("[!] command required") + "\n")
+			return t, tea.Println(msgError("command required") + "\n")
 		}
 		t.mcpAdd.command = msg.command
 		next, cmd := t.openMcpAddArgs()
@@ -439,7 +439,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddURL:
 		if msg.url == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(errorStyle.Render("[!] url required") + "\n")
+			return t, tea.Println(msgError("url required") + "\n")
 		}
 		t.mcpAdd.url = msg.url
 		next, cmd := t.openMcpAddAuthMethod()
@@ -493,19 +493,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case McpAddSaved:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] mcp add: %v", msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("mcp add: %v", msg.err)) + "\n")
 		}
 		if msg.oauth {
 			next, cmd := t.startMcpLogin(msg.name)
-			return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ mcp added: %s", msg.name))), cmd)
+			return next, tea.Batch(tea.Println(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
 		}
 		next, cmd := t.reconnectMcpServer(msg.name)
-		return next, tea.Batch(tea.Println(hintStyle.Render(fmt.Sprintf("⎯ mcp added: %s", msg.name))), cmd)
+		return next, tea.Batch(tea.Println(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
 
 	case McpClientID:
 		if msg.id == "" {
 			t.mcpClient = nil
-			return t, tea.Println(errorStyle.Render("[!] client id required") + "\n")
+			return t, tea.Println(msgError("client id required") + "\n")
 		}
 		t.mcpClient.id = msg.id
 		return t.openMcpClientSecret()
@@ -539,7 +539,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
 			t.botBodyDraft = ""
-			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
+			return t, tea.Println(msgError("no current session") + "\n")
 		}
 		if cmd, ok := t.botCheckConflict(sid, msg.name); !ok {
 			t.botBodyDraft = ""
@@ -552,7 +552,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
 			t.botBodyDraft = ""
-			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
+			return t, tea.Println(msgError("no current session") + "\n")
 		}
 		if cmd, ok := t.botCheckSelfID(sid, msg.selfID); !ok {
 			t.botBodyDraft = ""
@@ -568,7 +568,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case BotPromptSubmit:
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
-			return t, tea.Println(errorStyle.Render("[!] no current session") + "\n")
+			return t, tea.Println(msgError("no current session") + "\n")
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
@@ -592,19 +592,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case BotSaved:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] bot save: %v", msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("bot save: %v", msg.err)) + "\n")
 		}
 		if t.currentSessionID != "" {
 			t.currentSessionName = msg.name
 		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ bot saved: %s", msg.name)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("bot saved: %s", msg.name)) + "\n")
 
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
 
 	case GrokMethodPick:
 		if t.modelAdd == nil {
-			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+			return t, tea.Println(msgError("model add state lost") + "\n")
 		}
 		switch msg.method {
 		case "grok-oauth":
@@ -617,7 +617,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case OpenAIMethodPick:
 		if t.modelAdd == nil {
-			return t, tea.Println(errorStyle.Render("[!] model add state lost") + "\n")
+			return t, tea.Println(msgError("model add state lost") + "\n")
 		}
 		switch msg.method {
 		case "codex":
@@ -668,7 +668,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.runRemoteModelsResult(msg)
 
 	case ProviderUsageResult:
-		return t, tea.Println(hintStyle.Render("⎯ ") + " " + strings.Join(msg.lines, " / ") + "\n")
+		return t, tea.Println(msgLog("") + " " + strings.Join(msg.lines, " / ") + "\n")
 
 	case OAuthInfo:
 		return t.runOAuthInfo(msg)
@@ -688,10 +688,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] add-model: %v", msg.err))+"\n"))
+			seq = append(seq, tea.Println(msgError(fmt.Sprintf("add-model: %v", msg.err))+"\n"))
 		} else {
 			agents.Reload()
-			seq = append(seq, tea.Println(hintStyle.Render("⎯ model added · registry reloaded")+"\n"))
+			seq = append(seq, tea.Println(msgLog("model added  registry reloaded")+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -702,7 +702,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "disable":
 			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ discord disabling")+"\n"),
+				tea.Println(msgLog("discord disabling")+"\n"),
 				disableDiscord(),
 			)
 		}
@@ -710,7 +710,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DiscordTokenSubmit:
 		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ discord verifying token (≤10s)")+"\n"),
+			tea.Println(msgLog("discord verifying token (≤10s)")+"\n"),
 			enableDiscord(msg.token),
 		)
 
@@ -721,7 +721,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "disable":
 			return t, tea.Sequence(
-				tea.Println(hintStyle.Render("⎯ telegram disabling")+"\n"),
+				tea.Println(msgLog("telegram disabling")+"\n"),
 				disableTelegram(),
 			)
 		}
@@ -729,27 +729,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TelegramTokenSubmit:
 		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ telegram verifying token (≤10s)")+"\n"),
+			tea.Println(msgLog("telegram verifying token (≤10s)")+"\n"),
 			enableTelegram(msg.token),
 		)
-
-	case CronAction:
-		switch msg.action {
-		case "add":
-			next, cmd, _ := t.commandCronAdd()
-			return next, cmd
-		case "remove":
-			next, cmd, _ := t.commandCronRemove()
-			return next, cmd
-		case "edit":
-			next, cmd, _ := t.commandCronEdit()
-			return next, cmd
-		}
-		return t, nil
-
-	case CronAddSubmit:
-		next, cmd := t.runCronAddSubmit(msg.requirement)
-		return next, cmd
 
 	case CronRemoveSelect:
 		if len(msg.skills) == 0 {
@@ -758,36 +740,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runCronRemove(msg.skills)
 		return next, cmd
 
-	case CronEditSelect:
-		next, cmd := t.openCronEditRequirement(msg.skill, msg.expression)
-		return next, cmd
-
-	case CronEditSubmit:
-		next, cmd := t.runCronEditSubmit(msg.skill, msg.expression, msg.requirement)
-		return next, cmd
-
-	case TaskAction:
-		switch msg.action {
-		case "add":
-			next, cmd, _ := t.commandTaskAdd()
-			return next, cmd
-		case "remove":
-			next, cmd, _ := t.commandTaskRemove()
-			return next, cmd
-		case "edit":
-			next, cmd, _ := t.commandTaskEdit()
-			return next, cmd
-		}
-		return t, nil
-
-	case TaskAddSubmit:
-		next, cmd := t.runTaskAddSubmit(msg.requirement)
-		return next, cmd
-
 	case TaskRemoveSelect:
 		tasks := listTaskEntries()
 		if msg.idx < 0 || msg.idx >= len(tasks) {
-			return t, tea.Println(errorStyle.Render("[!] task index out of range") + "\n")
+			return t, tea.Println(msgError("task index out of range") + "\n")
 		}
 		next, cmd := t.openTaskRemoveConfirm(tasks[msg.idx].Skill)
 		return next, cmd
@@ -841,14 +797,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CompactDone:
 		return t.finishCompact(msg)
 
-	case TaskEditSelect:
-		next, cmd := t.openTaskEditRequirement(msg.skill, msg.at)
-		return next, cmd
-
-	case TaskEditSubmit:
-		next, cmd := t.runTaskEditSubmit(msg.skill, msg.at, msg.requirement)
-		return next, cmd
-
 	case DiscordDone:
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{
@@ -856,9 +804,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] discord %s: %v", msg.action, msg.err))+"\n"))
+			seq = append(seq, tea.Println(msgError(fmt.Sprintf("discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ discord %sd · daemon reloading", msg.action))+"\n"))
+			seq = append(seq, tea.Println(msgLog(fmt.Sprintf("discord %sd  daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -869,9 +817,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(errorStyle.Render(fmt.Sprintf("[!] telegram %s: %v", msg.action, msg.err))+"\n"))
+			seq = append(seq, tea.Println(msgError(fmt.Sprintf("telegram %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ telegram %sd · daemon reloading", msg.action))+"\n"))
+			seq = append(seq, tea.Println(msgLog(fmt.Sprintf("telegram %sd  daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -880,13 +828,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StartupDone:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] startup %s: %v", msg.action, msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("startup %s: %v", msg.action, msg.err)) + "\n")
 		}
-		line := fmt.Sprintf("⎯ startup %sd", msg.action)
-		if msg.detail != "" {
-			line += " · " + msg.detail
-		}
-		return t, tea.Println(hintStyle.Render(line) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("startup %sd", msg.action)) + "\n")
 
 	case ChannelRevokeList:
 		next, cmd := t.openChannelRevokeList(msg.channel)
@@ -904,9 +848,31 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ChannelRevokeDone:
 		if msg.err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] revoke %s: %v", msg.channel, msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("revoke %s: %v", msg.channel, msg.err)) + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ revoked · "+msg.name) + "\n")
+		return t, tea.Println(msgLog("revoked  "+msg.name) + "\n")
+
+	case KeyDeletePick:
+		next, cmd := t.openKeyDeleteConfirm(msg.key)
+		return next, cmd
+
+	case KeyDeleteConfirm:
+		if !msg.yes {
+			return t, nil
+		}
+		next, cmd := t.runKeyDelete(msg.key)
+		return next, cmd
+
+	case ScheduleSelect:
+		switch msg.kind {
+		case "cron":
+			next, cmd, _ := t.commandCron()
+			return next, cmd
+		case "task":
+			next, cmd, _ := t.commandTask()
+			return next, cmd
+		}
+		return t, nil
 
 	case ChannelSelect:
 		switch msg.channel {
@@ -926,21 +892,21 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
 			if _, _, ok := exec.ParseAdminChannel(value); !ok {
-				return t, tea.Println(errorStyle.Render("[!] channel admin: format must be tg@<chatID> or dc@<channelID>") + "\n")
+				return t, tea.Println(msgError("channel admin: format must be tg@<chatID> or dc@<channelID>") + "\n")
 			}
 		}
 		cfg, err := config.Load()
 		if err != nil || cfg == nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] channel admin: session.Load: %v", err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Load: %v", err)) + "\n")
 		}
 		cfg.AdminChannel = value
 		if err := config.Save(cfg); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] channel admin: session.Save: %v", err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
 		}
 		if value == "" {
-			return t, tea.Println(hintStyle.Render("⎯ channel admin · off (log-only)") + "\n")
+			return t, tea.Println(msgLog("channel admin  off (log-only)") + "\n")
 		}
-		return t, tea.Println(hintStyle.Render("⎯ channel admin · "+value) + "\n")
+		return t, tea.Println(msgLog("channel admin  "+value) + "\n")
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -948,12 +914,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case KeySubmit:
 		if msg.value == "" {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] key %s: value is required", msg.key)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("key %s: value is required", msg.key)) + "\n")
 		}
 		if err := keychain.Set(msg.key, msg.value); err != nil {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] keychain.Set %s: %v", msg.key, err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("keychain.Set %s: %v", msg.key, err)) + "\n")
 		}
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s updated", msg.key)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s updated", msg.key)) + "\n")
 
 	case DispatcherSelect:
 		next, cmd := t.runDispatcherSelect(msg.name)
@@ -980,7 +946,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ stopping daemon · downloading latest · expect sudo prompt")+"\n"),
+			tea.Println(msgLog("stopping daemon  downloading latest  expect sudo prompt")+"\n"),
 			runUpdateExec(),
 		)
 
@@ -988,7 +954,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.quitting = true
 		if msg.err != nil {
 			return t, tea.Sequence(
-				tea.Println(errorStyle.Render(fmt.Sprintf("[!] update: %v", msg.err))+"\n"),
+				tea.Println(msgError(fmt.Sprintf("update: %v", msg.err))+"\n"),
 				tea.Quit,
 			)
 		}
@@ -1000,20 +966,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Approve: false,
 				Reason:  "system password verification failed",
 			})
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] restricted path: %v", msg.err)) + "\n")
+			return t, tea.Println(msgError(fmt.Sprintf("restricted path: %v", msg.err)) + "\n")
 		}
 		runtime.Resolve(msg.pendingID, runtime.Reply{Approve: true, Verified: true})
 		if msg.cached {
 			return t, nil
 		}
-		return t, tea.Println(warnStyle.Render("⚠ restricted path approved") + "\n")
+		return t, tea.Println(msgWarn("⚠ restricted path approved") + "\n")
 
 	case LogDone:
 		if msg.err != nil {
 			return t, tea.Sequence(
 				tea.ClearScreen,
 				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
-				tea.Println(errorStyle.Render(fmt.Sprintf("[!] log: %v", msg.err))+"\n"),
+				tea.Println(msgError(fmt.Sprintf("log: %v", msg.err))+"\n"),
 			)
 		}
 		return t, tea.Sequence(

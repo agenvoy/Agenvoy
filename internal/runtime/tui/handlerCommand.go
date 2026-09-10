@@ -20,7 +20,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	switch parts[0] {
 	case "/exit", "/quit":
 		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("bye.")+"\n"),
+			tea.Println(msgLog("bye.")+"\n"),
 			tea.Quit,
 		), true
 
@@ -74,11 +74,8 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/startup":
 		return t.commandStartup(parts)
 
-	case "/cron":
-		return t.commandCron(parts)
-
-	case "/task":
-		return t.commandTask(parts)
+	case "/schedule":
+		return t.commandScheduleMenu(parts)
 
 	case "/update":
 		return t.commandUpdate()
@@ -108,7 +105,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(hintStyle.Render("no active session") + "\n"), true
+		return t, tea.Println(msgLog("no active session") + "\n"), true
 	}
 	seq := []tea.Cmd{
 		tea.ClearScreen,
@@ -116,7 +113,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	}
 	tail := loadSessionTail(sid, t.width, true)
 	if len(tail) == 0 {
-		seq = append(seq, tea.Println(hintStyle.Render("⎯ no history yet")+"\n"))
+		seq = append(seq, tea.Println(msgLog("no history yet")+"\n"))
 	} else {
 		seq = append(seq, tail...)
 	}
