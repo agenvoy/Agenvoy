@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -332,9 +331,6 @@ func renderCmdSelector(p *CmdSelector) string {
 			line += "  " + hintStyle.Render(it.desc)
 		}
 		lines = append(lines, line)
-	}
-	if total > cmdSelectorMaxVisible {
-		lines = append(lines, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 	}
 	return strings.Join(lines, "\n")
 }

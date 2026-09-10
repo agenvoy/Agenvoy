@@ -9,106 +9,73 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-type ModelRemove struct {
-	chosen string
+type ModelRemovePick struct {
+	name string
 }
 
-func (t TUI) commandModelRemove() (TUI, tea.Cmd, bool) {
-	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
-	}
-	if len(cfg.Models) == 0 {
-		return t, tea.Println(hintStyle.Render("no models configured") + "\n"), true
-	}
+type ModelRemoveConfirm struct {
+	name string
+	yes  bool
+}
 
-	options := make([]string, len(cfg.Models))
-	values := make([]string, len(cfg.Models))
-	for i, m := range cfg.Models {
-		label := m.Name
-		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
-			label += " · [dispatcher]"
-		}
-		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
-			label += " · [summary]"
-		}
-		options[i] = label
-		values[i] = m.Name
-	}
-
+func (t TUI) openModelRemoveConfirm(name string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
-		kind:    popupMultiSelect,
-		title:   "Remove models (space toggle · enter confirm)",
-		options: options,
-		values:  values,
-		multi:   make(map[int]bool, len(options)),
+		kind:     popupSingleSelect,
+		title:    "Remove " + modelLabel(name) + " ?",
+		subtitle: "removed from the registry  stored credentials are kept",
+		options:  []string{"No", "Yes"},
+		values:   []string{"no", "yes"},
 		onConfirm: func(chosen string) any {
-			return ModelRemove{chosen: chosen}
+			return ModelRemoveConfirm{name: name, yes: chosen == "yes"}
 		},
 	}
-	return t, nil, true
+	return t, nil
 }
 
-func (t TUI) runModelRemove(chosen string) (TUI, tea.Cmd) {
-	if chosen == "" {
-		return t, nil
-	}
-
-	toRemove := make(map[string]bool)
-	for _, name := range strings.Split(chosen, "\x1F") {
-		if name = strings.TrimSpace(name); name != "" {
-			toRemove[name] = true
-		}
-	}
-	if len(toRemove) == 0 {
-		return t, nil
-	}
-
+func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
+	label := modelLabel(name)
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 
 	var kept []config.ModelEntry
-	var removed []string
 	for _, m := range cfg.Models {
-		if toRemove[m.Name] {
-			removed = append(removed, m.Name)
-		} else {
+		if m.Name != name {
 			kept = append(kept, m)
 		}
 	}
-	if len(removed) == 0 {
-		return t, tea.Println(hintStyle.Render("⎯ no matching models found") + "\n")
+	if len(kept) == len(cfg.Models) {
+		return t, tea.Println(msgLog("no matching models found") + "\n")
 	}
 
 	cfg.Models = kept
 	clearedDispatcher := false
-	if toRemove[cfg.DispatcherModel] {
+	if cfg.DispatcherModel == name {
 		cfg.DispatcherModel = ""
 		clearedDispatcher = true
 	}
 	clearedSummary := false
-	if toRemove[cfg.SummaryModel] {
+	if cfg.SummaryModel == name {
 		cfg.SummaryModel = ""
 		clearedSummary = true
 	}
 
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 
 	agents.Reload()
 
-	lines := []string{hintStyle.Render(fmt.Sprintf("⎯ removed: %s · registry reloaded", strings.Join(removed, ", ")))}
+	lines := []string{msgLog(fmt.Sprintf("removed: %s  registry reloaded", label))}
 	if clearedDispatcher {
-		lines = append(lines, warnStyle.Render("dispatcher cleared · run /model or set a new dispatcher"))
+		lines = append(lines, msgWarn("dispatcher cleared  run /model or set a new dispatcher"))
 	}
 	if clearedSummary {
-		lines = append(lines, warnStyle.Render("summary model cleared · falls back to dispatcher"))
+		lines = append(lines, msgWarn("summary model cleared  falls back to auto"))
 	}
 	if len(cfg.Models) == 0 {
-		lines = append(lines, warnStyle.Render("⎯ no model configured · /model global add"))
+		lines = append(lines, msgWarn("no model configured  /model add"))
 	}
 	return t, tea.Println(strings.Join(lines, "\n\n") + "\n")
 }

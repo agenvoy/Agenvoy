@@ -208,8 +208,7 @@ func (t TUI) viewPopup() string {
 			visible = cmdSelectorMaxVisible
 		}
 		start, end := 0, total
-		windowed := visible > 0 && total > visible
-		if windowed {
+		if visible > 0 && total > visible {
 			if p.readOnly {
 				start = min(p.cursor, total-visible)
 				end = start + visible
@@ -237,13 +236,6 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, marker+line)
 		}
-		if windowed {
-			if p.readOnly {
-				body = append(body, hintStyle.Render(fmt.Sprintf("  %d-%d/%d", start+1, end, total)))
-			} else {
-				body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
-			}
-		}
 		action := "confirm"
 		if p.enterAction != "" {
 			action = p.enterAction
@@ -269,11 +261,7 @@ func (t TUI) viewPopup() string {
 		if visible <= 0 {
 			visible = cmdSelectorMaxVisible
 		}
-		start, end := 0, total
-		windowed := total > visible
-		if windowed {
-			start, end = windowRange(p.cursor, total, visible)
-		}
+		start, end := windowRange(p.cursor, total, visible)
 		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
 			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
@@ -294,9 +282,6 @@ func (t TUI) viewPopup() string {
 				check = systemStyle.Render("[x]")
 			}
 			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
-		}
-		if windowed {
-			body = append(body, hintStyle.Render(fmt.Sprintf("  %d/%d", p.cursor+1, total)))
 		}
 		if len(p.tabs) > 1 {
 			appendFooter("↑/↓ move  ←/→ filter  space toggle  enter confirm  esc cancel")
@@ -371,7 +356,7 @@ func (t TUI) sessionName() string {
 	model, reasoning := configBot.GetModel(sid)
 	modelPart := hintStyle.Render(model)
 	if model != configBot.DefaultModel {
-		modelPart = warnStyle.Render(model)
+		modelPart = warnStyle.Render(modelLabel(model))
 	}
 
 	var reasonPart string

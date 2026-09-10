@@ -39,18 +39,21 @@ func (t TUI) commandChannel(parts []string) (TUI, tea.Cmd, bool) {
 		cfg = &config.Config{}
 	}
 
-	state := func(enabled bool, key string) string {
-		if enabled && keychain.Get(key) != "" {
-			return systemStyle.Render("[enabled]")
+	state := func(enabled bool) string {
+		if enabled {
+			return okayStyle.Render("[enabled]")
 		}
 		return ""
 	}
 
-	values := []string{"admin", "telegram", "discord"}
-	details := []string{
-		hintStyle.Render("relay new-chat verification codes"),
-		state(cfg.TelegramEnabled, telegram.Key),
-		state(cfg.DiscordEnabled, discord.Key),
+	telegramOn := cfg.TelegramEnabled && keychain.Get(telegram.Key) != ""
+	discordOn := cfg.DiscordEnabled && keychain.Get(discord.Key) != ""
+
+	values := []string{"telegram", "discord"}
+	details := []string{state(telegramOn), state(discordOn)}
+	if telegramOn || discordOn {
+		values = append([]string{"admin"}, values...)
+		details = append([]string{hintStyle.Render("relay new-chat verification codes")}, details...)
 	}
 
 	t.popup = &Popup{

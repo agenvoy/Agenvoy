@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type ModelScopeSelect struct {
@@ -15,8 +17,6 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		switch parts[1] {
 		case "add":
 			return t.commandModelAdd()
-		case "remove":
-			return t.commandModelRemove()
 		case "dispatch":
 			return t.commandDispatcher()
 		case "summary":
@@ -30,7 +30,7 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	actions := []string{"add", "remove", "dispatch", "summary", "image", "stt", "tts"}
+	actions := []string{"add", "dispatch", "summary", "image", "stt", "tts"}
 
 	options, values, cursor := registeredModelOptions(t.currentSessionID)
 	var styledLines []string
@@ -42,12 +42,11 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 	}
 	options = append(options, optionColumn(actions, []string{
 		"add model from provider",
-		"remove model from registry",
-		"set dispatcher model",
-		"set summary model",
-		"set image generator",
-		"set speech-to-text model",
-		"set text-to-speech model",
+		"smart routing  picks the model for each request",
+		"summary memory  condenses history into session memory",
+		"image generation",
+		"audio analysis  transcribes audio files",
+		"speech generation",
 	})...)
 	values = append(values, actions...)
 
@@ -64,6 +63,13 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 				return SessionModelSelect{name: name}
 			}
 			return ModelScopeSelect{scope: chosen}
+		},
+		onDelete: func(chosen string) any {
+			name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
+			if !ok || name == configBot.DefaultModel {
+				return nil
+			}
+			return ModelRemovePick{name: name}
 		},
 	}
 	return t, nil, true

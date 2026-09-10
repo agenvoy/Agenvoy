@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/gemini"
@@ -68,25 +69,34 @@ func TTSOptions(ctx context.Context) []string {
 }
 
 func options(ctx context.Context, filter core.ModelFilter) []string {
+	found := make([][]string, len(Providers))
+	var wg sync.WaitGroup
+	for i, name := range Providers {
+		wg.Go(func() {
+			cfg, err := agentKeychain.Config(ctx, name+"@")
+			if err != nil {
+				return
+			}
+			var models []string
+			switch name {
+			case "openai":
+				models, err = openai.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
+			case "gemini":
+				models, err = gemini.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
+			}
+			if err != nil {
+				return
+			}
+			for _, model := range models {
+				found[i] = append(found[i], name+"@"+model)
+			}
+		})
+	}
+	wg.Wait()
+
 	list := []string{}
-	for _, name := range Providers {
-		cfg, err := agentKeychain.Config(ctx, name+"@")
-		if err != nil {
-			continue
-		}
-		var models []string
-		switch name {
-		case "openai":
-			models, err = openai.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
-		case "gemini":
-			models, err = gemini.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
-		}
-		if err != nil {
-			continue
-		}
-		for _, model := range models {
-			list = append(list, name+"@"+model)
-		}
+	for _, models := range found {
+		list = append(list, models...)
 	}
 	return list
 }

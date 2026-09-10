@@ -44,6 +44,7 @@ type TUI struct {
 
 	popup         *Popup
 	popupQueue    []Pending
+	popupOrigin   *Popup
 	botBodyDraft  string
 	noteBodyDraft string
 	mcpAdd        *mcpAddDraft

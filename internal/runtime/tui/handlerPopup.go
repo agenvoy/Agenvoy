@@ -263,9 +263,12 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.values != nil && p.cursor < len(p.values) {
 			chosen = p.values[p.cursor]
 		}
-		cb := p.onDelete
+		next := p.onDelete(chosen)
+		if next == nil {
+			break
+		}
 		t = t.closePopup()
-		return t, popupNext(p, func() any { return cb(chosen) })
+		return t, popupNext(p, func() any { return next })
 
 	case tea.KeyEnter:
 		if !p.readOnly && strings.TrimSpace(p.options[p.cursor]) == "" {
@@ -308,10 +311,15 @@ func (t TUI) runPopupChild(msg popupChild) (tea.Model, tea.Cmd) {
 	if msg.msg == nil {
 		return t, nil
 	}
+	t.popupOrigin = msg.parent
 	next, cmd := t.Update(msg.msg)
 	nt, ok := next.(TUI)
-	if !ok || nt.popup == nil || nt.popup == msg.parent || nt.popup.pendingId != "" || nt.popup.back != nil {
+	if !ok {
 		return next, cmd
+	}
+	nt.popupOrigin = nil
+	if nt.popup == nil || nt.popup == msg.parent || nt.popup.pendingId != "" || nt.popup.back != nil {
+		return nt, cmd
 	}
 	nt.popup.back = msg.parent
 	for one := msg.parent; one != nil; one = one.back {

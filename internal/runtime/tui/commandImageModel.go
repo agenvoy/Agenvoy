@@ -14,17 +14,35 @@ type ImageModelSelect struct {
 	name string
 }
 
-func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
-	imageTool.Prune(context.Background())
+type ImageModelLoaded struct {
+	current   string
+	available []string
+	err       error
+	back      *Popup
+}
 
-	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
+func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
+	back := t.popupOrigin
+	load := func() tea.Msg {
+		imageTool.Prune(context.Background())
+
+		cfg, err := config.Load()
+		if err != nil {
+			return ImageModelLoaded{err: err}
+		}
+		return ImageModelLoaded{current: cfg.ImageGenerator, available: imageTool.Available(context.Background()), back: back}
+	}
+	return t, tea.Sequence(tea.Println(msgLog("loading models...")+"\n"), load), true
+}
+
+func (t TUI) openImageModelPopup(msg ImageModelLoaded) (TUI, tea.Cmd) {
+	if msg.err != nil {
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", msg.err)) + "\n")
 	}
 
-	available := imageTool.Available(context.Background())
+	available := msg.available
 	if len(available) == 0 {
-		return t, tea.Println(msgLog("no image-capable provider has credentials  add one with /model add") + "\n"), true
+		return t, tea.Println(msgLog("no image-capable provider has credentials  add one with /model add") + "\n")
 	}
 
 	options := make([]string, 0, len(available)+2)
@@ -33,7 +51,7 @@ func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
 
 	for i, name := range available {
 		label := name
-		if cfg.ImageGenerator == name {
+		if msg.current == name {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i
 		}
@@ -42,7 +60,7 @@ func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
 	}
 
 	disable := hintStyle.Render("disable")
-	if cfg.ImageGenerator == "" || cfg.ImageGenerator == "off" {
+	if msg.current == "" || msg.current == "off" {
 		disable += "  " + systemStyle.Render("[current]")
 		cursor = len(options) + 1
 	}
@@ -55,11 +73,12 @@ func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
 		options: options,
 		values:  values,
 		cursor:  cursor,
+		back:    msg.back,
 		onConfirm: func(chosen string) any {
 			return ImageModelSelect{name: chosen}
 		},
 	}
-	return t, nil, true
+	return t, nil
 }
 
 func (t TUI) runImageModelSelect(name string) (TUI, tea.Cmd) {

@@ -145,7 +145,7 @@ func (t TUI) openMcpAddEnv() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:      popupText,
 		multiline: true,
-		title:     "Env (KEY=VALUE per line · ctrl+s submit · blank to skip)",
+		title:     "Env (KEY=VALUE per line  ctrl+s submit  blank to skip)",
 		subtitle:  "example:\nAPI_KEY=${MY_KEY}\nREGION=us-west-1",
 		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
@@ -184,7 +184,7 @@ func (t TUI) openMcpAddHeaders() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:      popupText,
 		multiline: true,
-		title:     "Extra headers (KEY=VALUE per line · ctrl+s submit · blank to skip)",
+		title:     "Extra headers (KEY=VALUE per line  ctrl+s submit  blank to skip)",
 		subtitle:  "example:\nX-Trace=1\nX-Client=agenvoy",
 		input:     newPopupInput("", true),
 		onConfirm: func(value string) any {
@@ -198,13 +198,16 @@ func (t TUI) openMcpAddAuthMethod() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:  popupSingleSelect,
 		title: "Authentication",
-		options: []string{
-			"none    no auth",
-			"oauth   browser login · dynamic client registration",
-			"bearer  Authorization: Bearer token",
-			"api key custom header token",
-			"basic   Authorization: Basic token",
-		},
+		options: optionColumn(
+			[]string{"none", "oauth", "bearer", "api key", "basic"},
+			[]string{
+				"no auth",
+				"browser login, dynamic client registration",
+				"Authorization: Bearer token",
+				"custom header token",
+				"Authorization: Basic token",
+			},
+		),
 		values: []string{"none", "oauth", "bearer", "apikey", "basic"},
 		onConfirm: func(chosen string) any {
 			return McpAddAuthMethod{method: chosen}

@@ -50,10 +50,11 @@ func (t TUI) commandKey(parts []string) (TUI, tea.Cmd, bool) {
 	}
 
 	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Key  update keychain value",
-		options: cfg.Keys,
-		values:  cfg.Keys,
+		kind:        popupSingleSelect,
+		title:       "Key  update keychain value",
+		options:     cfg.Keys,
+		values:      cfg.Keys,
+		enterAction: "edit",
 		onConfirm: func(chosen string) any {
 			return KeySelect{key: chosen}
 		},

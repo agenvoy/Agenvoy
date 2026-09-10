@@ -324,9 +324,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "add":
 			next, cmd, _ := t.commandModelAdd()
 			return next, cmd
-		case "remove":
-			next, cmd, _ := t.commandModelRemove()
-			return next, cmd
 		case "dispatch":
 			next, cmd, _ := t.commandDispatcher()
 			return next, cmd
@@ -351,14 +348,23 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpServerAction:
 		return t.runMcpServerAction(msg)
 
+	case McpRemovePick:
+		return t.openMcpRemoveConfirm(msg.server)
+
+	case McpRemoveConfirm:
+		if !msg.yes {
+			next, cmd, _ := t.commandMcp(nil)
+			return next, cmd
+		}
+		next, cmd := t.runMcpRemove(msg.server)
+		next, _, _ = next.commandMcp(nil)
+		return next, cmd
+
 	case McpReconnectDone:
 		if msg.err != nil {
 			return t, tea.Println(msgError(fmt.Sprintf("%s reconnect: %v", msg.server, msg.err)) + "\n")
 		}
 		return t, tea.Println(msgLog(fmt.Sprintf("%s reconnected", msg.server)) + "\n")
-
-	case McpToolsResult:
-		return t.runMcpToolsResult(msg)
 
 	case McpPermissionResult:
 		return t.runMcpPermissionResult(msg)
@@ -508,8 +514,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runAllowSkillToggle(msg.scope, msg.name)
 		return next, cmd
 
-	case ModelRemove:
-		next, cmd := t.runModelRemove(msg.chosen)
+	case ModelRemovePick:
+		next, cmd := t.openModelRemoveConfirm(msg.name)
+		return next, cmd
+
+	case ModelRemoveConfirm:
+		if !msg.yes {
+			next, cmd, _ := t.commandModel(nil)
+			return next, cmd
+		}
+		next, cmd := t.runModelRemove(msg.name)
+		next, _, _ = next.commandModel(nil)
 		return next, cmd
 
 	case BotNameSubmit:
@@ -905,6 +920,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ReplyLanguageSelect:
 		return t.runReplyLanguageSelect(msg.code)
+
+	case AudioModelLoaded:
+		return t.openAudioModelPopup(msg)
+
+	case ImageModelLoaded:
+		return t.openImageModelPopup(msg)
 
 	case AudioModelSelect:
 		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
