@@ -73,10 +73,11 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
 | `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
+| `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填）    |
 
 ### 音訊與圖片模型路由
 
-語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model` 設定；選擇 `off` 可停用對應能力。STT／TTS 可用模型會從已設定的 OpenAI 與 Gemini provider 載入，圖片生成則需要已設定的支援圖片 provider。
+語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model image` 設定；選擇列在最下方的 `disable` 可停用對應能力。開啟選單時 TUI 會先顯示 `loading models...`，STT／TTS 可用模型會並行向已設定的 OpenAI 與 Gemini provider 取得，圖片生成則需要已設定的支援圖片 provider。
 
 自 **v0.34.4** 起，Telegram 與 Discord 暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機 `generate_audio` 工具與音訊模型設定仍可使用，並可將產生的音訊檔傳送到任一頻道。
 
@@ -119,6 +120,8 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 目前 runtime 內建 12 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
 
+`/model add` 會以 `GET /models` 偵測本機的 Ollama（`http://localhost:11434/v1`）與 llama.cpp（`http://localhost:8080/v1`），有回應的會以 **Ollama Local**／**Llama.cpp Local** 列在 provider 清單最上方；選取後會把端點記錄到 `config.json` 的 `compats`，並直接進入模型挑選，不再詢問網址或 key。其他 port 或主機走 **Local/Custom** 新增。本機模型以 `compat[NAME]@<model>` 註冊。
+
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
@@ -129,7 +132,7 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 ### 受限路徑與受限指令
 
-`$HOME` 以外的路徑與白名單外的指令不會直接被拒絕：`boundary.Resolve` 與 `tools.RestrictedCommands` 會收集它們並發出確認，且該確認同時要求作業系統密碼（TUI 內的 `sudo -v`）。核准只綁定該 session 與該路徑或該執行檔，時鐘一律沿用 sudo 自己的 timestamp，不另外維護 TTL；該 ticket 仍有效時，彈窗不會再出現密碼欄。
+`$HOME` 以外的路徑與敏感清單內的路徑（`configs/jsons/sensitive_path.json`，可由 `config.json` 的 `sensitive_path` 擴充）不會直接被拒絕：`boundary.Resolve` 會收集它們並發出確認，且該確認同時要求作業系統密碼（TUI 內的 `sudo -v`、Web 確認框的密碼欄）；`pkg_manage` 呼叫也走同一道關卡。核准只綁定該 session 與該路徑，時鐘一律沿用 sudo 自己的 timestamp，不另外維護 TTL；該 ticket 仍有效時，彈窗不會再出現密碼欄。`config.json` 的 `denied_path` 與 `denied_command` 為硬拒，任何核准都解不開；不在 `denied_command` 的指令一律可執行，但仍會經過 `run_command` 的一般確認。
 
 自動化之前要知道的事項：
 
@@ -175,7 +178,7 @@ command = "agen"
 
 ### Session 分類與監控
 
-TUI 的 session 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
+TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
 
 Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
 
@@ -193,19 +196,19 @@ agen
 
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 新增／移除 provider，挑選 session／dispatcher／summary 模型，設定圖片生成、STT 與 TTS 模型 |
-| `/mcp`                          | 列出 MCP server；新增、登入、重連、查看工具、設定單一工具權限、移除                   |
-| `/switch` `/new`                | 切換 session 或建立新的（名稱會檢查重複）                                             |
+| `/model`                        | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型 |
+| `/mcp`                          | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連 |
+| `/sessions` `/new`              | 切換 session（`d` 刪除）或建立新的（名稱會檢查重複）                                  |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
-| `/memory`                       | 對當前 session 執行 `compact` / `reset` / `summary`                                   |
-| `/dangerous`                    | 刪除 session，或編輯 skill／指令白名單                                                |
-| `/discord` `/telegram` `/voice` | 啟用或停用各通道；token 會先驗證再存入                                                |
+| `/compact` `/reset`             | 移除當前 session 的冗餘對話，或重設 session（需二次確認）                             |
+| `/allow-skill`                  | 將 skill 設為一律允許，範圍為全域或此專案                                             |
+| `/rule` `/note`                 | 列出、新增或編輯 rule 與筆記                                                          |
+| `/channel`                      | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示） |
 | `/startup`                      | 啟用或停用登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit） |
-| `/admin-channel`                | 選擇由哪個已授權對話接收新對話驗證碼                                                  |
-| `/cron` `/task`                 | 新增、編輯或移除週期性與一次性排程                                                    |
+| `/schedule`                     | 週期（cron）與單次（task）排程合併為一個清單；`enter` 立即執行、`d` 刪除；新增或編輯請直接交代 agent |
 | `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
-| `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 開啟 `action.log`、查看各模型 token 用量                    |
-| `/key`                          | 更換已儲存的憑證                                                                      |
+| `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d） |
+| `/key`                          | 編輯已儲存的憑證（`d` 刪除）                                                          |
 | `/reply-language`               | 選擇所有回覆使用的語言；`auto` 跟隨每則訊息                                            |
 | `/update`                       | 抓取最新 release、重建、離開                                                          |
 | `/clear` `/exit`                | 清除可見對話，或離開 TUI（daemon 繼續執行）                                           |
@@ -218,9 +221,9 @@ agen
 | `Shift+W` / `Shift+S` | 反向／正向切換 session 模型                                 |
 | `Shift+A` / `Shift+D` | 切換 reasoning 等級                                         |
 | `Shift+F`             | 切換 fast mode                                              |
-| `Shift+T`             | 切換指令模式——輸入內容以 shell 指令在當前目錄執行，不經沙箱 |
 | `Shift+U`             | 查看 provider 額度與餘額                                    |
-| `Shift+M`             | 列出已註冊模型                                              |
+
+在彈出視窗中，`esc` 會回到開啟它的上一頁，只有第一頁才會關閉；`/usage` 這類純列表視窗以 ↑／↓ 捲動而非選取。
 
 ### 管理 daemon
 
@@ -290,24 +293,26 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | --------------- | ------------------------------- | ---------------------------------------------------- |
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
-| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型                           |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機端點的 `compat[NAME]` |
 | `GET` `POST`    | `/v1/model`               | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
 | `GET`           | `/v1/model/audio`         | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。 |
+| `GET` `POST`    | `/v1/model/priority`      | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400 |
 
 **Session**
 
 | Method                | Path                                           | 說明                                                                                                                                                                                  |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`                 | `/v1/sessions`                                 | 列出 session 與狀態                                                                                                                                                                   |
+| `GET`                 | `/v1/usage`                                    | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計                                                                                                                             |
 | `POST`                | `/v1/session`                                  | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                              |
 | `GET` `POST` `DELETE` | `/v1/session/:id`                              | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯）；兩者預設關閉，因為 log 可能很大 |
 | `POST`                | `/v1/session/:id/event`                        | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                       |
-| `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 3 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 5 秒），視窗關閉或程序被砍的任務 5 秒內會重新出現 |
+| `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 55 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 60 秒），視窗關閉或程序被砍的任務一分鐘內會重新出現 |
 | `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
 | `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
 | `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
 | `POST`                | `/v1/session/:id/cancel/:once_id`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
-| `POST`                | `/v1/session/:id/confirm/:once_id`          | 回覆等待中的工具確認:`{approve, remember?, allow_turn?, abort?, reason?}`。受限路徑與白名單外指令無法由此核准——它們需要只有 TUI 收得到的系統密碼驗證,沒帶驗證的核准會被退回為 skipped |
+| `POST`                | `/v1/session/:id/confirm/:once_id`          | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410 |
 | `POST`                | `/v1/session/:id/memory`                       | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清 |
 | `GET`                 | `/v1/session/:id/task/history`                 | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                 |
 | `GET`                 | `/v1/session/:id/task/:task_hash/history`      | **local** — 單一已完成任務的完整 action 紀錄，以 JSON 字串放在 `content`；該 hash 沒有紀錄時回 404                                                                                     |
@@ -317,7 +322,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method | Path                                         | 說明                                                                                                                                                                                                                                                    |
 | ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`  | `/v1/channel`                                | **local** — 所有 channel 讀取合在同一個物件：`telegram` 與 `discord` 各帶 `{enabled, username, has_token}`，`admin` 帶 `{channel, authorized, chats:[{value,type,id,name}]}`。`chats` 取自 `.telegram` / `.discord` 授權檔（先 tg 後 dc），`value` 可直接回送 `POST`；`authorized` 標示現行轉發目標是否仍在名單內（手打的 ID 會是 `false`） |
-| `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱                                                                        |
+| `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱 |
 | `GET` | `/v1/channel/:channel/chats` | **local** — `telegram` / `discord` 已完成驗證的對話,來源是 `.telegram` / `.discord` 授權檔。只有 bot 執行中才有意義,建議在 `status` 回報 `enabled` 後才取用 |
 | `DELETE` | `/v1/channel/:channel/chat` | **local** — `{id}`。從該授權檔移除一筆對話,該對話需重新驗證才能再與 bot 對話。id 不在名單上回 404 |
 | `POST` | `/v1/channel/admin`                          | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`。設定新對話驗證碼的轉發目標,空字串清除;`value` 必填(省略回 400,避免誤送空 body 靜默清除)。只驗格式,不檢查該 ID 是否已在授權名單——未授權時 `NotifyAdminCode` 會 log warning 並讓驗證碼留在日誌 |
@@ -342,7 +347,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key               |
 | `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
-| `GET`  | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型   |
+| `GET`  | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。`compat` 端點尚未支援列出模型，回 501；請改以 `POST /v1/models` 登錄模型名稱 |
 
 **MCP**
 
@@ -368,6 +373,8 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `GET`                   | `/v1/note/*name` | **local** — 讀取單筆筆記                                                                              |
 | `POST` `PATCH` `DELETE` | `/v1/note`       | **local** — 建立／更新／刪除筆記,未給名稱時以首行為名                                                 |
 | `GET`                   | `/v1/skills`     | **local** — 列出已安裝的 skill                                                                        |
+| `GET`                   | `/v1/skill/*name` | **local** — 讀取單一已安裝的 skill                                                                   |
+| `DELETE`                | `/v1/skill`      | **local** — 移除單一已安裝的 skill                                                                    |
 
 **排程與自動化**
 
@@ -383,7 +390,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method       | Path                  | 說明                                                                                                                                                                                                                                         |
 | ------------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET` `POST` | `/v1/allowlist`       | **local** — 兩份白名單合在同一個物件，鍵為 `skill` 與 `tool`。`GET` 以 `?scope=global\|project`（`project` 需另帶 `?work_dir=`）決定 skill 區塊，`?prefix=` 縮小 tool 區塊。`POST` 收 `{skill: {name, scope?, work_dir?}}` 切換單一 skill，與／或 `{tool: {prefix, entries}}` 只替換該前綴底下的免確認項目（與 TUI `/mcp` → permission 同一支），其餘規則不受影響；每個 entry 必須以 `prefix` 開頭，出現 `prefix*` 時收斂成單一項。未帶的區塊不動 |
+| `GET` `POST` | `/v1/allowlist`       | **local** — 兩份白名單合在同一個物件，鍵為 `skill` 與 `tool`。`GET` 以 `?scope=global\|project`（`project` 需另帶 `?work_dir=`）決定 skill 區塊，`?prefix=` 縮小 tool 區塊。`POST` 收 `{skill: {name, scope?, work_dir?}}` 切換單一 skill，與／或 `{tool: {prefix, entries}}` 只替換該前綴底下的免確認項目（與 TUI `/mcp` → tools 同一支），其餘規則不受影響；每個 entry 必須以 `prefix` 開頭，出現 `prefix*` 時收斂成單一項。未帶的區塊不動 |
 
 **設定**
 
@@ -396,11 +403,13 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 | Method | Path              | 說明                                                                     |
 | ------ | ----------------- | ------------------------------------------------------------------------ |
-| `GET`  | `/v1/torii/error` | **local** — 查閱工具錯誤記憶；`tool`／`keyword` 皆未帶時回傳無過濾全表掃 |
+| `GET`  | `/v1/torii/error` | **local** — 查閱工具錯誤記憶（Web 的 **Lessons** 分頁）。未帶 `keyword` 時列出紀錄，可用 `tool` 縮小範圍（`limit` 預設 50）；帶 `keyword` 時走與 agent 相同的搜尋（`limit` 預設 16） |
+| `PATCH` | `/v1/torii/error` | **local** — `{id, action}`。改寫單筆 lesson 的 action；id 已不存在時回 404 |
+| `GET`  | `/v1/daemon`      | **local** — 近 28 天的 `daemon.log`，放在 `content`；可用 `from`／`to`（`yyyy-MM-dd-HH-mm`）與 `keyword` 過濾 |
 
 ## 工具參考
 
-註冊表內建 26 個工具，另有 3 個在前置條件成立時才註冊。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
+註冊表有 27 個工具固定可用，另有 4 個在前置條件成立前會從執行中排除。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
 
 | 分類       | 工具                              | 用途                                                                                   |
 | ---------- | --------------------------------- | -------------------------------------------------------------------------------------- |
@@ -414,6 +423,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片                                              |
 |            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                     |
 |            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                      |
+|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在 `~/Downloads`（不存在時為 `~/.config/agenvoy/download`）；模型只提供內容 |
 | 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位                                                         |
 |            | `open_file`                       | 以系統預設應用開啟檔案                                                                 |
 |            | `download_file`                   | 下載二進位資產至磁碟                                                                   |
@@ -431,9 +441,10 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                   |
 |            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                |
 | 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                      |
+|            | `generate_audio`                  | 文字轉語音並存檔——未選 TTS 模型時排除                                                  |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                 |
 
-13 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。
+15 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_report`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
 
 ## 架構
 
