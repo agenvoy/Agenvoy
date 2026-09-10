@@ -35,15 +35,9 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 		return t, tea.Println(msgLog("no sessions available") + "\n"), true
 	}
 	popup.onConfirm = func(chosen string) any {
-		if chosen == "" {
-			return SessionNew{}
-		}
 		return SessionSelect{id: chosen}
 	}
 	popup.onDelete = func(chosen string) any {
-		if chosen == "" {
-			return nil
-		}
 		return SessionDeletePick{id: chosen}
 	}
 	t.popup = popup
@@ -225,9 +219,6 @@ func fillSwitchOptions(p *Popup, sessions []Session, sid string) {
 		names = append(names, label)
 		sids = append(sids, e.id)
 	}
-
-	names = append(names, "(new session)")
-	sids = append(sids, "")
 
 	p.options = names
 	p.values = sids

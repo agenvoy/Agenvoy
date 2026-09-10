@@ -120,8 +120,12 @@ func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 
 	cfg, err := mcp.Load()
 	if err == nil && cfg.Servers[name].IsOAuth() {
-		values = append([]string{"login", "client"}, values...)
-		details = append([]string{"browser oauth", "set oauth client id / secret"}, details...)
+		login, detail := "login", "browser oauth"
+		if mcp.HasOAuth(name) {
+			login, detail = "relogin", "browser oauth  a token is already stored"
+		}
+		values = append([]string{login, "client"}, values...)
+		details = append([]string{detail, "set oauth client id / secret"}, details...)
 	}
 	options := optionColumn(values, details)
 
@@ -151,7 +155,7 @@ func (t TUI) runMcpMenuPick(value string) (TUI, tea.Cmd) {
 
 func (t TUI) runMcpServerAction(msg McpServerAction) (TUI, tea.Cmd) {
 	switch msg.action {
-	case "login":
+	case "login", "relogin":
 		return t.startMcpLogin(msg.server)
 	case "client":
 		return t.openMcpClientID(msg.server)

@@ -440,18 +440,26 @@ type PendingInfo struct {
 	TaskHash     string
 	Objective    string
 	HasQuestions bool
+	UpdatedAt    time.Time
 }
 
 func LoadPendingInfo(sessionID, taskHash string) (PendingInfo, bool) {
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	path := filesystem.PendingMetaPath(sessionID, taskHash)
+	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](path)
 	if err != nil {
 		return PendingInfo{}, false
 	}
-	return PendingInfo{
+
+	info := PendingInfo{
 		TaskHash:     taskHash,
 		Objective:    meta.Objective,
 		HasQuestions: len(meta.Questions) > 0,
-	}, true
+	}
+	// * os.Stat retained: go-pkg exposes no ModTime accessor
+	if stat, err := os.Stat(path); err == nil {
+		info.UpdatedAt = stat.ModTime()
+	}
+	return info, true
 }
 
 func LoadPendingQuestions(sessionID, taskHash string) ([]runtime.Question, error) {

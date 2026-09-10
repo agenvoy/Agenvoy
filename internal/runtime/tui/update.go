@@ -302,10 +302,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelect:
 		return t.runCommandSwitch(msg.id)
 
-	case SessionNew:
-		next, cmd, _ := t.commandNew(nil)
-		return next, cmd
-
 	case SessionNewSubmit:
 		next, cmd := t.showNewPromptPicker(msg.name)
 		return next, cmd
@@ -751,6 +747,18 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case PendingDeletePick:
+		next, cmd := t.openPendingDeleteConfirm(msg)
+		return next, cmd
+
+	case PendingDeleteConfirm:
+		if !msg.yes {
+			next, cmd, _ := t.commandPending()
+			return next, cmd
+		}
+		next, cmd := t.runPendingDelete(msg)
+		return next, cmd
+
 	case SessionDeletePick:
 		next, cmd := t.openSessionDeleteConfirm(msg.id)
 		return next, cmd
@@ -981,9 +989,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		popup.title = "Pick session to attach"
 		popup.onConfirm = func(chosen string) any {
-			if chosen == "" {
-				return SessionNew{}
-			}
 			return StartupSessionSelect{id: chosen}
 		}
 		t.popup = popup

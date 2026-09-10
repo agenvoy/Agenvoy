@@ -10,8 +10,6 @@ type SessionSelect struct {
 	id string
 }
 
-type SessionNew struct{}
-
 func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	parts := strings.Fields(cmd)
 	if strings.HasPrefix(parts[0], "/sched-") {
