@@ -20,7 +20,7 @@ type ReplyLangOption struct {
 	Label string `json:"label"`
 }
 
-const replyLangAutoLabel = "Auto · follow the language of each message"
+const replyLangAutoLabel = "follow the language of each message"
 
 var (
 	replyLangList = loadReplyLang()

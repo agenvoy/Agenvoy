@@ -46,19 +46,10 @@ func (t TUI) commandDiscord(parts []string) (TUI, tea.Cmd, bool) {
 		return next, cmd, true
 	}
 
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Discord",
-		options: []string{"disable", "revoke chat"},
-		values:  []string{"disable", "revoke"},
-		onConfirm: func(chosen string) any {
-			if chosen == "revoke" {
-				return ChannelRevokeList{channel: "discord"}
-			}
-			return DiscordAction{action: chosen}
-		},
-	}
-	return t, nil, true
+	next, cmd := t.openChannelMenu("discord", "Discord", func() any {
+		return DiscordAction{action: "disable"}
+	})
+	return next, cmd, true
 }
 
 func (t TUI) openDiscordTokenPrompt() (TUI, tea.Cmd) {
@@ -66,7 +57,7 @@ func (t TUI) openDiscordTokenPrompt() (TUI, tea.Cmd) {
 		kind:     popupText,
 		title:    "Discord Bot Token",
 		input:    newPopupInput("", false),
-		subtitle: "from Discord Developer Portal · Enter to submit · Esc to cancel",
+		subtitle: "from Discord Developer Portal  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return DiscordTokenSubmit{token: strings.TrimSpace(value)}
 		},

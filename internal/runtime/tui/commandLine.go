@@ -51,26 +51,17 @@ func (t TUI) commandLine(parts []string) (TUI, tea.Cmd, bool) {
 		return next, cmd, true
 	}
 
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "LINE",
-		options: []string{"disable", "revoke chat"},
-		values:  []string{"disable", "revoke"},
-		onConfirm: func(chosen string) any {
-			if chosen == "revoke" {
-				return ChannelRevokeList{channel: "line"}
-			}
-			return LineAction{action: chosen}
-		},
-	}
-	return t, nil, true
+	next, cmd := t.openChannelMenu("line", "LINE", func() any {
+		return LineAction{action: "disable"}
+	})
+	return next, cmd, true
 }
 
 func (t TUI) openLineSecretPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "LINE Channel Secret",
-		subtitle: "from LINE Developers Console · Enter to submit · Esc to cancel",
+		subtitle: "from LINE Developers Console  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return LineSecretSubmit{secret: strings.TrimSpace(value)}
 		},
@@ -82,7 +73,7 @@ func (t TUI) openLineTokenPrompt(secret string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "LINE Channel Access Token",
-		subtitle: "long-lived token from LINE Developers Console · Enter to submit · Esc to cancel",
+		subtitle: "long-lived token from LINE Developers Console  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return LineTokenSubmit{secret: secret, token: strings.TrimSpace(value)}
 		},

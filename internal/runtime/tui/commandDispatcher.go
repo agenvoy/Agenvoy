@@ -16,17 +16,17 @@ type DispatcherSelect struct {
 func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n"), true
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Models) == 0 {
-		return t, tea.Println(hintStyle.Render("no models configured · use /model") + "\n"), true
+		return t, tea.Println(msgLog("no models configured  use /model") + "\n"), true
 	}
 
 	options := make([]string, len(cfg.Models))
 	values := make([]string, len(cfg.Models))
 	cursor := 0
 	for i, m := range cfg.Models {
-		label := m.Name
+		label := modelLabel(m.Name)
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i
@@ -90,15 +90,15 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Load: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if cfg.DispatcherModel == name {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ dispatcher unchanged: %s", name)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", modelLabel(name))) + "\n")
 	}
 
 	cfg.DispatcherModel = name
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session.Save: %v", err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
-	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ dispatcher: %s", name)) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("dispatcher: %s", modelLabel(name))) + "\n")
 }

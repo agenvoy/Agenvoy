@@ -126,6 +126,7 @@ func New() *gin.Engine {
 	r.POST("/v1/config/system", localhostOnly(), handler.SetSystemConfig())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
+	r.PATCH("/v1/torii/error", localhostOnly(), handler.UpdateErrorMemory())
 
 	r.GET("/v1/channel", localhostOnly(), handler.GetChannel())
 	r.POST("/v1/channel/telegram", localhostOnly(), handler.SetTelegramChannel())

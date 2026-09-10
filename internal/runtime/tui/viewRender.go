@@ -371,19 +371,6 @@ func messageBlock(str string) string {
 	return sb.String()
 }
 
-func shellEchoBlock(str string) string {
-	var sb strings.Builder
-	for i, line := range strings.Split(str, "\n") {
-		if i > 0 {
-			sb.WriteString("\n  ")
-		} else {
-			sb.WriteString(warnStyle.Render("$ "))
-		}
-		sb.WriteString(userStyle.Render(line))
-	}
-	return sb.String()
-}
-
 func thinkingBlock(str string) string {
 	var sb strings.Builder
 	for i, line := range strings.Split(str, "\n") {
@@ -524,14 +511,14 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		}
 		if sessionLabel != "" {
 			if footer != "" {
-				footer = footer + " · [" + sessionLabel + "]"
+				footer = footer + "  [" + sessionLabel + "]"
 			} else {
 				footer = "[" + sessionLabel + "]"
 			}
 		}
 		if finishedAt != "" {
 			if footer != "" {
-				footer = footer + " · " + finishedAt
+				footer = footer + "  " + finishedAt
 			} else {
 				footer = finishedAt
 			}
@@ -544,7 +531,7 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 	case agentTypes.EventCanceled:
 		footer := "canceled"
 		if finishedAt != "" {
-			footer += " · " + finishedAt
+			footer += "  " + finishedAt
 		}
 		return warnStyle.Render("  ⎿ "+footer) + "\n", true
 	}

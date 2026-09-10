@@ -165,15 +165,22 @@ func (t TUI) commandNote(kind string) (TUI, tea.Cmd, bool) {
 func (t TUI) runNoteListed(msg NoteListed) (TUI, tea.Cmd) {
 	spec := noteSpecs[msg.kind]
 	if msg.err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s list: %v", spec.label, msg.err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s list: %v", spec.label, msg.err)) + "\n")
+	}
+
+	options := []string{"New"}
+	values := []string{""}
+	if len(msg.names) > 0 {
+		options = append(options, "")
+		values = append(values, "")
 	}
 
 	kind := msg.kind
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   fmt.Sprintf("%s · pick one to edit", spec.label),
-		options: append([]string{"New"}, msg.names...),
-		values:  append([]string{""}, msg.names...),
+		title:   fmt.Sprintf("%s  pick one to edit", spec.label),
+		options: append(options, msg.names...),
+		values:  append(values, msg.names...),
 		onConfirm: func(chosen string) any {
 			return NotePick{kind: kind, name: chosen}
 		},
@@ -204,7 +211,7 @@ func (t TUI) runNotePick(msg NotePick) (TUI, tea.Cmd) {
 func (t TUI) runNoteLoaded(msg NoteLoaded) (TUI, tea.Cmd) {
 	spec := noteSpecs[msg.kind]
 	if msg.err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s read %s: %v", spec.label, msg.name, msg.err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s read %s: %v", spec.label, msg.name, msg.err)) + "\n")
 	}
 
 	t.noteBodyDraft = msg.content
@@ -228,7 +235,7 @@ func (t TUI) runNoteTitleSubmit(msg NoteTitleSubmit) (TUI, tea.Cmd) {
 	spec := noteSpecs[msg.kind]
 	if msg.title == "" {
 		t.noteBodyDraft = ""
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s title required", spec.label)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s title required", spec.label)) + "\n")
 	}
 	return t.showNoteBodyPopup(msg.kind, msg.origin, msg.title)
 }
@@ -271,7 +278,7 @@ func (t TUI) noteSaveCmd(msg NoteBodySubmit) tea.Cmd {
 func (t TUI) runNoteSaved(msg NoteSaved) (TUI, tea.Cmd) {
 	spec := noteSpecs[msg.kind]
 	if msg.err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s save %s: %v", spec.label, msg.name, msg.err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s save %s: %v", spec.label, msg.name, msg.err)) + "\n")
 	}
-	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s saved: %s", spec.label, msg.name)) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("%s saved: %s", spec.label, msg.name)) + "\n")
 }

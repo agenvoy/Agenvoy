@@ -168,12 +168,21 @@ document.addEventListener("DOMContentLoaded", async function () {
         window.location.href = historyLink(panelSession(this) || currentSessionId, 0);
       },
       history_range: function () {
-        historySubmit();
+        rangeSubmit("History", "history");
       },
       history_keydown: function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
-          historySubmit();
+          rangeSubmit("History", "history");
+        }
+      },
+      lesson_range: function () {
+        rangeSubmit("Lessons", "lesson");
+      },
+      lesson_keydown: function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          rangeSubmit("Lessons", "lesson");
         }
       },
       skill_pick: function () {

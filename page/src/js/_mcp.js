@@ -95,17 +95,18 @@ async function renderMcp() {
     const state = status[name];
     const transport = server.url ? "http" : "stdio";
 
-    let mark = "not connected";
+    const detail = [transport];
     let flag = "off";
     if (state && state.Connected) {
-      mark = "connected";
       flag = "on";
     } else if (state && state.Error) {
-      mark = state.Error;
+      detail.push(state.Error);
       flag = "error";
+    } else {
+      detail.push("not connected");
     }
     if (server.auth === "oauth") {
-      mark = `${mark} · oauth ${oauth[name] ? "authorized" : "pending"}`;
+      detail.push(`oauth ${oauth[name] ? "authorized" : "pending"}`);
     }
 
     const remove = _("button", { type: "button" }, [_("span.material-symbols-outlined", "delete")]);
@@ -114,7 +115,7 @@ async function renderMcp() {
       deleteMcp(name);
     });
 
-    const card = _("div.card", [_("strong", name), _("p", `${transport} · ${mark}`), remove]);
+    const card = _("div.card", [_("strong", name), _("p", detail.join(" · ")), remove]);
     card.dataset.name = name;
     card.dataset.state = flag;
     card.dataset.selected = name === picked ? "1" : "0";

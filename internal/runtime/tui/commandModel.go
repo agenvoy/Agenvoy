@@ -1,7 +1,11 @@
 package tui
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
+
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type ModelScopeSelect struct {
@@ -13,8 +17,6 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		switch parts[1] {
 		case "add":
 			return t.commandModelAdd()
-		case "remove":
-			return t.commandModelRemove()
 		case "dispatch":
 			return t.commandDispatcher()
 		case "summary":
@@ -28,21 +30,46 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
+	actions := []string{"add", "dispatch", "summary", "image", "stt", "tts"}
+
+	options, values, cursor := registeredModelOptions(t.currentSessionID)
+	var styledLines []string
+	if len(options) == 0 {
+		styledLines = []string{hintStyle.Render("  no models configured")}
+	} else {
+		options = append(options, "")
+		values = append(values, "")
+	}
+	options = append(options, optionColumn(actions, []string{
+		"add model from provider",
+		"smart routing  picks the model for each request",
+		"summary memory  condenses history into session memory",
+		"image generation",
+		"audio analysis  transcribes audio files",
+		"speech generation",
+	})...)
+	values = append(values, actions...)
+
 	t.popup = &Popup{
-		kind:  popupSingleSelect,
-		title: "Model",
-		options: []string{
-			"add        add model from provider",
-			"remove     remove model from registry",
-			"dispatch   set dispatcher model",
-			"summary    set summary model",
-			"image      set image generator",
-			"stt        set speech-to-text model",
-			"tts        set text-to-speech model",
-		},
-		values: []string{"add", "remove", "dispatch", "summary", "image", "stt", "tts"},
+		kind:        popupSingleSelect,
+		title:       "Model",
+		styledLines: styledLines,
+		options:     options,
+		values:      values,
+		cursor:      cursor,
+		maxVisible:  len(options),
 		onConfirm: func(chosen string) any {
+			if name, ok := strings.CutPrefix(chosen, sessionModelPrefix); ok {
+				return SessionModelSelect{name: name}
+			}
 			return ModelScopeSelect{scope: chosen}
+		},
+		onDelete: func(chosen string) any {
+			name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
+			if !ok || name == configBot.DefaultModel {
+				return nil
+			}
+			return ModelRemovePick{name: name}
 		},
 	}
 	return t, nil, true

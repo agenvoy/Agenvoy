@@ -19,12 +19,12 @@ type Session struct {
 	name string
 }
 
-func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
+func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) >= 2 {
 		name := strings.Join(parts[1:], " ")
 		id := sessionManager.GetSessionID(name)
 		if id == "" {
-			return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] session %q not found", name)) + "\n"), true
+			return t, tea.Println(msgError(fmt.Sprintf("session %q not found", name)) + "\n"), true
 		}
 		next, cmd := t.runCommandSwitch(id)
 		return next, cmd, true
@@ -32,13 +32,13 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 
 	popup := popupSwitch(t.currentSessionID)
 	if popup == nil {
-		return t, tea.Println(hintStyle.Render("no sessions available") + "\n"), true
+		return t, tea.Println(msgLog("no sessions available") + "\n"), true
 	}
 	popup.onConfirm = func(chosen string) any {
-		if chosen == "" {
-			return SessionNew{}
-		}
 		return SessionSelect{id: chosen}
+	}
+	popup.onDelete = func(chosen string) any {
+		return SessionDeletePick{id: chosen}
 	}
 	t.popup = popup
 	return t, nil, true
@@ -46,7 +46,7 @@ func (t TUI) commandSwitch(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if id == t.currentSessionID {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ already on: %s", utils.ShortenSessionID(id))) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("already on: %s", utils.ShortenSessionID(id))) + "\n")
 	}
 	previous := t.currentSessionID
 	t.currentSessionID = id
@@ -63,7 +63,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	t.currentModel = ""
 	t.activity = ""
 
-	switchLines := []string{hintStyle.Render(fmt.Sprintf("⎯ switched to: %s", utils.ShortenSessionID(id)))}
+	switchLines := []string{msgLog(fmt.Sprintf("switched to: %s", utils.ShortenSessionID(id)))}
 	if previous != "" && previous != id {
 		switchLines = append(switchLines, hintStyle.Render(fmt.Sprintf("  previous: %s", utils.ShortenSessionID(previous))))
 	}
@@ -168,10 +168,11 @@ func popupSwitch(sid string) *Popup {
 	})
 
 	popup := &Popup{
-		kind:       popupSingleSelect,
-		title:      "Switch session",
-		maxVisible: cmdSelectorMaxVisible,
-		tabs:       sessionTabs(sessions),
+		kind:        popupSingleSelect,
+		title:       "Sessions",
+		maxVisible:  cmdSelectorMaxVisible,
+		enterAction: "switch",
+		tabs:        sessionTabs(sessions),
 	}
 	popup.onTab = func(p *Popup) {
 		fillSwitchOptions(p, sessions, sid)
@@ -221,9 +222,6 @@ func fillSwitchOptions(p *Popup, sessions []Session, sid string) {
 		names = append(names, label)
 		sids = append(sids, e.id)
 	}
-
-	names = append(names, "(new session)")
-	sids = append(sids, "")
 
 	p.options = names
 	p.values = sids

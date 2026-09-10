@@ -43,7 +43,6 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 		values = append(values, value)
 	}
 
-	add(padToWidth("off", adminChannelPad)+"log-only", "")
 	for _, e := range utils.ListChats(filesystem.TelegramAuthPath) {
 		add(adminChannelLabel("tg", e), "tg@"+e.ID)
 	}
@@ -53,8 +52,12 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 	for _, e := range utils.ListChats(filesystem.LineAuthPath) {
 		add(adminChannelLabel("ln", e), "ln@"+e.ID)
 	}
+	if len(options) > 0 {
+		add("", "")
+	}
+	add("disable  log-only", "")
 
-	cursor := 0
+	cursor := len(values) - 1
 	for i, v := range values {
 		if v != "" && v == current {
 			cursor = i
@@ -64,8 +67,8 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      "Admin Channel · relay new-chat verification codes",
-		subtitle:   "pick an authorized chat/channel · only listed (already-verified) targets receive codes",
+		title:      "Admin Channel  relay new-chat verification codes",
+		subtitle:   "pick an authorized chat/channel  only listed (already-verified) targets receive codes",
 		options:    options,
 		values:     values,
 		cursor:     cursor,

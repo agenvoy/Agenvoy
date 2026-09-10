@@ -45,6 +45,7 @@ type TUI struct {
 
 	popup         *Popup
 	popupQueue    []Pending
+	popupOrigin   *Popup
 	botBodyDraft  string
 	noteBodyDraft string
 	mcpAdd        *mcpAddDraft
@@ -78,8 +79,6 @@ type TUI struct {
 	runTarget      string
 	streaming      bool
 	tableBuf       []string
-	cmdMode        bool
-	execHandoff    bool
 
 	toolBuf         []string
 	toolCount       int
@@ -109,7 +108,7 @@ func (t TUI) Init() tea.Cmd {
 	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
 		if n := len(interactive.ListResumablePending(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
-			seq = append(seq, tea.Println(hintStyle.Render(hint)+"\n"))
+			seq = append(seq, tea.Println(msgLog(hint)+"\n"))
 		}
 	} else {
 		seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
@@ -129,7 +128,7 @@ type StartupSessionSelect struct {
 
 func newModel(ctx context.Context) TUI {
 	textArea := textarea.New()
-	textArea.Placeholder = `/ commands · enter send · esc cancel · shift+t cmd mode · shift+u usage · shift+m models · shift+f fast`
+	textArea.Placeholder = `/ commands  enter send  esc cancel  shift+u usage  shift+f fast`
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
@@ -286,7 +285,7 @@ func loadSessionTail(sid string, width int, all bool) []tea.Cmd {
 	}
 
 	cmds := make([]tea.Cmd, 0, len(lines)*2+2)
-	cmds = append(cmds, tea.Println(hintStyle.Render("⎯ "+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
+	cmds = append(cmds, tea.Println(msgLog(""+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
 	for i, l := range lines {
 		if i > 0 && l.kind != "done" && l.kind != "canceled" {
 			cmds = append(cmds, tea.Println(""))

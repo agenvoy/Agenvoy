@@ -3,8 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -26,6 +26,7 @@ type McpPermissionResult struct {
 	server string
 	tools  []mcp.Tool
 	err    error
+	back   *Popup
 }
 
 type McpPermissionPick struct {
@@ -34,29 +35,34 @@ type McpPermissionPick struct {
 }
 
 func (t TUI) openMcpPermission(name string) (TUI, tea.Cmd) {
+	back := t.popupOrigin
 	return t, func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		tools, err := mcp.Manager().Tools(ctx, name)
-		return McpPermissionResult{server: name, tools: tools, err: err}
+		return McpPermissionResult{server: name, tools: tools, err: err, back: back}
 	}
 }
 
 func (t TUI) runMcpPermissionResult(msg McpPermissionResult) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s tools: %v", msg.server, msg.err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s tools: %v", msg.server, msg.err)) + "\n")
 	}
 	if len(msg.tools) == 0 {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s exposes no tools", msg.server)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s exposes no tools", msg.server)) + "\n")
 	}
 
-	names := make([]string, 0, len(msg.tools))
+	nameSummary := make(map[string]string, len(msg.tools))
 	for _, tool := range msg.tools {
 		if trimmed := strings.TrimSpace(tool.Name); trimmed != "" {
-			names = append(names, trimmed)
+			nameSummary[trimmed], _, _ = strings.Cut(strings.TrimSpace(tool.Description), "\n")
 		}
 	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(nameSummary))
+	summaries := make([]string, len(names))
+	for i, name := range names {
+		summaries[i] = nameSummary[name]
+	}
 
 	granted := allowTool.LoadGlobal()
 	all := allowAllEntry(msg.server)
@@ -65,15 +71,15 @@ func (t TUI) runMcpPermissionResult(msg McpPermissionResult) (TUI, tea.Cmd) {
 	values := make([]string, 0, len(names)+1)
 	multi := make(map[int]bool, len(names)+1)
 
-	options = append(options, "all · every tool of this server")
+	options = append(options, "all  every tool of this server")
 	values = append(values, all)
 	if granted[all] {
 		multi[0] = true
 	}
 
+	options = append(options, optionColumn(names, summaries)...)
 	for _, name := range names {
 		entry := mcpToolPrefix(msg.server) + name
-		options = append(options, name)
 		values = append(values, entry)
 		if granted[entry] {
 			multi[len(values)-1] = true
@@ -97,12 +103,13 @@ func (t TUI) runMcpPermissionResult(msg McpPermissionResult) (TUI, tea.Cmd) {
 	server := msg.server
 	t.popup = &Popup{
 		kind:     popupMultiSelect,
-		title:    "MCP · " + server + " · permission",
+		title:    "MCP  " + server + "  tools",
 		subtitle: "selected tools skip the confirmation prompt in every work directory",
 		options:  options,
 		values:   values,
 		multi:    multi,
 		onToggle: syncAllRow,
+		back:     msg.back,
 		onConfirm: func(chosen string) any {
 			pick := McpPermissionPick{server: server}
 			if chosen != "" {
@@ -142,14 +149,14 @@ func (t TUI) runMcpPermissionPick(msg McpPermissionPick) (TUI, tea.Cmd) {
 	}
 
 	if err := allowTool.ReplaceGlobalPrefix(mcpToolPrefix(msg.server), entries); err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s permission: %v", msg.server, err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s permission: %v", msg.server, err)) + "\n")
 	}
 
 	if len(entries) == 0 {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s: every tool now asks for confirmation", msg.server)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s: every tool now asks for confirmation", msg.server)) + "\n")
 	}
 	if entries[0] == allowAllEntry(msg.server) {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s: all tools always allowed", msg.server)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s: all tools always allowed", msg.server)) + "\n")
 	}
-	return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s: %d tool(s) always allowed", msg.server, len(entries))) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("%s: %d tool(s) always allowed", msg.server, len(entries))) + "\n")
 }

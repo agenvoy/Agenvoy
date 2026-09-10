@@ -355,6 +355,7 @@ div.popup {
         font-size: small;
         border-radius: 0.375rem;
         color: var(--black);
+        background-color: var(--gray);
         transition: 0.2s;
 
         @media (hover: hover) {
