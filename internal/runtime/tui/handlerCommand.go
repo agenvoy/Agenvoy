@@ -35,14 +35,11 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
 		), true
 
-	case "/switch":
-		return t.commandSwitch(parts)
+	case "/sessions":
+		return t.commandSessions(parts)
 
 	case "/new":
 		return t.commandNew(parts)
-
-	case "/remove-session":
-		return t.commandRemoveSession()
 
 	case "/allow-skill":
 		return t.commandAllowSkill(parts)

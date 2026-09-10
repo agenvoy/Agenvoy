@@ -107,14 +107,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						fast.Enable()
 					}
 					return t, nil
-				case "T":
-					t.setCmdMode(!t.cmdMode)
-					return t, nil
 				case "U":
 					next, cmd, _ := t.commandProviderUsage()
-					return next, cmd
-				case "M":
-					next, cmd, _ := t.commandModelList()
 					return next, cmd
 				}
 			}
@@ -192,10 +186,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.textarea.Reset()
 			t.textarea.SetHeight(1)
 
-			if t.cmdMode {
-				return t.runShellCmd(content)
-			}
-
 			if strings.HasPrefix(content, "/") {
 				if next, cmd, handled := t.handleCommand(content); handled {
 					return next, cmd
@@ -231,10 +221,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.toolBuf, t.toolCount = nil, 0
 		t.subCount, t.subActive = 0, 0
 		t.subBuf, t.subOrder = nil, nil
-		return t, nil
-
-	case CmdDone:
-		t.execHandoff = false
 		return t, nil
 
 	case agentExecDone:
@@ -750,7 +736,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TaskRemoveConfirm:
 		if !msg.yes {
-			return t, nil
+			next, cmd, _ := t.commandTask()
+			return next, cmd
 		}
 		next, cmd := t.runTaskRemove(msg.skill)
 		return next, cmd
@@ -764,8 +751,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case RemoveSessionPick:
-		return t.runRemoveSessionPick(msg.chosen)
+	case SessionDeletePick:
+		next, cmd := t.openSessionDeleteConfirm(msg.id)
+		return next, cmd
 
 	case RemoveSessionConfirm:
 		return t.runRemoveSessionConfirm(msg)
@@ -832,17 +820,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Println(msgLog(fmt.Sprintf("startup %sd", msg.action)) + "\n")
 
-	case ChannelRevokeList:
-		next, cmd := t.openChannelRevokeList(msg.channel)
-		return next, cmd
-
 	case ChannelRevokePick:
 		next, cmd := t.openChannelRevokeConfirm(msg)
 		return next, cmd
 
 	case ChannelRevokeConfirm:
 		if !msg.yes {
-			return t, nil
+			next, cmd, _ := t.commandChannel([]string{"channel", msg.channel})
+			return next, cmd
 		}
 		return t, revokeChannelChat(msg.channel, msg.id, msg.label)
 
@@ -850,7 +835,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, tea.Println(msgError(fmt.Sprintf("revoke %s: %v", msg.channel, msg.err)) + "\n")
 		}
-		return t, tea.Println(msgLog("revoked  "+msg.name) + "\n")
+		next, cmd, _ := t.commandChannel([]string{"channel", msg.channel})
+		return next, tea.Sequence(tea.Println(msgLog("revoked  "+msg.name)+"\n"), cmd)
 
 	case KeyDeletePick:
 		next, cmd := t.openKeyDeleteConfirm(msg.key)
@@ -858,7 +844,8 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case KeyDeleteConfirm:
 		if !msg.yes {
-			return t, nil
+			next, cmd, _ := t.commandKey(nil)
+			return next, cmd
 		}
 		next, cmd := t.runKeyDelete(msg.key)
 		return next, cmd

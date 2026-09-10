@@ -58,6 +58,7 @@ type Popup struct {
 
 	onConfirm func(chosen string) any
 	onDelete  func(chosen string) any
+	onCancel  func() any
 
 	oauth *oauthState
 }
@@ -234,7 +235,11 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyEsc:
 		if p.pendingId == "" {
+			cb := p.onCancel
 			t = t.closePopup()
+			if cb != nil {
+				return t, func() tea.Msg { return cb() }
+			}
 		} else {
 			runtime.Resolve(p.pendingId, runtime.Reply{
 				Error: fmt.Errorf("user cancelled"),

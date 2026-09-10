@@ -35,9 +35,8 @@ type Command struct {
 var commands = []Command{
 	{"model", "add / remove provider  pick session / dispatch / summary model  image / stt / tts"},
 	{"mcp", "list MCP servers  add  per-server login, reconnect, tools, remove"},
-	{"switch", "switch / change current session via picker"},
+	{"sessions", "switch current session  enter switch  d delete"},
 	{"new", "create / add new session  name conflict-checked"},
-	{"remove-session", "delete current session"},
 	{"allow-skill", "always-allow skill (skip permission)  global / project"},
 	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis  confirm required"},
 	{"reset", "reset / refresh current session  double-confirm  summary regen first then drop history + task history + action.log"},
@@ -102,7 +101,7 @@ func queryCmdSelector(content string) (query string, ok bool) {
 }
 
 func isDangerCommand(name string) bool {
-	return strings.HasPrefix(name, "allow-") || name == "remove-session"
+	return strings.HasPrefix(name, "allow-")
 }
 
 func getCmdSelectorItems(query, sessionID string) []CmdSelectorItem {

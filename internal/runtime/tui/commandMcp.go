@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
@@ -46,12 +47,14 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 	options := make([]string, 0, len(list)+1)
 	values := make([]string, 0, len(list)+1)
 	tails := make([]string, 0, len(list)+1)
-	maxName := 0
+
+	maxName, maxTransport := 0, 0
 	for _, s := range list {
-		maxName = max(maxName, len(s.Name))
+		maxName = max(maxName, lipgloss.Width(s.Name))
+		maxTransport = max(maxTransport, lipgloss.Width(s.Transport))
 	}
 	for _, s := range list {
-		options = append(options, fmt.Sprintf("%-*s · %s ·", maxName, s.Name, s.Transport))
+		options = append(options, padToWidth(s.Name, maxName+2)+padToWidth(s.Transport, maxTransport+1))
 		values = append(values, "server:"+s.Name)
 		tails = append(tails, mcpStateLabel(s))
 	}
@@ -93,38 +96,38 @@ func mcpServerStatus(name string) (mcp.ServerInfo, bool) {
 func mcpStateLabel(s mcp.ServerInfo) string {
 	switch {
 	case !s.Connected:
-		return errorStyle.Render("disconnected")
+		return errorStyle.Render("[disconnected]")
 	case s.Error != "":
-		return warnStyle.Render("tools unavailable")
+		return warnStyle.Render("[tools unavailable]")
 	default:
-		return okayStyle.Render("connected")
+		return okayStyle.Render("[connected]")
 	}
 }
 
 func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 	info, ok := mcpServerStatus(name)
 	if !ok {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] mcp server %q not found", name)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("mcp server %q not found", name)) + "\n")
 	}
 
-	subtitle := fmt.Sprintf("%s · %s", info.Transport, mcpStateLabel(info))
+	subtitle := fmt.Sprintf("%s  %s", info.Transport, mcpStateLabel(info))
 	if info.Error != "" {
 		subtitle = fmt.Sprintf("%s\n%s", subtitle, errorStyle.Render(info.Error))
 	}
 
-	options := []string{"tools · list registered tools", "permission · pick always-allowed tools", "reconnect", "remove"}
 	values := []string{"tools", "permission", "reconnect", "remove"}
+	details := []string{"list registered tools", "pick always-allowed tools", "", ""}
 
 	cfg, err := mcp.Load()
 	if err == nil && cfg.Servers[name].IsOAuth() {
-		oauth := []string{"login · browser oauth", "client · set oauth client id / secret"}
-		options = append(oauth, options...)
 		values = append([]string{"login", "client"}, values...)
+		details = append([]string{"browser oauth", "set oauth client id / secret"}, details...)
 	}
+	options := optionColumn(values, details)
 
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    "MCP · " + name,
+		title:    "MCP  " + name,
 		subtitle: subtitle,
 		options:  options,
 		values:   values,
@@ -183,10 +186,10 @@ func (t TUI) listMcpTools(name string) (TUI, tea.Cmd) {
 
 func (t TUI) runMcpToolsResult(msg McpToolsResult) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] %s tools: %v", msg.server, msg.err)) + "\n")
+		return t, tea.Println(msgError(fmt.Sprintf("%s tools: %v", msg.server, msg.err)) + "\n")
 	}
 	if len(msg.tools) == 0 {
-		return t, tea.Println(hintStyle.Render(fmt.Sprintf("⎯ %s exposes no tools", msg.server)) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("%s exposes no tools", msg.server)) + "\n")
 	}
 
 	maxName := 0
@@ -194,7 +197,7 @@ func (t TUI) runMcpToolsResult(msg McpToolsResult) (TUI, tea.Cmd) {
 		maxName = max(maxName, len(tool.Name))
 	}
 	lines := make([]string, 0, len(msg.tools)+1)
-	lines = append(lines, hintStyle.Render(fmt.Sprintf("⎯ %s · %d tools", msg.server, len(msg.tools))))
+	lines = append(lines, msgLog(fmt.Sprintf("%s  %d tools", msg.server, len(msg.tools))))
 	for _, tool := range msg.tools {
 		summary, _, _ := strings.Cut(strings.TrimSpace(tool.Description), "\n")
 		lines = append(lines, fmt.Sprintf("  %s  %s",

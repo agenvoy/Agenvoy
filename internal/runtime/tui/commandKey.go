@@ -74,6 +74,9 @@ func (t TUI) openKeyDeleteConfirm(key string) (TUI, tea.Cmd) {
 		onConfirm: func(chosen string) any {
 			return KeyDeleteConfirm{key: key, yes: chosen == "yes"}
 		},
+		onCancel: func() any {
+			return KeyDeleteConfirm{key: key}
+		},
 	}
 	return t, nil
 }
@@ -86,7 +89,9 @@ func (t TUI) runKeyDelete(key string) (TUI, tea.Cmd) {
 		return t, tea.Println(msgError(fmt.Sprintf("config.DeleteKey %s: %v", key, err)) + "\n")
 	}
 	imageTool.Prune(context.Background())
-	return t, tea.Println(msgLog("key deleted: "+key) + "\n")
+
+	next, cmd, _ := t.commandKey(nil)
+	return next, tea.Sequence(tea.Println(msgLog("key deleted: "+key)+"\n"), cmd)
 }
 
 func (t TUI) openKeyValuePrompt(key string) (TUI, tea.Cmd) {

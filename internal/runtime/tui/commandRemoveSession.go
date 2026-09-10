@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,139 +19,30 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-type RemoveSessionPick struct{ chosen string }
+type SessionDeletePick struct{ id string }
 
 type RemoveSessionConfirm struct {
 	ids []string
 	yes bool
 }
 
-func (t TUI) commandRemoveSession() (TUI, tea.Cmd, bool) {
-	sessions := listSessions()
-	if len(sessions) == 0 {
-		return t, tea.Println(hintStyle.Render("no sessions") + "\n"), true
-	}
-
-	currentSID := strings.TrimSpace(t.currentSessionID)
-
-	sort.SliceStable(sessions, func(i, j int) bool {
-		if sessions[i].id == currentSID {
-			return true
-		}
-		if sessions[j].id == currentSID {
-			return false
-		}
-		return false
-	})
-
-	popup := &Popup{
-		kind:       popupMultiSelect,
-		title:      "Select sessions to remove",
-		maxVisible: cmdSelectorMaxVisible,
-		tabs:       sessionTabs(sessions),
-		multi:      make(map[int]bool),
-	}
-
-	picked := map[string]bool{}
-	harvest := func(p *Popup) {
-		for i, on := range p.multi {
-			if i >= len(p.values) {
-				continue
-			}
-			if on {
-				picked[p.values[i]] = true
-				continue
-			}
-			delete(picked, p.values[i])
-		}
-	}
-
-	popup.onTab = func(p *Popup) {
-		harvest(p)
-		fillRemoveOptions(p, sessions, currentSID)
-		p.multi = make(map[int]bool, len(p.values))
-		for i, id := range p.values {
-			if picked[id] {
-				p.multi[i] = true
-			}
-		}
-	}
-	popup.onTab(popup)
-
-	popup.onConfirm = func(string) any {
-		harvest(popup)
-		ids := make([]string, 0, len(picked))
-		for _, s := range sessions {
-			if picked[s.id] {
-				ids = append(ids, s.id)
-			}
-		}
-		return RemoveSessionPick{chosen: strings.Join(ids, "\x1F")}
-	}
-
-	t.popup = popup
-	return t, nil, true
-}
-
-func fillRemoveOptions(p *Popup, sessions []Session, currentSID string) {
-	tab := ""
-	if p.tabIdx > 0 && p.tabIdx < len(p.tabs) {
-		tab = p.tabs[p.tabIdx]
-	}
-
-	options := make([]string, 0, len(sessions))
-	values := make([]string, 0, len(sessions))
-	for _, s := range sessions {
-		if tab != "" && !strings.HasPrefix(s.id, tab) {
-			continue
-		}
-		short := utils.ShortenSessionID(s.id)
-		label := short
-		if s.name != "" && s.name != s.id {
-			label = fmt.Sprintf("%s (%s)", s.name, short)
-		}
-		if s.id == currentSID {
-			label += " · (current)"
-		}
-		options = append(options, label)
-		values = append(values, s.id)
-	}
-
-	p.options = options
-	p.values = values
-	p.cursor = 0
-}
-
-func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {
-	if chosen == "" {
-		return t, nil
-	}
-
-	var ids []string
-	for _, entry := range strings.Split(chosen, "\x1F") {
-		id := strings.TrimSpace(strings.SplitN(entry, "\x00", 2)[0])
-		if id != "" {
-			ids = append(ids, id)
-		}
-	}
-	if len(ids) == 0 {
-		return t, nil
-	}
-
-	labels := make([]string, len(ids))
-	for i, id := range ids {
-		labels[i] = utils.ShortenSessionID(id)
+func (t TUI) openSessionDeleteConfirm(id string) (TUI, tea.Cmd) {
+	label := utils.ShortenSessionID(id)
+	if name, _ := configBot.Get(id); name != "" && name != id {
+		label = name + " (" + label + ")"
 	}
 
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    fmt.Sprintf("Remove %d session(s)? This cannot be undone.", len(ids)),
-		subtitle: strings.Join(labels, ", "),
-		options:  []string{"No", "Yes  delete them"},
+		title:    "Remove " + label + " ?",
+		subtitle: "history, task history and action.log are deleted with it",
+		options:  []string{"No", "Yes"},
 		values:   []string{"no", "yes"},
-		cursor:   0,
 		onConfirm: func(chosen string) any {
-			return RemoveSessionConfirm{ids: ids, yes: chosen == "yes"}
+			return RemoveSessionConfirm{ids: []string{id}, yes: chosen == "yes"}
+		},
+		onCancel: func() any {
+			return RemoveSessionConfirm{ids: []string{id}}
 		},
 	}
 	return t, nil
@@ -160,7 +50,8 @@ func (t TUI) runRemoveSessionPick(chosen string) (TUI, tea.Cmd) {
 
 func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	if !msg.yes {
-		return t, nil
+		next, cmd, _ := t.commandSessions(nil)
+		return next, cmd
 	}
 
 	removedCurrent := false
@@ -185,7 +76,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	}
 
 	if len(removed) == 0 {
-		return t, tea.Println(errorStyle.Render("[!] failed to remove sessions") + "\n")
+		return t, tea.Println(msgError("failed to remove sessions") + "\n")
 	}
 
 	if removedCurrent {
@@ -193,7 +84,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 		if fallback == "" {
 			created, err := session.New("cli-")
 			if err != nil {
-				return t, tea.Println(errorStyle.Render(fmt.Sprintf("[!] create fallback session: %v", err)) + "\n")
+				return t, tea.Println(msgError(fmt.Sprintf("create fallback session: %v", err)) + "\n")
 			}
 			fallback = created
 		}
@@ -209,10 +100,11 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 		t.activity = ""
 	}
 
-	return t, tea.Sequence(
+	next, _, _ := t.commandSessions(nil)
+	return next, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
-		tea.Println(hintStyle.Render(fmt.Sprintf("⎯ removed: %s", strings.Join(removed, ", ")))+"\n"),
+		tea.Println(msgLog(fmt.Sprintf("removed: %s", strings.Join(removed, ", ")))+"\n"),
 	)
 }
 
