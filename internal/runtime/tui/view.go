@@ -356,7 +356,7 @@ func (t TUI) sessionName() string {
 	model, reasoning := configBot.GetModel(sid)
 	modelPart := hintStyle.Render(model)
 	if model != configBot.DefaultModel {
-		modelPart = warnStyle.Render(modelLabel(model))
+		modelPart = warnStyle.Render(model)
 	}
 
 	var reasonPart string

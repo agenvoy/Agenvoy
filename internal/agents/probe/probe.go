@@ -3,8 +3,11 @@ package probe
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
+
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
@@ -16,6 +19,7 @@ import (
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
 	"github.com/pardnchiu/go-llm-router/core/mistral"
 	"github.com/pardnchiu/go-llm-router/core/nvidia"
+	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
@@ -72,6 +76,10 @@ func lookup(prov string) listFn {
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return openrouter.Models(ctx, cfg, filter)
 		}
+	case "ollama-cloud":
+		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+			return ollamacloud.Models(ctx, cfg, filter)
+		}
 	case "cloudflare":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return cloudflare.Models(ctx, cfg, filter)
@@ -89,13 +97,53 @@ func Models(ctx context.Context, name string) ([]string, error) {
 	prov := Provider(name)
 	fn := lookup(prov)
 	if fn == nil {
-		return nil, fmt.Errorf("provider %q does not support model listing", prov)
+		if _, ok := agentKeychain.CompatInstance(name); !ok {
+			return nil, fmt.Errorf("provider %q does not support model listing", prov)
+		}
+		fn = func(ctx context.Context, cfg provider.Config) ([]string, error) {
+			return CompatModels(ctx, cfg.BaseURL, cfg.APIKey)
+		}
 	}
 	cfg, err := agentKeychain.Config(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	return fn(ctx, cfg)
+}
+
+func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error) {
+	baseURL = strings.TrimRight(baseURL, "/")
+	if baseURL == "" {
+		return nil, fmt.Errorf("compat base url is not configured")
+	}
+
+	var headers map[string]string
+	if apiKey != "" {
+		headers = map[string]string{"Authorization": "Bearer " + apiKey}
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	data, status, err := go_pkg_http.GET[compatModelList](ctx, client, baseURL+"/models", headers)
+	if err != nil {
+		return nil, fmt.Errorf("go_pkg_http.GET %s/models: %w", baseURL, err)
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("%s/models: http %d", baseURL, status)
+	}
+
+	ids := make([]string, 0, len(data.Data))
+	for _, one := range data.Data {
+		if id := strings.TrimSpace(one.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
+type compatModelList struct {
+	Data []struct {
+		ID string `json:"id"`
+	} `json:"data"`
 }
 
 func Provider(name string) string {

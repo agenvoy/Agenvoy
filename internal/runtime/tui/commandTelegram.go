@@ -96,7 +96,7 @@ func disableTelegram() tea.Cmd {
 		if err != nil {
 			return TelegramDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
 		}
-		if !cfg.TelegramEnabled && keychain.Get(telegram.Key) == "" {
+		if !cfg.TelegramEnabled && cfg.TelegramUsername == "" && keychain.Get(telegram.Key) == "" {
 			return TelegramDone{action: "disable"}
 		}
 		if err := keychain.Delete(telegram.Key); err != nil {
@@ -104,6 +104,7 @@ func disableTelegram() tea.Cmd {
 				slog.String("error", err.Error()))
 		}
 		cfg.TelegramEnabled = false
+		cfg.TelegramUsername = ""
 		if err := config.Save(cfg); err != nil {
 			return TelegramDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
 		}

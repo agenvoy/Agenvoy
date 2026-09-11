@@ -1,0 +1,9 @@
+@mixin gridItem {
+  flex: 1 1 calc((100% - 0.5rem * 2) / 3);
+  max-width: calc((100% - 0.5rem * 2) / 3);
+
+  @media (min-width: 1680px) {
+    flex-basis: calc((100% - 0.5rem * 3) / 4);
+    max-width: calc((100% - 0.5rem * 3) / 4);
+  }
+}

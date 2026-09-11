@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 )
@@ -28,6 +29,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	hasCodex := false
 	hasGrokOauth := false
 	hasCopilot := false
+	hasOllamaCloud := false
 	hasDeepseek := false
 	hasOpenRouter := false
 	for _, e := range exec.GetAgent() {
@@ -39,13 +41,15 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 			hasGrokOauth = true
 		case "copilot":
 			hasCopilot = true
+		case "ollama-cloud":
+			hasOllamaCloud = true
 		case "deepseek":
 			hasDeepseek = true
 		case "openrouter":
 			hasOpenRouter = true
 		}
 	}
-	if !hasCodex && !hasGrokOauth && !hasCopilot && !hasDeepseek && !hasOpenRouter {
+	if !hasCodex && !hasGrokOauth && !hasCopilot && !hasOllamaCloud && !hasDeepseek && !hasOpenRouter {
 		return t, nil, true
 	}
 
@@ -53,7 +57,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		lines := make([]string, 5)
+		lines := make([]string, 6)
 		var wg sync.WaitGroup
 
 		fetch := func(idx int, run func() string) {
@@ -73,13 +77,17 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 			wg.Add(1)
 			go fetch(2, func() string { return fetchProviderUsage(ctx, "Copilot", "copilot", copilot.Usage) })
 		}
+		if hasOllamaCloud {
+			wg.Add(1)
+			go fetch(3, func() string { return fetchProviderUsage(ctx, "Ollama Cloud", "ollama-cloud", ollamacloud.Usage) })
+		}
 		if hasOpenRouter {
 			wg.Add(1)
-			go fetch(3, func() string { return fetchProviderBalance(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
+			go fetch(4, func() string { return fetchProviderBalance(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
 		}
 		if hasDeepseek {
 			wg.Add(1)
-			go fetch(4, func() string { return fetchProviderBalance(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
+			go fetch(5, func() string { return fetchProviderBalance(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
 		}
 		wg.Wait()
 

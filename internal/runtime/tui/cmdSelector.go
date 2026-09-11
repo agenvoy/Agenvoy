@@ -52,6 +52,7 @@ var commands = []Command{
 	{"pending", "list / resume interrupted tasks  error recovery  ask_user resume"},
 	{"key", "update / rotate keychain value  pick from recorded keys"},
 	{"reply-language", "force every reply into one language  auto follows each message"},
+	{"output-dir", "where generated files land  blank uses ~/Downloads"},
 	{"clear", "clear visible transcript / history  memory untouched"},
 	{"exit", "exit / quit TUI  daemon keeps running"},
 }

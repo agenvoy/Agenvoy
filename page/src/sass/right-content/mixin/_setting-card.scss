@@ -1,0 +1,67 @@
+@use "action-button" as *;
+
+@mixin settingCard {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-grow: 1;
+  min-width: 20rem;
+  min-height: 10rem;
+  padding: 0.75rem;
+  box-sizing: border-box;
+  background-color: var(--gray);
+  border: 1px solid var(--gray-2);
+  border-radius: 0.5rem;
+
+  > div.label {
+    display: flex;
+    flex-flow: column;
+    gap: 0.125rem;
+    flex: 1 1 auto;
+    min-width: 0;
+
+    > strong {
+      font-size: medium;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    > p {
+      font-size: small;
+      font-weight: 300;
+      color: var(--gray-3);
+    }
+  }
+
+  > select {
+    align-self: flex-start;
+    margin-top: auto;
+    flex: 0 0 auto;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    text-align: left;
+    background-color: transparent;
+    border: none;
+  }
+
+  > div.row {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
+    width: 100%;
+
+    > input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    > button.submit {
+      @include actionButton;
+      flex: 0 0 auto;
+    }
+  }
+}

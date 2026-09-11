@@ -28,6 +28,7 @@ type Config struct {
 	STTModel         string        `json:"stt_model"`
 	TTSModel         string        `json:"tts_model"`
 	AdminChannel     string        `json:"admin_channel"`
+	OutputDir        string        `json:"output_dir"`
 }
 
 type ModelEntry struct {
@@ -68,6 +69,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", filesystem.ConfigPath, err)
 	}
+	normalizeModels(&cfg)
 	return &cfg, nil
 }
 
@@ -90,6 +92,8 @@ func Write(dic map[string]any) error {
 }
 
 func Save(cfg *Config) error {
+	normalizeModels(cfg)
+
 	oldDic, err := Get()
 	if err != nil {
 		oldDic = map[string]any{}

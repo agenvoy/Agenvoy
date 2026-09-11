@@ -102,6 +102,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 	return strings.NewReplacer(
 		"{{.SystemOS}}", systemOS,
 		"{{.WorkPath}}", workDir,
+		"{{.OutputDir}}", filesystem.OutputDir(),
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.BotPersona}}", personaSection,

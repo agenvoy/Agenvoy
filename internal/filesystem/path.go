@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -299,4 +300,43 @@ func TrashDir(src, trashBase, name string) (string, error) {
 		return "", fmt.Errorf("os.Rename [%s → %s]: %w", src, dst, err)
 	}
 	return dst, nil
+}
+
+func OutputDir() string {
+	if raw := ConfigOutputDir; raw != "" {
+		dir, err := ResolveOutputDir(raw)
+		if err == nil {
+			return dir
+		}
+		slog.Warn("output_dir unusable, falling back to the default",
+			slog.String("dir", raw),
+			slog.String("error", err.Error()))
+	}
+	return defaultOutputDir()
+}
+
+func defaultOutputDir() string {
+	if home, err := os.UserHomeDir(); err == nil && go_pkg_filesystem_reader.IsDir(filepath.Join(home, "Downloads")) {
+		return filepath.Join(home, "Downloads")
+	}
+	return DownloadDir
+}
+
+func ResolveOutputDir(raw string) (string, error) {
+	dir := strings.TrimSpace(raw)
+	if dir == "" {
+		return defaultOutputDir(), nil
+	}
+	if rest, ok := strings.CutPrefix(dir, "~"); ok {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("os.UserHomeDir: %w", err)
+		}
+		dir = filepath.Join(home, rest)
+	}
+	dir = filepath.Clean(dir)
+	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
+		return "", fmt.Errorf("go_pkg_filesystem.CheckDir [%s]: %w", dir, err)
+	}
+	return dir, nil
 }

@@ -26,7 +26,7 @@ func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 	values := make([]string, len(cfg.Models))
 	cursor := 0
 	for i, m := range cfg.Models {
-		label := modelLabel(m.Name)
+		label := m.Name
 		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i
@@ -93,12 +93,12 @@ func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if cfg.DispatcherModel == name {
-		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", modelLabel(name))) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
 	}
 
 	cfg.DispatcherModel = name
 	if err := config.Save(cfg); err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("dispatcher: %s", modelLabel(name))) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
 }

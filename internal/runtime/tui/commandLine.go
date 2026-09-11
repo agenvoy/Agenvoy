@@ -118,7 +118,7 @@ func disableLine() tea.Cmd {
 		if err != nil {
 			return LineDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
 		}
-		if !cfg.LineEnabled && keychain.Get(line.SecretKey) == "" && keychain.Get(line.TokenKey) == "" {
+		if !cfg.LineEnabled && cfg.LineUsername == "" && keychain.Get(line.SecretKey) == "" && keychain.Get(line.TokenKey) == "" {
 			return LineDone{action: "disable"}
 		}
 		if err := keychain.Delete(line.SecretKey); err != nil {
@@ -130,6 +130,7 @@ func disableLine() tea.Cmd {
 				slog.String("error", err.Error()))
 		}
 		cfg.LineEnabled = false
+		cfg.LineUsername = ""
 		if err := config.Save(cfg); err != nil {
 			return LineDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
 		}

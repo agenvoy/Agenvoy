@@ -4,11 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
-
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -53,9 +50,5 @@ Any other file, or a change to a file that already exists → edit_file.`,
 }
 
 func reportPath() string {
-	base := filesystem.DownloadDir
-	if home, err := os.UserHomeDir(); err == nil && go_pkg_filesystem_reader.IsDir(filepath.Join(home, "Downloads")) {
-		base = filepath.Join(home, "Downloads")
-	}
-	return filepath.Join(base, "report-"+time.Now().Format("20060102-150405")+".md")
+	return filepath.Join(filesystem.OutputDir(), "report-"+time.Now().Format("20060102-150405")+".md")
 }

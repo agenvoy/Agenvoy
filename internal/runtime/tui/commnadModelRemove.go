@@ -21,7 +21,7 @@ type ModelRemoveConfirm struct {
 func (t TUI) openModelRemoveConfirm(name string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    "Remove " + modelLabel(name) + " ?",
+		title:    "Remove " + name + " ?",
 		subtitle: "removed from the registry  stored credentials are kept",
 		options:  []string{"No", "Yes"},
 		values:   []string{"no", "yes"},
@@ -33,7 +33,7 @@ func (t TUI) openModelRemoveConfirm(name string) (TUI, tea.Cmd) {
 }
 
 func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
-	label := modelLabel(name)
+	label := name
 	cfg, err := config.Load()
 	if err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")

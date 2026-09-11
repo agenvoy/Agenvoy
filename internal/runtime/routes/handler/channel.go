@@ -69,9 +69,7 @@ func SetTelegramChannel() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		setChannel(c, telegram.Key, func(cfg *config.Config, enabled bool) {
 			cfg.TelegramEnabled = enabled
-			if enabled {
-				cfg.TelegramUsername = ""
-			}
+			cfg.TelegramUsername = ""
 		})
 	}
 }
@@ -80,9 +78,7 @@ func SetDiscordChannel() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		setChannel(c, discord.Key, func(cfg *config.Config, enabled bool) {
 			cfg.DiscordEnabled = enabled
-			if enabled {
-				cfg.DiscordUsername = ""
-			}
+			cfg.DiscordUsername = ""
 		})
 	}
 }
@@ -135,10 +131,8 @@ func SetLineChannel() gin.HandlerFunc {
 			return
 		}
 		cfg.LineEnabled = enabled
-		if enabled {
-			// * line.New writes the display name back once the webhook starts
-			cfg.LineUsername = ""
-		}
+		// * line.New writes the display name back once the webhook starts
+		cfg.LineUsername = ""
 		if err := config.Save(cfg); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

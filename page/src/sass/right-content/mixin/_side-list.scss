@@ -1,0 +1,178 @@
+@mixin sideList {
+  div.side {
+    display: flex;
+    flex-flow: column;
+    gap: 0.5rem;
+    width: 16rem;
+    flex-shrink: 0;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+
+    > details.group {
+      display: flex;
+      flex-flow: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+      flex-shrink: 1;
+      padding-bottom: 5rem;
+      min-height: 0;
+      overflow-y: scroll;
+
+      @media (max-width: 767px) {
+        flex-grow: 0;
+        flex-shrink: 0;
+        overflow: visible;
+      }
+
+      &[open] > summary span {
+        transform: rotate(180deg);
+      }
+
+      > summary {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        height: 1.5rem;
+        line-height: 1.5rem;
+        list-style: none;
+        font-size: small;
+        font-weight: 300;
+        color: var(--gray-3);
+        cursor: pointer;
+        user-select: none;
+
+        &::-webkit-details-marker {
+          display: none;
+        }
+
+        > span.material-symbols-outlined {
+          font-size: medium;
+          transition: 0.2s;
+        }
+      }
+
+      @media (min-width: 768px) {
+        > summary {
+          display: none;
+        }
+
+        &::details-content {
+          content-visibility: visible;
+          block-size: auto;
+        }
+      }
+    }
+
+    @media (max-width: 767px) {
+      width: 100%;
+      height: auto;
+      align-self: auto;
+    }
+
+    > a.new,
+    > button.new {
+      display: flex;
+      text-decoration: none;
+      flex-flow: row;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 0.5rem;
+
+      > span.material-symbols-outlined {
+        width: 1.5rem;
+        text-align: center;
+      }
+      background-color: var(--gray);
+      color: var(--gray-3);
+      transition: 0.2s;
+
+      @media (hover: hover) {
+        &:hover {
+          background-color: var(--gray-2);
+          color: var(--ink);
+        }
+      }
+
+      p {
+        font-size: small;
+      }
+    }
+  }
+
+  div.list {
+    display: flex;
+    flex-flow: column;
+    gap: 0.5rem;
+
+    > span.group {
+      margin-top: 0.25rem;
+      font-size: small;
+      font-weight: 500;
+      line-height: 1.5rem;
+      color: var(--gray-3);
+    }
+
+    .card {
+      text-decoration: none;
+      position: relative;
+      display: flex;
+      flex-flow: column;
+      gap: 0.125rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 0.5rem;
+      background-color: var(--gray);
+      cursor: pointer;
+      transition: 0.2s;
+
+      @media (hover: hover) {
+        &:hover {
+          background-color: var(--gray-2);
+        }
+
+        &:hover > button {
+          opacity: 0.35;
+        }
+      }
+
+      > strong {
+        font-size: small;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      > p {
+        font-size: small;
+        font-weight: 300;
+        color: var(--gray-3);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      > button {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        color: var(--gray-3);
+        transition: 0.2s;
+
+        @media (hover: hover) {
+          &:hover {
+            opacity: 1 !important;
+            color: var(--ink);
+          }
+        }
+      }
+    }
+  }
+
+  div.list .card[data-selected="1"] {
+    background-color: var(--gray-2);
+  }
+}

@@ -3,6 +3,7 @@ package keychain
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	sessionConfig "github.com/pardnchiu/agenvoy/internal/session/config"
@@ -67,6 +68,13 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 		}
 		return provider.Config{APIKey: apiKey}, nil
 
+	case "ollama-cloud":
+		apiKey := go_pkg_keychain.Get("OLLAMA-CLOUD_API_KEY")
+		if apiKey == "" {
+			return provider.Config{}, fmt.Errorf("keychain.Get: OLLAMA-CLOUD_API_KEY is required")
+		}
+		return provider.Config{APIKey: apiKey}, nil
+
 	case "openrouter":
 		apiKey := go_pkg_keychain.Get("OPENROUTER_API_KEY")
 		if apiKey == "" {
@@ -87,22 +95,6 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 			APIKey:    apiKey,
 			AccountID: accountID,
 			GatewayID: go_pkg_keychain.Get("CLOUDFLARE_GATEWAY_ID"),
-		}, nil
-
-	case "compat":
-		instanceName := ""
-		if start := strings.Index(name, "["); start != -1 {
-			if end := strings.Index(name, "]"); end > start {
-				instanceName = strings.ToUpper(name[start+1 : end])
-			}
-		}
-		apiKeyEnvKey := "COMPAT_API_KEY"
-		if instanceName != "" {
-			apiKeyEnvKey = "COMPAT_" + instanceName + "_API_KEY"
-		}
-		return provider.Config{
-			APIKey:  go_pkg_keychain.Get(apiKeyEnvKey),
-			BaseURL: sessionConfig.GetCompatURL(instanceName),
 		}, nil
 
 	case "copilot":
@@ -148,6 +140,41 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 		return provider.Config{APIKey: token.AccessToken, Token: token}, nil
 
 	default:
-		return provider.Config{}, fmt.Errorf("credential.Resolve: unknown provider %q in %q", prov, name)
+		instance, ok := CompatInstance(name)
+		if !ok {
+			return provider.Config{}, fmt.Errorf("credential.Resolve: unknown provider %q in %q", prov, name)
+		}
+		apiKeyEnvKey := "COMPAT_API_KEY"
+		if instance != "" {
+			apiKeyEnvKey = "COMPAT_" + instance + "_API_KEY"
+		}
+		return provider.Config{
+			APIKey:  go_pkg_keychain.Get(apiKeyEnvKey),
+			BaseURL: sessionConfig.GetCompatURL(instance),
+		}, nil
 	}
+}
+
+var builtinProviders = []string{
+	"claude", "openai", "gemini", "grok", "deepseek", "mistral", "nvidia",
+	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth", "ollama-cloud",
+}
+
+func CompatInstance(name string) (string, bool) {
+	providerFull, _, found := strings.Cut(name, "@")
+	if !found {
+		return "", false
+	}
+	prov, rest, bracket := strings.Cut(providerFull, "[")
+	if prov == "compat" {
+		if !bracket {
+			return "", true
+		}
+		instance, _, _ := strings.Cut(rest, "]")
+		return strings.ToUpper(instance), true
+	}
+	if prov == "" || slices.Contains(builtinProviders, prov) {
+		return "", false
+	}
+	return strings.ToUpper(prov), true
 }

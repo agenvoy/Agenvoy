@@ -25,7 +25,7 @@ func (t TUI) commandSummaryModel() (TUI, tea.Cmd, bool) {
 	cursor := 0
 
 	for i, m := range cfg.Models {
-		label := modelLabel(m.Name)
+		label := m.Name
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i
@@ -64,7 +64,7 @@ func (t TUI) runSummaryModelSelect(name string) (TUI, tea.Cmd) {
 		if name == "" {
 			return t, tea.Println(msgLog("summary unchanged: auto") + "\n")
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("summary unchanged: %s", modelLabel(name))) + "\n")
+		return t, tea.Println(msgLog(fmt.Sprintf("summary unchanged: %s", name)) + "\n")
 	}
 
 	cfg.SummaryModel = name
@@ -74,5 +74,5 @@ func (t TUI) runSummaryModelSelect(name string) (TUI, tea.Cmd) {
 	if name == "" {
 		return t, tea.Println(msgLog("summary: auto") + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("summary: %s", modelLabel(name))) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("summary: %s", name)) + "\n")
 }
