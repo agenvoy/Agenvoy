@@ -42,6 +42,7 @@ func New() *gin.Engine {
 	r.GET("/v1/model/audio", localhostOnly(), handler.ListAudioModels())
 	r.GET("/v1/model/priority", localhostOnly(), handler.GetModelPriority())
 	r.POST("/v1/model/priority", localhostOnly(), handler.SetModelPriority())
+	r.POST("/v1/model/tier", localhostOnly(), handler.SetModelTier())
 
 	r.GET("/v1/usage", localhostOnly(), handler.GetTotalUsage())
 

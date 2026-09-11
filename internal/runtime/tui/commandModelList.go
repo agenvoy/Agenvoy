@@ -54,7 +54,7 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 		case config.ModelTagPass:
 			label += "  " + warnStyle.Render(tag)
 		default:
-			label += "  " + warnStyle.Render(tag+"-level")
+			label += "  " + warnStyle.Render(tag+"-tier")
 		}
 		options = append(options, label)
 		values = append(values, sessionModelPrefix+m.Name)

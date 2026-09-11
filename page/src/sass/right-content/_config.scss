@@ -452,6 +452,30 @@ body section.right-content section.config {
         opacity: 0.5;
       }
 
+      > div.label > strong {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      > button.tier {
+        flex: 0 0 auto;
+        padding: 0.25rem 0.625rem;
+        font-size: small;
+        color: var(--ink);
+        background-color: transparent;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: 0.2s;
+
+        @media (hover: hover) {
+          &:hover {
+            background-color: var(--gray-2);
+          }
+        }
+      }
+
       @media (hover: hover) {
         &:hover > span.grip {
           opacity: 1;
