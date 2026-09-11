@@ -1,0 +1,48 @@
+@mixin rangeRow {
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+
+  > input:not([type="checkbox"]):not([type="radio"]) {
+    flex: 0 0 auto;
+    padding: 0.3125rem 0.625rem;
+    width: 6rem;
+    font: inherit;
+    font-size: small;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--black);
+    background-color: var(--gray);
+    border: 1px solid var(--gray-2);
+    border-radius: 0.375rem;
+    outline: none;
+
+    &[type="search"] {
+      width: 10rem;
+    }
+
+    &:focus {
+      background-color: #fff;
+      border-color: var(--accent);
+      box-shadow: none;
+    }
+  }
+
+  > button.submit {
+    flex: 0 0 auto;
+    padding: 0.3125rem 0.875rem;
+    font-size: small;
+    border-radius: 0.375rem;
+    background-color: var(--black);
+    color: #fff;
+    transition: 0.2s;
+
+    @media (hover: hover) {
+      &:hover {
+        opacity: 0.85;
+      }
+    }
+  }
+}

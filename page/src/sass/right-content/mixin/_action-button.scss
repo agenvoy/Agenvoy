@@ -1,0 +1,26 @@
+@mixin actionButton {
+  padding: 0.375rem 0.875rem;
+  font-size: small;
+  border-radius: 0.375rem;
+  color: var(--gray-3);
+  background-color: var(--gray);
+  transition: 0.2s;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--ink);
+    }
+  }
+
+  &.submit {
+    background-color: var(--black);
+    color: #fff;
+
+    @media (hover: hover) {
+      &:hover {
+        color: #fff;
+        opacity: 0.85;
+      }
+    }
+  }
+}

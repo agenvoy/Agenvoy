@@ -405,10 +405,10 @@ let priorityDrag = -1;
 function priorityRow(name, rank, total, move) {
   const rankText = `#${rank + 1}`;
   const label = _("div.label", [
-    _("strong", name),
     _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
+    _("strong", name),
   ]);
-  const row = _("div.routing", [label, _("span.material-symbols-outlined.grip", "drag_indicator")]);
+  const row = _("div.routing", [_("span.material-symbols-outlined.grip", "drag_indicator"), label]);
 
   row.draggable = true;
   row.dataset.rank = String(rank);
