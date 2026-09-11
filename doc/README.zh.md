@@ -245,7 +245,9 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
    - GitHub Copilot（$10／月）—— 指定 `gpt-5.6-luna`，額度損耗夠慢、能力也夠日常使用
    - OpenAI ChatGPT Plus（$20／月）
    - SuperGrok（$30／月）
-2. **如果想免費嚐鮮**，可以申請免費的 **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** API token，試用 `nvidia/nemotron-3.5-lightning-30b-a3b`。它不是大型模型，但適合免費體驗 Agenvoy。
+2. **想免費嚐鮮**，以下兩種都不需要訂閱：
+   - **[NVIDIA NIM](https://build.nvidia.com/explore/discover)**：申請免費 API token，加入 `nvidia/nemotron-3.5-lightning-30b-a3b`。它不是大型模型，但足以體驗 Agenvoy。
+   - **[Ollama Cloud](https://ollama.com/settings/keys)**：建立免費 API key，在 `/model add` 選擇 **Ollama Cloud** 後加入 `gemma4:31b`。免費方案有用量上限，可用 `Shift+U` 查看剩餘額度。
 
 ---
 
