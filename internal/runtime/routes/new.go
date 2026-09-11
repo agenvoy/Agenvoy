@@ -120,10 +120,8 @@ func New() *gin.Engine {
 	r.GET("/v1/allowlist", localhostOnly(), handler.GetAllowlist())
 	r.POST("/v1/allowlist", localhostOnly(), handler.SetAllowlist())
 
-	r.GET("/v1/config/startup", localhostOnly(), handler.GetStartup())
-	r.POST("/v1/config/startup", localhostOnly(), handler.SetStartup())
-	r.GET("/v1/config/system", localhostOnly(), handler.GetSystemConfig())
-	r.POST("/v1/config/system", localhostOnly(), handler.SetSystemConfig())
+	r.GET("/v1/config/:target", localhostOnly(), handler.GetConfig())
+	r.POST("/v1/config/:target", localhostOnly(), handler.SetConfig())
 
 	r.GET("/v1/torii/error", localhostOnly(), handler.ListErrorMemory())
 	r.PATCH("/v1/torii/error", localhostOnly(), handler.UpdateErrorMemory())

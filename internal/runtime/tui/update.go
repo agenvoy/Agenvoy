@@ -921,6 +921,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ReplyLanguageSelect:
 		return t.runReplyLanguageSelect(msg.code)
 
+	case OutputDirSubmit:
+		return t.runOutputDirSubmit(msg.value)
+
 	case AudioModelLoaded:
 		return t.openAudioModelPopup(msg)
 

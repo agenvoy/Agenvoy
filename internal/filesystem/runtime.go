@@ -39,7 +39,8 @@ var (
 	DeniedPath      []string
 	NetWhiteList    []string
 	ReadOnlyCommand []string
-	ReplyLang       = ReplyLangAuto
+	ConfigReplyLang = ReplyLangAuto
+	ConfigOutputDir string
 )
 
 const ReplyLangAuto = "auto"
@@ -100,22 +101,34 @@ func LoadRuntime() error {
 	}
 	MaxHistoryBytes = limits.MaxHistoryBytes
 
-	ReplyLang = ReplyLangAuto
+	ConfigReplyLang = ReplyLangAuto
 	if data, ok := raw["reply_lang"]; ok && len(data) > 0 {
 		var user string
 		if err := json.Unmarshal(data, &user); err != nil {
 			return fmt.Errorf("json.Unmarshal reply_lang: %w", err)
 		}
 		if user = strings.TrimSpace(user); user != "" {
-			ReplyLang = user
+			ConfigReplyLang = user
 		}
 	}
-	langRaw, err := json.Marshal(ReplyLang)
+	langRaw, err := json.Marshal(ConfigReplyLang)
 	if err != nil {
 		return fmt.Errorf("json.Marshal reply_lang: %w", err)
 	}
 	if string(raw["reply_lang"]) != string(langRaw) {
 		raw["reply_lang"] = langRaw
+		changed = true
+	}
+
+	ConfigOutputDir = ""
+	if data, ok := raw["output_dir"]; ok && len(data) > 0 {
+		var user string
+		if err := json.Unmarshal(data, &user); err != nil {
+			return fmt.Errorf("json.Unmarshal output_dir: %w", err)
+		}
+		ConfigOutputDir = strings.TrimSpace(user)
+	} else {
+		raw["output_dir"] = json.RawMessage(`""`)
 		changed = true
 	}
 

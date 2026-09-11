@@ -90,6 +90,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/reply-language":
 		return t.commandReplyLanguage()
 
+	case "/output-dir":
+		return t.commandOutputDir()
+
 	case "/pending":
 		return t.commandPending()
 

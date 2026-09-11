@@ -10,6 +10,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -79,10 +80,11 @@ func validModelPrefix(prefix string) bool {
 	if prefix == "" {
 		return false
 	}
-	if strings.HasPrefix(prefix, "compat[") && strings.HasSuffix(prefix, "]") {
-		return len(prefix) > len("compat[]")
+	if findProvider(prefix) != nil {
+		return true
 	}
-	return findProvider(prefix) != nil
+	instance, ok := agentKeychain.CompatInstance(prefix + "@")
+	return ok && instance != "" && config.GetCompatURL(instance) != ""
 }
 
 func AddModel() gin.HandlerFunc {

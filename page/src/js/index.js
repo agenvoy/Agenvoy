@@ -326,6 +326,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       system_startup: function () {
         saveSystemStartup();
       },
+      system_output: function () {
+        saveSystemOutput();
+      },
+      system_output_keydown: function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveSystemOutput();
+        }
+      },
     },
     when: {
       before_render: function () {

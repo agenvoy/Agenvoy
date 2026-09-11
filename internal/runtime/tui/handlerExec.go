@@ -44,7 +44,7 @@ func (t *TUI) collapseToolBuf() tea.Cmd {
 		}
 		parts = append(parts, fmt.Sprintf("%d %s", subs, label))
 	}
-	return tea.Println("\n" + hintStyle.Render("  Ran "+strings.Join(parts, " · ")))
+	return tea.Println("\n" + hintStyle.Render("  Ran "+strings.Join(parts, "  ")))
 }
 
 const subagentLogLines = 3
@@ -484,7 +484,7 @@ func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
 	if !t.interruptAt.IsZero() && time.Since(t.interruptAt) <= interruptWindow {
 		t.quitting = true
 		return t, tea.Sequence(
-			tea.Println(hintStyle.Render("⎯ force quit")+"\n"),
+			tea.Println(msgLog("force quit")+"\n"),
 			tea.Quit,
 		)
 	}
@@ -492,7 +492,7 @@ func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
 	t.interruptAt = time.Now()
 	if t.running && t.cancelExec != nil {
 		t.cancelExec()
-		return t, tea.Println(hintStyle.Render("⎯ cancelling · ctrl+c again to force quit") + "\n")
+		return t, tea.Println(msgLog("cancelling  ctrl+c again to force quit") + "\n")
 	}
-	return t, tea.Println(hintStyle.Render("⎯ ctrl+c again to quit") + "\n")
+	return t, tea.Println(msgLog("ctrl+c again to quit") + "\n")
 }

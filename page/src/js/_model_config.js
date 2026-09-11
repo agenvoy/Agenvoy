@@ -30,6 +30,7 @@ const PROVIDER_CONSOLE = {
   deepseek: "https://platform.deepseek.com/top_up",
   mistral: "https://console.mistral.ai/billing",
   nvidia: "https://build.nvidia.com/settings/api-keys",
+  "ollama-cloud": "https://ollama.com/settings/keys",
   openrouter: "https://openrouter.ai/credits",
   cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
 };
@@ -69,10 +70,19 @@ function providerFailure(id, method, error) {
   };
 }
 
+let catalogIds = [];
+
+function isCompatPrefix(id) {
+  return id.startsWith("compat[") || (catalogIds.length > 0 && !catalogIds.includes(id));
+}
+
 function providerKeyName(id) {
   const compat = id.match(/^compat\[(.+)\]$/);
   if (compat) {
     return `COMPAT_${compat[1].toUpperCase()}_API_KEY`;
+  }
+  if (isCompatPrefix(id)) {
+    return `COMPAT_${id.toUpperCase()}_API_KEY`;
   }
   return `${id.toUpperCase()}_API_KEY`;
 }
@@ -146,7 +156,9 @@ async function providerCatalog() {
   try {
     const response = await fetch(`${API}/v1/providers`);
     if (response.ok) {
-      return (await response.json()).providers || [];
+      const list = (await response.json()).providers || [];
+      catalogIds = list.map((provider) => provider.id);
+      return list;
     }
   } catch (err) {
     console.error("providerCatalog", err);
@@ -393,10 +405,10 @@ let priorityDrag = -1;
 function priorityRow(name, rank, total, move) {
   const rankText = `#${rank + 1}`;
   const label = _("div.label", [
-    _("strong", name),
     _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
+    _("strong", name),
   ]);
-  const row = _("div.routing", [label, _("span.material-symbols-outlined.grip", "drag_indicator")]);
+  const row = _("div.routing", [_("span.material-symbols-outlined.grip", "drag_indicator"), label]);
 
   row.draggable = true;
   row.dataset.rank = String(rank);
@@ -729,7 +741,7 @@ async function saveProviderKey(id, body) {
     );
   }
 
-  const prefix = id === "compat" ? `compat[${body.name}]` : id;
+  const prefix = id === "compat" ? body.name.toLowerCase() : id;
   delete providerProbe[prefix];
   providerQuota = null;
   selectProvider(prefix);
@@ -813,13 +825,12 @@ function cancelModelFetch() {
 }
 
 async function providerModelList(prefix) {
-  const target = prefix.startsWith("compat[") ? "compat" : prefix;
   const controller = new AbortController();
   cancelModelFetch();
   modelAbort = controller;
 
   try {
-    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(target)}/models`, {
+    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(prefix)}/models`, {
       signal: controller.signal,
     });
     if (response.ok) {

@@ -444,37 +444,53 @@
               <strong class="group">Setting Model</strong>
               <section>
                 <div class="routing">
-                  <div class="label"><strong>Dispatcher</strong></div>
+                  <div class="label">
+                    <strong>Dispatcher</strong>
+                    <p>smart routing</p>
+                  </div>
                   <select data-kind="dispatcher" @change="routing_change"></select>
                 </div>
                 <div class="routing">
-                  <div class="label"><strong>Summary</strong></div>
+                  <div class="label">
+                    <strong>Summary</strong>
+                    <p>summary memory</p>
+                  </div>
                   <select data-kind="summary" @change="routing_change"></select>
                 </div>
                 <div class="routing">
-                  <div class="label"><strong>Image</strong><p>openai / codex / grok / grok-oauth / gemini</p></div>
+                  <div class="label">
+                    <strong>Image</strong>
+                    <p>image generation</p>
+                  </div>
                   <select data-kind="image" @change="routing_change"></select>
                 </div>
                 <div class="routing">
-                  <div class="label"><strong>Speech to text</strong><p>openai / gemini</p></div>
+                  <div class="label">
+                    <strong>Speech to text</strong>
+                    <p>audio analysis</p>
+                  </div>
                   <select data-kind="stt" @change="routing_change"></select>
                 </div>
                 <div class="routing">
-                  <div class="label"><strong>Text to speech</strong><p>openai / gemini</p></div>
+                  <div class="label">
+                    <strong>Text to speech</strong>
+                    <p>speech generation</p>
+                  </div>
                   <select data-kind="tts" @change="routing_change"></select>
                 </div>
               </section>
             </section>
             <section class="tools" id="model-priority" data-open="1">
               <strong class="group">Model Priority</strong>
-              <section>
-                <p class="note">Fallback under auto only — this order does not change which agent gets selected.</p>
-                <p class="note">A hand-off walks downward and never back up, so the last entry is your final line of defense.</p>
-                <p class="note">
-                  Cache never carries across providers, but keep copies of the same model adjacent anyway: capability then
-                  steps down instead of jumping.
+              <div class="note">
+                <p>Fallback under auto only — this order does not change which agent gets selected.</p>
+                <p>A hand-off walks downward and never back up, so the last entry is your final line of defense.</p>
+                <p>
+                  Cache never carries across providers, but keep copies of the same model adjacent anyway: capability
+                  then steps down instead of jumping.
                 </p>
-              </section>
+              </div>
+              <section></section>
             </section>
             <section class="tools" id="model-models"></section>
           </form>
@@ -614,7 +630,12 @@
             <section class="tools" id="channel-admin"></section>
             <label for="channel-token">
               <span>Token</span>
-              <input id="channel-token" type="password" autocomplete="off" placeholder="Bot token · required to enable" />
+              <input
+                id="channel-token"
+                type="password"
+                autocomplete="off"
+                placeholder="Bot token · required to enable"
+              />
             </label>
             <footer>
               <button type="button" class="remove" @click="channel_disable">disable</button>
@@ -641,6 +662,16 @@
                 <option value="disabled">disabled</option>
                 <option value="enabled">enabled</option>
               </select>
+            </div>
+            <div class="card">
+              <div class="label">
+                <strong>Output Dir</strong>
+                <p>where generated files land</p>
+              </div>
+              <div class="row">
+                <input id="system-output" type="text" placeholder="~/Downloads" @keydown="system_output_keydown" />
+                <button type="button" class="submit" @click="system_output">save</button>
+              </div>
             </div>
           </form>
         </section>

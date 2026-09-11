@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -39,6 +40,7 @@ var providerCatalog = []providerInfo{
 	{"deepseek", "DeepSeek", map[string]string{"api_key": "pay per token"}},
 	{"mistral", "Mistral", map[string]string{"api_key": "pay per token"}},
 	{"nvidia", "NVIDIA NIM", map[string]string{"api_key": "pay per token"}},
+	{"ollama-cloud", "Ollama Cloud", map[string]string{"api_key": "API key"}},
 	{"openrouter", "OpenRouter", map[string]string{"api_key": "pay per token"}},
 	{"cloudflare", "Cloudflare", map[string]string{"api_key": "Workers AI · API token + account ID"}},
 	{"compat", "Local/Custom", map[string]string{"custom": "Ollama, LM Studio, or custom URL"}},
@@ -273,8 +275,13 @@ func listModelsFor(c *gin.Context, credentialName string) {
 func ListProviderModels() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		prov := c.Param("provider")
-		if prov == "compat" {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "compat model listing isn't wired up yet; register the model name manually via POST /v1/models"})
+		if _, ok := agentKeychain.CompatInstance(prov + "@"); ok {
+			ids, err := probe.Models(c.Request.Context(), prov+"@")
+			if err != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"models": ids})
 			return
 		}
 		listModelsFor(c, prov)

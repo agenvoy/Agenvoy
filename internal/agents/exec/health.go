@@ -10,6 +10,7 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -58,8 +59,8 @@ func compatLivenessTarget(agent agentTypes.Agent) (string, string) {
 		if a != agent {
 			continue
 		}
-		instance := compatInstance(name)
-		if instance == "" {
+		instance, ok := agentKeychain.CompatInstance(name)
+		if !ok || instance == "" {
 			return "", ""
 		}
 		baseURL := strings.TrimRight(config.GetCompatURL(instance), "/")
@@ -69,17 +70,4 @@ func compatLivenessTarget(agent agentTypes.Agent) (string, string) {
 		return baseURL + "/models", go_pkg_keychain.Get("COMPAT_" + instance + "_API_KEY")
 	}
 	return "", ""
-}
-
-func compatInstance(name string) string {
-	providerFull, _, _ := strings.Cut(name, "@")
-	prov, rest, found := strings.Cut(providerFull, "[")
-	if prov != "compat" || !found {
-		return ""
-	}
-	instance, _, closed := strings.Cut(rest, "]")
-	if !closed {
-		return ""
-	}
-	return strings.ToUpper(instance)
 }

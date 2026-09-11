@@ -89,6 +89,9 @@ var GuideHtmlRender string
 //go:embed prompts/guide/write_todo.md
 var GuideWriteTodo string
 
+//go:embed prompts/guide/office.md
+var GuideOffice string
+
 // * Configs
 
 //go:embed jsons/sensitive_path.json
@@ -105,6 +108,9 @@ var TUITools []byte
 
 //go:embed jsons/reply_lang.json
 var ReplyLang []byte
+
+//go:embed jsons/local_compat.json
+var LocalCompat []byte
 
 // * Official Guide
 

@@ -68,6 +68,48 @@ async function renderSystem() {
   if (startup) {
     startup.value = (await startupConfig()) ? "enabled" : "disabled";
   }
+
+  const output = $("#system-output");
+  if (output) {
+    const dir = await outputDirConfig();
+    output.value = dir.output_dir || "";
+    output.placeholder = dir.resolved || "~/Downloads";
+  }
+}
+
+async function outputDirConfig() {
+  try {
+    const response = await fetch(`${API}/v1/config/output_dir`);
+    if (response.ok) {
+      return (await response.json()) || {};
+    }
+  } catch (err) {
+    console.error("outputDirConfig", err);
+  }
+  return {};
+}
+
+async function saveSystemOutput() {
+  const input = $("#system-output");
+  if (!input) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/config/output_dir`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ output_dir: input.value.trim() }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveSystemOutput", err);
+    alert(err.message || "failed");
+  }
+  renderSystem();
 }
 
 async function saveSystemLang() {
