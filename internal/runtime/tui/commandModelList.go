@@ -6,7 +6,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
@@ -15,13 +14,6 @@ const sessionModelPrefix = "model:"
 
 type SessionModelSelect struct {
 	name string
-}
-
-func modelLabel(name string) string {
-	if a, ok := agents.Registry().Registry[name]; ok && a != nil {
-		return a.Name()
-	}
-	return name
 }
 
 func registeredModelOptions(sid string) (options, values []string, cursor int) {
@@ -46,7 +38,7 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 	values = append(values, sessionModelPrefix+configBot.DefaultModel)
 
 	for _, m := range cfg.Models {
-		label := modelLabel(m.Name)
+		label := m.Name
 		if m.Name == current {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = len(options)
@@ -69,5 +61,5 @@ func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
 		return t, tea.Println(msgLog("no active session") + "\n")
 	}
 	configBot.SetModel(sid, name, "")
-	return t, tea.Println(msgLog(fmt.Sprintf("model: %s", modelLabel(name))) + "\n")
+	return t, tea.Println(msgLog(fmt.Sprintf("model: %s", name)) + "\n")
 }

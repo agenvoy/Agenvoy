@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -273,8 +274,13 @@ func listModelsFor(c *gin.Context, credentialName string) {
 func ListProviderModels() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		prov := c.Param("provider")
-		if prov == "compat" {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "compat model listing isn't wired up yet; register the model name manually via POST /v1/models"})
+		if _, ok := agentKeychain.CompatInstance(prov + "@"); ok {
+			ids, err := probe.Models(c.Request.Context(), prov+"@")
+			if err != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"models": ids})
 			return
 		}
 		listModelsFor(c, prov)

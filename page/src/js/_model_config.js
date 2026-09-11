@@ -69,10 +69,19 @@ function providerFailure(id, method, error) {
   };
 }
 
+let catalogIds = [];
+
+function isCompatPrefix(id) {
+  return id.startsWith("compat[") || (catalogIds.length > 0 && !catalogIds.includes(id));
+}
+
 function providerKeyName(id) {
   const compat = id.match(/^compat\[(.+)\]$/);
   if (compat) {
     return `COMPAT_${compat[1].toUpperCase()}_API_KEY`;
+  }
+  if (isCompatPrefix(id)) {
+    return `COMPAT_${id.toUpperCase()}_API_KEY`;
   }
   return `${id.toUpperCase()}_API_KEY`;
 }
@@ -146,7 +155,9 @@ async function providerCatalog() {
   try {
     const response = await fetch(`${API}/v1/providers`);
     if (response.ok) {
-      return (await response.json()).providers || [];
+      const list = (await response.json()).providers || [];
+      catalogIds = list.map((provider) => provider.id);
+      return list;
     }
   } catch (err) {
     console.error("providerCatalog", err);
@@ -729,7 +740,7 @@ async function saveProviderKey(id, body) {
     );
   }
 
-  const prefix = id === "compat" ? `compat[${body.name}]` : id;
+  const prefix = id === "compat" ? body.name.toLowerCase() : id;
   delete providerProbe[prefix];
   providerQuota = null;
   selectProvider(prefix);
@@ -813,13 +824,12 @@ function cancelModelFetch() {
 }
 
 async function providerModelList(prefix) {
-  const target = prefix.startsWith("compat[") ? "compat" : prefix;
   const controller = new AbortController();
   cancelModelFetch();
   modelAbort = controller;
 
   try {
-    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(target)}/models`, {
+    const response = await fetch(`${API}/v1/provider/${encodeURIComponent(prefix)}/models`, {
       signal: controller.signal,
     });
     if (response.ok) {

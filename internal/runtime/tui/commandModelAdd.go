@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"slices"
 	"sort"
 	"strings"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
@@ -34,7 +34,6 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 type modelAddItem struct {
@@ -86,39 +85,28 @@ var modelAddProviders = []struct {
 	{"compat", "Local/Custom    Ollama, LM Studio, or custom URL"},
 }
 
-type localCompat struct {
-	name  string
-	label string
-	url   string
-}
-
-var localCompats = []localCompat{
-	{"OLLAMA", "Ollama Local", "http://localhost:11434/v1"},
-	{"LLAMA.CPP", "Llama.cpp Local", "http://localhost:8080/v1"},
-}
-
 const localCompatPrefix = "local:"
 
 func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 	t.modelAdd = &modelAddItem{}
-	options := make([]string, 0, len(modelAddProviders)+len(localCompats)+1)
-	values := make([]string, 0, len(modelAddProviders)+len(localCompats)+1)
+	options := make([]string, 0, len(modelAddProviders)+len(config.LocalCompats)+1)
+	values := make([]string, 0, len(modelAddProviders)+len(config.LocalCompats)+1)
 
-	found := make([]bool, len(localCompats))
+	found := make([]bool, len(config.LocalCompats))
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	var wg sync.WaitGroup
-	for i, one := range localCompats {
+	for i, one := range config.LocalCompats {
 		wg.Go(func() {
-			found[i] = len(fetchModelIDs(ctx, one.url, one.name)) > 0
+			found[i] = len(fetchModelIDs(ctx, one.URL, one.Provider)) > 0
 		})
 	}
 	wg.Wait()
 	cancel()
 
-	for i, one := range localCompats {
+	for i, one := range config.LocalCompats {
 		if found[i] {
-			options = append(options, fmt.Sprintf("%-16s%s", one.label, one.url))
-			values = append(values, localCompatPrefix+one.name)
+			options = append(options, fmt.Sprintf("%-16s%s", one.Label, one.URL))
+			values = append(values, localCompatPrefix+one.Provider)
 		}
 	}
 	if len(options) > 0 {
@@ -524,18 +512,14 @@ func (t TUI) runModelAddCompatNameSubmit(name string) (TUI, tea.Cmd) {
 }
 
 func (t TUI) runModelAddLocal(instance string) (TUI, tea.Cmd) {
-	idx := slices.IndexFunc(localCompats, func(one localCompat) bool { return one.name == instance })
+	idx := slices.IndexFunc(config.LocalCompats, func(one config.LocalCompat) bool { return one.Provider == instance })
 	if idx < 0 {
 		t.modelAdd = nil
 		return t, tea.Println(msgError(fmt.Sprintf("unknown local provider %q", instance)) + "\n")
 	}
 	t.modelAdd.provider = "compat"
 	t.modelAdd.compatProvider = instance
-	t.modelAdd.compatURL = localCompats[idx].url
-	if err := config.UpsertCompat(instance, t.modelAdd.compatURL); err != nil {
-		t.modelAdd = nil
-		return t, tea.Println(msgError(fmt.Sprintf("UpsertCompat: %v", err)) + "\n")
-	}
+	t.modelAdd.compatURL = config.LocalCompats[idx].URL
 	return t.openModelAddModelPick()
 }
 
@@ -605,7 +589,7 @@ func (t TUI) runModelAddCompatKeySubmit(key string) (TUI, tea.Cmd) {
 func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 	prefix := t.modelAdd.provider + "@"
 	if t.modelAdd.provider == "compat" {
-		prefix = fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
+		prefix = strings.ToLower(t.modelAdd.compatProvider) + "@"
 	}
 
 	cfg, err := config.Load()
@@ -672,7 +656,7 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 
 	prefix := t.modelAdd.provider + "@"
 	if t.modelAdd.provider == "compat" {
-		prefix = fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
+		prefix = strings.ToLower(t.modelAdd.compatProvider) + "@"
 	}
 
 	selected := make(map[string]string)
@@ -761,7 +745,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 		return t, tea.Println(msgError("model add state lost") + "\n")
 	}
 
-	prefix := fmt.Sprintf("compat[%s]@", t.modelAdd.compatProvider)
+	prefix := strings.ToLower(t.modelAdd.compatProvider) + "@"
 
 	if len(msg.ids) == 0 {
 		t.modelAdd = nil
@@ -874,38 +858,10 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 	return t, nil
 }
 
-type modelsResponse struct {
-	Data []struct {
-		ID                 string `json:"id"`
-		ModelPickerEnabled bool   `json:"model_picker_enabled"`
-		Policy             struct {
-			State string `json:"state"`
-		} `json:"policy"`
-	} `json:"data"`
-}
-
 func fetchModelIDs(ctx context.Context, baseURL, provider string) []string {
-	endpoint := baseURL + "/models"
-
-	var headers map[string]string
-	apiKeyEnvKey := "COMPAT_" + strings.ToUpper(provider) + "_API_KEY"
-	if key := keychain.Get(apiKeyEnvKey); key != "" {
-		headers = map[string]string{
-			"Authorization": "Bearer " + key,
-		}
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	data, status, err := go_pkg_http.GET[modelsResponse](ctx, client, endpoint, headers)
-	if err != nil || status != http.StatusOK {
+	ids, err := probe.CompatModels(ctx, baseURL, keychain.Get("COMPAT_"+strings.ToUpper(provider)+"_API_KEY"))
+	if err != nil {
 		return nil
-	}
-
-	ids := make([]string, 0, len(data.Data))
-	for _, m := range data.Data {
-		if id := strings.TrimSpace(m.ID); id != "" {
-			ids = append(ids, id)
-		}
 	}
 	return ids
 }

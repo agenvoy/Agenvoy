@@ -106,6 +106,9 @@ var TUITools []byte
 //go:embed jsons/reply_lang.json
 var ReplyLang []byte
 
+//go:embed jsons/local_compat.json
+var LocalCompat []byte
+
 // * Official Guide
 
 //go:embed prompts/system_prompt/official_guides/*.md

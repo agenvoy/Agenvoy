@@ -18,6 +18,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -41,6 +42,9 @@ func GetAgent() []agentTypes.AgentEntry {
 	cfg, err := go_pkg_filesystem.ReadJSON[AgentConfig](filesystem.ConfigPath)
 	if err != nil || len(cfg.Models) == 0 {
 		return []agentTypes.AgentEntry{}
+	}
+	for i := range cfg.Models {
+		cfg.Models[i].Name = config.NormalizeModel(cfg.Models[i].Name)
 	}
 	if cfg.DefaultModel == "" {
 		cfg.DefaultModel = cfg.Models[0].Name

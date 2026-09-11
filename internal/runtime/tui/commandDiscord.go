@@ -96,7 +96,7 @@ func disableDiscord() tea.Cmd {
 		if err != nil {
 			return DiscordDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
 		}
-		if !cfg.DiscordEnabled && keychain.Get(discord.Key) == "" {
+		if !cfg.DiscordEnabled && cfg.DiscordUsername == "" && keychain.Get(discord.Key) == "" {
 			return DiscordDone{action: "disable"}
 		}
 		if err := keychain.Delete(discord.Key); err != nil {
@@ -104,6 +104,7 @@ func disableDiscord() tea.Cmd {
 				slog.String("error", err.Error()))
 		}
 		cfg.DiscordEnabled = false
+		cfg.DiscordUsername = ""
 		if err := config.Save(cfg); err != nil {
 			return DiscordDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
 		}

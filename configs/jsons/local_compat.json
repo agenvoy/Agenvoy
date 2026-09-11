@@ -1,0 +1,4 @@
+[
+  { "provider": "OLLAMA", "label": "Ollama Local", "url": "http://localhost:11434/v1" },
+  { "provider": "LLAMA.CPP", "label": "Llama.cpp Local", "url": "http://localhost:8080/v1" }
+]

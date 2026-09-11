@@ -66,6 +66,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", filesystem.ConfigPath, err)
 	}
+	normalizeModels(&cfg)
 	return &cfg, nil
 }
 
@@ -88,6 +89,8 @@ func Write(dic map[string]any) error {
 }
 
 func Save(cfg *Config) error {
+	normalizeModels(cfg)
+
 	oldDic, err := Get()
 	if err != nil {
 		oldDic = map[string]any{}

@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
 const (
@@ -76,7 +77,7 @@ func SavePersona(sessionID, selfID, name, body string) error {
 
 func GetModel(sessionID string) (model, reasoning string) {
 	row, _ := read(sessionID)
-	model = row.Model
+	model = config.NormalizeModel(row.Model)
 	reasoning = row.Reasoning
 	if model == "" {
 		model = DefaultModel
@@ -93,7 +94,7 @@ func SetModel(sessionID, model, reasoning string) {
 		return
 	}
 	if model != "" {
-		row.Model = model
+		row.Model = config.NormalizeModel(model)
 	}
 	if reasoning != "" {
 		row.Reasoning = reasoning
