@@ -73,6 +73,7 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
 | `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
+| `OLLAMA-CLOUD_API_KEY`                               | Ollama Cloud（連字號是名稱的一部分）                  |
 | `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填）    |
 
 ### 音訊與圖片模型路由
@@ -96,8 +97,12 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 | `limits.max_history_messages`       |      `24` | 保留的近期歷史訊息數          |
 | `limits.max_history_bytes`          | `5242880` | 歷史訊息大小上限（位元組）    |
 | `reply_lang`                        |  `"auto"` | 回覆語言。`auto` 維持原本「跟隨使用者訊息語言」的行為；其他值一律強制以該語言回覆 |
+| `output_dir`                        |      `""` | 請求沒指定位置時，替使用者產生的檔案放在哪：`write_report` 的輸出，以及 agent 預設要放到這裡的文件、匯出檔與圖片。空值為 `~/Downloads`，該資料夾不存在時為 `~/.config/agenvoy/download` |
+| `model_tag`                         |      `{}` | 各模型的 tier，`{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`；見[模型 tier](#模型-tier) |
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
+
+`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。TUI 的 `/reply-language` 與 `/output-dir` 寫入 `config.json` 的方式與手改相同。
 
 套件內建預設值（目前不會從 `config.json` 讀取）：
 
@@ -118,15 +123,33 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 ### TUI 執行模式
 
-目前 runtime 內建 12 個模型供應商，另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
+目前 runtime 內建 13 個模型供應商（含 Ollama Cloud），另有 `compat` 項目可接本機或自訂的 OpenAI 相容端點（Ollama、LM Studio、自架 gateway）。
 
-`/model add` 會以 `GET /models` 偵測本機的 Ollama（`http://localhost:11434/v1`）與 llama.cpp（`http://localhost:8080/v1`），有回應的會以 **Ollama Local**／**Llama.cpp Local** 列在 provider 清單最上方；選取後會把端點記錄到 `config.json` 的 `compats`，並直接進入模型挑選，不再詢問網址或 key。其他 port 或主機走 **Local/Custom** 新增。本機模型以 `compat[NAME]@<model>` 註冊。
+`/model add` 會以 `GET /models` 偵測本機的 Ollama（`http://localhost:11434/v1`）與 llama.cpp（`http://localhost:8080/v1`），有回應的會以 **Ollama Local**／**Llama.cpp Local** 列在 provider 清單最上方，選取後直接進入模型挑選，不再詢問網址或 key。這兩個端點是內建的（`configs/jsons/local_compat.json`），不會寫入任何設定。其他 port 或主機走 **Local/Custom** 新增，網址會記錄到 `config.json` 的 `compats`。兩種情況的模型清單都由端點自己的 `GET /models` 取得。端點模型以 `<name>@<model>` 註冊，端點名稱轉小寫（`ollama@gemma3:4b`）；舊的 `compat[NAME]@<model>` 寫法仍可使用，`config.json` 每次載入或儲存時會改寫成新格式。
 
-當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.5.1 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
+當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.6.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
 
 請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。建立 prompt 時，Agenvoy 會加入共用官方操作指南，並在有設定時加入符合目前所選模型的專屬指南。
+
+### 模型 tier
+
+每個已註冊模型都可以在 `model_tag` 設定 tier：
+
+| Tier | 意義 |
+|---|---|
+| `S` | 最強；寫程式，或明確要求深度、精確的工作 |
+| `A` | 大部分工作的預設，比旗艦低一階 |
+| `B` | 主流中階 |
+| `C` | 快又便宜，能照指示穩定呼叫工具 |
+| `pass` | 不被自動分派與 subagent 選中；排在 fallback 最後，或設給某個 session 使用 |
+
+在 TUI 的 `/model` 對模型列按 `t`，或在 **Config › Model › Fallback Priority** 每張卡片的 tier 按鈕設定。tier 每次請求都重新讀取，改完不需重啟。
+
+session 固定了模型就不走分派。否則 dispatcher 會連同模型清單收到 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先；其餘（含報告與分析）→ A 優先。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 清單則把 `pass` 模型排在所有模型之後。
+
+subagent 也依同一套 tier。planner 讓每條 leg 只做一種工作——collect、review、transform 或 reason——並依工作挑模型：collect 為 C>B>A>S、transform 為 B>C>A>S、review 與 reason 為 A>S>B>C、程式碼或高精確的工作為 S>A>B>C。
 
 互動請求也會攜帶來源前綴。CLI 確認僅由 TUI 接收，Web 請求由 Web 確認串流處理，Telegram 與 Discord 則由各自對應的頻道 listener 接收。非 TUI 確認會在五分鐘後逾時，避免某個頻道攔截或長期占用其他頻道的提示。
 
@@ -196,7 +219,7 @@ agen
 
 | 指令                            | 用途                                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型 |
+| `/model`                        | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型 |
 | `/mcp`                          | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連 |
 | `/sessions` `/new`              | 切換 session（`d` 刪除）或建立新的（名稱會檢查重複）                                  |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
@@ -210,6 +233,7 @@ agen
 | `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d） |
 | `/key`                          | 編輯已儲存的憑證（`d` 刪除）                                                          |
 | `/reply-language`               | 選擇所有回覆使用的語言；`auto` 跟隨每則訊息                                            |
+| `/output-dir`                   | 設定產生的檔案存放位置；留空為 `~/Downloads`                                           |
 | `/update`                       | 抓取最新 release、重建、離開                                                          |
 | `/clear` `/exit`                | 清除可見對話，或離開 TUI（daemon 繼續執行）                                           |
 | `/<skill>` `/sched-<name>`      | 直接執行已安裝的 skill 或排程項目                                                     |
@@ -293,10 +317,11 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | --------------- | ------------------------------- | ---------------------------------------------------- |
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
-| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機端點的 `compat[NAME]` |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機／自訂端點的名稱（`ollama`、`llama.cpp`，或經 `POST /v1/provider/compat/key` 記錄的名稱） |
 | `GET` `POST`    | `/v1/model`               | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
 | `GET`           | `/v1/model/audio`         | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。 |
-| `GET` `POST`    | `/v1/model/priority`      | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400 |
+| `GET` `POST`    | `/v1/model/priority`      | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線；`pass` 模型不論排在哪，執行時都排在所有模型之後。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400 |
+| `POST`          | `/v1/model/tier`          | **local** — `{model, tier}` 設定單一模型的 tier（`S` `A` `B` `C` `pass`）；`""` 清除。未註冊的模型或未知 tier 回 400 |
 
 **Session**
 
@@ -343,11 +368,11 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method | Path                            | 說明                                   |
 | ------ | ------------------------------- | -------------------------------------- |
 | `GET`  | `/v1/providers`                 | **local** — 列出 provider 及其可用操作 |
-| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
-| `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key               |
+| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot`、`ollama-cloud` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
+| `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key。`compat` 的 body 為 `{name, url, api_key?}`：網址記錄到 `compats`，有帶 key 時存為 `COMPAT_<NAME>_API_KEY` |
 | `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
-| `GET`  | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。`compat` 端點尚未支援列出模型，回 501；請改以 `POST /v1/models` 登錄模型名稱 |
+| `GET`  | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。本機／自訂端點名稱（`ollama`、`llama.cpp` 或已記錄的名稱）會向該端點的 `GET /models` 查詢，端點無回應時回 502 |
 
 **MCP**
 
@@ -398,6 +423,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效。兩個動詞都回 `enabled`（設定值，每次變更時記錄於 `config.json` 的 `startup` 鍵）與 `installed`（unit 檔目前是否真的存在）——unit 被 Agenvoy 以外的方式移除時兩者會不一致 |
 | `GET` `POST` | `/v1/config/system` | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型 |
+| `GET` `POST` | `/v1/config/output_dir` | **local** — 讀取／設定 `output_dir`。`GET` 回 `{output_dir, resolved}`，`resolved` 為實際使用中的資料夾。`POST` `{output_dir}` 會展開 `~`、建立資料夾、寫入 `config.json` 並立即套用到執行中的 daemon，回 `{ok, output_dir, resolved}`；空字串恢復預設值，建立不了的路徑回 400 |
 
 **查閱**
 
@@ -423,7 +449,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片                                              |
 |            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                     |
 |            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                      |
-|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在 `~/Downloads`（不存在時為 `~/.config/agenvoy/download`）；模型只提供內容 |
+|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容 |
 | 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位                                                         |
 |            | `open_file`                       | 以系統預設應用開啟檔案                                                                 |
 |            | `download_file`                   | 下載二進位資產至磁碟                                                                   |

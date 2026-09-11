@@ -374,12 +374,72 @@ async function modelPriority() {
   try {
     const response = await fetch(`${API}/v1/model/priority`);
     if (response.ok) {
-      return ((await response.json()) || {}).models || [];
+      const body = (await response.json()) || {};
+      return { names: body.models || [], tiers: body.tiers || {}, tierOptions: body.tier_options || [] };
     }
   } catch (err) {
     console.error("modelPriority", err);
   }
-  return [];
+  return { names: [], tiers: {}, tierOptions: [] };
+}
+
+async function saveModelTier(model, tier) {
+  try {
+    const response = await fetch(`${API}/v1/model/tier`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, tier }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      modelError(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveModelTier", err);
+    modelError(err.message || "failed");
+  }
+  renderModelPriority();
+}
+
+function tierLabel(tier) {
+  if (!tier) {
+    return "none";
+  }
+  return tier === "pass" ? "pass" : `${tier}-tier`;
+}
+
+function openTierPicker(name, current, options) {
+  const list = _("div.list");
+
+  const cancel = _("button", { type: "button" }, "cancel");
+  const root = _("div.popup", [_("div.panel", [_("strong", `Tier · ${name}`), list, _("footer", [cancel])])]);
+  root.id = "tier-popup";
+
+  const close = () => root.remove();
+
+  for (const option of [...options.filter((one) => !one.tier), ...options.filter((one) => one.tier)]) {
+    const box = _("input", { type: "radio", name: "tier-pick", value: option.tier });
+    box.checked = current === option.tier;
+    box.addEventListener("change", () => {
+      close();
+      saveModelTier(name, option.tier);
+    });
+    list.appendChild(_("label", [box, _("div", [_("strong", tierLabel(option.tier)), _("p", option.detail.replaceAll("  ", " · "))])]));
+  }
+
+  cancel.addEventListener("click", close);
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
+  });
+
+  document.body.appendChild(root);
+}
+
+function tierButton(name, current, options) {
+  const button = _("button.tier", { type: "button" }, tierLabel(current));
+  button.draggable = false;
+  button.addEventListener("click", () => openTierPicker(name, current, options));
+  return button;
 }
 
 async function saveModelPriority(names) {
@@ -402,13 +462,13 @@ async function saveModelPriority(names) {
 
 let priorityDrag = -1;
 
-function priorityRow(name, rank, total, move) {
+function priorityRow(name, rank, total, move, tier) {
   const rankText = `#${rank + 1}`;
   const label = _("div.label", [
     _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
     _("strong", name),
   ]);
-  const row = _("div.routing", [_("span.material-symbols-outlined.grip", "drag_indicator"), label]);
+  const row = _("div.routing", [_("span.material-symbols-outlined.grip", "drag_indicator"), label, tier]);
 
   row.draggable = true;
   row.dataset.rank = String(rank);
@@ -458,7 +518,7 @@ async function renderModelPriority() {
     return;
   }
 
-  const names = await modelPriority();
+  const { names, tiers, tierOptions } = await modelPriority();
   if (modelView !== "add") {
     return;
   }
@@ -478,7 +538,9 @@ async function renderModelPriority() {
   for (const row of box.querySelectorAll("div.routing")) {
     row.remove();
   }
-  names.forEach((name, rank) => box.appendChild(priorityRow(name, rank, names.length, move)));
+  names.forEach((name, rank) =>
+    box.appendChild(priorityRow(name, rank, names.length, move, tierButton(name, tiers[name] || "", tierOptions))),
+  );
 }
 
 async function modelRouting() {

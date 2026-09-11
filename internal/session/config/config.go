@@ -13,20 +13,21 @@ import (
 )
 
 type Config struct {
-	DispatcherModel  string        `json:"dispatcher_model"`
-	SummaryModel     string        `json:"summary_model"`
-	Models           []ModelEntry  `json:"models"`
-	Compats          []CompatEntry `json:"compats"`
-	Keys             []string      `json:"keys"`
-	DiscordEnabled   bool          `json:"discord_enabled"`
-	DiscordUsername  string        `json:"discord_username"`
-	TelegramEnabled  bool          `json:"telegram_enabled"`
-	TelegramUsername string        `json:"telegram_username"`
-	ImageGenerator   string        `json:"image_generator"`
-	STTModel         string        `json:"stt_model"`
-	TTSModel         string        `json:"tts_model"`
-	AdminChannel     string        `json:"admin_channel"`
-	OutputDir        string        `json:"output_dir"`
+	DispatcherModel  string            `json:"dispatcher_model"`
+	SummaryModel     string            `json:"summary_model"`
+	Models           []ModelEntry      `json:"models"`
+	Compats          []CompatEntry     `json:"compats"`
+	Keys             []string          `json:"keys"`
+	DiscordEnabled   bool              `json:"discord_enabled"`
+	DiscordUsername  string            `json:"discord_username"`
+	TelegramEnabled  bool              `json:"telegram_enabled"`
+	TelegramUsername string            `json:"telegram_username"`
+	ImageGenerator   string            `json:"image_generator"`
+	STTModel         string            `json:"stt_model"`
+	TTSModel         string            `json:"tts_model"`
+	AdminChannel     string            `json:"admin_channel"`
+	OutputDir        string            `json:"output_dir"`
+	ModelTag         map[string]string `json:"model_tag"`
 }
 
 type ModelEntry struct {

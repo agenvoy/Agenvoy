@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -64,6 +65,13 @@ Full rule per topic — call before acting on any match:
 			}
 			topic := strings.TrimSpace(params.Topic)
 			guide, ok := topicGuides[topic]
+			if ok && strings.Contains(guide, "{{.ModelTag}}") {
+				tierLines := "(none set)"
+				if cfg, err := config.Load(); err == nil {
+					tierLines = config.ModelTagLines(cfg)
+				}
+				guide = strings.ReplaceAll(guide, "{{.ModelTag}}", tierLines)
+			}
 			if !ok {
 				return "", fmt.Errorf("unknown topic %q; available: tool_generate, tool_error, rag_web, market_analysis, targeted_read, ask_user, subagent_dispatch, write_todo, html_render, office", topic)
 			}

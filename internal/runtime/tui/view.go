@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/truncate"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
@@ -218,7 +219,7 @@ func (t TUI) viewPopup() string {
 		}
 		maxLine := max(width-10, 32)
 		for i := start; i < end; i++ {
-			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
+			opt := truncate.StringWithTail(p.options[i], uint(maxLine), "...")
 			marker := "  "
 			var line string
 			if !p.readOnly && i == p.cursor {
@@ -253,6 +254,9 @@ func (t TUI) viewPopup() string {
 		if p.onDelete != nil {
 			hint += "  d delete"
 		}
+		if p.onTag != nil {
+			hint += "  t tag"
+		}
 		appendFooter(hint)
 
 	case popupMultiSelect:
@@ -264,7 +268,7 @@ func (t TUI) viewPopup() string {
 		start, end := windowRange(p.cursor, total, visible)
 		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
-			opt := go_pkg_utils.TruncateString(p.options[i], maxLine)
+			opt := truncate.StringWithTail(p.options[i], uint(maxLine), "...")
 			cursor := "  "
 			head, tail := splitOptStyle(opt)
 			var line string
