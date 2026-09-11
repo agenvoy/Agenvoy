@@ -19,6 +19,7 @@ import (
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
 	"github.com/pardnchiu/go-llm-router/core/mistral"
 	"github.com/pardnchiu/go-llm-router/core/nvidia"
+	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
@@ -74,6 +75,10 @@ func lookup(prov string) listFn {
 	case "openrouter":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return openrouter.Models(ctx, cfg, filter)
+		}
+	case "ollama-cloud":
+		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+			return ollamacloud.Models(ctx, cfg, filter)
 		}
 	case "cloudflare":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {

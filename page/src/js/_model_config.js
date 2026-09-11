@@ -30,6 +30,7 @@ const PROVIDER_CONSOLE = {
   deepseek: "https://platform.deepseek.com/top_up",
   mistral: "https://console.mistral.ai/billing",
   nvidia: "https://build.nvidia.com/settings/api-keys",
+  "ollama-cloud": "https://ollama.com/settings/keys",
   openrouter: "https://openrouter.ai/credits",
   cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
 };

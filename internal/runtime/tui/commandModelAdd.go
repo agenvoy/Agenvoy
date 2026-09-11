@@ -30,6 +30,7 @@ import (
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
+	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
@@ -80,6 +81,7 @@ var modelAddProviders = []struct {
 	{"deepseek", "DeepSeek        API key"},
 	{"mistral", "Mistral         API key"},
 	{"nvidia", "NVIDIA NIM      API key"},
+	{"ollama-cloud", "Ollama Cloud    API key"},
 	{"openrouter", "OpenRouter      API key"},
 	{"cloudflare", "Cloudflare      Workers AI  API token + account ID"},
 	{"compat", "Local/Custom    Ollama, LM Studio, or custom URL"},
@@ -792,18 +794,19 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 }
 
 var modelsProviders = map[string]func(context.Context, provider.Config, provider.ModelFilter) ([]string, error){
-	"codex":      openaicodex.Models,
-	"grok-oauth": grokoauth.Models,
-	"copilot":    copilot.Models,
-	"cloudflare": cloudflare.Models,
-	"openai":     openai.Models,
-	"claude":     claude.Models,
-	"gemini":     gemini.Models,
-	"grok":       grok.Models,
-	"deepseek":   deepseek.Models,
-	"mistral":    mistral.Models,
-	"nvidia":     nvidia.Models,
-	"openrouter": openrouter.Models,
+	"codex":        openaicodex.Models,
+	"grok-oauth":   grokoauth.Models,
+	"copilot":      copilot.Models,
+	"cloudflare":   cloudflare.Models,
+	"openai":       openai.Models,
+	"claude":       claude.Models,
+	"gemini":       gemini.Models,
+	"ollama-cloud": ollamacloud.Models,
+	"grok":         grok.Models,
+	"deepseek":     deepseek.Models,
+	"mistral":      mistral.Models,
+	"nvidia":       nvidia.Models,
+	"openrouter":   openrouter.Models,
 }
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {

@@ -40,6 +40,7 @@ var providerCatalog = []providerInfo{
 	{"deepseek", "DeepSeek", map[string]string{"api_key": "pay per token"}},
 	{"mistral", "Mistral", map[string]string{"api_key": "pay per token"}},
 	{"nvidia", "NVIDIA NIM", map[string]string{"api_key": "pay per token"}},
+	{"ollama-cloud", "Ollama Cloud", map[string]string{"api_key": "API key"}},
 	{"openrouter", "OpenRouter", map[string]string{"api_key": "pay per token"}},
 	{"cloudflare", "Cloudflare", map[string]string{"api_key": "Workers AI · API token + account ID"}},
 	{"compat", "Local/Custom", map[string]string{"custom": "Ollama, LM Studio, or custom URL"}},

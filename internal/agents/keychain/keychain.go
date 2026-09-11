@@ -68,6 +68,13 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 		}
 		return provider.Config{APIKey: apiKey}, nil
 
+	case "ollama-cloud":
+		apiKey := go_pkg_keychain.Get("OLLAMA-CLOUD_API_KEY")
+		if apiKey == "" {
+			return provider.Config{}, fmt.Errorf("keychain.Get: OLLAMA-CLOUD_API_KEY is required")
+		}
+		return provider.Config{APIKey: apiKey}, nil
+
 	case "openrouter":
 		apiKey := go_pkg_keychain.Get("OPENROUTER_API_KEY")
 		if apiKey == "" {
@@ -150,7 +157,7 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 
 var builtinProviders = []string{
 	"claude", "openai", "gemini", "grok", "deepseek", "mistral", "nvidia",
-	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth",
+	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth", "ollama-cloud",
 }
 
 func CompatInstance(name string) (string, bool) {
