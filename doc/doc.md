@@ -73,6 +73,7 @@ Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the
 | `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN` | Chat-bot integrations |
 | `GEMINI_API_KEY` | Gemini audio models and voice features |
+| `OLLAMA-CLOUD_API_KEY` | Ollama Cloud (the hyphen is part of the name) |
 | `COMPAT_<NAME>_API_KEY` | Optional key for a local / custom OpenAI-compatible endpoint named `<NAME>` |
 
 ### Audio model routing
@@ -94,8 +95,12 @@ Agenvoy currently supports Telegram and Discord. Both integrations use outbound 
 | `limits.max_history_messages` | `24` | Recent history messages retained |
 | `limits.max_history_bytes` | `5242880` | History-size ceiling |
 | `reply_lang` | `"auto"` | Reply language. `auto` keeps the default behaviour of matching the user's message; any other value forces every reply into that language regardless of what the user writes |
+| `output_dir` | `""` | Where files made for the user land when the request names no location: `write_report` output, plus the documents, exports and images the agent is told to place there by default. Empty means `~/Downloads`, or `~/.config/agenvoy/download` when that folder does not exist |
+| `model_tag` | `{}` | Per-model tier, `{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`; see [Model tiers](#model-tiers) |
 
 `reply_lang` accepts `auto`, a code listed in `configs/jsons/reply_lang.json` (`en`, `zh-TW`, `zh-HK`, `zh-CN`, `ja`, `ko`, `es`, `fr`, `de`, `pt`, `it`, `ru`, `vi`, `th`, `id`, `ar`) or any other language name, which is passed through to the model as written. `zh-TW` and `zh-HK` are separate: Taiwan and Hong Kong Traditional Chinese differ in vocabulary and phrasing. It applies to the agent system prompt, the `/v1/chat/completions` system prompt and the generated follow-up suggestions. Set it from **Config › System**, which applies it to the running daemon at once; editing `config.json` by hand takes effect at the next daemon start.
+
+`output_dir` expands `~` and creates the directory when it is saved; a path that cannot be created is rejected, and one that later becomes unusable falls back to the default. **Config › System** applies it to the running daemon at once. The TUI's `/reply-language` and `/output-dir` write `config.json` the same way a hand edit does.
 
 Package defaults (not currently read from `config.json`):
 
@@ -107,15 +112,33 @@ Package defaults (not currently read from `config.json`):
 
 ### TUI execution modes
 
-The runtime ships 12 model providers, plus the `compat` entry for local or custom OpenAI-compatible endpoints (Ollama, LM Studio, self-hosted gateways).
+The runtime ships 13 model providers, Ollama Cloud included, plus the `compat` entry for local or custom OpenAI-compatible endpoints (Ollama, LM Studio, self-hosted gateways).
 
-`/model add` probes a local Ollama (`http://localhost:11434/v1`) and llama.cpp (`http://localhost:8080/v1`) with `GET /models`; each one that answers is listed as **Ollama Local** or **Llama.cpp Local** at the top of the provider list, and picking it records the endpoint under `compats` in `config.json` and goes straight to model selection without asking for a URL or key. Other ports or hosts are added through **Local/Custom**. Local models are registered as `compat[NAME]@<model>`.
+`/model add` probes a local Ollama (`http://localhost:11434/v1`) and llama.cpp (`http://localhost:8080/v1`) with `GET /models`; each one that answers is listed as **Ollama Local** or **Llama.cpp Local** at the top of the provider list and goes straight to model selection without asking for a URL or key. Those two endpoints are built in (`configs/jsons/local_compat.json`), so nothing is written for them. Other ports or hosts are added through **Local/Custom**, which records the URL under `compats` in `config.json`. Either way the model list comes from the endpoint's own `GET /models`. Endpoint models are registered as `<name>@<model>` with the endpoint name lowercased (`ollama@gemma3:4b`); the older `compat[NAME]@<model>` form is still accepted and rewritten to the new one whenever `config.json` is loaded or saved.
 
-When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.5.1 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
+When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.6.0 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
 
 ### Agent selection and confirmation routing
 
 When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone. While assembling the prompt, Agenvoy adds its common official operating guide and, when configured, the guide that matches the selected model.
+
+### Model tiers
+
+Each registered model can carry a tier in `model_tag`:
+
+| Tier | Meaning |
+|---|---|
+| `S` | Strongest; code and work that asks for depth or precision |
+| `A` | Default for most work, one step below the flagship |
+| `B` | Mainstream mid tier |
+| `C` | Fast and cheap; calls tools reliably as instructed |
+| `pass` | Never picked by auto routing or subagents; last in fallback, or used when a session is set to it |
+
+Set a tier with `t` on a model row in the TUI `/model`, or with the tier button on each card under **Config › Model › Fallback Priority**. Tiers are read per request, so a change applies without a restart.
+
+A model pinned to the session skips routing. Otherwise the dispatcher receives the tiers along with the model list; an untiered model is placed by its name (`claude-opus` S, `claude-sonnet` A, `claude-haiku` B, `*-mini` C, and so on). The kind of work decides the order: code, or a request that asks outright for depth or precision, tries S first; greetings, short answers, chat and translation try B; fetching data with tools and returning it tries C; everything else, reports and analysis included, tries A. When the same model is registered under several providers, the order within it is `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. `pass` is enforced in the prompt rather than by removal: the dispatcher is told not to return a `pass` model unless the request names it, and the fallback list appends `pass` models after every other model.
+
+Subagent legs follow the same tiers. The planner gives each leg one job — collect, review, transform or reason — and picks its model by that job: collect C>B>A>S, transform B>C>A>S, review and reason A>S>B>C, code or high-precision work S>A>B>C.
 
 Interactive requests also carry an origin prefix. CLI confirmations are consumed only by the TUI, web requests by the web confirmation stream, and Telegram or Discord requests by their matching channel listeners. Non-TUI confirmations expire after five minutes, preventing one channel from intercepting or indefinitely holding another channel's prompt.
 
@@ -185,7 +208,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 
 | Command | Purpose |
 |---|---|
-| `/model` | Pick the session model (`auto` or a registered model; `d` removes the highlighted model); `add` a provider; set the dispatch, summary, image, STT and TTS models |
+| `/model` | Pick the session model (`auto` or a registered model; `d` removes the highlighted model, `t` sets its tier); `add` a provider; set the dispatch, summary, image, STT and TTS models |
 | `/mcp` | List MCP servers (`d` removes one) and `add` new ones; per server: log in, set the OAuth client, pick always-allowed `tools` (first row `all`), reconnect |
 | `/sessions` `/new` | Switch to another session (`d` deletes it), or create one (names are conflict-checked) |
 | `/bot` | Rename the current session or edit its persona |
@@ -199,6 +222,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/resume` `/log` `/usage` | Reload the visible transcript, follow `daemon.log` in `$PAGER`, show per-model token usage for this session above and all sessions below (24h / 7d / 28d) |
 | `/key` | Edit a stored credential (`d` deletes it) |
 | `/reply-language` | Pick the language every reply is written in; `auto` follows each message |
+| `/output-dir` | Set where generated files land; blank uses `~/Downloads` |
 | `/update` | Fetch the latest release, rebuild, quit |
 | `/clear` `/exit` | Clear the visible transcript, or leave the TUI (the daemon keeps running) |
 | `/<skill>` `/sched-<name>` | Run an installed skill or a scheduler entry directly |
@@ -272,10 +296,11 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` | `/v1/models` | List registered models (OpenAI `{data:[...]}` shape, `auto` included). |
 | `GET` | `/v1/models/*id` | Read one registered model. |
-| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. `POST` takes `{prefix, models}`; `prefix` is a provider id from `GET /v1/providers` or `compat[NAME]` for a local endpoint. |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. `POST` takes `{prefix, models}`; `prefix` is a provider id from `GET /v1/providers` or the name of a local / custom endpoint (`ollama`, `llama.cpp`, or one recorded through `POST /v1/provider/compat/key`). |
 | `GET` `POST` | `/v1/model` | **local** — model routing: `dispatcher`, `summary`, `image`, `stt`, and `tts`; on read it also returns `image_options`, `image_providers`, and `audio_providers`. `dispatcher` and `summary` name registered models (`prefix@model`); `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router`. `stt` and `tts` name a model from the respective options exposed by `GET /v1/model/audio`. `POST` is a partial update: an omitted (or `null`) field is unchanged, `""` clears it, and `off` clears only `image`. Unknown models, providers, or unavailable audio models are rejected and nothing is written. Both verbs return the same object. |
 | `GET` | `/v1/model/audio` | **local** — list the available `stt_options` and `tts_options`, derived from configured OpenAI and Gemini providers. |
-| `GET` `POST` | `/v1/model/priority` | **local** — read / reorder the registered models. The order decides fallback priority; the last entry is the final line of defense. `POST` `{models}` moves the listed names to the front in that order and keeps the rest after them; an unknown name returns 400. |
+| `GET` `POST` | `/v1/model/priority` | **local** — read / reorder the registered models. The order decides fallback priority; the last entry is the final line of defense, and `pass` models run after all others whatever their place here. `GET` also returns `tiers` (`{model: tier}`) and `tier_options` (`[{tier, detail}]`, the empty tier last). `POST` `{models}` moves the listed names to the front in that order and keeps the rest after them; an unknown name returns 400. |
+| `POST` | `/v1/model/tier` | **local** — `{model, tier}` sets one model's tier (`S` `A` `B` `C` `pass`); `""` clears it. An unregistered model or unknown tier returns 400. |
 
 **Sessions**
 
@@ -322,11 +347,11 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/providers` | **local** — list providers and their available operations. |
-| `GET` | `/v1/providers/quota` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
-| `POST` | `/v1/provider/:provider/key` | **local** — set an API key. |
+| `GET` | `/v1/providers/quota` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot`, `ollama-cloud` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
+| `POST` | `/v1/provider/:provider/key` | **local** — set an API key. For `compat` the body is `{name, url, api_key?}`: the URL is recorded under `compats` and the key, when given, is stored as `COMPAT_<NAME>_API_KEY`. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |
-| `GET` | `/v1/provider/:provider/models` | **local** — list models available to this provider. `compat` endpoints are not listed yet and return 501; register their model names through `POST /v1/models`. |
+| `GET` | `/v1/provider/:provider/models` | **local** — list models available to this provider. For a local / custom endpoint name (`ollama`, `llama.cpp`, or a recorded one) it asks the endpoint's `GET /models`, returning 502 when the endpoint does not answer. |
 
 **MCP**
 
@@ -377,6 +402,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` `POST` | `/v1/config/startup` | **local** — read/set launch-on-login. `POST` `{enable}` writes or removes the launchd agent (macOS) or systemd user unit (Linux); it never starts or stops the running daemon, and takes effect at the next login. Both verbs answer with `enabled` (the setting, recorded under `startup` in `config.json` whenever it is changed) and `installed` (whether the unit file is actually on disk right now) — they disagree when the unit was removed outside Agenvoy. |
 | `GET` `POST` | `/v1/config/system` | **local** — read/set the System tab. `GET` returns `{reply_lang, languages:[{code,label}]}`, `languages` being the select options with `auto` first. `POST` `{reply_lang}` canonicalises a known code, writes it to `config.json` and applies it to the running daemon immediately; an empty string means `auto`, an unknown value is kept as written and passed to the model as a language name. |
+| `GET` `POST` | `/v1/config/output_dir` | **local** — read/set `output_dir`. `GET` returns `{output_dir, resolved}`, `resolved` being the directory actually in use. `POST` `{output_dir}` expands `~`, creates the directory, writes `config.json` and applies it to the running daemon at once, answering `{ok, output_dir, resolved}`; an empty string restores the default, and a path that cannot be created returns 400. |
 
 **Inspection**
 
@@ -402,7 +428,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | | `read_files` | Batch-read text, PDF, DOCX, PPTX, CSV or images |
 | | `edit_file` | Create, edit, move aside or restore a file (`mode=write\|patch\|remove\|restore`) |
 | | `file_history` | Recorded versions of every file the tools changed (`mode=list\|read`) |
-| | `write_report` | Save a long-form report as `report-<timestamp>.md` in `~/Downloads` (or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content |
+| | `write_report` | Save a long-form report as `report-<timestamp>.md` in the output directory (`output_dir`; `~/Downloads` by default, or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content |
 | Execution | `run_command` | Run a binary in the work directory under sandbox constraints |
 | | `open_file` | Hand a file to the OS default application |
 | | `download_file` | Fetch a binary asset to disk |

@@ -60,6 +60,7 @@ type Popup struct {
 
 	onConfirm func(chosen string) any
 	onDelete  func(chosen string) any
+	onTag     func(chosen string) any
 	onCancel  func() any
 	back      *Popup
 
@@ -253,17 +254,24 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		})
 		t = t.closePopup()
 	case tea.KeyRunes:
-		if p.onDelete == nil || p.pendingId != "" {
+		if p.pendingId != "" {
 			break
 		}
-		if r := strings.ToLower(string(msg.Runes)); r != "d" {
+		var action func(chosen string) any
+		switch strings.ToLower(string(msg.Runes)) {
+		case "d":
+			action = p.onDelete
+		case "t":
+			action = p.onTag
+		}
+		if action == nil {
 			break
 		}
 		chosen := p.options[p.cursor]
 		if p.values != nil && p.cursor < len(p.values) {
 			chosen = p.values[p.cursor]
 		}
-		next := p.onDelete(chosen)
+		next := action(chosen)
 		if next == nil {
 			break
 		}

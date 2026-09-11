@@ -489,7 +489,7 @@
               </section>
             </section>
             <section class="tools" id="model-priority" data-open="1">
-              <strong class="group">Model Priority</strong>
+              <strong class="group">Fallback Priority</strong>
               <div class="note">
                 <p>Fallback under auto only — this order does not change which agent gets selected.</p>
                 <p>A hand-off walks downward and never back up, so the last entry is your final line of defense.</p>
@@ -665,13 +665,6 @@
           <form id="system-form">
             <div class="card">
               <div class="label">
-                <strong>Reply language</strong>
-                <p>auto follows each message · any other value fixes every reply</p>
-              </div>
-              <select id="system-lang" @change="system_lang"></select>
-            </div>
-            <div class="card">
-              <div class="label">
                 <strong>Launch on login</strong>
                 <p>writes a launch agent · applies at your next login, never touches the running daemon</p>
               </div>
@@ -679,6 +672,13 @@
                 <option value="disabled">disabled</option>
                 <option value="enabled">enabled</option>
               </select>
+            </div>
+            <div class="card">
+              <div class="label">
+                <strong>Reply language</strong>
+                <p>auto follows each message · any other value fixes every reply</p>
+              </div>
+              <select id="system-lang" @change="system_lang"></select>
             </div>
             <div class="card">
               <div class="label">

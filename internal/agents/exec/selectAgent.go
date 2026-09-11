@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -79,19 +80,26 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		}
 	}
 
-	if len(registry.Entries) == 0 {
-		return nil, dead
+	tiers := map[string]string{}
+	tierLines := "(none set)"
+	if cfg, err := config.Load(); err == nil {
+		tiers = cfg.ModelTag
+		tierLines = config.ModelTagLines(cfg)
 	}
-
-	if len(registry.Entries) == 1 {
-		return []string{registry.Entries[0].Name}, dead
-	}
-
 	registryOrder := make([]string, 0, len(registry.Entries))
+	passOrder := []string{}
 	known := make(map[string]struct{}, len(registry.Entries))
 	for _, e := range registry.Entries {
-		registryOrder = append(registryOrder, e.Name)
 		known[e.Name] = struct{}{}
+		if tiers[e.Name] == config.ModelTagPass {
+			passOrder = append(passOrder, e.Name)
+		} else {
+			registryOrder = append(registryOrder, e.Name)
+		}
+	}
+
+	if len(registry.Entries) <= 1 {
+		return append(registryOrder, passOrder...), dead
 	}
 
 	picked := []string{}
@@ -110,7 +118,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 				}
 			}
 			messages := []provider.Message{
-				{Role: "system", Content: strings.TrimSpace(configs.AgentSelector)},
+				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelTag}}", tierLines)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
@@ -178,7 +186,64 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		picked = append(picked, n)
 		seen[n] = true
 	}
+	picked = orderProviders(picked)
+	for _, n := range passOrder {
+		if !seen[n] && !dead[n] {
+			picked = append(picked, n)
+		}
+	}
 	return picked, dead
+}
+
+var providerRank = map[string]int{
+	"codex":      0,
+	"grok-oauth": 0,
+	"copilot":    1,
+	"openrouter": 3,
+}
+
+func providerOrder(name string) int {
+	prov, _, _ := strings.Cut(name, "@")
+	if rank, ok := providerRank[prov]; ok {
+		return rank
+	}
+	return 2
+}
+
+func baseModel(name string) string {
+	prov, model, ok := strings.Cut(name, "@")
+	if !ok {
+		return name
+	}
+	if prov == "openrouter" {
+		if _, rest, found := strings.Cut(model, "/"); found {
+			model = rest
+		}
+	}
+	return strings.ToLower(model)
+}
+
+func orderProviders(names []string) []string {
+	slots := make(map[string][]int, len(names))
+	for i, n := range names {
+		key := baseModel(n)
+		slots[key] = append(slots[key], i)
+	}
+	out := slices.Clone(names)
+	for _, idx := range slots {
+		if len(idx) < 2 {
+			continue
+		}
+		group := make([]string, len(idx))
+		for i, at := range idx {
+			group[i] = names[at]
+		}
+		slices.SortStableFunc(group, func(a, b string) int { return providerOrder(a) - providerOrder(b) })
+		for i, at := range idx {
+			out[at] = group[i]
+		}
+	}
+	return out
 }
 
 func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {

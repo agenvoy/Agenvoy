@@ -370,7 +370,41 @@ func GetModelPriority() gin.HandlerFunc {
 				names = append(names, name)
 			}
 		}
-		c.JSON(http.StatusOK, gin.H{"models": names})
+		options := make([]gin.H, 0, len(config.ModelTags)+1)
+		options = append(options, gin.H{"tier": "", "detail": config.ModelTagNoneDetail})
+		for _, tier := range config.ModelTags {
+			options = append(options, gin.H{"tier": tier, "detail": config.ModelTagDetails[tier]})
+		}
+		c.JSON(http.StatusOK, gin.H{"models": names, "tiers": cfg.ModelTag, "tier_options": options})
+	}
+}
+
+func SetModelTier() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			Model string `json:"model"`
+			Tier  string `json:"tier"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		name := strings.TrimSpace(body.Model)
+		if !slices.ContainsFunc(cfg.Models, func(m config.ModelEntry) bool { return m.Name == name }) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + name})
+			return
+		}
+		if err := config.SetModelTag(name, strings.TrimSpace(body.Tier)); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }
 

@@ -36,7 +36,7 @@ func registSubagents() {
 Naming an agent is an order: 呼叫 X / 請 X / 找 X / call X / ask X → dispatch to X, never answer it yourself.
 Also fan out when one lookup repeats across 3+ entities or 2+ source classes.
 The leg's report comes back whole — relay it; "已呼叫" is not an answer.
-One call per subtask, three at a time. Protocol and model ladder → reasoning_guide(topic=subagent_dispatch).`,
+One call per subtask, three at a time. Protocol and model tiers → reasoning_guide(topic=subagent_dispatch).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -57,7 +57,7 @@ One call per subtask, three at a time. Protocol and model ladder → reasoning_g
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: worker model, used only when the run lands in a temp session — set it whenever `self_id` is empty. A `self_id` that resolves to an existing session ignores this field and runs under that session's own configured model and reasoning. For a temp run always set it; blank spends an extra dispatcher call and over-selects for what is plain collection work. DEFAULT TIER — take the first of these the registry offers and stay here unless an escalation trigger below fires: `*-nano` → `*-mini` → `deepseek-flash` → `claude-haiku` → `*-luna` → `grok`. Fetching, listing, scraping, single-source lookup, format conversion and per-entity fan-out legs stay in this tier however many legs there are — width is not complexity. ESCALATE one rung, and only when the task text itself names the difficulty: cross-checking 3+ sources that can disagree → `*-terra`; the leg must write reasoned prose rather than return gathered facts → `claude-sonnet`/`gemini-pro`; a long tool chain where a wrong early call invalidates everything after → `glm`/`k3`. Wanting `*-sol`/`claude-opus` means the task should have been split — split it instead. `-sol`/`-terra`/`-luna` are rungs, not versions: `gpt-5.6-terra` sits at `*-terra`. Open-weight models under `100b` (`*-20b`, `*-8b`) have unreliable tool-calling — sole candidate only; `*-nano`/`*-mini` are hosted rungs and do not fall under this.",
+					"description": "mode=invoke: worker model for a temp run — set it whenever `self_id` is empty; a `self_id` that resolves to an existing session runs under that session's own model and ignores this. Pick by the leg's one job, tiers from reasoning_guide(topic=subagent_dispatch): collect → C>B>A>S, transform → B>C>A>S, review and reason → A>S>B>C, code or high-precision work → S>A>B>C; a `pass`-tier model only when the user names it. Blank spends an extra dispatcher call.",
 					"default":     "",
 					"enum":        models,
 				},

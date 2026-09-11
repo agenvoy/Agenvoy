@@ -27,7 +27,7 @@ graph TB
 
 `cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
 
-輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度。本機 OpenAI 相容端點以 `compat[NAME]@<model>` 註冊，各端點網址記錄在 `config.json` 的 `compats`；`/model add` 會偵測預設 port 上執行中的 Ollama 或 llama.cpp 並寫入該處。`nvidia/nemotron-3.5-lightning-30b-a3b` 是 NVIDIA NIM 提供的免費、非大型模型，適合免費嚐鮮 Agenvoy，不是必要的 dispatcher 或主要模型。
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度，`pass` tier 的模型一律排在最後。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。`nvidia/nemotron-3.5-lightning-30b-a3b` 是 NVIDIA NIM 提供的免費、非大型模型，適合免費嚐鮮 Agenvoy，不是必要的 dispatcher 或主要模型。
 
 ```mermaid
 graph TB
@@ -87,7 +87,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，長篇報告一律寫入 `~/Downloads`（該資料夾不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄；缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，長篇報告寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡；缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
 
 ```mermaid
 graph TB

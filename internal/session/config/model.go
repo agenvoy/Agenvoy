@@ -2,7 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -56,6 +58,66 @@ func normalizeModels(cfg *Config) {
 		kept = append(kept, m)
 	}
 	cfg.Models = kept
+
+	tags := make(map[string]string, len(cfg.ModelTag))
+	for name, tag := range cfg.ModelTag {
+		tags[NormalizeModel(name)] = tag
+	}
+	cfg.ModelTag = tags
+}
+
+const ModelTagPass = "pass"
+
+var ModelTags = []string{"S", "A", "B", "C", ModelTagPass}
+
+var ModelTagDetails = map[string]string{
+	"S":          "strongest  code and work that asks for depth or precision",
+	"A":          "default for most work  one step below the flagship  e.g. sonnet, terra, pro",
+	"B":          "mainstream mid tier  e.g. haiku, luna, flash",
+	"C":          "fast and cheap  calls tools reliably as instructed",
+	ModelTagPass: "never picked by auto routing or subagents  last in fallback  or set for a session",
+}
+
+const ModelTagNoneDetail = "follow the built-in naming rules"
+
+func ModelTagLines(cfg *Config) string {
+	registered := make(map[string]bool, len(cfg.Models))
+	for _, m := range cfg.Models {
+		registered[m.Name] = true
+	}
+	groups := make(map[string][]string, len(ModelTags))
+	for name, tag := range cfg.ModelTag {
+		if registered[name] {
+			groups[tag] = append(groups[tag], name)
+		}
+	}
+	lines := make([]string, 0, len(ModelTags))
+	for _, tag := range ModelTags {
+		if names := groups[tag]; len(names) > 0 {
+			slices.Sort(names)
+			lines = append(lines, fmt.Sprintf("%q: %s", tag, strings.Join(names, ", ")))
+		}
+	}
+	if len(lines) == 0 {
+		return "(none set)"
+	}
+	return strings.Join(lines, "\n")
+}
+
+func SetModelTag(name, tag string) error {
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	if tag != "" && !slices.Contains(ModelTags, tag) {
+		return fmt.Errorf("unknown model tag %q", tag)
+	}
+	if tag == "" {
+		delete(cfg.ModelTag, name)
+	} else {
+		cfg.ModelTag[name] = tag
+	}
+	return Save(cfg)
 }
 
 func UpsertCompat(provider, url string) error {

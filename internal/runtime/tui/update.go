@@ -514,6 +514,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := t.runAllowSkillToggle(msg.scope, msg.name)
 		return next, cmd
 
+	case ModelTagPick:
+		return t.openModelTagPicker(msg.name)
+
+	case ModelTagSubmit:
+		if err := config.SetModelTag(msg.name, msg.tag); err != nil {
+			return t, tea.Println(msgError(fmt.Sprintf("model tag: %v", err)) + "\n")
+		}
+		next, _, _ := t.commandModel(nil)
+		return next, nil
+
 	case ModelRemovePick:
 		next, cmd := t.openModelRemoveConfirm(msg.name)
 		return next, cmd

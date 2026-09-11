@@ -42,10 +42,10 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 	}
 	options = append(options, optionColumn(actions, []string{
 		"add model from provider",
-		"smart routing  picks the model for each request",
-		"summary memory  condenses history into session memory",
+		"smart routing",
+		"summary memory",
 		"image generation",
-		"audio analysis  transcribes audio files",
+		"audio analysis",
 		"speech generation",
 	})...)
 	values = append(values, actions...)
@@ -70,6 +70,13 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 				return nil
 			}
 			return ModelRemovePick{name: name}
+		},
+		onTag: func(chosen string) any {
+			name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
+			if !ok || name == configBot.DefaultModel {
+				return nil
+			}
+			return ModelTagPick{name: name}
 		},
 	}
 	return t, nil, true
