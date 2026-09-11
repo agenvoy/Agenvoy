@@ -132,6 +132,11 @@ func LoadRuntime() error {
 		changed = true
 	}
 
+	if data, ok := raw["model_tag"]; !ok || len(data) == 0 || string(data) == "null" {
+		raw["model_tag"] = json.RawMessage(`{}`)
+		changed = true
+	}
+
 	if err := json.Unmarshal(configs.SensitivePath, &SensitivePath); err != nil {
 		return fmt.Errorf("embedded sensitive_path: %w", err)
 	}

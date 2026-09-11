@@ -2,42 +2,48 @@
 
 ### When to fan out
 
-- **Countable trigger**: the same lookup repeated across 3+ entities (tickers, repos, regions, files, documents), or a lookup spanning 2+ source classes (web / news / RAG / API / script tools) → fan out, one leg per entity or per source-cluster. The condition is the lookup's plurality, not analysis/report keywords, and it applies the moment decomposition becomes possible — at turn start or mid-task when a fresh sub-need appears.
-- **Discover-then-expand**: a task that first establishes a set and then works through it (top-N by mentions, a watchlist, search hits, glob matches) fans out at the second stage. Phase one is sequential only because nothing can start without its output; the moment the set is known the fan-out begins. Walking the set yourself after discovering it is the most common way this protocol gets skipped.
-- **Aggregate tools do not exempt you**: an aggregate or `report_*`-style tool called once per entity is still the same lookup repeated, and three or more underlying entities still means fan out. A convenient tool is not a reason to keep the loop in this session.
-- **A leg inherits your entire toolset, every MCP server tool included** — it loses only `subagents`, file writes, and deliverable renderers. Never serialize out of doubt about a leg's reach, and never assume a server's tools are yours alone to drive.
+- **Countable trigger**: the same lookup repeated across 3+ entities (tickers, repos, regions, files, documents), or one lookup spanning 2+ source classes (web / news / RAG / API / script tools) → fan out, one leg per entity or per source cluster. Plurality is the trigger, not analysis or report wording, and it applies whenever decomposition becomes possible — at turn start or mid-task when a new sub-need appears.
+- **Discover-then-expand**: a task that first establishes a set and then works through it (top-N by mentions, a watchlist, search hits, glob matches) → run the discovery here, then fan out over the set once it is known. Walking the discovered set yourself is the most common way this protocol gets skipped.
+- **Aggregate tools count per entity**: a `report_*`-style tool called once per entity is still the same lookup repeated, so three or more entities still fan out.
+- **A leg has your whole toolset**, every MCP server included, minus `subagents`, file writes and deliverable renderers — a tool's reach is not a reason to keep the loop in this session.
 
-### Single delegation
+### Named delegation
 
-- **Named shortcut**: user says "call X"/"呼叫 X"/"找 X"/"請 X"/"let X"/"ask X" → X is a `self_id`. Resolve it silently and dispatch: `subagents(name=X, task=...)`. No name confirmation, no `mode=list` detour, and no answering it yourself — a named delegation is an instruction about **who** does the work, never a hint that the work is optional.
-- **Leave `model` and `reasoning` unset for a named leg**: a resolved non-temp session runs under its own stored configuration and ignores both. Setting them is noise, not an override.
-- **Relay what the leg returned**: its response is the deliverable — reproduce it in full, keeping every section, table and source. "已呼叫 X" / "done" with the content dropped is a failed turn, not a short answer.
-- **Reuse-check**: one self-contained subtask with no name given (not fan-out) → `subagents(mode=list)` first. Fitting session → `ask_user` route? **yes** → `subagents(name=<self_id>, ...)`; **no**/none fitting → temp (`name` empty). One confirmation only, and only for single delegation — fan-out skips this entirely and stays anonymous.
+- **The user names who does the work** ("call X" / "呼叫 X" / "找 X" / "請 X" / "let X" / "ask X") → `subagents(mode=list, self_id=X)`, then invoke with the self id it prints, spelled verbatim. Invoke matches self ids exactly, so a guessed spelling silently lands in a temp session instead. Dispatch without asking the user to confirm the name; the name says who does the work, and the work still gets done.
+- **Leave `model` and `reasoning` unset**: a named session runs under its own stored configuration and ignores both.
+- **Relay the leg's response in full**, every section, table and source kept — it is the answer to the user. A reply of "已呼叫 X" / "done" without the content delivers nothing.
 
 ### Planner mode (fan-out)
 
-Fan-out via `subagents` rather than a single delegation → this session is the planner:
-
-- **Split until every leg is collection and organization only, and prefer legs of the same shape** — same lookup, same output format, differing only in the entity or source covered. A leg that still needs reasoning was split too coarsely; the reasoning is the planner's job at synthesis.
-- **Open a `write_todo` plan** — dispatch/gather/synthesize as visible phases; without it the user is blind to progress.
-- **Dispatch in parallel, three at a time**: put the batch's `subagents` calls in one response, never sequential. Three legs run concurrently; a fourth queues behind them while its own timeout keeps running, so split a wider set into successive batches of three and synthesize once the last batch returns. One call per subtask, never the same task twice.
-- **Leave `name` empty** — set it only when the user reused an existing session by name; an invented name just mislabels a temp session.
-- **Ask a leg for data, never for a deliverable** — subagents cannot write files or render pages/PDFs, and they ignore output-format instructions by charter. Any page, document, or report the user wants is rendered here, by the planner, after synthesis.
-- **A failed leg gets re-dispatched, not skipped** — any leg that comes back as an error, including "finished without producing any text", left a hole in the data. It is a failure, never a finding of "no data". Re-dispatch it once with a model other than the one named in the error; the batch's other legs are unaffected. Never fill the gap from your own knowledge, and never present a synthesis as complete while a leg is still missing — name the entity that is uncovered.
-- **Synthesis merges, it does not compress** — one section or row per entity, full per-item detail kept. Cutting N legs down to 3–5 bullets is incomplete synthesis; only the subagents' scratch formatting and meta-commentary should disappear.
+- **Split until every leg has exactly one job, and prefer legs of the same shape** — the job is one of: **collect** (fetch, look up, list, scrape, organise what was gathered), **review** (check a draft, a result or another leg's output against sources or criteria), **transform** (translate, reformat, convert a fixed input), **reason** (write code, plan, or reach a conclusion from material handed to it). Same job, same output format, differing only in the entity or source covered. A leg that mixes jobs was split too coarsely: gathering and judging the gathered data are two legs, and merging all legs into one answer stays with the planner at synthesis.
+- **Open a `write_todo` plan** with dispatch / gather / synthesize as phases, so the user can follow progress.
+- **Send each batch of three in one response.** Three legs run concurrently; a fourth queues behind them while its own timeout keeps running, so a wider set goes out in successive batches of three. One call per subtask.
+- **Leave `self_id` empty** for fan-out legs: they run as temp sessions, and a descriptive label matches no session.
+- **Legs return material; deliverables are rendered here.** Legs cannot write files or render pages / PDFs, so any page, document or report the user wants is produced by the planner after synthesis.
+- **A failed leg is re-dispatched once**, with a different model one tier up. Any error, including "finished without producing any text", is a hole in the data rather than a finding of "no data". Fill the hole from a leg, not from memory; while an entity is still uncovered, the synthesis names it as missing.
+- **Synthesis merges rather than compresses**: one section or row per entity with its full detail. Only the legs' scratch formatting and meta-commentary drop out.
 
 ### Task description
 
-Every task description must carry both: "use all available tools to cross-verify from multiple sources" and "return the complete report as text in your response, do not write a file".
-
-A subagent's return value is the complete, integrated report as plain text — never a file (`write_file`/`.md` output does not apply inside a subagent's own task). It returns full report detail, not a compressed summary; that response becomes your reference material for synthesis.
+Open each task with the leg's one job. A collect leg names its entities and asks for cross-verification across the available sources; a review leg carries the material to check and the criteria to check it against. Ask for full detail back — the response is your synthesis material, and anything the leg compresses away is gone.
 
 ### Model sizing
 
-**Always set `model`** — blank spends an extra dispatcher call and over-selects for what is plain collection work. Fan-out legs are anonymous, so every one lands in a temp session where `model` applies; a leg routed to a named session ignores `model`/`reasoning` and runs under that session's own configuration.
+Set `model` on every fan-out leg: a blank one spends an extra dispatcher call, and that call routes by the task text rather than by the leg's job.
 
-Tier letters do not apply here: a leg is assigned, not routed. Walk fastest-first, take the first that can do the leg:
+Pick by the leg's job, walking the tiers left to right and taking the first the registry offers:
 
-`deepseek-flash` → `gemini-flash` → `claude-haiku` → `*-luna` → `grok` → `*-terra` → `claude-sonnet` → `deepseek-pro` → `gemini-pro` → `glm` → `k3` → `*-sol` → `claude-opus`
+| Job | Tier order |
+|---|---|
+| collect | C > B > A > S |
+| transform | B > C > A > S |
+| review | A > S > B > C |
+| reason | A > S > B > C |
+| reason on code, or a leg whose task demands high precision | S > A > B > C |
 
-Collection lands in the first half. Pass `*-terra` only to cross-verify many sources through a long tool loop; needing `*-sol`/`claude-opus` means split further, and take one — or any open-weight model under `100b`, where tool-calling turns unreliable — only as the sole candidate. **Pair with `reasoning: low`**: gathering needs no depth, and depth multiplies across every leg. `-sol`/`-terra`/`-luna` are rungs, not versions.
+Tiers: the user-set list below wins over names.
+{{.ModelTag}}
+A `pass` model is not picked for a leg even when its name fits a tier; set it only when the user names it.
+Models not listed there → read the tier from the name: S=`claude-fable,claude-opus,gpt-*-astra,gpt-*-sol,grok-4.5+`; A=`claude-sonnet,gpt-*-terra,gemini-*-pro,deepseek-pro,glm,kimi`; B=`claude-haiku,gpt-*-luna,gemini-*-flash,grok<4.5,deepseek`; C=`*-mini,*-nano,gemini-*-flash-lite`. `-astra`/`-sol`/`-terra`/`-luna` are rungs, not versions; newest version wins inside a tier; the same model on several providers → `codex`/`grok-oauth` > `copilot` > direct API > `openrouter`. An untiered open-weight model under `100b` is a last resort — its tool-calling turns unreliable.
+
+Width is not difficulty: ten collect legs are still ten C-tier legs. Pair collect and transform legs with `reasoning: low`, since depth multiplies across every leg; raise it for review and reason legs.

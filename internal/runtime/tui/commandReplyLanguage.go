@@ -1,46 +1,31 @@
 package tui
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
-
-const replyLanguageTimeout = 10 * time.Second
 
 type ReplyLanguageSelect struct {
 	code string
 }
 
-type replyLanguageState struct {
-	ReplyLang string                       `json:"reply_lang"`
-	Languages []filesystem.ReplyLangOption `json:"languages"`
-}
-
 func (t TUI) commandReplyLanguage() (TUI, tea.Cmd, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), replyLanguageTimeout)
-	defer cancel()
-
-	state, err := daemon.Get[replyLanguageState](ctx, "/v1/config/system", nil)
-	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n"), true
-	}
-	if len(state.Languages) == 0 {
+	languages := filesystem.ReplyLangOptions()
+	if len(languages) == 0 {
 		return t, tea.Println(msgLog("no languages available") + "\n"), true
 	}
 
-	keys := make([]string, 0, len(state.Languages))
-	details := make([]string, 0, len(state.Languages))
-	values := make([]string, 0, len(state.Languages))
+	keys := make([]string, 0, len(languages))
+	details := make([]string, 0, len(languages))
+	values := make([]string, 0, len(languages))
 	cursor := 0
-	for i, one := range state.Languages {
+	for i, one := range languages {
 		detail := one.Label
-		if one.Code == state.ReplyLang {
+		if one.Code == filesystem.ConfigReplyLang {
 			detail += "  " + systemStyle.Render("[current]")
 			cursor = i
 		}
@@ -64,12 +49,17 @@ func (t TUI) commandReplyLanguage() (TUI, tea.Cmd, bool) {
 }
 
 func (t TUI) runReplyLanguageSelect(code string) (TUI, tea.Cmd) {
-	ctx, cancel := context.WithTimeout(context.Background(), replyLanguageTimeout)
-	defer cancel()
+	lang := filesystem.CanonicalReplyLang(code)
 
-	state, err := daemon.Post[replyLanguageState](ctx, "/v1/config/system", map[string]any{"reply_lang": code})
+	dic, err := config.Get()
 	if err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
 	}
-	return t, tea.Println(msgLog("reply language: "+state.ReplyLang) + "\n")
+	dic["reply_lang"] = lang
+	if err := config.Write(dic); err != nil {
+		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
+	}
+	filesystem.ConfigReplyLang = lang
+
+	return t, tea.Println(msgLog("reply language: "+lang) + "\n")
 }

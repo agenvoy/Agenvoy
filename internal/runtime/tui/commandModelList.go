@@ -49,6 +49,13 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + okayStyle.Render("[summary]")
 		}
+		switch tag := cfg.ModelTag[m.Name]; tag {
+		case "":
+		case config.ModelTagPass:
+			label += "  " + warnStyle.Render(tag)
+		default:
+			label += "  " + warnStyle.Render(tag+"-level")
+		}
 		options = append(options, label)
 		values = append(values, sessionModelPrefix+m.Name)
 	}
