@@ -1,3 +1,5 @@
+@use "action-button" as *;
+
 @mixin settingCard {
   display: flex;
   flex-flow: column;
@@ -42,5 +44,24 @@
     text-align: left;
     background-color: transparent;
     border: none;
+  }
+
+  > div.row {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
+    width: 100%;
+
+    > input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    > button.submit {
+      @include actionButton;
+      flex: 0 0 auto;
+    }
   }
 }

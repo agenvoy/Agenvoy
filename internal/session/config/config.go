@@ -26,6 +26,7 @@ type Config struct {
 	STTModel         string        `json:"stt_model"`
 	TTSModel         string        `json:"tts_model"`
 	AdminChannel     string        `json:"admin_channel"`
+	OutputDir        string        `json:"output_dir"`
 }
 
 type ModelEntry struct {
