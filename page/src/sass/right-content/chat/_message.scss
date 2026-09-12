@@ -102,13 +102,21 @@
       display: none;
     }
 
+    &:has(div.assistant[data-streaming]) section.suggests {
+      display: none;
+    }
+
+    &:not(:has(div.assistant[data-streaming])) > div.assistant:last-child > section footer {
+      opacity: 1;
+    }
+
     div.assistant {
-      &:not(:last-child) section.suggests {
+      &:not([data-streaming]) section.todo {
         display: none;
       }
 
-      &:last-child > section footer {
-        opacity: 1;
+      &:not(:last-child) section.suggests {
+        display: none;
       }
 
       @media (hover: hover) {

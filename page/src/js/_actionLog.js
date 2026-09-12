@@ -4,14 +4,27 @@ const DURATION_UNIT = { ns: 1e-6, us: 1e-3, "\u00b5s": 1e-3, ms: 1, s: 1000, m: 
 
 function parseActionLog(content) {
   const list = [];
-  let pending = null;
+  const taskItems = new Map();
+  const writerItem = new Map();
 
-  const close = () => {
-    if (pending && (pending.content || pending.Reasoning)) {
-      pending.pending = !pending.finished;
-      list.push(pending);
+  const itemOf = (task, writer, sendAt) => {
+    let item = task ? taskItems.get(task) : null;
+    if (item) {
+      return item;
     }
-    pending = null;
+    const current = writerItem.get(writer);
+    if (current && !current.finished && (!task || !current.task)) {
+      item = current;
+    } else {
+      item = logItem(sendAt);
+      list.push(item);
+      writerItem.set(writer, item);
+    }
+    if (task) {
+      item.task = task;
+      taskItems.set(task, item);
+    }
+    return item;
   };
 
   for (const line of content.split("\n")) {
@@ -21,24 +34,24 @@ function parseActionLog(content) {
     }
 
     const sendAt = match[1].slice(0, 16);
+    const writer = match[2];
     const kind = match[3];
     const task = match[4] || "";
     const body = match[5].split(ACTION_NEWLINE).join("\n").trim();
+    const owner = task ? taskItems.get(task) : writerItem.get(writer);
 
-    if (pending && task && pending.task && pending.task !== task) {
-      close();
-    }
-    if (pending && kind !== "pending") {
-      pending.paused = false;
+    if (owner && kind !== "pending") {
+      owner.paused = false;
     }
 
+    let item = null;
     switch (kind) {
       case "user":
         if (body.startsWith("[Resumed Task") || body.startsWith("[Scheduled Task")) {
           break;
         }
 
-        close();
+        writerItem.delete(writer);
         if (body) {
           list.push({ rule: "user", content: body, meta: { send_at: sendAt } });
         }
@@ -48,7 +61,7 @@ function parseActionLog(content) {
         if (!body) {
           break;
         }
-        const last = list[list.length - 1];
+        const last = list.findLast((entry) => entry.rule === "user" || (entry.finished && (entry.content || entry.Reasoning)));
         if (last && last.rule === "user") {
           last.content += steerMark(sendAt, body, !last.steered);
           last.steered = true;
@@ -59,16 +72,16 @@ function parseActionLog(content) {
       }
 
       case "agent_result":
-        pending = pending || logItem(sendAt);
-        pending.meta.model = body;
+        item = itemOf(task, writer, sendAt);
+        item.meta.model = body;
         break;
 
       case "edited_files": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
         try {
           const files = JSON.parse(body);
           if (Array.isArray(files)) {
-            pending.files = files;
+            item.files = files;
           }
         } catch (err) {
           console.error("parseActionLog edited_files", err);
@@ -77,35 +90,35 @@ function parseActionLog(content) {
       }
 
       case "thinking":
-        pending = pending || logItem(sendAt);
-        pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + body;
-        pending.resumed = Boolean(pending.content);
+        item = itemOf(task, writer, sendAt);
+        item.Reasoning += (item.Reasoning ? "\n\n" : "") + body;
+        item.resumed = Boolean(item.content);
         break;
 
       case "tool_call": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
         const todos = parseTodoArgs(body);
         if (todos) {
-          pending.todos = todos;
+          item.todos = todos;
           break;
         }
-        pending.Reasoning += (pending.Reasoning ? "\n\n" : "") + formatTool(body);
-        pending.resumed = Boolean(pending.content);
+        item.Reasoning += (item.Reasoning ? "\n\n" : "") + formatTool(body);
+        item.resumed = Boolean(item.content);
         break;
       }
 
       case "todo": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
         const list = parseTodoLine(body);
         if (list) {
-          pending.todos = list;
+          item.todos = list;
         }
         break;
       }
 
       case "pending":
-        if (pending) {
-          pending.paused = true;
+        if (owner) {
+          owner.paused = true;
         }
         break;
 
@@ -113,60 +126,58 @@ function parseActionLog(content) {
         break;
 
       case "assistant":
-        pending = pending || logItem(sendAt);
-        if (pending.resumed) {
-          pending.content = "";
+        item = itemOf(task, writer, sendAt);
+        if (item.resumed) {
+          item.content = "";
         }
-        pending.content += (pending.content ? "\n\n" : "") + body;
-        pending.resumed = false;
-        pending.meta.send_at = sendAt;
+        item.content += (item.content ? "\n\n" : "") + body;
+        item.resumed = false;
+        item.meta.send_at = sendAt;
         break;
 
       case "error": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
 
-        pending.meta.send_at = sendAt;
-        pending.meta.error = body;
-        pending.finished = true;
-        close();
+        item.meta.send_at = sendAt;
+        item.meta.error = body;
+        item.finished = true;
         break;
       }
 
       case "canceled": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
 
         const meta = formatDone(body);
-        pending.meta.model = meta.model || pending.meta.model;
-        pending.meta.duration = meta.duration;
-        pending.meta.send_at = sendAt;
-        pending.meta.canceled = sendAt;
-        pending.finished = true;
-        close();
+        item.meta.model = meta.model || item.meta.model;
+        item.meta.duration = meta.duration;
+        item.meta.send_at = sendAt;
+        item.meta.canceled = sendAt;
+        item.finished = true;
         break;
       }
 
       case "done": {
-        pending = pending || logItem(sendAt);
+        item = itemOf(task, writer, sendAt);
 
         const meta = formatDone(body);
-        pending.meta.model = meta.model || pending.meta.model;
-        pending.meta.duration = meta.duration;
-        pending.meta.input = meta.input;
-        pending.meta.output = meta.output;
-        pending.meta.send_at = sendAt;
-        pending.finished = true;
-        close();
+        item.meta.model = meta.model || item.meta.model;
+        item.meta.duration = meta.duration;
+        item.meta.input = meta.input;
+        item.meta.output = meta.output;
+        item.meta.send_at = sendAt;
+        item.finished = true;
         break;
       }
     }
-
-    if (pending && task && !pending.task) {
-      pending.task = task;
-    }
   }
-  close();
 
-  return list;
+  return list.filter((item) => {
+    if (item.rule === "user") {
+      return true;
+    }
+    item.pending = !item.finished;
+    return Boolean(item.content || item.Reasoning);
+  });
 }
 
 function logItem(sendAt) {

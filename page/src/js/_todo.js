@@ -4,12 +4,8 @@ const TODO_ICON = {
   pending: "radio_button_unchecked",
 };
 
-function renderTodo(list, sessionId) {
-  const dom = chatPart("todo", sessionId);
-  if (!dom) {
-    return;
-  }
-
+function renderTodo(view, list) {
+  const dom = view.todo;
   dom.innerHTML = "";
   if (!list || list.length === 0) {
     return;
@@ -25,12 +21,5 @@ function renderTodo(list, sessionId) {
       _("div", { "data-status": status }, [_("span.material-symbols-outlined", TODO_ICON[status]), _("p", label)]),
     );
   }
-  scrollToBottom(false, sessionId);
-}
-
-function clearTodo(sessionId) {
-  const dom = chatPart("todo", sessionId);
-  if (dom) {
-    dom.innerHTML = "";
-  }
+  scrollToBottom(false, view.session);
 }

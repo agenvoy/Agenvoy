@@ -14,6 +14,8 @@ const SKIP_EVENTS = [
 ];
 let currentSessionId = "";
 const streamViews = new Map();
+const assistantViews = new WeakMap();
+const assistantItems = new WeakMap();
 const taskIds = new Map();
 
 const TASK_COOKIE = "agenvoy_task";
@@ -92,6 +94,34 @@ function renderSendMode(sessionId) {
 
 function streamOf(sessionId) {
   return streamViews.get(sessionId || currentSessionId) || null;
+}
+
+function taskStream(sessionId, task) {
+  const dom = chatMessages(sessionId);
+  if (!dom || !task) {
+    return null;
+  }
+  const list = dom.querySelectorAll(`:scope > div.assistant[data-task="${CSS.escape(task)}"]`);
+  const last = list[list.length - 1];
+  if (!last) {
+    return null;
+  }
+  const view = assistantViews.get(last);
+  if (view) {
+    return view;
+  }
+  const item = assistantItems.get(last);
+  if (!item) {
+    return null;
+  }
+  assistantItems.delete(last);
+  const upgraded = newStreamItem(
+    { model: item.meta.model, trace: item.Reasoning, text: item.content, task: task },
+    sessionId,
+  );
+  last.replaceWith(upgraded.dom);
+  renderTodo(upgraded, item.todos);
+  return upgraded;
 }
 
 function setStream(sessionId, view) {
@@ -201,13 +231,12 @@ async function send(content, target) {
 
   const dom = chatMessages(sessionId);
   clearPending(sessionId);
-  const running = streamOf(sessionId);
+  const running = taskStream(sessionId, inputTasks.get(sessionId) || "");
   if (running && !running.paused) {
     appendUserText(dom, content);
   } else {
     dom.appendChild(newUserItem({ content: content, meta: { send_at: sendAt() } }));
     setStream(sessionId, newStreamItem({}, sessionId));
-    clearTodo(sessionId);
   }
   taskAwait.add(sessionId);
   pushEcho(sessionId, content);
@@ -352,7 +381,6 @@ function appendInboundUser(text, sessionId) {
     return;
   }
   setStream(sessionId, null);
-  clearTodo(sessionId);
   dom.appendChild(newUserItem({ content: text, meta: { send_at: sendAt() } }));
   scrollToBottom(true, sessionId);
 }
@@ -383,14 +411,20 @@ function newStreamItem(init, sessionId) {
   const source = sourceBox(init.text || "");
   const files = fileBox([]);
   const footer = _("footer");
-  const body = _("section", [model, think, answer, source, files, footer]);
+  const todo = _("section.todo");
+  const body = _("section", [model, think, answer, source, files, footer, todo]);
   const dom = _("div.assistant", [_("img", "public/logo-min.svg"), body]);
+  dom.dataset.streaming = "1";
+  if (init.task) {
+    dom.dataset.task = init.task;
+  }
 
   chatMessages(sid).appendChild(dom);
 
   const view = {
     session: sid,
     task: init.task || "",
+    dom: dom,
     body: body,
     model: model,
     think: think,
@@ -399,6 +433,7 @@ function newStreamItem(init, sessionId) {
     source: source,
     files: files,
     footer: footer,
+    todo: todo,
     text: init.text || "",
     answered: false,
     reasoned: false,
@@ -406,6 +441,7 @@ function newStreamItem(init, sessionId) {
     textStarted: Boolean(init.text),
     trace: init.trace || "",
   };
+  assistantViews.set(dom, view);
   if (view.trace) {
     render(view.reasoning, view.trace, sid);
   }

@@ -258,7 +258,6 @@ async function renderChat(sessionId) {
   }
 
   const items = parseActionLog(content);
-  clearTodo(sessionId);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -271,11 +270,19 @@ async function renderChat(sessionId) {
         view.paused = true;
       }
       setStream(sessionId, view);
-      renderTodo(item.todos, sessionId);
+      renderTodo(view, item.todos);
       continue;
     }
 
-    dom.appendChild(item.rule === "user" ? newUserItem(item) : newAssisatantItem(item, sessionId));
+    if (item.rule === "user") {
+      dom.appendChild(newUserItem(item));
+      continue;
+    }
+    const node = newAssisatantItem(item, sessionId);
+    if (item.pending) {
+      assistantItems.set(node, item);
+    }
+    dom.appendChild(node);
   }
   scrollToBottom(true, sessionId);
 }
@@ -334,5 +341,9 @@ function newAssisatantItem(item, sessionId) {
   body.push(fileBox(item.files || []));
   body.push(assistantFooter(item.meta));
 
-  return _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);
+  const dom = _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);
+  if (item.task) {
+    dom.dataset.task = item.task;
+  }
+  return dom;
 }

@@ -156,18 +156,17 @@ function parseEvent(event) {
     return;
   }
 
-  if (event.type === "EventTodoUpdate") {
-    renderTodo(event.todos || [], sessionId);
-    return;
-  }
-
   const task = event.task_hash || "";
-  let view = streamOf(sessionId);
-  if (view && task && view.task && view.task !== task) {
-    view = null;
+  const terminal = event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError";
+  let view = taskStream(sessionId, task);
+  if (!view) {
+    view = streamOf(sessionId);
+    if (view && task && view.task && view.task !== task) {
+      view = null;
+    }
   }
   if (!view) {
-    if (event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError") return;
+    if (terminal) return;
     if (!chatMessages(sessionId)) return;
     view = newStreamItem({ task: task }, sessionId);
     setStream(sessionId, view);
@@ -177,21 +176,33 @@ function parseEvent(event) {
   }
   if (task && !view.task) {
     view.task = task;
+    view.dom.dataset.task = task;
   }
-  if (task && taskAwait.has(sessionId)) {
+  if (event.type === "EventTodoUpdate") {
+    renderTodo(view, event.todos || []);
+    return;
+  }
+  if (terminal) {
+    assistantViews.delete(view.dom);
+    delete view.dom.dataset.streaming;
+  }
+  if (terminal && streamOf(sessionId) !== view) {
+    renderEvent(view, event);
+    return;
+  }
+  if (task && view === streamOf(sessionId) && taskAwait.has(sessionId)) {
     taskAwait.delete(sessionId);
     writeTaskCookie(sessionId, task);
     setInputTask(sessionId, task);
   }
 
-  setPaused(sessionId, false);
+  view.paused = false;
   renderEvent(view, event);
 
   if (event.type === "EventCanceled" || event.type === "EventError") {
     setTask(sessionId, "");
     setInputTask(sessionId, "");
     setStream(sessionId, null);
-    clearTodo(sessionId);
     clearPending(sessionId);
     if (active) {
       clearTimeout(announceTimer);
@@ -205,7 +216,6 @@ function parseEvent(event) {
     setTask(sessionId, "");
     setInputTask(sessionId, "");
     setStream(sessionId, null);
-    clearTodo(sessionId);
     clearPending(sessionId);
     if (!active) {
       return;
