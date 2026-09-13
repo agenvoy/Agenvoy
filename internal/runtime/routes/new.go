@@ -54,7 +54,7 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id/memory", localhostOnly(), handler.SessionMemory())
 
 	r.POST("/v1/session/:session_id/confirm/:once_id", handler.ResolveToolConfirm())
-	r.POST("/v1/session/:session_id/cancel/:once_id", handler.CancelSessionTask())
+	r.POST("/v1/session/:session_id/cancel/:task_hash", handler.CancelSessionTask())
 
 	// * WebUI session task · pending file
 	r.GET("/v1/session/:session_id/task", handler.ListSessionPending())

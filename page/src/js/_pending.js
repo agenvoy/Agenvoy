@@ -258,9 +258,7 @@ async function renderPendingHint(sessionId) {
   const mine = readTaskCookie();
   if (mine && mine.session === sessionId) {
     const own = tasks.find((one) => one.task_hash === mine.task);
-    if (!own) {
-      clearTaskCookie(sessionId);
-    } else if (own.has_questions) {
+    if (own && own.has_questions) {
       loadPending(sessionId, own.task_hash);
       return;
     }

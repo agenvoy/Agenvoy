@@ -109,8 +109,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	var runTaskHash *atomic.Pointer[string]
 	if session.ID != "" {
 		onceID = go_pkg_utils.UUID()
-		registerCancel(onceID, execCancel)
-		defer unregisterCancel(onceID)
 
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
@@ -273,6 +271,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
+		registerCancel(exec.PendingTask, execCancel)
+		defer unregisterCancel(exec.PendingTask)
 		if runTaskHash != nil {
 			hash := exec.PendingTask
 			runTaskHash.Store(&hash)
