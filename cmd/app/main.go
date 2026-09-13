@@ -7,63 +7,51 @@ import (
 	"os"
 	osexec "os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
+	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
-
-func init() {
-	exec.RegisterPushHook("dc-", discord.PushDiscordResult)
-	exec.RegisterPushHook("tg-", telegram.PushTelegramResult)
-	exec.RegisterAdminSender("tg", func(ctx context.Context, id, str string) error {
-		return chatbot.SendAdminCode(ctx, chatbot.Telegram, id, str)
-	})
-	exec.RegisterAdminSender("dc", func(ctx context.Context, id, str string) error {
-		return chatbot.SendAdminCode(ctx, chatbot.Discord, id, str)
-	})
-}
 
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "stop":
-			runStop()
+			stop()
 			return
 
 		case "update":
-			runUpdate()
+			update()
 			return
 
 		case "--daemon":
-			cmdDaemon()
+			Daemon()
 			return
 
 		default:
-			printUsage()
+			usage()
 			os.Exit(1)
 		}
 	}
 
 	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
-		cmdMCPServer()
+		mcpServer()
 		return
 	}
 
-	newTUI()
+	TUI()
 }
 
-func runStop() {
+func usage() {
+	fmt.Println("Usage:")
+	fmt.Println("  agen                                            Attach TUI; spawn server daemon if not running")
+	fmt.Println("  agen stop                                       Stop the running server daemon")
+	fmt.Println("  agen update                                     Update agen to the latest release")
+}
+
+func stop() {
 	if err := filesystem.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "filesystem.Init: %v\n", err)
 		os.Exit(1)
@@ -90,48 +78,7 @@ func runStop() {
 	fmt.Println("Daemon stopped.")
 }
 
-func runSummaryCron() {
-	sessions := sessionSummary.Pending()
-	if len(sessions) == 0 {
-		return
-	}
-
-	for _, sid := range sessions {
-		_, histories := sessionHistory.Get(sid)
-		if len(histories) == 0 {
-			continue
-		}
-		bgCtx, cancel := context.WithTimeout(context.Background(), time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
-		err := agentSummary.Generate(bgCtx, sid, histories)
-		cancel()
-		if err != nil {
-			slog.Warn("agentSummary.Generate",
-				slog.String("session", sid),
-				slog.String("error", err.Error()))
-		}
-	}
-}
-
-func initMCP(ctx context.Context, sessionID string) *mcp.MCP {
-	manager, err := mcp.New(ctx, strings.TrimSpace(sessionID))
-	if err != nil {
-		slog.Warn("mcp.New",
-			slog.String("error", err.Error()))
-		return nil
-	}
-	manager.RegisterAll(ctx)
-	go manager.Watch(ctx)
-	return manager
-}
-
-func printUsage() {
-	fmt.Println("Usage:")
-	fmt.Println("  agen                                            Attach TUI; spawn server daemon if not running")
-	fmt.Println("  agen stop                                       Stop the running server daemon")
-	fmt.Println("  agen update                                     Update agen to the latest release")
-}
-
-func runUpdate() {
+func update() {
 	const remoteURL = "https://agenvoy.com/scripts/update.sh"
 
 	f, err := os.CreateTemp("", "agenvoy-update-*.sh")
@@ -168,6 +115,30 @@ func runUpdate() {
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "update failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func mcpServer() {
+	if err := filesystem.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "filesystem.Init: %v\n", err)
+		os.Exit(1)
+	}
+	if err := filesystem.LoadRuntime(); err != nil {
+		slog.Warn("filesystem.LoadRuntime",
+			slog.String("error", err.Error()))
+	}
+	if err := go_pkg_sandbox.CheckDependence(); err != nil {
+		slog.Warn("sandbox.CheckDependence",
+			slog.String("error", err.Error()))
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	server := mcp.NewServer()
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
+		fmt.Fprintf(os.Stderr, "mcpserver: %v\n", err)
 		os.Exit(1)
 	}
 }

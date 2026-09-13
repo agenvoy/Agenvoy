@@ -3,31 +3,23 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
-	"github.com/fsnotify/fsnotify"
-
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
@@ -38,8 +30,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/webapp"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
@@ -47,137 +37,10 @@ import (
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
-var (
-	discordMu          sync.Mutex
-	discordBot         *discord.Bot
-	lastDiscordEnabled bool
-	lastDiscordToken   string
-
-	telegramMu          sync.Mutex
-	telegramBot         *telegram.Bot
-	lastTelegramEnabled bool
-	lastTelegramToken   string
-)
-
-func reloadDiscord(attempt int) {
-	newToken := keychain.Get(discord.Key)
-	newEnabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		newEnabled = cfg.DiscordEnabled
-	}
-
-	discordMu.Lock()
-	defer discordMu.Unlock()
-
-	if attempt == 0 && newEnabled == lastDiscordEnabled && newToken == lastDiscordToken {
-		return
-	}
-
-	if discordBot != nil {
-		_ = discord.Close(discordBot)
-		discordBot = nil
-	}
-
-	if !newEnabled || newToken == "" {
-		lastDiscordEnabled = newEnabled
-		lastDiscordToken = newToken
-		return
-	}
-
-	bot, err := discord.New()
-	if err != nil {
-		slog.Error("discord.New",
-			slog.String("error", err.Error()),
-			slog.Int("attempt", attempt))
-		if attempt < reloadRetryMax {
-			go func() {
-				time.Sleep(reloadRetryDelay)
-				reloadDiscord(attempt + 1)
-			}()
-		}
-		return
-	}
-	lastDiscordEnabled = newEnabled
-	lastDiscordToken = newToken
-	discordBot = bot
-}
-
-const reloadRetryMax = 5
-const reloadRetryDelay = 30 * time.Second
-
-func reloadTelegram(attempt int) {
-	newToken := keychain.Get(telegram.Key)
-	newEnabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		newEnabled = cfg.TelegramEnabled
-	}
-
-	telegramMu.Lock()
-	defer telegramMu.Unlock()
-
-	if attempt == 0 && newEnabled == lastTelegramEnabled && newToken == lastTelegramToken {
-		return
-	}
-
-	if telegramBot != nil {
-		_ = telegram.Close(telegramBot)
-		telegramBot = nil
-	}
-
-	if !newEnabled || newToken == "" {
-		lastTelegramEnabled = newEnabled
-		lastTelegramToken = newToken
-		return
-	}
-
-	bot, err := telegram.New()
-	if err != nil {
-		slog.Error("telegram.New",
-			slog.String("error", err.Error()),
-			slog.Int("attempt", attempt))
-		if attempt < reloadRetryMax {
-			go func() {
-				time.Sleep(reloadRetryDelay)
-				reloadTelegram(attempt + 1)
-			}()
-		}
-		return
-	}
-	lastTelegramEnabled = newEnabled
-	lastTelegramToken = newToken
-	telegramBot = bot
-}
-
-func loopbackListeners(port string) ([]net.Listener, error) {
-	var listeners []net.Listener
-	var firstErr error
-
-	for _, host := range []string{"127.0.0.1", "[::1]"} {
-		listener, err := net.Listen("tcp", host+":"+port)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			slog.Warn("net.Listen",
-				slog.String("addr", host+":"+port),
-				slog.String("error", err.Error()))
-			continue
-		}
-		listeners = append(listeners, listener)
-	}
-
-	if len(listeners) == 0 {
-		return nil, firstErr
-	}
-	return listeners, nil
-}
-
-func cmdDaemon() {
+func Daemon() {
 	bootAt := time.Now()
 	bootPhase := func(name string) {
 		slog.Debug("boot phase",
@@ -185,7 +48,7 @@ func cmdDaemon() {
 			slog.Duration("elapsed", time.Since(bootAt)))
 	}
 
-	installDaemonSlog()
+	app.InstallDaemonLog()
 	tuiHash.New()
 
 	if err := filesystem.Init(); err != nil {
@@ -285,21 +148,21 @@ func cmdDaemon() {
 	}()
 
 	agents.Set(nil, nil, agentTypes.AgentRegistry{}, runtime.NewSkillScanner())
-	agents.SetRefresher(refreshHost)
+	agents.SetRefresher(app.RefreshHost)
 
 	go func() {
-		mcp.SetManager(initMCP(context.Background(), ""))
+		mcp.SetManager(app.NewMCP(context.Background(), ""))
 		bootPhase("mcp ready")
 	}()
 
-	runtime.SetRunner(runSkill)
+	runtime.SetRunner(app.RunSkill)
 	if err := runtime.NewScheduler(); err != nil {
 		slog.Error("runtime.SchedulerInit",
 			slog.String("error", err.Error()))
 	}
 	defer runtime.StopScheduler()
 
-	if err := runtime.AddSystemCron("*/15 * * * *", runSummaryCron); err != nil {
+	if err := runtime.AddSystemCron("*/15 * * * *", app.GenerateSummary); err != nil {
 		slog.Warn("cron summaryGenerate",
 			slog.String("error", err.Error()))
 	}
@@ -312,14 +175,14 @@ func cmdDaemon() {
 	stopSchedulerWatcher := runtime.SchedulerWatcher(context.Background())
 	defer stopSchedulerWatcher()
 
-	stopWatcher := watchConfig(context.Background())
+	stopWatcher := app.WatchConfig(context.Background())
 	defer stopWatcher()
 
-	stopSessionWatcher := watchSession(context.Background())
+	stopSessionWatcher := app.WatchSession(context.Background())
 	defer stopSessionWatcher()
 
-	reloadDiscord(0)
-	reloadTelegram(0)
+	app.ReloadDiscord(0)
+	app.ReloadTelegram(0)
 	monitor.Start(context.Background())
 
 	handler.StartWebConfirm(context.Background())
@@ -336,7 +199,7 @@ func cmdDaemon() {
 		Handler: route,
 	}
 
-	listeners, err := loopbackListeners(filesystem.Port)
+	listeners, err := app.LoopbackListeners(filesystem.Port)
 	if err != nil {
 		slog.Error("net.Listen",
 			slog.String("port", filesystem.Port),
@@ -371,18 +234,8 @@ func cmdDaemon() {
 	}
 	slog.Info("⎯ daemon shutting down")
 
-	discordMu.Lock()
-	if discordBot != nil {
-		_ = discord.Close(discordBot)
-		discordBot = nil
-	}
-	discordMu.Unlock()
-	telegramMu.Lock()
-	if telegramBot != nil {
-		_ = telegram.Close(telegramBot)
-		telegramBot = nil
-	}
-	telegramMu.Unlock()
+	app.CloseDiscord()
+	app.CloseTelegram()
 	if server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_ = server.Shutdown(ctx)
@@ -392,86 +245,4 @@ func cmdDaemon() {
 		slog.Warn("runtime.Clear",
 			slog.String("error", err.Error()))
 	}
-}
-
-func watchConfig(ctx context.Context) func() {
-	configDir := filepath.Dir(filesystem.ConfigPath)
-	configBase := filepath.Base(filesystem.ConfigPath)
-
-	w, err := fsnotify.NewWatcher()
-	if err != nil {
-		slog.Warn("fsnotify.NewWatcher",
-			slog.String("error", err.Error()))
-		return func() {}
-	}
-	if err := w.Add(configDir); err != nil {
-		slog.Warn("fsnotify.Watcher Add",
-			slog.String("dir", configDir),
-			slog.String("error", err.Error()))
-		_ = w.Close()
-		return func() {}
-	}
-
-	stopCh := make(chan struct{})
-	go func() {
-		defer w.Close()
-		var lastReload time.Time
-		for {
-			select {
-			case <-stopCh:
-				return
-			case <-ctx.Done():
-				return
-			case ev, ok := <-w.Events:
-				if !ok {
-					return
-				}
-				if filepath.Base(ev.Name) != configBase {
-					continue
-				}
-				if !ev.Has(fsnotify.Write) && !ev.Has(fsnotify.Create) && !ev.Has(fsnotify.Rename) {
-					continue
-				}
-				if time.Since(lastReload) < 200*time.Millisecond {
-					continue
-				}
-				lastReload = time.Now()
-				if agents.Reload() {
-					slog.Info("⎯ host reloaded: config change")
-				}
-				reloadDiscord(0)
-				reloadTelegram(0)
-			case err, ok := <-w.Errors:
-				if !ok {
-					return
-				}
-				slog.Debug("fsnotify.Watcher",
-					slog.String("error", err.Error()))
-			}
-		}
-	}()
-	return func() { close(stopCh) }
-}
-
-func runSkill(ctx context.Context, sessionID, skillName string) (string, error) {
-	body, err := skill.GetSchedule(skillName)
-	if err != nil {
-		return "", fmt.Errorf("scheduler skill %q unreadable: %w", skillName, err)
-	}
-	sessionDir := filesystem.SessionDir(sessionID)
-	if err := go_pkg_filesystem.CheckDir(sessionDir, true); err != nil {
-		return "", err
-	}
-	if err := configBot.Save(sessionID, "", "", false); err != nil {
-		slog.Debug("sessionBot Save",
-			slog.String("session", sessionID),
-			slog.String("error", err.Error()))
-	}
-
-	output, err := exec.ExecWithSubagent(exec.WithSchedule(exec.WithDcPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, "", false)
-	if err != nil {
-		return "", err
-	}
-
-	return output, nil
 }

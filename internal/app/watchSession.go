@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-func watchSession(ctx context.Context) func() {
+func WatchSession(ctx context.Context) func() {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		slog.Warn("fsnotify.NewWatcher",

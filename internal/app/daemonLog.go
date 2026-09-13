@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -17,15 +17,15 @@ const (
 	daemonLogChannel = "daemon"
 )
 
-type daemonSlogHandler struct {
+type daemonLogHandler struct {
 	base slog.Handler
 }
 
-func (h *daemonSlogHandler) Enabled(ctx context.Context, l slog.Level) bool {
+func (h *daemonLogHandler) Enabled(ctx context.Context, l slog.Level) bool {
 	return h.base.Enabled(ctx, l)
 }
 
-func (h *daemonSlogHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *daemonLogHandler) Handle(ctx context.Context, r slog.Record) error {
 	if r.Level < slog.LevelInfo {
 		return h.base.Handle(ctx, r)
 	}
@@ -51,12 +51,12 @@ func (h *daemonSlogHandler) Handle(ctx context.Context, r slog.Record) error {
 	return h.base.Handle(ctx, r)
 }
 
-func (h *daemonSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &daemonSlogHandler{base: h.base.WithAttrs(attrs)}
+func (h *daemonLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &daemonLogHandler{base: h.base.WithAttrs(attrs)}
 }
 
-func (h *daemonSlogHandler) WithGroup(name string) slog.Handler {
-	return &daemonSlogHandler{base: h.base.WithGroup(name)}
+func (h *daemonLogHandler) WithGroup(name string) slog.Handler {
+	return &daemonLogHandler{base: h.base.WithGroup(name)}
 }
 
 var (
@@ -64,7 +64,7 @@ var (
 	daemonLogOnce  sync.Once
 )
 
-func installDaemonSlog() {
+func InstallDaemonLog() {
 	daemonLogOnce.Do(func() {
 		go func() {
 			for event := range daemonLogQueue {
@@ -79,7 +79,7 @@ func installDaemonSlog() {
 	}
 
 	base := slog.NewTextHandler(writer, &slog.HandlerOptions{Level: slog.LevelDebug})
-	slog.SetDefault(slog.New(&daemonSlogHandler{base: base}))
+	slog.SetDefault(slog.New(&daemonLogHandler{base: base}))
 }
 
 type daemonLogWriter struct {

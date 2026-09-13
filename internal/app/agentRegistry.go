@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/router"
 )
 
-func modelConfig(ctx context.Context, name string) (router.Config, error) {
+func routerConfig(ctx context.Context, name string) (router.Config, error) {
 	cfg, err := agentKeychain.Config(ctx, name)
 	if err != nil {
 		return router.Config{}, err
@@ -26,14 +26,14 @@ func modelConfig(ctx context.Context, name string) (router.Config, error) {
 	}, nil
 }
 
-func buildAgentRegistry() agentTypes.AgentRegistry {
+func NewAgentRegistry() agentTypes.AgentRegistry {
 	agentEntries := exec.GetAgent()
 	registry := agentTypes.AgentRegistry{
 		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
 		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
 	}
 	for _, e := range agentEntries {
-		cfg, err := modelConfig(context.Background(), e.Name)
+		cfg, err := routerConfig(context.Background(), e.Name)
 		if err != nil {
 			slog.Warn("failed to resolve config",
 				slog.String("name", e.Name),
@@ -57,7 +57,7 @@ func buildAgentRegistry() agentTypes.AgentRegistry {
 	return registry
 }
 
-func dispatcherSelector(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectDispatcher(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.DispatcherModel != "" {
 		if a, ok := registry.Registry[cfg.DispatcherModel]; ok {
 			return a
@@ -66,7 +66,7 @@ func dispatcherSelector(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return registry.Fallback
 }
 
-func summarySelector(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectSummary(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.SummaryModel != "" {
 		if a, ok := registry.Registry[cfg.SummaryModel]; ok {
 			return a
@@ -75,7 +75,7 @@ func summarySelector(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return nil
 }
 
-func refreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
-	registry := buildAgentRegistry()
-	return dispatcherSelector(registry), summarySelector(registry), registry
+func RefreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
+	registry := NewAgentRegistry()
+	return SelectDispatcher(registry), SelectSummary(registry), registry
 }

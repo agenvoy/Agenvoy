@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -444,6 +445,7 @@ func newPopupInput(value string, multiline bool) textarea.Model {
 	input.ShowLineNumbers = false
 	input.SetHeight(1)
 	input.SetValue(value)
+	input.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	input.Focus()
 	input.Cursor.Style = whiteStyle
 	input.SetPromptFunc(2, func(lineIdx int) string {
