@@ -101,11 +101,11 @@ func emitWebConfirms() {
 			continue
 		}
 		event := agentTypes.Event{
-			Type:       agentTypes.EventToolConfirm,
-			ToolName:   req.ToolName,
-			ToolArgs:   req.ToolArgs,
-			ToolID:     id,
-			Restricted: req.Restricted,
+			Type:        agentTypes.EventToolConfirm,
+			ToolName:    req.ToolName,
+			ToolArgs:    req.ToolArgs,
+			ConfirmHash: id,
+			Restricted:  req.Restricted,
 		}
 		if len(req.Restricted) > 0 {
 			event.PasswordCached = auth.Cached(context.Background())
@@ -117,9 +117,9 @@ func emitWebConfirms() {
 
 func ResolveToolConfirm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := strings.TrimSpace(c.Param("once_id"))
+		requestID := strings.TrimSpace(c.Param("confirm_hash"))
 		if requestID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "once_id is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "confirm_hash is required"})
 			return
 		}
 

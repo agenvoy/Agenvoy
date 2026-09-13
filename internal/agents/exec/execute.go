@@ -34,7 +34,6 @@ import (
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type ExecuteMeta struct {
@@ -105,11 +104,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
 
-	var onceID string
 	var runTaskHash *atomic.Pointer[string]
 	if session.ID != "" {
-		onceID = go_pkg_utils.UUID()
-
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
@@ -127,7 +123,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}()
 
 		original := events
-		runOnceID := onceID
 		fanoutEvents := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
@@ -151,9 +146,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range fanoutEvents {
-				if ev.OnceID == "" && ev.Source == "" {
-					ev.OnceID = runOnceID
-				}
 				if ev.TaskHash == "" && ev.Source == "" {
 					if h := taskHashRef.Load(); h != nil {
 						ev.TaskHash = *h

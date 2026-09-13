@@ -59,7 +59,7 @@ function askRejectReason(card, done) {
 }
 
 function renderToolConfirm(event, sessionId) {
-  const requestId = event.tool_id || "";
+  const requestId = event.confirm_hash || "";
   const dom = chatPart("confirm", sessionId);
   if (!requestId || !dom) {
     return;
