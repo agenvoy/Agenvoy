@@ -102,7 +102,7 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
-`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。TUI 的 `/reply-language` 與 `/output-dir` 寫入 `config.json` 的方式與手改相同。
+`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。TUI 的 `/config`（回覆語言、輸出資料夾）寫入 `config.json` 的方式與手改相同。
 
 套件內建預設值（目前不會從 `config.json` 讀取）：
 
@@ -227,13 +227,11 @@ agen
 | `/allow-skill`                  | 將 skill 設為一律允許，範圍為全域或此專案                                             |
 | `/rule` `/note`                 | 列出、新增或編輯 rule 與筆記                                                          |
 | `/channel`                      | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示） |
-| `/startup`                      | 啟用或停用登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit） |
+| `/config`                       | 可搜尋的設定清單，`enter` 修改游標所在項目：登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit）、回覆語言（`auto` 跟隨每則訊息）與輸出資料夾（產生的檔案存放位置；留空為 `~/Downloads`） |
 | `/schedule`                     | 週期（cron）與單次（task）排程合併為一個清單；`enter` 立即執行、`d` 刪除；新增或編輯請直接交代 agent |
 | `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
 | `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d） |
 | `/key`                          | 編輯已儲存的憑證（`d` 刪除）                                                          |
-| `/reply-language`               | 選擇所有回覆使用的語言；`auto` 跟隨每則訊息                                            |
-| `/output-dir`                   | 設定產生的檔案存放位置；留空為 `~/Downloads`                                           |
 | `/update`                       | 抓取最新 release、重建、離開                                                          |
 | `/clear` `/exit`                | 清除可見對話，或離開 TUI（daemon 繼續執行）                                           |
 | `/<skill>` `/sched-<name>`      | 直接執行已安裝的 skill 或排程項目                                                     |
@@ -336,8 +334,8 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
 | `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
 | `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
-| `POST`                | `/v1/session/:id/cancel/:once_id`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
-| `POST`                | `/v1/session/:id/confirm/:once_id`          | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410 |
+| `POST`                | `/v1/session/:id/cancel/:task_hash`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
+| `POST`                | `/v1/session/:id/confirm/:confirm_hash`          | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410 |
 | `POST`                | `/v1/session/:id/memory`                       | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清 |
 | `GET`                 | `/v1/session/:id/task/history`                 | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                 |
 | `GET`                 | `/v1/session/:id/task/:task_hash/history`      | **local** — 單一已完成任務的完整 action 紀錄，以 JSON 字串放在 `content`；該 hash 沒有紀錄時回 404                                                                                     |
@@ -368,7 +366,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method | Path                            | 說明                                   |
 | ------ | ------------------------------- | -------------------------------------- |
 | `GET`  | `/v1/providers`                 | **local** — 列出 provider 及其可用操作 |
-| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot`、`ollama-cloud` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 15 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
+| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot`、`ollama-cloud` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 10 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
 | `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key。`compat` 的 body 為 `{name, url, api_key?}`：網址記錄到 `compats`，有帶 key 時存為 `COMPAT_<NAME>_API_KEY` |
 | `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
