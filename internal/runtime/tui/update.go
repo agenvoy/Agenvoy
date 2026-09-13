@@ -207,7 +207,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.activity = ""
 			t.currentModel = configBot.DefaultModel
 			t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
-			t.runTarget = targetSession(content, t.currentSessionID)
+			t.runTarget = ""
 
 			go runExec(t.ctx, raw, t.allowAll, t.cwd, t.currentSessionID, "", "")
 

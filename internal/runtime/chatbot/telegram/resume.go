@@ -3,23 +3,12 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"html"
 	"log/slog"
-	"os"
-	"strconv"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
@@ -42,111 +31,28 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 
 	ctx := context.Background()
 
-	markStatus := func(str string) {
-		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
-		if err := b.client.SendStatus(ctx, chatID, 0, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Debug("SendStatus (resume)",
-				slog.String("session", sessionID),
-				slog.String("error", err.Error()))
-		}
-	}
-	markStatus("resuming...")
+	reply := b.newReply(ctx, chatID, "resume", sessionID, interactive.LoadPendingMessageID(sessionID, taskHash))
+	reply.Status("resuming...")
 
-	workDir, err := os.UserHomeDir()
-	if err != nil {
-		slog.Error("ask_user resume: UserHomeDir", slog.String("error", err.Error()))
-		return
-	}
-
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
-	}
-
-	userText := full
-	sessionLog.Append(sessionID, userText)
-
-	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, "", sessionID)
-	if err != nil {
-		b.client.FinishStatus(ctx, chatID)
-		errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
-		b.client.Send(ctx, chatID, 0, errReply, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
-		return
-	}
-	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
-
-	execData := exec.ExecuteMeta{
-		Agent:          primary,
-		FallbackAgents: rest,
-		WorkDir:        workDir,
-		Content:        full,
-		Input:          userText,
-		Sender:         "user",
-		ExcludeTools:   tools.TUIOnlyTools,
-		ExcludeSkills:  tools.TUIOnlySkills,
-		PendingTask:    taskHash,
-		HistoryContent: history,
-	}
-
-	sess, err := getSession(ctx, chatID, "user", full, execData, sessionID)
-	if err != nil {
-		slog.Error("ask_user resume: getSession",
+	if _, err := sessionTelegram.New(chatID); err != nil {
+		slog.Error("ask_user resume: sessionTelegram.New",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return
 	}
 
-	events := make(chan agentTypes.Event, 128)
-	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
-	go func() {
-		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "tg-")
-		if execErr := exec.Execute(execCtx, execData, sess, wrapped, allowAll); execErr != nil {
-			slog.Debug("ask_user resume: exec",
-				slog.String("session", sessionID),
-				slog.String("error", execErr.Error()))
-		}
-		close(wrapped)
-	}()
-
-	result := utils.FormatChatbotEvent(events, "[Telegram]", sess.ID, markStatus, func(toolName, text string) string {
-		return fmt.Sprintf("<code>%s</code>: <code>%s</code>", toolName, text)
-	})
-
-	b.client.FinishStatus(ctx, chatID)
-
-	replyText := strings.TrimSpace(tsPrefixRegex.ReplaceAllString(result.ReplyText, ""))
-	replyText = sanitizeHTML(replyText)
-	if replyText == "" {
-		return
-	}
-
-	cleanText, photoPaths, docPaths := extractFileMarkers(replyText)
-	replyText = cleanText
-
-	model := result.Done.Model
-	if model == "" && primary != nil {
-		model = primary.Name()
-	}
-	footer := utils.FormatEventFooterContext(ctx, result.Done.Duration, model, result.Done.Usage)
-	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0
-	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, result.ExecErrors)
-
-	replyTo := 0
-	if mid := interactive.LoadPendingMessageID(sessionID, taskHash); mid != "" {
-		if n, convErr := strconv.Atoi(mid); convErr == nil {
-			replyTo = n
-		}
-	}
-	for _, c := range chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(replyText)) {
-		if _, err := b.client.Send(ctx, chatID, replyTo, c, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Warn("Send (resume)", slog.String("session", sessionID), slog.String("error", err.Error()))
-			break
-		}
-		replyTo = 0
-	}
-
-	if len(photoPaths) > 0 || len(docPaths) > 0 {
-		go sendAttachments(context.WithoutCancel(ctx), chatID, "resume", photoPaths, docPaths)
+	if err := reply.Run(ctx, exec.ExecuteMeta{
+		Content:        full,
+		Input:          full,
+		Sender:         "user",
+		SessionID:      sessionID,
+		AllowAll:       allowAll,
+		PendingTask:    taskHash,
+		HistoryContent: history,
+	}); err != nil {
+		slog.Debug("ask_user resume: deliver",
+			slog.String("session", sessionID),
+			slog.String("error", err.Error()))
 	}
 }
 

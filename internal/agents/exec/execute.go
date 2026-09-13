@@ -33,12 +33,14 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type ExecuteMeta struct {
 	Agent             agentTypes.Agent
 	FallbackAgents    []agentTypes.Agent
+	Model             string
 	WorkDir           string
 	Skill             *skill.Skill
 	SkillScanner      *runtime.SkillScanner
@@ -53,6 +55,7 @@ type ExecuteMeta struct {
 	ExtraSystemPrompt string
 	Reasoning         string
 	AllowAll          bool
+	TUI               bool
 	PendingTask       string
 	KeepPending       bool
 	IgnoreHistory     bool
@@ -151,6 +154,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						ev.TaskHash = *h
 					}
 				}
+				if ev.Type == agentTypes.EventDone && ev.Source == "" {
+					ev.Quota = utils.ModelQuota(context.WithoutCancel(execCtx), ev.Model)
+				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
 				}
@@ -204,6 +210,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						SessionID: sid,
 						Text:      text,
 						Model:     pushDoneEv.Model,
+						Quota:     pushDoneEv.Quota,
 						Usage:     pushDoneEv.Usage,
 						Duration:  pushDoneEv.Duration,
 						Prefix:    dcPushPrefix(pushCtx),

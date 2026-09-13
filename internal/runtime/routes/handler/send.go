@@ -8,7 +8,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -19,14 +18,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Request struct {
@@ -78,6 +71,28 @@ func Send() gin.HandlerFunc {
 				slog.String("error", err.Error()))
 		}
 
+		var skillErr error
+		var matchedSkill *skill.Skill
+		if scanner := agents.Scanner(); scanner != nil && req.Skill != "" {
+			if slices.Contains(tools.TUIOnlySkills, req.Skill) {
+				skillErr = fmt.Errorf("skill %q is not available here", req.Skill)
+			} else if matchedSkill = scanner.Lookup(req.Skill); matchedSkill == nil {
+				skillErr = fmt.Errorf("skill %q not found", req.Skill)
+			}
+		}
+
+		trimContent := strings.TrimSpace(req.Content)
+		data := exec.Prepare(exec.ExecuteMeta{
+			Model:             req.Model,
+			WorkDir:           workDir,
+			Skill:             matchedSkill,
+			Content:           trimContent,
+			Input:             trimContent,
+			SessionID:         sessionID,
+			ExcludeTools:      req.ExcludeTools,
+			ExtraSystemPrompt: req.SystemPrompt,
+		})
+
 		if exec.IsRunning(sessionID) {
 			exec.AppendSteer(sessionID, req.Content)
 			c.JSON(http.StatusOK, gin.H{
@@ -87,101 +102,19 @@ func Send() gin.HandlerFunc {
 			return
 		}
 
-		events := make(chan agentTypes.Event, 64)
 		execCtx := agentTypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
-		wrapped := withFollowup(execCtx, sessionID, pubsub.Wrap(execCtx, sessionID, events, 64))
-
-		go func() {
-			defer close(wrapped)
-
-			scanner := agents.Scanner()
-			if scanner != nil {
-				scanner.Scan()
-			}
-			trimContent := strings.TrimSpace(req.Content)
-			if trimContent != "" {
-				wrapped <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: trimContent}
-			}
-
-			var matchedSkill *skill.Skill
-			var skillResult agentTypes.Event
-			if scanner != nil {
-				if name := req.Skill; name != "" {
-					if slices.Contains(tools.TUIOnlySkills, name) {
-						wrapped <- agentTypes.ErrorEvent(fmt.Errorf("skill %q is not available here", name))
-						return
-					}
-					matchedSkill = scanner.Lookup(name)
-					if matchedSkill == nil {
-						wrapped <- agentTypes.ErrorEvent(fmt.Errorf("skill %q not found", name))
-						return
-					}
-				} else if m, effective := runtime.MatchSkill(scanner, trimContent, tools.TUIOnlySkills...); m != nil {
-					matchedSkill = m
-					trimContent = strings.TrimSpace(effective)
+		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
+			withFollowup(execCtx, sessionID, stream, func(wrapped chan<- agentTypes.Event) {
+				err := skillErr
+				if err == nil {
+					err = exec.Start(execCtx, data, wrapped)
 				}
-
-				if matchedSkill != nil {
-					skillResult = agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(matchedSkill.Name)}
-					wrapped <- skillResult
-					if sessionID != "" {
-						sessionLog.Record(sessionID, skillResult)
-					}
-				}
-			}
-
-			userText := trimContent
-			if sessionID != "" {
-				sessionLog.Append(sessionID, userText)
-			}
-
-			wrapped <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
-			var agent agentTypes.Agent
-			var fallbacks []agentTypes.Agent
-			registry := agents.Registry()
-			if req.Model != "" {
-				if a, ok := registry.Registry[req.Model]; ok {
-					agent = a
-				}
-			}
-			if agent == nil {
-				primary, rest, err := exec.ResolveAgent(execCtx, agents.DispatcherBot(), registry, trimContent, false, "", sessionID)
 				if err != nil {
 					wrapped <- agentTypes.ErrorEvent(err)
-					return
 				}
-				agent = primary
-				fallbacks = rest
-			}
-			agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name()}
-			wrapped <- agentResult
-			if sessionID != "" {
-				sessionLog.Record(sessionID, agentResult)
-			}
-
-			data := exec.ExecuteMeta{
-				Agent:             agent,
-				FallbackAgents:    fallbacks,
-				WorkDir:           workDir,
-				Skill:             matchedSkill,
-				Content:           trimContent,
-				Input:             userText,
-				ExcludeTools:      append(append([]string{}, tools.TUIOnlyTools...), req.ExcludeTools...),
-				ExcludeSkills:     tools.TUIOnlySkills,
-				ExtraSystemPrompt: req.SystemPrompt,
-			}
-
-			session, err := newSession(execCtx, data, sessionID)
-			if err != nil {
-				wrapped <- agentTypes.ErrorEvent(err)
-				return
-			}
-
-			if err := exec.Execute(execCtx, data, session, wrapped, data.AllowAll); err != nil {
-				wrapped <- agentTypes.ErrorEvent(err)
-				return
-			}
-		}()
+			})
+			return nil
+		})
 
 		if req.SSE {
 			sendSSE(c, sessionID, req.Content, events)
@@ -190,51 +123,6 @@ func Send() gin.HandlerFunc {
 		}
 		drainEvents(events)
 	}
-}
-
-func newSession(ctx context.Context, data exec.ExecuteMeta, sessionID string) (*agentTypes.AgentSession, error) {
-	session := &agentTypes.AgentSession{
-		ID:        sessionID,
-		Tools:     []provider.Message{},
-		Histories: []provider.Message{},
-	}
-
-	scanner := data.SkillScanner
-	if scanner == nil {
-		scanner = agents.Scanner()
-	}
-	session.SystemPrompts = exec.BuildSystemPrompts(data.WorkDir, data.ExtraSystemPrompt, scanner, sessionID, data.AllowAll, data.ExcludeSkills, data.ModelName())
-
-	oldHistory, maxHistory := sessionHistory.Get(sessionID)
-	session.Histories = sessionHistory.Messages(oldHistory)
-	session.BaseLen = len(session.Histories)
-	session.OldHistories = sessionHistory.Messages(maxHistory)
-
-	if summary := summary.GetPrompt(sessionID, exec.OldestMessageTime(maxHistory)); summary != "" {
-		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
-	}
-	session.ToolHistories = []provider.Message{}
-
-	userText := strings.TrimSpace(data.Input)
-	if userText == "" {
-		userText = strings.TrimSpace(data.Content)
-	}
-
-	session.Sender = data.Sender
-	session.UserSendAt = time.Now().UnixNano()
-	prefixed := sessionHistory.WithPrefix(sessionHistory.Record{
-		SendAt: session.UserSendAt,
-		Sender: session.Sender,
-	}.Prefix(), userText)
-
-	session.UserInput = provider.Message{Role: "user", Content: prefixed}
-	session.Histories = append(session.Histories, provider.Message{
-		Role:    "user",
-		Content: prefixed,
-	})
-	exec.SaveUserInputHistory(ctx, sessionID, userText)
-
-	return session, nil
 }
 
 func resolveWorkDir(input string) (string, error) {

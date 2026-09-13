@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -412,8 +411,7 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
-// * context for live usage, context = nil for replay
-func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
+func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -508,12 +506,7 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
 	case agentTypes.EventDone:
-		var footer string
-		if liveUsage {
-			footer = utils.FormatEventFooterContext(ctx, ev.Duration, ev.Model, ev.Usage)
-		} else {
-			footer = utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)
-		}
+		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Quota, ev.Usage)
 		if sessionLabel != "" {
 			if footer != "" {
 				footer = footer + "  [" + sessionLabel + "]"

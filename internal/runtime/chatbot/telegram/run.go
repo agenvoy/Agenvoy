@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
-	"os"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,24 +13,14 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
 	"github.com/go-telegram/bot/models"
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	"github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
 )
-
-var tsPrefixRegex = regexp.MustCompile(`^ts:\d+\n`)
 
 func chatName(in go_bot_telegram.Input) string {
 	if in.ChatName != "" {
@@ -221,168 +209,24 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		return nil
 	}
 
-	markStatus := func(str string) {
-		wrapped := fmt.Sprintf("<blockquote expandable>%s</blockquote>", html.EscapeString(str))
-		if err := b.client.SendStatus(ctx, in.ChatID, in.MessageID, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
-				slog.String("text", str),
-				slog.String("chat", chatName(in)),
-				slog.Int("replyTo", in.MessageID),
-				slog.String("error", err.Error()))
-		}
-	}
-	markStatus("thinking...")
-
-	workDir, err := os.UserHomeDir()
+	chatSessionID, err := sessionTelegram.New(in.ChatID)
 	if err != nil {
-		return fmt.Errorf("os.UserHomeDir: %w", err)
+		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetTelegramSession: %w", err)
 	}
 
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
+	replyTo := ""
+	if in.MessageID != 0 {
+		replyTo = strconv.Itoa(in.MessageID)
 	}
+	reply := b.newReply(ctx, in.ChatID, chatName(in), chatSessionID, replyTo)
+	reply.Status("thinking...")
 
-	var sessionOverride string
-	if name, effective := session.CheckAssign(content); name != "" {
-		if id := session.GetSessionIDBySelfID(name); id != "" {
-			sessionOverride = id
-		}
-		content = strings.TrimSpace(effective)
-	}
-
-	var matchedSkill *skill.Skill
-	if scanner != nil {
-		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
-			matchedSkill = m
-			content = strings.TrimSpace(effective)
-		}
-	}
-
-	routingSessionID := sessionOverride
-	if routingSessionID == "" {
-		cs, err := sessionTelegram.New(in.ChatID)
-		if err != nil {
-			return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetTelegramSession: %w", err)
-		}
-		routingSessionID = cs
-	}
-
-	userText := content
-	sessionLog.Append(routingSessionID, userText)
-	pubsub.Pub(routingSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: userText})
-
-	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, exec.SkillHint(matchedSkill), routingSessionID)
-	if err != nil {
-		if finishErr := b.client.FinishStatus(ctx, in.ChatID); finishErr != nil {
-			slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
-				slog.String("chat", chatName(in)),
-				slog.String("error", finishErr.Error()))
-		}
-		errReply := fmt.Sprintf("<blockquote expandable>⚠️ %s</blockquote>", html.EscapeString(err.Error()))
-		if _, sendErr := b.client.Send(ctx, in.ChatID, in.MessageID, errReply, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.client.Send (ResolveAgent error reply)",
-				slog.String("chat", chatName(in)),
-				slog.String("error", sendErr.Error()))
-		}
-		return fmt.Errorf("ResolveAgent: %w", err)
-	}
-
-	agentName := strings.TrimSpace(agent.Name())
-	agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
-	sessionLog.Record(routingSessionID, agentResult)
-	pubsub.Pub(routingSessionID, agentResult)
-
-	execData := exec.ExecuteMeta{
-		Agent:          agent,
-		FallbackAgents: fallbacks,
-		WorkDir:        workDir,
-		Skill:          matchedSkill,
+	return reply.Run(ctx, exec.ExecuteMeta{
 		Content:        content,
-		Input:          userText,
+		Input:          content,
 		Sender:         in.Username,
-		ExcludeTools:   tools.TUIOnlyTools,
-		ExcludeSkills:  tools.TUIOnlySkills,
+		SessionID:      chatSessionID,
 		AllowAll:       false,
 		ReplyMessageID: strconv.Itoa(in.MessageID),
-	}
-
-	sess, err := getSession(ctx, in.ChatID, in.Username, content, execData, sessionOverride)
-	if err != nil {
-		return fmt.Errorf("getSession: %w", err)
-	}
-	utils.EventLog("[Telegram]", agentTypes.Event{}, sess.ID, content)
-
-	events := make(chan agentTypes.Event, 128)
-	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
-	go func() {
-		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "tg-")
-		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
-		if execErr != nil {
-			slog.Debug("exec",
-				slog.String("session", sess.ID),
-				slog.String("error", execErr.Error()))
-		}
-		close(wrapped)
-	}()
-
-	result := utils.FormatChatbotEvent(events, "[Telegram]", sess.ID, markStatus, func(toolName, text string) string {
-		return fmt.Sprintf("<code>%s</code>: <code>%s</code>", toolName, text)
 	})
-	replyText := result.ReplyText
-	execErrors := result.ExecErrors
-	doneEvent := result.Done
-
-	if err := b.client.FinishStatus(ctx, in.ChatID); err != nil {
-		slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
-			slog.String("session", sess.ID),
-			slog.String("chat", chatName(in)),
-			slog.String("error", err.Error()))
-	}
-
-	replyText = strings.TrimSpace(tsPrefixRegex.ReplaceAllString(replyText, ""))
-	replyText = sanitizeHTML(replyText)
-	if replyText == "" {
-		return fmt.Errorf("no reply")
-	}
-
-	cleanText, photoPaths, docPaths := extractFileMarkers(replyText)
-	replyText = cleanText
-
-	model := doneEvent.Model
-	if model == "" && agent != nil {
-		model = agent.Name()
-	}
-	footer := utils.FormatEventFooterContext(ctx, doneEvent.Duration, model, doneEvent.Usage)
-	hasMedia := len(photoPaths) > 0 || len(docPaths) > 0
-	replyText = chatbot.AppendReplyFooter(chatbot.Telegram, replyText, footer, hasMedia, execErrors)
-
-	if in.MessageID != 0 {
-		replyText = "\u200b\n" + replyText
-	}
-	chunks := chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(replyText))
-	replyTo := in.MessageID
-	for _, chunk := range chunks {
-		_, sendErr := b.client.Send(ctx, in.ChatID, replyTo, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
-		if sendErr != nil {
-			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.client.Send",
-				slog.String("session", sess.ID),
-				slog.String("error", sendErr.Error()))
-			b.client.Send(ctx, in.ChatID, in.MessageID, fmt.Sprintf("<blockquote>⚠️ send failed: %s</blockquote>", sendErr.Error()), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
-			break
-		}
-		replyTo = 0
-	}
-
-	if len(photoPaths) == 0 && len(docPaths) == 0 {
-		return nil
-	}
-
-	if len(photoPaths) > 0 || len(docPaths) > 0 {
-		bgCtx := context.WithoutCancel(ctx)
-		chat := chatName(in)
-		go sendAttachments(bgCtx, in.ChatID, chat, photoPaths, docPaths)
-	}
-
-	return nil
 }

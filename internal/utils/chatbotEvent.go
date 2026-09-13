@@ -21,16 +21,6 @@ func FormatChatbotEvent(events <-chan agentTypes.Event, tag, sessionID string, s
 	for e := range events {
 		EventLog(tag, e, sessionID, "")
 		switch e.Type {
-		case agentTypes.EventAgentResult:
-			if t := strings.TrimSpace(e.Text); t != "" {
-				status("[agent] " + go_pkg_utils.TruncateString(t, 256))
-			}
-
-		case agentTypes.EventSkillResult:
-			if t := strings.TrimSpace(e.Text); t != "" {
-				status("[skill] " + go_pkg_utils.TruncateString(t, 256))
-			}
-
 		case agentTypes.EventReasoning:
 			if t := strings.TrimSpace(e.Text); t != "" {
 				status("[think] " + go_pkg_utils.TruncateString(t, 256))

@@ -86,6 +86,7 @@ func Run(ctx context.Context) error {
 	})
 
 	go newPendingChannel(ctx)
+	go newDaemonLog(ctx)
 
 	if _, err := prog.Run(); err != nil {
 		return fmt.Errorf("prog.Run: %w", err)

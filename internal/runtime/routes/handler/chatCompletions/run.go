@@ -2,7 +2,6 @@ package chatCompletions
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -28,26 +27,10 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
 
-	var agent agentTypes.Agent
-	var fallbacks []agentTypes.Agent
-	registry := agents.Registry()
-	switch {
-	case req.Model == "" || req.Model == "auto":
-		primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), registry, trimContent, false, "", "")
-		if err != nil {
-			events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
-			return
-		}
-		agent = primary
-		fallbacks = rest
-
-	default:
-		a, ok := registry.Registry[req.Model]
-		if !ok {
-			events <- agentTypes.Event{Type: agentTypes.EventError, Err: fmt.Errorf("model %q not found", req.Model)}
-			return
-		}
-		agent = a
+	agent, fallbacks, err := exec.ResolveAgent(ctx, req.Model, trimContent, false, "", "")
+	if err != nil {
+		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+		return
 	}
 	events <- agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(agent.Name())}
 

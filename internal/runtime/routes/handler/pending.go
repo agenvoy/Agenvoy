@@ -10,11 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -147,36 +145,24 @@ func ResumeSessionPending() gin.HandlerFunc {
 			historyContent = history
 		}
 
-		events := make(chan agentTypes.Event, 64)
 		ctx := context.WithoutCancel(c.Request.Context())
-		wrapped := pubsub.Wrap(ctx, sid, events, 64)
-
-		go func() {
-			defer close(wrapped)
-
+		events, _ := exec.Stream(ctx, sid, 64, func(stream chan<- agentTypes.Event) error {
 			workDir, _ := os.UserHomeDir()
-			scanner := agents.Scanner()
-			if scanner != nil {
-				scanner.Scan()
+			trimContent := strings.TrimSpace(content)
+			data := exec.Prepare(exec.ExecuteMeta{
+				WorkDir:        workDir,
+				Content:        trimContent,
+				Input:          trimContent,
+				SessionID:      sid,
+				AllowAll:       interactive.LoadPendingAllowAll(sid, taskHash),
+				PendingTask:    taskHash,
+				HistoryContent: historyContent,
+			})
+			if err := exec.Start(agentTypes.WithOrigin(ctx, "chat-"), data, stream); err != nil {
+				stream <- agentTypes.ErrorEvent(err)
 			}
-			err := exec.Run(
-				agentTypes.WithOrigin(ctx, "chat-"),
-				agents.DispatcherBot(),
-				agents.Registry(),
-				scanner,
-				content,
-				nil, nil,
-				wrapped,
-				interactive.LoadPendingAllowAll(sid, taskHash),
-				workDir,
-				sid,
-				taskHash,
-				historyContent,
-			)
-			if err != nil {
-				wrapped <- agentTypes.ErrorEvent(err)
-			}
-		}()
+			return nil
+		})
 
 		result := collectResult(content, events)
 		drainEvents(events)

@@ -181,6 +181,7 @@ type Event struct {
 	ConfirmHash     string              `json:"confirm_hash,omitempty"`
 	Result          string              `json:"result,omitempty"`
 	Model           string              `json:"model,omitempty"`
+	Quota           string              `json:"quota,omitempty"`
 	Usage           *provider.Usage     `json:"usage,omitempty"`
 	UsageInput      string              `json:"usage_input,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`
