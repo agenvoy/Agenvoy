@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,12 +13,9 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	"github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 type Request struct {
@@ -71,21 +67,11 @@ func Send() gin.HandlerFunc {
 				slog.String("error", err.Error()))
 		}
 
-		var skillErr error
-		var matchedSkill *skill.Skill
-		if scanner := agents.Scanner(); scanner != nil && req.Skill != "" {
-			if slices.Contains(tools.TUIOnlySkills, req.Skill) {
-				skillErr = fmt.Errorf("skill %q is not available here", req.Skill)
-			} else if matchedSkill = scanner.Lookup(req.Skill); matchedSkill == nil {
-				skillErr = fmt.Errorf("skill %q not found", req.Skill)
-			}
-		}
-
 		trimContent := strings.TrimSpace(req.Content)
 		data := exec.Prepare(exec.ExecuteMeta{
 			Model:             req.Model,
 			WorkDir:           workDir,
-			Skill:             matchedSkill,
+			SkillName:         req.Skill,
 			Content:           trimContent,
 			Input:             trimContent,
 			SessionID:         sessionID,
@@ -105,11 +91,7 @@ func Send() gin.HandlerFunc {
 		execCtx := agentTypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
 		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
 			withFollowup(execCtx, sessionID, stream, func(wrapped chan<- agentTypes.Event) {
-				err := skillErr
-				if err == nil {
-					err = exec.Start(execCtx, data, wrapped)
-				}
-				if err != nil {
+				if err := exec.Start(execCtx, data, wrapped); err != nil {
 					wrapped <- agentTypes.ErrorEvent(err)
 				}
 			})

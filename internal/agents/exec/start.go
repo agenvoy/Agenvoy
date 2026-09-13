@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -24,7 +25,7 @@ func Prepare(data ExecuteMeta) ExecuteMeta {
 	}
 	if scanner != nil {
 		scanner.Scan()
-		if data.Skill == nil {
+		if data.Skill == nil && data.SkillName == "" {
 			if matched, effective := runtime.MatchSkill(scanner, data.Content, data.ExcludeSkills...); matched != nil {
 				data.Skill = matched
 				data.Content = strings.TrimSpace(effective)
@@ -39,6 +40,22 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	sessionID := strings.TrimSpace(data.SessionID)
 	if sessionID == "" {
 		return fmt.Errorf("data.SessionID is required")
+	}
+
+	if name := data.SkillName; name != "" && data.Skill == nil {
+		if slices.Contains(data.ExcludeSkills, name) {
+			return fmt.Errorf("skill %q is not available here", name)
+		}
+		scanner := data.SkillScanner
+		if scanner == nil {
+			scanner = agents.Scanner()
+		}
+		if scanner != nil {
+			data.Skill = scanner.Lookup(name)
+		}
+		if data.Skill == nil {
+			return fmt.Errorf("skill %q not found", name)
+		}
 	}
 
 	if data.Skill != nil {

@@ -43,6 +43,7 @@ type ExecuteMeta struct {
 	Model             string
 	WorkDir           string
 	Skill             *skill.Skill
+	SkillName         string
 	SkillScanner      *runtime.SkillScanner
 	Content           string
 	Input             string
