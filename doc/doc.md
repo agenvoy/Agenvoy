@@ -100,7 +100,7 @@ Agenvoy currently supports Telegram and Discord. Both integrations use outbound 
 
 `reply_lang` accepts `auto`, a code listed in `configs/jsons/reply_lang.json` (`en`, `zh-TW`, `zh-HK`, `zh-CN`, `ja`, `ko`, `es`, `fr`, `de`, `pt`, `it`, `ru`, `vi`, `th`, `id`, `ar`) or any other language name, which is passed through to the model as written. `zh-TW` and `zh-HK` are separate: Taiwan and Hong Kong Traditional Chinese differ in vocabulary and phrasing. It applies to the agent system prompt, the `/v1/chat/completions` system prompt and the generated follow-up suggestions. Set it from **Config › System**, which applies it to the running daemon at once; editing `config.json` by hand takes effect at the next daemon start.
 
-`output_dir` expands `~` and creates the directory when it is saved; a path that cannot be created is rejected, and one that later becomes unusable falls back to the default. **Config › System** applies it to the running daemon at once. The TUI's `/reply-language` and `/output-dir` write `config.json` the same way a hand edit does.
+`output_dir` expands `~` and creates the directory when it is saved; a path that cannot be created is rejected, and one that later becomes unusable falls back to the default. **Config › System** applies it to the running daemon at once. The TUI's `/config` (reply language, output dir) writes `config.json` the same way a hand edit does.
 
 Package defaults (not currently read from `config.json`):
 
@@ -216,13 +216,11 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/allow-skill` | Mark skills as always allowed, globally or for this project |
 | `/rule` `/note` | List, add or edit rules and notes |
 | `/channel` | Enable or disable Telegram / Discord (tokens are validated before they are stored; `d` revokes an authorized chat), or pick the `admin` chat that receives new-chat verification codes (shown only while a channel is enabled) |
-| `/startup` | Enable or disable launching the daemon on login (launchd agent on macOS, systemd user unit on Linux) |
+| `/config` | Searchable settings list; `enter` changes the highlighted one: startup on login (launchd agent on macOS, systemd user unit on Linux), reply language (`auto` follows each message) and output dir (where generated files land; blank uses `~/Downloads`) |
 | `/schedule` | Recurring (cron) and one-shot (task) entries in one list; `enter` fires one now, `d` deletes it; add or edit by asking the agent |
 | `/pending` | List and resume interrupted tasks (`ask_user`, error recovery) |
 | `/resume` `/log` `/usage` | Reload the visible transcript, follow `daemon.log` in `$PAGER`, show per-model token usage for this session above and all sessions below (24h / 7d / 28d) |
 | `/key` | Edit a stored credential (`d` deletes it) |
-| `/reply-language` | Pick the language every reply is written in; `auto` follows each message |
-| `/output-dir` | Set where generated files land; blank uses `~/Downloads` |
 | `/update` | Fetch the latest release, rebuild, quit |
 | `/clear` `/exit` | Clear the visible transcript, or leave the TUI (the daemon keeps running) |
 | `/<skill>` `/sched-<name>` | Run an installed skill or a scheduler entry directly |
@@ -315,8 +313,8 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | `GET` | `/v1/session/:id/task/:task_hash/questions` | Get a pending task's questions. |
 | `POST` | `/v1/session/:id/task/:task_hash/resume` | Answer a pending task and resume. |
 | `DELETE` | `/v1/session/:id/task/:task_hash` | Discard a pending task without answering it. |
-| `POST` | `/v1/session/:id/cancel/:once_id` | Cancel one running task; 404 when that id is not running in this process. |
-| `POST` | `/v1/session/:id/confirm/:once_id` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?, password?}`. Approving a restricted path or `pkg_manage` call requires `password`, is accepted only from this machine (403 otherwise) and returns 401 when the system password is wrong. 410 when the confirmation is already resolved or expired. |
+| `POST` | `/v1/session/:id/cancel/:task_hash` | Cancel one running task; 404 when that id is not running in this process. |
+| `POST` | `/v1/session/:id/confirm/:confirm_hash` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?, password?}`. Approving a restricted path or `pkg_manage` call requires `password`, is accepted only from this machine (403 otherwise) and returns 401 when the system password is wrong. 410 when the confirmation is already resolved or expired. |
 | `POST` | `/v1/session/:id/memory` | **local** — one memory operation on the session, picked by `action`: `summary` rebuilds the rolling summary and returns `count`; `compact` drops older messages and returns `removed`; `reset` clears the conversation and returns `removed`, and requires `mode` — `summary` keeps the rolling summary, `all` wipes it too. |
 | `GET` | `/v1/session/:id/task/history` | **local** — completed tasks of this session, newest first: `{task_hash, end_at, objective, model, reasoning}` per row. `?keyword=` filters on the objective and the recorded action text. |
 | `GET` | `/v1/session/:id/task/:task_hash/history` | **local** — the full action record of one completed task, returned as a JSON string under `content`. 404 when that hash has no record. |
@@ -347,7 +345,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/providers` | **local** — list providers and their available operations. |
-| `GET` | `/v1/providers/quota` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot`, `ollama-cloud` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 15s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
+| `GET` | `/v1/providers/quota` | **local** — remaining quota for `codex`, `grok-oauth`, `copilot`, `ollama-cloud` (`kind:"percent"`) and remaining credit for `openrouter`, `deepseek` (`kind:"balance"`), fetched in parallel with a 10s ceiling. Successful reads are cached in ToriiDB for 3 minutes and come back flagged `cached:true`; `?refresh=1` drops the cache and re-reads, and saving a key or finishing an OAuth login drops that provider's entry on its own. Providers without a credential come back with `error` instead of `value` and are never cached. |
 | `POST` | `/v1/provider/:provider/key` | **local** — set an API key. For `compat` the body is `{name, url, api_key?}`: the URL is recorded under `compats` and the key, when given, is stored as `COMPAT_<NAME>_API_KEY`. |
 | `GET` | `/v1/provider/:provider/oauth` | **local** — SSE device-code OAuth flow. |
 | `DELETE` | `/v1/provider/:provider/oauth` | **local** — clear a stored provider login (`codex`, `copilot`, `grok-oauth`). The token keys belong to the OAuth libraries (`CODEX_OAUTH_TOKEN` and a legacy name each), so this goes through their own `ClearToken` rather than `DELETE /v1/key`. |

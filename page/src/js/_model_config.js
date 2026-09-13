@@ -228,16 +228,17 @@ function quotaLabel(entry) {
     return null;
   }
   if (entry.kind === "balance") {
-    return { text: `$${entry.value.toFixed(2)}`, state: entry.value > 0 ? "on" : "error" };
+    return { text: `$${entry.value.toFixed(2)}`, state: quotaLevel(entry.kind, entry.value) };
   }
   const value = Math.round(entry.value);
-  let state = "on";
-  if (value < 20) {
-    state = "error";
-  } else if (value < 50) {
-    state = "warn";
+  return { text: `${value}%`, state: quotaLevel(entry.kind, value) };
+}
+
+function quotaLevel(kind, value) {
+  if (kind === "balance" || value >= 50) {
+    return "okay";
   }
-  return { text: `${value}%`, state: state };
+  return value >= 30 ? "caution" : "error";
 }
 
 async function storedKeys() {

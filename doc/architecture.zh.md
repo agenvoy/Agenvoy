@@ -27,6 +27,8 @@ graph TB
 
 `cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
 
+所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>` 或指定名稱的 Skill；接著 `exec.Start` 記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓聊天頻道的驗證碼與 host reload 訊息顯示在終端機。
+
 輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度，`pass` tier 的模型一律排在最後。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。`nvidia/nemotron-3.5-lightning-30b-a3b` 是 NVIDIA NIM 提供的免費、非大型模型，適合免費嚐鮮 Agenvoy，不是必要的 dispatcher 或主要模型。
 
 ```mermaid
@@ -65,13 +67,13 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 session 指派與 Skill；Skill 描述會作為模型選擇提示。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。context 超限時會 compact，模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 ```mermaid
 graph TB
-    Request[使用者請求] --> Assign[Session 指派]
-    Assign --> Match[比對 Skill]
-    Match --> Resolve[解析主要／Fallback Agent]
+    Request[使用者請求] --> Prepare[Prepare：重新掃描 Skill、排除 TUI 專用]
+    Prepare --> Match[比對 /skill_name 或指定 Skill]
+    Match --> Resolve[指定模型、session 模型或 dispatcher]
     Resolve --> Session[建立 Agent Session]
     Session --> Prompt[建立 Prompt、官方模型指南與工具定義]
     Prompt --> Model[模型呼叫]
@@ -82,7 +84,8 @@ graph TB
     Compact --> Model
     Result -->|傳送失敗| Fallback[Fallback Agent]
     Fallback --> Model
-    Result -->|最終回應| Events[回傳事件與結果]
+    Result -->|最終回應| Quota[完成事件附上 provider 額度]
+    Quota --> Events[回傳事件與結果]
 ```
 
 ## 模組：工具註冊表與沙箱
@@ -106,7 +109,7 @@ graph TB
 
 ## 模組：Session、歷史、排程與監控
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener；subagent 的 `DeliverTo` 會把提問送回父層 session。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`http-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener；subagent 的 `DeliverTo` 會把提問送回父層 session。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
@@ -157,7 +160,7 @@ sequenceDiagram
     participant Store as Session Store
 
     User->>Entry: 提交請求
-    Entry->>Exec: 帶來源與 Session context 執行
+    Entry->>Exec: Prepare（Skill 比對）後帶來源與 Session context 執行
     Exec->>Store: 載入歷史與摘要
     Exec->>Router: Prompt、Skill 提示與工具定義
     Router-->>Exec: 模型回應
@@ -176,7 +179,7 @@ sequenceDiagram
 
 - Daemon 綁定 `127.0.0.1`；設定與管理 endpoint 另有 localhost-only 守衛。
 - denied path 與 denied command 會直接拒絕；敏感路徑、`$HOME` 外寫入及其他受限操作則要求明確確認，支援時再要求系統驗證。
-- 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。
+- 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。`run_command` 內一律拒絕 `sudo`；需要寫入 `$HOME` 以外的命令，要在該次呼叫以 `write_paths` 宣告路徑，並由使用者輸入系統密碼核准。
 - 憑證與 OAuth token 存在作業系統 keychain，不寫入 repository。
 
 ## 持久化結構
