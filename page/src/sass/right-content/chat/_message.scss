@@ -146,6 +146,31 @@
         gap: 0.25rem;
         width: calc(100% - 2.5rem);
 
+        > p span.quota {
+          margin-left: 0.375rem;
+          padding: 0.0625rem 0.375rem;
+          border-radius: 0.25rem;
+          font-size: x-small;
+          vertical-align: middle;
+          color: var(--gray-3);
+          background-color: var(--gray-2);
+
+          &[data-level="okay"] {
+            color: var(--okay);
+            background-color: var(--okay-bg);
+          }
+
+          &[data-level="caution"] {
+            color: var(--caution);
+            background-color: var(--caution-bg);
+          }
+
+          &[data-level="error"] {
+            color: var(--error);
+            background-color: var(--error-bg);
+          }
+        }
+
         details {
           &[open] summary span {
             transform: rotate(180deg);
