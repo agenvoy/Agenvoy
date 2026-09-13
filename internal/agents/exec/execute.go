@@ -64,7 +64,7 @@ type ExecuteMeta struct {
 const (
 	sendStopGrace   = 3 * time.Second
 	fanoutSendGrace = 3 * time.Second
-	fanoutStopGrace = 5 * time.Second
+	fanoutStopGrace = 3 * time.Second
 )
 
 func (m ExecuteMeta) ModelName() string {

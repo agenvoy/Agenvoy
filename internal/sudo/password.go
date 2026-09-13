@@ -11,7 +11,7 @@ import (
 
 const (
 	cachedTimeout = 3 * time.Second
-	verifyTimeout = 20 * time.Second
+	verifyTimeout = 30 * time.Second
 )
 
 func Cached(ctx context.Context) bool {
