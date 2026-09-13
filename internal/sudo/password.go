@@ -1,4 +1,4 @@
-package auth
+package sudo
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	cachedTimeout = 3 * time.Second
 	verifyTimeout = 20 * time.Second
 )
 
@@ -17,7 +18,7 @@ func Cached(ctx context.Context) bool {
 	if os.Geteuid() == 0 {
 		return true
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, cachedTimeout)
 	defer cancel()
 	return exec.CommandContext(probeCtx, "sudo", "-n", "-v").Run() == nil
 }

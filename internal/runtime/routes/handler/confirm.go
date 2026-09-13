@@ -11,8 +11,8 @@ import (
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/auth"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	"github.com/pardnchiu/agenvoy/internal/sudo"
 	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -108,7 +108,7 @@ func emitWebConfirms() {
 			Restricted:  req.Restricted,
 		}
 		if len(req.Restricted) > 0 {
-			event.PasswordCached = auth.Cached(context.Background())
+			event.PasswordCached = sudo.Cached(context.Background())
 		}
 		trackConfirm(req.DeliverTo, id, event)
 		pubsub.Pub(req.DeliverTo, event)
@@ -150,7 +150,7 @@ func ResolveToolConfirm() gin.HandlerFunc {
 				c.JSON(http.StatusForbidden, gin.H{"error": "restricted approvals must come from this machine"})
 				return
 			}
-			if err := auth.Verify(c.Request.Context(), body.Password); err != nil {
+			if err := sudo.Verify(c.Request.Context(), body.Password); err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error(), "restricted": restricted})
 				return
 			}

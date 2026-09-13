@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -193,7 +194,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if len(p.restricted) > 0 {
 				id := p.pendingId
 				t = t.closePopup()
-				if sudoCached() {
+				if sudo.Cached(context.Background()) {
 					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
 				}
 				return t, tea.Sequence(
@@ -551,7 +552,7 @@ func newPopup(id string, req runtime.Request) *Popup {
 				p.styledLines = append(p.styledLines, warnStyle.Render("⚠ "+one))
 			}
 			p.styledLines = append(p.styledLines, "")
-			if sudoCached() {
+			if sudo.Cached(context.Background()) {
 				p.styledLines = append(p.styledLines, okayStyle.Render("sudo credentials still valid — no password needed"))
 			} else {
 				p.styledLines = append(p.styledLines, userStyle.Render("system password required — you will be prompted after Yes"))
