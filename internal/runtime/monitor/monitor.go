@@ -21,7 +21,7 @@ const (
 	cpuWarnPercent  = 80.0
 	ramWarnBytes    = uint64(2) << 30
 	netProbeTarget  = "1.1.1.1:443"
-	netProbeTimeout = 5 * time.Second
+	netProbeTimeout = 3 * time.Second
 	topProcessCount = 3
 	psTimeout       = 3 * time.Second
 )

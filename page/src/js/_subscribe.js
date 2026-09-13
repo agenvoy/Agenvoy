@@ -107,8 +107,8 @@ function parseEvent(event) {
   const sessionId = event.session || subscribedSession;
   const active = sessionId === currentSessionId;
 
-  if (event.once_id) {
-    setTask(sessionId, event.once_id);
+  if (event.task_hash) {
+    setTask(sessionId, event.task_hash);
   }
 
   if (event.type === "EventTextDone") {

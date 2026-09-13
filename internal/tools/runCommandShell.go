@@ -50,6 +50,10 @@ func validateShellScript(script string, denied []string) error {
 			bad = fmt.Errorf("rm is not allowed inside sh -c")
 			return false
 		}
+		if base == "sudo" {
+			bad = sudoCommandErr()
+			return false
+		}
 		if shellAllow[base] {
 			return true
 		}

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-func newDaemon() error {
+func SpawnDaemon() error {
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("os.Executable: %w", err)

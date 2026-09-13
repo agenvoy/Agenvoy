@@ -341,15 +341,7 @@ var footerPrefixKeep = map[string]bool{
 	"grok-oauth": true,
 }
 
-func FormatEventFooter(duration time.Duration, model string, usage *provider.Usage) string {
-	return formatEventFooter(duration, model, usage, "")
-}
-
-func FormatEventFooterContext(ctx context.Context, duration time.Duration, model string, usage *provider.Usage) string {
-	return formatEventFooter(duration, model, usage, liveUsageSuffix(ctx, model))
-}
-
-func formatEventFooter(duration time.Duration, model string, usage *provider.Usage, modelSuffix string) string {
+func FormatEventFooter(duration time.Duration, model, quota string, usage *provider.Usage) string {
 	var parts []string
 	if duration > 0 {
 		parts = append(parts, duration.Round(100*time.Millisecond).String())
@@ -359,8 +351,8 @@ func formatEventFooter(duration time.Duration, model string, usage *provider.Usa
 		if prefix, after, ok := strings.Cut(model, "@"); ok && !footerPrefixKeep[prefix] {
 			model = after
 		}
-		if modelSuffix != "" {
-			model += modelSuffix
+		if quota != "" {
+			model += "(" + quota + ")"
 		}
 		parts = append(parts, model)
 	}
@@ -382,7 +374,7 @@ var footerBalanceFn = map[string]func(context.Context, provider.Config) (float64
 	"openrouter": openrouter.Usage,
 }
 
-func liveUsageSuffix(ctx context.Context, model string) string {
+func ModelQuota(ctx context.Context, model string) string {
 	prefix, _, ok := strings.Cut(strings.TrimSpace(model), "@")
 	if !ok {
 		return ""
@@ -400,7 +392,7 @@ func liveUsageSuffix(ctx context.Context, model string) string {
 		if err != nil {
 			return ""
 		}
-		return fmt.Sprintf("(%.0f%%)", remaining)
+		return fmt.Sprintf("%.0f%%", remaining)
 	}
 
 	if fn, ok := footerBalanceFn[prefix]; ok {
@@ -412,7 +404,7 @@ func liveUsageSuffix(ctx context.Context, model string) string {
 		if err != nil {
 			return ""
 		}
-		return fmt.Sprintf("($%.2f)", balance)
+		return fmt.Sprintf("$%.2f", balance)
 	}
 
 	return ""

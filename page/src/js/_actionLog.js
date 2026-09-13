@@ -180,6 +180,28 @@ function parseActionLog(content) {
   });
 }
 
+function actionTaskState(content, taskHash) {
+  if (!taskHash) {
+    return "";
+  }
+  let state = "";
+  for (const line of content.split("\n")) {
+    const match = ACTION_LINE.exec(line);
+    if (!match || match[4] !== taskHash) {
+      continue;
+    }
+    switch (match[3]) {
+      case "done":
+      case "canceled":
+      case "error":
+        return "finished";
+      default:
+        state = "running";
+    }
+  }
+  return state;
+}
+
 function logItem(sendAt) {
   return {
     rule: "assistant",

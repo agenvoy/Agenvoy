@@ -203,6 +203,13 @@ func (t TUI) viewPopup() string {
 
 	switch p.kind {
 	case popupConfirm, popupSingleSelect:
+		if p.searchable {
+			p.input.SetWidth(max(width-10, 20))
+			body = append(body, searchStyle.Width(max(width-8, 22)).Render(p.input.View()), "")
+			if len(p.options) == 0 {
+				body = append(body, hintStyle.Render("  no matching settings"))
+			}
+		}
 		total := len(p.options)
 		visible := p.maxVisible
 		if visible <= 0 && p.kind == popupSingleSelect {
@@ -244,6 +251,12 @@ func (t TUI) viewPopup() string {
 		hint := "↑/↓ select  enter " + action + "  esc cancel"
 		if len(p.tabs) > 1 {
 			hint = "↑/↓ select  ←/→ filter  enter " + action + "  esc cancel"
+		}
+		if p.searchable {
+			hint = "type to search  ↑/↓ select  enter " + action + "  esc close"
+			if p.input.Value() != "" {
+				hint = "type to search  ↑/↓ select  enter " + action + "  esc clear"
+			}
 		}
 		if p.readOnly {
 			hint = "↑/↓ scroll  esc close"

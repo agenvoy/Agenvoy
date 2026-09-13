@@ -10,9 +10,8 @@ import (
 
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
-	"github.com/charmbracelet/lipgloss"
-
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -29,8 +28,8 @@ import (
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
-func newTUI() {
-	lipgloss.SetHasDarkBackground(true)
+func TUI() {
+	// lipgloss.SetHasDarkBackground(true)
 
 	tuiHash.New()
 
@@ -77,7 +76,7 @@ func newTUI() {
 	chatbotTool.Register()
 
 	if !runtime.IsCurrent() {
-		if err := newDaemon(); err != nil {
+		if err := app.SpawnDaemon(); err != nil {
 			slog.Warn("daemon launch failed; running TUI without server",
 				slog.String("error", err.Error()))
 		}
@@ -97,21 +96,26 @@ func newTUI() {
 
 	subagent.Register()
 
-	mcpManager := initMCP(context.Background(), "")
+	mcpManager := app.NewMCP(context.Background(), "")
 	defer mcpManager.Close()
 	mcp.SetManager(mcpManager)
 
-	registry := buildAgentRegistry()
+	registry := app.NewAgentRegistry()
 	scanner := runtime.NewSkillScanner()
-	selectorBot := dispatcherSelector(registry)
-	summaryBot := summarySelector(registry)
+	selectorBot := app.SelectDispatcher(registry)
+	summaryBot := app.SelectSummary(registry)
 
 	agents.Set(selectorBot, summaryBot, registry, scanner)
-	agents.SetRefresher(refreshHost)
+	agents.SetRefresher(app.RefreshHost)
 	agents.MarkLoaded()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	stopWatcher := app.WatchConfig(ctx, func() {
+		agents.Reload()
+	})
+	defer stopWatcher()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM)

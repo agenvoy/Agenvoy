@@ -13,6 +13,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
@@ -348,8 +349,17 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 	return nil, ""
 }
 
-func ResolveAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) (agentTypes.Agent, []agentTypes.Agent, error) {
-	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
+func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, skillHint string, sessionID string) (agentTypes.Agent, []agentTypes.Agent, error) {
+	registry := agents.Registry()
+	if model = strings.TrimSpace(model); model != "" && model != configBot.DefaultModel {
+		agent, ok := registry.Registry[model]
+		if !ok || agent == nil {
+			return nil, nil, fmt.Errorf("model %q not found", model)
+		}
+		return agent, nil, nil
+	}
+
+	names, dead := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)
 	if len(names) == 0 {
 		return nil, nil, fmt.Errorf("no agents available")
 	}

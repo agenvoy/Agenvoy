@@ -257,6 +257,17 @@ async function renderChat(sessionId) {
     bubble.remove();
   }
 
+  const mine = readTaskCookie();
+  if (mine && mine.session === sessionId) {
+    const state = actionTaskState(content, mine.task);
+    if (state === "finished") {
+      clearTaskCookie(sessionId);
+    } else if (state === "running") {
+      setTask(sessionId, mine.task);
+      setInputTask(sessionId, mine.task);
+    }
+  }
+
   const items = parseActionLog(content);
 
   for (let i = 0; i < items.length; i++) {

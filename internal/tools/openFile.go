@@ -36,7 +36,7 @@ run_command cannot do this: its sandbox has no route to the app-launch service. 
 			},
 			"required": []string{"path"},
 		},
-		Timeout: 15 * time.Second,
+		Timeout: 10 * time.Second,
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Path string `json:"path"`

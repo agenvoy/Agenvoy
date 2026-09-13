@@ -33,15 +33,17 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type ExecuteMeta struct {
 	Agent             agentTypes.Agent
 	FallbackAgents    []agentTypes.Agent
+	Model             string
 	WorkDir           string
 	Skill             *skill.Skill
+	SkillName         string
 	SkillScanner      *runtime.SkillScanner
 	Content           string
 	Input             string
@@ -54,6 +56,7 @@ type ExecuteMeta struct {
 	ExtraSystemPrompt string
 	Reasoning         string
 	AllowAll          bool
+	TUI               bool
 	PendingTask       string
 	KeepPending       bool
 	IgnoreHistory     bool
@@ -65,7 +68,7 @@ type ExecuteMeta struct {
 const (
 	sendStopGrace   = 3 * time.Second
 	fanoutSendGrace = 3 * time.Second
-	fanoutStopGrace = 5 * time.Second
+	fanoutStopGrace = 3 * time.Second
 )
 
 func (m ExecuteMeta) ModelName() string {
@@ -105,13 +108,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	execCtx, execCancel := context.WithCancel(execCtx)
 	defer execCancel()
 
-	var onceID string
 	var runTaskHash *atomic.Pointer[string]
 	if session.ID != "" {
-		onceID = go_pkg_utils.UUID()
-		registerCancel(onceID, execCancel)
-		defer unregisterCancel(onceID)
-
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
@@ -129,7 +127,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}()
 
 		original := events
-		runOnceID := onceID
 		fanoutEvents := make(chan agentTypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
@@ -153,13 +150,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range fanoutEvents {
-				if ev.OnceID == "" && ev.Source == "" {
-					ev.OnceID = runOnceID
-				}
 				if ev.TaskHash == "" && ev.Source == "" {
 					if h := taskHashRef.Load(); h != nil {
 						ev.TaskHash = *h
 					}
+				}
+				if ev.Type == agentTypes.EventDone && ev.Source == "" {
+					ev.Quota = utils.ModelQuota(context.WithoutCancel(execCtx), ev.Model)
 				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
@@ -214,6 +211,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						SessionID: sid,
 						Text:      text,
 						Model:     pushDoneEv.Model,
+						Quota:     pushDoneEv.Quota,
 						Usage:     pushDoneEv.Usage,
 						Duration:  pushDoneEv.Duration,
 						Prefix:    dcPushPrefix(pushCtx),
@@ -273,6 +271,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
+		registerCancel(exec.PendingTask, execCancel)
+		defer unregisterCancel(exec.PendingTask)
 		if runTaskHash != nil {
 			hash := exec.PendingTask
 			runTaskHash.Store(&hash)

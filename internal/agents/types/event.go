@@ -170,7 +170,7 @@ func (e EventType) String() string {
 
 type Event struct {
 	Type            EventType           `json:"type"`
-	OnceID          string              `json:"once_id,omitempty"`
+	WindowHash      string              `json:"window_hash,omitempty"`
 	TaskHash        string              `json:"task_hash,omitempty"`
 	PendingSession  string              `json:"pending_session,omitempty"`
 	Source          string              `json:"source,omitempty"`
@@ -178,8 +178,10 @@ type Event struct {
 	ToolName        string              `json:"tool_name,omitempty"`
 	ToolArgs        string              `json:"tool_args,omitempty"`
 	ToolID          string              `json:"tool_id,omitempty"`
+	ConfirmHash     string              `json:"confirm_hash,omitempty"`
 	Result          string              `json:"result,omitempty"`
 	Model           string              `json:"model,omitempty"`
+	Quota           string              `json:"quota,omitempty"`
 	Usage           *provider.Usage     `json:"usage,omitempty"`
 	UsageInput      string              `json:"usage_input,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`

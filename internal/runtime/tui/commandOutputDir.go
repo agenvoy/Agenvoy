@@ -43,5 +43,5 @@ func (t TUI) runOutputDirSubmit(value string) (TUI, tea.Cmd) {
 	}
 	filesystem.ConfigOutputDir = value
 
-	return t, tea.Println(msgLog("output dir: "+resolved) + "\n")
+	return t.openConfig(configOutputDir), tea.Println(msgLog("output dir: "+resolved) + "\n")
 }

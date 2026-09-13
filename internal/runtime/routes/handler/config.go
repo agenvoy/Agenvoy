@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/startup"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	"github.com/pardnchiu/agenvoy/internal/startup"
 )
 
 const maxReplyLang = 64

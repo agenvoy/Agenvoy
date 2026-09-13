@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -109,9 +110,23 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 				}
 			}
 
-			return fmt.Sprintf("checklist saved: %d step(s) — %d done, %d in progress, %d pending", len(todos), done, doing, pending), nil
+			result := fmt.Sprintf("checklist saved: %d step(s) — %d done, %d in progress, %d pending", len(todos), done, doing, pending)
+			if doing == 0 && pending == 0 && !reportWritten(e) {
+				result += "\nplan complete, no report written this task: long-form deliverable (analysis / research / comparison, past ~400 words, or a table plus commentary) → call write_report with every detail now, and reply with the key-point overview in that same message; short answer → reply directly"
+			}
+			return result, nil
 		},
 	})
+}
+
+func reportWritten(e *toolTypes.Executor) bool {
+	for _, path := range e.EditedFiles() {
+		name := filepath.Base(path)
+		if strings.HasPrefix(name, "report-") && strings.HasSuffix(name, ".md") {
+			return true
+		}
+	}
+	return false
 }
 
 func WriteTodos(sessionID, taskHash string, todos []agentTypes.TodoItem) error {
