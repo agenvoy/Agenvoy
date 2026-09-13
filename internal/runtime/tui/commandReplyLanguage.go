@@ -61,5 +61,5 @@ func (t TUI) runReplyLanguageSelect(code string) (TUI, tea.Cmd) {
 	}
 	filesystem.ConfigReplyLang = lang
 
-	return t, tea.Println(msgLog("reply language: "+lang) + "\n")
+	return t.openConfig(configReplyLang), tea.Println(msgLog("reply language: "+lang) + "\n")
 }

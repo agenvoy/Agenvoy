@@ -832,14 +832,15 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Sequence(seq...)
 
-	case StartupAction:
-		return t, setStartup(msg.action)
+	case ConfigSelect:
+		return t.runConfigSelect(msg.key)
 
 	case StartupDone:
+		t = t.openConfig(configStartup)
 		if msg.err != nil {
 			return t, tea.Println(msgError(fmt.Sprintf("startup %s: %v", msg.action, msg.err)) + "\n")
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("startup %sd", msg.action)) + "\n")
+		return t, nil
 
 	case ChannelRevokePick:
 		next, cmd := t.openChannelRevokeConfirm(msg)

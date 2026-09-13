@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -50,6 +51,10 @@ type Popup struct {
 	tabs   []string
 	tabIdx int
 	onTab  func(p *Popup)
+
+	searchable bool
+	allOptions []string
+	allValues  []string
 
 	input          textarea.Model
 	multiline      bool
@@ -226,6 +231,22 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
+	if p.searchable {
+		switch msg.Type {
+		case tea.KeyUp, tea.KeyDown, tea.KeyEnter:
+		case tea.KeyEsc:
+			if p.input.Value() != "" {
+				p.input.Reset()
+				p.filter()
+				return t, nil
+			}
+		default:
+			var cmd tea.Cmd
+			p.input, cmd = p.input.Update(msg)
+			p.filter()
+			return t, cmd
+		}
+	}
 	switch msg.Type {
 	case tea.KeyUp:
 		if p.readOnly {
@@ -281,6 +302,9 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return t, popupNext(p, func() any { return next })
 
 	case tea.KeyEnter:
+		if len(p.options) == 0 {
+			break
+		}
 		if !p.readOnly && strings.TrimSpace(p.options[p.cursor]) == "" {
 			break
 		}
@@ -362,6 +386,19 @@ func (p *Popup) move(step int) {
 			return
 		}
 	}
+}
+
+func (p *Popup) filter() {
+	query := strings.ToLower(strings.TrimSpace(p.input.Value()))
+	p.options = p.options[:0:0]
+	p.values = p.values[:0:0]
+	for i, one := range p.allOptions {
+		if strings.Contains(strings.ToLower(ansi.Strip(one)), query) {
+			p.options = append(p.options, one)
+			p.values = append(p.values, p.allValues[i])
+		}
+	}
+	p.cursor = 0
 }
 
 func (p *Popup) scroll(step int) {
