@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/startup"
+	"github.com/pardnchiu/agenvoy/internal/startup"
 )
 
 const (
