@@ -4,21 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
-
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
@@ -43,106 +33,20 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 
 	ctx := context.Background()
 
-	markStatus := func(str string) {
-		if err := b.client.SendStatus(ctx, channelID, "", str); err != nil {
-			slog.Debug("SendStatus (resume)",
-				slog.String("session", sessionID),
-				slog.String("error", err.Error()))
-		}
-	}
-	markStatus("resuming...")
+	reply := b.newReply(ctx, channelID, "resume", sessionID, interactive.LoadPendingMessageID(sessionID, taskHash))
+	reply.Status("resuming...")
 
-	workDir, err := os.UserHomeDir()
-	if err != nil {
-		slog.Error("ask_user resume: UserHomeDir", slog.String("error", err.Error()))
-		return
-	}
-
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
-	}
-
-	userText := full
-	sessionLog.Append(sessionID, userText)
-
-	primary, rest, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), full, false, "", sessionID)
-	if err != nil {
-		b.client.FinishStatus(ctx, channelID)
-		b.client.Send(ctx, channelID, "", fmt.Sprintf("⚠️ %s", err.Error()))
-		return
-	}
-	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(primary.Name())})
-
-	execData := exec.ExecuteMeta{
-		Agent:          primary,
-		FallbackAgents: rest,
-		WorkDir:        workDir,
+	if err := reply.Run(ctx, exec.ExecuteMeta{
 		Content:        full,
-		Input:          userText,
+		Input:          full,
 		Sender:         "user",
-		ExcludeTools:   tools.TUIOnlyTools,
-		ExcludeSkills:  tools.TUIOnlySkills,
+		SessionID:      sessionID,
+		AllowAll:       allowAll,
 		PendingTask:    taskHash,
 		HistoryContent: history,
-	}
-
-	syntheticIn := go_bot_discord.Input{
-		ChannelID: channelID,
-		Username:  "user",
-	}
-	sess, err := getSession(ctx, syntheticIn, full, execData)
-	if err != nil {
-		slog.Error("ask_user resume: getSession",
+	}); err != nil {
+		slog.Debug("ask_user resume: deliver",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
-		return
-	}
-
-	events := make(chan agentTypes.Event, 128)
-	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
-	go func() {
-		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "dc-")
-		if execErr := exec.Execute(execCtx, execData, sess, wrapped, allowAll); execErr != nil {
-			slog.Debug("ask_user resume: exec",
-				slog.String("session", sessionID),
-				slog.String("error", execErr.Error()))
-		}
-		close(wrapped)
-	}()
-
-	result := utils.FormatChatbotEvent(events, "[Discord]", sess.ID, markStatus, func(toolName, text string) string {
-		return fmt.Sprintf("`%s`: %s", toolName, text)
-	})
-
-	b.client.FinishStatus(ctx, channelID)
-
-	replyText := strings.TrimSpace(result.ReplyText)
-	if replyText == "" {
-		return
-	}
-
-	cleanText, attachmentPaths := utils.ExtractFileMarkers(replyText)
-	replyText = cleanText
-
-	model := result.Done.Model
-	if model == "" && primary != nil {
-		model = primary.Name()
-	}
-	footer := utils.FormatEventFooterContext(ctx, result.Done.Duration, model, result.Done.Usage)
-	hasMedia := len(attachmentPaths) > 0
-	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, result.ExecErrors)
-
-	replyTo := interactive.LoadPendingMessageID(sessionID, taskHash)
-	for _, part := range chatbot.Chunk(chatbot.Discord, replyText) {
-		if _, err := b.client.Send(ctx, channelID, replyTo, part); err != nil {
-			slog.Warn("Send (resume)", slog.String("session", sessionID), slog.String("error", err.Error()))
-			break
-		}
-		replyTo = ""
-	}
-
-	if len(attachmentPaths) > 0 {
-		go sendAttachments(context.WithoutCancel(ctx), b.client, channelID, "resume", "", attachmentPaths)
 	}
 }

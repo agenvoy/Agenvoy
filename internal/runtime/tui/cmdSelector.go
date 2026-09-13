@@ -43,7 +43,7 @@ var commands = []Command{
 	{"rule", "list / add / edit rule  title + description"},
 	{"note", "list / add / edit note  title + description"},
 	{"channel", "enable / disable Telegram, Discord or LINE bot  token validated on enable"},
-	{"startup", "enable / disable launch daemon on login  launchd / systemd user unit"},
+	{"config", "search settings  startup on login  reply language  output dir"},
 	{"schedule", "recurring (cron) and one-shot (task) in one list  enter fires it now  d deletes it  add / edit by asking the agent"},
 	{"update", "update / upgrade  fetch latest release  rebuild  quit TUI"},
 	{"resume", "reload visible transcript  last 100 entries from action.log"},
@@ -51,8 +51,6 @@ var commands = []Command{
 	{"usage", "per-model token usage  session above, global below  24h / 7d / 28d"},
 	{"pending", "list / resume interrupted tasks  error recovery  ask_user resume"},
 	{"key", "update / rotate keychain value  pick from recorded keys"},
-	{"reply-language", "force every reply into one language  auto follows each message"},
-	{"output-dir", "where generated files land  blank uses ~/Downloads"},
 	{"clear", "clear visible transcript / history  memory untouched"},
 	{"exit", "exit / quit TUI  daemon keeps running"},
 }

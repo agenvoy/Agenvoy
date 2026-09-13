@@ -42,7 +42,7 @@ func handler(ctx context.Context, keyword, timeRange, ceid, geo, lang string) (s
 		url.QueryEscape(ceid),
 	)
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	return fetch(ctx, reqPath)

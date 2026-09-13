@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
 var (
@@ -40,6 +41,9 @@ func SetForwarder(fn func(string, agentTypes.Event)) {
 func Pub(sessionID string, event agentTypes.Event) {
 	if sessionID == "" {
 		return
+	}
+	if event.WindowHash == "" {
+		event.WindowHash = tuiHash.Get()
 	}
 
 	mu.RLock()

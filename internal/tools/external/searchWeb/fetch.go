@@ -38,7 +38,7 @@ func init() {
 	jar, _ := cookiejar.New(nil)
 	ddgClient = &http.Client{
 		Jar:     jar,
-		Timeout: 15 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -144,7 +144,7 @@ func fetch(ctx context.Context, query, timeRange string, cdp bool) (string, erro
 		"df": timeRange,
 	}
 
-	httpCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	httpCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	html, status, err := go_pkg_http.POST[string](httpCtx, ddgClient, ddgPath, headers, params, "form")

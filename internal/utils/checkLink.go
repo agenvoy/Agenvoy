@@ -33,7 +33,7 @@ func CheckLinks(ctx context.Context, urls []string) []LinkCheck {
 }
 
 func resolveLink(ctx context.Context, link string) (string, int) {
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, link, nil)
 	if err != nil {
 		return link, 0

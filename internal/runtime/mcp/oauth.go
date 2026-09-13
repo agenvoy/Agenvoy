@@ -514,7 +514,7 @@ func serveCallback(name string, listener net.Listener, redirectURL, path string,
 }
 
 func (c *callbackServer) close() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_ = c.server.Shutdown(ctx)
 }

@@ -3,10 +3,6 @@ package tui
 import (
 	"fmt"
 	"strings"
-
-	"github.com/pardnchiu/agenvoy/internal/session"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func activityVerb(activity string) string {
@@ -56,26 +52,6 @@ func activityVerb(activity string) string {
 		return tool
 	}
 	return "Thinking"
-}
-
-func targetSession(input, currentId string) string {
-	name, _ := session.CheckAssign(input)
-	if name == "" {
-		return ""
-	}
-
-	id := session.GetSessionIDBySelfID(name)
-	if id == "" {
-		return name
-	}
-	if id == currentId {
-		return ""
-	}
-
-	if bot, _ := configBot.Get(id); strings.TrimSpace(bot) != "" && bot != id {
-		return bot
-	}
-	return utils.ShortenSessionID(id)
 }
 
 func formatTime(secs int) string {

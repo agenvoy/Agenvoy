@@ -4,27 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
-	"github.com/bwmarrin/discordgo"
 	go_bot_discord "github.com/pardnchiu/go-bot/discord"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -194,154 +185,20 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		return nil
 	}
 
-	workDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("os.UserHomeDir: %w", err)
-	}
-
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
-	}
-
-	var matchedSkill *skill.Skill
-	if scanner != nil {
-		if m, effective := runtime.MatchSkill(scanner, content, tools.TUIOnlySkills...); m != nil {
-			matchedSkill = m
-			content = strings.TrimSpace(effective)
-		}
-	}
-
 	discordSessionID, err := sessionDiscord.New(in.GuildID, in.ChannelID, in.UserID)
 	if err != nil {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetDiscordSession: %w", err)
 	}
 
-	sessionLog.Append(discordSessionID, content)
-	pubsub.Pub(discordSessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
+	reply := b.newReply(ctx, in.ChannelID, channelName(in), discordSessionID, in.MessageID)
+	reply.Status("thinking...")
 
-	agent, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, matchedSkill != nil, exec.SkillHint(matchedSkill), discordSessionID)
-	if err != nil {
-		if _, sendErr := b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.Send (ResolveAgent error reply)",
-				slog.String("channel", channelName(in)),
-				slog.String("error", sendErr.Error()))
-		}
-		return fmt.Errorf("ResolveAgent: %w", err)
-	}
-
-	agentName := strings.TrimSpace(agent.Name())
-	agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
-	sessionLog.Record(discordSessionID, agentResult)
-	pubsub.Pub(discordSessionID, agentResult)
-
-	execData := exec.ExecuteMeta{
-		Agent:          agent,
-		FallbackAgents: fallbacks,
-		WorkDir:        workDir,
-		Skill:          matchedSkill,
+	return reply.Run(ctx, exec.ExecuteMeta{
 		Content:        content,
 		Input:          content,
-		ExcludeTools:   tools.TUIOnlyTools,
-		ExcludeSkills:  tools.TUIOnlySkills,
 		AllowAll:       false,
 		ReplyMessageID: in.MessageID,
 		Sender:         in.Username,
-	}
-
-	sess, err := getSession(ctx, in, content, execData)
-	if err != nil {
-		return fmt.Errorf("getSession: %w", err)
-	}
-	utils.EventLog("[Discord]", agentTypes.Event{}, sess.ID, content)
-
-	markStatus := func(str string) {
-		if err := b.client.SendStatus(ctx, in.ChannelID, in.MessageID, str); err != nil {
-			slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.SendStatus",
-				slog.String("session", sess.ID),
-				slog.String("text", str),
-				slog.String("channel", channelName(in)),
-				slog.String("error", err.Error()))
-		}
-	}
-	markStatus("thinking...")
-
-	events := make(chan agentTypes.Event, 128)
-	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
-	go func() {
-		execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), "dc-")
-		execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll)
-		if execErr != nil {
-			slog.Debug("exec",
-				slog.String("session", sess.ID),
-				slog.String("error", execErr.Error()))
-		}
-		close(wrapped)
-	}()
-
-	result := utils.FormatChatbotEvent(events, "[Discord]", sess.ID, markStatus, func(toolName, text string) string {
-		return fmt.Sprintf("`%s`: %s", toolName, text)
+		SessionID:      discordSessionID,
 	})
-	replyText := result.ReplyText
-	execErrors := result.ExecErrors
-	doneEvent := result.Done
-
-	if err := b.client.FinishStatus(ctx, in.ChannelID); err != nil {
-		slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.FinishStatus",
-			slog.String("session", sess.ID),
-			slog.String("channel", channelName(in)),
-			slog.String("error", err.Error()))
-	}
-
-	replyText = strings.TrimSpace(replyText)
-	if replyText == "" {
-		return fmt.Errorf("no reply")
-	}
-
-	cleanText, attachmentPaths := utils.ExtractFileMarkers(replyText)
-	replyText = cleanText
-
-	model := doneEvent.Model
-	if model == "" && agent != nil {
-		model = agent.Name()
-	}
-	footer := utils.FormatEventFooterContext(ctx, doneEvent.Duration, model, doneEvent.Usage)
-	hasMedia := len(attachmentPaths) > 0
-	replyText = chatbot.AppendReplyFooter(chatbot.Discord, replyText, footer, hasMedia, execErrors)
-
-	chunks := chatbot.Chunk(chatbot.Discord, replyText)
-	replyTo := in.MessageID
-	var replyMsg *discordgo.Message
-	for _, part := range chunks {
-		msg, sendErr := b.client.Send(ctx, in.ChannelID, replyTo, part)
-		if sendErr != nil {
-			slog.Error("github.com/pardnchiu/go-bot/discord Bot.client.Send",
-				slog.String("session", sess.ID),
-				slog.String("channel", channelName(in)),
-				slog.String("error", sendErr.Error()))
-			b.client.Send(ctx, in.ChannelID, in.MessageID, fmt.Sprintf("⚠️ send failed: %s", sendErr.Error()))
-			break
-		}
-		replyMsg = msg
-		replyTo = ""
-	}
-
-	if len(attachmentPaths) == 0 {
-		return nil
-	}
-
-	replyToID := ""
-	if replyMsg != nil {
-		replyToID = replyMsg.ID
-	}
-
-	if len(attachmentPaths) > 0 {
-		bgCtx := context.WithoutCancel(ctx)
-		channel := channelName(in)
-		client := b.client
-		paths := attachmentPaths
-		go sendAttachments(bgCtx, client, in.ChannelID, channel, replyToID, paths)
-	}
-
-	return nil
 }

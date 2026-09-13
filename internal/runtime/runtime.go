@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	stopGraceWindow = 5 * time.Second
+	stopGraceWindow = 3 * time.Second
 	stopPollGap     = 100 * time.Millisecond
 )
 

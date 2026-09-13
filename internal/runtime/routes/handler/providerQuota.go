@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	providerQuotaTimeout = 15 * time.Second
+	providerQuotaTimeout = 10 * time.Second
 	providerQuotaTTL     = 180
 	quotaKeyPrefix       = "provider:quota:"
 )

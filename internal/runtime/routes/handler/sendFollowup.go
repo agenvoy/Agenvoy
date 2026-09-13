@@ -10,11 +10,12 @@ import (
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
-func withFollowup(ctx context.Context, sessionID string, dst chan agentTypes.Event) chan agentTypes.Event {
+func withFollowup(ctx context.Context, sessionID string, dst chan<- agentTypes.Event, run func(events chan<- agentTypes.Event)) {
 	src := make(chan agentTypes.Event, cap(dst))
+	done := make(chan struct{})
 
 	go func() {
-		defer close(dst)
+		defer close(done)
 
 		failed := false
 		for event := range src {
@@ -33,7 +34,9 @@ func withFollowup(ctx context.Context, sessionID string, dst chan agentTypes.Eve
 		}
 	}()
 
-	return src
+	run(src)
+	close(src)
+	<-done
 }
 
 func generateFollowup(ctx context.Context, sessionID string) (agentTypes.Event, bool) {

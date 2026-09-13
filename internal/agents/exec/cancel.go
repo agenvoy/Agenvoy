@@ -10,24 +10,24 @@ var (
 	cancelFns = map[string]context.CancelFunc{}
 )
 
-func registerCancel(onceID string, cancel context.CancelFunc) {
-	if onceID == "" {
+func registerCancel(taskHash string, cancel context.CancelFunc) {
+	if taskHash == "" {
 		return
 	}
 	cancelMu.Lock()
-	cancelFns[onceID] = cancel
+	cancelFns[taskHash] = cancel
 	cancelMu.Unlock()
 }
 
-func unregisterCancel(onceID string) {
+func unregisterCancel(taskHash string) {
 	cancelMu.Lock()
-	delete(cancelFns, onceID)
+	delete(cancelFns, taskHash)
 	cancelMu.Unlock()
 }
 
-func CancelTask(onceID string) bool {
+func CancelTask(taskHash string) bool {
 	cancelMu.Lock()
-	cancel, ok := cancelFns[onceID]
+	cancel, ok := cancelFns[taskHash]
 	cancelMu.Unlock()
 	if !ok {
 		return false

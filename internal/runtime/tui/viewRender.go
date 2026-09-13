@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -314,6 +313,11 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colWarn).
 			Padding(0, 1)
+
+	searchStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colHint).
+			Padding(0, 1)
 )
 
 // * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
@@ -407,8 +411,7 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
-// * context for live usage, context = nil for replay
-func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
+func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -503,12 +506,7 @@ func renderAgentEvent(ctx context.Context, liveUsage bool, ev agentTypes.Event, 
 		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
 	case agentTypes.EventDone:
-		var footer string
-		if liveUsage {
-			footer = utils.FormatEventFooterContext(ctx, ev.Duration, ev.Model, ev.Usage)
-		} else {
-			footer = utils.FormatEventFooter(ev.Duration, ev.Model, ev.Usage)
-		}
+		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Quota, ev.Usage)
 		if sessionLabel != "" {
 			if footer != "" {
 				footer = footer + "  [" + sessionLabel + "]"

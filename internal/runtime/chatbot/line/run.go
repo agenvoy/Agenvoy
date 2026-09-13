@@ -264,7 +264,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	}
 	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
 
-	primary, fallbacks, err := exec.ResolveAgent(ctx, agents.DispatcherBot(), agents.Registry(), content, false, "", sessionID)
+	primary, fallbacks, err := exec.ResolveAgent(ctx, "", content, false, "", sessionID)
 	if err != nil {
 		if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (ResolveAgent error reply)",
@@ -325,7 +325,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	if model == "" && primary != nil {
 		model = primary.Name()
 	}
-	if footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Usage); footer != "" {
+	if footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Quota, result.Done.Usage); footer != "" {
 		replyText = replyText + "\n\n" + footer
 	}
 	if len(result.ExecErrors) > 0 {

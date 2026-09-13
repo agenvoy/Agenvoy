@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -132,6 +133,7 @@ func newModel(ctx context.Context) TUI {
 	textArea.CharLimit = 8000
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
+	textArea.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	textArea.Focus()
 	textArea.Cursor.Style = whiteStyle
 	textArea.SetPromptFunc(2, func(lineIdx int) string {

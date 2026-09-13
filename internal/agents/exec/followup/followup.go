@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	Timeout      = 20 * time.Second
+	Timeout      = 30 * time.Second
 	maxTurns     = 6
 	maxTurnRunes = 600
 	maxTitle     = 40

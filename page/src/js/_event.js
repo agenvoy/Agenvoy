@@ -56,6 +56,14 @@ function renderEvent(view, event) {
   }
 
   if (type === "EventDone") {
+    if (event.quota) {
+      const quota = _("span.quota", event.quota);
+      if (event.quota.endsWith("%")) {
+        const percent = parseFloat(event.quota);
+        quota.dataset.level = percent >= 50 ? "okay" : percent >= 30 ? "caution" : "error";
+      }
+      view.model.replaceChildren(event.model || view.model.textContent, quota);
+    }
     view.think.open = false;
     delete view.think.dataset.streaming;
     const usage = event.usage || {};

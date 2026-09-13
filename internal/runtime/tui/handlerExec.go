@@ -11,7 +11,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -129,33 +128,25 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 	wrapped := wrapEventsPublish(ctx, sessionID, ch)
 	done := make(chan error, 1)
 
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
-	}
-
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				close(wrapped)
-				done <- fmt.Errorf("exec.Run panic: %v", r)
+				done <- fmt.Errorf("exec.Start panic: %v", r)
 			}
 		}()
-		err := exec.Run(
-			agentTypes.WithOrigin(ctx, "cli-"),
-			agents.DispatcherBot(),
-			agents.Registry(),
-			scanner,
-			input,
-			nil,
-			nil,
-			wrapped,
-			allowAll,
-			workDir,
-			sessionID,
-			pendingTask,
-			historyContent,
-		)
+		content := strings.TrimSpace(input)
+		data := exec.Prepare(exec.ExecuteMeta{
+			WorkDir:        workDir,
+			Content:        content,
+			Input:          content,
+			SessionID:      sessionID,
+			AllowAll:       allowAll,
+			TUI:            true,
+			PendingTask:    pendingTask,
+			HistoryContent: historyContent,
+		})
+		err := exec.Start(agentTypes.WithOrigin(ctx, "cli-"), data, wrapped)
 		close(wrapped)
 		done <- err
 	}()
@@ -213,7 +204,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		if ev.Source == "" {
 			t.pendingSteer = nil
 		}
-		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
 		if !ok {
 			return t, nil
 		}
@@ -234,7 +225,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			}
 			t.activity = "tool: " + ev.ToolName
 			t.toolLog = nil
-			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
+			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
 			if ok {
 				t.emitted = true
 				if utils.IsSubagentInvoke(ev.ToolName, ev.ToolArgs) {
@@ -272,7 +263,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.trackSubagent(ev.Source, "✻ "+oneLine(toPureText(ev.Text)))
 			return t, nil
 		}
-		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
 		if !ok {
 			return t, nil
 		}
@@ -314,7 +305,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		} else {
 			t.activity = "compacting tool history..."
 		}
-		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
 		if ok {
 			t.toolBuf = append(t.toolBuf, line)
 		}
@@ -385,13 +376,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		finishedAt := time.Now().Format("2006-01-02 15:04:05")
 		if collapse != nil {
-			line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, finishedAt)
+			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 			if !ok {
 				return t, collapse
 			}
 			return t, tea.Sequence(collapse, tea.Println(line))
 		}
-		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, finishedAt)
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
 			return t, nil
 		}
@@ -407,7 +398,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		t.todos = nil
 		t.subBuf, t.subOrder, t.subActive = nil, nil, 0
 		finishedAt := time.Now().Format("2006-01-02 15:04:05")
-		line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, finishedAt)
+		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
 			return t, collapse
 		}
@@ -427,7 +418,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 
 	}
 
-	line, ok := renderAgentEvent(t.ctx, true, ev, t.runTarget, t.cwd, t.width, "")
+	line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, "")
 	if !ok {
 		return t, nil
 	}
