@@ -11,16 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
-	"github.com/pardnchiu/go-llm-router/core/copilot"
-	"github.com/pardnchiu/go-llm-router/core/deepseek"
-	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
-	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
-	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
-	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
-
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const (
@@ -83,21 +76,6 @@ func DropQuotaCache(id string) {
 	db.Del(context.Background(), quotaKeyPrefix+id)
 }
 
-type quotaSource struct {
-	id   string
-	kind string
-	fn   func(context.Context, provider.Config) (float64, error)
-}
-
-var quotaSources = []quotaSource{
-	{"codex", "percent", openaicodex.Usage},
-	{"grok-oauth", "percent", grokoauth.Usage},
-	{"copilot", "percent", copilot.Usage},
-	{"ollama-cloud", "percent", ollamacloud.Usage},
-	{"openrouter", "balance", openrouter.Usage},
-	{"deepseek", "balance", deepseek.Usage},
-}
-
 func ListProviderQuota() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		refresh := c.Query("refresh") == "1" || strings.EqualFold(c.Query("refresh"), "true")
@@ -108,28 +86,28 @@ func ListProviderQuota() gin.HandlerFunc {
 		var (
 			mu     sync.Mutex
 			wg     sync.WaitGroup
-			quotas = make(map[string]gin.H, len(quotaSources))
+			quotas = make(map[string]gin.H, len(utils.QuotaSources))
 		)
 
-		for _, source := range quotaSources {
+		for _, source := range utils.QuotaSources {
 			if refresh {
-				DropQuotaCache(source.id)
-			} else if cached, ok := readQuotaCache(source.id); ok {
-				quotas[source.id] = gin.H{"kind": cached.Kind, "value": cached.Value, "cached": true}
+				DropQuotaCache(source.ID)
+			} else if cached, ok := readQuotaCache(source.ID); ok {
+				quotas[source.ID] = gin.H{"kind": cached.Kind, "value": cached.Value, "cached": true}
 				continue
 			}
 
 			wg.Add(1)
-			go func(source quotaSource) {
+			go func(source utils.QuotaSource) {
 				defer wg.Done()
 
-				entry := gin.H{"kind": source.kind}
-				cfg, err := agentKeychain.Config(ctx, source.id)
+				entry := gin.H{"kind": source.Kind}
+				cfg, err := agentKeychain.Config(ctx, source.ID)
 				if err == nil {
 					var value float64
-					if value, err = source.fn(ctx, cfg); err == nil {
+					if value, err = source.Fn(ctx, cfg); err == nil {
 						entry["value"] = value
-						writeQuotaCache(source.id, quotaEntry{Kind: source.kind, Value: value})
+						writeQuotaCache(source.ID, quotaEntry{Kind: source.Kind, Value: value})
 					}
 				}
 				if err != nil {
@@ -137,7 +115,7 @@ func ListProviderQuota() gin.HandlerFunc {
 				}
 
 				mu.Lock()
-				quotas[source.id] = entry
+				quotas[source.ID] = entry
 				mu.Unlock()
 			}(source)
 		}
