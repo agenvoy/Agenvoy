@@ -137,12 +137,12 @@ body section.right-content section.config {
     color: var(--gray-3);
     transition: 0.2s;
 
-    &[data-state="on"] {
+    &[data-state="okay"] {
       color: var(--okay);
     }
 
-    &[data-state="warn"] {
-      color: var(--warn);
+    &[data-state="caution"] {
+      color: var(--caution);
     }
 
     &[data-state="error"] {

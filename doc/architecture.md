@@ -28,6 +28,8 @@ graph TB
 
 The `agen` binary opens the TUI by default. The local daemon serves the browser dashboard at `http://127.0.0.1:17989`; Telegram and Discord connect outward from that daemon, so no inbound port or public host is required. When stdin is not a terminal, `agen` serves local tools through newline-delimited JSON-RPC MCP instead of opening the TUI.
 
+Every session-backed surface — TUI, dashboard `/send`, pending resume, Telegram, and Discord — enters execution through the same two steps: `exec.Prepare` rescans Skills, excludes TUI-only tools and Skills outside the TUI, and resolves a leading `/<skill_name>` or a named Skill; `exec.Start` then records the input, resolves the model, builds the session, and runs the agent. Entry points only handle their own transport, authorization, and rendering. Telegram and Discord share one reply pipeline for status updates, chunking, footers, error notices, and attachments. The TUI and the daemon both watch `config.json` and reload the model registry when it changes (the daemon also reconnects the chat bots), and the TUI subscribes to the daemon log so chat verification codes and host reloads appear in the terminal.
+
 ```mermaid
 graph LR
     CLI[agen] --> Mode{Invocation}
@@ -42,12 +44,13 @@ graph LR
 
 ## Module: Agent Execution and Model Routing
 
-The runtime matches a request to a Skill when applicable, then selects the configured primary model and fallbacks. Dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) are separate optional roles. Registered models keep a user-defined priority order that decides fallback, with `pass`-tier models always last. Each model can carry a tier (`S` `A` `B` `C` `pass`) in `model_tag`; the dispatcher orders tiers by the kind of work, defaulting to A, and when one model is registered under several providers it prefers `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. Subagent legs are sized by the same tiers according to their job. Local OpenAI-compatible endpoints are registered as `<name>@<model>`; custom endpoint URLs are kept under `compats` in `config.json`, while the Ollama and llama.cpp defaults that `/model add` detects on their usual ports are built in. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. The NVIDIA NIM `nvidia/nemotron-3.5-lightning-30b-a3b` model is documented as a free, non-large model for trying Agenvoy, not as a required dispatcher or primary model.
+The runtime matches a request to a Skill when applicable, then selects the configured primary model and fallbacks. A leading `/<skill_name>` is the only inline syntax; delegating to a named session goes through the `subagents` tool with a `self_id`. A model named explicitly by the caller (for example the `model` field of `/send`) is used as-is and fails when it is not registered; otherwise the session-bound model or the dispatcher decides. Completion events carry the remaining provider quota — a percentage for `codex`, `grok-oauth`, `copilot`, and `ollama-cloud`, a balance for `openrouter` and `deepseek` — fetched once before the event is delivered, so the TUI footer, dashboard badge, and chat footers all show the same value. Dispatcher, summary, image generation, speech-to-text (STT), and text-to-speech (TTS) are separate optional roles. Registered models keep a user-defined priority order that decides fallback, with `pass`-tier models always last. Each model can carry a tier (`S` `A` `B` `C` `pass`) in `model_tag`; the dispatcher orders tiers by the kind of work, defaulting to A, and when one model is registered under several providers it prefers `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. Subagent legs are sized by the same tiers according to their job. Local OpenAI-compatible endpoints are registered as `<name>@<model>`; custom endpoint URLs are kept under `compats` in `config.json`, while the Ollama and llama.cpp defaults that `/model add` detects on their usual ports are built in. During prompt assembly it injects the common official operating guide plus any guide matching the selected model. The NVIDIA NIM `nvidia/nemotron-3.5-lightning-30b-a3b` model is documented as a free, non-large model for trying Agenvoy, not as a required dispatcher or primary model.
 
 ```mermaid
 graph TB
-    Input[User request] --> Skill{Match Skill?}
-    Skill --> Select[Resolve primary model & fallbacks]
+    Input[User request] --> Prepare[Prepare: rescan Skills, exclude TUI-only]
+    Prepare --> Skill{/skill_name or named Skill?}
+    Skill --> Select[Resolve explicit model, session model, or dispatcher]
     Select --> Session[Build session context]
     Session --> Prompt[Compose system prompt + official model guide + tools]
     Prompt --> Model[Selected model]
@@ -58,7 +61,8 @@ graph TB
     Compact --> Model
     Result -->|send failure| Fallback[Fallback model]
     Fallback --> Model
-    Result -->|final answer| Output[Channel / TUI / dashboard reply]
+    Result -->|final answer| Quota[Attach provider quota to completion]
+    Quota --> Output[Channel / TUI / dashboard reply]
 ```
 
 ## Module: Tools, Skills, and Sandbox
@@ -149,7 +153,7 @@ sequenceDiagram
     participant Store as Session store
 
     User->>Entry: Submit request
-    Entry->>Exec: Run with origin and session
+    Entry->>Exec: Prepare (Skill match) and start with origin and session
     Exec->>Store: Load history and configuration
     Exec->>Router: Send prompt and available tools
     Router-->>Exec: Model response
@@ -169,7 +173,7 @@ sequenceDiagram
 - The dashboard and management API bind to `127.0.0.1`; the host is not exposed for normal browser or chatbot use.
 - Telegram and Discord use outbound connections from the local daemon and need only a bot token.
 - Denied paths and denied commands are hard rejected. Sensitive paths, writes outside `$HOME`, and other restricted actions require explicit confirmation and, where supported, system verification; approval is scoped to the session and requested path or binary.
-- Command execution is validated and sandboxed (`sandbox-exec` on macOS and `bwrap` on Linux).
+- Command execution is validated and sandboxed (`sandbox-exec` on macOS and `bwrap` on Linux). `sudo` is refused inside `run_command`; a command that writes outside `$HOME` declares those paths through `write_paths` on that call and is approved with the system password.
 - Credentials, including provider and MCP OAuth tokens, are stored in the operating-system keychain rather than the repository.
 
 ## Persistence Layout

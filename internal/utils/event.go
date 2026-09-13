@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
@@ -363,15 +365,19 @@ func FormatEventFooter(duration time.Duration, model, quota string, usage *provi
 	return strings.Join(parts, " · ")
 }
 
-var footerUsageFn = map[string]func(context.Context, provider.Config) (float64, error){
-	"codex":      openaicodex.Usage,
-	"copilot":    copilot.Usage,
-	"grok-oauth": grokoauth.Usage,
+type QuotaSource struct {
+	ID   string
+	Kind string
+	Fn   func(context.Context, provider.Config) (float64, error)
 }
 
-var footerBalanceFn = map[string]func(context.Context, provider.Config) (float64, error){
-	"deepseek":   deepseek.Usage,
-	"openrouter": openrouter.Usage,
+var QuotaSources = []QuotaSource{
+	{"codex", "percent", openaicodex.Usage},
+	{"grok-oauth", "percent", grokoauth.Usage},
+	{"copilot", "percent", copilot.Usage},
+	{"ollama-cloud", "percent", ollamacloud.Usage},
+	{"openrouter", "balance", openrouter.Usage},
+	{"deepseek", "balance", deepseek.Usage},
 }
 
 func ModelQuota(ctx context.Context, model string) string {
@@ -379,33 +385,27 @@ func ModelQuota(ctx context.Context, model string) string {
 	if !ok {
 		return ""
 	}
+	i := slices.IndexFunc(QuotaSources, func(source QuotaSource) bool {
+		return source.ID == prefix
+	})
+	if i < 0 {
+		return ""
+	}
+	source := QuotaSources[i]
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	if fn, ok := footerUsageFn[prefix]; ok {
-		cfg, err := agentKeychain.Config(ctx, prefix)
-		if err != nil {
-			return ""
-		}
-		remaining, err := fn(ctx, cfg)
-		if err != nil {
-			return ""
-		}
-		return fmt.Sprintf("%.0f%%", remaining)
+	cfg, err := agentKeychain.Config(ctx, source.ID)
+	if err != nil {
+		return ""
 	}
-
-	if fn, ok := footerBalanceFn[prefix]; ok {
-		cfg, err := agentKeychain.Config(ctx, prefix)
-		if err != nil {
-			return ""
-		}
-		balance, err := fn(ctx, cfg)
-		if err != nil {
-			return ""
-		}
-		return fmt.Sprintf("$%.2f", balance)
+	value, err := source.Fn(ctx, cfg)
+	if err != nil {
+		return ""
 	}
-
-	return ""
+	if source.Kind == "balance" {
+		return fmt.Sprintf("$%.2f", value)
+	}
+	return fmt.Sprintf("%.0f%%", value)
 }
