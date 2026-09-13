@@ -70,6 +70,10 @@ func deniedCommandErr(binary string) error {
 	return fmt.Errorf("%s is on denied_command and can never run; it cannot be approved and retrying changes nothing", binary)
 }
 
+func sudoCommandErr() error {
+	return fmt.Errorf("sudo cannot elevate inside run_command: the sandbox blocks it. Re-run the command without sudo and declare write_paths with the absolute paths outside $HOME it writes to; that raises the sudo confirm, where the user approves them with the system password. For %s", systemPackageRoute())
+}
+
 func systemPackageRoute() string {
 	if goRuntime.GOOS == "linux" {
 		return "installing or removing a system package → pkg_manage"
@@ -105,6 +109,9 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		}
 		if slices.Contains(denied, binary) {
 			return "", deniedCommandErr(binary)
+		}
+		if binary == "sudo" {
+			return "", sudoCommandErr()
 		}
 		if binary == "rm" {
 			return moveToTrash(ctx, e, argv[1:])
