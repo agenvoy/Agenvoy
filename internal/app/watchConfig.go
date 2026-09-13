@@ -8,11 +8,10 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-func WatchConfig(ctx context.Context) func() {
+func WatchConfig(ctx context.Context, onChange func()) func() {
 	configDir := filepath.Dir(filesystem.ConfigPath)
 	configBase := filepath.Base(filesystem.ConfigPath)
 
@@ -54,11 +53,7 @@ func WatchConfig(ctx context.Context) func() {
 					continue
 				}
 				lastReload = time.Now()
-				if agents.Reload() {
-					slog.Info("⎯ host reloaded: config change")
-				}
-				ReloadDiscord(0)
-				ReloadTelegram(0)
+				onChange()
 			case err, ok := <-w.Errors:
 				if !ok {
 					return

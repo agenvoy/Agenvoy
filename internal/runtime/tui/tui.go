@@ -33,7 +33,7 @@ var (
 	hintStyle   = lipgloss.NewStyle().Foreground(colHint)
 	errorStyle  = lipgloss.NewStyle().Foreground(colError)
 	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "241", Dark: "245"})
-	userStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "3", Dark: "11"}) // yellow
+	userStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "166", Dark: "#F8C644"})
 	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "0", Dark: "15"})
 )
 

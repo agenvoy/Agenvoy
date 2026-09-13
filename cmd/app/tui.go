@@ -112,6 +112,11 @@ func TUI() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	stopWatcher := app.WatchConfig(ctx, func() {
+		agents.Reload()
+	})
+	defer stopWatcher()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM)
 	go func() {

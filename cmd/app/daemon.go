@@ -175,7 +175,13 @@ func Daemon() {
 	stopSchedulerWatcher := runtime.SchedulerWatcher(context.Background())
 	defer stopSchedulerWatcher()
 
-	stopWatcher := app.WatchConfig(context.Background())
+	stopWatcher := app.WatchConfig(context.Background(), func() {
+		if agents.Reload() {
+			slog.Info("⎯ host reloaded: config change")
+		}
+		app.ReloadDiscord(0)
+		app.ReloadTelegram(0)
+	})
 	defer stopWatcher()
 
 	stopSessionWatcher := app.WatchSession(context.Background())
