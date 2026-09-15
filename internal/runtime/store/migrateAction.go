@@ -43,7 +43,7 @@ func MigrateAction() {
 	}
 
 	if imported+broken > 0 {
-		slog.Info("⎯ task history migrated into sqlite",
+		slog.Debug("task history migrated into sqlite",
 			slog.Int("imported", imported),
 			slog.Int("broken", broken))
 	}

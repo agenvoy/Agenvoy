@@ -48,7 +48,7 @@ func Migrate() {
 	}
 
 	if imported+expired+broken > 0 {
-		slog.Info("⎯ usage.log migrated into sqlite",
+		slog.Debug("usage.log migrated into sqlite",
 			slog.Int("imported", imported),
 			slog.Int("expired", expired),
 			slog.Int("broken", broken))

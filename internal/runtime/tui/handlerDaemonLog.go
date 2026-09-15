@@ -19,7 +19,6 @@ const daemonLogRetry = 3 * time.Second
 var daemonLogPrefixes = []string{
 	"Telegram Verification Code",
 	"Discord Verification Code",
-	"⎯ host reloaded",
 }
 
 type daemonLogFrame struct {
