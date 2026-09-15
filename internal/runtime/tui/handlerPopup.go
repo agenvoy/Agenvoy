@@ -187,7 +187,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		runtime.Resolve(p.pendingId, runtime.Reply{
 			Approve: false,
-			Error:   fmt.Errorf("user stopped"),
+			Error:   runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
 
@@ -221,7 +221,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			p.input = newPopupInput("", false)
 			return t, nil
 		case chosen == "Abort task":
-			reply = runtime.Reply{Approve: false, Error: fmt.Errorf("user stopped")}
+			reply = runtime.Reply{Approve: false, Error: runtime.ErrUserCanceled}
 		}
 		runtime.Resolve(p.pendingId, reply)
 		t = t.closePopup()
@@ -273,7 +273,7 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return t.escapePopup()
 		}
 		runtime.Resolve(p.pendingId, runtime.Reply{
-			Error: fmt.Errorf("user cancelled"),
+			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
 	case tea.KeyRunes:
@@ -443,7 +443,7 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return t.escapePopup()
 		}
 		runtime.Resolve(p.pendingId, runtime.Reply{
-			Error: fmt.Errorf("user cancelled"),
+			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
 
@@ -533,7 +533,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return t.escapePopup()
 		}
 		runtime.Resolve(p.pendingId, runtime.Reply{
-			Error: fmt.Errorf("user cancelled"),
+			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
 		return t, nil

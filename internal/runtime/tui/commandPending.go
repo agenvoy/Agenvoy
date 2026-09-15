@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -145,7 +146,9 @@ func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {
 		AskUser:   &runtime.UserPayload{Questions: meta},
 	}, func(reply runtime.Reply) {
 		if reply.Error != nil {
-			interactive.CleanupPending(sid, taskHash)
+			if errors.Is(reply.Error, runtime.ErrUserCanceled) {
+				interactive.CleanupPending(sid, taskHash)
+			}
 			return
 		}
 		runtime.TriggerResume(sid, taskHash, reply.Answers)
