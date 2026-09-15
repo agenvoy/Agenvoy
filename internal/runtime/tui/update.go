@@ -77,10 +77,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.popup = &Popup{
 					kind:    popupSingleSelect,
 					title:   "Cancel current task?",
-					options: []string{"No", "Yes  cancel"},
-					values:  []string{"no", "yes"},
+					options: []string{"No", "Yes    cancel", "Pause  keep pending"},
+					values:  []string{"no", "yes", "pause"},
 					onConfirm: func(chosen string) any {
-						return CancelRunConfirm{yes: chosen == "yes"}
+						return CancelRunConfirm{yes: chosen == "yes", pause: chosen == "pause"}
 					},
 				}
 				return t, nil
@@ -291,7 +291,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if msg.request.Kind == runtime.KindAskUser {
 			if t.cancelExec != nil {
-				t.cancelExec()
+				t.cancelExec(nil)
 				t.cancelExec = nil
 			}
 			t.running = false
@@ -752,11 +752,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 
 	case CancelRunConfirm:
-		if !msg.yes {
+		if t.cancelExec == nil {
 			return t, nil
 		}
-		if t.cancelExec != nil {
-			t.cancelExec()
+		switch {
+		case msg.yes:
+			t.cancelExec(runtime.ErrUserCanceled)
+		case msg.pause:
+			t.cancelExec(nil)
 		}
 		return t, nil
 

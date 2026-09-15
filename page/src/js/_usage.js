@@ -1,7 +1,7 @@
 const USAGE_SERIES = [
-  { key: "input", label: "input", color: "#1461dc" },
-  { key: "output", label: "output", color: "#2ea44f" },
-  { key: "hit", label: "cache read", color: "#b0b0b0" },
+  { key: "input", label: "input", color: "#5FAFFF" },
+  { key: "output", label: "output", color: "#5FAF5F" },
+  { key: "hit", label: "cache read", color: "#D0D0D0" },
 ];
 
 const USAGE_BAR_HEIGHT = 22;

@@ -105,8 +105,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	pushCtx := execCtx
-	execCtx, execCancel := context.WithCancel(execCtx)
-	defer execCancel()
+	execCtx, execCancel := context.WithCancelCause(execCtx)
+	defer execCancel(nil)
 
 	var runTaskHash *atomic.Pointer[string]
 	if session.ID != "" {
@@ -243,7 +243,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 	}
 
-	exec.CancelExecution = execCancel
+	exec.CancelExecution = func() { execCancel(nil) }
 	exec.IgnoreHistory = data.IgnoreHistory
 
 	keepPending := true
@@ -375,8 +375,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	for range limit {
 		if execCtx.Err() != nil {
 			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
-			interactive.DeletePending(session.ID, exec.PendingTask)
-			keepPending = false
+			if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
+				interactive.DeletePending(session.ID, exec.PendingTask)
+			}
 			return execCtx.Err()
 		}
 		if pending := getSteer(session.ID); len(pending) > 0 {
@@ -440,8 +441,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				watchdog.Stop()
 				stopSend()
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
-				interactive.DeletePending(session.ID, exec.PendingTask)
-				keepPending = false
+				if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
+					interactive.DeletePending(session.ID, exec.PendingTask)
+				}
 				return execCtx.Err()
 			case out := <-resultCh:
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
@@ -479,7 +481,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
-					keepPending = false
 					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
 				}
 				unresponsiveFailures = 0
@@ -519,8 +520,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if err != nil {
 			if execCtx.Err() != nil {
 				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
-				interactive.DeletePending(session.ID, exec.PendingTask)
-				keepPending = false
+				if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
+					interactive.DeletePending(session.ID, exec.PendingTask)
+				}
 				return execCtx.Err()
 			}
 			isTimeout := isSendTimeoutError(err, sendCtxErr)
@@ -549,7 +551,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
-					keepPending = false
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
@@ -574,8 +575,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				select {
 				case <-execCtx.Done():
 					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
-					interactive.DeletePending(session.ID, exec.PendingTask)
-					keepPending = false
+					if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
+						interactive.DeletePending(session.ID, exec.PendingTask)
+					}
 					return execCtx.Err()
 				case <-time.After(SendTimeoutRetryInterval):
 				}
@@ -592,8 +594,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				select {
 				case <-execCtx.Done():
 					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
-					interactive.DeletePending(session.ID, exec.PendingTask)
-					keepPending = false
+					if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
+						interactive.DeletePending(session.ID, exec.PendingTask)
+					}
 					return execCtx.Err()
 				case <-time.After(retryWait):
 				}
@@ -643,7 +646,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				Duration: time.Since(execStart),
 			}
 			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
-			keepPending = false
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
 		}
 		retryHandler.Clear(data.Agent.Name())
@@ -665,7 +667,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		if len(resp.Choices) == 0 {
 			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart) {
-				keepPending = false
 				return nil
 			}
 			continue
@@ -735,7 +736,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			str := value
 			if str == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, execStart) {
-					keepPending = false
 					return nil
 				}
 				continue
@@ -744,7 +744,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			stripped := StripModelResponse(str)
 			if stripped == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart) {
-					keepPending = false
 					return nil
 				}
 				continue
@@ -789,7 +788,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		case nil:
 			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, execStart) {
-				keepPending = false
 				return nil
 			}
 			continue
@@ -847,6 +845,5 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		slog.String("session", session.ID),
 		slog.String("name", data.Agent.Name()))
 	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart)
-	keepPending = false
 	return nil
 }

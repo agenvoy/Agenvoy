@@ -54,6 +54,6 @@ func PruneVectorless() {
 		return
 	}
 
-	slog.Info("⎯ session history vectorless entries pruned",
+	slog.Debug("session history vectorless entries pruned",
 		slog.Int("count", db.Del(ctx, dead...)))
 }

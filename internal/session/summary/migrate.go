@@ -38,7 +38,7 @@ func MigrateCursor() {
 	}
 
 	if migrated+broken > 0 {
-		slog.Info("⎯ summary cursor migrated",
+		slog.Debug("summary cursor migrated",
 			slog.Int("migrated", migrated),
 			slog.Int("broken", broken))
 	}

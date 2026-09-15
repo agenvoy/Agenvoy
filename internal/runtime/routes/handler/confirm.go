@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"sync"
@@ -166,7 +165,7 @@ func ResolveToolConfirm() gin.HandlerFunc {
 			Verified:  verified,
 		}
 		if body.Abort {
-			reply.Error = errors.New("user stopped")
+			reply.Error = runtime.ErrUserCanceled
 		}
 		runtime.Resolve(requestID, reply)
 		c.JSON(http.StatusOK, gin.H{"ok": true})

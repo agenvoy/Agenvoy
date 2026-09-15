@@ -13,6 +13,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -111,7 +112,7 @@ func (t *TUI) dropSubagent(name string) {
 }
 
 type agentExec struct {
-	cancel context.CancelFunc
+	cancel context.CancelCauseFunc
 }
 
 type agentExecDone struct {
@@ -121,7 +122,7 @@ type agentExecDone struct {
 const interruptWindow = 3 * time.Second
 
 func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask, historyContent string) {
-	ctx, cancel := context.WithCancel(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
+	ctx, cancel := context.WithCancelCause(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
 	send(agentExec{cancel: cancel})
 
 	ch := make(chan agentTypes.Event, 16)
@@ -482,7 +483,7 @@ func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
 
 	t.interruptAt = time.Now()
 	if t.running && t.cancelExec != nil {
-		t.cancelExec()
+		t.cancelExec(runtime.ErrUserCanceled)
 		return t, tea.Println(msgLog("cancelling  ctrl+c again to force quit") + "\n")
 	}
 	return t, tea.Println(msgLog("ctrl+c again to quit") + "\n")

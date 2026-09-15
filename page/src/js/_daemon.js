@@ -2,6 +2,8 @@ const DAEMON_MAX_LINES = 2000;
 const DAEMON_LEVELS = ["info", "debug", "warn", "error"];
 const DAEMON_SLOG = /\blevel=([A-Z]+)/;
 const DAEMON_STDLOG = /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} ([A-Z]+)\b/;
+const DAEMON_SLOG_LINE = /^time=(\S+) level=[A-Z]+ msg=("(?:[^"\\]|\\.)*"|\S*) ?(.*)$/;
+const DAEMON_STDLOG_LEVEL = /^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}) [A-Z]+\b ?/;
 const DAEMON_SCOPE = ["keyword", "from", "to"];
 const DAEMON_UNIT = { m: 60000, h: 3600000, d: 86400000, w: 604800000 };
 const DAEMON_SPAN = /^(\d+)([mhdw])$/;
@@ -97,9 +99,25 @@ function daemonLevel(text) {
   return DAEMON_LEVELS.includes(level) ? level : "";
 }
 
+function daemonText(text) {
+  const slog = DAEMON_SLOG_LINE.exec(text);
+  if (slog) {
+    let msg = slog[2];
+    if (msg.startsWith('"')) {
+      try {
+        msg = JSON.parse(msg);
+      } catch {
+        msg = msg.slice(1, -1);
+      }
+    }
+    return [slog[1].slice(0, 19), msg, slog[3]].filter(Boolean).join(" ");
+  }
+  return text.replace(DAEMON_STDLOG_LEVEL, "$1 ");
+}
+
 function daemonLine(text) {
   const line = _("span");
-  line.textContent = text + "\n";
+  line.textContent = daemonText(text) + "\n";
   line.dataset.level = daemonLevel(text);
   return line;
 }
