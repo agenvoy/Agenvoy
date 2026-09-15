@@ -3,14 +3,16 @@ package exec
 import (
 	"context"
 	"sync"
+
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 var (
 	cancelMu  sync.Mutex
-	cancelFns = map[string]context.CancelFunc{}
+	cancelFns = map[string]context.CancelCauseFunc{}
 )
 
-func registerCancel(taskHash string, cancel context.CancelFunc) {
+func registerCancel(taskHash string, cancel context.CancelCauseFunc) {
 	if taskHash == "" {
 		return
 	}
@@ -32,6 +34,6 @@ func CancelTask(taskHash string) bool {
 	if !ok {
 		return false
 	}
-	cancel()
+	cancel(runtime.ErrUserCanceled)
 	return true
 }

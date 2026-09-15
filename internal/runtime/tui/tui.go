@@ -19,12 +19,12 @@ import (
 var (
 	program atomic.Pointer[tea.Program]
 
-	colSystem = lipgloss.AdaptiveColor{Light: "32", Dark: "75"}   // sky blue
-	colHint   = lipgloss.AdaptiveColor{Light: "239", Dark: "243"} // gray
-	colWarn   = lipgloss.AdaptiveColor{Light: "98", Dark: "141"}  // purple
-	colOk     = lipgloss.AdaptiveColor{Light: "71", Dark: "114"}  // green
-	colSkill  = lipgloss.AdaptiveColor{Light: "166", Dark: "208"} // orange
-	colError  = lipgloss.AdaptiveColor{Light: "160", Dark: "203"} // red
+	colSystem = lipgloss.Color("#5FAFFF") // sky blue
+	colHint   = lipgloss.AdaptiveColor{Light: "#767676", Dark: "#626262"}
+	colWarn   = lipgloss.Color("#875FD7") // purple
+	colOk     = lipgloss.Color("#5FAF5F") // green
+	colSkill  = lipgloss.Color("#FF8700") // orange
+	colError  = lipgloss.Color("#FF5F5F") // red
 
 	systemStyle = lipgloss.NewStyle().Foreground(colSystem)
 	okayStyle   = lipgloss.NewStyle().Foreground(colOk)
@@ -32,9 +32,9 @@ var (
 	skillStyle  = lipgloss.NewStyle().Foreground(colSkill)
 	hintStyle   = lipgloss.NewStyle().Foreground(colHint)
 	errorStyle  = lipgloss.NewStyle().Foreground(colError)
-	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "241", Dark: "245"})
-	userStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "166", Dark: "#F8C644"})
-	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "0", Dark: "15"})
+	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#767676", Dark: "#8A8A8A"})
+	userStyle   = lipgloss.NewStyle().Foreground(colSkill)
+	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
 )
 
 type WorkDir struct {

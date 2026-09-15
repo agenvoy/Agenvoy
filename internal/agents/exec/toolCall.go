@@ -471,7 +471,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", confirmTimeout)
 				}
 				if errors.Is(err, context.Canceled) {
-					interactive.DeletePending(sessionData.ID, exec.PendingTask)
+					if errors.Is(context.Cause(ctx), runtime.ErrUserCanceled) {
+						interactive.DeletePending(sessionData.ID, exec.PendingTask)
+					}
 					return sessionData, alreadyCall, err
 				}
 				if err == nil && reply.Error != nil {
@@ -482,7 +484,9 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 						ToolID:   toolID,
 						Text:     reply.Error.Error(),
 					}
-					interactive.DeletePending(sessionData.ID, exec.PendingTask)
+					if errors.Is(reply.Error, runtime.ErrUserCanceled) {
+						interactive.DeletePending(sessionData.ID, exec.PendingTask)
+					}
 					if exec.CancelExecution != nil {
 						exec.CancelExecution()
 					}

@@ -177,7 +177,7 @@ func Daemon() {
 
 	stopWatcher := app.WatchConfig(context.Background(), func() {
 		if agents.Reload() {
-			slog.Info("⎯ host reloaded: config change")
+			slog.Debug("host reloaded: config change")
 		}
 		app.ReloadDiscord(0)
 		app.ReloadTelegram(0)
@@ -215,7 +215,7 @@ func Daemon() {
 		return
 	}
 
-	slog.Info("⎯ listening",
+	slog.Debug("listening",
 		slog.String("port", filesystem.Port),
 		slog.Duration("boot", time.Since(bootAt)))
 
@@ -240,7 +240,7 @@ func Daemon() {
 				slog.String("error", err.Error()))
 		}
 	}
-	slog.Info("⎯ daemon shutting down")
+	slog.Debug("daemon shutting down")
 
 	app.CloseDiscord()
 	app.CloseTelegram()

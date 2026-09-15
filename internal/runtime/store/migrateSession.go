@@ -52,7 +52,7 @@ func MigrateSession() {
 	}
 
 	if migrated+broken > 0 {
-		slog.Info("⎯ session config migrated into sqlite",
+		slog.Debug("session config migrated into sqlite",
 			slog.Int("migrated", migrated),
 			slog.Int("broken", broken))
 	}

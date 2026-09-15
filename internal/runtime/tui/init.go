@@ -38,7 +38,7 @@ type TUI struct {
 
 	running       bool
 	emitted       bool
-	cancelExec    context.CancelFunc
+	cancelExec    context.CancelCauseFunc
 	interruptAt   time.Time
 	runStartedAt  time.Time
 	pendingResume *ResumeExec
@@ -118,7 +118,8 @@ func (t TUI) Init() tea.Cmd {
 }
 
 type CancelRunConfirm struct {
-	yes bool
+	yes   bool
+	pause bool
 }
 
 type StartupSelectSession struct{}

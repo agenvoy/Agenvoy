@@ -20,7 +20,6 @@ var daemonLogPrefixes = []string{
 	"Telegram Verification Code",
 	"Discord Verification Code",
 	"LINE Verification Code",
-	"⎯ host reloaded",
 }
 
 type daemonLogFrame struct {

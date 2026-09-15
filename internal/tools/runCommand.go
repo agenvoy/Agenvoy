@@ -33,7 +33,8 @@ func registRunCommand() {
 		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: fmt.Sprintf(`Runs a binary in the work directory and returns its combined stdout/stderr.
+		Description: fmt.Sprintf(`Runs a binary in the work directory, waits for it to exit, and returns its combined stdout/stderr.
+Never start a watcher or long-running process (--watch, chokidar, npm run sass/build/dev scripts that watch): it never exits and the call hangs; run the one-shot build instead.
 Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
 Reading a file → read_files; finding one → find_files; %s; opening one in an app → open_file.`, systemPackageRoute()),
 		Parameters: map[string]any{
@@ -116,6 +117,10 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		if binary == "rm" {
 			return moveToTrash(ctx, e, argv[1:])
 		}
+	}
+
+	if err := checkWatchArgs(argv, e.WorkDir, 0); err != nil {
+		return "", err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, runCommandTimeout)

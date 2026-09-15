@@ -1,6 +1,11 @@
 package runtime
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
+
+var ErrUserCanceled = errors.New("user cancelled")
 
 var (
 	cancelMu       sync.RWMutex

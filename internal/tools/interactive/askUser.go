@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -718,8 +719,10 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 				slog.String("session", sessionID),
 				slog.String("task_hash", taskHash),
 				slog.String("error", reply.Error.Error()))
-			CleanupPending(sessionID, taskHash)
-			runtime.NotifyCanceled(sessionID, taskHash, reply.Error.Error())
+			if errors.Is(reply.Error, runtime.ErrUserCanceled) {
+				CleanupPending(sessionID, taskHash)
+				runtime.NotifyCanceled(sessionID, taskHash, reply.Error.Error())
+			}
 			return
 		}
 		runtime.TriggerResume(sessionID, taskHash, reply.Answers)

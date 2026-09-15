@@ -61,8 +61,9 @@ body[data-rendered="1"] section.right-content section.config {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: x-small;
         line-height: 1.5;
-        color: #fff;
-        background-color: var(--black);
+        color: var(--black);
+        background-color: #fff;
+        border: 1px solid var(--gray-2);
         border-radius: 0.5rem;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -833,5 +834,6 @@ body section.right-content section.config section.tools#model-routing > section 
   > div.routing {
     @include settingCard;
     @include gridItem;
+    min-width: 0;
   }
 }
