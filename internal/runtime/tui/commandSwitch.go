@@ -21,10 +21,10 @@ type Session struct {
 
 func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) >= 2 {
-		name := strings.Join(parts[1:], " ")
-		id := sessionManager.GetSessionID(name)
+		selfID := strings.Join(parts[1:], " ")
+		id := sessionManager.GetSessionIDBySelfID(selfID)
 		if id == "" {
-			return t, tea.Println(msgError(fmt.Sprintf("session %q not found", name)) + "\n"), true
+			return t, tea.Println(msgError(fmt.Sprintf("no session with self id %q", selfID)) + "\n"), true
 		}
 		next, cmd := t.runCommandSwitch(id)
 		return next, cmd, true
