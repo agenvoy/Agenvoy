@@ -372,6 +372,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	oldHistoriesCompacted := false
 	firstAttempt := true
 
+	compact.Warm(execCtx)
+
 	for range limit {
 		if execCtx.Err() != nil {
 			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
