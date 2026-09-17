@@ -16,7 +16,7 @@ require (
 	github.com/pardnchiu/go-llm-router v0.6.0
 	github.com/pardnchiu/go-pkg v0.13.12
 	github.com/pardnchiu/go-scheduler v1.2.0
-	github.com/pardnchiu/go-sqlkit v0.1.0
+	github.com/pardnchiu/go-sqlkit v0.1.1
 	golang.org/x/oauth2 v0.35.0
 )
 
