@@ -15,7 +15,7 @@ import (
 
 const (
 	maxReadSize      = 1 << 20
-	defaultReadLimit = 1 << 30
+	defaultReadLimit = 1 << 11 // 2048
 )
 
 func registReadFiles() {
@@ -48,7 +48,8 @@ Each path maps to its content, or to an error string for that path. Text lines a
 							},
 							"limit": map[string]any{
 								"type":        "integer",
-								"description": "How many lines (pages, slides, rows) to read. Omit to read the whole file; set it only to page through one that hits the 1MB cap.",
+								"description": "How many lines (pages, slides, rows) to read. When find_files(mode=search, output=content) already gave the line numbers, read only that region. A text file cut short ends with a notice naming the next offset.",
+								"default":     defaultReadLimit,
 							},
 						},
 						"required": []string{
