@@ -54,10 +54,12 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	sendCtx, cancel := context.WithTimeout(agentTypes.WithSessionID(ctx, sessionID), Timeout)
 	defer cancel()
 
+	sendStart := time.Now()
 	resp, _, err := agent.Send(sendCtx, []provider.Message{
 		{Role: "system", Content: prompt(needTitle)},
 		{Role: "user", Content: "<conversation>\n" + transcript + "\n</conversation>"},
 	}, nil, provider.ReasoningNone, fast.Mode())
+	sendElapsed := time.Since(sendStart)
 	if err != nil {
 		slog.Debug("followup.Generate",
 			slog.String("session", sessionID),
@@ -70,7 +72,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	}
 
 	prov, model, _ := strings.Cut(agent.Name(), "@")
-	usagelog.Append(sessionID, prov, model, resp.Usage)
+	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed)
 
 	content, _ := resp.Choices[0].Message.Content.(string)
 	return parse(content)

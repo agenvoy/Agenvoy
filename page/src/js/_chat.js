@@ -307,7 +307,7 @@ function assistantFooter(meta) {
     children.push(_("p.canceled", meta.error));
   }
   if (meta.duration) {
-    children.push(_("p", meta.duration));
+    children.push(_("p", meta.duration + (meta.tps ? `(${meta.tps})` : "")));
   }
   if (meta.input) {
     children.push(_("div", [_("span.material-symbols-outlined", "arrow_upward_alt"), _("p", meta.input)]));

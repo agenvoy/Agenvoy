@@ -13,7 +13,7 @@ import (
 const maxEmptyRetry = 3
 const emptyDataReply = "no usable data, retry later, or using other tools."
 
-func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time) bool {
+func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time, outputElapsed time.Duration) bool {
 	*emptyCount++
 	if *emptyCount >= maxEmptyRetry {
 		slog.Error("model returned empty response, retries exhausted",
@@ -21,15 +21,15 @@ func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessio
 			slog.String("name", model),
 			slog.String("reason", reason),
 			slog.Int("attempts", *emptyCount))
-		sendEmptyData(events, sessionID, taskHash, model, usage, start)
+		sendEmptyData(events, sessionID, taskHash, model, usage, start, outputElapsed)
 		return true
 	}
 	return false
 }
 
-func sendEmptyData(events chan<- agentTypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time) {
+func sendEmptyData(events chan<- agentTypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time, outputElapsed time.Duration) {
 	sendText(events, emptyDataReply)
-	events <- agentTypes.DoneEvent(model, usage, time.Since(start))
+	events <- agentTypes.DoneEvent(model, usage, time.Since(start), outputElapsed)
 	interactive.FinalizePending(sessionID, taskHash, emptyDataReply)
 }
 

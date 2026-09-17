@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS usage (
     input      INTEGER NOT NULL DEFAULT 0,
     output     INTEGER NOT NULL DEFAULT 0,
     write      INTEGER NOT NULL DEFAULT 0,
-    hit        INTEGER NOT NULL DEFAULT 0
+    hit        INTEGER NOT NULL DEFAULT 0,
+    elapsed_ms INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_usage_send_at

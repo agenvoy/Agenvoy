@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
@@ -26,6 +27,12 @@ func New() error {
 	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate usage]: %w", err)
+	}
+
+	if _, err := c.Exec(
+		`ALTER TABLE usage ADD COLUMN elapsed_ms INTEGER NOT NULL DEFAULT 0`); err != nil &&
+		!strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("sql.DB Exec [usage add elapsed_ms]: %w", err)
 	}
 
 	if _, err := c.Exec(

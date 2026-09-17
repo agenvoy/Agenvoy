@@ -164,6 +164,7 @@ function parseActionLog(content) {
         item.meta.duration = meta.duration;
         item.meta.input = meta.input;
         item.meta.output = meta.output;
+        item.meta.tps = meta.tps;
         item.meta.send_at = sendAt;
         item.finished = true;
         break;
@@ -252,15 +253,17 @@ function formatDone(body) {
   const duration = /\bdur=(\S+)/.exec(body);
   const input = /\bin=(\d+)(?:\s*\((\d+)%\))?/.exec(body);
   const output = /\bout=(\d+)/.exec(body);
+  const outputDuration = /\boutdur=(\S+)/.exec(body);
   return {
     model: model,
     duration: duration ? compactDuration(duration[1]) : "",
     input: input ? compactToken(input[1]) + (input[2] ? `(${input[2]}%)` : "") : "",
     output: output ? compactToken(output[1]) : "",
+    tps: output && outputDuration ? formatTPS(output[1], outputDuration[1]) : "",
   };
 }
 
-function compactDuration(value) {
+function durationMS(value) {
   let ms = 0;
   if (typeof value === "number") {
     ms = value / 1e6;
@@ -269,8 +272,21 @@ function compactDuration(value) {
       ms += parseFloat(match[1]) * DURATION_UNIT[match[2]];
     }
   }
+  return Number.isFinite(ms) ? ms : 0;
+}
 
-  if (!Number.isFinite(ms) || ms <= 0) {
+function formatTPS(output, elapsed) {
+  const ms = durationMS(elapsed);
+  const tokens = Number(output);
+  if (ms <= 0 || !Number.isFinite(tokens) || tokens <= 0) {
+    return "";
+  }
+  return `${(tokens / (ms / 1000)).toFixed(1)} tok/s`;
+}
+
+function compactDuration(value) {
+  const ms = durationMS(value);
+  if (ms <= 0) {
     return "";
   }
   if (ms < 1000) {
