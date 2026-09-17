@@ -35,7 +35,7 @@ var commands = []Command{
 	{"model", "add / remove provider  pick session / dispatch / summary model  image / stt / tts"},
 	{"mcp", "list MCP servers  add  per-server login, reconnect, tools, remove"},
 	{"sessions", "switch current session  enter switch  d delete"},
-	{"new", "create / add new session  name conflict-checked"},
+	{"new", "create / add new session"},
 	{"allow-skill", "always-allow skill (skip permission)  global / project"},
 	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis  confirm required"},
 	{"reset", "reset / refresh current session  double-confirm  summary regen first then drop history + task history + action.log"},

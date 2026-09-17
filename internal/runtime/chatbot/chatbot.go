@@ -110,8 +110,8 @@ func wrapBlock(ch Channel, text string) string {
 	}
 }
 
-func BuildPushFooter(ch Channel, duration time.Duration, model, quota string, usage *provider.Usage) string {
-	footer := utils.FormatEventFooter(duration, model, quota, usage)
+func BuildPushFooter(ch Channel, duration, outputElapsed time.Duration, model, quota string, usage *provider.Usage) string {
+	footer := utils.FormatEventFooter(duration, outputElapsed, model, quota, usage)
 	if footer == "" {
 		return ""
 	}

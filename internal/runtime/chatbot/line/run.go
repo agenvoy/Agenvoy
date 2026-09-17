@@ -325,7 +325,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	if model == "" && primary != nil {
 		model = primary.Name()
 	}
-	if footer := utils.FormatEventFooter(result.Done.Duration, model, result.Done.Quota, result.Done.Usage); footer != "" {
+	if footer := utils.FormatEventFooter(result.Done.Duration, result.Done.OutputElapsed, model, result.Done.Quota, result.Done.Usage); footer != "" {
 		replyText = replyText + "\n\n" + footer
 	}
 	if len(result.ExecErrors) > 0 {

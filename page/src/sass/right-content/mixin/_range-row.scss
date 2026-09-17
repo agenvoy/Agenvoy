@@ -7,7 +7,9 @@
 
   > input:not([type="checkbox"]):not([type="radio"]) {
     flex: 0 0 auto;
-    padding: 0.3125rem 0.625rem;
+    box-sizing: border-box;
+    height: 2rem;
+    padding: 0 0.625rem;
     width: 6rem;
     font: inherit;
     font-size: small;
@@ -31,8 +33,12 @@
   }
 
   > button.submit {
+    display: inline-flex;
+    align-items: center;
     flex: 0 0 auto;
-    padding: 0.3125rem 0.875rem;
+    box-sizing: border-box;
+    height: 2rem;
+    padding: 0 0.875rem;
     font-size: small;
     border-radius: 0.375rem;
     background-color: var(--black);

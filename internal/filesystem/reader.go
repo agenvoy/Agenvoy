@@ -140,5 +140,8 @@ func sliceLines(text, path string, offset, limit int) string {
 	for i := start; i < end; i++ {
 		fmt.Fprintf(&sb, "%d\t%s\n", i+1, lines[i])
 	}
+	if end < len(lines) {
+		fmt.Fprintf(&sb, "[lines %d-%d of %d; call again with offset=%d for more]\n", start+1, end, len(lines), end+1)
+	}
 	return sb.String()
 }

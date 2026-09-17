@@ -1,6 +1,6 @@
 @mixin styles {
   section.toast {
-    z-index: 100;
+    z-index: 10000;
     position: fixed;
     right: 0;
     bottom: 0;

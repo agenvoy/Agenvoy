@@ -208,13 +208,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				text := strings.TrimSpace(pushTextBuf.String())
 				if text != "" {
 					pushHook(pushCtx, PushPayload{
-						SessionID: sid,
-						Text:      text,
-						Model:     pushDoneEv.Model,
-						Quota:     pushDoneEv.Quota,
-						Usage:     pushDoneEv.Usage,
-						Duration:  pushDoneEv.Duration,
-						Prefix:    dcPushPrefix(pushCtx),
+						SessionID:     sid,
+						Text:          text,
+						Model:         pushDoneEv.Model,
+						Quota:         pushDoneEv.Quota,
+						Usage:         pushDoneEv.Usage,
+						Duration:      pushDoneEv.Duration,
+						OutputElapsed: pushDoneEv.OutputElapsed,
+						Prefix:        dcPushPrefix(pushCtx),
 					})
 				}
 			}
@@ -357,6 +358,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	fallbackRound := 0
 
 	var usage provider.Usage
+	var sendElapsedTotal time.Duration
 	alreadyCall := make(map[string]string)
 	turnAllowAll := false
 	emptyCount := 0
@@ -375,6 +377,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	rateLimitRetryCount := 0
 	oldHistoriesCompacted := false
 	firstAttempt := true
+
+	compact.Warm(execCtx)
 
 	for range limit {
 		if execCtx.Err() != nil {
@@ -518,7 +522,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			compactFailed = false
 			continue
 		}
-		sendElapsed := time.Since(sendStart).Round(time.Second)
+		sendDur := time.Since(sendStart)
+		sendElapsed := sendDur.Round(time.Second)
 		sendCtxErr := sendCtx.Err()
 		stopSend()
 		if err != nil {
@@ -644,10 +649,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			sendText(events, userMsg)
 			emitChangedFiles()
 			events <- agentTypes.Event{
-				Type:     agentTypes.EventDone,
-				Model:    modelName,
-				Usage:    &usage,
-				Duration: time.Since(execStart),
+				Type:          agentTypes.EventDone,
+				Model:         modelName,
+				Usage:         &usage,
+				Duration:      time.Since(execStart),
+				OutputElapsed: sendElapsedTotal,
 			}
 			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
 			return fmt.Errorf("data.Agent.Send failed: %w", err)
@@ -662,15 +668,16 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
 		lastInputTokens = resp.Usage.Input + resp.Usage.CacheRead
+		sendElapsedTotal += sendDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage)
+		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
 
 		usageSnapshot := usage
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
 
 		if len(resp.Choices) == 0 {
-			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart, sendElapsedTotal) {
 				return nil
 			}
 			continue
@@ -739,7 +746,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		case string:
 			str := value
 			if str == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, execStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "empty content", &usage, execStart, sendElapsedTotal) {
 					return nil
 				}
 				continue
@@ -747,7 +754,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			stripped := StripModelResponse(str)
 			if stripped == "" {
-				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart) {
+				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart, sendElapsedTotal) {
 					return nil
 				}
 				continue
@@ -757,7 +764,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if isGuardrailRefusal(stripped) {
 				sendText(events, configs.PoisonRefusal)
 				emitChangedFiles()
-				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
+				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
@@ -791,7 +798,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 
 		case nil:
-			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, execStart) {
+			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "nil content", &usage, execStart, sendElapsedTotal) {
 				return nil
 			}
 			continue
@@ -801,7 +808,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		emitChangedFiles()
-		events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
+		events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 
 		keepPending = false
 		return nil
@@ -812,7 +819,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
+	summaryStart := time.Now()
 	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
+	summaryDur := time.Since(summaryStart)
 	if err == nil {
 		retryHandler.Clear(data.Agent.Name())
 	}
@@ -821,9 +830,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		usage.Output += resp.Usage.Output
 		usage.CacheCreate += resp.Usage.CacheCreate
 		usage.CacheRead += resp.Usage.CacheRead
+		sendElapsedTotal += summaryDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage)
+		usagelog.Append(session.ID, prov, model, resp.Usage, summaryDur)
 
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
@@ -831,14 +841,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if isGuardrailRefusal(summaryStripped) {
 				sendText(events, configs.PoisonRefusal)
 				emitChangedFiles()
-				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
+				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
 				keepPending = false
 				return nil
 			}
 			sendText(events, summaryStripped)
 			emitChangedFiles()
-			events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart))
+			events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false
 			return nil
@@ -848,6 +858,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	slog.Error("tool loop exhausted without a usable final answer",
 		slog.String("session", session.ID),
 		slog.String("name", data.Agent.Name()))
-	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart)
+	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart, sendElapsedTotal)
 	return nil
 }

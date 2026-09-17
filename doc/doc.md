@@ -100,7 +100,7 @@ Agenvoy currently supports Telegram and Discord. Both integrations use outbound 
 
 `reply_lang` accepts `auto`, a code listed in `configs/jsons/reply_lang.json` (`en`, `zh-TW`, `zh-HK`, `zh-CN`, `ja`, `ko`, `es`, `fr`, `de`, `pt`, `it`, `ru`, `vi`, `th`, `id`, `ar`) or any other language name, which is passed through to the model as written. `zh-TW` and `zh-HK` are separate: Taiwan and Hong Kong Traditional Chinese differ in vocabulary and phrasing. It applies to the agent system prompt, the `/v1/chat/completions` system prompt and the generated follow-up suggestions. Set it from **Config › System**, which applies it to the running daemon at once; editing `config.json` by hand takes effect at the next daemon start.
 
-`output_dir` expands `~` and creates the directory when it is saved; a path that cannot be created is rejected, and one that later becomes unusable falls back to the default. **Config › System** applies it to the running daemon at once. The TUI's `/config` (reply language, output dir) writes `config.json` the same way a hand edit does.
+`output_dir` expands `~` and creates the directory when it is saved; a path that cannot be created is rejected, and one that later becomes unusable falls back to the default. **Config › System** applies it to the running daemon at once. The same tab shows the running version beside the latest release and, when they differ, an **update** button that opens a terminal running `agen update`. The TUI's `/config` (reply language, output dir) writes `config.json` the same way a hand edit does.
 
 Package defaults (not currently read from `config.json`):
 
@@ -210,7 +210,7 @@ Type a message to run it in the current session. Everything else is a slash comm
 |---|---|
 | `/model` | Pick the session model (`auto` or a registered model; `d` removes the highlighted model, `t` sets its tier); `add` a provider; set the dispatch, summary, image, STT and TTS models |
 | `/mcp` | List MCP servers (`d` removes one) and `add` new ones; per server: log in, set the OAuth client, pick always-allowed `tools` (first row `all`), reconnect |
-| `/sessions` `/new` | Switch to another session (`d` deletes it), or create one (names are conflict-checked) |
+| `/sessions` `/new` | Switch to another session by self id (`d` deletes it), or create one |
 | `/bot` | Rename the current session or edit its persona |
 | `/compact` `/reset` | Drop redundant exchanges from the current session, or reset it (double-confirmed) |
 | `/allow-skill` | Mark skills as always allowed, globally or for this project |
@@ -235,6 +235,8 @@ Shortcuts work while the input area is empty:
 | `Shift+U` | Provider quota and balance |
 
 Inside a popup, `esc` returns to the page that opened it and closes only the first page; list-only popups such as `/usage` scroll instead of selecting.
+
+While a run is in progress, `esc` cancels it at once if it has not produced output yet; otherwise it asks **No**, **Yes cancel** or **Pause keep pending**. Cancelling — also `ctrl+c`, **Abort task** or `esc` in a confirmation or `ask_user` popup, and `POST /v1/session/:id/cancel/:task_hash` — discards the task's pending entry. Pausing, and any other interruption such as a timeout or a closed window, stops the run but keeps the entry so `/pending` can resume it.
 
 ### Web and file-response rendering
 
@@ -305,15 +307,15 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/sessions` | List sessions and status. |
-| `GET` | `/v1/usage` | **local** — 24h/7d/28d total token usage across sessions. |
+| `GET` | `/v1/usage` | **local** — 24h/7d/28d total token usage across sessions. Each per-model entry also carries `elapsed_ms` (summed model send time) and `output_tps` (output tokens per second, counting only rows with a measured send time). |
 | `POST` | `/v1/session` | **local** — create a session; `{prefix}` defaults to `cli-`. |
-| `GET` `POST` `DELETE` | `/v1/session/:id` | **local** — one session's full state: `id`, `self_id`, `name`, `rule`, `state`, `model`, `reasoning`, `levels`, `count`. `POST` is a partial update — `self_id` / `name` / `rule` / `model` / `reasoning` are all optional and a field left out (or `null`) is untouched; `model: ""` resets to `auto`, `reasoning` must be one of `levels`. `GET` and `POST` return the same object. A duplicate `self_id` returns 409. `DELETE` removes the session directory, history, state and vectors. `GET` also takes `?chat=1` to append the raw action log under `chat`, and `?usage=1` to append 24h/7d/28d per-model token usage under `usage` (same aggregation as the TUI `/usage` screen); both are off by default because the log can be large. |
+| `GET` `POST` `DELETE` | `/v1/session/:id` | **local** — one session's full state: `id`, `self_id`, `name`, `rule`, `state`, `model`, `reasoning`, `levels`, `count`. `POST` is a partial update — `self_id` / `name` / `rule` / `model` / `reasoning` are all optional and a field left out (or `null`) is untouched; `model: ""` resets to `auto`, `reasoning` must be one of `levels`. `GET` and `POST` return the same object. A duplicate `self_id` returns 409. `DELETE` removes the session directory, history, state and vectors. `GET` also takes `?chat=1` to append the raw action log under `chat`, and `?usage=1` to append 24h/7d/28d per-model token usage under `usage` (same aggregation as the TUI `/usage` screen, including `elapsed_ms` and `output_tps`); both are off by default because the log can be large. |
 | `POST` | `/v1/session/:id/event` | **local** — publish an event into a session's stream. |
 | `GET` | `/v1/session/:id/task` | List resumable pending (`ask_user`/confirm) tasks. Tasks whose run is still live are excluded — a run refreshes `action:<session_id>:<task_hash>` in ToriiDB every 55s with a 60s TTL, so a task left behind by a closed window or a killed process reappears here within a minute. |
 | `GET` | `/v1/session/:id/task/:task_hash/questions` | Get a pending task's questions. |
 | `POST` | `/v1/session/:id/task/:task_hash/resume` | Answer a pending task and resume. |
 | `DELETE` | `/v1/session/:id/task/:task_hash` | Discard a pending task without answering it. |
-| `POST` | `/v1/session/:id/cancel/:task_hash` | Cancel one running task; 404 when that id is not running in this process. |
+| `POST` | `/v1/session/:id/cancel/:task_hash` | Cancel one running task as a user cancel, which also discards its pending entry; 404 when that id is not running in this process. |
 | `POST` | `/v1/session/:id/confirm/:confirm_hash` | Resolve an outstanding tool confirmation: `{approve, remember?, allow_turn?, abort?, reason?, password?}`. Approving a restricted path or `pkg_manage` call requires `password`, is accepted only from this machine (403 otherwise) and returns 401 when the system password is wrong. 410 when the confirmation is already resolved or expired. |
 | `POST` | `/v1/session/:id/memory` | **local** — one memory operation on the session, picked by `action`: `summary` rebuilds the rolling summary and returns `count`; `compact` drops older messages and returns `removed`; `reset` clears the conversation and returns `removed`, and requires `mode` — `summary` keeps the rolling summary, `all` wipes it too. |
 | `GET` | `/v1/session/:id/task/history` | **local** — completed tasks of this session, newest first: `{task_hash, end_at, objective, model, reasoning}` per row. `?keyword=` filters on the objective and the recorded action text. |
@@ -400,7 +402,9 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |---|---|---|
 | `GET` `POST` | `/v1/config/startup` | **local** — read/set launch-on-login. `POST` `{enable}` writes or removes the launchd agent (macOS) or systemd user unit (Linux); it never starts or stops the running daemon, and takes effect at the next login. Both verbs answer with `enabled` (the setting, recorded under `startup` in `config.json` whenever it is changed) and `installed` (whether the unit file is actually on disk right now) — they disagree when the unit was removed outside Agenvoy. |
 | `GET` `POST` | `/v1/config/system` | **local** — read/set the System tab. `GET` returns `{reply_lang, languages:[{code,label}]}`, `languages` being the select options with `auto` first. `POST` `{reply_lang}` canonicalises a known code, writes it to `config.json` and applies it to the running daemon immediately; an empty string means `auto`, an unknown value is kept as written and passed to the model as a language name. |
+| `GET` | `/v1/config/reply_lang` | **local** — read-only view of the configured reply language, shaped for a prompt. Returns `{reply_lang, name, directive}`: `reply_lang` is the stored code, `name` its human-readable language name (empty on `auto`), and `directive` the ready-made instruction sentence including any region wording note (empty on `auto`, meaning follow each message's own language). Set the value through `POST /v1/config/system`. |
 | `GET` `POST` | `/v1/config/output_dir` | **local** — read/set `output_dir`. `GET` returns `{output_dir, resolved}`, `resolved` being the directory actually in use. `POST` `{output_dir}` expands `~`, creates the directory, writes `config.json` and applies it to the running daemon at once, answering `{ok, output_dir, resolved}`; an empty string restores the default, and a path that cannot be created returns 400. |
+| `GET` `POST` | `/v1/system/update` | **local** — `GET` returns `{version, latest, update_available}`, `latest` being the tag GitHub's latest-release redirect points to and `update_available` true whenever the two differ; 502 with `{version, error}` when the release cannot be resolved. `POST` opens a terminal running `agen update` and returns 202 `{status:"opened"}`: Terminal.app through `osascript` on macOS, `cmd.exe start wsl.exe` into the current distro on WSL, and the first available terminal emulator on Linux (requires `DISPLAY` or `WAYLAND_DISPLAY`, taken from the systemd user environment when the daemon lacks them). A failed update keeps the window open until Enter. 501 when no terminal can be opened — run `agen update` by hand. |
 
 **Inspection**
 
@@ -422,12 +426,12 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Skills | `run_skill` | Load a named skill's reference material into the turn |
 | | `edit_skill` | Author the files under the skills directory (`mode=write\|patch\|remove`) |
 | Scheduling | `schedules` | Inspect, reschedule or cancel timed and recurring runs (`mode=list\|patch\|remove\|write`) |
-| Files | `find_files` | Locate by directory, name pattern or content (`mode=list\|glob\|search`) |
-| | `read_files` | Batch-read text, PDF, DOCX, PPTX, CSV or images |
+| Files | `find_files` | Locate by directory, name pattern or content (`mode=list\|glob\|search`); search is paged by `offset`/`limit` (256 per page) and returns either matching paths with counts (`output=files`) or numbered matching lines with optional `context` (`output=content`) |
+| | `read_files` | Batch-read text, PDF, DOCX, PPTX, CSV or images; 2048 lines by default, and a text file cut short ends with the next `offset` |
 | | `edit_file` | Create, edit, move aside or restore a file (`mode=write\|patch\|remove\|restore`) |
 | | `file_history` | Recorded versions of every file the tools changed (`mode=list\|read`) |
 | | `write_report` | Save a long-form report as `report-<timestamp>.md` in the output directory (`output_dir`; `~/Downloads` by default, or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content |
-| Execution | `run_command` | Run a binary in the work directory under sandbox constraints |
+| Execution | `run_command` | Run a binary in the work directory under sandbox constraints and wait for it to exit; watchers (`--watch`, `chokidar`, or package scripts that start one, followed through `sh -c` and `package.json`) are refused before they start |
 | | `open_file` | Hand a file to the OS default application |
 | | `download_file` | Fetch a binary asset to disk |
 | | `pkg_manage` | Drive the Linux package manager (install / remove / update / upgrade / search / info); Linux only, every channel |

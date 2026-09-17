@@ -31,14 +31,14 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 		sender = agent
 	}
 
-	resp, err := send(ctx, sender, messages, reasoning)
+	resp, sendElapsed, err := send(ctx, sender, messages, reasoning)
 	if err != nil && sender.Name() != agent.Name() {
 		slog.Debug("agentSummary.Send: summary model",
 			slog.String("session", sessionID),
 			slog.String("model", sender.Name()),
 			slog.String("error", err.Error()))
 		sender = agent
-		resp, err = send(ctx, sender, messages, reasoning)
+		resp, sendElapsed, err = send(ctx, sender, messages, reasoning)
 	}
 	if err != nil {
 		slog.Warn("agentSummary.Send",
@@ -59,7 +59,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 	}
 
 	prov, model, _ := strings.Cut(sender.Name(), "@")
-	usagelog.Append(sessionID, prov, model, resp.Usage)
+	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed)
 
 	result, ok := resp.Choices[0].Message.Content.(string)
 	if !ok {
@@ -68,12 +68,13 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 	return strings.TrimSpace(result)
 }
 
-func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Message, reasoning provider.Reasoning) (*provider.Output, error) {
+func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Message, reasoning provider.Reasoning) (*provider.Output, time.Duration, error) {
 	sendCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 	defer cancel()
 
+	sendStart := time.Now()
 	resp, _, err := agent.Send(sendCtx, messages, nil, reasoning, fast.Mode())
-	return resp, err
+	return resp, time.Since(sendStart), err
 }
 
 func payloadRunes(messages []provider.Message) int {

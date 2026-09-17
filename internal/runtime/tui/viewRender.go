@@ -506,7 +506,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		return hintStyle.Render("⏵ " + srcPrefix + label), true
 
 	case agentTypes.EventDone:
-		footer := utils.FormatEventFooter(ev.Duration, ev.Model, ev.Quota, ev.Usage)
+		footer := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, ev.Model, ev.Quota, ev.Usage)
 		if sessionLabel != "" {
 			if footer != "" {
 				footer = footer + "  [" + sessionLabel + "]"

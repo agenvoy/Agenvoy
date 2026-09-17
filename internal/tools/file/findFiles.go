@@ -11,16 +11,12 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
-const (
-	maxFindResultBytes = 100 << 10
-	maxMatchesPerFile  = 100
-)
+const maxFindResultBytes = 1 << 17
 
 type sizeBudget struct {
 	left    int
 	total   int
 	dropped int
-	capped  int
 }
 
 func newSizeBudget() *sizeBudget {
@@ -35,20 +31,7 @@ func entrySize(file go_pkg_filesystem_reader.File) int {
 func (b *sizeBudget) take(list []go_pkg_filesystem_reader.File) []go_pkg_filesystem_reader.File {
 	b.total += len(list)
 	for i := range list {
-		cut := false
-		if len(list[i].Matches) > maxMatchesPerFile {
-			list[i].Matches = list[i].Matches[:maxMatchesPerFile]
-			cut = true
-		}
 		size := entrySize(list[i])
-		for size > b.left && len(list[i].Matches) > 0 {
-			list[i].Matches = list[i].Matches[:len(list[i].Matches)/2]
-			cut = true
-			size = entrySize(list[i])
-		}
-		if cut {
-			b.capped++
-		}
 		if size > b.left {
 			b.dropped += len(list) - i
 			return list[:i]
@@ -59,18 +42,12 @@ func (b *sizeBudget) take(list []go_pkg_filesystem_reader.File) []go_pkg_filesys
 }
 
 func (b *sizeBudget) notice() string {
-	if b.dropped == 0 && b.capped == 0 {
+	if b.dropped == 0 {
 		return ""
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n[partial result: %d of %d matching entries returned, alphabetical by path",
-		b.total-b.dropped, b.total)
-	if b.dropped > 0 {
-		fmt.Fprintf(&sb, "; %d omitted to stay under %d KiB", b.dropped, maxFindResultBytes>>10)
-	}
-	if b.capped > 0 {
-		fmt.Fprintf(&sb, "; matches cut short in %d of them", b.capped)
-	}
+	fmt.Fprintf(&sb, "\n[partial result: %d of %d matching entries returned, alphabetical by path; %d omitted to stay under %d KiB",
+		b.total-b.dropped, b.total, b.dropped, maxFindResultBytes>>10)
 	sb.WriteString(". What is here is accurate, only incomplete. To see the rest, narrow dir, make pattern more specific, or tighten file_pattern — re-running this query unchanged truncates identically.]")
 	return sb.String()
 }
@@ -89,7 +66,7 @@ func registFindFiles() {
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob), which files contain a string (search, grep by RE2 regex).
+		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob), which files contain a string (search, grep by RE2 regex; paged).
 Use for 找檔案 / 這個目錄有什麼 / 哪個檔案有這段, and for list_files / glob_files / search_files / grep.
 A path you are unsure of comes from here, never from a guess. Contents → read_files; past versions → file_history.`,
 		Parameters: map[string]any{
@@ -100,6 +77,27 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 					"enum":        []string{"list", "glob", "search"},
 					"description": "list: entries of each dir. glob: paths matching a filename pattern. search: files whose contents match a regex. Omitted: pattern + file_pattern → search, pattern alone → glob, neither → list.",
 					"default":     "list",
+				},
+				"output": map[string]any{
+					"type":        "string",
+					"enum":        []string{"files", "content"},
+					"description": "mode=search only. files: each matching path with its match count — start here. content: the matching lines with line numbers, to pick offset/limit for read_files.",
+					"default":     "files",
+				},
+				"offset": map[string]any{
+					"type":        "integer",
+					"description": "mode=search only: entries to skip — files for output=files, matching lines for output=content. Use the offset the page notice gives; keep queries and output unchanged between pages.",
+					"default":     0,
+				},
+				"limit": map[string]any{
+					"type":        "integer",
+					"description": "mode=search only: entries per page (files or matching lines, per output).",
+					"default":     defaultSearchLimit,
+				},
+				"context": map[string]any{
+					"type":        "integer",
+					"description": "mode=search, output=content: lines shown before and after each match, marked context=true; they do not count toward offset/limit.",
+					"default":     0,
 				},
 				"queries": map[string]any{
 					"type":        "array",
@@ -141,6 +139,10 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 
 			var params struct {
 				Mode    string      `json:"mode"`
+				Output  string      `json:"output"`
+				Offset  int         `json:"offset"`
+				Limit   int         `json:"limit"`
+				Context int         `json:"context"`
 				Queries []findQuery `json:"queries"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
@@ -167,7 +169,11 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 				if err := requirePattern(params.Queries, mode); err != nil {
 					return "", err
 				}
-				return searchBatch(ctx, e, params.Queries)
+				output := strings.ToLower(strings.TrimSpace(params.Output))
+				if output == "" {
+					output = "files"
+				}
+				return searchBatch(ctx, e, params.Queries, output, params.Offset, params.Limit, params.Context)
 			}
 			return "", fmt.Errorf("unknown mode %q; available: list, glob, search", mode)
 		},

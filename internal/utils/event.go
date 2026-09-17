@@ -337,22 +337,17 @@ func joinArgv(raw string) string {
 	return strings.Join(parts, " ")
 }
 
-var footerPrefixKeep = map[string]bool{
-	"codex":      true,
-	"copilot":    true,
-	"grok-oauth": true,
-}
-
-func FormatEventFooter(duration time.Duration, model, quota string, usage *provider.Usage) string {
+func FormatEventFooter(duration, outputElapsed time.Duration, model, quota string, usage *provider.Usage) string {
 	var parts []string
 	if duration > 0 {
-		parts = append(parts, duration.Round(100*time.Millisecond).String())
+		elapsed := duration.Round(100 * time.Millisecond).String()
+		if outputElapsed > 0 && usage != nil && usage.Output > 0 {
+			elapsed += fmt.Sprintf("(%.1f tok/s)", float64(usage.Output)/outputElapsed.Seconds())
+		}
+		parts = append(parts, elapsed)
 	}
 
 	if model = strings.TrimSpace(model); model != "" {
-		if prefix, after, ok := strings.Cut(model, "@"); ok && !footerPrefixKeep[prefix] {
-			model = after
-		}
 		if quota != "" {
 			model += "(" + quota + ")"
 		}

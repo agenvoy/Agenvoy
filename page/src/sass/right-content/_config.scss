@@ -309,8 +309,12 @@ body section.right-content section.config {
       }
 
       > button {
+        display: inline-flex;
+        align-items: center;
         flex-shrink: 0;
-        padding: 0.375rem 0.875rem;
+        box-sizing: border-box;
+        height: 2rem;
+        padding: 0 0.875rem;
         font-size: small;
         border-radius: 0.375rem;
         color: var(--gray-3);
@@ -327,7 +331,9 @@ body section.right-content section.config {
     select {
       flex: 0;
       min-width: 0;
-      padding: 0.625rem 0.75rem;
+      box-sizing: border-box;
+      height: 2rem;
+      padding: 0 0.75rem;
       font: inherit;
       font-size: small;
       color: var(--text-color);
@@ -589,7 +595,9 @@ body section.right-content section.config {
         flex-flow: row;
         align-items: center;
         gap: 0.375rem;
-        padding: 0.375rem 0.75rem;
+        box-sizing: border-box;
+        height: 2rem;
+        padding: 0 0.75rem;
         border-radius: 0.375rem;
         background-color: var(--gray-2);
         color: var(--ink);
@@ -813,6 +821,8 @@ body section.right-content section.config section.editor.system {
   form {
     flex-flow: row wrap;
     align-items: flex-start;
+    align-content: flex-start;
+    justify-content: flex-start;
     gap: 1rem;
 
     > div.card {

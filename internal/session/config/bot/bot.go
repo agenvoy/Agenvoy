@@ -60,9 +60,6 @@ func SavePersona(sessionID, selfID, name, body string) error {
 	if err := historyStore.ValidSelfID(selfID); err != nil {
 		return err
 	}
-	if name == "" {
-		name = sessionID
-	}
 	if body == "" {
 		body = configs.DefaultRule
 	}
@@ -133,6 +130,14 @@ func FormatName(raw string) string {
 	return sb.String()
 }
 
+func autoNamed(row historyStore.SessionRow) bool {
+	return row.Name == "" ||
+		row.Name == row.SessionID ||
+		strings.HasPrefix(row.Name, "tg-") ||
+		strings.HasPrefix(row.Name, "dc-") ||
+		strings.HasPrefix(row.Name, "ln-")
+}
+
 func ReplaceDefault(sessionID, name string) {
 	if name == "" {
 		return
@@ -141,7 +146,7 @@ func ReplaceDefault(sessionID, name string) {
 	if row.SessionID == "" {
 		return
 	}
-	if row.Name != "" && !strings.HasPrefix(row.Name, "tg-") && !strings.HasPrefix(row.Name, "dc-") && !strings.HasPrefix(row.Name, "ln-") {
+	if !autoNamed(row) {
 		return
 	}
 
@@ -158,7 +163,7 @@ func NeedTitle(sessionID string) bool {
 		return false
 	}
 	row, _ := read(sessionID)
-	return row.Name == "" || row.Name == sessionID
+	return autoNamed(row)
 }
 
 func SetTitle(sessionID, title string) error {
@@ -178,9 +183,6 @@ func SetTitle(sessionID, title string) error {
 func Save(sessionID, name, body string, force bool) error {
 	if sessionID == "" {
 		return fmt.Errorf("sessionID is required")
-	}
-	if name == "" {
-		name = sessionID
 	}
 	if body == "" {
 		body = configs.DefaultRule

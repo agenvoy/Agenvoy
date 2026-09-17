@@ -86,12 +86,6 @@ func (t TUI) showNewCustomPopup(name string) (TUI, tea.Cmd) {
 }
 
 func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
-	if name != "" {
-		if owner := session.GetSessionID(name); owner != "" {
-			return t, tea.Println(msgError(fmt.Sprintf("name %q already used by session %s", name, owner)) + "\n")
-		}
-	}
-
 	id, err := session.New("cli-")
 	if err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("create session failed: %v", err)) + "\n")
