@@ -102,7 +102,7 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
-`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。TUI 的 `/config`（回覆語言、輸出資料夾）寫入 `config.json` 的方式與手改相同。
+`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。同一分頁會並列目前版本與最新 release，兩者不同時顯示 **update** 按鈕，按下後開啟終端機執行 `agen update`。TUI 的 `/config`（回覆語言、輸出資料夾）寫入 `config.json` 的方式與手改相同。
 
 套件內建預設值（目前不會從 `config.json` 讀取）：
 
@@ -221,7 +221,7 @@ agen
 | ------------------------------- | ------------------------------------------------------------------------------------- |
 | `/model`                        | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型 |
 | `/mcp`                          | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連 |
-| `/sessions` `/new`              | 切換 session（`d` 刪除）或建立新的（名稱會檢查重複）                                  |
+| `/sessions` `/new`              | 以 self id 切換 session（`d` 刪除）或建立新的                                  |
 | `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
 | `/compact` `/reset`             | 移除當前 session 的冗餘對話，或重設 session（需二次確認）                             |
 | `/allow-skill`                  | 將 skill 設為一律允許，範圍為全域或此專案                                             |
@@ -246,6 +246,8 @@ agen
 | `Shift+U`             | 查看 provider 額度與餘額                                    |
 
 在彈出視窗中，`esc` 會回到開啟它的上一頁，只有第一頁才會關閉；`/usage` 這類純列表視窗以 ↑／↓ 捲動而非選取。
+
+任務執行中按 `esc`：尚未輸出任何內容時直接取消，否則詢問 **No**／**Yes cancel**／**Pause keep pending**。取消（含 `ctrl+c`、確認框或 `ask_user` 視窗中的 **Abort task** 或 `esc`，以及 `POST /v1/session/:id/cancel/:task_hash`）會一併移除該任務的 pending；暫停與其他中斷（逾時、視窗關閉等）只停止執行並保留 pending，可從 `/pending` 恢復。
 
 ### 管理 daemon
 
@@ -326,15 +328,15 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Method                | Path                                           | 說明                                                                                                                                                                                  |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`                 | `/v1/sessions`                                 | 列出 session 與狀態                                                                                                                                                                   |
-| `GET`                 | `/v1/usage`                                    | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計                                                                                                                             |
+| `GET`                 | `/v1/usage`                                    | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計；每個模型另帶 `elapsed_ms`（模型送出耗時合計）與 `output_tps`（每秒輸出 token，僅計有量到耗時的紀錄） |
 | `POST`                | `/v1/session`                                  | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                              |
-| `GET` `POST` `DELETE` | `/v1/session/:id`                              | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯）；兩者預設關閉，因為 log 可能很大 |
+| `GET` `POST` `DELETE` | `/v1/session/:id`                              | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯，含 `elapsed_ms` 與 `output_tps`）；兩者預設關閉，因為 log 可能很大 |
 | `POST`                | `/v1/session/:id/event`                        | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                       |
 | `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 55 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 60 秒），視窗關閉或程序被砍的任務一分鐘內會重新出現 |
 | `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
 | `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
 | `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
-| `POST`                | `/v1/session/:id/cancel/:task_hash`              | 取消單一執行中的任務；該 id 不在本行程執行中時回 404                                                                                                                                |
+| `POST`                | `/v1/session/:id/cancel/:task_hash`              | 以使用者取消的方式取消單一執行中的任務，並一併移除其 pending；該 id 不在本行程執行中時回 404                                                                                                                                |
 | `POST`                | `/v1/session/:id/confirm/:confirm_hash`          | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410 |
 | `POST`                | `/v1/session/:id/memory`                       | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清 |
 | `GET`                 | `/v1/session/:id/task/history`                 | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                 |
@@ -421,7 +423,9 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效。兩個動詞都回 `enabled`（設定值，每次變更時記錄於 `config.json` 的 `startup` 鍵）與 `installed`（unit 檔目前是否真的存在）——unit 被 Agenvoy 以外的方式移除時兩者會不一致 |
 | `GET` `POST` | `/v1/config/system` | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型 |
+| `GET` | `/v1/config/reply_lang` | **local** — 唯讀取得已設定的回應語言，形狀直接供 prompt 使用。回 `{reply_lang, name, directive}`：`reply_lang` 為儲存的代碼、`name` 為人類可讀語言名稱（`auto` 時為空）、`directive` 為現成的指示句並含地區用詞注記（`auto` 時為空，代表跟隨每則訊息的語言）。設定值請走 `POST /v1/config/system` |
 | `GET` `POST` | `/v1/config/output_dir` | **local** — 讀取／設定 `output_dir`。`GET` 回 `{output_dir, resolved}`，`resolved` 為實際使用中的資料夾。`POST` `{output_dir}` 會展開 `~`、建立資料夾、寫入 `config.json` 並立即套用到執行中的 daemon，回 `{ok, output_dir, resolved}`；空字串恢復預設值，建立不了的路徑回 400 |
+| `GET` `POST` | `/v1/system/update` | **local** — `GET` 回 `{version, latest, update_available}`，`latest` 為 GitHub latest release 轉址指向的 tag，兩者不同即 `update_available` 為 true；取不到 release 時回 502 `{version, error}`。`POST` 開啟終端機執行 `agen update`，回 202 `{status:"opened"}`：macOS 透過 `osascript` 開 Terminal.app，WSL 以 `cmd.exe start wsl.exe` 進入目前的 distro，Linux 使用第一個可用的終端機模擬器（需要 `DISPLAY` 或 `WAYLAND_DISPLAY`，daemon 環境缺少時從 systemd user environment 取得）。更新失敗時視窗保持開啟直到按 Enter。無法開啟終端機時回 501，請手動執行 `agen update` |
 
 **查閱**
 
@@ -443,12 +447,12 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | Skill      | `run_skill`                       | 載入具名 skill 的參考素材                                                              |
 |            | `edit_skill`                      | 編寫 skills 目錄底下的檔案（`mode=write\|patch\|remove`）                              |
 | 排程       | `schedules`                       | 查詢、改期或取消定時與週期任務（`mode=list\|patch\|remove\|write`）                    |
-| 檔案       | `find_files`                      | 以目錄、檔名樣式或內容定位（`mode=list\|glob\|search`）                                |
-|            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片                                              |
+| 檔案       | `find_files`                      | 以目錄、檔名樣式或內容定位（`mode=list\|glob\|search`）；search 以 `offset`／`limit` 分頁（每頁 256），回傳符合的路徑與次數（`output=files`）或帶行號的符合行，可加 `context` 前後文（`output=content`） |
+|            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片；預設 2048 行，文字檔被截斷時結尾會標示下一個 `offset` |
 |            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                     |
 |            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                      |
 |            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容 |
-| 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位                                                         |
+| 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位並等待結束；watcher（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在啟動前即拒絕 |
 |            | `open_file`                       | 以系統預設應用開啟檔案                                                                 |
 |            | `download_file`                   | 下載二進位資產至磁碟                                                                   |
 |            | `pkg_manage`                      | 驅動 Linux 套件管理器（install／remove／update／upgrade／search／info）；僅 Linux，全通道 |

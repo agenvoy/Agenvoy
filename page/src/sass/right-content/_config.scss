@@ -818,6 +818,8 @@ body section.right-content section.config section.editor.system {
   form {
     flex-flow: row wrap;
     align-items: flex-start;
+    align-content: flex-start;
+    justify-content: flex-start;
     gap: 1rem;
 
     > div.card {

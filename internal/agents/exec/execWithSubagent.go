@@ -171,8 +171,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 			short, rest = "temp-", sessionID[len("temp-"):]
 		case strings.HasPrefix(sessionID, "cli-"):
 			short, rest = "cli-", sessionID[len("cli-"):]
-		case strings.HasPrefix(sessionID, "http-"):
-			short, rest = "http-", sessionID[len("http-"):]
 		}
 		if short != "" {
 			if len(rest) > 8 {

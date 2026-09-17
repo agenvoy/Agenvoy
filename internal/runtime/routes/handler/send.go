@@ -25,7 +25,6 @@ type Request struct {
 	Model        string   `json:"model,omitempty"`
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 	Persist      bool     `json:"persist,omitempty"`
-	Chat         bool     `json:"chat,omitempty"`
 	SystemPrompt string   `json:"system_prompt,omitempty"`
 	WorkDir      string   `json:"work_dir,omitempty"`
 	Skill        string   `json:"skill,omitempty"`
@@ -52,11 +51,8 @@ func Send() gin.HandlerFunc {
 		sessionID := req.SessionID
 		if sessionID == "" {
 			prefix := "temp-"
-			switch {
-			case req.Chat:
+			if req.Persist {
 				prefix = "chat-"
-			case req.Persist:
-				prefix = "http-"
 			}
 			sessionID = prefix + utils.UUID()
 		}

@@ -8,13 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	goRuntime "runtime"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -30,7 +33,8 @@ var releaseClient = &http.Client{
 	},
 }
 
-const updateHoldOnFailure = `"$0" update || { printf '\nagen update failed; press Enter to close'; read _; }`
+const updateTerminalScript = `"$1" update || { printf '\nagen update failed; press Enter to close'; read _; }
+`
 
 var errNoTerminal = errors.New("no terminal available; run `agen update` in a terminal")
 
@@ -139,23 +143,40 @@ func openWSLTerminal(ctx context.Context, exe string) error {
 		return errNoTerminal
 	}
 
+	script, err := writeUpdateTerminalScript()
+	if err != nil {
+		return err
+	}
+
 	args := []string{"/c", "start", "", "wsl.exe"}
 	if distro := os.Getenv("WSL_DISTRO_NAME"); distro != "" {
 		args = append(args, "-d", distro)
 	}
-	args = append(args, "--", "sh", "-c", updateHoldOnFailure, exe)
+	args = append(args, "--exec", "sh", script, exe)
 
-	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("cmd.exe start: %w: %s", err, strings.TrimSpace(string(out)))
+	if err := exec.CommandContext(ctx, bin, args...).Run(); err != nil {
+		return fmt.Errorf("cmd.exe start: %w", err)
 	}
 	return nil
+}
+
+func writeUpdateTerminalScript() (string, error) {
+	path := filepath.Join(filesystem.AgenvoyDir, "update-terminal.sh")
+	if err := go_pkg_filesystem.WriteFile(path, updateTerminalScript, 0644); err != nil {
+		return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+	}
+	return path, nil
 }
 
 func openLinuxTerminal(ctx context.Context, exe string) error {
 	env := displayEnv(ctx)
 	if envValue(env, "DISPLAY") == "" && envValue(env, "WAYLAND_DISPLAY") == "" {
 		return fmt.Errorf("no graphical session found (DISPLAY and WAYLAND_DISPLAY unset): %w", errNoTerminal)
+	}
+
+	script, err := writeUpdateTerminalScript()
+	if err != nil {
+		return err
 	}
 
 	for _, terminal := range linuxTerminals {
@@ -165,7 +186,7 @@ func openLinuxTerminal(ctx context.Context, exe string) error {
 		}
 
 		argv := append([]string{bin}, terminal.args...)
-		argv = append(argv, "sh", "-c", updateHoldOnFailure, exe)
+		argv = append(argv, "sh", script, exe)
 		if os.Getenv("INVOCATION_ID") != "" {
 			if scope, err := exec.LookPath("systemd-run"); err == nil {
 				argv = append([]string{scope, "--user", "--scope", "--quiet", "--"}, argv...)
