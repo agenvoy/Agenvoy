@@ -15,10 +15,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const terminalLaunchTimeout = 10 * time.Second
+
+const latestReleaseURL = "https://github.com/agenvoy/Agenvoy/releases/latest/download/x"
+
+var releaseClient = &http.Client{
+	Timeout: terminalLaunchTimeout,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 const updateHoldOnFailure = `"$0" update || { printf '\nagen update failed; press Enter to close'; read _; }`
 
@@ -39,6 +49,42 @@ var linuxTerminals = []struct {
 	{"alacritty", []string{"-e"}},
 	{"wezterm", []string{"start", "--"}},
 	{"xterm", []string{"-e"}},
+}
+
+func GetSystemUpdate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		latest, err := latestRelease(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"version": runtime.CurrentVersion, "error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"version":          runtime.CurrentVersion,
+			"latest":           latest,
+			"update_available": latest != runtime.CurrentVersion,
+		})
+	}
+}
+
+func latestRelease(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, latestReleaseURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+	}
+	resp, err := releaseClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("resolve latest release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		return "", fmt.Errorf("resolve latest release: github http %d", resp.StatusCode)
+	}
+	parts := strings.Split(strings.Trim(resp.Header.Get("Location"), "/"), "/")
+	if len(parts) < 3 || parts[len(parts)-3] != "download" || parts[len(parts)-2] == "" {
+		return "", fmt.Errorf("resolve latest release: unexpected redirect %q", resp.Header.Get("Location"))
+	}
+	return parts[len(parts)-2], nil
 }
 
 func SystemUpdate() gin.HandlerFunc {

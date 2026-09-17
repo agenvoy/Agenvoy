@@ -61,6 +61,20 @@
       min-width: 0;
     }
 
+    > span {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: small;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    > [hidden] {
+      display: none;
+    }
+
     > button.submit {
       @include actionButton;
       flex: 0 0 auto;

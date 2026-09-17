@@ -666,10 +666,11 @@
             <div class="card">
               <div class="label">
                 <strong>Update</strong>
-                <p>opens a terminal to install the latest release · sudo is asked there</p>
+                <p>opens a terminal to install the latest release</p>
               </div>
               <div class="row">
-                <button id="system-update" type="button" class="submit" @click="system_update">update</button>
+                <span id="system-version"></span>
+                <button id="system-update" type="button" class="submit" @click="system_update" hidden>update</button>
               </div>
             </div>
           </form>
