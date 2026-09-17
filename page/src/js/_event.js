@@ -69,6 +69,7 @@ function renderEvent(view, event) {
       duration: compactDuration(event.duration),
       input: event.usage_input || "",
       output: compactToken(usage.output_tokens),
+      tps: formatTPS(usage.output_tokens, event.output_elapsed),
     });
     view.footer.replaceWith(footer);
     view.footer = footer;

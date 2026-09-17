@@ -2,22 +2,19 @@ package compact
 
 import "strings"
 
-// * templatily use, will be deprecated after I think about a better way
+const (
+	thresholdRatio   = 0.8
+	copilotWindow    = 256_000
+	fallbackWindow   = 128_000
+	copilotNamespace = "copilot@"
+)
+
 func CheckThreshold(modelName string) int {
-	switch {
-	case strings.Contains(modelName, "gemini"),
-		strings.Contains(modelName, "gpt-5.4"),
-		strings.Contains(modelName, "gpt-5.5"),
-		strings.Contains(modelName, "gpt-5.6"):
-		return int(1_000_000 * 0.8)
-	case strings.Contains(modelName, "grok-4.5"):
-		return int(500_000 * 0.8)
-	case strings.Contains(modelName, "claude"):
-		return int(200_000 * 0.8)
-	case (strings.Contains(modelName, "gpt") && !strings.Contains(modelName, "gpt-oss")),
-		strings.Contains(modelName, "grok"):
-		return int(256_000 * 0.8)
-	default:
-		return int(128_000 * 0.8)
+	if in, ok := lookupLimit(modelName); ok {
+		return int(float64(in) * thresholdRatio)
 	}
+	if strings.HasPrefix(strings.TrimSpace(modelName), copilotNamespace) {
+		return int(copilotWindow * thresholdRatio)
+	}
+	return int(fallbackWindow * thresholdRatio)
 }

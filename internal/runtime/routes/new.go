@@ -34,6 +34,8 @@ func New() *gin.Engine {
 	r.GET("/v1/log", handler.StreamMultiLog())
 	r.GET("/v1/info/version", handler.GetVersion())
 	r.GET("/v1/daemon", localhostOnly(), handler.GetDaemonLog())
+	r.GET("/v1/system/update", localhostOnly(), handler.GetSystemUpdate())
+	r.POST("/v1/system/update", localhostOnly(), handler.SystemUpdate())
 
 	r.POST("/v1/models", localhostOnly(), handler.AddModel())
 	r.DELETE("/v1/models/*name", localhostOnly(), handler.RemoveModel())

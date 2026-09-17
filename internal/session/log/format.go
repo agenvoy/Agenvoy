@@ -102,6 +102,9 @@ func formatActionEvent(event agentTypes.Event) string {
 			}
 			parts = append(parts, in, fmt.Sprintf("out=%d", event.Usage.Output))
 		}
+		if event.OutputElapsed > 0 {
+			parts = append(parts, fmt.Sprintf("outdur=%s", event.OutputElapsed.Round(time.Millisecond)))
+		}
 		return withTimestamp("done", event.TaskHash, strings.Join(parts, " "))
 
 	case agentTypes.EventCanceled:

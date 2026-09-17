@@ -72,6 +72,17 @@ func CanonicalReplyLang(code string) string {
 	return code
 }
 
+func ReplyLangName(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" || strings.EqualFold(code, ReplyLangAuto) {
+		return ""
+	}
+	if one, ok := codeReplyLang[normalizeReplyLang(code)]; ok {
+		return one.Name
+	}
+	return code
+}
+
 func ReplyLangDirective() string {
 	code := strings.TrimSpace(ConfigReplyLang)
 	if code == "" || strings.EqualFold(code, ReplyLangAuto) {

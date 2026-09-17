@@ -88,30 +88,3 @@ func GetSessionIDBySelfID(selfID string) string {
 	}
 	return sid
 }
-
-func GetSessionID(name string) string {
-	if name == "" {
-		return ""
-	}
-
-	dirs, err := go_pkg_filesystem_reader.ListDirs(filesystem.SessionsDir)
-	if err != nil {
-		return ""
-	}
-
-	for _, dir := range dirs {
-		sid := dir.Name
-		if strings.HasPrefix(sid, "temp-") {
-			continue
-		}
-
-		botName, _ := configBot.Get(sid)
-		if botName == "" {
-			continue
-		}
-		if botName == name {
-			return sid
-		}
-	}
-	return ""
-}

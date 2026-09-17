@@ -206,6 +206,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	var sb strings.Builder
 	var totalUsage provider.Usage
+	var totalElapsed time.Duration
 	for ev := range events {
 		pubsub.Pub(sessionID, ev)
 		passSubagentEvent(parentEvents, displayName, ev)
@@ -225,6 +226,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 				totalUsage.Output += ev.Usage.Output
 				totalUsage.CacheCreate += ev.Usage.CacheCreate
 				totalUsage.CacheRead += ev.Usage.CacheRead
+				totalElapsed += ev.OutputElapsed
 			}
 		case agentTypes.EventError:
 			if ev.Err != nil {
@@ -244,7 +246,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	if parentSessionID != "" && parentSessionID != sessionID && (totalUsage.Input > 0 || totalUsage.Output > 0 || totalUsage.CacheRead > 0 || totalUsage.CacheCreate > 0) {
 		prov, usageModel, _ := strings.Cut(agent.Name(), "@")
-		usagelog.Append(parentSessionID, prov, usageModel, totalUsage)
+		usagelog.Append(parentSessionID, prov, usageModel, totalUsage, totalElapsed)
 	}
 
 	retryHint := ""

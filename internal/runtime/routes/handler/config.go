@@ -23,6 +23,12 @@ func GetConfig() gin.HandlerFunc {
 				"reply_lang": filesystem.ConfigReplyLang,
 				"languages":  filesystem.ReplyLangOptions(),
 			})
+		case "reply_lang":
+			c.JSON(http.StatusOK, gin.H{
+				"reply_lang": filesystem.ConfigReplyLang,
+				"name":       filesystem.ReplyLangName(filesystem.ConfigReplyLang),
+				"directive":  filesystem.ReplyLangDirective(),
+			})
 		case "output_dir":
 			c.JSON(http.StatusOK, gin.H{
 				"output_dir": filesystem.ConfigOutputDir,

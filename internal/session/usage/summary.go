@@ -7,10 +7,12 @@ import (
 )
 
 type ModelUsage struct {
-	Input  uint64 `json:"input"`
-	Output uint64 `json:"output"`
-	Write  uint64 `json:"write"`
-	Hit    uint64 `json:"hit"`
+	Input     uint64  `json:"input"`
+	Output    uint64  `json:"output"`
+	Write     uint64  `json:"write"`
+	Hit       uint64  `json:"hit"`
+	ElapsedMS uint64  `json:"elapsed_ms"`
+	OutputTPS float64 `json:"output_tps"`
 }
 
 func Usage(sessionID string, days int, now time.Time) (map[string]ModelUsage, error) {
@@ -23,7 +25,8 @@ func Usage(sessionID string, days int, now time.Time) (map[string]ModelUsage, er
 	}
 
 	return aggregate(`
-	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
+	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit),
+	       SUM(elapsed_ms), SUM(CASE WHEN elapsed_ms > 0 THEN output ELSE 0 END)
 	FROM usage
 	WHERE session_id = ? AND send_at >= ? AND send_at <= ?
 	GROUP BY model`, sessionID, from, now.UnixNano())
@@ -36,7 +39,8 @@ func Total(days int, now time.Time) (map[string]ModelUsage, error) {
 	}
 
 	return aggregate(`
-	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit)
+	SELECT model, SUM(input), SUM(output), SUM(write), SUM(hit),
+	       SUM(elapsed_ms), SUM(CASE WHEN elapsed_ms > 0 THEN output ELSE 0 END)
 	FROM usage
 	WHERE send_at >= ? AND send_at <= ?
 	GROUP BY model`, from, now.UnixNano())
@@ -63,15 +67,21 @@ func aggregate(query string, args ...any) (map[string]ModelUsage, error) {
 
 	for rows.Next() {
 		var model string
-		var input, output, write, hit int64
-		if err := rows.Scan(&model, &input, &output, &write, &hit); err != nil {
+		var input, output, write, hit, elapsedMS, timedOutput int64
+		if err := rows.Scan(&model, &input, &output, &write, &hit, &elapsedMS, &timedOutput); err != nil {
 			return nil, fmt.Errorf("sql.Rows Scan [SELECT usage]: %w", err)
 		}
+		tps := 0.0
+		if elapsedMS > 0 && timedOutput > 0 {
+			tps = float64(timedOutput) / (float64(elapsedMS) / 1000)
+		}
 		result[model] = ModelUsage{
-			Input:  uint64(max(input, 0)),
-			Output: uint64(max(output, 0)),
-			Write:  uint64(max(write, 0)),
-			Hit:    uint64(max(hit, 0)),
+			Input:     uint64(max(input, 0)),
+			Output:    uint64(max(output, 0)),
+			Write:     uint64(max(write, 0)),
+			Hit:       uint64(max(hit, 0)),
+			ElapsedMS: uint64(max(elapsedMS, 0)),
+			OutputTPS: tps,
 		}
 	}
 	if err := rows.Err(); err != nil {

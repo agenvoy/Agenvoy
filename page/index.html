@@ -105,7 +105,7 @@
     <!---->
     <section class="right-content">
       <!-- @wheel="chat_wheel" -->
-      <section :if="params.page == chat" class="chat" :data-style="{{pin_style}}">
+      <section :if="params.page == chat" class="chat" data-style="0">
         <main :data-id="{{params.chat}}">
           <header>
             <!--<p></p>
@@ -124,12 +124,6 @@
             </button>
             <button type="button" @click="history_open" name="History" data-hide="1">
               <span class="material-symbols-outlined"> history </span>
-            </button>
-            <button type="button" @click="style_switch" name="To top" data-style="1" :if="LENGTH(pin) > 1">
-              <span class="material-symbols-outlined"> top_panel_close </span>
-            </button>
-            <button type="button" @click="style_switch" name="To right" data-style="0" :if="LENGTH(pin) > 1">
-              <span class="material-symbols-outlined"> right_panel_close </span>
             </button>
           </header>
           <!---->
@@ -667,6 +661,16 @@
               <div class="row">
                 <input id="system-output" type="text" placeholder="~/Downloads" @keydown="system_output_keydown" />
                 <button type="button" class="submit" @click="system_output">save</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">
+                <strong>Update</strong>
+                <p>opens a terminal to install the latest release</p>
+              </div>
+              <div class="row">
+                <span id="system-version"></span>
+                <button id="system-update" type="button" class="submit" @click="system_update" hidden>update</button>
               </div>
             </div>
           </form>

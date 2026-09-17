@@ -176,6 +176,10 @@ func formatDone(body string) agentTypes.Event {
 			if d, err := time.ParseDuration(v); err == nil {
 				event.Duration = d
 			}
+		case "outdur":
+			if d, err := time.ParseDuration(v); err == nil {
+				event.OutputElapsed = d
+			}
 		case "in":
 			if n, err := strconv.Atoi(v); err == nil {
 				usage.Input = n

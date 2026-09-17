@@ -70,9 +70,6 @@ func (t TUI) botCheckConflict(sid, name string) (tea.Cmd, bool) {
 	if name == "" {
 		return tea.Println(msgError("bot name required") + "\n"), false
 	}
-	if owner := session.GetSessionID(name); owner != "" && owner != sid {
-		return tea.Println(msgError(fmt.Sprintf("bot name %q already used by session %s", name, owner)) + "\n"), false
-	}
 	return nil, true
 }
 

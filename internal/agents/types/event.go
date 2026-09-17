@@ -185,6 +185,7 @@ type Event struct {
 	Usage           *provider.Usage     `json:"usage,omitempty"`
 	UsageInput      string              `json:"usage_input,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`
+	OutputElapsed   time.Duration       `json:"output_elapsed,omitempty"`
 	Todos           []TodoItem          `json:"todos,omitempty"`
 	Suggests        []string            `json:"suggests,omitempty"`
 	Files           []string            `json:"files,omitempty"`
@@ -213,12 +214,13 @@ const (
 	TodoCompleted  = "completed"
 )
 
-func DoneEvent(model string, usage *provider.Usage, duration time.Duration) Event {
+func DoneEvent(model string, usage *provider.Usage, duration, outputElapsed time.Duration) Event {
 	return Event{
-		Type:       EventDone,
-		Model:      model,
-		Usage:      usage,
-		Duration:   duration,
-		UsageInput: FormatInput(InputTotals(usage)),
+		Type:          EventDone,
+		Model:         model,
+		Usage:         usage,
+		Duration:      duration,
+		OutputElapsed: outputElapsed,
+		UsageInput:    FormatInput(InputTotals(usage)),
 	}
 }

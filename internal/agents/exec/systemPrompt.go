@@ -84,11 +84,11 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 				slog.String("error", err.Error()))
 		}
 	}
-	if name, body := configBot.Get(sessionID); body != "" {
+	if selfID, _, body := configBot.GetPersona(sessionID); body != "" {
 		var sb strings.Builder
 		sb.WriteString("## Bot Persona\n\n")
-		if name != "" {
-			fmt.Fprintf(&sb, "Your operating identity for this session is `%s`. Internalise the role description below and apply it to every reply unless an explicit user instruction overrides it.\n\n", name)
+		if selfID != "" {
+			fmt.Fprintf(&sb, "Your operating identity for this session is `%s`. Internalise the role description below and apply it to every reply unless an explicit user instruction overrides it.\n\n", selfID)
 		} else {
 			sb.WriteString("Internalise the role description below and apply it to every reply unless an explicit user instruction overrides it.\n\n")
 		}

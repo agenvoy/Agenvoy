@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   if (params.chat) {
-    if (!SESSION_ID.test(params.chat)) {
+    if (!SESSION_ID.test(params.chat) || !(await sessionExists(params.chat))) {
       window.location.href = getLink({ page: params.page, tab: params.tab });
       return;
     }
@@ -41,9 +41,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   setPinChats(hasModel || models === null ? config.pin_chat.slice() : []);
 
   const pinnedChats = pinChats();
-  if (isWide() && pinnedChats.includes(params.chat)) {
-    params.chat = "";
-    history.replaceState({}, "", getLink({ page: params.page }));
+  if (pinnedChats.includes(params.chat)) {
+    window.location.href = getLink({ page: params.page });
+    return;
   }
   const voiceDisabled = pinnedChats.length > 0;
 
@@ -73,7 +73,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     data: {
       params: params,
       pin: pinnedChats.map((id) => ({ id: id })),
-      pin_style: config.pin_style,
       collapsed: isWide() ? config.left_tab_collapsed : "1",
       left_tab: leftTab,
       feature: feature,
@@ -239,15 +238,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       memory_pick: function () {
         openMemoryPicker(panelSession(this) || currentSessionId);
       },
-      style_switch: function () {
-        const style = this.dataset.style;
-        const chat = $("section.chat");
-        if (chat) {
-          chat.dataset.style = style;
-        }
-        config.pin_style = style;
-        writeConfig(config);
-      },
       pin_add: function () {
         addPinChat(panelSession(this));
       },
@@ -328,6 +318,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       },
       system_output: function () {
         saveSystemOutput();
+      },
+      system_update: function () {
+        runSystemUpdate();
       },
       system_output_keydown: function (e) {
         if (e.key === "Enter") {

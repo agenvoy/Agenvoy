@@ -75,6 +75,33 @@ async function renderSystem() {
     output.value = dir.output_dir || "";
     output.placeholder = dir.resolved || "~/Downloads";
   }
+
+  renderSystemVersion();
+}
+
+async function renderSystemVersion() {
+  const label = $("#system-version");
+  const button = $("#system-update");
+  if (!label || !button) {
+    return;
+  }
+
+  label.textContent = "";
+  button.hidden = true;
+
+  try {
+    const response = await fetch(`${API}/v1/system/update`);
+    const detail = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      label.textContent = `${detail.version || "unknown"} (latest unavailable)`;
+      return;
+    }
+    label.textContent = `${detail.version} (${detail.latest})`;
+    button.hidden = !detail.update_available;
+  } catch (err) {
+    console.error("renderSystemVersion", err);
+    label.textContent = "latest unavailable";
+  }
 }
 
 async function outputDirConfig() {
@@ -110,6 +137,32 @@ async function saveSystemOutput() {
     alert(err.message || "failed");
   }
   renderSystem();
+}
+
+async function runSystemUpdate() {
+  const button = $("#system-update");
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/system/update`, { method: "POST" });
+    if (response.ok) {
+      if (button) {
+        button.textContent = "opened in Terminal";
+      }
+      return;
+    }
+    const detail = await response.json().catch(() => ({}));
+    alert(detail.error || `HTTP ${response.status}`);
+  } catch (err) {
+    console.error("runSystemUpdate", err);
+    alert(err.message || "failed");
+  }
+
+  if (button) {
+    button.disabled = false;
+  }
 }
 
 async function saveSystemLang() {
