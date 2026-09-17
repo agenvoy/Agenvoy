@@ -54,11 +54,6 @@ function readConfig() {
     writeConfig(config);
   }
 
-  if (config.pin_style !== "1" && config.pin_style !== "0") {
-    config.pin_style = "0";
-    writeConfig(config);
-  }
-
   if (!Array.isArray(config.pin_chat)) {
     config.pin_chat = PIN_CHAT_SEED.slice();
     writeConfig(config);
@@ -128,6 +123,16 @@ function setPinChats(list) {
 
 function pinChats() {
   return activePins;
+}
+
+async function sessionExists(sessionId) {
+  try {
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId)}`);
+    return response.ok;
+  } catch (err) {
+    console.error("sessionExists", err);
+    return true;
+  }
 }
 
 async function prunePinChat(config) {

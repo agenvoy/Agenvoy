@@ -23,13 +23,9 @@ body[data-rendered="1"] section.right-content section.chat {
     @media (min-width: 1280px) {
       &:not(:has(> div.subview:empty)) {
         > main {
-          width: 50% !important;
+          width: 60% !important;
           height: 100% !important;
           box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
-        }
-
-        > section {
-          display: none;
         }
 
         > div.subview {
@@ -42,12 +38,6 @@ body[data-rendered="1"] section.right-content section.chat {
       > section > section.messages,
       > section > div.input {
         width: calc(100% - 2rem);
-      }
-
-      > main > header button[data-style="1"] {
-        @media (min-width: 1280px) {
-          display: flex;
-        }
       }
 
       > section {
@@ -74,12 +64,12 @@ body[data-rendered="1"] section.right-content section.chat {
 
       &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
         > main {
-          width: 67%;
+          width: 60%;
           box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
-          width: 33%;
+          width: 40%;
         }
       }
 
@@ -87,14 +77,14 @@ body[data-rendered="1"] section.right-content section.chat {
         > main {
           position: absolute;
           left: 0;
-          width: 67%;
+          width: 60%;
           box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
           position: absolute;
           right: 0;
-          width: 33%;
+          width: 40%;
           height: 50%;
 
           &[data-index="0"] {
@@ -112,14 +102,14 @@ body[data-rendered="1"] section.right-content section.chat {
         > main {
           position: absolute;
           left: 0;
-          width: 67%;
+          width: 60%;
           box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
         }
 
         > section {
           position: absolute;
           right: 0;
-          width: 33%;
+          width: 40%;
           height: 33%;
 
           &[data-index="0"] {
@@ -140,111 +130,6 @@ body[data-rendered="1"] section.right-content section.chat {
       }
     }
 
-    &[data-style="1"] {
-      > section > section.messages,
-      > section > div.input {
-        width: calc(100% - 2rem);
-      }
-
-      > main > header button[data-style="0"] {
-        @media (min-width: 1280px) {
-          display: flex;
-        }
-      }
-
-      > section {
-        @media (hover: hover) {
-          &:hover {
-            &:after {
-              opacity: 0;
-            }
-            > header,
-            > div.input {
-              transition: 0.2s;
-              opacity: 1;
-            }
-          }
-        }
-
-        > header,
-        > div.input {
-          transition: 0.2s;
-          opacity: 0;
-        }
-      }
-
-      &:has(> section[data-index="0"]):not(:has(> section[data-index="1"])) {
-        > main {
-          width: 67%;
-          box-shadow: 0.5rem 0 1rem -0.25rem #0000001a;
-        }
-
-        > section {
-          width: 33%;
-        }
-      }
-
-      &:has(> section[data-index="1"]):not(:has(> section[data-index="2"])) {
-        > main {
-          position: absolute;
-          left: 0;
-          bottom: 0;
-          height: 67%;
-          box-shadow: 0 -0.5rem 1rem -0.25rem #0000001a;
-        }
-
-        > section {
-          position: absolute;
-          top: 0;
-          width: 50%;
-          height: 33%;
-          // border-bottom: 1px solid var(--gray-2);
-
-          &[data-index="0"] {
-            left: 0;
-          }
-
-          &[data-index="1"] {
-            left: 50%;
-            border-left: 1px solid var(--gray-2);
-          }
-        }
-      }
-
-      &:has(> section[data-index="2"]) {
-        > main {
-          position: absolute;
-          left: 0;
-          bottom: 0;
-          height: 67%;
-          box-shadow: 0 -0.5rem 1rem -0.25rem #0000001a;
-        }
-
-        > section {
-          position: absolute;
-          top: 0;
-          width: 33%;
-          height: 33%;
-          // border-bottom: 1px solid var(--gray-2);
-
-          &[data-index="0"] {
-            left: 0;
-          }
-
-          &[data-index="1"] {
-            left: 33%;
-            border-left: 1px solid var(--gray-2);
-          }
-
-          &[data-index="2"] {
-            right: 0;
-            width: 34%;
-            border-left: 1px solid var(--gray-2);
-          }
-        }
-      }
-    }
-
     > main,
     > section {
       position: relative;
@@ -255,6 +140,7 @@ body[data-rendered="1"] section.right-content section.chat {
       height: 100%;
       transform: scale(1);
       overflow: hidden;
+      transition: 0.2s;
 
       &[data-id]:not([data-id=""]) {
         div.logo {
@@ -350,8 +236,6 @@ body[data-rendered="1"] section.right-content section.chat {
           height: 1.5rem;
           transition: 0.2s;
 
-          &[data-style="0"],
-          &[data-style="1"],
           &[data-hide="1"] {
             display: none;
           }
@@ -458,11 +342,12 @@ body[data-rendered="1"] section.right-content section.chat {
       position: absolute;
       display: flex;
       top: 0;
-      right: -50%;
-      width: 50%;
+      right: -40%;
+      width: 40%;
       height: 100%;
       box-shadow: -0.5rem 0 1rem -0.25rem #0000001a;
       background-color: #fff;
+      transition: 0.2s;
 
       > article {
         display: flex;

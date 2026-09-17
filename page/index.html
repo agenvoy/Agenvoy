@@ -105,7 +105,7 @@
     <!---->
     <section class="right-content">
       <!-- @wheel="chat_wheel" -->
-      <section :if="params.page == chat" class="chat" :data-style="{{pin_style}}">
+      <section :if="params.page == chat" class="chat" data-style="0">
         <main :data-id="{{params.chat}}">
           <header>
             <!--<p></p>
@@ -124,12 +124,6 @@
             </button>
             <button type="button" @click="history_open" name="History" data-hide="1">
               <span class="material-symbols-outlined"> history </span>
-            </button>
-            <button type="button" @click="style_switch" name="To top" data-style="1" :if="LENGTH(pin) > 1">
-              <span class="material-symbols-outlined"> top_panel_close </span>
-            </button>
-            <button type="button" @click="style_switch" name="To right" data-style="0" :if="LENGTH(pin) > 1">
-              <span class="material-symbols-outlined"> right_panel_close </span>
             </button>
           </header>
           <!---->
