@@ -259,8 +259,7 @@ A cost-effective model setup to get started:
    - GitHub Copilot ($10/mo) — pick `gpt-5.6-luna`: its quota drains slowly enough for daily use and it is capable enough for most work
    - OpenAI ChatGPT Plus ($20/mo)
    - SuperGrok ($30/mo)
-2. **To try it for free**, either option works without a subscription:
-   - **[NVIDIA NIM](https://build.nvidia.com/explore/discover)** — apply for a free API token and add `nvidia/nemotron-3.5-lightning-30b-a3b`. It is not a large model, but it is enough to get a feel for Agenvoy.
+2. **To try it for free**, this works without a subscription:
    - **[Ollama Cloud](https://ollama.com/settings/keys)** — create a free API key, then pick **Ollama Cloud** in `/model add` and add `gemma4:31b`. The free plan has a usage cap; `Shift+U` shows how much of it is left.
 
 ---
