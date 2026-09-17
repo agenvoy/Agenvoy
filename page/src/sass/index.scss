@@ -351,7 +351,11 @@ div.popup {
       gap: 0.5rem;
 
       button {
-        padding: 0.375rem 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        box-sizing: border-box;
+        height: 2rem;
+        padding: 0 0.875rem;
         font-size: small;
         border-radius: 0.375rem;
         color: var(--black);

@@ -319,6 +319,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       system_output: function () {
         saveSystemOutput();
       },
+      system_update: function () {
+        runSystemUpdate();
+      },
       system_output_keydown: function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
