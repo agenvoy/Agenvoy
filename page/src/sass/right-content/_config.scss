@@ -368,7 +368,7 @@ body section.right-content section.config {
 
     section.tools#model-routing,
     section.tools#model-priority {
-      gap: 0.5rem;
+      gap: 1rem;
       padding: 0;
       background: none;
       border: none;
@@ -380,21 +380,21 @@ body section.right-content section.config {
     }
 
     section.tools#model-catalog {
-      gap: 0.5rem;
+      gap: 1rem;
       padding: 0;
       background: none;
       border: none;
 
-      @media (min-width: 1024px) {
+      > section.provider {
+        @include gridItem(-1);
+      }
+
+      @media (min-width: 768px) {
         flex-flow: row wrap;
         align-items: flex-start;
 
         > strong {
           width: 100%;
-        }
-
-        > section.provider {
-          @include gridItem;
         }
       }
     }
@@ -426,20 +426,15 @@ body section.right-content section.config {
       > section {
         display: flex;
         flex-flow: column;
-        gap: 0.5rem;
+        gap: 1rem;
         width: 100%;
 
-        @media (min-width: 1024px) {
+        @media (min-width: 768px) {
           flex-flow: row wrap;
           align-items: flex-start;
 
           > p.empty {
             width: 100%;
-          }
-
-          > section.provider,
-          > div.routing {
-            width: calc((100% - 0.5rem) / 2);
           }
         }
       }
@@ -447,10 +442,7 @@ body section.right-content section.config {
 
     section#model-priority div.routing {
       cursor: grab;
-
-      @media (min-width: 1024px) {
-        @include gridItem;
-      }
+      @include gridItem(-1);
 
       > span.grip {
         flex: 0 0 auto;
@@ -824,23 +816,25 @@ body section.right-content section.config section.editor.system {
 
     > div.card {
       @include settingCard;
-      max-width: calc((100% - 1rem * 3) / 4);
-
-      @media (min-width: 1680px) {
-        max-width: calc((100% - 1rem * 4) / 5);
-      }
+      @include gridItem;
     }
   }
 }
 
 body section.right-content section.config section.tools#model-routing > section {
-  flex-flow: row wrap;
-  align-items: stretch;
-  gap: 0.5rem;
+  gap: 1rem;
 
   > div.routing {
     @include settingCard;
-    @include gridItem;
     min-width: 0;
+  }
+
+  > div.routing {
+    @include gridItem(-1);
+  }
+
+  @media (min-width: 768px) {
+    flex-flow: row wrap;
+    align-items: stretch;
   }
 }
