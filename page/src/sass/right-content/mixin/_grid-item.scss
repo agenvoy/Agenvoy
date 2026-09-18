@@ -1,9 +1,18 @@
-@mixin gridItem {
-  flex: 1 1 calc((100% - 0.5rem * 2) / 3);
-  max-width: calc((100% - 0.5rem * 2) / 3);
+@use "sass:list";
 
-  @media (min-width: 1680px) {
-    flex-basis: calc((100% - 0.5rem * 3) / 4);
-    max-width: calc((100% - 0.5rem * 3) / 4);
+$gridBreakpoints: 768px, 1024px, 1280px, 1600px, 1920px, 2240px, 2560px;
+
+@mixin gridItem($offset: 0) {
+  flex: 0 0 auto;
+  width: 100%;
+
+  @for $i from 1 through list.length($gridBreakpoints) {
+    $columns: $i + 1 + $offset;
+
+    @if $columns > 1 {
+      @media (min-width: list.nth($gridBreakpoints, $i)) {
+        width: calc((100% - 1rem * #{$columns - 1}) / #{$columns});
+      }
+    }
   }
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
 var errNotFound = errors.New("no such change")
@@ -41,7 +43,7 @@ func (r Row) RestoreBlock() string {
 	case r.TrashPath != "":
 		return ""
 	case r.Truncated:
-		return "the file was over 1 MiB and no copy of it could be kept"
+		return fmt.Sprintf("the file was over %d MiB and no copy of it could be kept", filesystem.DocumentMaxBytes>>20)
 	case r.Action == ActionDelete:
 		return "no copy location was recorded"
 	}

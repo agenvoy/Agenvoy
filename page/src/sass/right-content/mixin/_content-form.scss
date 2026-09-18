@@ -39,6 +39,7 @@
   @media (max-width: 767px) {
     flex-grow: 0;
     flex-shrink: 0;
+    flex-basis: auto;
     overflow: visible;
   }
 

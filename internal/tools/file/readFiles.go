@@ -13,10 +13,7 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-const (
-	maxReadSize      = 1 << 20
-	defaultReadLimit = 1 << 11 // 2048
-)
+const defaultReadLimit = 1 << 11 // 2048
 
 func registReadFiles() {
 	toolRegister.Regist(toolRegister.Def{

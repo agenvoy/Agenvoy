@@ -17,7 +17,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 		return
 	}
 
-	targetBtyes := int(float64(filesystem.MaxHistoryBytes) * 0.8)
+	targetBtyes := filesystem.MaxHistoryBytes * 3 / 4
 	needRemove := currentBytes - targetBtyes
 	if needRemove <= 0 {
 		return

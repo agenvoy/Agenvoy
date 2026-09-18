@@ -20,7 +20,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -259,16 +258,10 @@ func CompactPending(sessionID, taskHash string) {
 		return
 	}
 
-	kept := make([]ToolResult, 0, len(meta.ToolResults))
-	for _, one := range meta.ToolResults {
-		if !actionHistory.IsRetained(one.Name) {
-			continue
-		}
-		one.Args = minify(one.Args)
-		one.Result = minify(one.Result)
-		kept = append(kept, one)
+	for i := range meta.ToolResults {
+		meta.ToolResults[i].Args = minify(meta.ToolResults[i].Args)
+		meta.ToolResults[i].Result = minify(meta.ToolResults[i].Result)
 	}
-	meta.ToolResults = kept
 
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
 		slog.Debug("CompactPending", slog.String("session", sessionID), slog.String("error", writeErr.Error()))

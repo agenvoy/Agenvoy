@@ -100,6 +100,10 @@
       </section>
       <!---->
       <footer>
+        <div id="left-tab-update" name="Update" @click="system_update" hidden>
+          <span class="material-symbols-outlined"> arrow_circle_up </span>
+          <p>Update</p>
+        </div>
         <a href="/?page=monitor&tab=Usage" name="Monitor">
           <span class="material-symbols-outlined"> desktop_windows </span>
           <p>Monitor</p>
@@ -602,57 +606,38 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Channel" class="editor">
-          <div class="side">
-            <button type="button" class="new" name="admin" @click="channel_admin">
-              <span class="material-symbols-outlined"> send </span>
-              <p>Admin Channel</p>
-            </button>
-            <button type="button" class="channel" name="telegram" @click="channel_telegram">
-              <i class="fa-brands fa-telegram"></i>
-              <p>Telegram</p>
-              <span class="state"></span>
-            </button>
-            <button type="button" class="channel" name="discord" @click="channel_discord">
-              <i class="fa-brands fa-discord"></i>
-              <p>Discord</p>
-              <span class="state"></span>
-            </button>
-            <button type="button" class="channel" name="line" @click="channel_line">
-              <i class="fa-brands fa-line"></i>
-              <p>LINE</p>
-              <span class="state"></span>
-            </button>
-          </div>
-          <form id="channel-form" data-view="admin" data-kind="admin">
-            <label id="channel-status-field">
-              <span>Channel</span>
-              <div class="status" id="channel-status"></div>
-            </label>
-            <section class="tools" id="channel-chats"></section>
-            <section class="tools" id="channel-admin"></section>
-            <label for="channel-secret">
-              <span id="channel-secret-label">Channel secret</span>
-              <input id="channel-secret" type="password" autocomplete="off" placeholder="Channel secret · required to enable" />
-            </label>
-            <label for="channel-token">
-              <span>Token</span>
-              <input
-                id="channel-token"
-                type="password"
-                autocomplete="off"
-                placeholder="Bot token · required to enable"
-              />
-            </label>
-            <footer>
-              <button type="button" class="remove" @click="channel_disable">disable</button>
-              <button type="button" class="submit" @click="channel_enable">enable</button>
-            </footer>
-          </form>
-        </section>
-
         <section :elif="params.tab == System" class="editor system">
           <form id="system-form">
+            <strong class="group">Channel</strong>
+            <div class="card" id="telegram-card">
+              <div class="label">
+                <strong>Telegram Channel</strong>
+                <p>relays chats through your Telegram bot</p>
+              </div>
+              <div class="row" id="telegram-row"></div>
+            </div>
+            <div class="card" id="discord-card">
+              <div class="label">
+                <strong>Discord Channel</strong>
+                <p>relays chats through your Discord bot</p>
+              </div>
+              <div class="row" id="discord-row"></div>
+            </div>
+            <div class="card" id="line-card">
+              <div class="label">
+                <strong>LINE Channel</strong>
+                <p>relays chats through your LINE bot</p>
+              </div>
+              <div class="row" id="line-row"></div>
+            </div>
+            <div class="card" id="admin-card" hidden>
+              <div class="label">
+                <strong>Admin Channel</strong>
+                <p>where new-chat verification codes are relayed</p>
+              </div>
+              <select id="admin-channel" @change="admin_channel"></select>
+            </div>
+            <strong class="group">System</strong>
             <div class="card">
               <div class="label">
                 <strong>Launch on login</strong>

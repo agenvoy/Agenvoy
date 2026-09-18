@@ -145,9 +145,12 @@ func agentGuideSection(workDir string) string {
 }
 
 func officialGuideSection(model string) string {
-	for key, one := range configs.OfficialGuides {
+	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
+		return len(b) - len(a)
+	})
+	for _, key := range keys {
 		if strings.Contains(model, key) {
-			return strings.TrimSpace(one)
+			return strings.TrimSpace(configs.OfficialGuides[key])
 		}
 	}
 	return ""

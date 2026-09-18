@@ -8,11 +8,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-const (
-	MaxLogSize = 1 << 20
-	trimToSize = 768 << 10
-)
-
 func TrimLog() error {
 	file, err := os.OpenFile(filesystem.DaemonLogPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -24,12 +19,12 @@ func TrimLog() error {
 	if err != nil {
 		return fmt.Errorf("file.Stat [%s]: %w", filesystem.DaemonLogPath, err)
 	}
-	if stat.Size() <= MaxLogSize {
+	if stat.Size() <= filesystem.DocumentMaxBytes {
 		return nil
 	}
 
-	raw := make([]byte, trimToSize)
-	if _, err := file.ReadAt(raw, stat.Size()-trimToSize); err != nil {
+	raw := make([]byte, filesystem.DocumentMaxBytes*3/4)
+	if _, err := file.ReadAt(raw, stat.Size()-filesystem.DocumentMaxBytes*3/4); err != nil {
 		return fmt.Errorf("file.ReadAt [%s]: %w", filesystem.DaemonLogPath, err)
 	}
 	if i := bytes.IndexByte(raw, '\n'); i >= 0 {

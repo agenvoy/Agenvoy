@@ -19,7 +19,7 @@ body[data-rendered="1"] section.right-content section.config {
     overflow: scroll;
 
     header {
-      @include contentNav((Model, Usage, History, Lessons, MCP, Keychain, Channel, System, Daemon));
+      @include contentNav((Model, Usage, History, Lessons, MCP, Keychain, System, Daemon));
     }
 
     section.editor.daemon {
@@ -157,60 +157,6 @@ body section.right-content section.config {
     color: var(--ink);
   }
 
-  // Channel · 側欄的頻道切換鈕，與共用的 a.new / button.new 是不同形狀
-  div.side > button.channel {
-    display: flex;
-    flex-flow: row;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.5rem;
-    background-color: var(--gray);
-    color: var(--gray-3);
-    transition: 0.2s;
-
-    @media (hover: hover) {
-      &:hover {
-        background-color: var(--gray-2);
-        color: var(--ink);
-      }
-    }
-
-    &[data-selected="1"] {
-      background-color: var(--gray-2);
-      color: var(--ink);
-    }
-
-    > i {
-      flex-shrink: 0;
-      width: 1.5rem;
-      font-size: medium;
-      text-align: center;
-    }
-
-    > p {
-      flex-grow: 1;
-      text-align: left;
-      font-size: small;
-    }
-
-    > span.state {
-      flex-shrink: 0;
-      width: 0.5rem;
-      height: 0.5rem;
-      border-radius: 50%;
-      background-color: var(--gray-3);
-    }
-
-    &[data-state="on"] {
-      color: var(--ink);
-
-      > span.state {
-        background-color: var(--okay);
-      }
-    }
-  }
-
   section.editor form {
     footer > button#mcp-login,
     footer > button#mcp-logout {
@@ -227,24 +173,6 @@ body section.right-content section.config {
 
     &[data-oauth="done"] footer > button#mcp-logout {
       display: block;
-    }
-
-    &[data-enabled="1"] label[for="channel-token"],
-    &[data-enabled="1"] label[for="channel-secret"],
-    &:not([data-kind="line"]) label[for="channel-secret"] {
-      display: none;
-    }
-
-    &[data-enabled="0"] footer > button.remove {
-      display: none;
-    }
-
-    &[data-enabled="1"] footer > button.remove {
-      display: block;
-    }
-
-    &[data-enabled="1"] footer > button.submit {
-      display: none;
     }
 
     div.status {
@@ -355,23 +283,13 @@ body section.right-content section.config {
     &[data-view="provider"] > nav#model-filter,
     &[data-view="provider"] > section#model-catalog,
     &[data-view="provider"] > section#model-routing,
-    &[data-view="provider"] > section#model-priority,
-    &[data-view="admin"] > section#channel-chats,
-    &[data-view="admin"] > label#channel-status-field,
-    &[data-view="admin"] > label[for="channel-token"],
-    &[data-view="admin"] > label[for="channel-secret"],
-    &[data-view="admin"] > footer,
-    &[data-view="channel"] > section#channel-admin {
+    &[data-view="provider"] > section#model-priority {
       display: none;
-    }
-
-    section.tools#channel-chats {
-      gap: 0.25rem;
     }
 
     section.tools#model-routing,
     section.tools#model-priority {
-      gap: 0.5rem;
+      gap: 1rem;
       padding: 0;
       background: none;
       border: none;
@@ -383,21 +301,21 @@ body section.right-content section.config {
     }
 
     section.tools#model-catalog {
-      gap: 0.5rem;
+      gap: 1rem;
       padding: 0;
       background: none;
       border: none;
 
-      @media (min-width: 1024px) {
+      > section.provider {
+        @include gridItem(-1);
+      }
+
+      @media (min-width: 768px) {
         flex-flow: row wrap;
         align-items: flex-start;
 
         > strong {
           width: 100%;
-        }
-
-        > section.provider {
-          @include gridItem;
         }
       }
     }
@@ -429,20 +347,15 @@ body section.right-content section.config {
       > section {
         display: flex;
         flex-flow: column;
-        gap: 0.5rem;
+        gap: 1rem;
         width: 100%;
 
-        @media (min-width: 1024px) {
+        @media (min-width: 768px) {
           flex-flow: row wrap;
           align-items: flex-start;
 
           > p.empty {
             width: 100%;
-          }
-
-          > section.provider,
-          > div.routing {
-            width: calc((100% - 0.5rem) / 2);
           }
         }
       }
@@ -450,10 +363,7 @@ body section.right-content section.config {
 
     section#model-priority div.routing {
       cursor: grab;
-
-      @media (min-width: 1024px) {
-        @include gridItem;
-      }
+      @include gridItem(-1);
 
       > span.grip {
         flex: 0 0 auto;
@@ -825,25 +735,40 @@ body section.right-content section.config section.editor.system {
     justify-content: flex-start;
     gap: 1rem;
 
+    > strong.group {
+      margin-top: 0.75rem;
+      width: 100%;
+      font-size: small;
+      font-weight: 500;
+      line-height: 1.5rem;
+      color: var(--gray-3);
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
     > div.card {
       @include settingCard;
-      max-width: calc((100% - 1rem * 3) / 4);
-
-      @media (min-width: 1680px) {
-        max-width: calc((100% - 1rem * 4) / 5);
-      }
+      @include gridItem;
     }
   }
 }
 
 body section.right-content section.config section.tools#model-routing > section {
-  flex-flow: row wrap;
-  align-items: stretch;
-  gap: 0.5rem;
+  gap: 1rem;
 
   > div.routing {
     @include settingCard;
-    @include gridItem;
     min-width: 0;
+  }
+
+  > div.routing {
+    @include gridItem(-1);
+  }
+
+  @media (min-width: 768px) {
+    flex-flow: row wrap;
+    align-items: stretch;
   }
 }

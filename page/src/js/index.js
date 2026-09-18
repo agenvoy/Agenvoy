@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", async function () {
   revealIconsWhenReady();
   watchServer();
+  watchUpdate();
 
   const config = readConfig();
   let params = praseURL();
@@ -292,23 +293,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       keychain_delete: function () {
         deleteEditingKeychain();
       },
-      channel_telegram: function () {
-        selectChannel("telegram");
-      },
-      channel_discord: function () {
-        selectChannel("discord");
-      },
-      channel_line: function () {
-        selectChannel("line");
-      },
-      channel_admin: function () {
-        selectChannel("admin");
-      },
-      channel_enable: function () {
-        enableChannel();
-      },
-      channel_disable: function () {
-        disableChannel();
+      admin_channel: function () {
+        saveAdminChannel(this.value);
       },
       routing_change: function () {
         saveRoutingModel(this.dataset.kind, this.value);
@@ -418,10 +404,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             resetKeychain();
             renderKeychain();
           }
-          if (params.tab === "Channel") {
-            renderChannel();
-          }
           if (params.tab === "System") {
+            renderChannel();
             renderSystem();
           }
         }

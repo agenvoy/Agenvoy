@@ -12,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -29,7 +30,11 @@ func sessionChatLog(sid string) (string, error) {
 	if !go_pkg_filesystem_reader.Exists(path) {
 		return "", nil
 	}
-	return go_pkg_filesystem.ReadText(path)
+	content, err := go_pkg_filesystem.ReadText(path)
+	if err != nil {
+		return "", err
+	}
+	return sessionLog.TrimSettledTools(content), nil
 }
 
 func sessionUsage(sid string) (map[string]map[string]usagelog.ModelUsage, error) {
