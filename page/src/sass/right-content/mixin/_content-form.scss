@@ -39,8 +39,8 @@
   @media (max-width: 767px) {
     flex-grow: 0;
     flex-shrink: 0;
+    flex-basis: auto;
     overflow: visible;
-    padding-bottom: 0;
   }
 
   input:not([type="checkbox"]):not([type="radio"]),

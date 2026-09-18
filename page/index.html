@@ -594,48 +594,31 @@
           </form>
         </section>
 
-        <section :elif="params.tab == Channel" class="editor">
-          <div class="side">
-            <button type="button" class="new" name="admin" @click="channel_admin">
-              <span class="material-symbols-outlined"> send </span>
-              <p>Admin Channel</p>
-            </button>
-            <button type="button" class="channel" name="telegram" @click="channel_telegram">
-              <i class="fa-brands fa-telegram"></i>
-              <p>Telegram</p>
-              <span class="state"></span>
-            </button>
-            <button type="button" class="channel" name="discord" @click="channel_discord">
-              <i class="fa-brands fa-discord"></i>
-              <p>Discord</p>
-              <span class="state"></span>
-            </button>
-          </div>
-          <form id="channel-form" data-view="admin">
-            <label id="channel-status-field">
-              <span>Channel</span>
-              <div class="status" id="channel-status"></div>
-            </label>
-            <section class="tools" id="channel-chats"></section>
-            <section class="tools" id="channel-admin"></section>
-            <label for="channel-token">
-              <span>Token</span>
-              <input
-                id="channel-token"
-                type="password"
-                autocomplete="off"
-                placeholder="Bot token · required to enable"
-              />
-            </label>
-            <footer>
-              <button type="button" class="remove" @click="channel_disable">disable</button>
-              <button type="button" class="submit" @click="channel_enable">enable</button>
-            </footer>
-          </form>
-        </section>
-
         <section :elif="params.tab == System" class="editor system">
           <form id="system-form">
+            <strong class="group">Channel</strong>
+            <div class="card" id="telegram-card">
+              <div class="label">
+                <strong>Telegram Channel</strong>
+                <p>relays chats through your Telegram bot</p>
+              </div>
+              <div class="row" id="telegram-row"></div>
+            </div>
+            <div class="card" id="discord-card">
+              <div class="label">
+                <strong>Discord Channel</strong>
+                <p>relays chats through your Discord bot</p>
+              </div>
+              <div class="row" id="discord-row"></div>
+            </div>
+            <div class="card" id="admin-card" hidden>
+              <div class="label">
+                <strong>Admin Channel</strong>
+                <p>where new-chat verification codes are relayed</p>
+              </div>
+              <select id="admin-channel" @change="admin_channel"></select>
+            </div>
+            <strong class="group">System</strong>
             <div class="card">
               <div class="label">
                 <strong>Launch on login</strong>

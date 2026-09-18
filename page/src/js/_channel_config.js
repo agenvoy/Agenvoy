@@ -1,25 +1,7 @@
 const CHANNEL_SPEC = {
-  telegram: { label: "Telegram", path: "/v1/channel/telegram" },
-  discord: { label: "Discord", path: "/v1/channel/discord" },
+  telegram: { label: "Telegram", path: "/v1/channel/telegram", prefix: "tg" },
+  discord: { label: "Discord", path: "/v1/channel/discord", prefix: "dc" },
 };
-
-function channelTarget() {
-  const picked = praseURL().target || "";
-  return picked === "telegram" || picked === "discord" ? picked : "admin";
-}
-
-let channelActive = "admin";
-
-function channelDom() {
-  return {
-    form: $("#channel-form"),
-    status: $("#channel-status"),
-    token: $("#channel-token"),
-    side: $("section.config div.side"),
-    admin: $("#channel-admin"),
-    chats: $("#channel-chats"),
-  };
-}
 
 function channelError(text) {
   alert(text);
@@ -37,60 +19,6 @@ async function channelStatus() {
   return {};
 }
 
-async function renderChannel() {
-  const dom = channelDom();
-  if (!dom.status) {
-    return;
-  }
-
-  channelActive = channelTarget();
-  const status = await channelStatus();
-
-  for (const kind of Object.keys(CHANNEL_SPEC)) {
-    const state = status[kind] || {};
-    const button = $(`section.config div.side button[name="${kind}"]`);
-    if (button) {
-      button.dataset.state = state.enabled ? "on" : "off";
-    }
-  }
-  for (const kind of Object.keys(CHANNEL_SPEC).concat(["admin"])) {
-    const button = $(`section.config div.side button[name="${kind}"]`);
-    if (button) {
-      button.dataset.selected = kind === channelActive ? "1" : "0";
-    }
-  }
-
-  if (dom.form) {
-    dom.form.dataset.view = channelActive === "admin" ? "admin" : "channel";
-  }
-  if (channelActive === "admin") {
-    renderChannelChats("", false);
-    renderAdminChannel();
-    return;
-  }
-
-  const state = status[channelActive] || {};
-  let title = "not connected";
-  if (state.enabled) {
-    title = state.username || "connecting...";
-  }
-
-  const name = _("input", { type: "text" });
-  name.value = title;
-  name.readOnly = true;
-
-  dom.status.innerHTML = "";
-  dom.status.appendChild(_("div.row", [name]));
-
-  if (dom.form) {
-    dom.form.dataset.enabled = state.enabled ? "1" : "0";
-  }
-  if (dom.token) {
-    dom.token.value = "";
-  }
-  renderChannelChats(channelActive, state.enabled === true);
-}
-
 async function channelChats(kind) {
   try {
     const response = await fetch(`${API}/v1/channel/${encodeURIComponent(kind)}/chats`);
@@ -101,6 +29,147 @@ async function channelChats(kind) {
     console.error("channelChats", err);
   }
   return [];
+}
+
+async function renderChannel() {
+  const status = await channelStatus();
+
+  for (const kind of Object.keys(CHANNEL_SPEC)) {
+    renderChannelCard(kind, status[kind] || {}, status.admin || {});
+  }
+  renderAdminChannel(status);
+}
+
+function renderChannelCard(kind, state, admin) {
+  const row = $(`#${kind}-row`);
+  if (!row) {
+    return;
+  }
+
+  row.innerHTML = "";
+  if (!state.enabled) {
+    const token = _("input", {
+      type: "password",
+      autocomplete: "new-password",
+      "data-1p-ignore": "true",
+      "data-lpignore": "true",
+      placeholder: "Bot token",
+    });
+    const enable = _("button.submit", { type: "button" }, "enable");
+    enable.addEventListener("click", () => enableChannel(kind, token.value.trim()));
+    token.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        enableChannel(kind, token.value.trim());
+      }
+    });
+    row.appendChild(token);
+    row.appendChild(enable);
+    return;
+  }
+
+  const prefix = CHANNEL_SPEC[kind].prefix;
+  const count = (admin.chats || []).filter((chat) => chat.type === prefix).length;
+  const manage = _("button.submit", { type: "button" }, "manage");
+  manage.addEventListener("click", () => openChannelPopup(kind));
+  row.appendChild(_("span", `${state.username || "connecting..."} · ${count} chats`));
+  row.appendChild(manage);
+}
+
+function renderAdminChannel(status) {
+  const card = $("#admin-card");
+  const select = $("#admin-channel");
+  if (!card || !select) {
+    return;
+  }
+
+  const anyEnabled = Object.keys(CHANNEL_SPEC).some((kind) => (status[kind] || {}).enabled === true);
+  card.hidden = !anyEnabled;
+  if (!anyEnabled) {
+    return;
+  }
+
+  const admin = status.admin || {};
+  const current = admin.channel || "";
+  const chats = admin.chats || [];
+
+  select.innerHTML = "";
+  select.appendChild(_("option", { value: "" }, "off"));
+  for (const chat of chats) {
+    select.appendChild(_("option", { value: chat.value }, `${chat.name || chat.id} · ${chat.type} · ${chat.id}`));
+  }
+  if (current !== "" && !admin.authorized) {
+    select.appendChild(_("option", { value: current }, `${current} · not authorized`));
+  }
+  select.value = current;
+  if (select.selectedIndex < 0) {
+    select.selectedIndex = 0;
+  }
+}
+
+async function saveAdminChannel(value) {
+  try {
+    const response = await fetch(`${API}/v1/channel/admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: value }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      channelError(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveAdminChannel", err);
+    channelError(err.message || "failed");
+  }
+  renderChannel();
+}
+
+async function openChannelPopup(kind) {
+  const spec = CHANNEL_SPEC[kind];
+  if (!spec) {
+    return;
+  }
+
+  const list = _("div.list");
+  const disable = _("button.remove", { type: "button" }, "disable");
+  const cancel = _("button", { type: "button" }, "close");
+  const root = _("div.popup", [
+    _("div.panel", [
+      _("strong", `${spec.label} · authorized chats`),
+      _("p", "verified once, allowed since"),
+      list,
+      _("footer", [cancel, disable]),
+    ]),
+  ]);
+  root.id = "channel-popup";
+
+  const close = () => root.remove();
+  cancel.addEventListener("click", close);
+  disable.addEventListener("click", () => {
+    close();
+    disableChannel(kind);
+  });
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
+  });
+
+  document.body.appendChild(root);
+
+  const chats = await channelChats(kind);
+  if (chats.length === 0) {
+    list.appendChild(_("p.empty", "none yet · message the bot and enter the verification code"));
+    return;
+  }
+
+  for (const chat of chats) {
+    const revoke = _("button.remove", { type: "button" }, "revoke");
+    revoke.addEventListener("click", async () => {
+      close();
+      await revokeChannelChat(kind, chat);
+    });
+    list.appendChild(_("div.row", [_("p", `${chat.name || chat.id} · ${chat.id}`), revoke]));
+  }
 }
 
 async function revokeChannelChat(kind, chat) {
@@ -127,115 +196,8 @@ async function revokeChannelChat(kind, chat) {
   renderChannel();
 }
 
-async function renderChannelChats(kind, enabled) {
-  const dom = channelDom();
-  if (!dom.chats) {
-    return;
-  }
-
-  dom.chats.innerHTML = "";
-  if (!enabled) {
-    delete dom.chats.dataset.open;
-    return;
-  }
-  dom.chats.dataset.open = "1";
-  dom.chats.appendChild(_("strong", "Authorized chats · verified once, allowed since"));
-
-  const chats = await channelChats(kind);
-  if (chats.length === 0) {
-    dom.chats.appendChild(_("p.empty", "none yet · message the bot and enter the verification code"));
-    return;
-  }
-
-  for (const chat of chats) {
-    const remove = _("button.remove", { type: "button" }, "revoke");
-    remove.addEventListener("click", () => revokeChannelChat(kind, chat));
-    dom.chats.appendChild(_("div.row", [_("p", `${chat.name || chat.id} · ${chat.id}`), remove]));
-  }
-}
-
-async function adminChannel() {
-  try {
-    const response = await fetch(`${API}/v1/channel`);
-    if (response.ok) {
-      return ((await response.json()) || {}).admin || {};
-    }
-  } catch (err) {
-    console.error("adminChannel", err);
-  }
-  return { channel: "", authorized: false, chats: [] };
-}
-
-async function saveAdminChannel(value) {
-  try {
-    const response = await fetch(`${API}/v1/channel/admin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value: value }),
-    });
-    if (!response.ok) {
-      const detail = await response.json().catch(() => ({}));
-      channelError(detail.error || `HTTP ${response.status}`);
-    }
-  } catch (err) {
-    console.error("saveAdminChannel", err);
-    channelError(err.message || "failed");
-  }
-  renderAdminChannel();
-}
-
-function adminChannelRow(label, description, checked, value) {
-  const box = _("input", { type: "radio", name: "admin-channel" });
-  box.checked = checked;
-  box.addEventListener("change", () => {
-    if (box.checked) {
-      saveAdminChannel(value);
-    }
-  });
-  return _("label.tool", [box, _("p", label), _("span", description || "")]);
-}
-
-async function renderAdminChannel() {
-  const dom = channelDom();
-  if (!dom.admin) {
-    return;
-  }
-
-  const state = await adminChannel();
-  const current = state.channel || "";
-  const chats = state.chats || [];
-
-  dom.admin.innerHTML = "";
-  dom.admin.dataset.open = "1";
-  dom.admin.appendChild(_("strong", "Admin channel · where new-chat verification codes are relayed"));
-  dom.admin.appendChild(adminChannelRow("off", "codes stay in the log", current === "", ""));
-
-  for (const chat of chats) {
-    dom.admin.appendChild(
-      adminChannelRow(chat.name || chat.id, `${chat.type} · ${chat.id}`, chat.value === current, chat.value),
-    );
-  }
-
-  if (current !== "" && !state.authorized) {
-    dom.admin.appendChild(
-      adminChannelRow(current, "not in the authorized list · codes stay in the log", true, current),
-    );
-  }
-
-  if (chats.length === 0) {
-    dom.admin.appendChild(_("p.empty", "no authorized chats yet · message the bot once to authorize one"));
-  }
-}
-
-function selectChannel(kind) {
-  if (kind !== "admin" && !CHANNEL_SPEC[kind]) {
-    return;
-  }
-  window.location.href = getLink({ page: "config", tab: "Channel", target: kind });
-}
-
-async function sendChannel(action, token) {
-  const spec = CHANNEL_SPEC[channelActive];
+async function sendChannel(kind, action, token) {
+  const spec = CHANNEL_SPEC[kind];
   if (!spec) {
     return;
   }
@@ -264,20 +226,18 @@ async function sendChannel(action, token) {
   renderChannel();
 }
 
-function enableChannel() {
-  const dom = channelDom();
-  const token = dom.token ? dom.token.value.trim() : "";
+function enableChannel(kind, token) {
   if (!token) {
     channelError("bot token is required to enable");
     return;
   }
-  sendChannel("enable", token);
+  sendChannel(kind, "enable", token);
 }
 
-function disableChannel() {
-  const spec = CHANNEL_SPEC[channelActive];
+function disableChannel(kind) {
+  const spec = CHANNEL_SPEC[kind];
   if (!spec || !confirm(`Disable ${spec.label}? The stored token is deleted.`)) {
     return;
   }
-  sendChannel("disable", "");
+  sendChannel(kind, "disable", "");
 }
