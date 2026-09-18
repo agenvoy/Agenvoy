@@ -65,7 +65,7 @@ func GetSystemUpdate() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"version":          runtime.CurrentVersion,
 			"latest":           latest,
-			"update_available": latest != runtime.CurrentVersion,
+			"update_available": !runtime.IsDev() && latest != runtime.CurrentVersion,
 		})
 	}
 }
