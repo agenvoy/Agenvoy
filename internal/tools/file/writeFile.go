@@ -41,8 +41,8 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	if err != nil && !isNew {
 		return "", fmt.Errorf("os.Stat: %w", err)
 	}
-	if !isNew && info.Size() > maxReadSize {
-		return "", fmt.Errorf("file too large (%d bytes, max 1 MB)", info.Size())
+	if !isNew && info.Size() > filesystem.DocumentMaxBytes {
+		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), filesystem.DocumentMaxBytes>>20)
 	}
 
 	change, err := historyStore.Capture(absPath)

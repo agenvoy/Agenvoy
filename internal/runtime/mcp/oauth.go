@@ -21,6 +21,8 @@ import (
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
 const (
@@ -564,7 +566,7 @@ func (r *loginRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
-	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, filesystem.DocumentMaxBytes))
 	resp.Body.Close()
 	if readErr != nil {
 		return nil, fmt.Errorf("read %s: %w", req.URL, readErr)

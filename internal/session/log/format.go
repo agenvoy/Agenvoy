@@ -11,11 +11,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-const (
-	maxActionLogSize = 1 << 20
-	trimTargetSize   = 768 << 10
-)
-
 func formatActionEvent(event agentTypes.Event) string {
 	switch event.Type {
 	case agentTypes.EventText:

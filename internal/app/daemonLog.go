@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 )
@@ -93,7 +94,7 @@ func (w *daemonLogWriter) Write(raw []byte) (int, error) {
 
 	n, err := os.Stderr.Write(raw)
 	w.size += int64(n)
-	if w.size <= record.MaxLogSize {
+	if w.size <= filesystem.DocumentMaxBytes {
 		return n, err
 	}
 	if record.TrimLog() == nil {

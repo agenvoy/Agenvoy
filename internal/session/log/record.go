@@ -122,7 +122,7 @@ func appendAction(sessionID, line string) {
 	}
 
 	info, err := os.Stat(path)
-	if err != nil || info.Size() <= maxActionLogSize {
+	if err != nil || info.Size() <= filesystem.DocumentMaxBytes {
 		return
 	}
 	trim(path)
@@ -138,11 +138,11 @@ func trim(path string) {
 	}
 
 	data := []byte(text)
-	if int64(len(data)) <= maxActionLogSize {
+	if len(data) <= filesystem.DocumentMaxBytes {
 		return
 	}
 
-	cut := max(len(data)-trimTargetSize, 0)
+	cut := max(len(data)-filesystem.DocumentMaxBytes*3/4, 0)
 	for cut < len(data) && data[cut] != '\n' {
 		cut++
 	}

@@ -75,8 +75,6 @@ func GetSkill() gin.HandlerFunc {
 	}
 }
 
-const skillFileMaxBytes = 256 << 10
-
 var skillFileDirs = []string{"scripts", "references", "assets"}
 
 type skillFile struct {
@@ -102,7 +100,7 @@ func skillFiles(skillPath string) []skillFile {
 			return nil
 		}
 		info, err := entry.Info()
-		if err != nil || info.Size() > skillFileMaxBytes {
+		if err != nil || info.Size() > filesystem.DocumentMaxBytes {
 			return nil
 		}
 		content, err := go_pkg_filesystem.ReadText(path)
