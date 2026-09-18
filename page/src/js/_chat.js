@@ -38,6 +38,12 @@ async function renderChatList() {
   }
 
   const pinned = pinChats();
+  const frameChat = _("temp");
+  const framePin = _("temp");
+  const frameTerminal = _("temp");
+  const frameTemp = _("temp");
+  const frameDiscord = _("temp");
+  const frameTelegram = _("temp");
 
   for (const e of list) {
     const panel = document.querySelector(`section.chat > section[data-id="${e.id}"]`);
@@ -46,37 +52,40 @@ async function renderChatList() {
     }
 
     if (pinned.includes(e.id)) {
-      if (pinDom) {
-        pinDom.appendChild(pinListItem(e.id, e.name || e.id));
-      }
+      framePin.appendChild(pinListItem(e.id, e.name || e.id));
       continue;
     }
     if (e.id.startsWith("chat-")) {
-      dom.appendChild(chatListItem(e.id, e.name || e.id));
+      frameChat.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
     if (e.id.startsWith("cli-")) {
-      if (terminalDom) {
-        terminalDom.appendChild(chatListItem(e.id, e.name || e.id));
-      }
+      frameTerminal.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
     if (e.id.startsWith("temp-")) {
-      if (tempDom) {
-        tempDom.appendChild(chatListItem(e.id, e.name || e.id));
-      }
+      frameTemp.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
     if (e.id.startsWith("dc-")) {
-      if (discordDom) {
-        discordDom.appendChild(chatListItem(e.id, e.name || e.id));
-      }
+      frameDiscord.appendChild(chatListItem(e.id, e.name || e.id));
       continue;
     }
     if (e.id.startsWith("tg-")) {
-      if (telegramDom) {
-        telegramDom.appendChild(chatListItem(e.id, e.name || e.id));
-      }
+      frameTelegram.appendChild(chatListItem(e.id, e.name || e.id));
+    }
+  }
+
+  dom.appendChild(frameChat);
+  for (const [box, frame] of [
+    [pinDom, framePin],
+    [discordDom, frameDiscord],
+    [telegramDom, frameTelegram],
+    [terminalDom, frameTerminal],
+    [tempDom, frameTemp],
+  ]) {
+    if (box) {
+      box.appendChild(frame);
     }
   }
 
@@ -269,10 +278,12 @@ async function renderChat(sessionId) {
   }
 
   const items = parseActionLog(content);
+  const frame = _("temp");
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.rule === "assistant" && i === items.length - 1) {
+      dom.appendChild(frame);
       const view = newStreamItem(
         { model: item.meta.model, trace: item.Reasoning, text: item.content, task: item.task },
         sessionId,
@@ -286,20 +297,24 @@ async function renderChat(sessionId) {
     }
 
     if (item.rule === "user") {
-      dom.appendChild(newUserItem(item));
+      frame.appendChild(newUserItem(item));
       continue;
     }
     const node = newAssisatantItem(item, sessionId);
     if (item.pending) {
       assistantItems.set(node, item);
     }
-    dom.appendChild(node);
+    frame.appendChild(node);
   }
+  dom.appendChild(frame);
   scrollToBottom(true, sessionId);
 }
 
-function assistantFooter(meta) {
+function assistantFooter(meta, sessionId, task) {
   const children = [copyBtn(), noteBtn()];
+  if (sessionId && task) {
+    children.push(historyBtn(sessionId, task));
+  }
   if (meta.canceled) {
     children.push(_("p.canceled", "canceled"));
   }
@@ -350,7 +365,7 @@ function newAssisatantItem(item, sessionId) {
 
   body.push(sourceBox(item.content));
   body.push(fileBox(item.files || []));
-  body.push(assistantFooter(item.meta));
+  body.push(assistantFooter(item.meta, sessionId, item.task));
 
   const dom = _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);
   if (item.task) {

@@ -39,11 +39,15 @@ function renderEvent(view, event) {
 
   if (type === "EventCanceled") {
     view.think.open = false;
-    const canceled = assistantFooter({
-      send_at: sendAt(),
-      canceled: true,
-      duration: compactDuration(event.duration),
-    });
+    const canceled = assistantFooter(
+      {
+        send_at: sendAt(),
+        canceled: true,
+        duration: compactDuration(event.duration),
+      },
+      view.session,
+      view.task,
+    );
     view.footer.replaceWith(canceled);
     view.footer = canceled;
     return;
@@ -64,13 +68,17 @@ function renderEvent(view, event) {
     view.think.open = false;
     delete view.think.dataset.streaming;
     const usage = event.usage || {};
-    const footer = assistantFooter({
-      send_at: sendAt(),
-      duration: compactDuration(event.duration),
-      input: event.usage_input || "",
-      output: compactToken(usage.output_tokens),
-      tps: formatTPS(usage.output_tokens, event.output_elapsed),
-    });
+    const footer = assistantFooter(
+      {
+        send_at: sendAt(),
+        duration: compactDuration(event.duration),
+        input: event.usage_input || "",
+        output: compactToken(usage.output_tokens),
+        tps: formatTPS(usage.output_tokens, event.output_elapsed),
+      },
+      view.session,
+      view.task,
+    );
     view.footer.replaceWith(footer);
     view.footer = footer;
     renderSuggest(view);

@@ -371,6 +371,14 @@ function copyBtn() {
   return dom;
 }
 
+function historyBtn(sessionId, task) {
+  const dom = _("button", { name: "Task history" }, [_("span.material-symbols-outlined", "history")]);
+  dom.addEventListener("click", function () {
+    window.location.href = detailsLink(sessionId, task, "");
+  });
+  return dom;
+}
+
 function noteBtn() {
   const dom = _("button", { name: "Add knoledge" }, [_("span.material-symbols-outlined", "book_2")]);
   dom.addEventListener("click", async function () {
