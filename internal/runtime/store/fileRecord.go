@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	ActionCreate     = "create"
-	ActionModify     = "modify"
-	ActionDelete     = "delete"
-	maxSnapshotBytes = 1 << 20
+	ActionCreate = "create"
+	ActionModify = "modify"
+	ActionDelete = "delete"
 )
 
 type Meta struct {
@@ -51,7 +50,7 @@ func Capture(path string) (Change, error) {
 		return Change{}, fmt.Errorf("os.Stat [%s]: %w", path, err)
 	case info.IsDir():
 		return Change{}, nil
-	case info.Size() > maxSnapshotBytes:
+	case info.Size() > filesystem.DocumentMaxBytes:
 		return oversized(path, info.Size()), nil
 	}
 
@@ -102,7 +101,7 @@ func (c Change) WithCreated(content string) Change {
 
 func withContent(c Change, content string) Change {
 	c.size = int64(len(content))
-	if len(content) > maxSnapshotBytes {
+	if len(content) > filesystem.DocumentMaxBytes {
 		c.truncated = true
 		return c
 	}

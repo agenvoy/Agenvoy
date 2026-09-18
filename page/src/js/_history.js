@@ -184,6 +184,7 @@ function historySessionList(dom, sessions, sessionId) {
   }
 
   dom.list.innerHTML = "";
+  const frame = _("temp");
   for (const one of sessions) {
     if (!one || !one.id) {
       continue;
@@ -195,8 +196,9 @@ function historySessionList(dom, sessions, sessionId) {
     ]);
     card.dataset.name = one.id;
     card.dataset.selected = one.id === sessionId ? "1" : "0";
-    dom.list.appendChild(card);
+    frame.appendChild(card);
   }
+  dom.list.appendChild(frame);
 }
 
 function renderHistoryPager(dom, sessionId, offset, total) {
@@ -254,15 +256,17 @@ async function renderHistoryPage(sessionId, offset) {
   }
 
   const start = Math.min(Math.max(offset, 0), Math.floor((tasks.length - 1) / HISTORY_PAGE_SIZE) * HISTORY_PAGE_SIZE);
+  const entries = _("temp");
   for (const task of tasks.slice(start, start + HISTORY_PAGE_SIZE)) {
     const when = historyClock(task.end_at);
-    dom.entries.appendChild(
+    entries.appendChild(
       _("a.row", { href: detailsLink(task.session, task.task_hash) }, [
         textNode("strong", task.objective || task.task_hash),
         textNode("p", sessionId ? when : `${when} · ${label[task.session] || task.session}`),
       ]),
     );
   }
+  dom.entries.appendChild(entries);
   renderHistoryPager(dom, sessionId, start, tasks.length);
 }
 

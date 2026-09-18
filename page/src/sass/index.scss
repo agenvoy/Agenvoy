@@ -263,6 +263,40 @@ div.popup {
         color: var(--gray-3);
       }
 
+      div.row {
+        display: flex;
+        flex-flow: row;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.5rem;
+        min-width: 0;
+
+        > p {
+          flex: 1 1 0;
+          min-width: 0;
+          font-size: small;
+          font-weight: 300;
+          color: var(--ink);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        > button.remove {
+          flex-shrink: 0;
+          font-size: small;
+          color: var(--error);
+          cursor: pointer;
+          transition: 0.2s;
+
+          @media (hover: hover) {
+            &:hover {
+              color: var(--error-2);
+            }
+          }
+        }
+      }
+
       label {
         display: flex;
         flex-flow: row;
@@ -365,6 +399,16 @@ div.popup {
         @media (hover: hover) {
           &:hover {
             color: var(--ink);
+          }
+        }
+
+        &.remove {
+          color: var(--error);
+
+          @media (hover: hover) {
+            &:hover {
+              color: var(--error-2);
+            }
           }
         }
 

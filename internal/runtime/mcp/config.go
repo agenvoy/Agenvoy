@@ -176,7 +176,7 @@ func (r *jsonrpcStatusRoundTripper) RoundTrip(req *http.Request) (*http.Response
 		return resp, nil
 	}
 
-	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, filesystem.DocumentMaxBytes*8))
 	resp.Body.Close()
 	if readErr != nil {
 		return nil, fmt.Errorf("read forbidden body: %w", readErr)

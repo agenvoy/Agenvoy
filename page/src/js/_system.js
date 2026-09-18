@@ -79,6 +79,34 @@ async function renderSystem() {
   renderSystemVersion();
 }
 
+async function systemUpdateInfo() {
+  try {
+    const response = await fetch(`${API}/v1/system/update`);
+    const detail = (await response.json().catch(() => ({}))) || {};
+    return { ok: response.ok, ...detail };
+  } catch (err) {
+    console.error("systemUpdateInfo", err);
+    return { ok: false };
+  }
+}
+
+function renderUpdateEntry(available) {
+  const entry = $("#left-tab-update");
+  if (entry) {
+    entry.hidden = !available;
+  }
+}
+
+async function checkUpdate() {
+  const detail = await systemUpdateInfo();
+  renderUpdateEntry(detail.ok && detail.update_available === true);
+}
+
+function watchUpdate() {
+  checkUpdate();
+  setInterval(checkUpdate, UPDATE_INTERVAL);
+}
+
 async function renderSystemVersion() {
   const label = $("#system-version");
   const button = $("#system-update");
@@ -89,19 +117,14 @@ async function renderSystemVersion() {
   label.textContent = "";
   button.hidden = true;
 
-  try {
-    const response = await fetch(`${API}/v1/system/update`);
-    const detail = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      label.textContent = `${detail.version || "unknown"} (latest unavailable)`;
-      return;
-    }
-    label.textContent = `${detail.version} (${detail.latest})`;
-    button.hidden = !detail.update_available;
-  } catch (err) {
-    console.error("renderSystemVersion", err);
-    label.textContent = "latest unavailable";
+  const detail = await systemUpdateInfo();
+  if (!detail.ok) {
+    label.textContent = `${detail.version || "unknown"} (latest unavailable)`;
+    return;
   }
+  label.textContent = `${detail.version} (${detail.latest})`;
+  button.hidden = !detail.update_available;
+  renderUpdateEntry(detail.update_available === true);
 }
 
 async function outputDirConfig() {
@@ -140,6 +163,12 @@ async function saveSystemOutput() {
 }
 
 async function runSystemUpdate() {
+  const detail = await systemUpdateInfo();
+  const target = detail.ok ? `${detail.version} → ${detail.latest}` : "the latest release";
+  if (!confirm(`Install ${target}?\nThis overwrites the installed binary.`)) {
+    return;
+  }
+
   const button = $("#system-update");
   if (button) {
     button.disabled = true;

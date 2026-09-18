@@ -298,6 +298,10 @@
 
       a,
       div {
+        &[hidden] {
+          display: none;
+        }
+
         position: relative;
         display: flex;
         flex-flow: row;

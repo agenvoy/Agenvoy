@@ -20,7 +20,7 @@ var (
 	MaxToolIterations     = 128
 	AgentSendTimeoutSec   = 600
 	MaxHistoryMessages    = 24
-	MaxHistoryBytes       = 5 * 1024 * 1024
+	MaxHistoryBytes       = DocumentMaxBytes * 4
 	MaxSessionTasks       = runtime.NumCPU() * 4
 	MaxSubagentTimeoutMin = 30
 	MaxResumeWaitMin      = 60

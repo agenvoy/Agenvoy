@@ -9,7 +9,6 @@ const configTab = {
   Model: "deployed_code",
   MCP: "electrical_services",
   Keychain: "key",
-  Channel: "cell_tower",
   System: "tune",
 };
 

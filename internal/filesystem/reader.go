@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	maxReadSize  = 1 << 20
-	maxImageSize = 10 << 20
+	DocumentMaxBytes = 1 << 20
+	MediaMaxBytes    = 10 << 20
 )
 
 var imageExts = map[string]bool{
@@ -63,8 +63,8 @@ func ReadFile(ctx context.Context, path string, offset, limit int) (string, erro
 		if err != nil {
 			return "", fmt.Errorf("os.Stat: %w", err)
 		}
-		if info.Size() > maxImageSize {
-			return "", fmt.Errorf("image too large(10 MB): %d MB", info.Size()/(1<<20))
+		if info.Size() > MediaMaxBytes {
+			return "", fmt.Errorf("image too large (max %d MiB): %d MiB", MediaMaxBytes>>20, info.Size()>>20)
 		}
 
 		result, err := go_pkg_filesystem_parser.Image(ctx, path)
@@ -78,8 +78,8 @@ func ReadFile(ctx context.Context, path string, offset, limit int) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("os.Stat: %w", err)
 	}
-	if info.Size() > maxReadSize {
-		return "", fmt.Errorf("file too large (1 MB): %d MB", info.Size()/(1<<20))
+	if info.Size() > DocumentMaxBytes {
+		return "", fmt.Errorf("file too large (max %d MiB): %d MiB", DocumentMaxBytes>>20, info.Size()>>20)
 	}
 
 	result, err := go_pkg_filesystem.ReadText(path)
