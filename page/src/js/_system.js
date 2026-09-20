@@ -149,6 +149,25 @@ async function outputDirConfig() {
   return {};
 }
 
+async function openOutputDir() {
+  const dir = await outputDirConfig();
+  const path = (dir.resolved || dir.output_dir || "").trim();
+  if (!path) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/file/open?path=${encodeURIComponent(path)}`);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("openOutputDir", err);
+    alert(err.message || "failed");
+  }
+}
+
 async function saveSystemOutput() {
   const input = $("#system-output");
   if (!input) {
