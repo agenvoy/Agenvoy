@@ -26,7 +26,7 @@ func Generate(ctx context.Context, req Request) (string, error) {
 		return "", fmt.Errorf("text is required")
 	}
 
-	result, agentName, err := Speak(ctx, text, core.TTSOptions{Voice: strings.TrimSpace(req.Voice)})
+	result, agentName, err := Speak(ctx, text, core.TTSOptions{Voice: strings.TrimSpace(req.Voice), Format: speechFormat})
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +34,7 @@ func Generate(ctx context.Context, req Request) (string, error) {
 		return "", fmt.Errorf("%s returned no audio data", agentName)
 	}
 
-	path := outputPath(req.OutputFile)
+	path := outputPath(req.OutputFile, result.MimeType)
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: CheckDir: %w", err)
 	}
@@ -45,11 +45,32 @@ func Generate(ctx context.Context, req Request) (string, error) {
 	return fmt.Sprintf("saved: %s\nmodel: %s\nbytes: %d", path, agentName, len(result.Audio)), nil
 }
 
-func outputPath(outputFile string) string {
+const speechFormat = "opus"
+
+var audioExtByMime = map[string]string{
+	"audio/ogg":   ".ogg",
+	"audio/opus":  ".ogg",
+	"audio/wav":   ".wav",
+	"audio/x-wav": ".wav",
+	"audio/mpeg":  ".mp3",
+	"audio/mp3":   ".mp3",
+	"audio/aac":   ".aac",
+	"audio/flac":  ".flac",
+}
+
+func audioExt(mime string) string {
+	base, _, _ := strings.Cut(mime, ";")
+	if ext, ok := audioExtByMime[strings.ToLower(strings.TrimSpace(base))]; ok {
+		return ext
+	}
+	return ".wav"
+}
+
+func outputPath(outputFile, mime string) string {
 	stem := filepath.Base(strings.TrimSpace(outputFile))
 	stem = strings.Trim(strings.TrimSuffix(stem, filepath.Ext(stem)), `./\ `)
 	if stem == "" {
 		stem = "audio-" + time.Now().Format("20060102-150405")
 	}
-	return filepath.Join(filesystem.DownloadDir, stem+".wav")
+	return filepath.Join(filesystem.OutputDir(), stem+audioExt(mime))
 }

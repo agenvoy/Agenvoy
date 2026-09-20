@@ -122,7 +122,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				},
 				"save_to": map[string]any{
 					"type":        "string",
-					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against ~/Downloads (preferred if exists) or ~/.config/agenvoy/download/. Omit for auto-generated filename.",
+					"description": "Target file path when save=true. Absolute path used directly; relative paths resolve against the output directory. Omit for auto-generated filename in the output directory.",
 				},
 				"force": map[string]any{
 					"type":        "boolean",
@@ -178,7 +178,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				if p == "" {
 					p = defaultDownloadPath(link)
 				} else {
-					abs, absErr := boundary.Resolve(e.SessionID, filesystem.DownloadDir, p)
+					abs, absErr := boundary.Resolve(e.SessionID, filesystem.OutputDir(), p)
 					if absErr != nil {
 						return "", fmt.Errorf("boundary.Resolve: %w", absErr)
 					}
@@ -298,7 +298,7 @@ func defaultDownloadPath(href string) string {
 	if !strings.HasSuffix(name, ".md") {
 		name += ".md"
 	}
-	return filepath.Join(filesystem.DownloadDir, name)
+	return filepath.Join(filesystem.OutputDir(), name)
 }
 
 func validateURL(href string) error {
