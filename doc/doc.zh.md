@@ -67,14 +67,14 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 
 ### 常用憑證
 
-| Keychain 項目                                        | 用途                                                  |
-| ---------------------------------------------------- | ----------------------------------------------------- |
-| `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                         |
-| `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                        |
-| `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                        |
-| `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                         |
-| `OLLAMA-CLOUD_API_KEY`                               | Ollama Cloud（連字號是名稱的一部分）                  |
-| `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填）    |
+| Keychain 項目                                        | 用途                                               |
+| ---------------------------------------------------- | -------------------------------------------------- |
+| `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                          |
+| `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                     |
+| `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                     |
+| `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                          |
+| `OLLAMA-CLOUD_API_KEY`                               | Ollama Cloud（連字號是名稱的一部分）               |
+| `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填） |
 
 ### 音訊與圖片模型路由
 
@@ -90,15 +90,15 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 主要設定檔是 `~/.config/agenvoy/config.json`。`limits` 欄位由程式載入，缺漏欄位會自動補上內建預設值。
 
-| 設定                                |    預設值 | 說明                          |
-| ----------------------------------- | --------: | ----------------------------- |
-| `limits.max_tool_iterations`        |     `128` | 單次 Agent 工作的工具迭代上限 |
-| `limits.agent_send_timeout_seconds` |     `600` | 模型請求逾時秒數              |
-| `limits.max_history_messages`       |      `24` | 保留的近期歷史訊息數          |
-| `limits.max_history_bytes`          | `5242880` | 歷史訊息大小上限（位元組）    |
-| `reply_lang`                        |  `"auto"` | 回覆語言。`auto` 維持原本「跟隨使用者訊息語言」的行為；其他值一律強制以該語言回覆 |
+| 設定                                |    預設值 | 說明                                                                                                                                                                                    |
+| ----------------------------------- | --------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limits.max_tool_iterations`        |     `128` | 單次 Agent 工作的工具迭代上限                                                                                                                                                           |
+| `limits.agent_send_timeout_seconds` |     `600` | 模型請求逾時秒數                                                                                                                                                                        |
+| `limits.max_history_messages`       |      `24` | 保留的近期歷史訊息數                                                                                                                                                                    |
+| `limits.max_history_bytes`          | `5242880` | 歷史訊息大小上限（位元組）                                                                                                                                                              |
+| `reply_lang`                        |  `"auto"` | 回覆語言。`auto` 維持原本「跟隨使用者訊息語言」的行為；其他值一律強制以該語言回覆                                                                                                       |
 | `output_dir`                        |      `""` | 請求沒指定位置時，替使用者產生的檔案放在哪：`write_report` 的輸出，以及 agent 預設要放到這裡的文件、匯出檔與圖片。空值為 `~/Downloads`，該資料夾不存在時為 `~/.config/agenvoy/download` |
-| `model_tag`                         |      `{}` | 各模型的 tier，`{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`；見[模型 tier](#模型-tier) |
+| `model_tag`                         |      `{}` | 各模型的 tier，`{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`；見[模型 tier](#模型-tier)                                                                                                     |
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
@@ -127,6 +127,8 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 `/model add` 會以 `GET /models` 偵測本機的 Ollama（`http://localhost:11434/v1`）與 llama.cpp（`http://localhost:8080/v1`），有回應的會以 **Ollama Local**／**Llama.cpp Local** 列在 provider 清單最上方，選取後直接進入模型挑選，不再詢問網址或 key。這兩個端點是內建的（`configs/jsons/local_compat.json`），不會寫入任何設定。其他 port 或主機走 **Local/Custom** 新增，網址會記錄到 `config.json` 的 `compats`。兩種情況的模型清單都由端點自己的 `GET /models` 取得。端點模型以 `<name>@<model>` 註冊，端點名稱轉小寫（`ollama@gemma3:4b`）；舊的 `compat[NAME]@<model>` 寫法仍可使用，`config.json` 每次載入或儲存時會改寫成新格式。
 
+compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶任何廠商私有 header，因此要求私有 header 的端點不在支援範圍。收錄範圍限三類：自營模型的供應商、相容 OpenAI API 的 NIM，以及 Cloudflare。opencode Go（`opencode.ai/zen/go/v1`）依此排除——自 [2026-09-03 公告](https://x.com/opencode/status/2095410501400289576)起，未帶依對話變動的 `x-opencode-session` 會被拒絕（`400 MissingSessionID`）；Chat Completions 本身無狀態，要求 client 依對話追蹤並輪替廠商私有 header 已非 OpenAI 相容行為。
+
 當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.6.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
@@ -137,12 +139,12 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 每個已註冊模型都可以在 `model_tag` 設定 tier：
 
-| Tier | 意義 |
-|---|---|
-| `S` | 最強；寫程式，或明確要求深度、精確的工作 |
-| `A` | 大部分工作的預設，比旗艦低一階 |
-| `B` | 主流中階 |
-| `C` | 快又便宜，能照指示穩定呼叫工具 |
+| Tier   | 意義                                                                      |
+| ------ | ------------------------------------------------------------------------- |
+| `S`    | 最強；寫程式，或明確要求深度、精確的工作                                  |
+| `A`    | 大部分工作的預設，比旗艦低一階                                            |
+| `B`    | 主流中階                                                                  |
+| `C`    | 快又便宜，能照指示穩定呼叫工具                                            |
 | `pass` | 不被自動分派與 subagent 選中；排在 fallback 最後，或設給某個 session 使用 |
 
 在 TUI 的 `/model` 對模型列按 `t`，或在 **Config › Model › Fallback Priority** 每張卡片的 tier 按鈕設定。tier 每次請求都重新讀取，改完不需重啟。
@@ -217,33 +219,33 @@ agen
 
 直接輸入文字即在當前 session 執行；其餘皆為斜線指令，只打 `/` 會開啟選單，其中也包含已安裝的 skill 與排程項目。
 
-| 指令                            | 用途                                                                                  |
-| ------------------------------- | ------------------------------------------------------------------------------------- |
-| `/model`                        | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型 |
-| `/mcp`                          | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連 |
-| `/sessions` `/new`              | 以 self id 切換 session（`d` 刪除）或建立新的                                  |
-| `/bot`                          | 重新命名當前 session 或編輯 persona                                                   |
-| `/compact` `/reset`             | 移除當前 session 的冗餘對話，或重設 session（需二次確認）                             |
-| `/allow-skill`                  | 將 skill 設為一律允許，範圍為全域或此專案                                             |
-| `/rule` `/note`                 | 列出、新增或編輯 rule 與筆記                                                          |
-| `/channel`                      | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示） |
-| `/config`                       | 可搜尋的設定清單，`enter` 修改游標所在項目：登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit）、回覆語言（`auto` 跟隨每則訊息）與輸出資料夾（產生的檔案存放位置；留空為 `~/Downloads`） |
-| `/schedule`                     | 週期（cron）與單次（task）排程合併為一個清單；`enter` 立即執行、`d` 刪除；新增或編輯請直接交代 agent |
-| `/pending`                      | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                          |
-| `/resume` `/log` `/usage`       | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d） |
-| `/key`                          | 編輯已儲存的憑證（`d` 刪除）                                                          |
-| `/update`                       | 抓取最新 release、重建、離開                                                          |
-| `/clear` `/exit`                | 清除可見對話，或離開 TUI（daemon 繼續執行）                                           |
-| `/<skill>` `/sched-<name>`      | 直接執行已安裝的 skill 或排程項目                                                     |
+| 指令                       | 用途                                                                                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/model`                   | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型                                                              |
+| `/mcp`                     | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連                                                                           |
+| `/sessions` `/new`         | 以 self id 切換 session（`d` 刪除）或建立新的                                                                                                                                                                    |
+| `/bot`                     | 重新命名當前 session 或編輯 persona                                                                                                                                                                              |
+| `/compact` `/reset`        | 移除當前 session 的冗餘對話，或重設 session（需二次確認）                                                                                                                                                        |
+| `/allow-skill`             | 將 skill 設為一律允許，範圍為全域或此專案                                                                                                                                                                        |
+| `/rule` `/note`            | 列出、新增或編輯 rule 與筆記                                                                                                                                                                                     |
+| `/channel`                 | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示）                                                                          |
+| `/config`                  | 可搜尋的設定清單，`enter` 修改游標所在項目：登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit）、回覆語言（`auto` 跟隨每則訊息）與輸出資料夾（產生的檔案存放位置；留空為 `~/Downloads`） |
+| `/schedule`                | 週期（cron）與單次（task）排程合併為一個清單；`enter` 立即執行、`d` 刪除；新增或編輯請直接交代 agent                                                                                                             |
+| `/pending`                 | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                                                                                                                                                     |
+| `/resume` `/log` `/usage`  | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d）                                                                                         |
+| `/key`                     | 編輯已儲存的憑證（`d` 刪除）                                                                                                                                                                                     |
+| `/update`                  | 抓取最新 release、重建、離開                                                                                                                                                                                     |
+| `/clear` `/exit`           | 清除可見對話，或離開 TUI（daemon 繼續執行）                                                                                                                                                                      |
+| `/<skill>` `/sched-<name>` | 直接執行已安裝的 skill 或排程項目                                                                                                                                                                                |
 
 輸入區為空時可用的快捷鍵：
 
-| 按鍵                  | 動作                                                        |
-| --------------------- | ----------------------------------------------------------- |
-| `Shift+W` / `Shift+S` | 反向／正向切換 session 模型                                 |
-| `Shift+A` / `Shift+D` | 切換 reasoning 等級                                         |
-| `Shift+F`             | 切換 fast mode                                              |
-| `Shift+U`             | 查看 provider 額度與餘額                                    |
+| 按鍵                  | 動作                        |
+| --------------------- | --------------------------- |
+| `Shift+W` / `Shift+S` | 反向／正向切換 session 模型 |
+| `Shift+A` / `Shift+D` | 切換 reasoning 等級         |
+| `Shift+F`             | 切換 fast mode              |
+| `Shift+U`             | 查看 provider 額度與餘額    |
 
 在彈出視窗中，`esc` 會回到開啟它的上一頁，只有第一頁才會關閉；`/usage` 這類純列表視窗以 ↑／↓ 捲動而非選取。
 
@@ -289,13 +291,13 @@ curl --fail-with-body -sS \
 
 ## 命令列參考
 
-| 指令     | 語法                   | 說明                               |
-| -------- | ---------------------- | ---------------------------------- |
-| TUI      | `agen`                 | 開啟或連接本機 daemon 的互動式 TUI |
-| 停止     | `agen stop`            | 停止 daemon                        |
-| 更新     | `agen update`          | 執行官方更新腳本                   |
-| Daemon   | `agen --daemon`        | 直接啟動 daemon                    |
-| MCP      | 非 TTY stdin 的 `agen` | 從 stdin 提供 MCP JSON-RPC         |
+| 指令   | 語法                   | 說明                               |
+| ------ | ---------------------- | ---------------------------------- |
+| TUI    | `agen`                 | 開啟或連接本機 daemon 的互動式 TUI |
+| 停止   | `agen stop`            | 停止 daemon                        |
+| 更新   | `agen update`          | 執行官方更新腳本                   |
+| Daemon | `agen --daemon`        | 直接啟動 daemon                    |
+| MCP    | 非 TTY stdin 的 `agen` | 從 stdin 提供 MCP JSON-RPC         |
 
 ## HTTP API 參考
 
@@ -303,54 +305,54 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 **Agent 執行**
 
-| Method | Path                   | 說明                                        |
-| ------ | ---------------------- | ------------------------------------------- |
-| `POST` | `/v1/send`             | 執行 Agent                                  |
-| `POST` | `/v1/chat/completions` | OpenAI 相容且 stateless 的 chat completions |
-| `GET`  | `/v1/info/version`     | 編譯時寫入的版本（`{version, dev}`）；未帶 tag 的建置 `dev` 為 true |
+| Method | Path                   | 說明                                                                                                                                                                                                                                                                                         |
+| ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/v1/send`             | 執行 Agent                                                                                                                                                                                                                                                                                   |
+| `POST` | `/v1/chat/completions` | OpenAI 相容且 stateless 的 chat completions                                                                                                                                                                                                                                                  |
+| `GET`  | `/v1/info/version`     | 編譯時寫入的版本（`{version, dev}`）；未帶 tag 的建置 `dev` 為 true                                                                                                                                                                                                                          |
 | `GET`  | `/v1/log`              | SSE：不帶參數時只送 daemon `slog`（`EventDaemonLog`，`source` 為層級），與 TUI 標題列同一份來源；內含新對話驗證碼，故 daemon frame 僅對 loopback 來源附加。`?sessions=a,b` 於同一條連線加上該些 session 的事件，`replay=0` 略過回放，`daemon=0` 去掉 daemon frame。遠端來源必須帶 `sessions` |
-| `GET`  | `/v1/mcp/tools`        | 列出已連線 MCP server 註冊的工具（`mcp__*`）  |
+| `GET`  | `/v1/mcp/tools`        | 列出已連線 MCP server 註冊的工具（`mcp__*`）                                                                                                                                                                                                                                                 |
 
 **模型**
 
-| Method          | Path                            | 說明                                                 |
-| --------------- | ------------------------------- | ---------------------------------------------------- |
-| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`） |
-| `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                   |
-| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機／自訂端點的名稱（`ollama`、`llama.cpp`，或經 `POST /v1/provider/compat/key` 記錄的名稱） |
-| `GET` `POST`    | `/v1/model`               | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
-| `GET`           | `/v1/model/audio`         | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。 |
-| `GET` `POST`    | `/v1/model/priority`      | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線；`pass` 模型不論排在哪，執行時都排在所有模型之後。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400 |
-| `POST`          | `/v1/model/tier`          | **local** — `{model, tier}` 設定單一模型的 tier（`S` `A` `B` `C` `pass`）；`""` 清除。未註冊的模型或未知 tier 回 400 |
+| Method          | Path                            | 說明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`）                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機／自訂端點的名稱（`ollama`、`llama.cpp`，或經 `POST /v1/provider/compat/key` 記錄的名稱）                                                                                                                                                                                                                                                                                                  |
+| `GET` `POST`    | `/v1/model`                     | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
+| `GET`           | `/v1/model/audio`               | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `GET` `POST`    | `/v1/model/priority`            | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線；`pass` 模型不論排在哪，執行時都排在所有模型之後。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400                                                                                                                                                                                            |
+| `POST`          | `/v1/model/tier`                | **local** — `{model, tier}` 設定單一模型的 tier（`S` `A` `B` `C` `pass`）；`""` 清除。未註冊的模型或未知 tier 回 400                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **Session**
 
-| Method                | Path                                           | 說明                                                                                                                                                                                  |
-| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`                 | `/v1/sessions`                                 | 列出 session 與狀態                                                                                                                                                                   |
-| `GET`                 | `/v1/usage`                                    | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計；每個模型另帶 `elapsed_ms`（模型送出耗時合計）與 `output_tps`（每秒輸出 token，僅計有量到耗時的紀錄） |
-| `POST`                | `/v1/session`                                  | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                              |
-| `GET` `POST` `DELETE` | `/v1/session/:id`                              | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯，含 `elapsed_ms` 與 `output_tps`）；兩者預設關閉，因為 log 可能很大 |
-| `POST`                | `/v1/session/:id/event`                        | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                       |
-| `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 55 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 60 秒），視窗關閉或程序被砍的任務一分鐘內會重新出現 |
-| `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                              |
-| `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                              |
-| `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                            |
-| `POST`                | `/v1/session/:id/cancel/:task_hash`              | 以使用者取消的方式取消單一執行中的任務，並一併移除其 pending；該 id 不在本行程執行中時回 404                                                                                                                                |
-| `POST`                | `/v1/session/:id/confirm/:confirm_hash`          | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410 |
-| `POST`                | `/v1/session/:id/memory`                       | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清 |
-| `GET`                 | `/v1/session/:id/task/history`                 | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                 |
-| `GET`                 | `/v1/session/:id/task/:task_hash/history`      | **local** — 單一已完成任務的完整 action 紀錄，以 JSON 字串放在 `content`；該 hash 沒有紀錄時回 404                                                                                     |
+| Method                | Path                                        | 說明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`                 | `/v1/sessions`                              | 列出 session 與狀態                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `GET`                 | `/v1/usage`                                 | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計；每個模型另帶 `elapsed_ms`（模型送出耗時合計）與 `output_tps`（每秒輸出 token，僅計有量到耗時的紀錄）                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `POST`                | `/v1/session`                               | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `GET` `POST` `DELETE` | `/v1/session/:id`                           | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯，含 `elapsed_ms` 與 `output_tps`）；兩者預設關閉，因為 log 可能很大 |
+| `POST`                | `/v1/session/:id/event`                     | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 55 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 60 秒），視窗關閉或程序被砍的任務一分鐘內會重新出現                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `POST`                | `/v1/session/:id/task/:task_hash/resume`    | 回答待完成工作並恢復執行                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `DELETE`              | `/v1/session/:id/task/:task_hash`           | 直接捨棄待完成工作，不回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `POST`                | `/v1/session/:id/cancel/:task_hash`         | 以使用者取消的方式取消單一執行中的任務，並一併移除其 pending；該 id 不在本行程執行中時回 404                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `POST`                | `/v1/session/:id/confirm/:confirm_hash`     | 回覆等待中的工具確認：`{approve, remember?, allow_turn?, abort?, reason?, password?}`。核准受限路徑或 `pkg_manage` 呼叫須帶 `password`，且只接受本機來源（否則 403），系統密碼錯誤回 401；確認已處理或逾時回 410                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `POST`                | `/v1/session/:id/memory`                    | **local** — 對該 session 執行一項記憶操作，由 `action` 決定：`summary` 重建滾動摘要並回 `count`；`compact` 丟掉較舊的訊息並回 `removed`；`reset` 清空對話並回 `removed`，且必須帶 `mode`——`summary` 保留滾動摘要，`all` 連摘要一起清                                                                                                                                                                                                                                                                                                                                                                                          |
+| `GET`                 | `/v1/session/:id/task/history`              | **local** — 該 session 已完成的任務清單（新到舊），每列 `{task_hash, end_at, objective, model, reasoning}`；`?keyword=` 對 objective 與紀錄內容做過濾                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `GET`                 | `/v1/session/:id/task/:task_hash/history`   | **local** — 單一已完成任務的完整 action 紀錄，以 JSON 字串放在 `content`；該 hash 沒有紀錄時回 404                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 **Channel**
 
-| Method | Path                                         | 說明                                                                                                                                                                                                                                                    |
-| ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/v1/channel`                                | **local** — 所有 channel 讀取合在同一個物件：`telegram` 與 `discord` 各帶 `{enabled, username, has_token}`，`admin` 帶 `{channel, authorized, chats:[{value,type,id,name}]}`。`chats` 取自 `.telegram` / `.discord` 授權檔（先 tg 後 dc），`value` 可直接回送 `POST`；`authorized` 標示現行轉發目標是否仍在名單內（手打的 ID 會是 `false`） |
-| `POST` | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱 |
-| `GET` | `/v1/channel/:channel/chats` | **local** — `telegram` / `discord` 已完成驗證的對話,來源是 `.telegram` / `.discord` 授權檔。只有 bot 執行中才有意義,建議在 `status` 回報 `enabled` 後才取用 |
-| `DELETE` | `/v1/channel/:channel/chat` | **local** — `{id}`。從該授權檔移除一筆對話,該對話需重新驗證才能再與 bot 對話。id 不在名單上回 404 |
-| `POST` | `/v1/channel/admin`                          | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`。設定新對話驗證碼的轉發目標,空字串清除;`value` 必填(省略回 400,避免誤送空 body 靜默清除)。只驗格式,不檢查該 ID 是否已在授權名單——未授權時 `NotifyAdminCode` 會 log warning 並讓驗證碼留在日誌 |
+| Method   | Path                                         | 說明                                                                                                                                                                                                                                                                                                                                        |
+| -------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/v1/channel`                                | **local** — 所有 channel 讀取合在同一個物件：`telegram` 與 `discord` 各帶 `{enabled, username, has_token}`，`admin` 帶 `{channel, authorized, chats:[{value,type,id,name}]}`。`chats` 取自 `.telegram` / `.discord` 授權檔（先 tg 後 dc），`value` 可直接回送 `POST`；`authorized` 標示現行轉發目標是否仍在名單內（手打的 ID 會是 `false`） |
+| `POST`   | `/v1/channel/telegram` `/v1/channel/discord` | **local** — `{action:"enable"\|"disable", token?}`。enable 只存 token 並切換設定 flag,刻意不做 TUI 那套 `GetMe` 驗證——daemon 既有的設定檔監看機制會自動重連 bot 並填回使用者名稱                                                                                                                                                            |
+| `GET`    | `/v1/channel/:channel/chats`                 | **local** — `telegram` / `discord` 已完成驗證的對話,來源是 `.telegram` / `.discord` 授權檔。只有 bot 執行中才有意義,建議在 `status` 回報 `enabled` 後才取用                                                                                                                                                                                 |
+| `DELETE` | `/v1/channel/:channel/chat`                  | **local** — `{id}`。從該授權檔移除一筆對話,該對話需重新驗證才能再與 bot 對話。id 不在名單上回 404                                                                                                                                                                                                                                           |
+| `POST`   | `/v1/channel/admin`                          | **local** — `{value:"tg@<chatID>"\|"dc@<channelID>"\|""}`。設定新對話驗證碼的轉發目標,空字串清除;`value` 必填(省略回 400,避免誤送空 body 靜默清除)。只驗格式,不檢查該 ID 是否已在授權名單——未授權時 `NotifyAdminCode` 會 log warning 並讓驗證碼留在日誌                                                                                     |
 
 **檔案與憑證**
 
@@ -365,112 +367,112 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 **Provider**
 
-| Method | Path                            | 說明                                   |
-| ------ | ------------------------------- | -------------------------------------- |
-| `GET`  | `/v1/providers`                 | **local** — 列出 provider 及其可用操作 |
-| `GET` | `/v1/providers/quota` | **local** — `codex`、`grok-oauth`、`copilot`、`ollama-cloud` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 10 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
-| `POST` | `/v1/provider/:provider/key`    | **local** — 設定 API key。`compat` 的 body 為 `{name, url, api_key?}`：網址記錄到 `compats`，有帶 key 時存為 `COMPAT_<NAME>_API_KEY` |
-| `GET`  | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程 |
-| `DELETE` | `/v1/provider/:provider/oauth` | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key` |
-| `GET`  | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。本機／自訂端點名稱（`ollama`、`llama.cpp` 或已記錄的名稱）會向該端點的 `GET /models` 查詢，端點無回應時回 502 |
+| Method   | Path                            | 說明                                                                                                                                                                                                                                                                                                                                                                     |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`    | `/v1/providers`                 | **local** — 列出 provider 及其可用操作                                                                                                                                                                                                                                                                                                                                   |
+| `GET`    | `/v1/providers/quota`           | **local** — `codex`、`grok-oauth`、`copilot`、`ollama-cloud` 的剩餘額度（`kind:"percent"`）與 `openrouter`、`deepseek` 的剩餘餘額（`kind:"balance"`）,平行取得,上限 10 秒。成功的結果在 ToriiDB 快取 3 分鐘並帶 `cached:true`;`?refresh=1` 清除快取重讀,存入 API key 或完成 OAuth 也會自動清掉該 provider 的快取。沒有憑證的 provider 回 `error` 而非 `value`,且不進快取 |
+| `POST`   | `/v1/provider/:provider/key`    | **local** — 設定 API key。`compat` 的 body 為 `{name, url, api_key?}`：網址記錄到 `compats`，有帶 key 時存為 `COMPAT_<NAME>_API_KEY`                                                                                                                                                                                                                                     |
+| `GET`    | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程                                                                                                                                                                                                                                                                                                                                   |
+| `DELETE` | `/v1/provider/:provider/oauth`  | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key`                                                                                                                                                            |
+| `GET`    | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。本機／自訂端點名稱（`ollama`、`llama.cpp` 或已記錄的名稱）會向該端點的 `GET /models` 查詢，端點無回應時回 502                                                                                                                                                                                                                      |
 
 **MCP**
 
-| Method       | Path                     | 說明                                                                                                                                                                                                                        |
-| ------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET` `POST` | `/v1/mcp`                | **local** — 列出／新增 MCP server。`GET` 另回 `oauth: {name: bool}`,標示各 HTTP server 是否已持有 token                                                                                                                     |
-| `POST`       | `/v1/mcp/remove`         | **local** — 移除 MCP server                                                                                                                                                                                                 |
-| `GET`        | `/v1/mcp/status`         | **local** — 各 server 連線狀態                                                                                                                                                                                              |
-| `POST`       | `/v1/mcp/reconnect`      | **local** — 重連全部 MCP client 並重新註冊工具                                                                                                                                                                              |
+| Method       | Path                     | 說明                                                                                                                                                                                                                            |
+| ------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET` `POST` | `/v1/mcp`                | **local** — 列出／新增 MCP server。`GET` 另回 `oauth: {name: bool}`,標示各 HTTP server 是否已持有 token                                                                                                                         |
+| `POST`       | `/v1/mcp/remove`         | **local** — 移除 MCP server                                                                                                                                                                                                     |
+| `GET`        | `/v1/mcp/status`         | **local** — 各 server 連線狀態                                                                                                                                                                                                  |
+| `POST`       | `/v1/mcp/reconnect`      | **local** — 重連全部 MCP client 並重新註冊工具                                                                                                                                                                                  |
 | `GET`        | `/v1/mcp/oauth?name=X`   | **local** — 單一 HTTP MCP server 的 SSE OAuth 登入,與 `/v1/provider/:provider/oauth` 同形狀:先送 `{"url":...}` 供瀏覽器開啟,結束送 `{"done":true,"ok":...}`(登入後重連失敗時附 `reconnect_error`)。10 分鐘逾時,客戶端斷線即中止 |
-| `POST`       | `/v1/mcp/oauth/callback` | **local** — `{name, url}`。瀏覽器連不到 daemon 的 `localhost:17988` loopback listener 時,把 redirect URL 貼回來,code 由 query 取出。該 server 沒有等待中的登入回 400                                                        |
-| `POST`       | `/v1/mcp/oauth/client`   | **local** — `{name, client_id, client_secret?, redirect_uri?}`。給拒絕動態註冊的 server 用的預先註冊 client;`redirect_uri` 預設 `http://localhost:17988/callback`,須與 provider console 完全一致。寫入前先清掉既有 token    |
-| `DELETE`     | `/v1/mcp/oauth`          | **local** — `{name}`。同時清除該 server 的 token 與 client 註冊                                                                                                                                                             |
+| `POST`       | `/v1/mcp/oauth/callback` | **local** — `{name, url}`。瀏覽器連不到 daemon 的 `localhost:17988` loopback listener 時,把 redirect URL 貼回來,code 由 query 取出。該 server 沒有等待中的登入回 400                                                            |
+| `POST`       | `/v1/mcp/oauth/client`   | **local** — `{name, client_id, client_secret?, redirect_uri?}`。給拒絕動態註冊的 server 用的預先註冊 client;`redirect_uri` 預設 `http://localhost:17988/callback`,須與 provider console 完全一致。寫入前先清掉既有 token        |
+| `DELETE`     | `/v1/mcp/oauth`          | **local** — `{name}`。同時清除該 server 的 token 與 client 註冊                                                                                                                                                                 |
 
 **Rule、筆記與 Skill**
 
-| Method                  | Path             | 說明                                                                                                  |
-| ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `GET`                   | `/v1/rules`      | **local** — 列出 `prompts/` 底下的 session prompt rule（`.md`）                                       |
-| `GET`                   | `/v1/rule/*name` | **local** — 讀取單一 rule                                                                             |
-| `POST` `PATCH` `DELETE` | `/v1/rule`       | **local** — 建立／更新（可帶 `rename`）／刪除 rule                                                    |
-| `GET`                   | `/v1/notes`      | **local** — 列出 operator 筆記（名稱、大小、`updated_at`）,資料存於 history.db 的 note 表而非檔案系統 |
-| `GET`                   | `/v1/note/*name` | **local** — 讀取單筆筆記                                                                              |
-| `POST` `PATCH` `DELETE` | `/v1/note`       | **local** — 建立／更新／刪除筆記,未給名稱時以首行為名                                                 |
-| `GET`                   | `/v1/skills`     | **local** — 列出已安裝的 skill                                                                        |
-| `GET`                   | `/v1/skill/*name` | **local** — 讀取單一已安裝的 skill                                                                   |
-| `DELETE`                | `/v1/skill`      | **local** — 移除單一已安裝的 skill                                                                    |
+| Method                  | Path              | 說明                                                                                                  |
+| ----------------------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET`                   | `/v1/rules`       | **local** — 列出 `prompts/` 底下的 session prompt rule（`.md`）                                       |
+| `GET`                   | `/v1/rule/*name`  | **local** — 讀取單一 rule                                                                             |
+| `POST` `PATCH` `DELETE` | `/v1/rule`        | **local** — 建立／更新（可帶 `rename`）／刪除 rule                                                    |
+| `GET`                   | `/v1/notes`       | **local** — 列出 operator 筆記（名稱、大小、`updated_at`）,資料存於 history.db 的 note 表而非檔案系統 |
+| `GET`                   | `/v1/note/*name`  | **local** — 讀取單筆筆記                                                                              |
+| `POST` `PATCH` `DELETE` | `/v1/note`        | **local** — 建立／更新／刪除筆記,未給名稱時以首行為名                                                 |
+| `GET`                   | `/v1/skills`      | **local** — 列出已安裝的 skill                                                                        |
+| `GET`                   | `/v1/skill/*name` | **local** — 讀取單一已安裝的 skill                                                                    |
+| `DELETE`                | `/v1/skill`       | **local** — 移除單一已安裝的 skill                                                                    |
 
 **排程與自動化**
 
-| Method         | Path                  | 說明                                             |
-| -------------- | --------------------- | ------------------------------------------------ |
-| `GET`          | `/v1/schedule`        | **local** — 以單一 `schedules` 陣列列出 cron 與單次任務，每筆帶 `type=cron\|task`；`?type=` 可只取其一 |
-| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，回 `name`／`body`（SKILL.md 原文，含 frontmatter）／`files`（該資料夾內的其他檔案） |
+| Method         | Path                  | 說明                                                                                                                                                                                            |
+| -------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`          | `/v1/schedule`        | **local** — 以單一 `schedules` 陣列列出 cron 與單次任務，每筆帶 `type=cron\|task`；`?type=` 可只取其一                                                                                          |
+| `GET`          | `/v1/schedule/*skill` | **local** — 讀取 scheduler skill，回 `name`／`body`（SKILL.md 原文，含 frontmatter）／`files`（該資料夾內的其他檔案）                                                                           |
 | `POST` `PATCH` | `/v1/schedule`        | **local** — 由 `name`／`content` 建立／更新 scheduler skill（`content` 自帶 frontmatter 則原樣寫入，否則由後端組出）並整組重綁到 `type=cron\|task`；切換 type 時同步刪除該 skill 在另一邊的排程 |
-| `DELETE`       | `/v1/schedule`        | **local** — 刪除該 skill 的排程（帶 `type` 只刪一邊，不帶則兩邊都刪）；刪除後若無其他綁定則將 skill 移入 .Trash |
-| `POST`         | `/v1/schedule/run`    | **local** — 立即觸發排程（`202 Accepted`） |
+| `DELETE`       | `/v1/schedule`        | **local** — 刪除該 skill 的排程（帶 `type` 只刪一邊，不帶則兩邊都刪）；刪除後若無其他綁定則將 skill 移入 .Trash                                                                                 |
+| `POST`         | `/v1/schedule/run`    | **local** — 立即觸發排程（`202 Accepted`）                                                                                                                                                      |
 
 **白名單**
 
-| Method       | Path                  | 說明                                                                                                                                                                                                                                         |
-| ------------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET` `POST` | `/v1/allowlist`       | **local** — 兩份白名單合在同一個物件，鍵為 `skill` 與 `tool`。`GET` 以 `?scope=global\|project`（`project` 需另帶 `?work_dir=`）決定 skill 區塊，`?prefix=` 縮小 tool 區塊。`POST` 收 `{skill: {name, scope?, work_dir?}}` 切換單一 skill，與／或 `{tool: {prefix, entries}}` 只替換該前綴底下的免確認項目（與 TUI `/mcp` → tools 同一支），其餘規則不受影響；每個 entry 必須以 `prefix` 開頭，出現 `prefix*` 時收斂成單一項。未帶的區塊不動 |
+| Method       | Path            | 說明                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET` `POST` | `/v1/allowlist` | **local** — 兩份白名單合在同一個物件，鍵為 `skill` 與 `tool`。`GET` 以 `?scope=global\|project`（`project` 需另帶 `?work_dir=`）決定 skill 區塊，`?prefix=` 縮小 tool 區塊。`POST` 收 `{skill: {name, scope?, work_dir?}}` 切換單一 skill，與／或 `{tool: {prefix, entries}}` 只替換該前綴底下的免確認項目（與 TUI `/mcp` → tools 同一支），其餘規則不受影響；每個 entry 必須以 `prefix` 開頭，出現 `prefix*` 時收斂成單一項。未帶的區塊不動 |
 
 **設定**
 
-| Method       | Path                  | 說明                                                                                                                                                              |
-| ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET` `POST` | `/v1/config/startup`  | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效。兩個動詞都回 `enabled`（設定值，每次變更時記錄於 `config.json` 的 `startup` 鍵）與 `installed`（unit 檔目前是否真的存在）——unit 被 Agenvoy 以外的方式移除時兩者會不一致 |
-| `GET` `POST` | `/v1/config/system` | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型 |
-| `GET` | `/v1/config/reply_lang` | **local** — 唯讀取得已設定的回應語言，形狀直接供 prompt 使用。回 `{reply_lang, name, directive}`：`reply_lang` 為儲存的代碼、`name` 為人類可讀語言名稱（`auto` 時為空）、`directive` 為現成的指示句並含地區用詞注記（`auto` 時為空，代表跟隨每則訊息的語言）。設定值請走 `POST /v1/config/system` |
-| `GET` `POST` | `/v1/config/output_dir` | **local** — 讀取／設定 `output_dir`。`GET` 回 `{output_dir, resolved}`，`resolved` 為實際使用中的資料夾。`POST` `{output_dir}` 會展開 `~`、建立資料夾、寫入 `config.json` 並立即套用到執行中的 daemon，回 `{ok, output_dir, resolved}`；空字串恢復預設值，建立不了的路徑回 400 |
-| `GET` `POST` | `/v1/system/update` | **local** — `GET` 回 `{version, latest, update_available}`，`latest` 為 GitHub latest release 轉址指向的 tag，兩者不同即 `update_available` 為 true；取不到 release 時回 502 `{version, error}`。`POST` 開啟終端機執行 `agen update`，回 202 `{status:"opened"}`：macOS 透過 `osascript` 開 Terminal.app，WSL 以 `cmd.exe start wsl.exe` 進入目前的 distro，Linux 使用第一個可用的終端機模擬器（需要 `DISPLAY` 或 `WAYLAND_DISPLAY`，daemon 環境缺少時從 systemd user environment 取得）。更新失敗時視窗保持開啟直到按 Enter。無法開啟終端機時回 501，請手動執行 `agen update` |
+| Method       | Path                    | 說明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET` `POST` | `/v1/config/startup`    | **local** — 讀取／設定登入時啟動。`POST` `{enable}` 寫入或刪除 launchd agent（macOS）／systemd user unit（Linux）；不會啟動或停止當前 daemon，下次登入才生效。兩個動詞都回 `enabled`（設定值，每次變更時記錄於 `config.json` 的 `startup` 鍵）與 `installed`（unit 檔目前是否真的存在）——unit 被 Agenvoy 以外的方式移除時兩者會不一致                                                                                                                                                                                                                                          |
+| `GET` `POST` | `/v1/config/system`     | **local** — 讀取／設定 System 分頁。`GET` 回 `{reply_lang, languages:[{code,label}]}`，`languages` 為 select 選項且 `auto` 排第一。`POST` `{reply_lang}` 會將已知代碼正規化、寫入 `config.json` 並立即套用到執行中的 daemon；空字串等同 `auto`，未知值原樣保留並當作語言名稱交給模型                                                                                                                                                                                                                                                                                           |
+| `GET`        | `/v1/config/reply_lang` | **local** — 唯讀取得已設定的回應語言，形狀直接供 prompt 使用。回 `{reply_lang, name, directive}`：`reply_lang` 為儲存的代碼、`name` 為人類可讀語言名稱（`auto` 時為空）、`directive` 為現成的指示句並含地區用詞注記（`auto` 時為空，代表跟隨每則訊息的語言）。設定值請走 `POST /v1/config/system`                                                                                                                                                                                                                                                                              |
+| `GET` `POST` | `/v1/config/output_dir` | **local** — 讀取／設定 `output_dir`。`GET` 回 `{output_dir, resolved}`，`resolved` 為實際使用中的資料夾。`POST` `{output_dir}` 會展開 `~`、建立資料夾、寫入 `config.json` 並立即套用到執行中的 daemon，回 `{ok, output_dir, resolved}`；空字串恢復預設值，建立不了的路徑回 400                                                                                                                                                                                                                                                                                                 |
+| `GET` `POST` | `/v1/system/update`     | **local** — `GET` 回 `{version, latest, update_available}`，`latest` 為 GitHub latest release 轉址指向的 tag，兩者不同即 `update_available` 為 true；取不到 release 時回 502 `{version, error}`。`POST` 開啟終端機執行 `agen update`，回 202 `{status:"opened"}`：macOS 透過 `osascript` 開 Terminal.app，WSL 以 `cmd.exe start wsl.exe` 進入目前的 distro，Linux 使用第一個可用的終端機模擬器（需要 `DISPLAY` 或 `WAYLAND_DISPLAY`，daemon 環境缺少時從 systemd user environment 取得）。更新失敗時視窗保持開啟直到按 Enter。無法開啟終端機時回 501，請手動執行 `agen update` |
 
 **查閱**
 
-| Method | Path              | 說明                                                                     |
-| ------ | ----------------- | ------------------------------------------------------------------------ |
-| `GET`  | `/v1/torii/error` | **local** — 查閱工具錯誤記憶（Web 的 **Lessons** 分頁）。未帶 `keyword` 時列出紀錄，可用 `tool` 縮小範圍（`limit` 預設 50）；帶 `keyword` 時走與 agent 相同的搜尋（`limit` 預設 16） |
-| `PATCH` | `/v1/torii/error` | **local** — `{id, action}`。改寫單筆 lesson 的 action；id 已不存在時回 404 |
-| `GET`  | `/v1/daemon`      | **local** — 近 28 天的 `daemon.log`，放在 `content`；可用 `from`／`to`（`yyyy-MM-dd-HH-mm`）與 `keyword` 過濾 |
+| Method  | Path              | 說明                                                                                                                                                                                 |
+| ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`   | `/v1/torii/error` | **local** — 查閱工具錯誤記憶（Web 的 **Lessons** 分頁）。未帶 `keyword` 時列出紀錄，可用 `tool` 縮小範圍（`limit` 預設 50）；帶 `keyword` 時走與 agent 相同的搜尋（`limit` 預設 16） |
+| `PATCH` | `/v1/torii/error` | **local** — `{id, action}`。改寫單筆 lesson 的 action；id 已不存在時回 404                                                                                                           |
+| `GET`   | `/v1/daemon`      | **local** — 近 28 天的 `daemon.log`，放在 `content`；可用 `from`／`to`（`yyyy-MM-dd-HH-mm`）與 `keyword` 過濾                                                                        |
 
 ## 工具參考
 
 註冊表有 27 個工具固定可用，另有 4 個在前置條件成立前會從執行中排除。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
 
-| 分類       | 工具                              | 用途                                                                                   |
-| ---------- | --------------------------------- | -------------------------------------------------------------------------------------- |
-| 工具系統   | `find_tools`                      | 發現既有工具並載入其 schema（`mode=search\|list`）                                     |
-|            | `edit_tool`                       | 建立、修正或丟棄工具定義（`mode=write\|patch\|remove`）                                |
-|            | `test_tool`                       | 上線前在沙箱內執行 script 工具                                                         |
-| Skill      | `run_skill`                       | 載入具名 skill 的參考素材                                                              |
-|            | `edit_skill`                      | 編寫 skills 目錄底下的檔案（`mode=write\|patch\|remove`）                              |
-| 排程       | `schedules`                       | 查詢、改期或取消定時與週期任務（`mode=list\|patch\|remove\|write`）                    |
+| 分類       | 工具                              | 用途                                                                                                                                                                                                     |
+| ---------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 工具系統   | `find_tools`                      | 發現既有工具並載入其 schema（`mode=search\|list`）                                                                                                                                                       |
+|            | `edit_tool`                       | 建立、修正或丟棄工具定義（`mode=write\|patch\|remove`）                                                                                                                                                  |
+|            | `test_tool`                       | 上線前在沙箱內執行 script 工具                                                                                                                                                                           |
+| Skill      | `run_skill`                       | 載入具名 skill 的參考素材                                                                                                                                                                                |
+|            | `edit_skill`                      | 編寫 skills 目錄底下的檔案（`mode=write\|patch\|remove`）                                                                                                                                                |
+| 排程       | `schedules`                       | 查詢、改期或取消定時與週期任務（`mode=list\|patch\|remove\|write`）                                                                                                                                      |
 | 檔案       | `find_files`                      | 以目錄、檔名樣式或內容定位（`mode=list\|glob\|search`）；search 以 `offset`／`limit` 分頁（每頁 256），回傳符合的路徑與次數（`output=files`）或帶行號的符合行，可加 `context` 前後文（`output=content`） |
-|            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片；預設 2048 行，文字檔被截斷時結尾會標示下一個 `offset` |
-|            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                     |
-|            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                      |
-|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容 |
-| 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位並等待結束；watcher（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在啟動前即拒絕 |
-|            | `open_file`                       | 以系統預設應用開啟檔案                                                                 |
-|            | `download_file`                   | 下載二進位資產至磁碟                                                                   |
-|            | `pkg_manage`                      | 驅動 Linux 套件管理器（install／remove／update／upgrade／search／info）；僅 Linux，全通道 |
-| Agent 協調 | `subagents`                       | 將子任務委派到獨立 session（`mode=invoke\|list`）                                      |
-|            | `write_todo`                      | 使用者即時看得到的任務清單                                                             |
-|            | `ask_user`                        | 暫停提問，回答後自動續跑                                                               |
-| 網路       | `search_web`                      | DuckDuckGo 結果與 Google News 標題一次取得                                             |
-|            | `fetch_page`                      | 取得完整頁面內容（markdown／html／json）                                               |
-|            | `http_request`                    | 原始 HTTP 呼叫，含 multipart 上傳                                                      |
-| 狀態       | `chat_history`                    | 本 session 的執行紀錄與對話（`mode=list\|read\|search`）                               |
-|            | `error_history`                   | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`）                            |
-|            | `find_note`                       | 操作者自己寫的筆記，存於 SQLite（`mode=search\|list\|read`）；search 與 list 只回名稱  |
-|            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                            |
-| 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                   |
-|            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                |
-| 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                      |
-|            | `generate_audio`                  | 文字轉語音並存檔——未選 TTS 模型時排除                                                  |
-|            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                 |
+|            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片；預設 2048 行，文字檔被截斷時結尾會標示下一個 `offset`                                                                                                         |
+|            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                                                                                                                                       |
+|            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                                                                                                                                        |
+|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容                                                           |
+| 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位並等待結束；watcher（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在啟動前即拒絕                                      |
+|            | `open_file`                       | 以系統預設應用開啟檔案                                                                                                                                                                                   |
+|            | `download_file`                   | 下載二進位資產至磁碟                                                                                                                                                                                     |
+|            | `pkg_manage`                      | 驅動 Linux 套件管理器（install／remove／update／upgrade／search／info）；僅 Linux，全通道                                                                                                                |
+| Agent 協調 | `subagents`                       | 將子任務委派到獨立 session（`mode=invoke\|list`）                                                                                                                                                        |
+|            | `write_todo`                      | 使用者即時看得到的任務清單                                                                                                                                                                               |
+|            | `ask_user`                        | 暫停提問，回答後自動續跑                                                                                                                                                                                 |
+| 網路       | `search_web`                      | DuckDuckGo 結果與 Google News 標題一次取得                                                                                                                                                               |
+|            | `fetch_page`                      | 取得完整頁面內容（markdown／html／json）                                                                                                                                                                 |
+|            | `http_request`                    | 原始 HTTP 呼叫，含 multipart 上傳                                                                                                                                                                        |
+| 狀態       | `chat_history`                    | 本 session 的執行紀錄與對話（`mode=list\|read\|search`）                                                                                                                                                 |
+|            | `error_history`                   | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`）                                                                                                                                              |
+|            | `find_note`                       | 操作者自己寫的筆記，存於 SQLite（`mode=search\|list\|read`）；search 與 list 只回名稱                                                                                                                    |
+|            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                                                                                                                                              |
+| 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                                                                                                                                     |
+|            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                                                                                                                                  |
+| 條件註冊   | `generate_image`                  | 文字生成圖片並存檔——image generator 為 off 時排除                                                                                                                                                        |
+|            | `generate_audio`                  | 文字轉語音並存檔——未選 TTS 模型時排除                                                                                                                                                                    |
+|            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                                                                                                                                   |
 
 15 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_report`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
 

@@ -90,16 +90,24 @@ async function systemUpdateInfo() {
   }
 }
 
-function renderUpdateEntry(available) {
+function renderUpdateEntry(available, latest) {
   const entry = $("#left-tab-update");
-  if (entry) {
-    entry.hidden = !available;
+  if (!entry) {
+    return;
   }
+
+  entry.hidden = !available;
+  const label = latest ? `Update (${latest})` : "Update";
+  const text = entry.querySelector("p");
+  if (text) {
+    text.textContent = label;
+  }
+  entry.setAttribute("name", label);
 }
 
 async function checkUpdate() {
   const detail = await systemUpdateInfo();
-  renderUpdateEntry(detail.ok && detail.update_available === true);
+  renderUpdateEntry(detail.ok && detail.update_available === true, detail.latest);
 }
 
 function watchUpdate() {
@@ -117,24 +125,26 @@ async function renderSystemVersion() {
     return;
   }
 
-  label.textContent = "";
-  button.hidden = true;
-  if (release) {
-    release.hidden = true;
-  }
-
   const detail = await systemUpdateInfo();
   if (!detail.ok) {
     label.textContent = `${detail.version || "unknown"} (latest unavailable)`;
+    button.hidden = true;
+    if (release) {
+      release.hidden = true;
+    }
     return;
   }
-  label.textContent = `${detail.version} (${detail.latest})`;
+  label.textContent = detail.version;
+  const title = $("#system-update-title");
+  if (title && detail.latest) {
+    title.textContent = `Update (${detail.latest})`;
+  }
   button.hidden = !detail.update_available;
   if (release && detail.latest) {
     release.href = RELEASE_TAG_URL + encodeURIComponent(detail.latest);
     release.hidden = false;
   }
-  renderUpdateEntry(detail.update_available === true);
+  renderUpdateEntry(detail.update_available === true, detail.latest);
 }
 
 async function outputDirConfig() {

@@ -6,10 +6,7 @@ import (
 	"time"
 )
 
-const (
-	keepPerPath = 32
-	keepFor     = 7 * 24 * time.Hour
-)
+const keepPerPath = 32
 
 func insert(ctx context.Context, c Change, meta Meta) error {
 	var content any
@@ -29,14 +26,7 @@ func insert(ctx context.Context, c Change, meta Meta) error {
 	INSERT INTO file_history
 	(dir, name, action, content, hash, size, truncated, trash_path, session_id, task_id, tool, changed_at)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	ON CONFLICT(dir, name, changed_at, task_id, session_id) DO UPDATE SET
-		action     = excluded.action,
-		content    = excluded.content,
-		hash       = excluded.hash,
-		size       = excluded.size,
-		truncated  = excluded.truncated,
-		trash_path = excluded.trash_path,
-		tool       = excluded.tool
+	ON CONFLICT(dir, name, task_id, session_id) WHERE task_id != '' DO NOTHING
 	`,
 		c.dir, c.name, c.action, content, c.hash, c.size, truncated, trashPath,
 		meta.SessionID, meta.TaskID, meta.Tool, time.Now().Truncate(time.Second).UnixNano(),
@@ -56,12 +46,12 @@ func PruneFile(ctx context.Context) error {
 	DELETE FROM file_history
 	WHERE id IN (
 		SELECT id FROM (
-			SELECT id, changed_at,
+			SELECT id,
 				ROW_NUMBER() OVER (PARTITION BY dir, name ORDER BY changed_at DESC, id DESC) AS seq
 			FROM file_history
 		)
-		WHERE seq > ? AND changed_at < ?
-	)`, keepPerPath, time.Now().Add(-keepFor).UnixNano()); err != nil {
+		WHERE seq > ?
+	)`, keepPerPath); err != nil {
 		return fmt.Errorf("sql.DB ExecContext [DELETE file_history]: %w", err)
 	}
 	return nil

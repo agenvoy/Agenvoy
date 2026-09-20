@@ -116,6 +116,7 @@ func Record(ctx context.Context, c Change, meta Meta) error {
 	if conn == nil || c.action == "" {
 		return nil
 	}
+	c = rememberOrigin(meta.TaskID, c)
 	if c.action == ActionModify && c.hash != "" && c.hash == latestModifyHash(ctx, c.dir, c.name) {
 		return nil
 	}
