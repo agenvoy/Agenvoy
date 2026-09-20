@@ -354,7 +354,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         bindSelectPicker();
         bindFileLink();
         bindInputDrop();
-        bindChatMenu();
         renderChatList();
 
         if (params.page === "chat") {
