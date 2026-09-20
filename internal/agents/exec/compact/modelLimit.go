@@ -18,7 +18,8 @@ const (
 )
 
 type modelLimit struct {
-	In int `json:"in"`
+	In  int `json:"in"`
+	Out int `json:"out"`
 }
 
 var (
@@ -100,6 +101,23 @@ func Warm(ctx context.Context) {
 	limitDic = dic
 	limitAt = time.Now()
 	limitMu.Unlock()
+}
+
+func Window(ctx context.Context, modelName string) (int, int, bool) {
+	Warm(ctx)
+
+	vendor, model := limitPair(modelName)
+	if vendor == "" || model == "" {
+		return 0, 0, false
+	}
+
+	limitMu.RLock()
+	defer limitMu.RUnlock()
+	limit, ok := limitDic[vendor][model]
+	if !ok || (limit.In <= 0 && limit.Out <= 0) {
+		return 0, 0, false
+	}
+	return limit.In, limit.Out, true
 }
 
 func lookupLimit(modelName string) (int, bool) {

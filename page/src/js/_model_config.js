@@ -266,7 +266,9 @@ async function probeProvider(prefix) {
   if (result.aborted) {
     return { aborted: true };
   }
-  providerProbe[prefix] = result.error ? { ok: false, error: result.error } : { ok: true, models: result };
+  providerProbe[prefix] = result.error
+    ? { ok: false, error: result.error }
+    : { ok: true, models: result.models, windows: result.windows };
   return providerProbe[prefix];
 }
 
@@ -897,7 +899,8 @@ async function providerModelList(prefix) {
       signal: controller.signal,
     });
     if (response.ok) {
-      return (await response.json()).models || [];
+      const body = await response.json();
+      return { models: body.models || [], windows: body.windows || {} };
     }
     const detail = await response.json().catch(() => ({}));
     return { error: detail.error || `HTTP ${response.status}` };
@@ -932,11 +935,40 @@ async function saveProviderModels(prefix, models) {
   renderModel();
 }
 
-function modelRow(label, checked, onToggle) {
+function tokenText(value) {
+  if (value >= 1000000) {
+    return `${Math.round(value / 1000000)}M`;
+  }
+  if (value >= 1000) {
+    return `${Math.round(value / 1000)}K`;
+  }
+  return String(value);
+}
+
+function windowText(window) {
+  if (!window) {
+    return "";
+  }
+  const parts = [];
+  if (window.in > 0) {
+    parts.push(tokenText(window.in));
+  }
+  if (window.out > 0) {
+    parts.push(tokenText(window.out));
+  }
+  return parts.join("/");
+}
+
+function modelRow(label, checked, onToggle, window) {
   const box = _("input", { type: "checkbox" });
   box.checked = checked;
   box.addEventListener("change", () => onToggle(box.checked));
-  return _("label.tool", [box, _("p", label)]);
+  const body = [box, _("p", label)];
+  const text = windowText(window);
+  if (text) {
+    body.push(_("span.window", text));
+  }
+  return _("label.tool", body);
 }
 
 async function renderProviderModels(prefix, registered) {
@@ -1009,10 +1041,15 @@ async function renderProviderModels(prefix, registered) {
 
   for (const name of names) {
     dom.models.appendChild(
-      modelRow(name, active.includes(name), (on) => {
-        const next = on ? active.concat([name]) : active.filter((item) => item !== name);
-        saveProviderModels(prefix, next);
-      }),
+      modelRow(
+        name,
+        active.includes(name),
+        (on) => {
+          const next = on ? active.concat([name]) : active.filter((item) => item !== name);
+          saveProviderModels(prefix, next);
+        },
+        (probe.windows || {})[name],
+      ),
     );
   }
 }

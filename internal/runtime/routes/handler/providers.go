@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -259,6 +260,18 @@ func ClearProviderOAuth() gin.HandlerFunc {
 	}
 }
 
+func modelWindows(c *gin.Context, prefix string, ids []string) map[string]gin.H {
+	dic := make(map[string]gin.H, len(ids))
+	for _, id := range ids {
+		in, out, ok := compact.Window(c.Request.Context(), prefix+"@"+id)
+		if !ok {
+			continue
+		}
+		dic[id] = gin.H{"in": in, "out": out}
+	}
+	return dic
+}
+
 func listModelsFor(c *gin.Context, credentialName string) {
 	if !probe.Supports(probe.Provider(credentialName)) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support model listing"})
@@ -269,7 +282,7 @@ func listModelsFor(c *gin.Context, credentialName string) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"models": ids})
+	c.JSON(http.StatusOK, gin.H{"models": ids, "windows": modelWindows(c, credentialName, ids)})
 }
 
 func ListProviderModels() gin.HandlerFunc {
@@ -281,7 +294,7 @@ func ListProviderModels() gin.HandlerFunc {
 				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"models": ids})
+			c.JSON(http.StatusOK, gin.H{"models": ids, "windows": modelWindows(c, prov, ids)})
 			return
 		}
 		listModelsFor(c, prov)
