@@ -644,6 +644,7 @@
               <div class="label">
                 <strong>Output Dir</strong>
                 <p>where generated files land</p>
+                <a id="system-output-open" @click="system_output_open">open dir</a>
               </div>
               <div class="row">
                 <input id="system-output" type="text" placeholder="~/Downloads" @keydown="system_output_keydown" />
@@ -654,6 +655,7 @@
               <div class="label">
                 <strong>Update</strong>
                 <p>opens a terminal to install the latest release</p>
+                <a id="system-release" target="_blank" rel="noreferrer" hidden>release notes</a>
               </div>
               <div class="row">
                 <span id="system-version"></span>

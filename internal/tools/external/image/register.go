@@ -53,7 +53,7 @@ Returns the saved path, not the image data.`,
 				},
 				"output_file": map[string]any{
 					"type":        "string",
-					"description": "Save path. Absolute is used as-is; relative is joined under the working directory. Extension is added from the returned mime type when omitted.",
+					"description": "Save path. Blank saves into the output directory; absolute is used as-is; relative is joined under the working directory. Extension is added from the returned mime type when omitted.",
 					"default":     "",
 				},
 			},

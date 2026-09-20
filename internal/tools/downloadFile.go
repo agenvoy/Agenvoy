@@ -37,7 +37,7 @@ JSON or an API response → http_request; a web page → fetch_page(save=true).`
 				},
 				"output_file": map[string]any{
 					"type":        "string",
-					"description": "Save path. Absolute path used as-is. Relative path joined under ~/.config/agenvoy/download/. Parent dir auto-created.",
+					"description": "Save path. Absolute path used as-is. Relative path joined under the output directory. Parent dir auto-created.",
 				},
 				"timeout": map[string]any{
 					"type":        "integer",
@@ -71,7 +71,7 @@ func handleDownloadFile(ctx context.Context, _ *toolTypes.Executor, args json.Ra
 		return "", fmt.Errorf("output_file is required")
 	}
 	if !filepath.IsAbs(out) {
-		out = filepath.Join(filesystem.DownloadDir, out)
+		out = filepath.Join(filesystem.OutputDir(), out)
 	}
 	if err := os.MkdirAll(filepath.Dir(out), 0755); err != nil {
 		return "", fmt.Errorf("MkdirAll: %w", err)

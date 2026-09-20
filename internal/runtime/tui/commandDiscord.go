@@ -11,7 +11,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -115,13 +115,13 @@ func disableDiscord() tea.Cmd {
 func verifyDiscord(token string) (string, error) {
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/discord New: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/discord New: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Start(ctx); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/discord Start: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/discord Start: %w", err)
 	}
 	username := client.Status().Username
 	_ = client.Close()

@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 )
 
 type telegramTransport struct {

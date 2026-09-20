@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -40,7 +40,7 @@ func New() (*Bot, error) {
 
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/discord New: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/discord New: %w", err)
 	}
 
 	bot := &Bot{client: client}
@@ -57,7 +57,7 @@ func New() (*Bot, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/discord Start: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/discord Start: %w", err)
 	}
 	bot.cancel = cancel
 	bot.listener = newPendingListener(bot)

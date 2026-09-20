@@ -91,10 +91,10 @@ func outputPath(req Request, mime string) string {
 	}
 
 	target := strings.TrimSpace(req.OutputFile)
-	switch {
-	case target == "":
-		target = "image-" + time.Now().Format("20060102-150405") + ext
-	case filepath.Ext(target) == "":
+	if target == "" {
+		return filepath.Join(filesystem.OutputDir(), "image-"+time.Now().Format("20060102-150405")+ext)
+	}
+	if filepath.Ext(target) == "" {
 		target += ext
 	}
 	if filepath.IsAbs(target) {
@@ -103,7 +103,7 @@ func outputPath(req Request, mime string) string {
 	if dir := strings.TrimSpace(req.WorkDir); dir != "" {
 		return filepath.Join(dir, target)
 	}
-	return filepath.Join(filesystem.DownloadDir, target)
+	return filepath.Join(filesystem.OutputDir(), target)
 }
 
 func readReference(path string) (string, string, error) {

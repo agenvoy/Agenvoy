@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 )
 
 const (
