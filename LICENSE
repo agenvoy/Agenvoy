@@ -659,3 +659,26 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+
+--------------------------------------------------------------------------------
+
+ADDITIONAL TERMS UNDER SECTION 7(b)
+
+As permitted by section 7(b) of the GNU Affero General Public License, the
+following requirement applies to this Program and to every work based on it:
+
+  You must preserve the Appropriate Legal Notices and the corresponding-source
+  link that this Program displays in its web interface, shown as the "License"
+  and "Source" entries under Settings > Other. Those entries carry the copyright
+  notice, the warranty disclaimer, the statement that the work is licensed under
+  AGPL-3.0, the means to view the license text, and the link through which users
+  interacting with the Program over a network obtain its Corresponding Source as
+  required by section 13.
+
+  The entries may be relocated or restyled, provided they remain a convenient
+  and prominently visible feature of the interface. They may not be removed,
+  hidden, disabled, or rendered inaccessible.
+
+A separate commercial license, obtained from the copyright holder, removes this
+requirement. See COMMERCIAL.md.

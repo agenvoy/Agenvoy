@@ -309,6 +309,8 @@ This project is dual-licensed.
 - **Open source** — [GNU Affero General Public License v3.0](LICENSE). You may use, modify and distribute it, provided derivative works and any network-accessible service built on it are released under the same license, source included.
 - **Commercial** — for use that cannot meet the AGPL-3.0 source-disclosure requirement, a commercial license is available. It covers rights to the software only; any work on the project requested from the developer is quoted and charged separately. See [COMMERCIAL.md](COMMERCIAL.md).
 
+Under section 7(b) of the AGPL-3.0, the **License** and **Source** entries under `Settings > Other` in the web interface must be preserved: they carry the copyright notice, the warranty disclaimer, the license statement, and the corresponding-source link that section 13 requires. They may be relocated or restyled while remaining prominently visible, but not removed or hidden. A commercial license removes this requirement.
+
 ## Author
 
 Just [open an issue](https://github.com/pardnchiu/agenvoy/issues/new) to share an idea.

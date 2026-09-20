@@ -24,6 +24,7 @@ The deciding question is AGPL-3.0 §13: if users interact with a modified versio
 - Use, modify and distribute Agenvoy without the AGPL-3.0 source-disclosure obligation
 - Embed it in closed-source products and hosted services
 - Keep your own modifications private
+- Remove the **License** and **Source** entries from the web interface, which the AGPL-3.0 section 7(b) additional terms otherwise require you to keep
 
 It does not transfer copyright, and it does not restrict anyone else's use of the AGPL-3.0 version.
 
