@@ -31,6 +31,14 @@
       font-weight: 300;
       color: var(--gray-3);
     }
+
+    > a {
+      align-self: flex-start;
+      font-size: small;
+      color: var(--accent);
+      text-decoration: none;
+      white-space: nowrap;
+    }
   }
 
   > select {

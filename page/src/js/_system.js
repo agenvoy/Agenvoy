@@ -107,15 +107,21 @@ function watchUpdate() {
   setInterval(checkUpdate, UPDATE_INTERVAL);
 }
 
+const RELEASE_TAG_URL = "https://github.com/agenvoy/Agenvoy/releases/tag/";
+
 async function renderSystemVersion() {
   const label = $("#system-version");
   const button = $("#system-update");
+  const release = $("#system-release");
   if (!label || !button) {
     return;
   }
 
   label.textContent = "";
   button.hidden = true;
+  if (release) {
+    release.hidden = true;
+  }
 
   const detail = await systemUpdateInfo();
   if (!detail.ok) {
@@ -124,6 +130,10 @@ async function renderSystemVersion() {
   }
   label.textContent = `${detail.version} (${detail.latest})`;
   button.hidden = !detail.update_available;
+  if (release && detail.latest) {
+    release.href = RELEASE_TAG_URL + encodeURIComponent(detail.latest);
+    release.hidden = false;
+  }
   renderUpdateEntry(detail.update_available === true);
 }
 
