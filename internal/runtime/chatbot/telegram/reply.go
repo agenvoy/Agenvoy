@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 )
@@ -28,7 +28,7 @@ func (b *Bot) newReply(ctx context.Context, chatID int64, chatName, sessionID, r
 			id, _ := strconv.Atoi(replyTo)
 			wrapped := "<blockquote expandable>" + html.EscapeString(text) + "</blockquote>"
 			if err := b.client.SendStatus(ctx, chatID, id, wrapped, go_bot_telegram.WithStatusSendType(go_bot_telegram.TypeHTML)); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.SendStatus",
+				slog.Debug("github.com/pardnchiu/go-bot/core/telegram Bot.client.SendStatus",
 					slog.String("session", sessionID),
 					slog.String("chat", chatName),
 					slog.String("text", text),
@@ -37,7 +37,7 @@ func (b *Bot) newReply(ctx context.Context, chatID int64, chatName, sessionID, r
 		},
 		Finish: func() {
 			if err := b.client.FinishStatus(ctx, chatID); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/telegram Bot.client.FinishStatus",
+				slog.Debug("github.com/pardnchiu/go-bot/core/telegram Bot.client.FinishStatus",
 					slog.String("session", sessionID),
 					slog.String("chat", chatName),
 					slog.String("error", err.Error()))

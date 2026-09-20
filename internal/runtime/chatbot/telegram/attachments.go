@@ -6,16 +6,19 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 const attachmentSendTimeout = 10 * time.Minute
+
+var voiceExts = map[string]bool{".ogg": true, ".oga": true, ".opus": true}
 
 func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPaths, docPaths []string) {
 	if len(photoPaths) == 0 && len(docPaths) == 0 {
@@ -33,7 +36,7 @@ func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPa
 	client, err := go_bot_telegram.New(token,
 		go_bot_telegram.WithHTTPClient(&http.Client{Timeout: attachmentSendTimeout}))
 	if err != nil {
-		slog.Error("github.com/pardnchiu/go-bot/telegram New",
+		slog.Error("github.com/pardnchiu/go-bot/core/telegram New",
 			slog.String("chat", chatName),
 			slog.String("error", err.Error()))
 		return
@@ -46,7 +49,7 @@ func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPa
 		}
 		str := fmt.Sprintf("⚠️ %s failed (background upload)\n%s", label, body)
 		if _, err := client.Send(ctx, chatID, 0, str, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
-			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.Send (notify)",
+			slog.Error("github.com/pardnchiu/go-bot/core/telegram Bot.Send (notify)",
 				slog.String("label", label),
 				slog.String("error", err.Error()))
 		}
@@ -56,7 +59,7 @@ func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPa
 		end := start + 10
 		end = min(end, len(photoPaths))
 		if _, err := client.SendPhoto(ctx, chatID, photoPaths[start:end]); err != nil {
-			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.SendPhoto",
+			slog.Error("github.com/pardnchiu/go-bot/core/telegram Bot.SendPhoto",
 				slog.String("chat", chatName),
 				slog.Int("count", end-start),
 				slog.String("paths", strings.Join(photoPaths[start:end], ", ")),
@@ -65,8 +68,18 @@ func sendAttachments(ctx context.Context, chatID int64, chatName string, photoPa
 		}
 	}
 	for _, path := range docPaths {
+		if voiceExts[strings.ToLower(filepath.Ext(path))] {
+			if _, err := client.SendVoice(ctx, chatID, path); err != nil {
+				slog.Error("github.com/pardnchiu/go-bot/core/telegram Bot.SendVoice",
+					slog.String("chat", chatName),
+					slog.String("path", path),
+					slog.String("error", err.Error()))
+				notifyFailure("SendVoice", path, err.Error())
+			}
+			continue
+		}
 		if _, err := client.SendFile(ctx, chatID, go_bot_telegram.TypeDocument, path); err != nil {
-			slog.Error("github.com/pardnchiu/go-bot/telegram Bot.SendFile",
+			slog.Error("github.com/pardnchiu/go-bot/core/telegram Bot.SendFile",
 				slog.String("chat", chatName),
 				slog.String("path", path),
 				slog.String("error", err.Error()))
@@ -132,7 +145,7 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_telegram.Input) []ch
 	for _, item := range items {
 		path, err := b.client.Save(ctx, item.fileID, dir)
 		if err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.Save",
+			slog.Warn("github.com/pardnchiu/go-bot/core/telegram Bot.Save",
 				slog.String("chat", chatName(in)),
 				slog.String("fileID", item.fileID),
 				slog.String("error", err.Error()))

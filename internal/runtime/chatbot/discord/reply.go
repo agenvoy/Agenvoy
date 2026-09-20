@@ -14,7 +14,7 @@ func (b *Bot) newReply(ctx context.Context, channelID, channelName, sessionID, r
 		ReplyTo:   replyTo,
 		Status: func(text string) {
 			if err := b.client.SendStatus(ctx, channelID, replyTo, text); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.SendStatus",
+				slog.Debug("github.com/pardnchiu/go-bot/core/discord Bot.client.SendStatus",
 					slog.String("session", sessionID),
 					slog.String("channel", channelName),
 					slog.String("text", text),
@@ -23,7 +23,7 @@ func (b *Bot) newReply(ctx context.Context, channelID, channelName, sessionID, r
 		},
 		Finish: func() {
 			if err := b.client.FinishStatus(ctx, channelID); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.FinishStatus",
+				slog.Debug("github.com/pardnchiu/go-bot/core/discord Bot.client.FinishStatus",
 					slog.String("session", sessionID),
 					slog.String("channel", channelName),
 					slog.String("error", err.Error()))
