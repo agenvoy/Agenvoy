@@ -305,7 +305,7 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 本專案採雙授權。
 
 - **開源授權** — [GNU Affero General Public License v3.0](../LICENSE)。可自由使用、修改與散布，但衍生作品與基於本專案提供的網路服務，須以相同授權釋出並提供原始碼。
-- **商業授權** — 無法滿足 AGPL-3.0 原始碼公開義務的使用情境，可洽詢商業授權，詳見 [COMMERCIAL.zh.md](./COMMERCIAL.zh.md)。
+- **商業授權** — 無法滿足 AGPL-3.0 原始碼公開義務的使用情境，可洽詢商業授權。僅涵蓋軟體本身的使用權利；任何委由開發者進行、與本專案有關的改動皆另行計價。詳見 [COMMERCIAL.zh.md](./COMMERCIAL.zh.md)。
 
 ## Author
 
