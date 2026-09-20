@@ -46,7 +46,15 @@ CREATE TABLE IF NOT EXISTS file_history (
     changed_at INTEGER NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_fh_unique ON file_history(dir, name, changed_at, task_id, session_id);
+DROP INDEX IF EXISTS idx_fh_unique;
+
+DELETE FROM file_history
+WHERE task_id != '' AND id NOT IN (
+    SELECT MIN(id) FROM file_history WHERE task_id != ''
+    GROUP BY dir, name, task_id, session_id
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fh_unique ON file_history(dir, name, task_id, session_id) WHERE task_id != '';
 
 CREATE INDEX IF NOT EXISTS idx_fh_path    ON file_history(dir, name, changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fh_dir     ON file_history(dir, changed_at DESC);
