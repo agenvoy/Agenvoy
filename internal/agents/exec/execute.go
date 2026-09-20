@@ -23,6 +23,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -271,6 +272,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
+		defer historyStore.ClearTaskOrigin(exec.PendingTask)
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
 		registerCancel(exec.PendingTask, execCancel)
 		defer unregisterCancel(exec.PendingTask)

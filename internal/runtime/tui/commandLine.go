@@ -11,7 +11,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	go_bot_line "github.com/pardnchiu/go-bot/line"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -141,13 +141,13 @@ func disableLine() tea.Cmd {
 func verifyLine(secret, token string) (string, error) {
 	client, err := go_bot_line.New(secret, token, "0")
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/line New: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/line New: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Start(ctx); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/line Start: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/line Start: %w", err)
 	}
 	name := client.Status().DisplayName
 	_ = client.Close()

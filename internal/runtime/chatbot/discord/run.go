@@ -9,7 +9,7 @@ import (
 
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -99,7 +99,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				return
 			}
 			if err := b.client.Delete(ctx, in.ChannelID, msgID); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/discord Bot.client.Delete",
+				slog.Debug("github.com/pardnchiu/go-bot/core/discord Bot.client.Delete",
 					slog.String("label", label),
 					slog.String("channel", channelName(in)),
 					slog.String("msg", msgID),
@@ -138,7 +138,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		exec.NotifyAdminCode(ctx, code, "Discord "+channelName(in))
 		prompt, err := b.client.SendInput(ctx, in.ChannelID, "", "Enter the 6-digit verification code printed in the daemon log.")
 		if err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/discord Bot.client.SendInput",
+			slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.client.SendInput",
 				slog.String("channel", channelName(in)),
 				slog.String("error", err.Error()))
 			return nil

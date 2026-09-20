@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	go_bot_line "github.com/pardnchiu/go-bot/line"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 )
 
 const (

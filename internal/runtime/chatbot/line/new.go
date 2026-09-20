@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	go_bot_line "github.com/pardnchiu/go-bot/line"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -36,7 +36,7 @@ func New() (*Bot, error) {
 
 	client, err := go_bot_line.New(secret, token, filesystem.LinePort)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/line New: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/line New: %w", err)
 	}
 
 	bot := &Bot{client: client, fileGroup: newFileGroupBuffer()}
@@ -66,7 +66,7 @@ func New() (*Bot, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/line Start: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/line Start: %w", err)
 	}
 	bot.cancel = cancel
 

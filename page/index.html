@@ -27,7 +27,7 @@
       <!---->
       <header>
         <img src="public/logo-min.svg" alt="Logo" />
-        <p>Agenvoy</p>
+        <a href="https://github.com/agenvoy/Agenvoy" target="_blank" rel="noreferrer">Agenvoy</a>
         <button type="button" @click="show_tab">
           <span class="material-symbols-outlined"> right_panel_close </span>
         </button>
@@ -659,6 +659,7 @@
               <div class="label">
                 <strong>Output Dir</strong>
                 <p>where generated files land</p>
+                <a id="system-output-open" @click="system_output_open">open dir</a>
               </div>
               <div class="row">
                 <input id="system-output" type="text" placeholder="~/Downloads" @keydown="system_output_keydown" />
@@ -667,8 +668,9 @@
             </div>
             <div class="card">
               <div class="label">
-                <strong>Update</strong>
+                <strong id="system-update-title">Update</strong>
                 <p>opens a terminal to install the latest release</p>
+                <a id="system-release" target="_blank" rel="noreferrer" hidden>release notes</a>
               </div>
               <div class="row">
                 <span id="system-version"></span>

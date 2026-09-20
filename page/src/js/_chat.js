@@ -124,39 +124,33 @@ async function renderChatList() {
   }
 }
 
-function rowMenuItem(icon, label, style, action) {
-  const props = { type: "button" };
+function rowActionItem(icon, label, style, action) {
+  const props = { type: "button", title: label, "aria-label": label };
   if (style) {
     props.class = style;
   }
 
-  const dom = _("button", props, [_("span.material-symbols-outlined", icon), _("p", label)]);
+  const dom = _("button", props, [_("span.material-symbols-outlined", icon)]);
   dom.addEventListener("click", function (e) {
     e.preventDefault();
     e.stopPropagation();
-    closeChatMenu();
     action();
   });
   return dom;
 }
 
-function rowMenu(entries) {
-  const menu = _("div.menu", entries);
-  menu.dataset.show = "0";
-
-  const more = _("button", { type: "button", class: "more" }, [_("span.material-symbols-outlined", "more_horiz")]);
-  more.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    openChatMenu(menu);
-  });
-
-  return [more, menu];
-}
-
 function pinListItem(sessionId, title) {
-  const body = [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title)];
-  body.push(...rowMenu([rowMenuItem("keep_off", "Unpin", "", () => removePinChat(sessionId))]));
+  const body = [
+    _("a", { href: getLink({ page: "chat", chat: sessionId }) }, title),
+    _("div.actions", [
+      rowActionItem("keep_off", "Unpin", "", () => removePinChat(sessionId)),
+      rowActionItem("delete", "Delete", "remove", function () {
+        if (confirm(`Delete "${title}"?`)) {
+          deleteChat(sessionId);
+        }
+      }),
+    ]),
+  ];
 
   return _(
     "div",
@@ -169,14 +163,14 @@ function pinListItem(sessionId, title) {
 }
 
 function chatListItem(sessionId, title) {
-  const entries = [
-    rowMenuItem("keep", "Pin", "", () => addPinChat(sessionId)),
-    rowMenuItem("delete", "Delete", "remove", function () {
+  const actions = _("div.actions", [
+    rowActionItem("keep", "Pin", "", () => addPinChat(sessionId)),
+    rowActionItem("delete", "Delete", "remove", function () {
       if (confirm(`Delete "${title}"?`)) {
         deleteChat(sessionId);
       }
     }),
-  ];
+  ]);
 
   return _(
     "div",
@@ -184,28 +178,8 @@ function chatListItem(sessionId, title) {
       "data-id": sessionId,
       "data-selected": sessionId === currentSessionId ? 1 : 0,
     },
-    [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title), ...rowMenu(entries)],
+    [_("a", { href: getLink({ page: "chat", chat: sessionId }) }, title), actions],
   );
-}
-
-function closeChatMenu() {
-  for (const dom of document.querySelectorAll('section.chats [data-show="1"]')) {
-    dom.dataset.show = "0";
-  }
-}
-
-function openChatMenu(menu) {
-  closeChatMenu();
-  menu.dataset.show = "1";
-}
-
-function bindChatMenu() {
-  document.addEventListener("click", closeChatMenu);
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      closeChatMenu();
-    }
-  });
 }
 
 async function deleteChat(sessionId) {

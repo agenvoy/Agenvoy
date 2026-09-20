@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -60,7 +60,7 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 	}
 	client, err := go_bot_telegram.New(token)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/telegram New",
+		slog.Warn("github.com/pardnchiu/go-bot/core/telegram New",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -76,7 +76,7 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 		}
 		for _, chunk := range chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(message)) {
 			if _, err := client.Send(ctx, chatID, 0, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/telegram Bot.Send",
+				slog.Warn("github.com/pardnchiu/go-bot/core/telegram Bot.Send",
 					slog.String("session", id),
 					slog.String("chat", chatName),
 					slog.String("error", err.Error()))

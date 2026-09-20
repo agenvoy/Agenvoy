@@ -12,7 +12,18 @@
   A permanent downstream fork that adds a LINE bot runtime — and, by design, is never merged back.
 </p>
 
-***
+<p align="center">
+<a href="https://trendshift.io/repositories/41899?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-41899" target="_blank" rel="noopener noreferrer">
+<img src="https://trendshift.io/api/badge/trendshift/repositories/41899/daily?language=Go" alt="agenvoy%2FAgenvoy | Trendshift" width="250" height="55"/>
+</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/pardnchiu/agenvoy/releases"><img src="https://img.shields.io/github/v/tag/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/pardnchiu/agenvoy?include_prereleases&style=for-the-badge" alt="License"></a>
+</p>
+
+---
 
 ## What this branch is
 
@@ -24,13 +35,13 @@ For the full product overview, feature comparison, install instructions, and too
 
 LINE's messaging platform (as exposed through [pardnchiu/go-bot/line](https://github.com/pardnchiu/go-bot)) has **no interactive UI primitives**. The mainline Agenvoy runtime depends on those primitives for core behaviour:
 
-| Capability the main runtime relies on | Telegram / Discord | LINE |
-|---|---|---|
-| Inline buttons / select menus / modals | ✅ | ❌ |
-| Tool-confirm gate (approve / reject each tool call) | ✅ interactive | ❌ |
-| `ask_user` (picker / multi-select / masked input) | ✅ | ❌ |
-| Live status message edit / delete | ✅ | ❌ |
-| Cross-channel send tools | ✅ | ❌ |
+| Capability the main runtime relies on               | Telegram / Discord | LINE |
+| --------------------------------------------------- | ------------------ | ---- |
+| Inline buttons / select menus / modals              | ✅                 | ❌   |
+| Tool-confirm gate (approve / reject each tool call) | ✅ interactive     | ❌   |
+| `ask_user` (picker / multi-select / masked input)   | ✅                 | ❌   |
+| Live status message edit / delete                   | ✅                 | ❌   |
+| Cross-channel send tools                            | ✅                 | ❌   |
 
 Because LINE can only do **Q&A in always-allow mode** (`AllowAll=true`, no pending listener, no confirm, no `ask_user`), this branch diverges from the mainline interaction model at the runtime level. Folding it into `develop` would mean either degrading the interactive channels to LINE's lowest common denominator or carrying a permanently special-cased path in the shared runtime. Neither is acceptable.
 
@@ -58,6 +69,6 @@ This project is dual-licensed.
 - **Open source** — [GNU Affero General Public License v3.0](LICENSE). You may use, modify and distribute it, provided derivative works and any network-accessible service built on it are released under the same license, source included.
 - **Commercial** — for use that cannot meet the AGPL-3.0 source-disclosure requirement, a commercial license is available. See [COMMERCIAL.md](COMMERCIAL.md).
 
-***
+---
 
 ©️ 2026 [邱敬幃 Pardn Chiu](https://www.linkedin.com/in/pardnchiu)

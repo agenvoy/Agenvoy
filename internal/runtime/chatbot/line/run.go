@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot"
-	go_bot_line "github.com/pardnchiu/go-bot/line"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -150,7 +150,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 			}
 			pending.Clear(target)
 			if _, err := b.client.Send(ctx, target, "verified, you can start the conversation."); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (verified)",
+				slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (verified)",
 					slog.String("source", target),
 					slog.String("error", err.Error()))
 			}
@@ -167,7 +167,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		exec.NotifyAdminCode(ctx, code, "LINE "+sourceName(in))
 		pending.Set(target, code, "")
 		if _, err := b.client.Send(ctx, target, "please enter the 6-digit verification code to enable the conversation."); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (verify prompt)",
+			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (verify prompt)",
 				slog.String("source", target),
 				slog.String("error", err.Error()))
 		}
@@ -177,7 +177,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	if hasAttachment {
 		if slices.ContainsFunc(attachInputs, inputHasVoice) && !audioTool.STTEnabled() {
 			if _, err := b.client.Send(ctx, target, "⚠️ no speech-to-text model selected · pick one with /model stt first."); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (voice disabled)",
+				slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (voice disabled)",
 					slog.String("source", target),
 					slog.String("error", err.Error()))
 			}
@@ -192,7 +192,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 			}
 			path, err := b.client.Save(ctx, ai.MessageID, filesystem.DownloadDir)
 			if err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Save",
+				slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Save",
 					slog.String("source", target),
 					slog.String("messageType", ai.MessageType),
 					slog.String("error", err.Error()))
@@ -213,7 +213,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 				slog.String("source", target),
 				slog.String("error", err.Error()))
 			if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ voice transcription failed\n%s", err.Error())); sendErr != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (transcribe failure)",
+				slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (transcribe failure)",
 					slog.String("source", target),
 					slog.String("error", sendErr.Error()))
 			}
@@ -241,7 +241,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 
 	if content == "" {
 		if _, err := b.client.Send(ctx, target, "⚠️ failed to receive the attachment."); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (attachment failure)",
+			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (attachment failure)",
 				slog.String("source", target),
 				slog.String("error", err.Error()))
 		}
@@ -267,7 +267,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	primary, fallbacks, err := exec.ResolveAgent(ctx, "", content, false, "", sessionID)
 	if err != nil {
 		if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send (ResolveAgent error reply)",
+			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (ResolveAgent error reply)",
 				slog.String("source", target),
 				slog.String("error", sendErr.Error()))
 		}
@@ -334,7 +334,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 
 	for _, part := range chunk(replyText) {
 		if _, err := b.client.Send(ctx, target, part); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send",
+			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send",
 				slog.String("session", sess.ID),
 				slog.String("source", target),
 				slog.String("error", err.Error()))

@@ -90,16 +90,24 @@ async function systemUpdateInfo() {
   }
 }
 
-function renderUpdateEntry(available) {
+function renderUpdateEntry(available, latest) {
   const entry = $("#left-tab-update");
-  if (entry) {
-    entry.hidden = !available;
+  if (!entry) {
+    return;
   }
+
+  entry.hidden = !available;
+  const label = latest ? `Update (${latest})` : "Update";
+  const text = entry.querySelector("p");
+  if (text) {
+    text.textContent = label;
+  }
+  entry.setAttribute("name", label);
 }
 
 async function checkUpdate() {
   const detail = await systemUpdateInfo();
-  renderUpdateEntry(detail.ok && detail.update_available === true);
+  renderUpdateEntry(detail.ok && detail.update_available === true, detail.latest);
 }
 
 function watchUpdate() {
@@ -107,24 +115,36 @@ function watchUpdate() {
   setInterval(checkUpdate, UPDATE_INTERVAL);
 }
 
+const RELEASE_TAG_URL = "https://github.com/agenvoy/Agenvoy/releases/tag/";
+
 async function renderSystemVersion() {
   const label = $("#system-version");
   const button = $("#system-update");
+  const release = $("#system-release");
   if (!label || !button) {
     return;
   }
 
-  label.textContent = "";
-  button.hidden = true;
-
   const detail = await systemUpdateInfo();
   if (!detail.ok) {
     label.textContent = `${detail.version || "unknown"} (latest unavailable)`;
+    button.hidden = true;
+    if (release) {
+      release.hidden = true;
+    }
     return;
   }
-  label.textContent = `${detail.version} (${detail.latest})`;
+  label.textContent = detail.version;
+  const title = $("#system-update-title");
+  if (title && detail.latest) {
+    title.textContent = `Update (${detail.latest})`;
+  }
   button.hidden = !detail.update_available;
-  renderUpdateEntry(detail.update_available === true);
+  if (release && detail.latest) {
+    release.href = RELEASE_TAG_URL + encodeURIComponent(detail.latest);
+    release.hidden = false;
+  }
+  renderUpdateEntry(detail.update_available === true, detail.latest);
 }
 
 async function outputDirConfig() {
@@ -137,6 +157,25 @@ async function outputDirConfig() {
     console.error("outputDirConfig", err);
   }
   return {};
+}
+
+async function openOutputDir() {
+  const dir = await outputDirConfig();
+  const path = (dir.resolved || dir.output_dir || "").trim();
+  if (!path) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/file/open?path=${encodeURIComponent(path)}`);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("openOutputDir", err);
+    alert(err.message || "failed");
+  }
 }
 
 async function saveSystemOutput() {

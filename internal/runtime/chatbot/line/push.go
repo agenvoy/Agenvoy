@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
-	go_bot_line "github.com/pardnchiu/go-bot/line"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -44,7 +44,7 @@ func PushLineResult(ctx context.Context, payload exec.PushPayload) {
 
 	client, err := go_bot_line.New(secret, token, filesystem.LinePort)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/line New",
+		slog.Warn("github.com/pardnchiu/go-bot/core/line New",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -64,7 +64,7 @@ func PushLineResult(ctx context.Context, payload exec.PushPayload) {
 
 	for _, part := range chunk(message) {
 		if _, err := client.Send(ctx, target, part); err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/line Bot.Send",
+			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send",
 				slog.String("session", id),
 				slog.String("source", target),
 				slog.String("error", err.Error()))

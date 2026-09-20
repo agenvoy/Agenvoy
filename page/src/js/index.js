@@ -308,6 +308,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       system_output: function () {
         saveSystemOutput();
       },
+      system_output_open: function () {
+        openOutputDir();
+      },
       system_update: function () {
         runSystemUpdate();
       },
@@ -351,7 +354,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         bindSelectPicker();
         bindFileLink();
         bindInputDrop();
-        bindChatMenu();
         renderChatList();
 
         if (params.page === "chat") {

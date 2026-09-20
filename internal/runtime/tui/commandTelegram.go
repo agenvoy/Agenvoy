@@ -11,7 +11,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -115,13 +115,13 @@ func disableTelegram() tea.Cmd {
 func verifyTelegram(token string) (string, error) {
 	client, err := go_bot_telegram.New(token)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/telegram New: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram New: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Start(ctx); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/telegram Start: %w", err)
+		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram Start: %w", err)
 	}
 	username := client.Status().Username
 	_ = client.Close()

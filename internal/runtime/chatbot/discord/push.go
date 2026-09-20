@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
@@ -43,7 +43,7 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 	}
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/discord New",
+		slog.Warn("github.com/pardnchiu/go-bot/core/discord New",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -60,7 +60,7 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 		}
 		for _, part := range chatbot.Chunk(chatbot.Discord, message) {
 			if _, err := client.Send(ctx, channelID, "", part); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/discord Bot.Send",
+				slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.Send",
 					slog.String("session", id),
 					slog.String("channel", chanName),
 					slog.String("error", err.Error()))

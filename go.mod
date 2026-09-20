@@ -12,10 +12,10 @@ require (
 	github.com/line/line-bot-sdk-go/v8 v8.18.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/muesli/reflow v0.3.0
-	github.com/pardnchiu/go-bot v0.4.3
-	github.com/pardnchiu/go-browser v0.3.1
-	github.com/pardnchiu/go-llm-router v0.6.0
-	github.com/pardnchiu/go-pkg v0.13.13
+	github.com/pardnchiu/go-bot v0.5.0
+	github.com/pardnchiu/go-browser v0.3.2
+	github.com/pardnchiu/go-llm-router v0.6.1
+	github.com/pardnchiu/go-pkg v0.13.14
 	github.com/pardnchiu/go-scheduler v1.2.0
 	github.com/pardnchiu/go-sqlkit v0.1.1
 	golang.org/x/oauth2 v0.35.0

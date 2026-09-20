@@ -6,11 +6,15 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/gemini"
+	"github.com/pardnchiu/go-llm-router/core/grok"
+	grokOauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
@@ -36,11 +40,49 @@ func Enabled() bool {
 }
 
 func Available(ctx context.Context) []string {
+	filter := provider.ModelFilter{ImageOnly: true}
+	found := make([][]string, len(Providers))
+
+	var wg sync.WaitGroup
+	for i, name := range Providers {
+		wg.Go(func() {
+			cfg, err := agentKeychain.Config(ctx, name+"@")
+			if err != nil {
+				return
+			}
+			if name == "codex" {
+				found[i] = []string{name}
+				return
+			}
+
+			base := provider.Config{APIKey: cfg.APIKey, AccountID: cfg.AccountID}
+			var models []string
+			switch name {
+			case "openai":
+				models, err = openai.Models(ctx, base, filter)
+			case "grok":
+				models, err = grok.Models(ctx, base, filter)
+			case "grok-oauth":
+				models, err = grokOauth.Models(ctx, base, filter)
+			case "gemini":
+				models, err = gemini.Models(ctx, base, filter)
+			}
+			if err != nil {
+				slog.Debug("image.Available",
+					slog.String("provider", name),
+					slog.String("error", err.Error()))
+				return
+			}
+			for _, model := range models {
+				found[i] = append(found[i], name+"@"+model)
+			}
+		})
+	}
+	wg.Wait()
+
 	list := []string{}
-	for _, name := range Providers {
-		if _, err := agentKeychain.Config(ctx, name+"@"); err == nil {
-			list = append(list, name)
-		}
+	for _, models := range found {
+		list = append(list, models...)
 	}
 	return list
 }
@@ -50,7 +92,11 @@ func Prune(ctx context.Context) {
 	if name == Off {
 		return
 	}
-	if slices.Contains(Available(ctx), name) {
+	if !strings.Contains(name, "@") {
+		if _, err := agentKeychain.Config(ctx, name+"@"); err == nil {
+			return
+		}
+	} else if slices.Contains(Available(ctx), name) {
 		return
 	}
 
@@ -71,17 +117,10 @@ func agent(ctx context.Context) (provider.ImageAgent, string, error) {
 	if name == Off {
 		return nil, "", fmt.Errorf("image generation is off; set it in Config → Model → Setting Models")
 	}
-	prefix := name + "@"
-	for registered, a := range agents.Registry().Registry {
-		if !strings.HasPrefix(registered, prefix) {
-			continue
-		}
-		if img, ok := a.(provider.ImageAgent); ok {
-			return img, registered, nil
-		}
+	full := name
+	if !strings.Contains(full, "@") {
+		full += "@"
 	}
-
-	full := prefix
 	cfg, err := agentKeychain.Config(ctx, full)
 	if err != nil {
 		return nil, "", fmt.Errorf("%s is not configured: %w", name, err)

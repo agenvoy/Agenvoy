@@ -38,7 +38,7 @@ Returns the saved path, not the audio data.`,
 				},
 				"output_file": map[string]any{
 					"type":        "string",
-					"description": "File name saved under the download directory; any directory part is dropped and the extension is forced to .wav, since that is the only format produced. Blank auto-names it audio-<timestamp>.wav.",
+					"description": "File name saved under the output directory; any directory part is dropped and the extension is set from the format the model returns. Blank auto-names it audio-<timestamp>.",
 					"default":     "",
 				},
 			},

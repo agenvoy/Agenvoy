@@ -10,9 +10,9 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
-	go_bot_line "github.com/pardnchiu/go-bot/line"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
+	go_bot_line "github.com/pardnchiu/go-bot/core/line"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )

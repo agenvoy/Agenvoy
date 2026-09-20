@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
@@ -45,7 +45,7 @@ func New() (*Bot, error) {
 		go_bot_telegram.WithHTTPClient(&http.Client{Timeout: 5 * time.Minute}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/telegram New: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram New: %w", err)
 	}
 
 	bot := &Bot{client: client, fileGroup: newFileGroupBuffer()}
@@ -66,7 +66,7 @@ func New() (*Bot, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/telegram Start: %w", err)
+		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram Start: %w", err)
 	}
 	bot.cancel = cancel
 	bot.listener = newPendingListener(bot)

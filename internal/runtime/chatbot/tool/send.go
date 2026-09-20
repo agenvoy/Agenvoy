@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	go_bot_discord "github.com/pardnchiu/go-bot/discord"
-	go_bot_telegram "github.com/pardnchiu/go-bot/telegram"
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
