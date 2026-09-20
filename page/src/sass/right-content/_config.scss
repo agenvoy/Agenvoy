@@ -470,6 +470,10 @@ body section.right-content section.config {
 
       div.row > button.submit,
       div.row > a.submit {
+        &[hidden] {
+          display: none;
+        }
+
         display: inline-flex;
         align-items: center;
         flex: 0 0 auto;
