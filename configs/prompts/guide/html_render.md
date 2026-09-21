@@ -4,20 +4,20 @@ One HTML file — report, dashboard, chart, diagram, map. No build step, no loca
 
 ### 1. Check the gallery — always, before writing a tag
 
-`http_request` https://view.agenvoy.com/list — JSON, one entry per page with `name`, `category`, `title`, `desc`, `url`.
+`html_template(mode="list")` — JSON, one entry per page with `name`, `category`, `title`, `desc`.
 
 Match on **shape**, not subject: what the reader *does* with the page — skim a status, compare options, follow a flow, click through a mock, answer questions before merging. The `unknowns/*` entries are the ones built to surface what the reader has not decided yet.
 
 - Something fits → **§2**. "Close enough" fits.
 - Nothing fits → **§3**, after naming the closest two entries and why each falls short.
-- No HTTP possible, or the call failed → **§3**, nothing to announce.
+- `html_template` failed → **§3**, nothing to announce.
 
 ### 2. An example fits — copy it, do not design
 
-1. Fetch its `url` as raw DOM: `fetch_page(type="html")` or `http_request`. Never the markdown default — it strips the class names you are about to reuse.
+1. Read its HTML: `html_template(mode="read", name=...)`.
 2. Copy its `<link rel="stylesheet">` tag into your page.
 3. Replace the content in place, keeping its class names and block order.
-4. Save with `edit_file`.
+4. Save with `write_result(format="html")`.
 
 **Zero CSS.** No `<style>`, no `style=`, no custom property, no font stack. Redefining one variable — `--accent`, `--ink` — repaints the whole page.
 

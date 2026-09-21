@@ -37,6 +37,8 @@ go build -tags fts5 -ldflags "-X github.com/pardnchiu/agenvoy/internal/runtime.C
 ./agen
 ```
 
+從原始碼建置需要 C 工具鏈：`mattn/go-sqlite3`（FTS5）沒有 pure-Go 路徑，必須 `CGO_ENABLED=1`。
+
 ### 使用 Makefile
 
 ```bash
@@ -48,9 +50,9 @@ agen
 
 | Target                                  | 作用                                                                          |
 | --------------------------------------- | ----------------------------------------------------------------------------- |
-| `make build`                            | 以目前 git tag 為版本建置、安裝到 `/usr/local/bin/agen`、更新內建 skill／工具 |
+| `make build`                            | 建置（`HEAD` 剛好落在 tag 上時以該 tag 為版本，否則為 `(dev)`）、安裝到 `/usr/local/bin/agen`、更新內建 skill／工具 |
 | `make app`                              | `stop` → `build` → 啟動 TUI                                                   |
-| `make cli <input>` / `make run <input>` | 不安裝直接跑一次請求                                                          |
+| `make dev`                              | `stop` → `build` → 啟動 TUI，`page/` 直接讀磁碟（`AGENVOY_PAGE_DIR`），前端改動免重建 |
 | `make stop`                             | 停止 daemon                                                                   |
 | `make update`                           | 執行官方更新程式                                                              |
 | `make test`                             | `go test -v -count=1 ./...`                                                   |
@@ -70,21 +72,25 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | Keychain 項目                                        | 用途                                               |
 | ---------------------------------------------------- | -------------------------------------------------- |
 | `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                          |
-| `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY` | 對應模型供應商                                     |
+| `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY`、`MISTRAL_API_KEY`、`NVIDIA_API_KEY` | 對應模型供應商 |
+| `OPENROUTER_API_KEY` | OpenRouter 模型與 OpenRouter 音訊模型 |
+| `CLOUDFLARE_API_KEY`、`CLOUDFLARE_ACCOUNT_ID` | Cloudflare（兩者皆必填；`CLOUDFLARE_GATEWAY_ID` 選填） |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                     |
-| `GEMINI_API_KEY`                                     | Gemini 音訊模型與語音功能                          |
+| `GEMINI_API_KEY`                                     | Gemini 模型供應商、Gemini 音訊模型與語音功能       |
 | `OLLAMA-CLOUD_API_KEY`                               | Ollama Cloud（連字號是名稱的一部分）               |
 | `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填） |
 
+`copilot`、`codex` 與 `grok-oauth` 不使用 API key，而是從 `/model add` 發起 OAuth 登入。
+
 ### 音訊與圖片模型路由
 
-語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model image` 設定；選擇列在最下方的 `disable` 可停用對應能力。開啟選單時 TUI 會先顯示 `loading models...`，STT／TTS 可用模型會並行向已設定的 OpenAI 與 Gemini provider 取得，圖片生成則需要已設定的支援圖片 provider。
+語音轉文字（STT）、文字轉語音（TTS）與圖片生成模型，分別獨立於 session、dispatcher 與 summary 模型設定。在 TUI 中使用 `/model stt`、`/model tts` 與 `/model image` 設定；選擇列在最下方的 `disable` 可停用對應能力。開啟選單時 TUI 會先顯示 `loading models...`，STT／TTS 可用模型會並行向已設定的 OpenAI、Gemini 與 OpenRouter provider 取得，圖片生成則需要已設定的支援圖片 provider。
 
 自 **v0.34.4** 起，Telegram 與 Discord 暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機 `generate_audio` 工具與音訊模型設定仍可使用，並可將產生的音訊檔傳送到任一頻道。
 
 ### 聊天機器人整合
 
-Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向外連線，因此主機不需要開放入站連接埠或公開端點；設定時只需要提供對應的 bot token。其他聊天機器人平台除非能帶來明確的安全性改善，否則不在目前規劃內。
+Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向外連線，因此主機不需要開放入站連接埠或公開端點；設定時只需要提供對應的 bot token；新對話之後須通過驗證碼（5 分鐘內有效），驗證碼會寫入 daemon log、顯示於 TUI，並在有設定時轉發到 `admin` 對話。其他聊天機器人平台除非能帶來明確的安全性改善，否則不在目前規劃內。
 
 ### Runtime 設定
 
@@ -95,10 +101,12 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 | `limits.max_tool_iterations`        |     `128` | 單次 Agent 工作的工具迭代上限                                                                                                                                                           |
 | `limits.agent_send_timeout_seconds` |     `600` | 模型請求逾時秒數                                                                                                                                                                        |
 | `limits.max_history_messages`       |      `24` | 保留的近期歷史訊息數                                                                                                                                                                    |
-| `limits.max_history_bytes`          | `5242880` | 歷史訊息大小上限（位元組）                                                                                                                                                              |
+| `limits.max_history_bytes`          | `4194304` | 歷史訊息大小上限（位元組）                                                                                                                                                              |
 | `reply_lang`                        |  `"auto"` | 回覆語言。`auto` 維持原本「跟隨使用者訊息語言」的行為；其他值一律強制以該語言回覆                                                                                                       |
-| `output_dir`                        |      `""` | 請求沒指定位置時，替使用者產生的檔案放在哪：`write_report` 的輸出，以及 agent 預設要放到這裡的文件、匯出檔與圖片。空值為 `~/Downloads`，該資料夾不存在時為 `~/.config/agenvoy/download` |
+| `output_dir`                        |      `""` | 請求沒指定位置時，替使用者產生的檔案放在哪：`write_result` 的輸出，以及 agent 預設要放到這裡的文件、匯出檔與圖片。空值為 `~/Downloads`，該資料夾不存在時為 `~/.config/agenvoy/download` |
 | `model_tag`                         |      `{}` | 各模型的 tier，`{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`；見[模型 tier](#模型-tier)                                                                                                     |
+| `net_white_list`                    |      `[]` | 即使解析為 loopback 或私有位址，`http_request` 仍可連線的主機 |
+| `read_only_command`                 |      `[]` | 追加到內建唯讀清單的指令（`bin` 或 `bin subcommand`）；`run_command` 執行時不需確認 |
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
@@ -129,7 +137,7 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 
 compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶任何廠商私有 header，因此要求私有 header 的端點不在支援範圍。收錄範圍限三類：自營模型的供應商、相容 OpenAI API 的 NIM，以及 Cloudflare。opencode Go（`opencode.ai/zen/go/v1`）依此排除——自 [2026-09-03 公告](https://x.com/opencode/status/2095410501400289576)起，未帶依對話變動的 `x-opencode-session` 會被拒絕（`400 MissingSessionID`）；Chat Completions 本身無狀態，要求 client 依對話追蹤並輪替廠商私有 header 已非 OpenAI 相容行為。
 
-當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.6.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
+當輸入區為空時，按下 `Shift+F` 可切換 fast mode。啟用時，標題列會顯示 `[fast]`。Fast mode 只存在於目前行程，不會保存至 `config.json`；它會透過 `go-llm-router` v0.7.0 傳遞 `provider.ModeFast`，讓支援的 provider backend 要求更快速的服務層級。關閉 fast mode 時則使用預設模式。
 
 ### Agent 選擇與確認路由
 
@@ -169,7 +177,7 @@ subagent 也依同一套 tier。planner 讓每條 leg 只做一種工作——co
 
 ### MCP Client
 
-MCP client 與 server 位於 `internal/runtime/mcp`，並使用官方 [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk)。在 `~/.config/agenvoy/mcp.json` 登錄 stdio 或 streamable HTTP MCP server。Client 會訂閱工具清單變更通知，遠端 server 更新目錄時會重新註冊工具；server instructions 會注入 agent system prompt：
+MCP client 與 server 位於 `internal/runtime/mcp`，並使用官方 [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk)。在 `~/.config/agenvoy/mcp.json` 登錄 stdio 或 streamable HTTP MCP server。Client 會訂閱工具清單變更通知，遠端 server 更新目錄時會重新註冊工具；server instructions 會注入 agent system prompt。server 項目另可設定 `env`（stdio）、`auth: "oauth"` 與 `oauth_client_name`（HTTP）；`args`、`env` 與 `headers` 內的 `${VAR}` 會展開：
 
 ```json
 {
@@ -203,7 +211,7 @@ command = "agen"
 
 ### Session 分類與監控
 
-TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API，`temp-` 代表短期工作。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
+TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API；`temp-`（短期工作）的 session 不會列出。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
 
 Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
 
@@ -225,17 +233,18 @@ agen
 | `/mcp`                     | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連                                                                           |
 | `/sessions` `/new`         | 以 self id 切換 session（`d` 刪除）或建立新的                                                                                                                                                                    |
 | `/bot`                     | 重新命名當前 session 或編輯 persona                                                                                                                                                                              |
-| `/compact` `/reset`        | 移除當前 session 的冗餘對話，或重設 session（需二次確認）                                                                                                                                                        |
+| `/compact` `/reset`        | 移除當前 session 的冗餘對話，或重設 session（需二次確認）：`summary` 先重建摘要並保留，`all` 連摘要一併清除 |
+| `/skills` | 多選安裝／移除官方 skill；勾選將 `github.com/agenvoy/skill-<name>` clone 至 `~/.config/agenvoy/skills/.system_design/<name>`，取消勾選則刪除 |
 | `/allow-skill`             | 將 skill 設為一律允許，範圍為全域或此專案                                                                                                                                                                        |
 | `/rule` `/note`            | 列出、新增或編輯 rule 與筆記                                                                                                                                                                                     |
 | `/channel`                 | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示）                                                                          |
 | `/config`                  | 可搜尋的設定清單，`enter` 修改游標所在項目：登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit）、回覆語言（`auto` 跟隨每則訊息）與輸出資料夾（產生的檔案存放位置；留空為 `~/Downloads`） |
 | `/schedule`                | 週期（cron）與單次（task）排程合併為一個清單；`enter` 立即執行、`d` 刪除；新增或編輯請直接交代 agent                                                                                                             |
-| `/pending`                 | 列出並恢復中斷的任務（`ask_user`、錯誤復原）                                                                                                                                                                     |
+| `/pending`                 | 列出並恢復中斷的任務（`ask_user`、錯誤復原）；`d` 經確認後移除 |
 | `/resume` `/log` `/usage`  | 重載可見對話、以 `$PAGER` 追蹤 `daemon.log`、查看各模型 token 用量（上方為本 session、下方為全部 session，24h／7d／28d）                                                                                         |
 | `/key`                     | 編輯已儲存的憑證（`d` 刪除）                                                                                                                                                                                     |
-| `/update`                  | 抓取最新 release、重建、離開                                                                                                                                                                                     |
-| `/clear` `/exit`           | 清除可見對話，或離開 TUI（daemon 繼續執行）                                                                                                                                                                      |
+| `/update`                  | 確認後停止 daemon、執行 `agen update`（下載最新預先建置的 release）並離開 |
+| `/clear` `/exit` `/quit`   | 清除可見對話，或離開 TUI（`/quit` 為 `/exit` 的別名；daemon 繼續執行） |
 | `/<skill>` `/sched-<name>` | 直接執行已安裝的 skill 或排程項目                                                                                                                                                                                |
 
 輸入區為空時可用的快捷鍵：
@@ -246,6 +255,7 @@ agen
 | `Shift+A` / `Shift+D` | 切換 reasoning 等級         |
 | `Shift+F`             | 切換 fast mode              |
 | `Shift+U`             | 查看 provider 額度與餘額    |
+| `Shift+Tab`           | 切換 allow-all（略過工具確認）；只要沒有任務在執行即可使用 |
 
 在彈出視窗中，`esc` 會回到開啟它的上一頁，只有第一頁才會關閉；`/usage` 這類純列表視窗以 ↑／↓ 捲動而非選取。
 
@@ -258,7 +268,7 @@ agen stop
 agen update
 ```
 
-直接啟動 `agen` 時，TUI 會在需要時啟動本機 daemon。
+執行 `agen` 時，若本機 daemon 尚未執行會自動啟動。
 
 ### stdin MCP Server
 
@@ -270,7 +280,7 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | agen
 ```
 
-支援 `initialize`、`notifications/initialized`、`tools/list`、`tools/call` 與 `ping`。
+支援 `initialize`、`notifications/initialized`、`notifications/cancelled`、`tools/list`、`tools/call` 與 `ping`。
 
 ### Web 與檔案回應顯示
 
@@ -278,7 +288,7 @@ printf '%s\n' \
 
 ### HTTP API
 
-Daemon 只監聽 `127.0.0.1:17989`，連接埠固定不可調整；Open WebUI 部署後同樣固定在 `17990`，由 `/webui` 反向代理：
+Daemon 監聽 `127.0.0.1:17989` 與 `[::1]:17989`，連接埠固定不可調整：
 
 ```bash
 curl --fail-with-body -sS \
@@ -287,7 +297,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` 為 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。`reasoning_effort` 接受 `none` `low` `medium` `high` `xhigh` `max`（另支援別名 `minimal` `extra` `ultra`）；未帶或無法識別的值退回該 session 的 reasoning 設定。
+`/v1/chat/completions` 為 OpenAI 相容的 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。`reasoning_effort` 接受 `none` `low` `medium` `high` `xhigh` `max`（另支援別名 `minimal` `extra` `ultra`）；未帶或無法識別的值退回 `medium`。
 
 ## 命令列參考
 
@@ -301,7 +311,7 @@ curl --fail-with-body -sS \
 
 ## HTTP API 參考
 
-Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求來源必須是 `127.0.0.1`／`::1`（`localhostOnly()` 守衛）——這些會動到 credential、設定檔或行程生命週期，設計上是給同機器的 dashboard 用，不是給遠端 client 呼叫。
+Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 endpoint 另外要求請求來源必須是 `127.0.0.1`／`::1`（`localhostOnly()` 守衛）——這些會動到 credential、設定檔或行程生命週期，設計上是給同機器的 dashboard 用，不是給遠端 client 呼叫。
 
 **Agent 執行**
 
@@ -439,7 +449,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 
 ## 工具參考
 
-註冊表有 27 個工具固定可用，另有 4 個在前置條件成立前會從執行中排除。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
+註冊表有 28 個工具固定可用（macOS 等非 Linux 系統為 27 個，因為不註冊 `pkg_manage`），另有 4 個在前置條件成立前會從執行中排除。涵蓋多種相關動作的工具以 `mode` 參數區分，而不是拆成多個名稱。
 
 | 分類       | 工具                              | 用途                                                                                                                                                                                                     |
 | ---------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -453,7 +463,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `read_files`                      | 批次讀取文字、PDF、DOCX、PPTX、CSV 與圖片；預設 2048 行，文字檔被截斷時結尾會標示下一個 `offset`                                                                                                         |
 |            | `edit_file`                       | 建立、修改、移置或還原檔案（`mode=write\|patch\|remove\|restore`）                                                                                                                                       |
 |            | `file_history`                    | 工具改過的每個檔案的版本紀錄（`mode=list\|read`）                                                                                                                                                        |
-|            | `write_report`                    | 將長篇報告存為 `report-<時間>.md`，放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容                                                           |
+|            | `write_result`                    | 將長篇成果存為 `report-<時間>.md` 或 `.html`（`format=md\|html`），放在輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`）；模型只提供內容                                                           |
 | 執行環境   | `run_command`                     | 在工作目錄以沙箱約束執行二進位並等待結束；watcher（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在啟動前即拒絕                                      |
 |            | `open_file`                       | 以系統預設應用開啟檔案                                                                                                                                                                                   |
 |            | `download_file`                   | 下載二進位資產至磁碟                                                                                                                                                                                     |
@@ -464,9 +474,10 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 | 網路       | `search_web`                      | DuckDuckGo 結果與 Google News 標題一次取得                                                                                                                                                               |
 |            | `fetch_page`                      | 取得完整頁面內容（markdown／html／json）                                                                                                                                                                 |
 |            | `http_request`                    | 原始 HTTP 呼叫，含 multipart 上傳                                                                                                                                                                        |
-| 狀態       | `chat_history`                    | 本 session 的執行紀錄與對話（`mode=list\|read\|search`）                                                                                                                                                 |
+|            | `html_template`                   | HTML 頁面範例庫（`mode=list\|read`） |
+| 狀態       | `chat_history`                    | 本 session 的執行紀錄與對話（`mode=list\|tool_list\|tool\|read\|search`）                                                                                                                                                 |
 |            | `error_history`                   | 跨 session 保留的工具失敗紀錄（`mode=search\|read\|write`）                                                                                                                                              |
-|            | `find_note`                       | 操作者自己寫的筆記，存於 SQLite（`mode=search\|list\|read`）；search 與 list 只回名稱                                                                                                                    |
+|            | `find_note`                       | 操作者自己寫的筆記，存於 SQLite（`mode=search\|read`）；search 只回名稱                                                                                                                    |
 |            | `reasoning_guide`                 | 依 `topic` 取得完整推理規則                                                                                                                                                                              |
 | 基礎支援   | `calculate`                       | 算術、單位與匯率換算                                                                                                                                                                                     |
 |            | `store_secret`                    | 遮蔽輸入並存入 keychain                                                                                                                                                                                  |
@@ -474,7 +485,7 @@ Daemon 只綁定 `127.0.0.1`。標示 **local** 的 endpoint 另外要求請求�
 |            | `generate_audio`                  | 文字轉語音並存檔——未選 TTS 模型時排除                                                                                                                                                                    |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                                                                                                                                   |
 
-15 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_report`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
+15 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_note`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_result`、`write_todo`；其餘工具初始只送名稱與描述，參數在首次使用時經 `find_tools(mode=search)` 載入，讓初始工具 payload 遠低於完整註冊表。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
 
 ## 架構
 

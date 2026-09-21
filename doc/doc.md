@@ -6,7 +6,7 @@
 
 - Go 1.25.1 or later
 - macOS or Linux; on Windows, install a WSL Linux distribution first and run Agenvoy inside its WSL terminal
-- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text and text-to-speech require a selected audio model and its provider credential. Image generation requires a configured image-capable provider.
+- At least one configured model-provider credential; Telegram and Discord require their respective bot tokens. Speech-to-text, text-to-speech and image generation each require a selected model / provider and its credential.
 
 ## Installation
 
@@ -37,6 +37,8 @@ go build -tags fts5 -ldflags "-X github.com/pardnchiu/agenvoy/internal/runtime.C
 ./agen
 ```
 
+Building from source needs a C toolchain: `mattn/go-sqlite3` (FTS5) has no pure-Go path, so `CGO_ENABLED=1` is required.
+
 ### Using Makefile
 
 ```bash
@@ -48,9 +50,9 @@ agen
 
 | Target                                  | What it does                                                                                              |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `make build`                            | Build with the current git tag as version, install to `/usr/local/bin/agen`, refresh bundled skills/tools |
+| `make build`                            | Build (version is the tag at `HEAD` when `HEAD` is exactly on one, otherwise `(dev)`), install to `/usr/local/bin/agen`, refresh bundled skills/tools |
 | `make app`                              | `stop` → `build` → launch the TUI                                                                         |
-| `make cli <input>` / `make run <input>` | Run one request without installing                                                                        |
+| `make dev`                              | `stop` → `build` → launch the TUI with `page/` served from disk (`AGENVOY_PAGE_DIR`), so frontend edits need no rebuild |
 | `make stop`                             | Stop the daemon                                                                                           |
 | `make update`                           | Run the official updater                                                                                  |
 | `make test`                             | `go test -v -count=1 ./...`                                                                               |
@@ -63,26 +65,32 @@ go run ./cmd/app/
 
 ## Configuration
 
-Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the operating-system keychain.
+Agenvoy stores runtime data in `~/.config/agenvoy/` and keeps credentials in the operating-system keychain; do not put API keys or tokens in project files or Git.
 
 ### Common credentials
 
 | Keychain entry                                       | Used by                                                                     |
 | ---------------------------------------------------- | --------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`                                     | OpenAI and OpenAI audio models                                              |
-| `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY` | The matching model providers                                                |
+| `CLAUDE_API_KEY`, `GROK_API_KEY`, `DEEPSEEK_API_KEY`, `MISTRAL_API_KEY`, `NVIDIA_API_KEY` | The matching model providers |
+| `OPENROUTER_API_KEY` | OpenRouter models and OpenRouter audio models |
+| `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` | Cloudflare (both required; `CLOUDFLARE_GATEWAY_ID` is optional) |
 | `TELEGRAM_TOKEN`, `DISCORD_TOKEN`                    | Chat-bot integrations                                                       |
-| `GEMINI_API_KEY`                                     | Gemini audio models and voice features                                      |
+| `GEMINI_API_KEY`                                     | The Gemini model provider, Gemini audio models and voice features           |
 | `OLLAMA-CLOUD_API_KEY`                               | Ollama Cloud (the hyphen is part of the name)                               |
 | `COMPAT_<NAME>_API_KEY`                              | Optional key for a local / custom OpenAI-compatible endpoint named `<NAME>` |
 
-### Audio model routing
+`copilot`, `codex` and `grok-oauth` take no API key; they authenticate through an OAuth login started from `/model add`.
 
-Speech-to-text and text-to-speech models are configured separately from the session, dispatcher, summary, and image settings. In the TUI, use `/model stt` or `/model tts`; choose `disable` (listed last) to turn the corresponding capability off. The TUI prints `loading models...` while the available models are fetched in parallel from configured OpenAI and Gemini providers. Since **v0.34.4**, Telegram and Discord pause only the default flow that automatically returns voice output after voice input. The local `generate_audio` tool and audio model settings remain available: you can generate audio and send the resulting file to either channel.
+### Audio and image model routing
+
+Speech-to-text (STT), text-to-speech (TTS) and image generation models are configured separately from the session, dispatcher, and summary models. In the TUI, use `/model stt`, `/model tts` or `/model image`; choose `disable` (listed last) to turn the corresponding capability off. The TUI prints `loading models...` while the available STT / TTS models are fetched in parallel from configured OpenAI, Gemini and OpenRouter providers; image generation needs a configured image-capable provider.
+
+Since **v0.34.4**, Telegram and Discord pause only the default flow that automatically returns voice output after voice input. The local `generate_audio` tool and audio model settings remain available: you can generate audio and send the resulting file to either channel.
 
 ### Chatbot integrations
 
-Agenvoy currently supports Telegram and Discord. Both integrations use outbound connections from the local daemon, so the host does not need to expose an inbound port or public endpoint. Configuration requires only the corresponding bot token. Since **v0.34.4**, their automatic voice-input-to-voice-output default is paused; STT/TTS tools can still create audio files for delivery through either channel. Other chatbot platforms are out of scope unless they provide a meaningful security improvement.
+Agenvoy currently supports Telegram and Discord. Both integrations use outbound connections from the local daemon, so the host does not need to expose an inbound port or public endpoint. Configuration requires only the corresponding bot token; a new chat must then pass a verification code (valid for 5 minutes) that the daemon logs, the TUI shows, and the `admin` chat receives when one is set. Other chatbot platforms are out of scope unless they provide a meaningful security improvement.
 
 ### Runtime configuration
 
@@ -93,10 +101,12 @@ Agenvoy currently supports Telegram and Discord. Both integrations use outbound 
 | `limits.max_tool_iterations`        |     `128` | Maximum tool iterations per run                                                                                                                                                                                                                                              |
 | `limits.agent_send_timeout_seconds` |     `600` | Model-request timeout                                                                                                                                                                                                                                                        |
 | `limits.max_history_messages`       |      `24` | Recent history messages retained                                                                                                                                                                                                                                             |
-| `limits.max_history_bytes`          | `5242880` | History-size ceiling                                                                                                                                                                                                                                                         |
+| `limits.max_history_bytes`          | `4194304` | History-size ceiling                                                                                                                                                                                                                                                         |
 | `reply_lang`                        |  `"auto"` | Reply language. `auto` keeps the default behaviour of matching the user's message; any other value forces every reply into that language regardless of what the user writes                                                                                                  |
-| `output_dir`                        |      `""` | Where files made for the user land when the request names no location: `write_report` output, plus the documents, exports and images the agent is told to place there by default. Empty means `~/Downloads`, or `~/.config/agenvoy/download` when that folder does not exist |
+| `output_dir`                        |      `""` | Where files made for the user land when the request names no location: `write_result` output, plus the documents, exports and images the agent is told to place there by default. Empty means `~/Downloads`, or `~/.config/agenvoy/download` when that folder does not exist |
 | `model_tag`                         |      `{}` | Per-model tier, `{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`; see [Model tiers](#model-tiers)                                                                                                                                                                                   |
+| `net_white_list`                    |      `[]` | Hosts that `http_request` may reach even when they resolve to a loopback or private address |
+| `read_only_command`                 |      `[]` | Extra commands (`bin` or `bin subcommand`) added to the built-in read-only list; `run_command` runs them without confirmation |
 
 `reply_lang` accepts `auto`, a code listed in `configs/jsons/reply_lang.json` (`en`, `zh-TW`, `zh-HK`, `zh-CN`, `ja`, `ko`, `es`, `fr`, `de`, `pt`, `it`, `ru`, `vi`, `th`, `id`, `ar`) or any other language name, which is passed through to the model as written. `zh-TW` and `zh-HK` are separate: Taiwan and Hong Kong Traditional Chinese differ in vocabulary and phrasing. It applies to the agent system prompt, the `/v1/chat/completions` system prompt and the generated follow-up suggestions. Set it from **Config › System**, which applies it to the running daemon at once; editing `config.json` by hand takes effect at the next daemon start.
 
@@ -110,6 +120,15 @@ Package defaults (not currently read from `config.json`):
 | `MaxSubagentTimeoutMin` |         `30` | Subagent timeout in minutes                                        |
 | `MaxResumeWaitMin`      |         `60` | How long a pending resume waits for answers                        |
 
+```json
+{
+  "limits": {
+    "max_tool_iterations": 128,
+    "agent_send_timeout_seconds": 600
+  }
+}
+```
+
 ### TUI execution modes
 
 The runtime ships 13 model providers, Ollama Cloud included, plus the `compat` entry for local or custom OpenAI-compatible endpoints (Ollama, LM Studio, self-hosted gateways).
@@ -118,7 +137,7 @@ The runtime ships 13 model providers, Ollama Cloud included, plus the `compat` e
 
 The compat channel carries only the request body and `Authorization: Bearer <key>`; no vendor-specific header is sent, so an endpoint that requires one is out of scope. In scope: vendors serving their own models, OpenAI-compatible NIM, and Cloudflare. opencode Go (`opencode.ai/zen/go/v1`) is excluded on that rule — since its [2026-09-03 announcement](https://x.com/opencode/status/2095410501400289576) it rejects requests without a per-conversation `x-opencode-session` header (`400 MissingSessionID`), and Chat Completions is stateless, so tracking and rotating a private header per conversation is not OpenAI-compatible behaviour.
 
-When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.6.0 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
+When the input area is empty, press `Shift+F` to toggle fast mode. The header displays `[fast]` while it is enabled. Fast mode is process-local and is not persisted in `config.json`; it passes `provider.ModeFast` through `go-llm-router` v0.7.0 so supported provider backends can request a faster service tier. The default mode remains available when fast mode is disabled.
 
 ### Agent selection and confirmation routing
 
@@ -158,7 +177,7 @@ Two consequences worth knowing before automating anything:
 
 ### MCP client configuration
 
-MCP client and server live in `internal/runtime/mcp` and use the official [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk). Configure stdio or streamable HTTP MCP servers in `~/.config/agenvoy/mcp.json`. Clients subscribe to tool-list change notifications and re-register tools when a remote server updates its catalog; server instructions are surfaced into the agent system prompt.
+MCP client and server live in `internal/runtime/mcp` and use the official [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk). Configure stdio or streamable HTTP MCP servers in `~/.config/agenvoy/mcp.json`. Clients subscribe to tool-list change notifications and re-register tools when a remote server updates its catalog; server instructions are surfaced into the agent system prompt. A server entry also accepts `env` (stdio), `auth: "oauth"` and `oauth_client_name` (HTTP); `${VAR}` is expanded in `args`, `env` and `headers`.
 
 ```json
 {
@@ -192,7 +211,7 @@ command = "agen"
 
 ### Session Classification and Monitoring
 
-The TUI `/sessions` selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, `chat-` for Web/API, and `temp-` for short-lived work. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
+The TUI `/sessions` selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, and `chat-` for Web/API; `temp-` sessions (short-lived work) are not listed. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
 
 Session personas are stored in the history SQLite database. `self_id` is normalized to lowercase and accepts only up to 32 ASCII letters, digits, `_`, or `-`; non-empty values must be unique. At daemon startup, legacy per-session `bot.json`, bot markdown, `config.json`, and `status.json` files are migrated into SQLite/state tables.
 
@@ -214,17 +233,18 @@ Type a message to run it in the current session. Everything else is a slash comm
 | `/mcp`                     | List MCP servers (`d` removes one) and `add` new ones; per server: log in, set the OAuth client, pick always-allowed `tools` (first row `all`), reconnect                                                                                                |
 | `/sessions` `/new`         | Switch to another session by self id (`d` deletes it), or create one                                                                                                                                                                                     |
 | `/bot`                     | Rename the current session or edit its persona                                                                                                                                                                                                           |
-| `/compact` `/reset`        | Drop redundant exchanges from the current session, or reset it (double-confirmed)                                                                                                                                                                        |
+| `/compact` `/reset`        | Drop redundant exchanges from the current session, or reset it (double-confirmed): `summary` regenerates the summary first and keeps it, `all` also wipes the summary |
+| `/skills` | Install / remove official skills (multi-select); checked clones `github.com/agenvoy/skill-<name>` into `~/.config/agenvoy/skills/.system_design/<name>`, unchecked removes it |
 | `/allow-skill`             | Mark skills as always allowed, globally or for this project                                                                                                                                                                                              |
 | `/rule` `/note`            | List, add or edit rules and notes                                                                                                                                                                                                                        |
 | `/channel`                 | Enable or disable Telegram / Discord (tokens are validated before they are stored; `d` revokes an authorized chat), or pick the `admin` chat that receives new-chat verification codes (shown only while a channel is enabled)                           |
 | `/config`                  | Searchable settings list; `enter` changes the highlighted one: startup on login (launchd agent on macOS, systemd user unit on Linux), reply language (`auto` follows each message) and output dir (where generated files land; blank uses `~/Downloads`) |
 | `/schedule`                | Recurring (cron) and one-shot (task) entries in one list; `enter` fires one now, `d` deletes it; add or edit by asking the agent                                                                                                                         |
-| `/pending`                 | List and resume interrupted tasks (`ask_user`, error recovery)                                                                                                                                                                                           |
+| `/pending`                 | List and resume interrupted tasks (`ask_user`, error recovery); `d` drops one after a confirmation |
 | `/resume` `/log` `/usage`  | Reload the visible transcript, follow `daemon.log` in `$PAGER`, show per-model token usage for this session above and all sessions below (24h / 7d / 28d)                                                                                                |
 | `/key`                     | Edit a stored credential (`d` deletes it)                                                                                                                                                                                                                |
-| `/update`                  | Fetch the latest release, rebuild, quit                                                                                                                                                                                                                  |
-| `/clear` `/exit`           | Clear the visible transcript, or leave the TUI (the daemon keeps running)                                                                                                                                                                                |
+| `/update`                  | After a confirmation, stop the daemon, run `agen update` (downloads the latest prebuilt release) and quit |
+| `/clear` `/exit` `/quit`   | Clear the visible transcript, or leave the TUI (`/quit` is an alias of `/exit`; the daemon keeps running) |
 | `/<skill>` `/sched-<name>` | Run an installed skill or a scheduler entry directly                                                                                                                                                                                                     |
 
 Shortcuts work while the input area is empty:
@@ -235,10 +255,20 @@ Shortcuts work while the input area is empty:
 | `Shift+A` / `Shift+D` | Cycle the reasoning level                    |
 | `Shift+F`             | Toggle fast mode                             |
 | `Shift+U`             | Provider quota and balance                   |
+| `Shift+Tab`           | Toggle allow-all (skip tool confirmations); works whenever no run is in progress |
 
 Inside a popup, `esc` returns to the page that opened it and closes only the first page; list-only popups such as `/usage` scroll instead of selecting.
 
 While a run is in progress, `esc` cancels it at once if it has not produced output yet; otherwise it asks **No**, **Yes cancel** or **Pause keep pending**. Cancelling — also `ctrl+c`, **Abort task** or `esc` in a confirmation or `ask_user` popup, and `POST /v1/session/:id/cancel/:task_hash` — discards the task's pending entry. Pausing, and any other interruption such as a timeout or a closed window, stops the run but keeps the entry so `/pending` can resume it.
+
+### Managing the daemon
+
+```bash
+agen stop
+agen update
+```
+
+Running `agen` starts the local daemon when it is not already running.
 
 ### Web and file-response rendering
 
@@ -246,7 +276,7 @@ The backend preserves `[SEND_FILE:...]` markers while events move through result
 
 ### Local HTTP API
 
-The daemon listens on `127.0.0.1:17989`. The port is fixed and not configurable; Open WebUI, when deployed, is likewise fixed on `17990` and proxied at `/webui`.
+The daemon listens on `127.0.0.1:17989` and `[::1]:17989`. The port is fixed and not configurable.
 
 ```bash
 curl --fail-with-body -sS \
@@ -255,7 +285,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed. `reasoning_effort` accepts `none` `low` `medium` `high` `xhigh` `max` (plus the aliases `minimal` `extra` `ultra`); omitted or unrecognized values fall back to the session's reasoning setting.
+`/v1/chat/completions` is OpenAI-compatible and stateless: include prior messages in every request when continuity is needed. `reasoning_effort` accepts `none` `low` `medium` `high` `xhigh` `max` (plus the aliases `minimal` `extra` `ultra`); omitted or unrecognized values fall back to `medium`.
 
 ### MCP server mode
 
@@ -267,6 +297,8 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
   | agen
 ```
+
+Supported methods: `initialize`, `notifications/initialized`, `notifications/cancelled`, `tools/list`, `tools/call` and `ping`.
 
 ## CLI Reference
 
@@ -280,7 +312,7 @@ printf '%s\n' \
 
 ## HTTP API Reference
 
-The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally require the request to originate from `127.0.0.1`/`::1` (`localhostOnly()` guard) — they manage credentials, config files, or process lifecycle and are meant for a same-machine dashboard, not remote clients.
+The daemon binds to loopback only (`127.0.0.1` and `[::1]`). Endpoints marked **local** additionally require the request to originate from `127.0.0.1`/`::1` (`localhostOnly()` guard) — they manage credentials, config files, or process lifecycle and are meant for a same-machine dashboard, not remote clients.
 
 **Agent execution**
 
@@ -418,7 +450,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 
 ## Tool Reference
 
-27 tools are always available; four more are excluded from a run until their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
+28 tools are always available (27 on macOS and other non-Linux systems, where `pkg_manage` is not registered); four more are excluded from a run until their prerequisite exists. Tools that cover several related actions take a `mode` argument rather than splitting into separate names.
 
 | Group        | Tool                              | Purpose                                                                                                                                                                                                                                                           |
 | ------------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -432,7 +464,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |              | `read_files`                      | Batch-read text, PDF, DOCX, PPTX, CSV or images; 2048 lines by default, and a text file cut short ends with the next `offset`                                                                                                                                     |
 |              | `edit_file`                       | Create, edit, move aside or restore a file (`mode=write\|patch\|remove\|restore`)                                                                                                                                                                                 |
 |              | `file_history`                    | Recorded versions of every file the tools changed (`mode=list\|read`)                                                                                                                                                                                             |
-|              | `write_report`                    | Save a long-form report as `report-<timestamp>.md` in the output directory (`output_dir`; `~/Downloads` by default, or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content                                       |
+|              | `write_result`                    | Save a long-form deliverable as `report-<timestamp>.md` or `.html` (`format=md\|html`) in the output directory (`output_dir`; `~/Downloads` by default, or `~/.config/agenvoy/download` when `~/Downloads` does not exist); the model supplies only the content                                       |
 | Execution    | `run_command`                     | Run a binary in the work directory under sandbox constraints and wait for it to exit; watchers (`--watch`, `chokidar`, or package scripts that start one, followed through `sh -c` and `package.json`) are refused before they start                              |
 |              | `open_file`                       | Hand a file to the OS default application                                                                                                                                                                                                                         |
 |              | `download_file`                   | Fetch a binary asset to disk                                                                                                                                                                                                                                      |
@@ -443,9 +475,10 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 | Network      | `search_web`                      | DuckDuckGo results and Google News headlines together                                                                                                                                                                                                             |
 |              | `fetch_page`                      | Full page content as markdown, html or json                                                                                                                                                                                                                       |
 |              | `http_request`                    | Raw HTTP call, multipart upload included                                                                                                                                                                                                                          |
-| State        | `chat_history`                    | This session's action log and messages (`mode=list\|read\|search`)                                                                                                                                                                                                |
+|              | `html_template`                   | Gallery of worked HTML page examples (`mode=list\|read`) |
+| State        | `chat_history`                    | This session's action log and messages (`mode=list\|tool_list\|tool\|read\|search`)                                                                                                                                                                                                |
 |              | `error_history`                   | Tool failures kept across sessions (`mode=search\|read\|write`)                                                                                                                                                                                                   |
-|              | `find_note`                       | The operator's own notes, stored in SQLite (`mode=search\|list\|read`); search and list return names only                                                                                                                                                         |
+|              | `find_note`                       | The operator's own notes, stored in SQLite (`mode=search\|read`); search returns names only                                                                                                                                                         |
 |              | `reasoning_guide`                 | Full reasoning rules by `topic`                                                                                                                                                                                                                                   |
 | Support      | `calculate`                       | Arithmetic, unit and currency conversion                                                                                                                                                                                                                          |
 |              | `store_secret`                    | Masked prompt, stored in the keychain                                                                                                                                                                                                                             |
@@ -453,7 +486,7 @@ The daemon binds to `127.0.0.1` only. Endpoints marked **local** additionally re
 |              | `generate_audio`                  | Text to speech, saved to disk — excluded while no TTS model is selected                                                                                                                                                                                           |
 |              | `list_chatbot`, `send_to_chatbot` | Cross-channel push — needs Telegram or Discord enabled                                                                                                                                                                                                            |
 
-Fifteen tools ship with full schemas — `ask_user`, `calculate`, `chat_history`, `edit_file`, `fetch_page`, `find_files`, `find_note`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_report`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Every target is matched against the file as it is on disk before any of them apply, so their order does not matter; an `old_string` that matches more than once without `replace_all`, or two targets covering the same lines, rejects the whole batch without writing.
+Fifteen tools ship with full schemas — `ask_user`, `calculate`, `chat_history`, `edit_file`, `fetch_page`, `find_files`, `find_note`, `find_tools`, `read_files`, `reasoning_guide`, `run_command`, `run_skill`, `search_web`, `write_result`, `write_todo`. Everything else arrives as a name and a description; its parameters load on first use through `find_tools(mode=search)`, keeping the initial tool payload well under the full registry. The `edit_file` patch mode accepts only `{old_string, new_string}` targets (plus optional `replace_all`); `new_string` replaces `old_string`, and insertion is expressed by repeating `old_string` at the start of `new_string`. Every target is matched against the file as it is on disk before any of them apply, so their order does not matter; an `old_string` that matches more than once without `replace_all`, or two targets covering the same lines, rejects the whole batch without writing.
 
 ## Architecture
 

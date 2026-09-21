@@ -28,18 +28,18 @@ SCRIPT_ROOT=~/.config/agenvoy/tools/script
 
 Branch by input:
 
-| Has keyword? | Candidate set |
-|---|---|
-| No | All subdirectories |
-| Yes | Subdirectories whose name (lowercased) contains `keyword` (lowercased) |
+| Has keyword? | Candidate set                                                          |
+| ------------ | ---------------------------------------------------------------------- |
+| No           | All subdirectories                                                     |
+| Yes          | Subdirectories whose name (lowercased) contains `keyword` (lowercased) |
 
 Branch by candidate count:
 
-| Count | Action |
-|---|---|
-| 0 | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `edit_tool(mode=write)`" |
-| 1 | Use that directory as `extension_dir` directly; report "auto-selected `<basename>`" |
-| ≥ 2 | `ask_user` singleSelect listing all candidates; user picks one as `extension_dir` |
+| Count | Action                                                                                                                                                                             |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Abort. With keyword: "No directory matching `<keyword>` under `SCRIPT_ROOT`". Without keyword: "`SCRIPT_ROOT` is empty — create a script tool first using `edit_tool(mode=write)`" |
+| 1     | Use that directory as `extension_dir` directly; report "auto-selected `<basename>`"                                                                                                |
+| ≥ 2   | `ask_user` singleSelect listing all candidates; user picks one as `extension_dir`                                                                                                  |
 
 `extension_dir` is the **absolute path** `<SCRIPT_ROOT>/<basename>`, used by every step below.
 
@@ -52,11 +52,13 @@ Branch by candidate count:
 `find_files(mode=list, recursive=true)` enumerates every file under `extension_dir` (relative paths).
 
 **Collect into `raw_files`, excluding:**
+
 - `.DS_Store`, `Thumbs.db`, `.git*`
 - `*.tar`, `*.tar.gz`, `*.tgz`, `*.zip`
 - An existing `manifest.json` (this skill will regenerate it)
 
 `read_file` reads (if present):
+
 - `tool.json` (**required** — if missing, abort with "tool.json missing in <extension_dir>, refuse to package")
 - All `script.{js,py,sh}` / `*.js` / `*.py` / `*.sh`
 
@@ -64,12 +66,13 @@ Branch by candidate count:
 
 Check root-level files under `extension_dir`. Abort immediately on any violation:
 
-| Rule | Condition |
-|---|---|
-| tool.json must exist | `extension_dir/tool.json` exists and is a regular file |
+| Rule                    | Condition                                                               |
+| ----------------------- | ----------------------------------------------------------------------- |
+| tool.json must exist    | `extension_dir/tool.json` exists and is a regular file                  |
 | script mutual exclusion | `script.py` and `script.js` **must not coexist** (both present → abort) |
 
 Abort message:
+
 ```
 ❌ Structure check failed: script.py and script.js cannot coexist (keep only one).
 ```
@@ -82,11 +85,12 @@ Fixed `type: "script"` (this skill only packages tools under `~/.config/agenvoy/
 
 For `type: script`:
 
-| Rule | Condition |
-|---|---|
+| Rule              | Condition                                                                 |
+| ----------------- | ------------------------------------------------------------------------- |
 | script must exist | `script.py` or `script.js` must exist (exactly one); both missing → abort |
 
 Abort message:
+
 ```
 ❌ Structure check failed: type:script requires script.py or script.js.
 ```
@@ -107,6 +111,7 @@ Branch on the script file confirmed in §2.5:
   ```
 
 exit code ≠ 0 → abort:
+
 ```
 ❌ Health check failed: script cannot be parsed by the interpreter.
 <first line of stderr>
@@ -125,6 +130,7 @@ Scan every script file for these patterns to extract binaries:
 - Shell: the first non-reserved-word token
 
 **Exclude:**
+
 - Shell builtins: `cd`, `echo`, `test`, `[`, `export`, `set`, `shift`, `pwd`, `true`, `false`
 - Interpreters themselves: `node`, `python`, `python3`, `bash`, `sh`, `/usr/bin/env`
 - Tools whitelisted by default: `ls`, `cat`, `head`, `tail`, `mkdir`, `cp`, `mv`, `rm`, `grep`, `sed`, `awk`, `find`, `jq`, `which`, `date`, `git` (almost always present; not counted as a dependence)
@@ -183,10 +189,10 @@ default: <existing manifest version or 1.0.0>
 
 Reply handling:
 
-| Reply | Action |
-|---|---|
-| Blank / whitespace-only / empty | Use default as `manifest.version` — **not an error**, do not re-prompt |
-| Matches `^\d+\.\d+\.\d+$` | Accept as-is |
+| Reply                                                                                        | Action                                                                            |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Blank / whitespace-only / empty                                                              | Use default as `manifest.version` — **not an error**, do not re-prompt            |
+| Matches `^\d+\.\d+\.\d+$`                                                                    | Accept as-is                                                                      |
 | Anything else (incl. `v` prefix, pre-release like `1.0.0-beta`, build metadata `+sha`, etc.) | Re-prompt; abort after 3 attempts with "version format invalid, upload cancelled" |
 
 **Never treat blank as an error** — a deliberate blank means "use default".
@@ -233,16 +239,16 @@ Assemble the candidate manifest:
 
 Validate field by field; **any failure** triggers `ask_user` to fix that field:
 
-| Field | Condition |
-|---|---|
-| `name` | non-empty, matches `^[a-z0-9][a-z0-9_-]*$` |
-| `type` | ∈ `{api, script}` (worker rejects mcp) |
-| `version` | strict semver `^\d+\.\d+\.\d+$` (no pre-release suffix) |
-| `summary` | non-empty, ≤ 120 chars |
-| `email` | non-empty, matches `^[^@\s]+@[^@\s]+\.[^@\s]+$` (already guaranteed by §5) |
-| `dependence` | array, elements non-empty (empty array OK) |
-| `api_key_name` | array, each element matches `[A-Z][A-Z0-9_]*_API_KEY` (empty array OK) |
-| `files` | array, length ≥ 1, must include `tool.json` |
+| Field          | Condition                                                                  |
+| -------------- | -------------------------------------------------------------------------- |
+| `name`         | non-empty, matches `^[a-z0-9][a-z0-9_-]*$`                                 |
+| `type`         | ∈ `{api, script}` (worker rejects mcp)                                     |
+| `version`      | strict semver `^\d+\.\d+\.\d+$` (no pre-release suffix)                    |
+| `summary`      | non-empty, ≤ 120 chars                                                     |
+| `email`        | non-empty, matches `^[^@\s]+@[^@\s]+\.[^@\s]+$` (already guaranteed by §5) |
+| `dependence`   | array, elements non-empty (empty array OK)                                 |
+| `api_key_name` | array, each element matches `[A-Z][A-Z0-9_]*_API_KEY` (empty array OK)     |
+| `files`        | array, length ≥ 1, must include `tool.json`                                |
 
 Re-validate after each fix; only proceed once everything passes.
 
@@ -282,10 +288,10 @@ The only reliable check:
 ls -l ~/.config/agenvoy/tools/.extension/.package/<name>@<version>.tar.gz
 ```
 
-| ls result | Verdict |
-|---|---|
-| File exists, size > 0 bytes | **Packaging succeeded.** Record the size, proceed to §8. **Ignore** every stderr warning from the tar step. |
-| `No such file or directory` or size 0 | Actually failed. Print the tar stderr to the user and abort. |
+| ls result                             | Verdict                                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| File exists, size > 0 bytes           | **Packaging succeeded.** Record the size, proceed to §8. **Ignore** every stderr warning from the tar step. |
+| `No such file or directory` or size 0 | Actually failed. Print the tar stderr to the user and abort.                                                |
 
 Do not branch on "stderr contains a warning → failure". A tarball on disk = success.
 
@@ -334,13 +340,13 @@ Call `http_request`. **All four fields are required** (`url` / `method` / `conte
 
 Response is the `http_request` envelope: `{status_code, headers, body}`. **`status_code` is the only branching signal** — do not guess from the body string.
 
-| status_code | Expected body | Action |
-|---|---|---|
-| 202 | `{"ok":false,"error":"verification_sent","email":"...","ttl_seconds":60}` | Proceed to §8.2 |
-| 400 | schema error | Abort, print the error in the body |
-| 413 | `tar_too_large` | Abort |
-| 502 | `email_send_failed` | Abort |
-| Other | Shouldn't happen on first POST without a code (always expect 202) | Abort, print the raw body |
+| status_code | Expected body                                                             | Action                             |
+| ----------- | ------------------------------------------------------------------------- | ---------------------------------- |
+| 202         | `{"ok":false,"error":"verification_sent","email":"...","ttl_seconds":60}` | Proceed to §8.2                    |
+| 400         | schema error                                                              | Abort, print the error in the body |
+| 413         | `tar_too_large`                                                           | Abort                              |
+| 502         | `email_send_failed`                                                       | Abort                              |
+| Other       | Shouldn't happen on first POST without a code (always expect 202)         | Abort, print the raw body          |
 
 #### 8.2 ask_user for the verification code
 
@@ -379,15 +385,15 @@ Call `http_request` — **same four-field structure as §8.1**, only difference 
 }
 ```
 
-| status_code | Action |
-|---|---|
-| 200 | Success — parse body for `r2_key` / `sha256` / `size_bytes`, proceed to §9 |
-| 401 | `verification_failed` (wrong / expired) → loop back to §8.2; abort after 3 retries |
-| 409 | `version_already_exists` or `type_mismatch` → **abort**, print body `existing` info, suggest the user run `/version-generate` to bump or align type |
-| 422 | `downgrade_not_allowed` → **abort**, print body `latest`, ask user to bump version |
-| 413 | `tar_too_large` → abort |
-| 5xx | `internal` / `email_send_failed` → abort, print raw body |
-| Other | Abort, print raw body |
+| status_code | Action                                                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 200         | Success — parse body for `r2_key` / `sha256` / `size_bytes`, proceed to §9                                                  |
+| 401         | `verification_failed` (wrong / expired) → loop back to §8.2; abort after 3 retries                                          |
+| 409         | `version_already_exists` or `type_mismatch` → **abort**, print body `existing` info, ask user to bump version or align type |
+| 422         | `downgrade_not_allowed` → **abort**, print body `latest`, ask user to bump version                                          |
+| 413         | `tar_too_large` → abort                                                                                                     |
+| 5xx         | `internal` / `email_send_failed` → abort, print raw body                                                                    |
+| Other       | Abort, print raw body                                                                                                       |
 
 ### 9. Final report
 
@@ -447,7 +453,8 @@ Upload-stage failure (§8.1 / §8.2 / §8.3) → show `✅ packaged` plus `❌ p
 - Never omit `content_type: "multipart"` (defaults to `json`, worker won't see multipart)
 - Never put manifest JSON into `files[]` (it's a text field, goes under `fields.manifest`); never put tar bytes into `fields` (binary goes under `files[].path` and the handler reads from disk)
 - Never guess `status_code`; use the `http_request` envelope `status_code` as the only branch signal
-- Never auto-bump version and re-POST after 409 / 422; both codes signal "user-side mistake" — go back through `/version-generate` or manual adjustment, then re-run the whole skill
+- Never auto-bump version and re-POST after 409 / 422; both codes signal "user-side mistake" — user bumps the version manually, then re-run the whole skill
 - Never upload tarball + manifest to any endpoint other than §8 (raw GitHub / S3 / any other worker variant)
 </content>
+
 </invoke>

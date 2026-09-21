@@ -150,15 +150,7 @@ func New() *gin.Engine {
 	return r
 }
 
-var allowedOrigins = map[string]bool{
-	"https://web.agenvoy.com":                 true,
-	"https://agenvoy-board.pardn.workers.dev": true,
-}
-
 func allowOrigin(origin string) bool {
-	if allowedOrigins[origin] {
-		return true
-	}
 	parsed, err := url.Parse(origin)
 	if err != nil {
 		return false

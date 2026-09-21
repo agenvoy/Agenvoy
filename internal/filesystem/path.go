@@ -38,6 +38,7 @@ var (
 	DiscordAuthPath         string
 	SkillsDir               string
 	SystemSkillsDir         string
+	SystemDesignDir         string
 	ScheduleSkillsDir       string
 	ScheduleSkillTrashDir   string
 	SkillTrashDir           string
@@ -97,6 +98,7 @@ func Init() error {
 
 		SkillsDir = filepath.Join(AgenvoyDir, "skills")
 		SystemSkillsDir = filepath.Join(SkillsDir, ".system")
+		SystemDesignDir = filepath.Join(SkillsDir, ".system_design")
 		ScheduleSkillsDir = filepath.Join(SkillsDir, "scheduler")
 		ScheduleSkillTrashDir = filepath.Join(ScheduleSkillsDir, ".Trash")
 		SkillTrashDir = filepath.Join(SkillsDir, ".Trash")
