@@ -320,14 +320,17 @@ func CleanupPending(sessionID, taskHash string) {
 	os.Remove(src)
 }
 
-func CreateExecPending(sessionID, objective, messageID, model string, allowAll bool) string {
+func CreateExecPending(sessionID, objective, messageID, model, reasoning string, allowAll bool) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	sessionModel, reasoning := configBot.GetModel(sessionID)
+	sessionModel, sessionReasoning := configBot.GetModel(sessionID)
 	if strings.TrimSpace(model) == "" {
 		model = sessionModel
+	}
+	if strings.TrimSpace(reasoning) == "" {
+		reasoning = sessionReasoning
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{Objective: objective, MessageID: messageID, Model: model, Reasoning: reasoning, AllowAll: allowAll}); err != nil {
 		slog.Warn("CreateExecPending", slog.String("session", sessionID), slog.String("error", err.Error()))

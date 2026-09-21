@@ -182,6 +182,7 @@ type Event struct {
 	Result          string              `json:"result,omitempty"`
 	Model           string              `json:"model,omitempty"`
 	Quota           string              `json:"quota,omitempty"`
+	Reasoning       string              `json:"reasoning,omitempty"`
 	Usage           *provider.Usage     `json:"usage,omitempty"`
 	UsageInput      string              `json:"usage_input,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`

@@ -322,7 +322,7 @@ function newUserItem(item) {
 }
 
 function newAssisatantItem(item, sessionId) {
-  const body = [_("p", item.meta.model || "")];
+  const body = [_("p", (item.meta.model || "") + (item.meta.reasoning ? `/${item.meta.reasoning}` : ""))];
 
   if (item.Reasoning) {
     body.push(

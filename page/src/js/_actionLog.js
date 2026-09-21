@@ -161,6 +161,7 @@ function parseActionLog(content) {
 
         const meta = formatDone(body);
         item.meta.model = meta.model || item.meta.model;
+        item.meta.reasoning = meta.reasoning;
         item.meta.duration = meta.duration;
         item.meta.input = meta.input;
         item.meta.output = meta.output;
@@ -254,8 +255,10 @@ function formatDone(body) {
   const input = /\bin=(\d+)(?:\s*\((\d+)%\))?/.exec(body);
   const output = /\bout=(\d+)/.exec(body);
   const outputDuration = /\boutdur=(\S+)/.exec(body);
+  const reasoning = /\breasoning=(\S+)/.exec(body);
   return {
     model: model,
+    reasoning: reasoning ? reasoning[1] : "",
     duration: duration ? compactDuration(duration[1]) : "",
     input: input ? compactToken(input[1]) + (input[2] ? `(${input[2]}%)` : "") : "",
     output: output ? compactToken(output[1]) : "",

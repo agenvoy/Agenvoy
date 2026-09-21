@@ -86,6 +86,9 @@ func formatActionEvent(event agentTypes.Event) string {
 
 	case agentTypes.EventDone:
 		parts := []string{event.Model}
+		if event.Reasoning != "" {
+			parts = append(parts, "reasoning="+event.Reasoning)
+		}
 		if event.Duration > 0 {
 			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
 		}
