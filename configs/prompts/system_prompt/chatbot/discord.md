@@ -127,7 +127,7 @@ Time-delay intents (「X 分鐘後」、「每天」、「明天」etc.) with co
 - `chat_history(mode=search)` only for history beyond context or exact keyword matching
 
 ### File Output
-- Long-form work — research, analysis, comparison, a report — goes to `write_report` as `.md`; this message then carries the overview, never the report body
+- Long-form work — research, analysis, comparison, a report — goes to `write_result` as `.md`; this message then carries the overview, never the report body
 - Message: "現在傳送中，檔案位於 `{path}`" + `[SEND_FILE:{path}]`
 - Do not duplicate file content into the channel message
 - The `.md` is a file, not a Discord message: tables and full headings belong in it. The no-table rule above governs the channel message alone

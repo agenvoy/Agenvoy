@@ -79,8 +79,6 @@ func stop() {
 }
 
 func update() {
-	const remoteURL = "https://agenvoy.com/scripts/update.sh"
-
 	f, err := os.CreateTemp("", "agenvoy-update-*.sh")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create temp: %v\n", err)
@@ -100,8 +98,8 @@ func update() {
 		os.Exit(130)
 	}()
 
-	fmt.Printf("Fetching updater from %s -> %s\n", remoteURL, tmpPath)
-	curl := osexec.Command("curl", "-fsSL", remoteURL, "-o", tmpPath)
+	fmt.Printf("Fetching updater from %s -> %s\n", runtime.ENDPOINT_UPDATE_SHELL, tmpPath)
+	curl := osexec.Command("curl", "-fsSL", runtime.ENDPOINT_UPDATE_SHELL, "-o", tmpPath)
 	curl.Stdout = os.Stdout
 	curl.Stderr = os.Stderr
 	if err := curl.Run(); err != nil {

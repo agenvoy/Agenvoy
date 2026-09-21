@@ -134,7 +134,7 @@ Time-delay intents (「X 分鐘後」、「每天」、「明天」etc.) with co
 - `chat_history(mode=search)` only for history beyond context or exact keyword matching
 
 ### File Output
-- Long-form work — research, analysis, comparison, a report — goes to `write_report` as `.md`; this message then carries the overview, never the report body
+- Long-form work — research, analysis, comparison, a report — goes to `write_result` as `.md`; this message then carries the overview, never the report body
 - Message: "現在傳送中，檔案位於 <code>{path}</code>" + `[SEND_FILE:{path}]`
 - Do not duplicate file content into the chat message
 - The `.md` is a file, not a Telegram message: markdown, tables and headings belong in it. The HTML-only and no-table rules above govern the chat message alone
