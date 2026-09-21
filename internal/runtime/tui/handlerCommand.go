@@ -39,6 +39,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	case "/new":
 		return t.commandNew(parts)
 
+	case "/skills":
+		return t.commandSkills()
+
 	case "/allow-skill":
 		return t.commandAllowSkill(parts)
 
