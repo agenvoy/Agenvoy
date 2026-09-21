@@ -131,8 +131,8 @@ github.com/pardnchiu/go-bot v0.5.0 h1:5FQvFV2uyAQXIyrewOzw+aiHr0zPXXIvDu+ji3h6Qf
 github.com/pardnchiu/go-bot v0.5.0/go.mod h1:9eE+MLerrx6XTz/WS0tGPiPdjKCGGeOHPRhIGfD1HfI=
 github.com/pardnchiu/go-browser v0.3.2 h1:gb/Cn4e6PosUE4RoQopT12XqkpoWmRffq9HqHfI6CIE=
 github.com/pardnchiu/go-browser v0.3.2/go.mod h1:F4Ms8dIbPb23MX0FMZ6w3PKnjFs+wNsd4QJmirXkEd0=
-github.com/pardnchiu/go-llm-router v0.6.1 h1:qEZFjxGocNms+6HFrCu+rHHZ4GAoXIX4q94ISYZCCz8=
-github.com/pardnchiu/go-llm-router v0.6.1/go.mod h1:D6Z8WFFiuzEjrx/11XhKlf88J0Un0uF9beIpJXbeZJU=
+github.com/pardnchiu/go-llm-router v0.7.0 h1:GJw5AW6h3sv1iivEuweik2MgVafeoAnAue2g0u1OVMw=
+github.com/pardnchiu/go-llm-router v0.7.0/go.mod h1:D6Z8WFFiuzEjrx/11XhKlf88J0Un0uF9beIpJXbeZJU=
 github.com/pardnchiu/go-pkg v0.13.14 h1:lQoHbBIHfvEHTlXIGXl8PU8JNQfkjUKHkKeVSBKsejc=
 github.com/pardnchiu/go-pkg v0.13.14/go.mod h1:DUCX9mbGQ2YCULGvoMOgagVJBMjSyiTzuwt29fw1qfQ=
 github.com/pardnchiu/go-scheduler v1.2.0 h1:DBmFWOPjGUzQEKYHZNeLS9v9PmJrKk/VwxQeVO754Ns=
