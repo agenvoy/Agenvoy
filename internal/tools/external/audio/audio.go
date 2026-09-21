@@ -6,8 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pardnchiu/go-llm-router/core"
+	llmrouter "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/gemini"
+	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-var Providers = []string{"openai", "gemini"}
+var Providers = []string{"openai", "gemini", "openrouter"}
 
 const Off = ""
 
@@ -24,7 +25,7 @@ const transcriptPrompt = "Provide a complete verbatim transcript of the audio or
 
 func InstallTranscriber() {
 	filesystem.SetTranscriber(func(ctx context.Context, raw []byte, mime string) (string, error) {
-		return Transcribe(ctx, raw, core.STTOptions{Prompt: transcriptPrompt, MimeType: mime})
+		return Transcribe(ctx, raw, llmrouter.STTOptions{Prompt: transcriptPrompt, MimeType: mime})
 	})
 }
 
@@ -61,14 +62,14 @@ func TTSEnabled() bool {
 }
 
 func STTOptions(ctx context.Context) []string {
-	return options(ctx, core.ModelFilter{STTOnly: true})
+	return options(ctx, llmrouter.ModelFilter{STTOnly: true})
 }
 
 func TTSOptions(ctx context.Context) []string {
-	return options(ctx, core.ModelFilter{TTSOnly: true})
+	return options(ctx, llmrouter.ModelFilter{TTSOnly: true})
 }
 
-func options(ctx context.Context, filter core.ModelFilter) []string {
+func options(ctx context.Context, filter llmrouter.ModelFilter) []string {
 	found := make([][]string, len(Providers))
 	var wg sync.WaitGroup
 	for i, name := range Providers {
@@ -80,9 +81,11 @@ func options(ctx context.Context, filter core.ModelFilter) []string {
 			var models []string
 			switch name {
 			case "openai":
-				models, err = openai.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
+				models, err = openai.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
 			case "gemini":
-				models, err = gemini.Models(ctx, core.Config{APIKey: cfg.APIKey}, filter)
+				models, err = gemini.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
+			case "openrouter":
+				models, err = openrouter.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
 			}
 			if err != nil {
 				return
@@ -101,7 +104,7 @@ func options(ctx context.Context, filter core.ModelFilter) []string {
 	return list
 }
 
-func Transcribe(ctx context.Context, audio []byte, opts core.STTOptions) (string, error) {
+func Transcribe(ctx context.Context, audio []byte, opts llmrouter.STTOptions) (string, error) {
 	name := SelectedSTT()
 	if name == Off {
 		return "", fmt.Errorf("no speech-to-text model selected; set it in Config → Model → Setting Models")
@@ -110,7 +113,7 @@ func Transcribe(ctx context.Context, audio []byte, opts core.STTOptions) (string
 	if err != nil {
 		return "", err
 	}
-	ear, ok := built.(core.STTAgent)
+	ear, ok := built.(llmrouter.STTAgent)
 	if !ok {
 		return "", fmt.Errorf("%s cannot transcribe audio", name)
 	}
@@ -121,7 +124,7 @@ func Transcribe(ctx context.Context, audio []byte, opts core.STTOptions) (string
 	return out.Text, nil
 }
 
-func Speak(ctx context.Context, text string, opts core.TTSOptions) (*core.TTSResult, string, error) {
+func Speak(ctx context.Context, text string, opts llmrouter.TTSOptions) (*llmrouter.TTSResult, string, error) {
 	name := SelectedTTS()
 	if name == Off {
 		return nil, "", fmt.Errorf("no text-to-speech model selected; set it in Config → Model → Setting Model")
@@ -130,7 +133,7 @@ func Speak(ctx context.Context, text string, opts core.TTSOptions) (*core.TTSRes
 	if err != nil {
 		return nil, name, err
 	}
-	mouth, ok := built.(core.TTSAgent)
+	mouth, ok := built.(llmrouter.TTSAgent)
 	if !ok {
 		return nil, name, fmt.Errorf("%s cannot synthesize speech", name)
 	}

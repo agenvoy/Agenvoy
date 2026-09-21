@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/gemini"
 	"github.com/pardnchiu/go-llm-router/core/grok"
 	grokOauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-var Providers = []string{"openai", "codex", "grok", "grok-oauth", "gemini"}
+var Providers = []string{"openai", "codex", "grok", "grok-oauth", "gemini", "openrouter"}
 
 const Off = ""
 
@@ -66,6 +67,8 @@ func Available(ctx context.Context) []string {
 				models, err = grokOauth.Models(ctx, base, filter)
 			case "gemini":
 				models, err = gemini.Models(ctx, base, filter)
+			case "openrouter":
+				models, err = openrouter.Models(ctx, base, filter)
 			}
 			if err != nil {
 				slog.Debug("image.Available",

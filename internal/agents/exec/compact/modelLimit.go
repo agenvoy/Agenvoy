@@ -9,10 +9,11 @@ import (
 	"time"
 
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
+
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 const (
-	limitAPI     = "https://llm-io.agenvoy.com/"
 	limitTTL     = time.Hour
 	limitTimeout = 5 * time.Second
 )
@@ -85,7 +86,7 @@ func Warm(ctx context.Context) {
 	}
 
 	client := &http.Client{Timeout: limitTimeout}
-	dic, status, err := go_pkg_http.GET[map[string]map[string]modelLimit](ctx, client, limitAPI, nil)
+	dic, status, err := go_pkg_http.GET[map[string]map[string]modelLimit](ctx, client, runtime.ENDPOINT_LLM_WINDOW, nil)
 	if err != nil {
 		slog.Debug("compact.Warm", slog.String("error", err.Error()))
 		return

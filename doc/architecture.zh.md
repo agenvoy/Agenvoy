@@ -4,18 +4,20 @@
 
 ## 概覽
 
-Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client／server 整合到同一個執行引擎；Agent 可依 Skill 與任務選擇模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
+Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client 整合到同一個執行引擎；stdin MCP server 是另一個較窄的介面，只提供生成與 extension 工具，不經過執行引擎。Agent 可依 Skill 與任務選擇模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
 
 ```mermaid
 graph TB
-    User[使用者／MCP Client] --> Entry[CLI、TUI、Web API 或聊天頻道]
-    Entry --> Daemon[本機 Daemon]
-    Entry --> MCPServer[stdin MCP Server]
-    Daemon --> Exec[Agent 執行器]
-    MCPServer --> Tools[工具註冊表]
+    User[使用者] --> TUI[CLI／TUI]
+    User --> Web[Web API／聊天頻道]
+    Client[MCP Client] --> MCPServer[stdin MCP Server]
+    TUI --> Exec[Agent 執行器]
+    Web --> Daemon[本機 Daemon]
+    Daemon --> Exec
+    MCPServer --> ToolBox[script_／api_／ext_ 工具]
     Exec --> Router[模型路由器]
     Exec --> Skills[Skill 比對]
-    Exec --> Tools
+    Exec --> Tools[工具註冊表]
     Exec --> Sessions[Session／歷史／記憶]
     Tools --> Guard[確認、權限與沙箱]
     Daemon --> Channels[Telegram／Discord]
@@ -25,11 +27,11 @@ graph TB
 
 ## 模組：進入點與執行模式
 
-`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`。
+`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`（同時監聽 `[::1]:17989`）。
 
-所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>` 或指定名稱的 Skill；接著 `exec.Start` 記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓聊天頻道的驗證碼與 host reload 訊息顯示在終端機。
+所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>`；接著 `exec.Start` 查找以名稱指定的 Skill、記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓 Telegram 與 Discord 的驗證碼顯示在終端機。
 
-輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度，`pass` tier 的模型一律排在最後。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。`nvidia/nemotron-3.5-lightning-30b-a3b` 是 NVIDIA NIM 提供的免費、非大型模型，適合免費嚐鮮 Agenvoy，不是必要的 dispatcher 或主要模型。
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度，`pass` tier 的模型一律排在最後。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。免費試用 Agenvoy 建議使用 `ollama-cloud` 的 `gemma4:31b`（免費 API key，有用量上限），它不是必要的 dispatcher 或主要模型。
 
 ```mermaid
 graph TB
@@ -47,7 +49,7 @@ graph TB
 
 ## 模組：Daemon、Web 與 HTTP API
 
-Daemon 初始化檔案系統、設定、ToriiDB、SQLite 歷史儲存、工具、Agent、Skill scanner、排程與聊天頻道；啟動時會清除過期的執行中標記，完成筆記遷移後才提供本機 HTTP API。Dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 綁定 `127.0.0.1`；Agent 執行、session、模型與 SSE log 可由一般 API surface 使用，而憑證、provider、MCP、規則、筆記、排程與白名單等設定／管理操作另受 `localhostOnly()` 保護。
+Daemon 依序初始化 ToriiDB、清除過期的執行中標記、開啟 SQLite 歷史資料庫、遷移筆記，並在提供本機 HTTP API 前先註冊 Web 確認 listener；工具、Agent、Skill scanner、排程與聊天頻道也在此時載入。Dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 只監聽 `127.0.0.1` 與 `[::1]`；另外，`localhostOnly()` 保護 dashboard、session 建立／讀取／更新／刪除、模型路由、用量、憑證、provider、MCP、規則、筆記、Skill、排程、白名單與設定。Agent 執行（`/send`、`/v1/chat/completions`）、確認、取消、pending 工作、session 清單、模型清單、SSE log 與 `/v1/mcp/tools` 不經此守衛。
 
 ```mermaid
 graph TB
@@ -60,14 +62,16 @@ graph TB
         Reload --> Register
     end
     Routes --> Dashboard[內嵌 Web Dashboard]
-    Routes --> ExecAPI[Agent 執行 API]
-    Routes --> ConfigAPI[設定／管理 API]
+    Routes --> ExecAPI[Agent 執行、確認、取消 API]
+    Routes --> ConfigAPI[Dashboard、session、模型路由與設定／管理 API]
     ConfigAPI --> LocalGuard[localhostOnly 守衛]
 ```
 
 ## 模組：Agent 執行、Skill 與模型路由
 
 每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），查無資料時 `copilot@` 模型以 256K、其餘以 128K 計算。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+
+Skill 依固定順序掃描，同名時先找到的生效：`<cwd>/.skills`、`<cwd>/.claude/skills`、`~/.config/agenvoy/skills/.system`、`~/.config/agenvoy/skills/.system_design`、`~/.config/agenvoy/skills`，最後是 `~/.claude`、`~/.codex`、`~/.opencode`、`~/.openai` 的 skills。掃描目錄內其他以 `.` 開頭的資料夾會被略過。`.system` 每次 `make build` 都會以 `extensions/skills` 重建；`.system_design` 存放 TUI `/skills` 指令管理的官方 Skill，勾選時從 `github.com/agenvoy/skill-<name>` clone、取消勾選時刪除，因此重建不會清掉它們。兩個資料夾中的 Skill 來源都標為 `system`，Web 介面無法刪除。
 
 ```mermaid
 graph TB
@@ -90,7 +94,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_report`，長篇報告寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡；`run_command` 會等待程序結束，因此會啟動 file watcher 的命令（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在執行前即拒絕；檔案搜尋採分頁，`read_files` 預設讀 2048 行並標示下一個 offset。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search、檔案搜尋與 RAG 則可直接提供即時或本機資料。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_result`，長篇成果（Markdown 或 HTML）寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡；`run_command` 會等待程序結束，因此會啟動 file watcher 的命令（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在執行前即拒絕；檔案搜尋採分頁，`read_files` 預設讀 2048 行並標示下一個 offset。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search 與檔案搜尋可直接提供即時或本機資料；RAG 沒有內建工具，需由外部 MCP server 提供。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
 
 ```mermaid
 graph TB
@@ -109,7 +113,7 @@ graph TB
 
 ## 模組：Session、歷史、排程與監控
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定存於 SQLite；訊息、摘要、使用量、log 與 pending 工作依 session 保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener；subagent 的 `DeliverTo` 會把提問送回父層 session。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
@@ -117,7 +121,7 @@ graph TB
     Request --> History[history.json]
     History --> SQLite[SQLite 搜尋索引]
     History --> Summary[滾動摘要]
-    Request --> Logs[action.log／usage.log]
+    Request --> Logs[action.log／SQLite 用量]
     Pending[ask_user／工具確認] --> Origin[來源前綴]
     Origin --> Listener[對應頻道 Listener]
     Listener --> Resume[恢復執行]
@@ -130,7 +134,7 @@ graph TB
 
 Dashboard 的 System 分頁會比對目前版本與 GitHub 最新 release，並可開啟終端機執行 `agen update`（macOS 為 Terminal.app，WSL 經 `cmd.exe` 進入 distro，Linux 為終端機模擬器）。Telegram 與 Discord 由本機 daemon 主動連線，因此不需開放入站連接埠或公開主機；設定只需要對應 bot token。兩個頻道都支援附件保存與選擇性 STT 轉錄、依來源配對的確認、格式化回覆及音訊檔傳送。自 **v0.34.4** 起，暫停「收到語音輸入後自動產生並回傳語音輸出」的預設流程；本機仍可使用 STT／TTS 生成音訊並將檔案傳送到頻道。
 
-外部 MCP server 可經 stdio 或 streamable HTTP 連接；工具清單變更時會重新註冊工具，server instructions 會加入 Agent system prompt。HTTP MCP server 可走 OAuth，token 與 client id 會存於作業系統 keychain。Agenvoy 本身也能以 stdin JSON-RPC MCP server 將本機沙箱工具提供給 Claude Code、Codex、OpenCode 與其他 MCP Client。
+外部 MCP server 可經 stdio 或 streamable HTTP 連接；工具清單變更時會重新註冊工具，server instructions 會加入 Agent system prompt。HTTP MCP server 可走 OAuth，token 與 client id 會存於 keychain。Agenvoy 本身也能以 stdin JSON-RPC MCP server 服務 Claude Code、Codex、OpenCode 與其他 MCP Client；它不共用 Agent 的工具註冊表，也不執行 Agent，只提供 `script_*`、`api_*`、`ext_*` 工具，加上 `tool_generate_guide`、`list_tools`、`edit_tool`、`test_tool` 與 `store_secret`，讓 client 能查找、建立並呼叫生成的工具。
 
 ```mermaid
 graph TB
@@ -146,14 +150,14 @@ graph TB
     MCPClient --> RemoteTools[MCP 工具註冊]
     MCPClient --> OAuth[OAuth／Keychain]
     External[外部 MCP Client] --> LocalMCP[stdin JSON-RPC MCP Server]
-    LocalMCP --> Registry[本機工具註冊表]
+    LocalMCP --> ToolBox[script_／api_／ext_ 工具與工具建立]
 ```
 
 ## 資料流
 
 ```mermaid
 sequenceDiagram
-    participant User as 使用者／頻道／MCP Client
+    participant User as 使用者／頻道
     participant Entry as TUI／Web／聊天整合
     participant Exec as Agent 執行器
     participant Router as 模型路由器
@@ -178,10 +182,10 @@ sequenceDiagram
 
 ## 安全邊界
 
-- Daemon 綁定 `127.0.0.1`；設定與管理 endpoint 另有 localhost-only 守衛。
-- denied path 與 denied command 會直接拒絕；敏感路徑、`$HOME` 外寫入及其他受限操作則要求明確確認，支援時再要求系統驗證。
+- Daemon 只監聽 `127.0.0.1` 與 `[::1]`；管理類 endpoint 另有 `localhostOnly()` 守衛。
+- denied path 與 denied command 會直接拒絕；敏感路徑、檔案工具在 `$HOME` 外的讀取與寫入（`read_files`、`find_files`、`file_history`、`edit_file`、`open_file`）及其他受限操作則要求明確確認，支援時再要求系統驗證；核准範圍限於該 session 與所請求的路徑或執行檔。
 - 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。`run_command` 內一律拒絕 `sudo`；需要寫入 `$HOME` 以外的命令，要在該次呼叫以 `write_paths` 宣告路徑，並由使用者輸入系統密碼核准。
-- 憑證與 OAuth token 存在作業系統 keychain，不寫入 repository。
+- 憑證與 provider、MCP 的 OAuth token 存在作業系統 keychain（macOS Keychain、Linux `secret-tool`），不寫入 repository；`secret-tool` 失敗時改存 `~/.config/agenvoy/.secrets`（權限 0600）。
 
 ## 持久化結構
 
@@ -194,6 +198,9 @@ flowchart LR
     Sessions --> Pending[Pending 工作]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[歷史／Session 搜尋]
     SQLite --> Notes[Notes]
+    SQLite --> SessionConfig[Session 設定]
+    SQLite --> Usage[Token 用量]
+    SQLite --> ActionHistory[Action 與檔案歷史]
     Torii0[~/.config/agenvoy/.store/db_0] --> ToolCache[工具快取]
     Torii1[~/.config/agenvoy/.store/db_1] --> SessionMemory[對話向量]
     Torii2[~/.config/agenvoy/.store/db_2] --> ErrorMemory[錯誤記憶]
@@ -201,6 +208,8 @@ flowchart LR
     MCP[~/.config/agenvoy/mcp.json] --> MCPClients[MCP Clients]
     Tools[~/.config/agenvoy/tools] --> Registry[工具註冊表]
     Skills[~/.config/agenvoy/skills] --> Scanner[Skill Scanner]
+    SystemSkills[skills/.system] -->|make build| Scanner
+    DesignSkills[skills/.system_design] -->|/skills| Scanner
     Schedules[crons.json／tasks.json] --> Scheduler[Scheduler]
     Auth[.telegram／.discord] --> Channels[已授權頻道]
 ```

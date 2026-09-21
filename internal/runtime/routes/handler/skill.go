@@ -170,5 +170,8 @@ func deletableSkill(absPath string) bool {
 	if filesystem.SystemSkillsDir != "" && strings.HasPrefix(absPath, filesystem.SystemSkillsDir+"/") {
 		return false
 	}
+	if filesystem.SystemDesignDir != "" && strings.HasPrefix(absPath, filesystem.SystemDesignDir+"/") {
+		return false
+	}
 	return strings.HasPrefix(absPath, filesystem.SkillsDir+"/")
 }

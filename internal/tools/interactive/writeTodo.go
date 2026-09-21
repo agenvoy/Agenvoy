@@ -112,7 +112,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 
 			result := fmt.Sprintf("checklist saved: %d step(s) — %d done, %d in progress, %d pending", len(todos), done, doing, pending)
 			if doing == 0 && pending == 0 && !reportWritten(e) {
-				result += "\nplan complete, no report written this task: long-form deliverable (analysis / research / comparison, past ~400 words, or a table plus commentary) → call write_report with every detail now, and reply with the key-point overview in that same message; short answer → reply directly"
+				result += "\nplan complete, no report written this task: long-form deliverable (analysis / research / comparison, past ~400 words, or a table plus commentary) → call write_result with every detail now, and reply with the key-point overview in that same message; short answer → reply directly"
 			}
 			return result, nil
 		},
@@ -122,7 +122,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 func reportWritten(e *toolTypes.Executor) bool {
 	for _, path := range e.EditedFiles() {
 		name := filepath.Base(path)
-		if strings.HasPrefix(name, "report-") && strings.HasSuffix(name, ".md") {
+		if strings.HasPrefix(name, "report-") && (strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".html")) {
 			return true
 		}
 	}

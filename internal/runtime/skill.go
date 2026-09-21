@@ -37,6 +37,7 @@ func NewSkillScanner() *SkillScanner {
 		filepath.Join(cwd, ".skills"),
 		filepath.Join(cwd, ".claude", "skills"),
 		filesystem.SystemSkillsDir,
+		filesystem.SystemDesignDir,
 		filesystem.SkillsDir,
 		filepath.Join(home, ".claude", "skills"),
 		filepath.Join(home, ".codex", "skills"),
@@ -164,7 +165,8 @@ func SkillSource(path string) string {
 		return ""
 	}
 	switch {
-	case filesystem.SystemSkillsDir != "" && strings.HasPrefix(path, filesystem.SystemSkillsDir+"/"):
+	case filesystem.SystemSkillsDir != "" && strings.HasPrefix(path, filesystem.SystemSkillsDir+"/"),
+		filesystem.SystemDesignDir != "" && strings.HasPrefix(path, filesystem.SystemDesignDir+"/"):
 		return "system"
 	case filesystem.SkillsDir != "" && strings.HasPrefix(path, filesystem.SkillsDir+"/"):
 		return "agenvoy"
