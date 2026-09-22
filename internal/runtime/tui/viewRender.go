@@ -305,7 +305,7 @@ var (
 	headerStyle = lipgloss.NewStyle()
 
 	textAreaStyle = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), true, false, true, false).
+			Border(lipgloss.NormalBorder(), true, false, false, false).
 			BorderForeground(colHint).
 			Padding(0, 1)
 
@@ -381,9 +381,9 @@ func thinkingBlock(str string) string {
 		if i > 0 {
 			sb.WriteString("\n  ")
 		} else {
-			sb.WriteString(whiteStyle.Render("✻ "))
+			sb.WriteString(hintStyle.Render("✻ "))
 		}
-		sb.WriteString(whiteStyle.Render(line))
+		sb.WriteString(hintStyle.Render(line))
 	}
 	return sb.String()
 }

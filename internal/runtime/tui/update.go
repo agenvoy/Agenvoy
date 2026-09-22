@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -1041,6 +1042,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, tea.Sequence(
 			tea.ClearScreen,
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(msg.id))+"\n"),
 		)
 
 	case tailLine:

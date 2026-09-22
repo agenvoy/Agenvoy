@@ -24,6 +24,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -677,6 +678,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
 		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
+		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name(), torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
+			slog.Debug("torii.Set",
+				slog.String("session", session.ID),
+				slog.String("error", err.Error()))
+		}
 
 		usageSnapshot := usage
 		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}

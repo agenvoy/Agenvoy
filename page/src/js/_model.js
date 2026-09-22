@@ -179,7 +179,23 @@ function markReasoning(level) {
   }
 }
 
+async function markAutoReasoning() {
+  const picker = $("#chat-reasoning");
+  if (!picker) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API}/v1/model`);
+    if (response.ok) {
+      picker.hidden = ((await response.json()) || {}).auto_reasoning === true;
+    }
+  } catch (err) {
+    console.error("markAutoReasoning", err);
+  }
+}
+
 async function getReasoningList(sessionId) {
+  markAutoReasoning();
   if (!SESSION_ID.test(sessionId || "")) {
     return;
   }
@@ -190,10 +206,6 @@ async function getReasoningList(sessionId) {
       return;
     }
     const body = await response.json();
-    const picker = $("#chat-reasoning");
-    if (picker) {
-      picker.hidden = body.auto_reasoning === true;
-    }
     const levels = body.levels || [];
     if (levels.length === 0) {
       return;
