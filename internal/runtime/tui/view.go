@@ -14,7 +14,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func (t TUI) View() string {
@@ -35,21 +34,20 @@ func (t TUI) viewIdle() string {
 
 	var fastMode string
 	if fast.IsEnabled() {
-		fastMode = systemStyle.Render(" [fast]")
+		fastMode = systemStyle.Render(" fast")
 	}
 
 	var confirmMode string
 	if t.allowAll {
-		confirmMode = errorStyle.Render(" [auto]") + hintStyle.Render(" "+t.shortCwd())
+		confirmMode = errorStyle.Render(" auto") + hintStyle.Render(" "+t.shortCwd())
 	} else {
-		confirmMode = okayStyle.Render(" [safe]") + hintStyle.Render(" "+t.shortCwd())
+		confirmMode = okayStyle.Render(" safe") + hintStyle.Render(" "+t.shortCwd())
 	}
-	right := t.sessionTag()
 
 	prefix := "\n"
 	var top string
 	if t.running {
-		top = t.viewThinking() + "\n\n"
+		top = t.viewThinking() + "\n"
 	}
 
 	if t.selector != nil {
@@ -57,11 +55,16 @@ func (t TUI) viewIdle() string {
 	}
 
 	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
+	boxWidth := lipgloss.Width(box)
+	bottom := hintStyle.Render(strings.Repeat("─", boxWidth))
+	if model := t.modelTag(); model != "" {
+		tag := " " + model + " "
+		if fill := boxWidth - lipgloss.Width(tag) - 1; fill >= 1 {
+			bottom = hintStyle.Render(strings.Repeat("─", fill)) + tag + hintStyle.Render("─")
+		}
+	}
 
-	left := fastMode + confirmMode
-	pad := width - 1 - lipgloss.Width(left) - lipgloss.Width(right)
-	pad = max(pad, 1)
-	return prefix + top + box + "\n" + left + strings.Repeat(" ", pad) + right
+	return prefix + top + box + "\n" + bottom + "\n" + fastMode + confirmMode
 }
 
 func (t TUI) viewThinking() string {
@@ -349,25 +352,10 @@ func (t TUI) viewPopup() string {
 	return popupStyle.Width(width - 4).Render(strings.Join(body, "\n"))
 }
 
-func (t TUI) sessionTag() string {
-	var parts []string
-	if name := t.sessionName(); name != "" {
-		parts = append(parts, hintStyle.Render(name))
-	}
-	return strings.Join(parts, hintStyle.Render("  ")) + hintStyle.Render("  ")
-}
-
-func (t TUI) sessionName() string {
+func (t TUI) modelTag() string {
 	sid := strings.TrimSpace(t.currentSessionID)
-	name := strings.TrimSpace(t.currentSessionName)
 	if sid == "" {
-		return hintStyle.Render("(no session)")
-	}
-
-	short := utils.ShortenSessionID(sid)
-	base := short
-	if name != "" && name != sid {
-		base = fmt.Sprintf("%s (%s)", name, short)
+		return ""
 	}
 
 	model, reasoning := configBot.GetModel(sid)
@@ -377,7 +365,7 @@ func (t TUI) sessionName() string {
 	}
 
 	if autoReasoningActive() {
-		return base + hintStyle.Render(" (") + modelPart + hintStyle.Render(")")
+		return modelPart
 	}
 
 	var reasonPart string
@@ -389,5 +377,5 @@ func (t TUI) sessionName() string {
 	default:
 		reasonPart = hintStyle.Render(reasoning)
 	}
-	return base + hintStyle.Render(" (") + modelPart + hintStyle.Render("/") + reasonPart + hintStyle.Render(")")
+	return modelPart + hintStyle.Render("/") + reasonPart
 }

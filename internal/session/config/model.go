@@ -72,7 +72,7 @@ var ModelTags = []string{"S", "A", "B", "C", ModelTagPass}
 
 var ModelTagDetails = map[string]string{
 	"S":          "strongest  code and work that asks for depth or precision",
-	"A":          "default for most work  one step below the flagship  e.g. sonnet, terra, pro",
+	"A":          "default for most work  one step below the flagship  e.g. sol, grok, sonnet, terra, pro",
 	"B":          "mainstream mid tier  e.g. haiku, luna, flash",
 	"C":          "fast and cheap  calls tools reliably as instructed",
 	ModelTagPass: "never picked by auto routing or subagents  last in fallback  or set for a session",

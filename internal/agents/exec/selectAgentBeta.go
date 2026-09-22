@@ -10,15 +10,18 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 const (
 	typesafeEndpoint   = "https://api.typesafe.ai/v1/systemone"
-	betaContextTurns   = 6
-	betaContextMaxRune = 2000
+	betaContextTurns   = 4
+	betaContextMaxRune = 2048
 	betaNamedNone      = "none"
+	betaTopicSame      = "same"
+	betaLastModelKey   = "lastModel:"
 )
 
 var betaWorkTiers = map[string][]string{
@@ -105,30 +108,51 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 		named[name] = "The request asks to use " + name + " (fuzzy match on provider, family or version)."
 	}
 
+	turns := betaContext(sessionID)
+	questions := map[string]any{
+		"work": map[string]any{
+			"type": "choice",
+			"instructions": map[string]any{
+				"question": "What kind of work does `request` ask for?",
+				"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. A request starting with [Run Skill] runs a Skill: classify the work the Skill does, not its name.",
+			},
+			"criteria": betaWorkCriteria,
+		},
+		"named": map[string]any{
+			"type": "choice",
+			"instructions": map[string]any{
+				"question": "Does `request` explicitly ask to use a specific model, such as \"use/with <name>\" or 指定/用 <名稱>?",
+				"focus":    "Only an explicit instruction about which model to use counts; a model merely mentioned as a topic is none.",
+			},
+			"criteria": named,
+		},
+	}
+
+	previous := ""
+	if len(turns) > 0 {
+		previous = betaPreviousModel(ctx, sessionID, candidates)
+	}
+	if previous != "" {
+		questions["topic"] = map[string]any{
+			"type": "choice",
+			"instructions": map[string]any{
+				"question": "Does `request` continue the subject of the last user message in `context`?",
+				"focus":    "Compare only with the last user message in `context` and its reply; earlier turns do not count. Follow-ups, corrections, refinements and next steps on that subject are same, even when the kind of work changes.",
+			},
+			"criteria": map[string]any{
+				betaTopicSame: "`request` follows up on, refers to or builds on the last user message in `context` and its reply.",
+				"new":         "`request` changes to a different subject than the last user message in `context`, even if an earlier turn discussed it.",
+			},
+		}
+	}
+
 	body := map[string]any{
 		"model": "jev-latest",
 		"state": map[string]any{
-			"context": betaContext(sessionID),
+			"context": turns,
 			"request": request,
 		},
-		"questions": map[string]any{
-			"work": map[string]any{
-				"type": "choice",
-				"instructions": map[string]any{
-					"question": "What kind of work does `request` ask for?",
-					"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. A request starting with [Run Skill] runs a Skill: classify the work the Skill does, not its name.",
-				},
-				"criteria": betaWorkCriteria,
-			},
-			"named": map[string]any{
-				"type": "choice",
-				"instructions": map[string]any{
-					"question": "Does `request` explicitly ask to use a specific model, such as \"use/with <name>\" or 指定/用 <名稱>?",
-					"focus":    "Only an explicit instruction about which model to use counts; a model merely mentioned as a topic is none.",
-				},
-				"criteria": named,
-			},
-		},
+		"questions": questions,
 	}
 
 	routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
@@ -150,12 +174,17 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
+	if previous != "" && result.Answers["topic"].Choice == betaTopicSame && !slices.Contains(list, previous) {
+		list = append(list, previous)
+	}
 
 	rank := func(name string) int {
-		if i := slices.Index(order, cmp.Or(tiers[name], betaNameTier(name))); i >= 0 {
-			return i
+		tier, family := betaNameTier(name)
+		i := slices.Index(order, cmp.Or(tiers[name], tier))
+		if i < 0 {
+			i = len(order)
 		}
-		return len(order)
+		return i*100 + family
 	}
 	ranked := slices.Clone(candidates)
 	slices.SortStableFunc(ranked, func(a, b string) int { return cmp.Compare(rank(a), rank(b)) })
@@ -167,7 +196,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	return list, betaWorkReasoning[work], nil
 }
 
-func betaNameTier(name string) string {
+func betaNameTier(name string) (string, int) {
 	model := strings.ToLower(name[strings.Index(name, "@")+1:])
 	model = model[strings.LastIndex(model, "/")+1:]
 
@@ -181,22 +210,66 @@ func betaNameTier(name string) string {
 	switch {
 	case strings.Contains(model, "-mini"), strings.Contains(model, "-nano"), family("gemini-", "-flash-lite"),
 		hasPrefix("gemma", "gpt-oss", "qwen", "llama"):
-		return "C"
-	case hasPrefix("claude-fable", "claude-opus"), family("gpt-", "-astra"), family("gpt-", "-sol"):
-		return "S"
-	case strings.HasPrefix(model, "grok-"):
+		return "C", 30
+	case hasPrefix("claude-fable"):
+		return "S", 0
+	case hasPrefix("claude-opus"):
+		return "S", 1
+	case family("gpt-", "-astra"):
+		return "S", 2
+	case family("gpt-", "-sol"):
+		return "A", 10
+	case hasPrefix("grok-"):
 		var version float64
 		fmt.Sscanf(strings.TrimPrefix(model, "grok-"), "%f", &version)
 		if version >= 4.5 {
-			return "S"
+			return "A", 11
 		}
-		return "B"
-	case hasPrefix("claude-sonnet", "deepseek-pro", "glm", "kimi"), family("gpt-", "-terra"), family("gemini-", "-pro"):
-		return "A"
-	case hasPrefix("claude-haiku", "deepseek"), family("gpt-", "-luna"), family("gemini-", "-flash"):
-		return "B"
+		return "B", 23
+	case hasPrefix("claude-sonnet"):
+		return "A", 12
+	case family("gpt-", "-terra"):
+		return "A", 13
+	case family("gemini-", "-pro"):
+		return "A", 14
+	case hasPrefix("deepseek-pro"):
+		return "A", 15
+	case hasPrefix("glm"):
+		return "A", 16
+	case hasPrefix("kimi"):
+		return "A", 17
+	case hasPrefix("claude-haiku"):
+		return "B", 20
+	case family("gpt-", "-luna"):
+		return "B", 21
+	case family("gemini-", "-flash"):
+		return "B", 22
+	case hasPrefix("deepseek"):
+		return "B", 24
 	}
-	return "A"
+	return "A", 18
+}
+
+func betaLastModelTTL(name string) int64 {
+	prov, _, _ := strings.Cut(name, "@")
+	switch prov {
+	case "openai", "codex":
+		return 30 * 60
+	case "gemini":
+		return 60 * 60
+	}
+	return 5 * 60
+}
+
+func betaPreviousModel(ctx context.Context, sessionID string, candidates []string) string {
+	if sessionID == "" || len(candidates) < 2 {
+		return ""
+	}
+	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, betaLastModelKey+sessionID)
+	if !ok || !slices.Contains(candidates, entry.Value()) {
+		return ""
+	}
+	return entry.Value()
 }
 
 func betaContext(sessionID string) []map[string]string {
