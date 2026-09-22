@@ -30,6 +30,12 @@
       font-size: small;
       font-weight: 300;
       color: var(--gray-3);
+
+      > a {
+        padding: 0 0.25em;
+        color: var(--accent);
+        text-decoration: none;
+      }
     }
 
     > a {

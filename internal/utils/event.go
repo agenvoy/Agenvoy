@@ -337,7 +337,7 @@ func joinArgv(raw string) string {
 	return strings.Join(parts, " ")
 }
 
-func FormatEventFooter(duration, outputElapsed time.Duration, model, quota string, usage *provider.Usage) string {
+func FormatEventFooter(duration, outputElapsed time.Duration, model, quota, reasoning string, usage *provider.Usage) string {
 	var parts []string
 	if duration > 0 {
 		elapsed := duration.Round(100 * time.Millisecond).String()
@@ -351,13 +351,16 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, quota strin
 		if quota != "" {
 			model += "(" + quota + ")"
 		}
+		if reasoning != "" {
+			model += "/" + reasoning
+		}
 		parts = append(parts, model)
 	}
 
 	if in := agentTypes.FormatInput(agentTypes.InputTotals(usage)); in != "" {
 		parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(usage.Output)))
 	}
-	return strings.Join(parts, " · ")
+	return strings.Join(parts, "  ")
 }
 
 type QuotaSource struct {

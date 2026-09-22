@@ -69,24 +69,50 @@ func SkillHint(s *skill.Skill) string {
 	return strings.TrimSpace(s.Description)
 }
 
-func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool) {
+func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool, string) {
 	dead := map[string]bool{}
+
+	tiers := map[string]string{}
+	tierLines := "(none set)"
+	beta, autoReasoning := false, false
+	if cfg, err := config.Load(); err == nil {
+		tiers = cfg.ModelTag
+		tierLines = config.ModelTagLines(cfg)
+		beta = cfg.DispatcherBeta
+		autoReasoning = cfg.AutoReasoning
+	}
+
+	userContent := strings.TrimSpace(userInput)
+	if hasSkill {
+		userContent = "[Run Skill] " + userContent
+		if desc := strings.TrimSpace(skillHint); desc != "" {
+			userContent += " — " + desc
+		}
+	}
+
+	reasoningOnly := func(names []string) string {
+		if !autoReasoning {
+			return ""
+		}
+		_, level, err := selectAgentBeta(ctx, names, nil, tiers, userContent, sessionID)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Debug("auto reasoning failed", slog.String("error", err.Error()))
+			}
+			return ""
+		}
+		return level
+	}
 
 	if sessionID != "" {
 		model, _ := configBot.GetModel(sessionID)
 		if model != "" && model != configBot.DefaultModel {
 			if _, ok := registry.Registry[model]; ok {
-				return []string{model}, dead
+				return []string{model}, dead, reasoningOnly([]string{model})
 			}
 		}
 	}
 
-	tiers := map[string]string{}
-	tierLines := "(none set)"
-	if cfg, err := config.Load(); err == nil {
-		tiers = cfg.ModelTag
-		tierLines = config.ModelTagLines(cfg)
-	}
 	registryOrder := make([]string, 0, len(registry.Entries))
 	passOrder := []string{}
 	known := make(map[string]struct{}, len(registry.Entries))
@@ -100,24 +126,44 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	}
 
 	if len(registry.Entries) <= 1 {
-		return append(registryOrder, passOrder...), dead
+		list := append(registryOrder, passOrder...)
+		return list, dead, reasoningOnly(list)
 	}
 
 	picked := []string{}
 	seen := map[string]bool{}
+	reasoning := ""
 
 	bot = retryHandler.Check(bot, registry)
+
+	if beta || autoReasoning {
+		candidates := make([]string, 0, len(registryOrder))
+		for _, n := range registryOrder {
+			if !retryHandler.IsCoolingDown(n) {
+				candidates = append(candidates, n)
+			}
+		}
+		if list, level, err := selectAgentBeta(ctx, candidates, passOrder, tiers, userContent, sessionID); err != nil {
+			if ctx.Err() == nil {
+				slog.Debug("beta dispatcher failed", slog.String("error", err.Error()))
+			}
+		} else {
+			if autoReasoning {
+				reasoning = level
+			}
+			if beta {
+				for _, n := range list {
+					picked = append(picked, n)
+					seen[n] = true
+				}
+				bot = nil
+			}
+		}
+	}
 
 	if bot != nil {
 		agentJson, err := json.Marshal(registry.Entries)
 		if err == nil {
-			userContent := strings.TrimSpace(userInput)
-			if hasSkill {
-				userContent = "[Run Skill] " + userContent
-				if desc := strings.TrimSpace(skillHint); desc != "" {
-					userContent += " — " + desc
-				}
-			}
 			messages := []provider.Message{
 				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelTag}}", tierLines)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
@@ -193,7 +239,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 			picked = append(picked, n)
 		}
 	}
-	return picked, dead
+	return picked, dead, reasoning
 }
 
 var providerRank = map[string]int{
@@ -248,7 +294,7 @@ func orderProviders(names []string) []string {
 }
 
 func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {
-	names, dead := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
+	names, dead, _ := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
 	for _, n := range names {
 		if dead[n] {
 			continue
@@ -349,19 +395,19 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 	return nil, ""
 }
 
-func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, skillHint string, sessionID string) (agentTypes.Agent, []agentTypes.Agent, error) {
+func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, skillHint string, sessionID string) (agentTypes.Agent, []agentTypes.Agent, string, error) {
 	registry := agents.Registry()
 	if model = strings.TrimSpace(model); model != "" && model != configBot.DefaultModel {
 		agent, ok := registry.Registry[model]
 		if !ok || agent == nil {
-			return nil, nil, fmt.Errorf("model %q not found", model)
+			return nil, nil, "", fmt.Errorf("model %q not found", model)
 		}
-		return agent, nil, nil
+		return agent, nil, "", nil
 	}
 
-	names, dead := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)
+	names, dead, reasoning := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)
 	if len(names) == 0 {
-		return nil, nil, fmt.Errorf("no agents available")
+		return nil, nil, "", fmt.Errorf("no agents available")
 	}
 	candidates := make([]agentTypes.Agent, 0, len(names))
 	for _, n := range names {
@@ -373,7 +419,7 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 		}
 	}
 	if len(candidates) == 0 {
-		return nil, nil, fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
+		return nil, nil, "", fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
 	}
-	return candidates[0], candidates[1:], nil
+	return candidates[0], candidates[1:], reasoning, nil
 }

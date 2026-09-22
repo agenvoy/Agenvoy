@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -14,9 +15,18 @@ var reasoningLevels = func() []string {
 	return out
 }()
 
+func autoReasoningActive() bool {
+	cfg, err := config.Load()
+	return err == nil && cfg.AutoReasoning
+}
+
 func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
+		return t, nil
+	}
+
+	if autoReasoningActive() {
 		return t, nil
 	}
 

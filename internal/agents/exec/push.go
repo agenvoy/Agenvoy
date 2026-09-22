@@ -14,6 +14,7 @@ type PushPayload struct {
 	Text          string
 	Model         string
 	Quota         string
+	Reasoning     string
 	Usage         *provider.Usage
 	Duration      time.Duration
 	OutputElapsed time.Duration

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -225,6 +226,8 @@ func RemoveModel() gin.HandlerFunc {
 func modelRouting(c *gin.Context, cfg *config.Config) gin.H {
 	return gin.H{
 		"dispatcher":      cfg.DispatcherModel,
+		"dispatcher_beta": cfg.DispatcherBeta,
+		"auto_reasoning":  cfg.AutoReasoning,
 		"summary":         cfg.SummaryModel,
 		"image":           cfg.ImageGenerator,
 		"image_options":   imageTool.Available(c.Request.Context()),
@@ -261,11 +264,13 @@ func GetModelRouting() gin.HandlerFunc {
 func SetModelRouting() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
-			Dispatcher *string `json:"dispatcher"`
-			Summary    *string `json:"summary"`
-			Image      *string `json:"image"`
-			STT        *string `json:"stt"`
-			TTS        *string `json:"tts"`
+			Dispatcher     *string `json:"dispatcher"`
+			DispatcherBeta *bool   `json:"dispatcher_beta"`
+			AutoReasoning  *bool   `json:"auto_reasoning"`
+			Summary        *string `json:"summary"`
+			Image          *string `json:"image"`
+			STT            *string `json:"stt"`
+			TTS            *string `json:"tts"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -296,6 +301,12 @@ func SetModelRouting() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + summary})
 				return
 			}
+		}
+
+		enabling := (body.DispatcherBeta != nil && *body.DispatcherBeta) || (body.AutoReasoning != nil && *body.AutoReasoning)
+		if enabling && strings.TrimSpace(keychain.Get(config.TypesafeKey)) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing key: " + config.TypesafeKey, "missing_key": config.TypesafeKey})
+			return
 		}
 
 		image := ""
@@ -332,6 +343,12 @@ func SetModelRouting() gin.HandlerFunc {
 
 		if body.Dispatcher != nil {
 			cfg.DispatcherModel = dispatcher
+		}
+		if body.DispatcherBeta != nil {
+			cfg.DispatcherBeta = *body.DispatcherBeta
+		}
+		if body.AutoReasoning != nil {
+			cfg.AutoReasoning = *body.AutoReasoning
 		}
 		if body.Summary != nil {
 			cfg.SummaryModel = summary

@@ -1,6 +1,7 @@
 package chatCompletions
 
 import (
+	"cmp"
 	"context"
 	"os"
 	"slices"
@@ -27,7 +28,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
 
-	agent, fallbacks, err := exec.ResolveAgent(ctx, req.Model, trimContent, false, "", "")
+	agent, fallbacks, reasoning, err := exec.ResolveAgent(ctx, req.Model, trimContent, false, "", "")
 	if err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 		return
@@ -49,7 +50,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
 		Content:        trimContent,
-		Reasoning:      req.ReasoningEffort,
+		Reasoning:      cmp.Or(req.ReasoningEffort, reasoning, "medium"),
 		ExcludeTools:   excludeTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
 		ClientTools:    req.Tools,

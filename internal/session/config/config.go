@@ -14,6 +14,8 @@ import (
 
 type Config struct {
 	DispatcherModel  string            `json:"dispatcher_model"`
+	DispatcherBeta   bool              `json:"dispatcher_beta"`
+	AutoReasoning    bool              `json:"auto_reasoning"`
 	SummaryModel     string            `json:"summary_model"`
 	Models           []ModelEntry      `json:"models"`
 	Compats          []CompatEntry     `json:"compats"`
@@ -29,6 +31,8 @@ type Config struct {
 	OutputDir        string            `json:"output_dir"`
 	ModelTag         map[string]string `json:"model_tag"`
 }
+
+const TypesafeKey = "TYPESAFE_API_KEY"
 
 type ModelEntry struct {
 	Name string
