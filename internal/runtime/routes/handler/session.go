@@ -152,16 +152,21 @@ func sessionDetail(sid string) gin.H {
 		reasoning = provider.ReasoningDefault.String()
 	}
 	status := configStatus.Get(sid)
+	autoReasoning := false
+	if cfg, err := config.Load(); err == nil {
+		autoReasoning = cfg.AutoReasoning
+	}
 	return gin.H{
-		"id":        sid,
-		"self_id":   selfID,
-		"name":      name,
-		"rule":      rule,
-		"state":     status.State,
-		"model":     model,
-		"reasoning": reasoning,
-		"levels":    levels,
-		"count":     status.Count,
+		"id":             sid,
+		"self_id":        selfID,
+		"name":           name,
+		"rule":           rule,
+		"state":          status.State,
+		"model":          model,
+		"reasoning":      reasoning,
+		"levels":         levels,
+		"count":          status.Count,
+		"auto_reasoning": autoReasoning,
 	}
 }
 

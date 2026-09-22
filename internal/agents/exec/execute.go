@@ -110,6 +110,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	defer execCancel(nil)
 
 	var runTaskHash *atomic.Pointer[string]
+	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
@@ -158,6 +159,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				if ev.Type == agentTypes.EventDone && ev.Source == "" {
 					ev.Quota = utils.ModelQuota(context.WithoutCancel(execCtx), ev.Model)
+					if r := reasoningRef.Load(); r != nil {
+						ev.Reasoning = *r
+					}
 				}
 				if scheduleName != "" && ev.Source == "" && ev.Model != "" {
 					ev.Model = scheduleName
@@ -213,6 +217,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						Text:          text,
 						Model:         pushDoneEv.Model,
 						Quota:         pushDoneEv.Quota,
+						Reasoning:     pushDoneEv.Reasoning,
 						Usage:         pushDoneEv.Usage,
 						Duration:      pushDoneEv.Duration,
 						OutputElapsed: pushDoneEv.OutputElapsed,
@@ -264,7 +269,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if data.Agent != nil {
 				runModel = data.Agent.Name()
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, allowAll)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, data.Reasoning, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {
@@ -353,6 +358,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		_, reasoningName = configBot.GetModel(session.ID)
 	}
 	reasoning, _ := provider.ParseReasoning(reasoningName)
+	reasoningLabel := reasoning.String()
+	reasoningRef.Store(&reasoningLabel)
 
 	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
 	allAgents = append(allAgents, data.Agent)

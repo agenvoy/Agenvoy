@@ -74,6 +74,7 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `OPENAI_API_KEY`                                     | OpenAI 與 OpenAI 音訊模型                          |
 | `CLAUDE_API_KEY`、`GROK_API_KEY`、`DEEPSEEK_API_KEY`、`MISTRAL_API_KEY`、`NVIDIA_API_KEY` | 對應模型供應商 |
 | `OPENROUTER_API_KEY` | OpenRouter 模型與 OpenRouter 音訊模型 |
+| `TYPESAFE_API_KEY` | TypeSafe/Jev（beta）dispatcher 與 auto reasoning；於 [TypeSafe Console](https://console.typesafe.ai/keys) 建立 |
 | `CLOUDFLARE_API_KEY`、`CLOUDFLARE_ACCOUNT_ID` | Cloudflare（兩者皆必填；`CLOUDFLARE_GATEWAY_ID` 選填） |
 | `TELEGRAM_TOKEN`、`DISCORD_TOKEN`                    | 聊天機器人整合                                     |
 | `GEMINI_API_KEY`                                     | Gemini 模型供應商、Gemini 音訊模型與語音功能       |
@@ -81,6 +82,8 @@ Agenvoy 使用 `~/.config/agenvoy/` 保存執行期資料，並將憑證存放�
 | `COMPAT_<NAME>_API_KEY`                              | 名為 `<NAME>` 的本機／自訂 OpenAI 相容端點（選填） |
 
 `copilot`、`codex` 與 `grok-oauth` 不使用 API key，而是從 `/model add` 發起 OAuth 登入。
+
+**Config › Model** 中，API key 類 provider 卡片附上 key 頁面連結（`Create one in the <provider> Console.`），OAuth 卡片附上訂閱頁連結（`Subscribe on the <provider> Plans page.`）。provider 模型清單，以及圖片、STT、TTS 模型清單都快取在 ToriiDB 15 分鐘。某 provider 的 key 儲存、OAuth 登入完成或清除時，會清掉它的快取清單。
 
 ### 音訊與圖片模型路由
 
@@ -106,11 +109,13 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 | `output_dir`                        |      `""` | 請求沒指定位置時，替使用者產生的檔案放在哪：`write_result` 的輸出，以及 agent 預設要放到這裡的文件、匯出檔與圖片。空值為 `~/Downloads`，該資料夾不存在時為 `~/.config/agenvoy/download` |
 | `model_tag`                         |      `{}` | 各模型的 tier，`{"<model>": "S"\|"A"\|"B"\|"C"\|"pass"}`；見[模型 tier](#模型-tier)                                                                                                     |
 | `net_white_list`                    |      `[]` | 即使解析為 loopback 或私有位址，`http_request` 仍可連線的主機 |
+| `dispatcher_beta`                   |   `false` | 以 TypeSafe/Jev 取代 dispatcher 模型分派；見 [TypeSafe/Jev（beta）](#typesafejevbeta) |
+| `auto_reasoning`                    |   `false` | 由 TypeSafe/Jev 逐請求決定 reasoning 等級；見 [TypeSafe/Jev（beta）](#typesafejevbeta) |
 | `read_only_command`                 |      `[]` | 追加到內建唯讀清單的指令（`bin` 或 `bin subcommand`）；`run_command` 執行時不需確認 |
 
 `reply_lang` 可填 `auto`、`configs/jsons/reply_lang.json` 內建的語言代碼（`en`、`zh-TW`、`zh-HK`、`zh-CN`、`ja`、`ko`、`es`、`fr`、`de`、`pt`、`it`、`ru`、`vi`、`th`、`id`、`ar`），或任意語言名稱（未列在內建清單時原字串交給模型）。`zh-TW` 與 `zh-HK` 分開：台灣與香港的繁體中文用詞與語法不同。作用範圍包含 agent system prompt、`/v1/chat/completions` system prompt 與後續問題建議。由 **Config › System** 設定會立即套用到執行中的 daemon；直接手改 `config.json` 則需重啟 daemon 才生效。
 
-`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。同一分頁會並列目前版本與最新 release，兩者不同時顯示 **update** 按鈕，按下後開啟終端機執行 `agen update`。TUI 的 `/config`（回覆語言、輸出資料夾）寫入 `config.json` 的方式與手改相同。
+`output_dir` 儲存時會展開 `~` 並建立資料夾；建立不了的路徑會被拒絕，之後變得無法使用時則退回預設值。由 **Config › System** 設定會立即套用到執行中的 daemon。同一分頁會並列目前版本與最新 release，只有兩者不同時才顯示 **update** 按鈕，按下後開啟終端機執行 `agen update`。License 卡片附上 GitHub 原始碼連結。TUI 的 `/config`（回覆語言、輸出資料夾）寫入 `config.json` 的方式與手改相同。
 
 套件內建預設值（目前不會從 `config.json` 讀取）：
 
@@ -157,9 +162,32 @@ compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶�
 
 在 TUI 的 `/model` 對模型列按 `t`，或在 **Config › Model › Fallback Priority** 每張卡片的 tier 按鈕設定。tier 每次請求都重新讀取，改完不需重啟。
 
-session 固定了模型就不走分派。否則 dispatcher 會連同模型清單收到 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先；其餘（含報告與分析）→ A 優先。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 清單則把 `pass` 模型排在所有模型之後。
+session 固定了模型就不走分派。否則 dispatcher 會連同模型清單收到 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先；其餘（含報告與分析）→ S 優先。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 清單則把 `pass` 模型排在所有模型之後。
 
 subagent 也依同一套 tier。planner 讓每條 leg 只做一種工作——collect、review、transform 或 reason——並依工作挑模型：collect 為 C>B>A>S、transform 為 B>C>A>S、review 與 reason 為 A>S>B>C、程式碼或高精確的工作為 S>A>B>C。
+
+### TypeSafe/Jev（beta）
+
+兩項選用功能會呼叫 TypeSafe 的 `jev-latest` 模型（`https://api.typesafe.ai/v1/systemone`），送出請求內容與最近至多六則 user／assistant 訊息。兩者都需要 `TYPESAFE_API_KEY`。沒有 key 就開啟時會詢問：Web 介面跳出附 TypeSafe Console 連結的 popup，TUI 跳出 key 輸入框。
+
+| 設定 | 開啟方式 | 效果 |
+| --- | --- | --- |
+| `dispatcher_beta` | Web **Config › Model**：Dispatcher 卡片的 `enable TypeSafe/Jev(beta)`（綠色；`disable` 為紅色，開啟時隱藏 dispatcher 模型選單）。TUI：`/model` → `dispatch` → `TypeSafe/Jev(beta)`；改選模型即關閉 | 取代 dispatcher 模型；TypeSafe 出錯時退回 dispatcher 模型 |
+| `auto_reasoning` | Web：**Auto reasoning(beta)** 卡片的 `enable TypeSafe/Jev(beta)`。TUI：`/model` → `reasoning`（或 `/model reasoning`） | 逐請求決定 reasoning 等級，固定模型的 session 也適用。開啟時 Web 聊天隱藏 reasoning 選單，TUI 狀態列只顯示 `(model)`，`Shift+A`／`Shift+D` 無作用 |
+
+Jev 會把請求歸成一種工作類型，兩項功能都依這個結果運作。另一題判斷請求是否明確指定「使用／用 <模型>」（含 `pass` 模型），是的話把該模型排第一。
+
+| 工作類型 | 涵蓋 | tier 順序 | reasoning |
+| --- | --- | --- | --- |
+| `code` | 寫、修、除錯、測試程式；明確要求深度或精確 | S>A>B>C | `xhigh` |
+| `chat` | 打招呼、短答、翻譯 | B>C>A>S | `none` |
+| `fetch` | 用工具取資料並原樣回傳，不做判斷 | C>B>A>S | `low` |
+| `research` | 從多個來源蒐集並下結論：研究、分析、比較、報告 | S>A>B>C | `high` |
+| `work` | 規劃、review、起草或整理使用者手上的內容，及其他 | A>S>B>C | `medium` |
+
+tier 取自 `model_tag`，沒設定的依模型名稱判斷；`pass` 模型排在最後。預設 dispatcher 的 prompt 不區分 `research` 與 `work`：code、chat、fetch 以外的請求一律 S>A>B>C。請求本身帶的 reasoning 等級（例如 `reasoning_effort`）優先於 auto reasoning，auto reasoning 又優先於 session 設定。
+
+TUI、Web、Telegram 與 Discord 的回覆 footer 以 `model(quota)/reasoning` 顯示實際使用的等級。`action.log` 的 `done` 行會記錄 `reasoning=<level>`，Web 聊天重新整理後仍會顯示。
 
 互動請求也會攜帶來源前綴。CLI 確認僅由 TUI 接收，Web 請求由 Web 確認串流處理，Telegram 與 Discord 則由各自對應的頻道 listener 接收。非 TUI 確認會在五分鐘後逾時，避免某個頻道攔截或長期占用其他頻道的提示。
 
@@ -229,7 +257,7 @@ agen
 
 | 指令                       | 用途                                                                                                                                                                                                             |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/model`                   | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch、summary、圖片、STT 與 TTS 模型                                                              |
+| `/model`                   | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch（模型或 `TypeSafe/Jev(beta)`）、auto `reasoning`、summary、圖片、STT 與 TTS                                                             |
 | `/mcp`                     | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連                                                                           |
 | `/sessions` `/new`         | 以 self id 切換 session（`d` 刪除）或建立新的                                                                                                                                                                    |
 | `/bot`                     | 重新命名當前 session 或編輯 persona                                                                                                                                                                              |
@@ -252,7 +280,7 @@ agen
 | 按鍵                  | 動作                        |
 | --------------------- | --------------------------- |
 | `Shift+W` / `Shift+S` | 反向／正向切換 session 模型 |
-| `Shift+A` / `Shift+D` | 切換 reasoning 等級         |
+| `Shift+A` / `Shift+D` | 切換 reasoning 等級（auto reasoning 開啟時無作用） |
 | `Shift+F`             | 切換 fast mode              |
 | `Shift+U`             | 查看 provider 額度與餘額    |
 | `Shift+Tab`           | 切換 allow-all（略過工具確認）；只要沒有任務在執行即可使用 |
@@ -297,7 +325,7 @@ curl --fail-with-body -sS \
   http://127.0.0.1:17989/v1/send
 ```
 
-`/v1/chat/completions` 為 OpenAI 相容的 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。`reasoning_effort` 接受 `none` `low` `medium` `high` `xhigh` `max`（另支援別名 `minimal` `extra` `ultra`）；未帶或無法識別的值退回 `medium`。
+`/v1/chat/completions` 為 OpenAI 相容的 stateless endpoint；需在每次請求中帶入延續對話所需的 `messages`。`reasoning_effort` 接受 `none` `low` `medium` `high` `xhigh` `max`（另支援別名 `minimal` `extra` `ultra`）；未帶或無法識別的值在開啟 [auto reasoning](#typesafejevbeta) 時採用其等級，否則退回 `medium`。
 
 ## 命令列參考
 
@@ -330,8 +358,8 @@ Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 en
 | `GET`           | `/v1/models`                    | 列出已註冊模型（OpenAI `{data:[...]}` 格式,含 `auto`）                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `GET`           | `/v1/models/*id`                | 讀取單一已註冊模型                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機／自訂端點的名稱（`ollama`、`llama.cpp`，或經 `POST /v1/provider/compat/key` 記錄的名稱）                                                                                                                                                                                                                                                                                                  |
-| `GET` `POST`    | `/v1/model`                     | **local** — 讀取或設定模型路由：`dispatcher`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。 |
-| `GET`           | `/v1/model/audio`               | **local** — 列出由已設定 OpenAI 與 Gemini provider 取得的 `stt_options`、`tts_options`。                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `GET` `POST`    | `/v1/model`                     | **local** — 讀取或設定模型路由：`dispatcher`、`dispatcher_beta`、`auto_reasoning`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。`dispatcher_beta` 與 `auto_reasoning` 為布林值；沒有 `TYPESAFE_API_KEY` 卻設為 `true` 時回 400 並附 `missing_key`。 |
+| `GET`           | `/v1/model/audio`               | **local** — 列出由已設定 OpenAI、Gemini 與 OpenRouter provider 取得的 `stt_options`、`tts_options`；各清單快取 15 分鐘。                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `GET` `POST`    | `/v1/model/priority`            | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線；`pass` 模型不論排在哪，執行時都排在所有模型之後。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400                                                                                                                                                                                            |
 | `POST`          | `/v1/model/tier`                | **local** — `{model, tier}` 設定單一模型的 tier（`S` `A` `B` `C` `pass`）；`""` 清除。未註冊的模型或未知 tier 回 400                                                                                                                                                                                                                                                                                                                                                                                         |
 
@@ -342,7 +370,7 @@ Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 en
 | `GET`                 | `/v1/sessions`                              | 列出 session 與狀態                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `GET`                 | `/v1/usage`                                 | **local** — 所有 session 在 24h／7d／28d 的 token 用量合計；每個模型另帶 `elapsed_ms`（模型送出耗時合計）與 `output_tps`（每秒輸出 token，僅計有量到耗時的紀錄）                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `POST`                | `/v1/session`                               | **local** — 建立 session，`{prefix}` 預設 `cli-`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `GET` `POST` `DELETE` | `/v1/session/:id`                           | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯，含 `elapsed_ms` 與 `output_tps`）；兩者預設關閉，因為 log 可能很大 |
+| `GET` `POST` `DELETE` | `/v1/session/:id`                           | **local** — 單一 session 的完整狀態：`id`／`self_id`／`name`／`rule`／`state`／`model`／`reasoning`／`levels`／`count`／`auto_reasoning`。`POST` 為部分更新，`self_id`／`name`／`rule`／`model`／`reasoning` 皆選填，未帶（或 `null`）的欄位不動；`model: ""` 重設為 `auto`，`reasoning` 須為 `levels` 之一。`GET` 與 `POST` 回傳同一種物件，`self_id` 重複回 409。`DELETE` 移除 session 目錄、歷史、狀態與向量。`GET` 另接受 `?chat=1` 附上原始 action log（放在 `chat`）與 `?usage=1` 附上 24h/7d/28d 各模型 token 用量（放在 `usage`，與 TUI `/usage` 畫面同一套聚合邏輯，含 `elapsed_ms` 與 `output_tps`）；兩者預設關閉，因為 log 可能很大 |
 | `POST`                | `/v1/session/:id/event`                     | **local** — 對某 session 的事件串流手動發布事件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `GET`                 | `/v1/session/:id/task`                      | 列出可恢復的待完成（`ask_user`／confirm）工作；仍在執行中的不列入——執行期間每 55 秒刷新 ToriiDB 的 `action:<session_id>:<task_hash>`（TTL 60 秒），視窗關閉或程序被砍的任務一分鐘內會重新出現                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `GET`                 | `/v1/session/:id/task/:task_hash/questions` | 取得待完成工作的問題內容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -384,7 +412,7 @@ Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 en
 | `POST`   | `/v1/provider/:provider/key`    | **local** — 設定 API key。`compat` 的 body 為 `{name, url, api_key?}`：網址記錄到 `compats`，有帶 key 時存為 `COMPAT_<NAME>_API_KEY`                                                                                                                                                                                                                                     |
 | `GET`    | `/v1/provider/:provider/oauth`  | **local** — SSE device-code OAuth 流程                                                                                                                                                                                                                                                                                                                                   |
 | `DELETE` | `/v1/provider/:provider/oauth`  | **local** — 清除已儲存的 provider 登入（`codex`、`copilot`、`grok-oauth`）。token 的 keychain 鍵名由 OAuth 套件自己持有（`CODEX_OAUTH_TOKEN` 與各自的舊名）,因此改走它們的 `ClearToken`,而非 `DELETE /v1/key`                                                                                                                                                            |
-| `GET`    | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。回應另含 `windows`，為 model id 對 `{in, out}` context 大小的對照，取自 `llm-io.agenvoy.com`；查無資料的模型不會出現在其中。本機／自訂端點名稱（`ollama`、`llama.cpp` 或已記錄的名稱）會向該端點的 `GET /models` 查詢，端點無回應時回 502                                                                                                                                                                                                                      |
+| `GET`    | `/v1/provider/:provider/models` | **local** — 列出該 provider 可用模型。回應另含 `windows`，為 model id 對 `{in, out}` context 大小的對照，取自 `llm-io.agenvoy.com`；查無資料的模型不會出現在其中。本機／自訂端點名稱（`ollama`、`llama.cpp` 或已記錄的名稱）會向該端點的 `GET /models` 查詢，端點無回應時回 502；清單快取 15 分鐘。                                                                                                                                                                                                                      |
 
 **MCP**
 

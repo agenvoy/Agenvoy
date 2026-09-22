@@ -22,6 +22,27 @@ function modelError(text) {
   alert(text);
 }
 
+const TYPESAFE_CONSOLE = "https://console.typesafe.ai/keys";
+
+const PROVIDER_KEYS = {
+  openai: "https://platform.openai.com/api-keys",
+  claude: "https://platform.claude.com/settings/keys",
+  gemini: "https://aistudio.google.com/apikey",
+  grok: "https://console.x.ai/",
+  deepseek: "https://platform.deepseek.com/api_keys",
+  mistral: "https://console.mistral.ai/api-keys",
+  nvidia: "https://build.nvidia.com/settings/api-keys",
+  "ollama-cloud": "https://ollama.com/settings/keys",
+  openrouter: "https://openrouter.ai/settings/keys",
+  cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
+};
+
+const PROVIDER_PLANS = {
+  codex: "https://chatgpt.com/pricing",
+  "grok-oauth": "https://grok.com/plans",
+  copilot: "https://github.com/features/copilot/plans",
+};
+
 const PROVIDER_CONSOLE = {
   openai: "https://platform.openai.com/settings/organization/billing",
   claude: "https://console.anthropic.com/settings/billing",
@@ -553,6 +574,8 @@ async function modelRouting() {
       const body = (await response.json()) || {};
       return {
         dispatcher: body.dispatcher || "",
+        dispatcherBeta: Boolean(body.dispatcher_beta),
+        autoReasoning: Boolean(body.auto_reasoning),
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
@@ -563,7 +586,7 @@ async function modelRouting() {
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", summary: "", image: "", imageOptions: [], stt: "", tts: "" };
+  return { dispatcher: "", dispatcherBeta: false, autoReasoning: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -582,6 +605,113 @@ async function saveRoutingModel(kind, model) {
     modelError(err.message || "failed");
   }
   renderModel();
+}
+
+async function postTypesafeToggle(field, on) {
+  const response = await fetch(`${API}/v1/model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ [field]: on }),
+  });
+  if (response.ok) {
+    return {};
+  }
+  return response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+}
+
+function askTypesafeKey(name) {
+  return new Promise((resolve) => {
+    const key = personaField("", name, true);
+    const cancel = _("button", { type: "button" }, "cancel");
+    const save = _("button", { type: "button", class: "submit" }, "save");
+    const root = _("div.popup", [
+      _("div.panel", [
+        _("strong", `${name} is required for TypeSafe/Jev (beta).`),
+        _("p", ["Create one in the TypeSafe ", _("a", { href: TYPESAFE_CONSOLE, target: "_blank", rel: "noreferrer" }, "Console"), "."]),
+        key.field,
+        _("footer", [cancel, save]),
+      ]),
+    ]);
+    root.id = "typesafe-popup";
+
+    const close = (value) => {
+      document.removeEventListener("keydown", escape);
+      root.remove();
+      resolve(value);
+    };
+    const escape = (e) => {
+      if (e.key === "Escape") {
+        close("");
+      }
+    };
+    key.box.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        close(key.box.value.trim());
+      }
+    });
+    cancel.addEventListener("click", () => close(""));
+    save.addEventListener("click", () => close(key.box.value.trim()));
+    root.addEventListener("click", (e) => {
+      if (e.target === root) {
+        close("");
+      }
+    });
+    document.addEventListener("keydown", escape);
+
+    document.body.appendChild(root);
+    key.box.focus();
+  });
+}
+
+function markTypesafeToggle(field, on) {
+  const dom = modelDom();
+  if (!dom.routing) {
+    return;
+  }
+  const link = dom.routing.querySelector(`a[data-kind="${field}"]`);
+  if (link) {
+    link.dataset.on = on ? "1" : "0";
+    link.textContent = on ? "disable TypeSafe/Jev(beta)" : "enable TypeSafe/Jev(beta)";
+    link.hidden = false;
+  }
+  if (field === "dispatcher_beta") {
+    const select = routingSelect("dispatcher");
+    if (select) {
+      select.hidden = on;
+    }
+  }
+}
+
+async function saveTypesafeToggle(field, on) {
+  try {
+    let detail = await postTypesafeToggle(field, on);
+    if (on && detail.missing_key) {
+      const value = await askTypesafeKey(detail.missing_key);
+      if (!value) {
+        return;
+      }
+      const saved = await fetch(`${API}/v1/keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: detail.missing_key, value }),
+      });
+      if (!saved.ok) {
+        const failure = await saved.json().catch(() => ({}));
+        modelError(failure.error || `HTTP ${saved.status}`);
+        return;
+      }
+      detail = await postTypesafeToggle(field, on);
+    }
+    if (detail.error) {
+      modelError(detail.error);
+      return;
+    }
+    markTypesafeToggle(field, on);
+  } catch (err) {
+    console.error("saveTypesafeToggle", err);
+    modelError(err.message || "failed");
+  }
 }
 
 function routingSelect(kind) {
@@ -631,6 +761,8 @@ async function renderModelRouting(registered) {
   }
 
   fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
+  markTypesafeToggle("dispatcher_beta", routing.dispatcherBeta);
+  markTypesafeToggle("auto_reasoning", routing.autoReasoning);
   fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
   fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
   fillAudioOptions(routing.stt, routing.tts);
@@ -646,6 +778,24 @@ function selectProviderAdd() {
 
 function providerDetails(provider, method, added) {
   const head = _("div.head", [_("strong", provider.label)]);
+  if (method !== "oauth" && PROVIDER_KEYS[provider.id]) {
+    head.appendChild(
+      _("p", [
+        `Create one in the ${provider.label} `,
+        _("a", { href: PROVIDER_KEYS[provider.id], target: "_blank", rel: "noreferrer" }, "Console"),
+        ".",
+      ]),
+    );
+  }
+  if (method === "oauth" && PROVIDER_PLANS[provider.id]) {
+    head.appendChild(
+      _("p", [
+        `Subscribe on the ${provider.label} `,
+        _("a", { href: PROVIDER_PLANS[provider.id], target: "_blank", rel: "noreferrer" }, "Plans"),
+        " page.",
+      ]),
+    );
+  }
   const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
   card.dataset.added = added ? "1" : "0";
   return card;

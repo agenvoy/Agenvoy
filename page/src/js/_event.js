@@ -60,10 +60,15 @@ function renderEvent(view, event) {
   }
 
   if (type === "EventDone") {
-    if (event.quota) {
-      const quota = _("span.quota", event.quota);
-      quota.dataset.level = quotaLevel(event.quota.endsWith("%") ? "percent" : "balance", parseFloat(event.quota));
-      view.model.replaceChildren(event.model || view.model.textContent, quota);
+    if (event.quota || event.reasoning) {
+      const name = (event.model || view.model.textContent) + (event.reasoning ? `/${event.reasoning}` : "");
+      const parts = [name];
+      if (event.quota) {
+        const quota = _("span.quota", event.quota);
+        quota.dataset.level = quotaLevel(event.quota.endsWith("%") ? "percent" : "balance", parseFloat(event.quota));
+        parts.push(quota);
+      }
+      view.model.replaceChildren(...parts);
     }
     view.think.open = false;
     delete view.think.dataset.streaming;

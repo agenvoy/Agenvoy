@@ -327,6 +327,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "dispatch":
 			next, cmd, _ := t.commandDispatcher()
 			return next, cmd
+		case "reasoning":
+			next, cmd, _ := t.commandAutoReasoning()
+			return next, cmd
 		case "summary":
 			next, cmd, _ := t.commandSummaryModel()
 			return next, cmd
@@ -966,6 +969,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(msgError(fmt.Sprintf("keychain.Set %s: %v", msg.key, err)) + "\n")
 		}
 		return t, tea.Println(msgLog(fmt.Sprintf("%s updated", msg.key)) + "\n")
+
+	case AutoReasoningPick:
+		return t.runAutoReasoningPick(msg.on)
+
+	case TypesafeKeySubmit:
+		return t.runTypesafeKeySubmit(msg.field, msg.value)
 
 	case DispatcherSelect:
 		next, cmd := t.runDispatcherSelect(msg.name)

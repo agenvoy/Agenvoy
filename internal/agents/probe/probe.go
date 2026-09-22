@@ -25,6 +25,7 @@ import (
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
 type listFn func(context.Context, provider.Config) ([]string, error)
@@ -104,11 +105,23 @@ func Models(ctx context.Context, name string) ([]string, error) {
 			return CompatModels(ctx, cfg.BaseURL, cfg.APIKey)
 		}
 	}
-	cfg, err := agentKeychain.Config(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	return fn(ctx, cfg)
+	return torii.CachedList(ctx, modelsCacheKey(name), modelsCacheTTL, func() ([]string, error) {
+		cfg, err := agentKeychain.Config(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		return fn(ctx, cfg)
+	})
+}
+
+const modelsCacheTTL = 15 * 60
+
+func modelsCacheKey(name string) string {
+	return "provider:models:list:" + strings.TrimSuffix(name, "@")
+}
+
+func DropModelsCache(ctx context.Context, name string) {
+	torii.DropKeys(ctx, modelsCacheKey(name))
 }
 
 func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error) {

@@ -299,6 +299,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       routing_change: function () {
         saveRoutingModel(this.dataset.kind, this.value);
       },
+      dispatcher_beta_toggle: function () {
+        saveTypesafeToggle("dispatcher_beta", this.dataset.on !== "1");
+      },
+      auto_reasoning_toggle: function () {
+        saveTypesafeToggle("auto_reasoning", this.dataset.on !== "1");
+      },
       system_lang: function () {
         saveSystemLang();
       },

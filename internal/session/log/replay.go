@@ -127,6 +127,8 @@ func parseDone(body string) agentTypes.Event {
 			continue
 		}
 		switch k {
+		case "reasoning":
+			event.Reasoning = v
 		case "dur":
 			if d, err := time.ParseDuration(v); err == nil {
 				event.Duration = d
