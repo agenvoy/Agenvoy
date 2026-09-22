@@ -678,7 +678,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
 		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
-		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name(), torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
+		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()))
