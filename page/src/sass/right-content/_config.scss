@@ -765,6 +765,10 @@ body section.right-content section.config section.tools#model-routing > section 
   > div.routing {
     @include settingCard;
     min-width: 0;
+
+    > select[hidden] {
+      display: none;
+    }
   }
 
   > div.routing {

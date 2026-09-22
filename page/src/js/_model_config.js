@@ -22,6 +22,8 @@ function modelError(text) {
   alert(text);
 }
 
+const TYPESAFE_CONSOLE = "https://console.typesafe.ai/keys";
+
 const PROVIDER_CONSOLE = {
   openai: "https://platform.openai.com/settings/organization/billing",
   claude: "https://console.anthropic.com/settings/billing",
@@ -553,6 +555,7 @@ async function modelRouting() {
       const body = (await response.json()) || {};
       return {
         dispatcher: body.dispatcher || "",
+        dispatcherBeta: Boolean(body.dispatcher_beta),
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
@@ -563,7 +566,7 @@ async function modelRouting() {
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", summary: "", image: "", imageOptions: [], stt: "", tts: "" };
+  return { dispatcher: "", dispatcherBeta: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -579,6 +582,95 @@ async function saveRoutingModel(kind, model) {
     }
   } catch (err) {
     console.error("saveRoutingModel", err);
+    modelError(err.message || "failed");
+  }
+  renderModel();
+}
+
+async function postDispatcherBeta(on) {
+  const response = await fetch(`${API}/v1/model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dispatcher_beta: on }),
+  });
+  if (response.ok) {
+    return {};
+  }
+  return response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+}
+
+function askTypesafeKey(name) {
+  return new Promise((resolve) => {
+    const key = personaField("", name, true);
+    const cancel = _("button", { type: "button" }, "cancel");
+    const save = _("button", { type: "button", class: "submit" }, "save");
+    const root = _("div.popup", [
+      _("div.panel", [
+        _("strong", `${name} is required for Dispatcher (beta).`),
+        _("p", ["Create one in the TypeSafe ", _("a", { href: TYPESAFE_CONSOLE, target: "_blank", rel: "noreferrer" }, "Console"), "."]),
+        key.field,
+        _("footer", [cancel, save]),
+      ]),
+    ]);
+    root.id = "typesafe-popup";
+
+    const close = (value) => {
+      document.removeEventListener("keydown", escape);
+      root.remove();
+      resolve(value);
+    };
+    const escape = (e) => {
+      if (e.key === "Escape") {
+        close("");
+      }
+    };
+    key.box.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        close(key.box.value.trim());
+      }
+    });
+    cancel.addEventListener("click", () => close(""));
+    save.addEventListener("click", () => close(key.box.value.trim()));
+    root.addEventListener("click", (e) => {
+      if (e.target === root) {
+        close("");
+      }
+    });
+    document.addEventListener("keydown", escape);
+
+    document.body.appendChild(root);
+    key.box.focus();
+  });
+}
+
+async function saveDispatcherBeta(on) {
+  try {
+    let detail = await postDispatcherBeta(on);
+    if (on && detail.missing_key) {
+      const value = await askTypesafeKey(detail.missing_key);
+      if (!value) {
+        renderModel();
+        return;
+      }
+      const saved = await fetch(`${API}/v1/keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: detail.missing_key, value }),
+      });
+      if (!saved.ok) {
+        const failure = await saved.json().catch(() => ({}));
+        modelError(failure.error || `HTTP ${saved.status}`);
+        renderModel();
+        return;
+      }
+      detail = await postDispatcherBeta(on);
+    }
+    if (detail.error) {
+      modelError(detail.error);
+    }
+  } catch (err) {
+    console.error("saveDispatcherBeta", err);
     modelError(err.message || "failed");
   }
   renderModel();
@@ -630,7 +722,17 @@ async function renderModelRouting(registered) {
     return;
   }
 
+  const toggle = dom.routing.querySelector('a[data-kind="dispatcher_beta"]');
+  if (toggle) {
+    toggle.dataset.on = routing.dispatcherBeta ? "1" : "0";
+    toggle.textContent = routing.dispatcherBeta ? "disable TypeSafe/Jev(beta)" : "enable TypeSafe/Jev(beta)";
+    toggle.hidden = false;
+  }
   fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
+  const dispatcherSelect = routingSelect("dispatcher");
+  if (dispatcherSelect) {
+    dispatcherSelect.hidden = routing.dispatcherBeta;
+  }
   fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
   fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
   fillAudioOptions(routing.stt, routing.tts);

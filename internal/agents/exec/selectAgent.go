@@ -83,9 +83,11 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 
 	tiers := map[string]string{}
 	tierLines := "(none set)"
+	beta := false
 	if cfg, err := config.Load(); err == nil {
 		tiers = cfg.ModelTag
 		tierLines = config.ModelTagLines(cfg)
+		beta = cfg.DispatcherBeta
 	}
 	registryOrder := make([]string, 0, len(registry.Entries))
 	passOrder := []string{}
@@ -106,18 +108,39 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	picked := []string{}
 	seen := map[string]bool{}
 
+	userContent := strings.TrimSpace(userInput)
+	if hasSkill {
+		userContent = "[Run Skill] " + userContent
+		if desc := strings.TrimSpace(skillHint); desc != "" {
+			userContent += " — " + desc
+		}
+	}
+
 	bot = retryHandler.Check(bot, registry)
+
+	if beta {
+		candidates := make([]string, 0, len(registryOrder))
+		for _, n := range registryOrder {
+			if !retryHandler.IsCoolingDown(n) {
+				candidates = append(candidates, n)
+			}
+		}
+		if list, err := selectAgentBeta(ctx, candidates, passOrder, tiers, userContent, sessionID); err != nil {
+			if ctx.Err() == nil {
+				slog.Debug("beta dispatcher failed", slog.String("error", err.Error()))
+			}
+		} else {
+			for _, n := range list {
+				picked = append(picked, n)
+				seen[n] = true
+			}
+			bot = nil
+		}
+	}
 
 	if bot != nil {
 		agentJson, err := json.Marshal(registry.Entries)
 		if err == nil {
-			userContent := strings.TrimSpace(userInput)
-			if hasSkill {
-				userContent = "[Run Skill] " + userContent
-				if desc := strings.TrimSpace(skillHint); desc != "" {
-					userContent += " — " + desc
-				}
-			}
 			messages := []provider.Message{
 				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelTag}}", tierLines)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},

@@ -185,6 +185,11 @@ div.popup {
       font-size: small;
       font-weight: 300;
       color: var(--gray-3);
+
+      > a {
+        color: var(--accent);
+        text-decoration: none;
+      }
     }
 
     > label.input {

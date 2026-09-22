@@ -105,9 +105,18 @@ function renderUpdateEntry(available, latest) {
   entry.setAttribute("name", label);
 }
 
+function hasNewVersion(detail) {
+  return Boolean(detail.ok && detail.version && detail.latest && detail.version !== detail.latest);
+}
+
 async function checkUpdate() {
   const detail = await systemUpdateInfo();
-  renderUpdateEntry(detail.ok && detail.update_available === true, detail.latest);
+  const available = hasNewVersion(detail);
+  renderUpdateEntry(available, detail.latest);
+  const button = $("#system-update");
+  if (button) {
+    button.hidden = !available;
+  }
 }
 
 function watchUpdate() {
@@ -139,12 +148,12 @@ async function renderSystemVersion() {
   if (title && detail.latest) {
     title.textContent = `Update (${detail.latest})`;
   }
-  button.hidden = !detail.update_available;
+  button.hidden = !hasNewVersion(detail);
   if (release && detail.latest) {
     release.href = RELEASE_TAG_URL + encodeURIComponent(detail.latest);
     release.hidden = false;
   }
-  renderUpdateEntry(detail.update_available === true, detail.latest);
+  renderUpdateEntry(hasNewVersion(detail), detail.latest);
 }
 
 async function outputDirConfig() {
@@ -203,6 +212,14 @@ async function saveSystemOutput() {
 
 async function runSystemUpdate() {
   const detail = await systemUpdateInfo();
+  if (detail.ok && !hasNewVersion(detail)) {
+    const button = $("#system-update");
+    if (button) {
+      button.hidden = true;
+    }
+    renderUpdateEntry(false, detail.latest);
+    return;
+  }
   const target = detail.ok ? `${detail.version} → ${detail.latest}` : "the latest release";
   if (!confirm(`Install ${target}?\nThis overwrites the installed binary.`)) {
     return;
