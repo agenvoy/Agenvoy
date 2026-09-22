@@ -24,6 +24,25 @@ function modelError(text) {
 
 const TYPESAFE_CONSOLE = "https://console.typesafe.ai/keys";
 
+const PROVIDER_KEYS = {
+  openai: "https://platform.openai.com/api-keys",
+  claude: "https://platform.claude.com/settings/keys",
+  gemini: "https://aistudio.google.com/apikey",
+  grok: "https://console.x.ai/",
+  deepseek: "https://platform.deepseek.com/api_keys",
+  mistral: "https://console.mistral.ai/api-keys",
+  nvidia: "https://build.nvidia.com/settings/api-keys",
+  "ollama-cloud": "https://ollama.com/settings/keys",
+  openrouter: "https://openrouter.ai/settings/keys",
+  cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
+};
+
+const PROVIDER_PLANS = {
+  codex: "https://chatgpt.com/pricing",
+  "grok-oauth": "https://grok.com/plans",
+  copilot: "https://github.com/features/copilot/plans",
+};
+
 const PROVIDER_CONSOLE = {
   openai: "https://platform.openai.com/settings/organization/billing",
   claude: "https://console.anthropic.com/settings/billing",
@@ -748,6 +767,24 @@ function selectProviderAdd() {
 
 function providerDetails(provider, method, added) {
   const head = _("div.head", [_("strong", provider.label)]);
+  if (method !== "oauth" && PROVIDER_KEYS[provider.id]) {
+    head.appendChild(
+      _("p", [
+        `Create one in the ${provider.label} `,
+        _("a", { href: PROVIDER_KEYS[provider.id], target: "_blank", rel: "noreferrer" }, "Console"),
+        ".",
+      ]),
+    );
+  }
+  if (method === "oauth" && PROVIDER_PLANS[provider.id]) {
+    head.appendChild(
+      _("p", [
+        `Subscribe on the ${provider.label} `,
+        _("a", { href: PROVIDER_PLANS[provider.id], target: "_blank", rel: "noreferrer" }, "Plans"),
+        " page.",
+      ]),
+    );
+  }
   const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
   card.dataset.added = added ? "1" : "0";
   return card;

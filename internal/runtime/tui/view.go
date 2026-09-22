@@ -59,7 +59,7 @@ func (t TUI) viewIdle() string {
 	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
 
 	left := fastMode + confirmMode
-	pad := width - lipgloss.Width(left) - lipgloss.Width(right)
+	pad := width - 1 - lipgloss.Width(left) - lipgloss.Width(right)
 	pad = max(pad, 1)
 	return prefix + top + box + "\n" + left + strings.Repeat(" ", pad) + right
 }
