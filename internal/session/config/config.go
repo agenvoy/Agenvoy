@@ -15,6 +15,7 @@ import (
 type Config struct {
 	DispatcherModel  string            `json:"dispatcher_model"`
 	DispatcherBeta   bool              `json:"dispatcher_beta"`
+	AutoReasoning    bool              `json:"auto_reasoning"`
 	SummaryModel     string            `json:"summary_model"`
 	Models           []ModelEntry      `json:"models"`
 	Compats          []CompatEntry     `json:"compats"`

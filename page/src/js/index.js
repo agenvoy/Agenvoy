@@ -300,7 +300,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         saveRoutingModel(this.dataset.kind, this.value);
       },
       dispatcher_beta_toggle: function () {
-        saveDispatcherBeta(this.dataset.on !== "1");
+        saveTypesafeToggle("dispatcher_beta", this.dataset.on !== "1");
+      },
+      auto_reasoning_toggle: function () {
+        saveTypesafeToggle("auto_reasoning", this.dataset.on !== "1");
       },
       system_lang: function () {
         saveSystemLang();

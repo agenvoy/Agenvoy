@@ -190,6 +190,10 @@ async function getReasoningList(sessionId) {
       return;
     }
     const body = await response.json();
+    const picker = $("#chat-reasoning");
+    if (picker) {
+      picker.hidden = body.auto_reasoning === true;
+    }
     const levels = body.levels || [];
     if (levels.length === 0) {
       return;

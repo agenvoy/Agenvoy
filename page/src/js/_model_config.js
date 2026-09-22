@@ -575,6 +575,7 @@ async function modelRouting() {
       return {
         dispatcher: body.dispatcher || "",
         dispatcherBeta: Boolean(body.dispatcher_beta),
+        autoReasoning: Boolean(body.auto_reasoning),
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
@@ -585,7 +586,7 @@ async function modelRouting() {
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", dispatcherBeta: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
+  return { dispatcher: "", dispatcherBeta: false, autoReasoning: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -606,11 +607,11 @@ async function saveRoutingModel(kind, model) {
   renderModel();
 }
 
-async function postDispatcherBeta(on) {
+async function postTypesafeToggle(field, on) {
   const response = await fetch(`${API}/v1/model`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dispatcher_beta: on }),
+    body: JSON.stringify({ [field]: on }),
   });
   if (response.ok) {
     return {};
@@ -625,7 +626,7 @@ function askTypesafeKey(name) {
     const save = _("button", { type: "button", class: "submit" }, "save");
     const root = _("div.popup", [
       _("div.panel", [
-        _("strong", `${name} is required for Dispatcher (beta).`),
+        _("strong", `${name} is required for TypeSafe/Jev (beta).`),
         _("p", ["Create one in the TypeSafe ", _("a", { href: TYPESAFE_CONSOLE, target: "_blank", rel: "noreferrer" }, "Console"), "."]),
         key.field,
         _("footer", [cancel, save]),
@@ -663,13 +664,31 @@ function askTypesafeKey(name) {
   });
 }
 
-async function saveDispatcherBeta(on) {
+function markTypesafeToggle(field, on) {
+  const dom = modelDom();
+  if (!dom.routing) {
+    return;
+  }
+  const link = dom.routing.querySelector(`a[data-kind="${field}"]`);
+  if (link) {
+    link.dataset.on = on ? "1" : "0";
+    link.textContent = on ? "disable TypeSafe/Jev(beta)" : "enable TypeSafe/Jev(beta)";
+    link.hidden = false;
+  }
+  if (field === "dispatcher_beta") {
+    const select = routingSelect("dispatcher");
+    if (select) {
+      select.hidden = on;
+    }
+  }
+}
+
+async function saveTypesafeToggle(field, on) {
   try {
-    let detail = await postDispatcherBeta(on);
+    let detail = await postTypesafeToggle(field, on);
     if (on && detail.missing_key) {
       const value = await askTypesafeKey(detail.missing_key);
       if (!value) {
-        renderModel();
         return;
       }
       const saved = await fetch(`${API}/v1/keys`, {
@@ -680,19 +699,19 @@ async function saveDispatcherBeta(on) {
       if (!saved.ok) {
         const failure = await saved.json().catch(() => ({}));
         modelError(failure.error || `HTTP ${saved.status}`);
-        renderModel();
         return;
       }
-      detail = await postDispatcherBeta(on);
+      detail = await postTypesafeToggle(field, on);
     }
     if (detail.error) {
       modelError(detail.error);
+      return;
     }
+    markTypesafeToggle(field, on);
   } catch (err) {
-    console.error("saveDispatcherBeta", err);
+    console.error("saveTypesafeToggle", err);
     modelError(err.message || "failed");
   }
-  renderModel();
 }
 
 function routingSelect(kind) {
@@ -741,17 +760,9 @@ async function renderModelRouting(registered) {
     return;
   }
 
-  const toggle = dom.routing.querySelector('a[data-kind="dispatcher_beta"]');
-  if (toggle) {
-    toggle.dataset.on = routing.dispatcherBeta ? "1" : "0";
-    toggle.textContent = routing.dispatcherBeta ? "disable TypeSafe/Jev(beta)" : "enable TypeSafe/Jev(beta)";
-    toggle.hidden = false;
-  }
   fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
-  const dispatcherSelect = routingSelect("dispatcher");
-  if (dispatcherSelect) {
-    dispatcherSelect.hidden = routing.dispatcherBeta;
-  }
+  markTypesafeToggle("dispatcher_beta", routing.dispatcherBeta);
+  markTypesafeToggle("auto_reasoning", routing.autoReasoning);
   fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
   fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
   fillAudioOptions(routing.stt, routing.tts);

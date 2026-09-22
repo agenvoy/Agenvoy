@@ -51,7 +51,7 @@ func ChatCompletions() gin.HandlerFunc {
 		normalizeContent(req.Messages)
 
 		if _, ok := provider.ParseReasoning(req.ReasoningEffort); !ok {
-			req.ReasoningEffort = "medium"
+			req.ReasoningEffort = ""
 		}
 
 		workDir := extractWorkDirFromZed(req.Messages)

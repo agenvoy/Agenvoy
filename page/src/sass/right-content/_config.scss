@@ -780,6 +780,14 @@ body section.right-content section.config section.tools#model-routing > section 
     > select[hidden] {
       display: none;
     }
+
+    > div.label > a[data-on="0"] {
+      color: var(--okay);
+    }
+
+    > div.label > a[data-on="1"] {
+      color: var(--error);
+    }
   }
 
   > div.routing {

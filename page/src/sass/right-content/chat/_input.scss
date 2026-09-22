@@ -170,6 +170,10 @@
         justify-content: center;
         align-items: center;
 
+        &[hidden] {
+          display: none;
+        }
+
         @media (hover: hover) {
           &:hover {
             &:after {

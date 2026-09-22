@@ -71,9 +71,12 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: data.PendingTask}
 
-	agent, fallbacks, err := ResolveAgent(ctx, data.Model, data.Content, data.Skill != nil, SkillHint(data.Skill), sessionID)
+	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Content, data.Skill != nil, SkillHint(data.Skill), sessionID)
 	if err != nil {
 		return fmt.Errorf("ResolveAgent: %w", err)
+	}
+	if data.Reasoning == "" {
+		data.Reasoning = reasoning
 	}
 	agentName := strings.TrimSpace(agent.Name())
 	agentResult := agentTypes.Event{

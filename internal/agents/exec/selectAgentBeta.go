@@ -22,10 +22,19 @@ const (
 )
 
 var betaWorkTiers = map[string][]string{
-	"code":  {"S", "A", "B", "C"},
-	"chat":  {"B", "C", "A", "S"},
-	"fetch": {"C", "B", "A", "S"},
-	"work":  {"S", "A", "B", "C"},
+	"code":     {"S", "A", "B", "C"},
+	"chat":     {"B", "C", "A", "S"},
+	"fetch":    {"C", "B", "A", "S"},
+	"research": {"S", "A", "B", "C"},
+	"work":     {"A", "S", "B", "C"},
+}
+
+var betaWorkReasoning = map[string]string{
+	"code":     "xhigh",
+	"chat":     "none",
+	"fetch":    "low",
+	"research": "high",
+	"work":     "medium",
 }
 
 var betaWorkCriteria = map[string]any{
@@ -56,13 +65,22 @@ var betaWorkCriteria = map[string]any{
 			"列出這個資料夾的檔案",
 		},
 	},
-	"work": map[string]any{
-		"what":    "Reports, analysis, review, planning, research, and anything that fits none of the other options.",
-		"not_for": "A request that merely sounds important or long but is really one of the other options.",
+	"research": map[string]any{
+		"what":    "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
+		"not_for": "Fetching one value and returning it as-is, or a task that needs no investigation.",
 		"examples": []string{
 			"比較這三家雲端供應商的價格與限制",
+			"Research how the EU AI Act affects open-weight models",
+			"分析台積電近四季財報的趨勢",
+		},
+	},
+	"work": map[string]any{
+		"what":    "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
+		"not_for": "A request that merely sounds important or long but is really one of the other options.",
+		"examples": []string{
 			"Review this design doc and list the risks",
 			"幫我規劃下週的發版流程",
+			"把這段會議紀錄整理成待辦清單",
 		},
 	},
 }
@@ -73,13 +91,13 @@ type betaAnswer struct {
 	} `json:"answers"`
 }
 
-func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers map[string]string, request, sessionID string) ([]string, error) {
+func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
-		return nil, fmt.Errorf("missing key: %s", config.TypesafeKey)
+		return nil, "", fmt.Errorf("missing key: %s", config.TypesafeKey)
 	}
 	if len(candidates) == 0 {
-		return candidates, nil
+		return candidates, "", nil
 	}
 
 	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
@@ -119,13 +137,13 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 		"Authorization": "Bearer " + key,
 	}, body, "json")
 	if err != nil {
-		return nil, fmt.Errorf("go_pkg_http.POST: %w", err)
+		return nil, "", fmt.Errorf("go_pkg_http.POST: %w", err)
 	}
 
 	work := result.Answers["work"].Choice
 	order, ok := betaWorkTiers[work]
 	if !ok {
-		return nil, fmt.Errorf("invalid work choice: %q", work)
+		return nil, "", fmt.Errorf("invalid work choice: %q", work)
 	}
 
 	list := make([]string, 0, len(candidates)+1)
@@ -146,7 +164,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 			list = append(list, name)
 		}
 	}
-	return list, nil
+	return list, betaWorkReasoning[work], nil
 }
 
 func betaNameTier(name string) string {
