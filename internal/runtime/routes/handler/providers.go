@@ -12,6 +12,7 @@ import (
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
@@ -120,6 +121,9 @@ func AddProviderKey() gin.HandlerFunc {
 				return
 			}
 			DropQuotaCache(prov)
+			imageTool.DropModelsCache(c.Request.Context(), prov)
+			audioTool.DropModelsCache(c.Request.Context(), prov)
+			probe.DropModelsCache(c.Request.Context(), name)
 			c.JSON(http.StatusOK, gin.H{"ok": true})
 			return
 		}
@@ -162,6 +166,9 @@ func AddProviderKey() gin.HandlerFunc {
 		}
 
 		DropQuotaCache(prov)
+		imageTool.DropModelsCache(c.Request.Context(), prov)
+		audioTool.DropModelsCache(c.Request.Context(), prov)
+		probe.DropModelsCache(c.Request.Context(), prov)
 
 		if prov == "cloudflare" {
 			if err := keychain.Set("CLOUDFLARE_ACCOUNT_ID", accountID); err != nil {
@@ -227,6 +234,9 @@ func ProviderOAuth() gin.HandlerFunc {
 			return
 		}
 		DropQuotaCache(prov)
+		imageTool.DropModelsCache(c.Request.Context(), prov)
+		audioTool.DropModelsCache(c.Request.Context(), prov)
+		probe.DropModelsCache(c.Request.Context(), prov)
 		emit(gin.H{"done": true, "ok": true})
 	}
 }
@@ -255,6 +265,9 @@ func ClearProviderOAuth() gin.HandlerFunc {
 		}
 
 		DropQuotaCache(prov)
+		imageTool.DropModelsCache(c.Request.Context(), prov)
+		audioTool.DropModelsCache(c.Request.Context(), prov)
+		probe.DropModelsCache(c.Request.Context(), prov)
 		imageTool.Prune(c.Request.Context())
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}

@@ -14,6 +14,7 @@ import (
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
@@ -61,15 +62,25 @@ func TTSEnabled() bool {
 	return SelectedTTS() != Off
 }
 
+const modelsCacheTTL = 15 * 60
+
+func modelsCacheKey(kind, name string) string {
+	return "provider:models:" + kind + ":" + name
+}
+
+func DropModelsCache(ctx context.Context, name string) {
+	torii.DropKeys(ctx, modelsCacheKey("stt", name), modelsCacheKey("tts", name))
+}
+
 func STTOptions(ctx context.Context) []string {
-	return options(ctx, llmrouter.ModelFilter{STTOnly: true})
+	return options(ctx, "stt", llmrouter.ModelFilter{STTOnly: true})
 }
 
 func TTSOptions(ctx context.Context) []string {
-	return options(ctx, llmrouter.ModelFilter{TTSOnly: true})
+	return options(ctx, "tts", llmrouter.ModelFilter{TTSOnly: true})
 }
 
-func options(ctx context.Context, filter llmrouter.ModelFilter) []string {
+func options(ctx context.Context, kind string, filter llmrouter.ModelFilter) []string {
 	found := make([][]string, len(Providers))
 	var wg sync.WaitGroup
 	for i, name := range Providers {
@@ -78,15 +89,17 @@ func options(ctx context.Context, filter llmrouter.ModelFilter) []string {
 			if err != nil {
 				return
 			}
-			var models []string
-			switch name {
-			case "openai":
-				models, err = openai.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
-			case "gemini":
-				models, err = gemini.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
-			case "openrouter":
-				models, err = openrouter.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
-			}
+			models, err := torii.CachedList(ctx, modelsCacheKey(kind, name), modelsCacheTTL, func() ([]string, error) {
+				switch name {
+				case "openai":
+					return openai.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
+				case "gemini":
+					return gemini.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
+				case "openrouter":
+					return openrouter.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)
+				}
+				return nil, nil
+			})
 			if err != nil {
 				return
 			}

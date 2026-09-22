@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/router"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
@@ -40,6 +41,16 @@ func Enabled() bool {
 	return Selected() != Off
 }
 
+const modelsCacheTTL = 15 * 60
+
+func modelsCacheKey(name string) string {
+	return "provider:models:image:" + name
+}
+
+func DropModelsCache(ctx context.Context, name string) {
+	torii.DropKeys(ctx, modelsCacheKey(name))
+}
+
 func Available(ctx context.Context) []string {
 	filter := provider.ModelFilter{ImageOnly: true}
 	found := make([][]string, len(Providers))
@@ -57,19 +68,21 @@ func Available(ctx context.Context) []string {
 			}
 
 			base := provider.Config{APIKey: cfg.APIKey, AccountID: cfg.AccountID}
-			var models []string
-			switch name {
-			case "openai":
-				models, err = openai.Models(ctx, base, filter)
-			case "grok":
-				models, err = grok.Models(ctx, base, filter)
-			case "grok-oauth":
-				models, err = grokOauth.Models(ctx, base, filter)
-			case "gemini":
-				models, err = gemini.Models(ctx, base, filter)
-			case "openrouter":
-				models, err = openrouter.Models(ctx, base, filter)
-			}
+			models, err := torii.CachedList(ctx, modelsCacheKey(name), modelsCacheTTL, func() ([]string, error) {
+				switch name {
+				case "openai":
+					return openai.Models(ctx, base, filter)
+				case "grok":
+					return grok.Models(ctx, base, filter)
+				case "grok-oauth":
+					return grokOauth.Models(ctx, base, filter)
+				case "gemini":
+					return gemini.Models(ctx, base, filter)
+				case "openrouter":
+					return openrouter.Models(ctx, base, filter)
+				}
+				return nil, nil
+			})
 			if err != nil {
 				slog.Debug("image.Available",
 					slog.String("provider", name),
