@@ -516,7 +516,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		}
 		if finishedAt != "" {
 			if footer != "" {
-				footer = footer + "  " + finishedAt
+				footer = footer + "\n    " + finishedAt
 			} else {
 				footer = finishedAt
 			}

@@ -19,6 +19,8 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 			return t.commandModelAdd()
 		case "dispatch":
 			return t.commandDispatcher()
+		case "reasoning":
+			return t.commandAutoReasoning()
 		case "summary":
 			return t.commandSummaryModel()
 		case "image":
@@ -30,7 +32,7 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	actions := []string{"add", "dispatch", "summary", "image", "stt", "tts"}
+	actions := []string{"add", "dispatch", "reasoning", "summary", "image", "stt", "tts"}
 
 	options, values, cursor := registeredModelOptions(t.currentSessionID)
 	var styledLines []string
@@ -43,6 +45,7 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 	options = append(options, optionColumn(actions, []string{
 		"add model from provider",
 		"smart routing",
+		"auto reasoning by using TypeSafe/Jev(beta)",
 		"summary memory",
 		"image generation",
 		"audio analysis",

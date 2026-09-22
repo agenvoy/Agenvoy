@@ -72,15 +72,6 @@ func SkillHint(s *skill.Skill) string {
 func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool, string) {
 	dead := map[string]bool{}
 
-	if sessionID != "" {
-		model, _ := configBot.GetModel(sessionID)
-		if model != "" && model != configBot.DefaultModel {
-			if _, ok := registry.Registry[model]; ok {
-				return []string{model}, dead, ""
-			}
-		}
-	}
-
 	tiers := map[string]string{}
 	tierLines := "(none set)"
 	beta, autoReasoning := false, false
@@ -90,6 +81,38 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		beta = cfg.DispatcherBeta
 		autoReasoning = cfg.AutoReasoning
 	}
+
+	userContent := strings.TrimSpace(userInput)
+	if hasSkill {
+		userContent = "[Run Skill] " + userContent
+		if desc := strings.TrimSpace(skillHint); desc != "" {
+			userContent += " — " + desc
+		}
+	}
+
+	reasoningOnly := func(names []string) string {
+		if !autoReasoning {
+			return ""
+		}
+		_, level, err := selectAgentBeta(ctx, names, nil, tiers, userContent, sessionID)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Debug("auto reasoning failed", slog.String("error", err.Error()))
+			}
+			return ""
+		}
+		return level
+	}
+
+	if sessionID != "" {
+		model, _ := configBot.GetModel(sessionID)
+		if model != "" && model != configBot.DefaultModel {
+			if _, ok := registry.Registry[model]; ok {
+				return []string{model}, dead, reasoningOnly([]string{model})
+			}
+		}
+	}
+
 	registryOrder := make([]string, 0, len(registry.Entries))
 	passOrder := []string{}
 	known := make(map[string]struct{}, len(registry.Entries))
@@ -103,20 +126,13 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	}
 
 	if len(registry.Entries) <= 1 {
-		return append(registryOrder, passOrder...), dead, ""
+		list := append(registryOrder, passOrder...)
+		return list, dead, reasoningOnly(list)
 	}
 
 	picked := []string{}
 	seen := map[string]bool{}
 	reasoning := ""
-
-	userContent := strings.TrimSpace(userInput)
-	if hasSkill {
-		userContent = "[Run Skill] " + userContent
-		if desc := strings.TrimSpace(skillHint); desc != "" {
-			userContent += " — " + desc
-		}
-	}
 
 	bot = retryHandler.Check(bot, registry)
 

@@ -27,13 +27,21 @@ func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 	cursor := 0
 	for i, m := range cfg.Models {
 		label := m.Name
-		if cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
+		if !cfg.DispatcherBeta && cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
 			cursor = i
 		}
 		options[i] = label
 		values[i] = m.Name
 	}
+
+	typesafe := typesafeLabel
+	if cfg.DispatcherBeta {
+		typesafe += "  " + systemStyle.Render("[current]")
+		cursor = len(options) + 1
+	}
+	options = append(options, "", typesafe)
+	values = append(values, "", typesafeDispatcher)
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
@@ -92,11 +100,15 @@ func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 	if err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
-	if cfg.DispatcherModel == name {
+	if name == typesafeDispatcher {
+		return t.enableTypesafe(fieldDispatcher)
+	}
+	if cfg.DispatcherModel == name && !cfg.DispatcherBeta {
 		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
 	}
 
 	cfg.DispatcherModel = name
+	cfg.DispatcherBeta = false
 	if err := config.Save(cfg); err != nil {
 		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}

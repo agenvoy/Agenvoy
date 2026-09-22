@@ -376,6 +376,10 @@ func (t TUI) sessionName() string {
 		modelPart = warnStyle.Render(model)
 	}
 
+	if autoReasoningActive() {
+		return base + hintStyle.Render(" (") + modelPart + hintStyle.Render(")")
+	}
+
 	var reasonPart string
 	switch reasoning {
 	case "none", "low":
