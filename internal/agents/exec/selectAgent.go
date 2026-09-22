@@ -82,26 +82,13 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		autoReasoning = cfg.AutoReasoning
 	}
 
-	userContent := strings.TrimSpace(userInput)
-	if hasSkill {
-		userContent = "[Run Skill] " + userContent
-		if desc := strings.TrimSpace(skillHint); desc != "" {
-			userContent += " — " + desc
-		}
-	}
+	userContent := requestContent(userInput, hasSkill, skillHint)
 
 	reasoningOnly := func(names []string) string {
 		if !autoReasoning {
 			return ""
 		}
-		_, level, err := selectAgentBeta(ctx, names, nil, tiers, userContent, sessionID)
-		if err != nil {
-			if ctx.Err() == nil {
-				slog.Debug("auto reasoning failed", slog.String("error", err.Error()))
-			}
-			return ""
-		}
-		return level
+		return autoReasoningLevel(ctx, names, tiers, userContent, sessionID)
 	}
 
 	if sessionID != "" {
@@ -293,6 +280,28 @@ func orderProviders(names []string) []string {
 	return out
 }
 
+func requestContent(userInput string, hasSkill bool, skillHint string) string {
+	content := strings.TrimSpace(userInput)
+	if hasSkill {
+		content = "[Run Skill] " + content
+		if desc := strings.TrimSpace(skillHint); desc != "" {
+			content += " — " + desc
+		}
+	}
+	return content
+}
+
+func autoReasoningLevel(ctx context.Context, names []string, tiers map[string]string, content, sessionID string) string {
+	_, level, err := selectAgentBeta(ctx, names, nil, tiers, content, sessionID)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Debug("auto reasoning failed", slog.String("error", err.Error()))
+		}
+		return ""
+	}
+	return level
+}
+
 func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {
 	names, dead, _ := SelectAgentNames(ctx, bot, registry, userInput, hasSkill, skillHint, sessionID)
 	for _, n := range names {
@@ -402,7 +411,11 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 		if !ok || agent == nil {
 			return nil, nil, "", fmt.Errorf("model %q not found", model)
 		}
-		return agent, nil, "", nil
+		reasoning := ""
+		if cfg, err := config.Load(); err == nil && cfg.AutoReasoning {
+			reasoning = autoReasoningLevel(ctx, []string{model}, cfg.ModelTag, requestContent(userInput, hasSkill, skillHint), sessionID)
+		}
+		return agent, nil, reasoning, nil
 	}
 
 	names, dead, reasoning := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)

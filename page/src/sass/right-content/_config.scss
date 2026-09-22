@@ -163,6 +163,13 @@ body section.right-content section.config {
       display: none;
     }
 
+    &#mcp-form > select {
+      width: 100%;
+      height: auto;
+      padding: 0.625rem 0.75rem;
+      line-height: 1.5;
+    }
+
     &#mcp-form:not([data-editing="1"]) footer > button#mcp-reconnect {
       display: none;
     }
