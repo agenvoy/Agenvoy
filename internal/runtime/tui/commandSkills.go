@@ -22,6 +22,7 @@ var remoteSkills = []string{
 	"code-reviewer",
 	"commit-generate",
 	"readme-generate",
+	"seo-optimize",
 	"version-generate",
 	"wiki-generate",
 }

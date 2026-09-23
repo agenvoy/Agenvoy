@@ -16,6 +16,9 @@ var SummaryContext string
 //go:embed prompts/followup.md
 var FollowupPrompt string
 
+//go:embed prompts/assign_skill.md
+var AssignSkill string
+
 //go:embed prompts/system_prompt/agent_selector.md
 var AgentSelector string
 

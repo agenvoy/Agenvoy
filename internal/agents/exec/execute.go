@@ -289,7 +289,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	if data.Skill != nil {
-		assignBindingSkill(session, data.Skill)
+		assignSkill(session, data.Skill)
 	}
 
 	cfg, _ := config.Load()
