@@ -113,8 +113,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	}
 
 	if len(registry.Entries) <= 1 {
-		list := append(registryOrder, passOrder...)
-		return list, dead, reasoningOnly(list)
+		return registryOrder, dead, reasoningOnly(registryOrder)
 	}
 
 	picked := []string{}
@@ -220,13 +219,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		picked = append(picked, n)
 		seen[n] = true
 	}
-	picked = orderProviders(picked)
-	for _, n := range passOrder {
-		if !seen[n] && !dead[n] {
-			picked = append(picked, n)
-		}
-	}
-	return picked, dead, reasoning
+	return orderProviders(picked), dead, reasoning
 }
 
 var providerRank = map[string]int{
@@ -419,20 +412,32 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 	}
 
 	names, dead, reasoning := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)
-	if len(names) == 0 {
-		return nil, nil, "", fmt.Errorf("no agents available")
-	}
-	candidates := make([]agentTypes.Agent, 0, len(names))
+	var primary agentTypes.Agent
+	primaryName := ""
 	for _, n := range names {
 		if dead[n] {
 			continue
 		}
 		if a, ok := registry.Registry[n]; ok && a != nil {
-			candidates = append(candidates, a)
+			primary, primaryName = a, n
+			break
 		}
 	}
-	if len(candidates) == 0 {
-		return nil, nil, "", fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
+
+	fallbacks := make([]agentTypes.Agent, 0, len(registry.Entries))
+	for _, e := range registry.Entries {
+		if e.Name == primaryName || dead[e.Name] {
+			continue
+		}
+		if a, ok := registry.Registry[e.Name]; ok && a != nil {
+			fallbacks = append(fallbacks, a)
+		}
 	}
-	return candidates[0], candidates[1:], reasoning, nil
+	if primary == nil {
+		if len(fallbacks) == 0 {
+			return nil, nil, "", fmt.Errorf("no agents available (dead: %d)", len(dead))
+		}
+		primary, fallbacks = fallbacks[0], fallbacks[1:]
+	}
+	return primary, fallbacks, reasoning, nil
 }
