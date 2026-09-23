@@ -128,9 +128,9 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 		},
 	}
 
-	previous := ""
+	var previous, previousReasoning string
 	if len(turns) > 0 {
-		previous = betaPreviousModel(ctx, sessionID, candidates)
+		previous, previousReasoning = betaPrevious(ctx, sessionID, candidates)
 	}
 	if previous != "" {
 		questions["topic"] = map[string]any{
@@ -174,8 +174,14 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
-	if previous != "" && result.Answers["topic"].Choice == betaTopicSame && !slices.Contains(list, previous) {
-		list = append(list, previous)
+	level := betaWorkReasoning[work]
+	if previous != "" && result.Answers["topic"].Choice == betaTopicSame {
+		if len(list) == 0 || list[0] == previous {
+			level = cmp.Or(previousReasoning, level)
+		}
+		if !slices.Contains(list, previous) {
+			list = append(list, previous)
+		}
 	}
 
 	rank := func(name string) int {
@@ -193,7 +199,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 			list = append(list, name)
 		}
 	}
-	return list, betaWorkReasoning[work], nil
+	return list, level, nil
 }
 
 func betaNameTier(name string) (string, int) {
@@ -261,15 +267,20 @@ func betaLastModelTTL(name string) int64 {
 	return 5 * 60
 }
 
-func betaPreviousModel(ctx context.Context, sessionID string, candidates []string) string {
-	if sessionID == "" || len(candidates) < 2 {
-		return ""
+func betaPrevious(ctx context.Context, sessionID string, candidates []string) (model, reasoning string) {
+	if sessionID == "" {
+		return "", ""
 	}
 	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, betaLastModelKey+sessionID)
-	if !ok || !slices.Contains(candidates, entry.Value()) {
-		return ""
+	if !ok {
+		return "", ""
 	}
-	return entry.Value()
+	value := entry.Value()
+	i := strings.LastIndex(value, "/")
+	if i < 0 || !slices.Contains(candidates, value[:i]) {
+		return "", ""
+	}
+	return value[:i], value[i+1:]
 }
 
 func betaContext(sessionID string) []map[string]string {

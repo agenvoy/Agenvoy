@@ -485,7 +485,7 @@
             <section class="tools" id="model-priority" data-open="1">
               <strong class="group">Fallback Priority</strong>
               <div class="note">
-                <p>Fallback under auto only — this order does not change which agent gets selected.</p>
+                <p>Fallback under auto only — this order does not change which agent gets selected; after it fails, every other entry is tried top to bottom, <code>pass</code> included.</p>
                 <p>A hand-off walks downward and never back up, so the last entry is your final line of defense.</p>
                 <p>
                   Cache never carries across providers, but keep copies of the same model adjacent anyway: capability

@@ -29,6 +29,8 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
+const maxConcurrentTools = 5
+
 func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -588,6 +590,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	}
 
 	var wg sync.WaitGroup
+	toolSlots := make(chan struct{}, maxConcurrentTools)
 	for i := range slots {
 		s := &slots[i]
 		if s.state != slotReady {
@@ -603,6 +606,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			wg.Add(1)
 			go func(s *toolSlot) {
 				defer wg.Done()
+				toolSlots <- struct{}{}
+				defer func() { <-toolSlots }()
 				runToolExec(ctx, exec, s, events)
 			}(s)
 			s.state = slotDispatched
