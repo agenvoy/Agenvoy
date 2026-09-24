@@ -52,7 +52,7 @@ func WatchSession(ctx context.Context) func() {
 					continue
 				}
 				name, _ := configBot.Get(sessionID)
-				slog.Debug("session created",
+				slog.Info("session created",
 					slog.String("session", sessionID),
 					slog.String("name", name))
 			case err, ok := <-w.Errors:

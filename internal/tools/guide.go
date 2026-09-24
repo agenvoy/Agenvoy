@@ -65,12 +65,12 @@ Full rule per topic — call before acting on any match:
 			}
 			topic := strings.TrimSpace(params.Topic)
 			guide, ok := topicGuides[topic]
-			if ok && strings.Contains(guide, "{{.ModelTag}}") {
-				tierLines := "(none set)"
+			if ok && strings.Contains(guide, "{{.ModelSelection}}") {
+				selection := config.ModelSelection(&config.Config{})
 				if cfg, err := config.Load(); err == nil {
-					tierLines = config.ModelTagLines(cfg)
+					selection = config.ModelSelection(cfg)
 				}
-				guide = strings.ReplaceAll(guide, "{{.ModelTag}}", tierLines)
+				guide = strings.ReplaceAll(guide, "{{.ModelSelection}}", selection)
 			}
 			if !ok {
 				return "", fmt.Errorf("unknown topic %q; available: tool_generate, tool_error, rag_web, market_analysis, targeted_read, ask_user, subagent_dispatch, write_todo, html_render, office", topic)

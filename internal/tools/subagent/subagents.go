@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -18,13 +17,6 @@ func Register() {
 }
 
 func registSubagents() {
-	models := []string{}
-	for _, m := range exec.GetAgent() {
-		if m.Name != "" {
-			models = append(models, m.Name)
-		}
-	}
-
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "subagents",
 		SystemUse:   false,
@@ -36,7 +28,7 @@ func registSubagents() {
 Naming an agent is an order: 呼叫 X / 請 X / 找 X / call X / ask X → dispatch to X, never answer it yourself.
 Also fan out when one lookup repeats across 3+ entities or 2+ source classes.
 The leg's report comes back whole — relay it; "已呼叫" is not an answer.
-One call per subtask, three at a time. Protocol and model tiers → reasoning_guide(topic=subagent_dispatch).`,
+One job per leg, one call per leg, three at a time. Protocol and model tiers → reasoning_guide(topic=subagent_dispatch).`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -57,9 +49,8 @@ One call per subtask, three at a time. Protocol and model tiers → reasoning_gu
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: worker model for a temp run — set it whenever `self_id` is empty; a `self_id` that resolves to an existing session runs under that session's own model and ignores this. Pick by the leg's one job, tiers from reasoning_guide(topic=subagent_dispatch): collect → C>B>A>S, transform → B>C>A>S, review and reason → A>S>B>C, code or high-precision work → S>A>B>C; a `pass`-tier model only when the user names it. Blank spends an extra dispatcher call.",
+					"description": "mode=invoke: worker model for a temp run — set it whenever `self_id` is empty; a `self_id` that resolves to an existing session runs under that session's own model and ignores this. Map the leg's one job to its work kind and take the first model the tier list in reasoning_guide(topic=subagent_dispatch) gives for it. An unregistered or `pass`-tier name is rejected. Blank spends an extra dispatcher call.",
 					"default":     "",
-					"enum":        models,
 				},
 				"reasoning": map[string]any{
 					"type":        "string",
@@ -102,7 +93,7 @@ One call per subtask, three at a time. Protocol and model tiers → reasoning_gu
 
 			switch mode {
 			case "invoke":
-				return invokeSubagent(ctx, e, params, models)
+				return invokeSubagent(ctx, e, params)
 			case "list":
 				if strings.TrimSpace(params.SelfID) == "" {
 					return "", fmt.Errorf("self_id is required when mode=list")

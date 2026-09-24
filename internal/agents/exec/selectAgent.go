@@ -73,11 +73,11 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	dead := map[string]bool{}
 
 	tiers := map[string]string{}
-	tierLines := "(none set)"
+	selection := config.ModelSelection(&config.Config{})
 	beta, autoReasoning := false, false
 	if cfg, err := config.Load(); err == nil {
 		tiers = cfg.ModelTag
-		tierLines = config.ModelTagLines(cfg)
+		selection = config.ModelSelection(cfg)
 		beta = cfg.DispatcherBeta
 		autoReasoning = cfg.AutoReasoning
 	}
@@ -151,7 +151,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		agentJson, err := json.Marshal(registry.Entries)
 		if err == nil {
 			messages := []provider.Message{
-				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelTag}}", tierLines)},
+				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelSelection}}", selection)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
@@ -222,21 +222,6 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	return orderProviders(picked), dead, reasoning
 }
 
-var providerRank = map[string]int{
-	"codex":      0,
-	"grok-oauth": 0,
-	"copilot":    1,
-	"openrouter": 3,
-}
-
-func providerOrder(name string) int {
-	prov, _, _ := strings.Cut(name, "@")
-	if rank, ok := providerRank[prov]; ok {
-		return rank
-	}
-	return 2
-}
-
 func baseModel(name string) string {
 	prov, model, ok := strings.Cut(name, "@")
 	if !ok {
@@ -265,7 +250,7 @@ func orderProviders(names []string) []string {
 		for i, at := range idx {
 			group[i] = names[at]
 		}
-		slices.SortStableFunc(group, func(a, b string) int { return providerOrder(a) - providerOrder(b) })
+		slices.SortStableFunc(group, func(a, b string) int { return config.ProviderOrder(a) - config.ProviderOrder(b) })
 		for i, at := range idx {
 			out[at] = group[i]
 		}

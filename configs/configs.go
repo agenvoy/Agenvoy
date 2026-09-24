@@ -22,6 +22,9 @@ var AssignSkill string
 //go:embed prompts/system_prompt/agent_selector.md
 var AgentSelector string
 
+//go:embed prompts/model_selection.md
+var ModelSelection string
+
 //go:embed prompts/system_prompt/memory/compact_exec_prompt.md
 var CompactExecPrompt string
 
