@@ -91,9 +91,6 @@ func (t TUI) viewThinking() string {
 	elapsed := formatTime(int(time.Since(t.runStartedAt).Seconds()))
 
 	detail := []string{elapsed}
-	if t.currentModel != "" {
-		detail = append(detail, t.currentModel)
-	}
 	if in := agentTypes.FormatInput(agentTypes.InputTotals(&provider.Usage{
 		Input:       t.lastIn,
 		CacheRead:   t.lastCacheRead,

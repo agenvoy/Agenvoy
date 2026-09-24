@@ -80,9 +80,10 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	}
 	agentName := strings.TrimSpace(agent.Name())
 	agentResult := agentTypes.Event{
-		Type:     agentTypes.EventAgentResult,
-		Text:     agentName,
-		TaskHash: data.PendingTask,
+		Type:      agentTypes.EventAgentResult,
+		Text:      agentName,
+		Reasoning: resolveReasoning(sessionID, data.Reasoning).String(),
+		TaskHash:  data.PendingTask,
 	}
 	events <- agentResult
 	sessionLog.Record(sessionID, agentResult)

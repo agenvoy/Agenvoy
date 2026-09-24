@@ -191,8 +191,21 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 	case agentTypes.EventAgentResult:
 		if ev.Source == "" {
 			str := strings.TrimSpace(ev.Text)
+			prev := t.currentModel
 			t.currentModel = str
 			t.activity = str
+			if str == "" || str == prev {
+				return t, nil
+			}
+			action := "Model"
+			if prev != "" {
+				action = "Switch"
+			}
+			if reasoning := strings.TrimSpace(ev.Reasoning); reasoning != "" {
+				str += " " + reasoning
+			}
+			t.toolBuf = append(t.toolBuf, hintStyle.Render("⏵ "+action+"("+str+")"))
+			return t, nil
 		}
 
 	case agentTypes.EventTodoUpdate:
@@ -375,7 +388,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.lastCacheRead = ev.Usage.CacheRead
 			t.lastCacheCreate = ev.Usage.CacheCreate
 		}
-		finishedAt := time.Now().Format("2006-01-02 15:04:05")
+		finishedAt := formatFinishedAt(time.Now())
 		if collapse != nil {
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 			if !ok {
@@ -398,7 +411,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		collapse := t.collapseToolBuf()
 		t.todos = nil
 		t.subBuf, t.subOrder, t.subActive = nil, nil, 0
-		finishedAt := time.Now().Format("2006-01-02 15:04:05")
+		finishedAt := formatFinishedAt(time.Now())
 		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
 			return t, collapse

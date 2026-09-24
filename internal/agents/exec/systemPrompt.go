@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -25,7 +26,25 @@ import (
 
 const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
+var guardrailRules = loadGuardrailRules()
+
+func loadGuardrailRules() string {
+	var list []string
+	if err := json.Unmarshal(configs.GuardrailRules, &list); err != nil {
+		slog.Warn("embedded guardrail_rules",
+			slog.String("error", err.Error()))
+		return ""
+	}
+	lines := make([]string, 0, len(list))
+	for _, rule := range list {
+		if rule = strings.TrimSpace(rule); rule != "" {
+			lines = append(lines, "- "+rule)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func buildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
@@ -66,7 +85,7 @@ func mcpInstructionsSection() string {
 }
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
-	systemOS := host().os
+	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
 
 	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
@@ -108,6 +127,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
+		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
@@ -168,13 +188,14 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	}
 
 	return strings.NewReplacer(
-		"{{.SystemOS}}", host().os,
+		"{{.SystemOS}}", getSystemInfo().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
+		"{{.GuardrailRules}}", guardrailRules,
 	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))
 }
 

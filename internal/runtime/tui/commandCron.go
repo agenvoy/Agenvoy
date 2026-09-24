@@ -34,6 +34,7 @@ func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
 	t = t.recordInputHistory(content)
 	t.running = true
 	t.runStartedAt = time.Now()
+	t.currentModel = ""
 	t.runTarget = ""
 
 	go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, "", "")

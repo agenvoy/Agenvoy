@@ -31,7 +31,7 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 			(message.Role == "assistant" && len(message.ToolCalls) > 0) {
 			continue
 		}
-		if content, ok := message.Content.(string); ok && (strings.Contains(content, configs.PoisonRefusal) || strings.Contains(content, configs.GuardrailSentinel)) {
+		if content, ok := message.Content.(string); ok && strings.Contains(content, configs.GuardrailSentinel) {
 			continue
 		}
 

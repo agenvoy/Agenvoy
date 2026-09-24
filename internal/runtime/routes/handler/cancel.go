@@ -21,7 +21,7 @@ func CancelSessionTask() gin.HandlerFunc {
 			return
 		}
 
-		if taskHash != "" && taskHash != "current" && exec.CancelTask(taskHash) {
+		if taskHash != "" && taskHash != "current" && exec.Cancel(taskHash) {
 			c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": true})
 			return
 		}

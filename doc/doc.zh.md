@@ -163,9 +163,9 @@ compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶�
 
 在 TUI 的 `/model` 對模型列按 `t`，或在 **Config › Model › Fallback Priority** 每張卡片的 tier 按鈕設定。tier 每次請求都重新讀取，改完不需重啟。
 
-session 固定了模型就不走分派。否則 dispatcher 會連同模型清單收到 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先；其餘（含報告與分析）→ S 優先。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 則依優先順序依序嘗試其他已註冊模型（含 `pass`），跳過失敗模型的 provider 與 context window 放不下輸入的模型，全部用盡才失敗。
+session 固定了模型就不走分派。否則 dispatcher 會收到每個已註冊模型解析後的 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 與 `gemma*`／`qwen*` 等開源模型為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；從多個來源蒐集再綜整的研究 → S 優先；審閱、規劃、撰寫與其餘工作 → A 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先。LLM dispatcher、TypeSafe 分類與 subagent planner 共用同一張工作類型表與同一套名稱規則，排序結果一致。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 則依優先順序依序嘗試其他已註冊模型（含 `pass`），跳過失敗模型的 provider 與 context window 放不下輸入的模型，全部用盡才失敗。
 
-subagent 也依同一套 tier。planner 讓每條 leg 只做一種工作——collect、review、transform 或 reason——並依工作挑模型：collect 為 C>B>A>S、transform 為 B>C>A>S、review 與 reason 為 A>S>B>C、程式碼或高精確的工作為 S>A>B>C。
+subagent 也依同一套 tier。主 agent 一旦分派，只負責拆分任務、呼叫 leg 與綜整結果；每條 leg 只做一種工作——collect、analyze、compare、review、transform 或 code——並對應到工作類型：collect → fetch（C>B>A>S）、transform → chat（B>C>A>S）、analyze／compare／review → work（A>S>B>C）、程式碼或高精確工作 → code（S>A>B>C）。leg 的 `model` 以即時的 registry 驗證，啟動後新增的模型也能使用，未註冊或 `pass` 模型會被拒絕。
 
 ### TypeSafe/Jev（beta）
 
@@ -186,7 +186,7 @@ Jev 會把請求歸成一種工作類型，兩項功能都依這個結果運作�
 | `research` | 從多個來源蒐集並下結論：研究、分析、比較、報告 | S>A>B>C | `high` |
 | `work` | 規劃、review、起草或整理使用者手上的內容，及其他 | A>S>B>C | `medium` |
 
-tier 取自 `model_tag`，沒設定的依模型名稱判斷；`pass` 模型不參與此排序，fallback 改依優先順序。預設 dispatcher 的 prompt 不區分 `research` 與 `work`：code、chat、fetch 以外的請求一律 S>A>B>C。請求本身帶的 reasoning 等級（例如 `reasoning_effort`）優先於 auto reasoning，auto reasoning 又優先於 session 設定。
+tier 取自 `model_tag`，沒設定的依模型名稱判斷；`pass` 模型不參與此排序，fallback 改依優先順序。預設 dispatcher 的 prompt 使用同樣五種工作類型與 tier 順序。請求本身帶的 reasoning 等級（例如 `reasoning_effort`）優先於 auto reasoning，auto reasoning 又優先於 session 設定。
 
 TUI、Web、Telegram 與 Discord 的回覆 footer 以 `model(quota)/reasoning` 顯示實際使用的等級。`action.log` 的 `done` 行會記錄 `reasoning=<level>`，Web 聊天重新整理後仍會顯示。
 
@@ -238,13 +238,11 @@ Agenvoy 本身也是 MCP server，走 stdio：`agen` 的 stdin 不是 TTY（有�
 command = "agen"
 ```
 
-### Session 分類與監控
+### Session 分類
 
 TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API；`temp-`（短期工作）的 session 不會列出。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
 
 Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
-
-Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶體，以及到 `1.1.1.1:443` 的 TCP 連線；CPU 過高、記憶體過高、網路中斷與恢復都會寫入 daemon log，CPU 異常時也會盡可能列出前三名程序。
 
 ## 使用方式
 

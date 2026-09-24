@@ -163,9 +163,9 @@ Each registered model can carry a tier in `model_tag`:
 
 Set a tier with `t` on a model row in the TUI `/model`, or with the tier button on each card under **Config › Model › Fallback Priority**. Tiers are read per request, so a change applies without a restart.
 
-A model pinned to the session skips routing. Otherwise the dispatcher receives the tiers along with the model list; an untiered model is placed by its name (`claude-opus` S, `claude-sonnet` A, `claude-haiku` B, `*-mini` C, and so on). The kind of work decides the order: code, or a request that asks outright for depth or precision, tries S first; greetings, short answers, chat and translation try B; fetching data with tools and returning it tries C; everything else, reports and analysis included, tries S. When the same model is registered under several providers, the order within it is `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. `pass` is enforced in the prompt rather than by removal: the dispatcher is told not to return a `pass` model unless the request names it, fallback then tries every other registered model in the priority order, `pass` included, skipping the failed model's provider and models whose context window cannot hold the input, and the request fails only when that list runs out.
+A model pinned to the session skips routing. Otherwise the dispatcher receives every registered model already resolved to its tier; an untiered model is placed by its name (`claude-opus` S, `claude-sonnet` A, `claude-haiku` B, `*-mini` and open-weight models such as `gemma*` / `qwen*` C, and so on). The kind of work decides the order: code, or a request that asks outright for depth or precision, tries S first; research that gathers from several sources and synthesizes tries S; review, planning, drafting and everything else try A; greetings, short answers, chat and translation try B; fetching data with tools and returning it tries C. The LLM dispatcher, the TypeSafe classifier and the subagent planner read this one table and one name rule, so they rank the same way. When the same model is registered under several providers, the order within it is `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. `pass` is enforced in the prompt rather than by removal: the dispatcher is told not to return a `pass` model unless the request names it, fallback then tries every other registered model in the priority order, `pass` included, skipping the failed model's provider and models whose context window cannot hold the input, and the request fails only when that list runs out.
 
-Subagent legs follow the same tiers. The planner gives each leg one job — collect, review, transform or reason — and picks its model by that job: collect C>B>A>S, transform B>C>A>S, review and reason A>S>B>C, code or high-precision work S>A>B>C.
+Subagent legs follow the same tiers. Once it fans out, the main agent only splits the task, dispatches legs and synthesizes their results; each leg has one job — collect, analyze, compare, review, transform or code — mapped to a work kind: collect → fetch (C>B>A>S), transform → chat (B>C>A>S), analyze, compare and review → work (A>S>B>C), code or high-precision work → code (S>A>B>C). A leg's `model` is checked against the live registry, so models added after startup work, and an unregistered or `pass` model is rejected.
 
 ### TypeSafe/Jev (beta)
 
@@ -186,7 +186,7 @@ Jev classifies the request into one kind of work, and the answer drives both fea
 | `research` | Gathering from several sources and drawing conclusions: research, analysis, comparison, reports | S>A>B>C | `high` |
 | `work` | Planning, review, drafting or organizing content the user already has, and anything else | A>S>B>C | `medium` |
 
-Tiers come from `model_tag`, then from the model name for untiered models. `pass` models are left out of this ranking; fallback follows the priority order instead. The default dispatcher prompt does not split `research` from `work`: it sends every request outside code, chat and fetch to S>A>B>C. A reasoning level passed with the request (for example `reasoning_effort`) wins over auto reasoning, and auto reasoning wins over the session setting.
+Tiers come from `model_tag`, then from the model name for untiered models. `pass` models are left out of this ranking; fallback follows the priority order instead. The default dispatcher prompt uses the same five kinds and tier orders. A reasoning level passed with the request (for example `reasoning_effort`) wins over auto reasoning, and auto reasoning wins over the session setting.
 
 Reply footers in the TUI, web, Telegram and Discord show the level actually used as `model(quota)/reasoning`. The `done` line in `action.log` records it as `reasoning=<level>`, so the web chat still shows it after a reload.
 
@@ -238,13 +238,11 @@ Agenvoy itself speaks MCP over stdio: run the `agen` binary with stdin piped (no
 command = "agen"
 ```
 
-### Session Classification and Monitoring
+### Session Classification
 
 The TUI `/sessions` selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, and `chat-` for Web/API; `temp-` sessions (short-lived work) are not listed. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
 
 Session personas are stored in the history SQLite database. `self_id` is normalized to lowercase and accepts only up to 32 ASCII letters, digits, `_`, or `-`; non-empty values must be unique. At daemon startup, legacy per-session `bot.json`, bot markdown, `config.json`, and `status.json` files are migrated into SQLite/state tables.
-
-The daemon also runs a background runtime monitor. Every 30 seconds it checks CPU usage, Go-process memory, and the TCP connection to `1.1.1.1:443`. High CPU, high memory, network interruption, and network recovery are written to the daemon log; on CPU anomalies it also attempts to list the top three processes.
 
 ## Usage
 

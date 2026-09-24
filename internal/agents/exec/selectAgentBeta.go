@@ -24,14 +24,6 @@ const (
 	betaLastModelKey   = "lastModel:"
 )
 
-var betaWorkTiers = map[string][]string{
-	"code":     {"S", "A", "B", "C"},
-	"chat":     {"B", "C", "A", "S"},
-	"fetch":    {"C", "B", "A", "S"},
-	"research": {"S", "A", "B", "C"},
-	"work":     {"A", "S", "B", "C"},
-}
-
 var betaWorkReasoning = map[string]string{
 	"code":     "xhigh",
 	"chat":     "none",
@@ -42,7 +34,7 @@ var betaWorkReasoning = map[string]string{
 
 var betaWorkCriteria = map[string]any{
 	"code": map[string]any{
-		"what":    "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision (詳細分析, 深入, 精確, in-depth, rigorous); a Skill that builds or tests code, or creates, installs, migrates or probes something.",
+		"what":    betaWorkWhat("code"),
 		"not_for": "Explaining, reviewing or planning code without changing it.",
 		"examples": []string{
 			"這段有 race condition 嗎？幫我修掉",
@@ -51,7 +43,7 @@ var betaWorkCriteria = map[string]any{
 		},
 	},
 	"chat": map[string]any{
-		"what":    "Greeting, small talk, a short factual answer, or translation.",
+		"what":    betaWorkWhat("chat"),
 		"not_for": "Anything that needs tools, research or more than a few sentences.",
 		"examples": []string{
 			"早安",
@@ -60,7 +52,7 @@ var betaWorkCriteria = map[string]any{
 		},
 	},
 	"fetch": map[string]any{
-		"what":    "Calling tools to fetch data and returning it without judgement; a Skill with fixed input and a deterministic transform.",
+		"what":    betaWorkWhat("fetch"),
 		"not_for": "Comparing, explaining or drawing conclusions from the data.",
 		"examples": []string{
 			"查一下台北現在天氣",
@@ -69,7 +61,7 @@ var betaWorkCriteria = map[string]any{
 		},
 	},
 	"research": map[string]any{
-		"what":    "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
+		"what":    betaWorkWhat("research"),
 		"not_for": "Fetching one value and returning it as-is, or a task that needs no investigation.",
 		"examples": []string{
 			"比較這三家雲端供應商的價格與限制",
@@ -78,7 +70,7 @@ var betaWorkCriteria = map[string]any{
 		},
 	},
 	"work": map[string]any{
-		"what":    "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
+		"what":    betaWorkWhat("work"),
 		"not_for": "A request that merely sounds important or long but is really one of the other options.",
 		"examples": []string{
 			"Review this design doc and list the risks",
@@ -86,6 +78,14 @@ var betaWorkCriteria = map[string]any{
 			"把這段會議紀錄整理成待辦清單",
 		},
 	},
+}
+
+func betaWorkWhat(key string) string {
+	i := slices.IndexFunc(config.WorkKinds, func(k config.WorkKind) bool { return k.Key == key })
+	if i < 0 {
+		return ""
+	}
+	return config.WorkKinds[i].What
 }
 
 type betaAnswer struct {
@@ -165,7 +165,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	work := result.Answers["work"].Choice
-	order, ok := betaWorkTiers[work]
+	order, ok := config.WorkTiers(work)
 	if !ok {
 		return nil, "", fmt.Errorf("invalid work choice: %q", work)
 	}
@@ -185,7 +185,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	rank := func(name string) int {
-		tier, family := betaNameTier(name)
+		tier, family := config.NameTier(name)
 		i := slices.Index(order, cmp.Or(tiers[name], tier))
 		if i < 0 {
 			i = len(order)
@@ -200,60 +200,6 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 		}
 	}
 	return list, level, nil
-}
-
-func betaNameTier(name string) (string, int) {
-	model := strings.ToLower(name[strings.Index(name, "@")+1:])
-	model = model[strings.LastIndex(model, "/")+1:]
-
-	hasPrefix := func(prefixes ...string) bool {
-		return slices.ContainsFunc(prefixes, func(p string) bool { return strings.HasPrefix(model, p) })
-	}
-	family := func(prefix, tag string) bool {
-		return strings.HasPrefix(model, prefix) && strings.Contains(model, tag)
-	}
-
-	switch {
-	case strings.Contains(model, "-mini"), strings.Contains(model, "-nano"), family("gemini-", "-flash-lite"),
-		hasPrefix("gemma", "gpt-oss", "qwen", "llama"):
-		return "C", 30
-	case hasPrefix("claude-fable"):
-		return "S", 0
-	case hasPrefix("claude-opus"):
-		return "S", 1
-	case family("gpt-", "-astra"):
-		return "S", 2
-	case family("gpt-", "-sol"):
-		return "A", 10
-	case hasPrefix("grok-"):
-		var version float64
-		fmt.Sscanf(strings.TrimPrefix(model, "grok-"), "%f", &version)
-		if version >= 4.5 {
-			return "A", 11
-		}
-		return "B", 23
-	case hasPrefix("claude-sonnet"):
-		return "A", 12
-	case family("gpt-", "-terra"):
-		return "A", 13
-	case family("gemini-", "-pro"):
-		return "A", 14
-	case hasPrefix("deepseek-pro"):
-		return "A", 15
-	case hasPrefix("glm"):
-		return "A", 16
-	case hasPrefix("kimi"):
-		return "A", 17
-	case hasPrefix("claude-haiku"):
-		return "B", 20
-	case family("gpt-", "-luna"):
-		return "B", 21
-	case family("gemini-", "-flash"):
-		return "B", 22
-	case hasPrefix("deepseek"):
-		return "B", 24
-	}
-	return "A", 18
 }
 
 func betaLastModelTTL(name string) int64 {
