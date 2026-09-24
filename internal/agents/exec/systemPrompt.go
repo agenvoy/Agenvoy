@@ -85,7 +85,7 @@ func mcpInstructionsSection() string {
 }
 
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
-	systemOS := host().os
+	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
 
 	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
@@ -188,7 +188,7 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 	}
 
 	return strings.NewReplacer(
-		"{{.SystemOS}}", host().os,
+		"{{.SystemOS}}", getSystemInfo().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),

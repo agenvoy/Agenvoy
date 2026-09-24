@@ -14,34 +14,34 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
+type systemInfo struct {
+	os   string
+	wsl  bool
+	home string
+}
+
+var (
+	systemInfoOnce sync.Once
+	systemInfoMeta systemInfo
+)
+
 const (
 	winHomeProbeTimeout = 3 * time.Second
 	winHomeFallback     = "/mnt/<drive>/Users/<WinUser>"
 )
 
-type hostInfo struct {
-	os      string
-	wsl     bool
-	winHome string
-}
-
-var (
-	hostOnce sync.Once
-	hostFact hostInfo
-)
-
-func host() hostInfo {
-	hostOnce.Do(func() {
-		hostFact.os = goRuntime.GOOS
+func getSystemInfo() systemInfo {
+	systemInfoOnce.Do(func() {
+		systemInfoMeta.os = goRuntime.GOOS
 		tag := utils.WSLTag()
 		if tag == "" {
 			return
 		}
-		hostFact.os = goRuntime.GOOS + " (" + tag + ")"
-		hostFact.wsl = true
-		hostFact.winHome = windowsHome()
+		systemInfoMeta.os = goRuntime.GOOS + " (" + tag + ")"
+		systemInfoMeta.wsl = true
+		systemInfoMeta.home = windowsHome()
 	})
-	return hostFact
+	return systemInfoMeta
 }
 
 func windowsHome() string {
@@ -115,11 +115,11 @@ func winHomeFromMount() string {
 }
 
 func hostNoteSection() string {
-	info := host()
+	info := getSystemInfo()
 	if !info.wsl {
 		return ""
 	}
-	winHome := info.winHome
+	winHome := info.home
 	if winHome == "" {
 		winHome = winHomeFallback
 	}
