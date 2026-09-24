@@ -350,11 +350,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	limit := filesystem.MaxToolIterations
-	reasoningName := data.Reasoning
-	if reasoningName == "" {
-		_, reasoningName = configBot.GetModel(session.ID)
-	}
-	reasoning, _ := provider.ParseReasoning(reasoningName)
+	reasoning := resolveReasoning(session.ID, data.Reasoning)
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
 
@@ -504,9 +500,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("from", data.Agent.Name()),
 					slog.String("to", nextName))
 				events <- agentTypes.Event{
-					Type:  agentTypes.EventAgentResult,
-					Text:  nextName,
-					Model: nextName,
+					Type:      agentTypes.EventAgentResult,
+					Text:      nextName,
+					Model:     nextName,
+					Reasoning: reasoningLabel,
 				}
 				data.Agent = next
 				switched = true
@@ -625,9 +622,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("from", modelName),
 					slog.String("to", nextName))
 				events <- agentTypes.Event{
-					Type:  agentTypes.EventAgentResult,
-					Text:  nextName,
-					Model: nextName,
+					Type:      agentTypes.EventAgentResult,
+					Text:      nextName,
+					Model:     nextName,
+					Reasoning: reasoningLabel,
 				}
 				data.Agent = next
 				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
@@ -871,4 +869,12 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		slog.String("name", data.Agent.Name()))
 	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart, sendElapsedTotal)
 	return nil
+}
+
+func resolveReasoning(sessionID, name string) provider.Reasoning {
+	if name == "" {
+		_, name = configBot.GetModel(sessionID)
+	}
+	reasoning, _ := provider.ParseReasoning(name)
+	return reasoning
 }

@@ -21,6 +21,7 @@ import (
 var remoteSkills = []string{
 	"code-reviewer",
 	"commit-generate",
+	"go-test-generate",
 	"readme-generate",
 	"seo-optimize",
 	"version-generate",
