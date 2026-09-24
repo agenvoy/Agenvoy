@@ -43,7 +43,7 @@ Full rule per topic — call before acting on any match:
 - ask_user: missing target, vague scope, unclear spec, ambiguous time, scheduling without content, non-unique tool choice — resolve intent first.
 - subagent_dispatch: the same lookup repeating across 3+ entities, a lookup spanning 2+ source classes, a set just discovered that now needs per-entity work, a named session ("call X"/"呼叫 X"), or a reusable single subtask — read before any subagents(mode=invoke).
 - write_todo: analysis/research task or complex multi-step task, no active Skill — decide checklist before write_todo.
-- html_render: producing an HTML deliverable (report, dashboard, chart, map, 3D view) — the gallery of worked examples to start from, which libraries are allowed, breakpoints and visual direction, all before writing anything.
+- html_render: producing an HTML deliverable (report, dashboard, chart, map, 3D view) — the gallery of worked examples to start from, the QuickUI rendering every page must go through, which libraries are allowed, breakpoints and visual direction, all before writing anything.
 - office: creating or modifying a .docx / .xlsx / .pptx — package and registration rules that keep Word/Excel/PowerPoint and Pages/Numbers/Keynote from rejecting the file, Markdown-free text, and the check to run before delivering. Read before writing the file.`,
 		Parameters: map[string]any{
 			"type": "object",
