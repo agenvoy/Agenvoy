@@ -31,7 +31,7 @@ graph TB
 
 所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>`；接著 `exec.Start` 查找以名稱指定的 Skill、記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓 Telegram 與 Discord 的驗證碼顯示在終端機。
 
-輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，決定 fallback 優先度，`pass` tier 的模型一律排在最後。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 S；開啟 `dispatcher_beta` 時由 TypeSafe 的 `jev-latest` 模型取代 dispatcher 模型：它把請求分為 `code`、`chat`、`fetch`、`research`、`work` 並判斷是否點名模型，再由程式依該類型的 tier 順序排序（`research` 先 S、`work` 先 A），TypeSafe 出錯時退回 dispatcher 模型；開啟 `auto_reasoning` 時同一分類也決定 reasoning 等級（`xhigh`、`none`、`low`、`high`、`medium`），固定模型的 session 也適用，請求自帶的等級仍優先；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。免費試用 Agenvoy 建議使用 `ollama-cloud` 的 `gemma4:31b`（免費 API key，有用量上限），它不是必要的 dispatcher 或主要模型。
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，選中的模型失敗後依此順序由上而下嘗試（含 `pass` tier）。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；開啟 `dispatcher_beta` 時由 TypeSafe 的 `jev-latest` 模型取代 dispatcher 模型：它把請求分為 `code`、`chat`、`fetch`、`research`、`work` 並判斷是否點名模型、是否延續上一則請求（延續時沿用 session 前一個模型以重用快取），再由程式依該類型的 tier 順序排序（`research` 先 S、`work` 先 A），TypeSafe 出錯時退回 dispatcher 模型；開啟 `auto_reasoning` 時同一分類也決定 reasoning 等級（`xhigh`、`none`、`low`、`high`、`medium`），固定模型的 session 也適用，請求自帶的等級仍優先；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。免費試用 Agenvoy 建議使用 `ollama-cloud` 的 `gemma4:31b`（免費 API key，有用量上限），它不是必要的 dispatcher 或主要模型。
 
 ```mermaid
 graph TB
@@ -111,7 +111,7 @@ graph TB
     Generate --> Registry
 ```
 
-## 模組：Session、歷史、排程與監控
+## 模組：Session、歷史與排程
 
 Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
 
@@ -127,7 +127,6 @@ graph TB
     Listener --> Resume[恢復執行]
     Execute -->|暫停／中斷| Pending
     Scheduler[Scheduler Skill] --> Execute[Agent 執行]
-    Monitor[30 秒 Runtime Monitor] --> DaemonLog[Daemon Log]
 ```
 
 ## 模組：聊天頻道與 MCP 整合

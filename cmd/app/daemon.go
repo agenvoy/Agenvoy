@@ -22,7 +22,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
-	"github.com/pardnchiu/agenvoy/internal/runtime/monitor"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
@@ -191,7 +190,6 @@ func Daemon() {
 	app.ReloadDiscord(0)
 	app.ReloadTelegram(0)
 	app.ReloadLine(0)
-	monitor.Start(context.Background())
 
 	handler.StartWebConfirm(context.Background())
 

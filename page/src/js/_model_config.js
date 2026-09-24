@@ -489,7 +489,7 @@ let priorityDrag = -1;
 function priorityRow(name, rank, total, move, tier) {
   const rankText = `#${rank + 1}`;
   const label = _("div.label", [
-    _("p", rank === total - 1 && total > 1 ? `${rankText} · final line of defense` : rankText),
+    _("p", rank === total - 1 && total > 1 ? `${rankText} · final` : rankText),
     _("strong", name),
   ]);
   const row = _("div.routing", [_("span.material-symbols-outlined.grip", "drag_indicator"), label, tier]);
@@ -795,6 +795,9 @@ function providerDetails(provider, method, added) {
         " page.",
       ]),
     );
+  }
+  if (method === "custom") {
+    head.appendChild(_("p", "Any OpenAI-compatible endpoint."));
   }
   const card = _("section.provider", [head, providerCredentialForm(provider, method, added)]);
   card.dataset.added = added ? "1" : "0";

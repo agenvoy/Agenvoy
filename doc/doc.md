@@ -124,6 +124,7 @@ Package defaults (not currently read from `config.json`):
 | `MaxSessionTasks`       | `NumCPU × 4` | Concurrent tasks per session; further tasks queue rather than fail |
 | `MaxSubagentTimeoutMin` |         `30` | Subagent timeout in minutes                                        |
 | `MaxResumeWaitMin`      |         `60` | How long a pending resume waits for answers                        |
+| `maxConcurrentTools`    |          `5` | Concurrent tool calls within one model turn; the rest queue        |
 
 ```json
 {
@@ -146,7 +147,7 @@ When the input area is empty, press `Shift+F` to toggle fast mode. The header di
 
 ### Agent selection and confirmation routing
 
-When a request matches a Skill, the dispatcher receives that Skill's description as a selection hint. Model selection therefore reflects the active task contract instead of relying on the user text alone. While assembling the prompt, Agenvoy adds its common official operating guide and, when configured, the guide that matches the selected model.
+When a request starts with `/<skill_name>` or matches a Skill, the dispatcher receives that Skill's description as a selection hint. Scheduled Skill runs go through the subagent path, which passes the Skill body as the request without this hint, and a Skill the model loads mid-turn with `run_skill` does not re-select the model. Model selection therefore reflects the active task contract instead of relying on the user text alone. While assembling the prompt, Agenvoy adds its common official operating guide and, when configured, the guide that matches the selected model.
 
 ### Model tiers
 
@@ -158,24 +159,24 @@ Each registered model can carry a tier in `model_tag`:
 | `A`    | Default for most work, one step below the flagship                                               |
 | `B`    | Mainstream mid tier                                                                              |
 | `C`    | Fast and cheap; calls tools reliably as instructed                                               |
-| `pass` | Never picked by auto routing or subagents; last in fallback, or used when a session is set to it |
+| `pass` | Never picked by auto routing or subagents; fallback still tries it at its place in the priority order, or used when a session is set to it |
 
 Set a tier with `t` on a model row in the TUI `/model`, or with the tier button on each card under **Config › Model › Fallback Priority**. Tiers are read per request, so a change applies without a restart.
 
-A model pinned to the session skips routing. Otherwise the dispatcher receives the tiers along with the model list; an untiered model is placed by its name (`claude-opus` S, `claude-sonnet` A, `claude-haiku` B, `*-mini` C, and so on). The kind of work decides the order: code, or a request that asks outright for depth or precision, tries S first; greetings, short answers, chat and translation try B; fetching data with tools and returning it tries C; everything else, reports and analysis included, tries S. When the same model is registered under several providers, the order within it is `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. `pass` is enforced in the prompt rather than by removal: the dispatcher is told not to return a `pass` model unless the request names it, and the fallback list appends `pass` models after every other model.
+A model pinned to the session skips routing. Otherwise the dispatcher receives every registered model already resolved to its tier; an untiered model is placed by its name (`claude-opus` S, `claude-sonnet` A, `claude-haiku` B, `*-mini` and open-weight models such as `gemma*` / `qwen*` C, and so on). The kind of work decides the order: code, or a request that asks outright for depth or precision, tries S first; research that gathers from several sources and synthesizes tries S; review, planning, drafting and everything else try A; greetings, short answers, chat and translation try B; fetching data with tools and returning it tries C. The LLM dispatcher, the TypeSafe classifier and the subagent planner read this one table and one name rule, so they rank the same way. When the same model is registered under several providers, the order within it is `codex` / `grok-oauth`, then `copilot`, then the direct API, then `openrouter`. `pass` is enforced in the prompt rather than by removal: the dispatcher is told not to return a `pass` model unless the request names it, fallback then tries every other registered model in the priority order, `pass` included, skipping the failed model's provider and models whose context window cannot hold the input, and the request fails only when that list runs out.
 
-Subagent legs follow the same tiers. The planner gives each leg one job — collect, review, transform or reason — and picks its model by that job: collect C>B>A>S, transform B>C>A>S, review and reason A>S>B>C, code or high-precision work S>A>B>C.
+Subagent legs follow the same tiers. Once it fans out, the main agent only splits the task, dispatches legs and synthesizes their results; each leg has one job — collect, analyze, compare, review, transform or code — mapped to a work kind: collect → fetch (C>B>A>S), transform → chat (B>C>A>S), analyze, compare and review → work (A>S>B>C), code or high-precision work → code (S>A>B>C). A leg's `model` is checked against the live registry, so models added after startup work, and an unregistered or `pass` model is rejected.
 
 ### TypeSafe/Jev (beta)
 
-Two optional features call the TypeSafe `jev-latest` model (`https://api.typesafe.ai/v1/systemone`) with the request and up to six recent user/assistant messages. Both need `TYPESAFE_API_KEY`. Turning either one on without a key asks for it: a popup in the web UI that links to the TypeSafe Console, or a key prompt in the TUI.
+Two optional features call the TypeSafe `jev-latest` model (`https://api.typesafe.ai/v1/systemone`) with the request and up to four recent user/assistant messages, each cut at 2,048 characters. Both need `TYPESAFE_API_KEY`. Turning either one on without a key asks for it: a popup in the web UI that links to the TypeSafe Console, or a key prompt in the TUI.
 
 | Setting | Turn on | Effect |
 | --- | --- | --- |
 | `dispatcher_beta` | Web **Config › Model**: `enable TypeSafe/Jev(beta)` on the Dispatcher card (green; `disable` is red, and the dispatcher-model picker is hidden while on). TUI: `/model` → `dispatch` → `TypeSafe/Jev(beta)`; picking a model turns it off | Replaces the dispatcher model. On any TypeSafe error the request falls back to the dispatcher model |
 | `auto_reasoning` | Web: `enable TypeSafe/Jev(beta)` on the **Auto reasoning(beta)** card. TUI: `/model` → `reasoning` (or `/model reasoning`) | Picks the reasoning level per request, including sessions pinned to a model. While on, the web chat hides the reasoning picker, the TUI status shows only `(model)`, and `Shift+A` / `Shift+D` do nothing |
 
-Jev classifies the request into one kind of work, and the answer drives both features. A second question catches an explicit "use / with <model>" request, including a `pass` model, and puts that model first.
+Jev classifies the request into one kind of work, and the answer drives both features. A second question catches an explicit "use / with <model>" request, including a `pass` model, and puts that model first. When the session's previous model is still a candidate, a third question asks whether the request continues the last user message; if it does, that model goes right after any named model, and auto reasoning keeps its level unless a different model was named. The previous model is recorded after each successful reply and expires after 30 minutes for `openai` / `codex`, 60 minutes for `gemini`, and 5 minutes for other providers.
 
 | Work | Covers | Tier order | Reasoning |
 | --- | --- | --- | --- |
@@ -185,7 +186,7 @@ Jev classifies the request into one kind of work, and the answer drives both fea
 | `research` | Gathering from several sources and drawing conclusions: research, analysis, comparison, reports | S>A>B>C | `high` |
 | `work` | Planning, review, drafting or organizing content the user already has, and anything else | A>S>B>C | `medium` |
 
-Tiers come from `model_tag`, then from the model name for untiered models. `pass` models are appended last. The default dispatcher prompt does not split `research` from `work`: it sends every request outside code, chat and fetch to S>A>B>C. A reasoning level passed with the request (for example `reasoning_effort`) wins over auto reasoning, and auto reasoning wins over the session setting.
+Tiers come from `model_tag`, then from the model name for untiered models. `pass` models are left out of this ranking; fallback follows the priority order instead. The default dispatcher prompt uses the same five kinds and tier orders. A reasoning level passed with the request (for example `reasoning_effort`) wins over auto reasoning, and auto reasoning wins over the session setting.
 
 Reply footers in the TUI, web, Telegram and Discord show the level actually used as `model(quota)/reasoning`. The `done` line in `action.log` records it as `reasoning=<level>`, so the web chat still shows it after a reload.
 
@@ -237,13 +238,11 @@ Agenvoy itself speaks MCP over stdio: run the `agen` binary with stdin piped (no
 command = "agen"
 ```
 
-### Session Classification and Monitoring
+### Session Classification
 
 The TUI `/sessions` selector groups sessions by ID prefix: `cli-` for local CLI, `tg-` for Telegram, `dc-` for Discord, and `chat-` for Web/API; `temp-` sessions (short-lived work) are not listed. When at least two groups are detected, the selector shows an `all` tab and one tab per prefix, with the current session listed first. The daemon watches newly created session directories with `fsnotify` and writes the session ID and configured name to the daemon log.
 
 Session personas are stored in the history SQLite database. `self_id` is normalized to lowercase and accepts only up to 32 ASCII letters, digits, `_`, or `-`; non-empty values must be unique. At daemon startup, legacy per-session `bot.json`, bot markdown, `config.json`, and `status.json` files are migrated into SQLite/state tables.
-
-The daemon also runs a background runtime monitor. Every 30 seconds it checks CPU usage, Go-process memory, and the TCP connection to `1.1.1.1:443`. High CPU, high memory, network interruption, and network recovery are written to the daemon log; on CPU anomalies it also attempts to list the top three processes.
 
 ## Usage
 
@@ -361,7 +360,7 @@ The daemon binds to loopback only (`127.0.0.1` and `[::1]`). Endpoints marked **
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — add / remove a model. `POST` takes `{prefix, models}`; `prefix` is a provider id from `GET /v1/providers` or the name of a local / custom endpoint (`ollama`, `llama.cpp`, or one recorded through `POST /v1/provider/compat/key`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `GET` `POST`    | `/v1/model`                     | **local** — model routing: `dispatcher`, `dispatcher_beta`, `auto_reasoning`, `summary`, `image`, `stt`, and `tts`; on read it also returns `image_options`, `image_providers`, and `audio_providers`. `dispatcher` and `summary` name registered models (`prefix@model`); `image` names a provider endpoint (`openai`, `codex`, `grok`, `grok-oauth`, `gemini`) because each provider's image model is fixed inside `go-llm-router`. `stt` and `tts` name a model from the respective options exposed by `GET /v1/model/audio`. `POST` is a partial update: an omitted (or `null`) field is unchanged, `""` clears it, and `off` clears only `image`. Unknown models, providers, or unavailable audio models are rejected and nothing is written. `dispatcher_beta` and `auto_reasoning` are booleans; setting either to `true` without `TYPESAFE_API_KEY` returns 400 with `missing_key`. Both verbs return the same object. |
 | `GET`           | `/v1/model/audio`               | **local** — list the available `stt_options` and `tts_options`, derived from configured OpenAI, Gemini and OpenRouter providers; each list is cached for 15 minutes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `GET` `POST`    | `/v1/model/priority`            | **local** — read / reorder the registered models. The order decides fallback priority; the last entry is the final line of defense, and `pass` models run after all others whatever their place here. `GET` also returns `tiers` (`{model: tier}`) and `tier_options` (`[{tier, detail}]`, the empty tier last). `POST` `{models}` moves the listed names to the front in that order and keeps the rest after them; an unknown name returns 400.                                                                                                                                                                                                                                                                                                 |
+| `GET` `POST`    | `/v1/model/priority`            | **local** — read / reorder the registered models. The order decides fallback priority; after the selected model fails, every other entry is tried top to bottom, `pass` included, and the last entry is the final line of defense. `GET` also returns `tiers` (`{model: tier}`) and `tier_options` (`[{tier, detail}]`, the empty tier last). `POST` `{models}` moves the listed names to the front in that order and keeps the rest after them; an unknown name returns 400.                                                                                                                                                                                                                                                                                                 |
 | `POST`          | `/v1/model/tier`                | **local** — `{model, tier}` sets one model's tier (`S` `A` `B` `C` `pass`); `""` clears it. An unregistered model or unknown tier returns 400.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 **Sessions**

@@ -3,14 +3,15 @@ package subagent
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 
+	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -33,7 +34,7 @@ type invokeParams struct {
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 }
 
-func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokeParams, models []string) (string, error) {
+func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokeParams) (string, error) {
 	task := strings.TrimSpace(params.Task)
 	if task == "" {
 		return "", fmt.Errorf("task is required when mode=invoke")
@@ -45,10 +46,10 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 	}
 
 	model := strings.TrimSpace(params.Model)
-	if model != "" && !slices.Contains(models, model) {
-		slog.Debug("invalid model, fallback to auto-select",
-			slog.String("session", sessionID))
-		model = ""
+	if model != "" {
+		if err := checkLegModel(model); err != nil {
+			return "", err
+		}
 	}
 
 	reasoning := strings.TrimSpace(params.Reasoning)
@@ -68,4 +69,28 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 
 	return exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning,
 		strings.TrimSpace(params.SystemPrompt), excludeTools, e.SessionID, ignoreHistory)
+}
+
+func checkLegModel(model string) error {
+	registry := agents.Registry()
+	tags := map[string]string{}
+	if cfg, err := config.Load(); err == nil {
+		tags = cfg.ModelTag
+	}
+
+	allowed := make([]string, 0, len(registry.Entries))
+	for _, e := range registry.Entries {
+		if tags[e.Name] != config.ModelTagPass {
+			allowed = append(allowed, e.Name)
+		}
+	}
+	if slices.Contains(allowed, model) {
+		return nil
+	}
+
+	reason := "is not registered"
+	if _, ok := registry.Registry[model]; ok {
+		reason = "is pass tier and cannot run a subagent leg"
+	}
+	return fmt.Errorf("model %q %s; available: %s", model, reason, strings.Join(allowed, ", "))
 }

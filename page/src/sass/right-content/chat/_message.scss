@@ -172,6 +172,8 @@
         }
 
         details {
+          max-width: 100%;
+
           &[open] summary span {
             transform: rotate(180deg);
           }
@@ -215,6 +217,7 @@
             padding: 0;
             padding-left: 1rem;
             border-left: 2px solid var(--gray-3);
+            overflow-x: auto;
 
             * {
               color: var(--gray-3) !important;

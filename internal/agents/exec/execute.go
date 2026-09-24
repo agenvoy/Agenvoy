@@ -13,7 +13,6 @@ import (
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 
-	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
@@ -289,7 +288,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	if data.Skill != nil {
-		assignBindingSkill(session, data.Skill)
+		assignSkill(session, data.Skill)
 	}
 
 	cfg, _ := config.Load()
@@ -354,11 +353,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	limit := filesystem.MaxToolIterations
-	reasoningName := data.Reasoning
-	if reasoningName == "" {
-		_, reasoningName = configBot.GetModel(session.ID)
-	}
-	reasoning, _ := provider.ParseReasoning(reasoningName)
+	reasoning := resolveReasoning(session.ID, data.Reasoning)
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
 
@@ -508,9 +503,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("from", data.Agent.Name()),
 					slog.String("to", nextName))
 				events <- agentTypes.Event{
-					Type:  agentTypes.EventAgentResult,
-					Text:  nextName,
-					Model: nextName,
+					Type:      agentTypes.EventAgentResult,
+					Text:      nextName,
+					Model:     nextName,
+					Reasoning: reasoningLabel,
 				}
 				data.Agent = next
 				switched = true
@@ -629,9 +625,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("from", modelName),
 					slog.String("to", nextName))
 				events <- agentTypes.Event{
-					Type:  agentTypes.EventAgentResult,
-					Text:  nextName,
-					Model: nextName,
+					Type:      agentTypes.EventAgentResult,
+					Text:      nextName,
+					Model:     nextName,
+					Reasoning: reasoningLabel,
 				}
 				data.Agent = next
 				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
@@ -682,7 +679,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
 		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
-		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name(), torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
+		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()))
@@ -777,10 +774,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			emptyCount = 0
 
 			if isGuardrailRefusal(stripped) {
-				sendText(events, configs.PoisonRefusal)
+				refusal := filesystem.RefusalMessage()
+				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
-				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
 			}
@@ -854,10 +852,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
-				sendText(events, configs.PoisonRefusal)
+				refusal := filesystem.RefusalMessage()
+				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
-				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
 			}
@@ -875,4 +874,12 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		slog.String("name", data.Agent.Name()))
 	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart, sendElapsedTotal)
 	return nil
+}
+
+func resolveReasoning(sessionID, name string) provider.Reasoning {
+	if name == "" {
+		_, name = configBot.GetModel(sessionID)
+	}
+	reasoning, _ := provider.ParseReasoning(name)
+	return reasoning
 }

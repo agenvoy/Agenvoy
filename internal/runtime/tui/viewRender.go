@@ -499,26 +499,35 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		return hintStyle.Render("⏵ " + srcPrefix + "summarizing..."), true
 
 	case agentTypes.EventCompact:
-		label := "compacting tool history..."
+		target := "tool history"
 		if ev.Text == "history" {
-			label = "compacting conversation history..."
+			target = "conversation history"
 		}
-		return hintStyle.Render("⏵ " + srcPrefix + label), true
+		return hintStyle.Render("⏵ " + srcPrefix + "Compact(" + target + ")"), true
 
 	case agentTypes.EventDone:
-		footer := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, ev.Model, ev.Quota, ev.Reasoning, ev.Usage)
-		if sessionLabel != "" {
-			if footer != "" {
-				footer = footer + "  [" + sessionLabel + "]"
+		stats := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, "", "", "", ev.Usage)
+		if finishedAt != "" {
+			if stats != "" {
+				stats += "  " + finishedAt
 			} else {
-				footer = "[" + sessionLabel + "]"
+				stats = finishedAt
 			}
 		}
-		if finishedAt != "" {
-			if footer != "" {
-				footer = footer + "\n    " + finishedAt
+		model := utils.FormatEventFooter(0, 0, ev.Model, ev.Quota, ev.Reasoning, nil)
+		if sessionLabel != "" {
+			if model != "" {
+				model += "  [" + sessionLabel + "]"
 			} else {
-				footer = finishedAt
+				model = "[" + sessionLabel + "]"
+			}
+		}
+		footer := stats
+		if model != "" {
+			if footer != "" {
+				footer += "\n    " + model
+			} else {
+				footer = model
 			}
 		}
 		if footer == "" {

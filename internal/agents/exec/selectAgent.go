@@ -73,11 +73,11 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	dead := map[string]bool{}
 
 	tiers := map[string]string{}
-	tierLines := "(none set)"
+	selection := config.ModelSelection(&config.Config{})
 	beta, autoReasoning := false, false
 	if cfg, err := config.Load(); err == nil {
 		tiers = cfg.ModelTag
-		tierLines = config.ModelTagLines(cfg)
+		selection = config.ModelSelection(cfg)
 		beta = cfg.DispatcherBeta
 		autoReasoning = cfg.AutoReasoning
 	}
@@ -113,8 +113,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	}
 
 	if len(registry.Entries) <= 1 {
-		list := append(registryOrder, passOrder...)
-		return list, dead, reasoningOnly(list)
+		return registryOrder, dead, reasoningOnly(registryOrder)
 	}
 
 	picked := []string{}
@@ -152,7 +151,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		agentJson, err := json.Marshal(registry.Entries)
 		if err == nil {
 			messages := []provider.Message{
-				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelTag}}", tierLines)},
+				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelSelection}}", selection)},
 				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
 			}
 			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
@@ -220,28 +219,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		picked = append(picked, n)
 		seen[n] = true
 	}
-	picked = orderProviders(picked)
-	for _, n := range passOrder {
-		if !seen[n] && !dead[n] {
-			picked = append(picked, n)
-		}
-	}
-	return picked, dead, reasoning
-}
-
-var providerRank = map[string]int{
-	"codex":      0,
-	"grok-oauth": 0,
-	"copilot":    1,
-	"openrouter": 3,
-}
-
-func providerOrder(name string) int {
-	prov, _, _ := strings.Cut(name, "@")
-	if rank, ok := providerRank[prov]; ok {
-		return rank
-	}
-	return 2
+	return orderProviders(picked), dead, reasoning
 }
 
 func baseModel(name string) string {
@@ -272,7 +250,7 @@ func orderProviders(names []string) []string {
 		for i, at := range idx {
 			group[i] = names[at]
 		}
-		slices.SortStableFunc(group, func(a, b string) int { return providerOrder(a) - providerOrder(b) })
+		slices.SortStableFunc(group, func(a, b string) int { return config.ProviderOrder(a) - config.ProviderOrder(b) })
 		for i, at := range idx {
 			out[at] = group[i]
 		}
@@ -419,20 +397,32 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 	}
 
 	names, dead, reasoning := SelectAgentNames(ctx, agents.DispatcherBot(), registry, userInput, hasSkill, skillHint, sessionID)
-	if len(names) == 0 {
-		return nil, nil, "", fmt.Errorf("no agents available")
-	}
-	candidates := make([]agentTypes.Agent, 0, len(names))
+	var primary agentTypes.Agent
+	primaryName := ""
 	for _, n := range names {
 		if dead[n] {
 			continue
 		}
 		if a, ok := registry.Registry[n]; ok && a != nil {
-			candidates = append(candidates, a)
+			primary, primaryName = a, n
+			break
 		}
 	}
-	if len(candidates) == 0 {
-		return nil, nil, "", fmt.Errorf("no resolvable agents from %d names (dead: %d)", len(names), len(dead))
+
+	fallbacks := make([]agentTypes.Agent, 0, len(registry.Entries))
+	for _, e := range registry.Entries {
+		if e.Name == primaryName || dead[e.Name] {
+			continue
+		}
+		if a, ok := registry.Registry[e.Name]; ok && a != nil {
+			fallbacks = append(fallbacks, a)
+		}
 	}
-	return candidates[0], candidates[1:], reasoning, nil
+	if primary == nil {
+		if len(fallbacks) == 0 {
+			return nil, nil, "", fmt.Errorf("no agents available (dead: %d)", len(dead))
+		}
+		primary, fallbacks = fallbacks[0], fallbacks[1:]
+	}
+	return primary, fallbacks, reasoning, nil
 }

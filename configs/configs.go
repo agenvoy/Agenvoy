@@ -16,8 +16,14 @@ var SummaryContext string
 //go:embed prompts/followup.md
 var FollowupPrompt string
 
+//go:embed prompts/assign_skill.md
+var AssignSkill string
+
 //go:embed prompts/system_prompt/agent_selector.md
 var AgentSelector string
+
+//go:embed prompts/model_selection.md
+var ModelSelection string
 
 //go:embed prompts/system_prompt/memory/compact_exec_prompt.md
 var CompactExecPrompt string
@@ -115,6 +121,12 @@ var ReplyLang []byte
 //go:embed jsons/local_compat.json
 var LocalCompat []byte
 
+//go:embed jsons/guardrail_rules.json
+var GuardrailRules []byte
+
+//go:embed jsons/refusal_messages.json
+var RefusalMessages []byte
+
 // * Official Guide
 
 //go:embed prompts/system_prompt/official_guides/*.md
@@ -141,6 +153,5 @@ func loadOfficialGuides() map[string]string {
 }
 
 const (
-	PoisonRefusal     = "無法執行此操作"
 	GuardrailSentinel = "[KARAPPO]"
 )

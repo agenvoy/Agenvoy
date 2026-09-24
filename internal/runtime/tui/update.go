@@ -206,7 +206,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.running = true
 			t.runStartedAt = time.Now()
 			t.activity = ""
-			t.currentModel = configBot.DefaultModel
+			t.currentModel = ""
 			t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
 			t.runTarget = ""
 
@@ -1129,7 +1129,7 @@ func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
 	t.running = true
 	t.runStartedAt = time.Now()
 	t.activity = ""
-	t.currentModel = configBot.DefaultModel
+	t.currentModel = ""
 	t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate = 0, 0, 0, 0
 	t.runTarget = ""
 	go runExec(t.ctx, msg.Content, t.allowAll || msg.AllowAll, t.cwd, sid, msg.PendingTask, msg.HistoryContent)

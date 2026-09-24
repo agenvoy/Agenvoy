@@ -124,6 +124,7 @@ Agenvoy 目前支援 Telegram 與 Discord。兩者都由本機 daemon 主動向�
 | `MaxSessionTasks`       | `NumCPU × 4` | 每個 session 的並行工作數上限；超出的任務排隊等待而非失敗 |
 | `MaxSubagentTimeoutMin` |         `30` | Subagent 逾時分鐘數                                       |
 | `MaxResumeWaitMin`      |         `60` | Pending resume 等待回答的分鐘數                           |
+| `maxConcurrentTools`    |          `5` | 單一模型回合內同時執行的 tool call 數，其餘排隊             |
 
 ```json
 {
@@ -146,7 +147,7 @@ compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶�
 
 ### Agent 選擇與確認路由
 
-請求符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示，因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。建立 prompt 時，Agenvoy 會加入共用官方操作指南，並在有設定時加入符合目前所選模型的專屬指南。
+請求以 `/<skill_name>` 開頭或符合 Skill 時，dispatcher 會收到該 Skill 的說明作為選擇提示；排程觸發的 Skill 走 subagent 路徑，以 Skill 內容作為請求、不帶此提示，模型在對話中以 `run_skill` 載入的 Skill 也不會重新選模型。因此模型選擇會反映目前任務契約，而不只依賴使用者輸入文字。建立 prompt 時，Agenvoy 會加入共用官方操作指南，並在有設定時加入符合目前所選模型的專屬指南。
 
 ### 模型 tier
 
@@ -158,24 +159,24 @@ compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶�
 | `A`    | 大部分工作的預設，比旗艦低一階                                            |
 | `B`    | 主流中階                                                                  |
 | `C`    | 快又便宜，能照指示穩定呼叫工具                                            |
-| `pass` | 不被自動分派與 subagent 選中；排在 fallback 最後，或設給某個 session 使用 |
+| `pass` | 不被自動分派與 subagent 選中；fallback 仍依優先順序中的位置嘗試，或設給某個 session 使用 |
 
 在 TUI 的 `/model` 對模型列按 `t`，或在 **Config › Model › Fallback Priority** 每張卡片的 tier 按鈕設定。tier 每次請求都重新讀取，改完不需重啟。
 
-session 固定了模型就不走分派。否則 dispatcher 會連同模型清單收到 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先；其餘（含報告與分析）→ S 優先。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 清單則把 `pass` 模型排在所有模型之後。
+session 固定了模型就不走分派。否則 dispatcher 會收到每個已註冊模型解析後的 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 與 `gemma*`／`qwen*` 等開源模型為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；從多個來源蒐集再綜整的研究 → S 優先；審閱、規劃、撰寫與其餘工作 → A 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先。LLM dispatcher、TypeSafe 分類與 subagent planner 共用同一張工作類型表與同一套名稱規則，排序結果一致。同一個模型註冊在多個 provider 時，順序為 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 由 prompt 規範而非直接移除：dispatcher 被要求除非請求點名，否則不回傳 `pass` 模型；fallback 則依優先順序依序嘗試其他已註冊模型（含 `pass`），跳過失敗模型的 provider 與 context window 放不下輸入的模型，全部用盡才失敗。
 
-subagent 也依同一套 tier。planner 讓每條 leg 只做一種工作——collect、review、transform 或 reason——並依工作挑模型：collect 為 C>B>A>S、transform 為 B>C>A>S、review 與 reason 為 A>S>B>C、程式碼或高精確的工作為 S>A>B>C。
+subagent 也依同一套 tier。主 agent 一旦分派，只負責拆分任務、呼叫 leg 與綜整結果；每條 leg 只做一種工作——collect、analyze、compare、review、transform 或 code——並對應到工作類型：collect → fetch（C>B>A>S）、transform → chat（B>C>A>S）、analyze／compare／review → work（A>S>B>C）、程式碼或高精確工作 → code（S>A>B>C）。leg 的 `model` 以即時的 registry 驗證，啟動後新增的模型也能使用，未註冊或 `pass` 模型會被拒絕。
 
 ### TypeSafe/Jev（beta）
 
-兩項選用功能會呼叫 TypeSafe 的 `jev-latest` 模型（`https://api.typesafe.ai/v1/systemone`），送出請求內容與最近至多六則 user／assistant 訊息。兩者都需要 `TYPESAFE_API_KEY`。沒有 key 就開啟時會詢問：Web 介面跳出附 TypeSafe Console 連結的 popup，TUI 跳出 key 輸入框。
+兩項選用功能會呼叫 TypeSafe 的 `jev-latest` 模型（`https://api.typesafe.ai/v1/systemone`），送出請求內容與最近至多四則 user／assistant 訊息，每則截至 2,048 字元。兩者都需要 `TYPESAFE_API_KEY`。沒有 key 就開啟時會詢問：Web 介面跳出附 TypeSafe Console 連結的 popup，TUI 跳出 key 輸入框。
 
 | 設定 | 開啟方式 | 效果 |
 | --- | --- | --- |
 | `dispatcher_beta` | Web **Config › Model**：Dispatcher 卡片的 `enable TypeSafe/Jev(beta)`（綠色；`disable` 為紅色，開啟時隱藏 dispatcher 模型選單）。TUI：`/model` → `dispatch` → `TypeSafe/Jev(beta)`；改選模型即關閉 | 取代 dispatcher 模型；TypeSafe 出錯時退回 dispatcher 模型 |
 | `auto_reasoning` | Web：**Auto reasoning(beta)** 卡片的 `enable TypeSafe/Jev(beta)`。TUI：`/model` → `reasoning`（或 `/model reasoning`） | 逐請求決定 reasoning 等級，固定模型的 session 也適用。開啟時 Web 聊天隱藏 reasoning 選單，TUI 狀態列只顯示 `(model)`，`Shift+A`／`Shift+D` 無作用 |
 
-Jev 會把請求歸成一種工作類型，兩項功能都依這個結果運作。另一題判斷請求是否明確指定「使用／用 <模型>」（含 `pass` 模型），是的話把該模型排第一。
+Jev 會把請求歸成一種工作類型，兩項功能都依這個結果運作。另一題判斷請求是否明確指定「使用／用 <模型>」（含 `pass` 模型），是的話把該模型排第一。session 的前一個模型仍在候選內時，第三題判斷請求是否延續上一則使用者訊息；是的話把該模型排在點名模型之後，且除非點名了其他模型，auto reasoning 沿用它的等級。前一個模型在每次成功回覆後記錄，`openai`／`codex` 保留 30 分鐘、`gemini` 60 分鐘、其他 provider 5 分鐘。
 
 | 工作類型 | 涵蓋 | tier 順序 | reasoning |
 | --- | --- | --- | --- |
@@ -185,7 +186,7 @@ Jev 會把請求歸成一種工作類型，兩項功能都依這個結果運作�
 | `research` | 從多個來源蒐集並下結論：研究、分析、比較、報告 | S>A>B>C | `high` |
 | `work` | 規劃、review、起草或整理使用者手上的內容，及其他 | A>S>B>C | `medium` |
 
-tier 取自 `model_tag`，沒設定的依模型名稱判斷；`pass` 模型排在最後。預設 dispatcher 的 prompt 不區分 `research` 與 `work`：code、chat、fetch 以外的請求一律 S>A>B>C。請求本身帶的 reasoning 等級（例如 `reasoning_effort`）優先於 auto reasoning，auto reasoning 又優先於 session 設定。
+tier 取自 `model_tag`，沒設定的依模型名稱判斷；`pass` 模型不參與此排序，fallback 改依優先順序。預設 dispatcher 的 prompt 使用同樣五種工作類型與 tier 順序。請求本身帶的 reasoning 等級（例如 `reasoning_effort`）優先於 auto reasoning，auto reasoning 又優先於 session 設定。
 
 TUI、Web、Telegram 與 Discord 的回覆 footer 以 `model(quota)/reasoning` 顯示實際使用的等級。`action.log` 的 `done` 行會記錄 `reasoning=<level>`，Web 聊天重新整理後仍會顯示。
 
@@ -237,13 +238,11 @@ Agenvoy 本身也是 MCP server，走 stdio：`agen` 的 stdin 不是 TTY（有�
 command = "agen"
 ```
 
-### Session 分類與監控
+### Session 分類
 
 TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API；`temp-`（短期工作）的 session 不會列出。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
 
 Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
-
-Daemon 另有背景 Runtime 監控器，每 30 秒檢查 CPU、Go process 記憶體，以及到 `1.1.1.1:443` 的 TCP 連線；CPU 過高、記憶體過高、網路中斷與恢復都會寫入 daemon log，CPU 異常時也會盡可能列出前三名程序。
 
 ## 使用方式
 
@@ -360,7 +359,7 @@ Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 en
 | `POST` `DELETE` | `/v1/models` `/v1/models/*name` | **local** — 新增／移除模型。`POST` 收 `{prefix, models}`；`prefix` 須為 `GET /v1/providers` 的 provider id，或本機／自訂端點的名稱（`ollama`、`llama.cpp`，或經 `POST /v1/provider/compat/key` 記錄的名稱）                                                                                                                                                                                                                                                                                                  |
 | `GET` `POST`    | `/v1/model`                     | **local** — 讀取或設定模型路由：`dispatcher`、`dispatcher_beta`、`auto_reasoning`、`summary`、`image`、`stt`、`tts`；讀取時另回傳 `image_options`、`image_providers`、`audio_providers`。`dispatcher` 與 `summary` 使用已註冊模型名稱（`prefix@model`）；`image` 使用 provider 名稱（`openai`、`codex`、`grok`、`grok-oauth`、`gemini`）；`stt`、`tts` 必須是 `GET /v1/model/audio` 回傳的可用選項。`POST` 為部分更新，未帶或 `null` 不變，空字串清除設定，`off` 僅可作為清除 `image` 的別名。無效模型、provider 或音訊選項會被拒絕，且不會寫入。`dispatcher_beta` 與 `auto_reasoning` 為布林值；沒有 `TYPESAFE_API_KEY` 卻設為 `true` 時回 400 並附 `missing_key`。 |
 | `GET`           | `/v1/model/audio`               | **local** — 列出由已設定 OpenAI、Gemini 與 OpenRouter provider 取得的 `stt_options`、`tts_options`；各清單快取 15 分鐘。                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `GET` `POST`    | `/v1/model/priority`            | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，最後一個為最後防線；`pass` 模型不論排在哪，執行時都排在所有模型之後。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400                                                                                                                                                                                            |
+| `GET` `POST`    | `/v1/model/priority`            | **local** — 讀取／調整已註冊模型的順序。順序決定 fallback 優先度，選中的模型失敗後，其餘模型由上而下依序嘗試（含 `pass`），最後一個為最後防線。`GET` 另回傳 `tiers`（`{model: tier}`）與 `tier_options`（`[{tier, detail}]`，空 tier 在最後）。`POST` `{models}` 依序把列出的名稱移到最前面，其餘接在後面；未知名稱回 400                                                                                                                                                                                            |
 | `POST`          | `/v1/model/tier`                | **local** — `{model, tier}` 設定單一模型的 tier（`S` `A` `B` `C` `pass`）；`""` 清除。未註冊的模型或未知 tier 回 400                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **Session**

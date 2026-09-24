@@ -120,10 +120,21 @@ func renderActionLine(p parsedAction, width int) string {
 }
 
 func formatLogTimestamp(ts string) string {
-	if t, err := time.Parse("2006-01-02 15:04:05.000", ts); err == nil {
-		return t.Format("2006-01-02 15:04:05")
+	if t, err := time.ParseInLocation("2006-01-02 15:04:05.000", ts, time.Local); err == nil {
+		return formatFinishedAt(t)
 	}
 	return ts
+}
+
+func formatFinishedAt(t time.Time) string {
+	now := time.Now()
+	if t.Year() == now.Year() && t.YearDay() == now.YearDay() {
+		return t.Format("15:04")
+	}
+	if t.Year() == now.Year() {
+		return t.Format("01-02 15:04")
+	}
+	return t.Format("2006-01-02 15:04")
 }
 
 func formatLog(raw string, width int) (kind, line string) {

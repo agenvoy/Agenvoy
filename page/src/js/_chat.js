@@ -312,15 +312,29 @@ function assistantFooter(meta, sessionId, task) {
   if (meta.output) {
     children.push(_("div", [_("span.material-symbols-outlined", "arrow_downward_alt"), _("p", meta.output)]));
   }
-  children.push(_("p", meta.send_at || ""));
+  children.push(_("p", displayAt(meta.send_at)));
   return _("footer", children);
+}
+
+function displayAt(at) {
+  if (!at) {
+    return "";
+  }
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} `;
+  if (at.startsWith(today)) {
+    return at.slice(today.length);
+  }
+  const year = `${now.getFullYear()}-`;
+  return at.startsWith(year) ? at.slice(year.length) : at;
 }
 
 function newUserItem(item) {
   const dom = _("div.user", [
     _("p", item.content),
     sourceBox(item.content),
-    _("footer", [_("p", item.meta.send_at), copyBtn()]),
+    _("footer", [_("p", displayAt(item.meta.send_at)), copyBtn()]),
   ]);
 
   if (item.steered) {

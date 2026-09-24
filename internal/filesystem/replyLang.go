@@ -121,3 +121,21 @@ func ApplyReplyLang(template string) string {
 		template = template[:start] + inner + template[end+len(replyLangAutoClose):]
 	}
 }
+
+var langRefusal = getLangRefusal()
+
+func getLangRefusal() map[string]string {
+	var dic map[string]string
+	if err := json.Unmarshal(configs.RefusalMessages, &dic); err != nil {
+		slog.Warn("embedded poison_refusal",
+			slog.String("error", err.Error()))
+	}
+	return dic
+}
+
+func RefusalMessage() string {
+	if text, ok := langRefusal[CanonicalReplyLang(ConfigReplyLang)]; ok {
+		return text
+	}
+	return langRefusal["en"]
+}
