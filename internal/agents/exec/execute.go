@@ -13,7 +13,6 @@ import (
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 
-	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
@@ -771,10 +770,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			emptyCount = 0
 
 			if isGuardrailRefusal(stripped) {
-				sendText(events, configs.PoisonRefusal)
+				refusal := filesystem.RefusalMessage()
+				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
-				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
 			}
@@ -848,10 +848,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
-				sendText(events, configs.PoisonRefusal)
+				refusal := filesystem.RefusalMessage()
+				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
-				interactive.FinalizePending(session.ID, exec.PendingTask, configs.PoisonRefusal)
+				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
 			}

@@ -1,0 +1,18 @@
+{
+  "en": "This operation cannot be performed",
+  "zh-TW": "無法執行此操作",
+  "zh-HK": "無法執行此操作",
+  "zh-CN": "无法执行此操作",
+  "ja": "この操作は実行できません",
+  "ko": "이 작업은 수행할 수 없습니다",
+  "es": "No se puede realizar esta operación",
+  "fr": "Cette opération ne peut pas être effectuée",
+  "de": "Dieser Vorgang kann nicht ausgeführt werden",
+  "pt": "Não é possível executar esta operação",
+  "it": "Impossibile eseguire questa operazione",
+  "ru": "Невозможно выполнить эту операцию",
+  "vi": "Không thể thực hiện thao tác này",
+  "th": "ไม่สามารถดำเนินการนี้ได้",
+  "id": "Operasi ini tidak dapat dilakukan",
+  "ar": "لا يمكن تنفيذ هذه العملية"
+}

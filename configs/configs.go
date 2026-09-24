@@ -118,6 +118,12 @@ var ReplyLang []byte
 //go:embed jsons/local_compat.json
 var LocalCompat []byte
 
+//go:embed jsons/guardrail_rules.json
+var GuardrailRules []byte
+
+//go:embed jsons/refusal_messages.json
+var RefusalMessages []byte
+
 // * Official Guide
 
 //go:embed prompts/system_prompt/official_guides/*.md
@@ -144,6 +150,5 @@ func loadOfficialGuides() map[string]string {
 }
 
 const (
-	PoisonRefusal     = "無法執行此操作"
 	GuardrailSentinel = "[KARAPPO]"
 )
