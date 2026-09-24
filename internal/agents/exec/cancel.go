@@ -8,32 +8,36 @@ import (
 )
 
 var (
-	cancelMu  sync.Mutex
-	cancelFns = map[string]context.CancelCauseFunc{}
+	cancelFnMap   = map[string]context.CancelCauseFunc{}
+	cancelFnMapMu sync.Mutex
 )
+
+func Cancel(taskHash string) bool {
+	cancelFnMapMu.Lock()
+	fn, ok := cancelFnMap[taskHash]
+	cancelFnMapMu.Unlock()
+
+	if !ok {
+		return false
+	}
+	fn(runtime.ErrUserCanceled)
+	return true
+}
 
 func registerCancel(taskHash string, cancel context.CancelCauseFunc) {
 	if taskHash == "" {
 		return
 	}
-	cancelMu.Lock()
-	cancelFns[taskHash] = cancel
-	cancelMu.Unlock()
+	cancelFnMapMu.Lock()
+	cancelFnMap[taskHash] = cancel
+	cancelFnMapMu.Unlock()
 }
 
 func unregisterCancel(taskHash string) {
-	cancelMu.Lock()
-	delete(cancelFns, taskHash)
-	cancelMu.Unlock()
-}
-
-func CancelTask(taskHash string) bool {
-	cancelMu.Lock()
-	cancel, ok := cancelFns[taskHash]
-	cancelMu.Unlock()
-	if !ok {
-		return false
+	if taskHash == "" {
+		return
 	}
-	cancel(runtime.ErrUserCanceled)
-	return true
+	cancelFnMapMu.Lock()
+	delete(cancelFnMap, taskHash)
+	cancelFnMapMu.Unlock()
 }

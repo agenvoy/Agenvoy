@@ -28,86 +28,53 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func buildContent(content string, imageInputs []string, fileInputs []string) any {
-	if len(imageInputs) == 0 && len(fileInputs) == 0 {
-		return content
-	}
-
-	parts := []provider.ContentPart{
-		{
-			Type: "text",
-			Text: content,
-		},
-	}
-
-	for _, path := range fileInputs {
-		text, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			continue
-		}
-		parts = append(parts, provider.ContentPart{
-			Type: "text",
-			Text: fmt.Sprintf("---\npath: %s\n---\n%s", filepath.Base(path), text),
-		})
-	}
-
-	for _, path := range imageInputs {
-		b64, err := convertToBase64(path)
-		if err != nil {
-			continue
-		}
-		dataURL := "data:image/jpeg;base64," + b64
-		parts = append(parts, provider.ContentPart{
-			Type:     "image_url",
-			ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
-		})
-	}
-	return parts
-}
-
 func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSession, error) {
+	// * step1: reload skill list
 	scanner := execData.SkillScanner
 	if scanner == nil {
 		scanner = agents.Scanner()
 	}
-	trimInput := strings.TrimSpace(execData.Content)
-	session := agentTypes.AgentSession{
-		Tools:     []provider.Message{},
-		Histories: []provider.Message{},
+
+	// * step2: assemble session history
+	sessionID := strings.TrimSpace(execData.SessionID)
+	if sessionID == "" {
+		return nil, fmt.Errorf("SessionID is required")
 	}
 
-	overrideID := strings.TrimSpace(execData.SessionID)
-	if overrideID == "" {
-		return nil, fmt.Errorf("execData.SessionID is required")
-	}
-	sessionDir := filesystem.SessionDir(overrideID)
+	sessionDir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.IsDir(sessionDir) {
-		return nil, fmt.Errorf("session %q does not exist", overrideID)
+		return nil, fmt.Errorf("session %q does not exist", sessionID)
 	}
 
-	oldHistory, maxHistory := sessionHistory.Get(overrideID)
-	session.Histories = sessionHistory.Messages(oldHistory)
-	session.BaseLen = len(session.Histories)
-
-	session.SystemPrompts = BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, overrideID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName())
-	if summary := summary.GetPrompt(overrideID, OldestMessageTime(maxHistory)); summary != "" {
+	oldHistory, maxHistory := sessionHistory.Get(sessionID)
+	session := agentTypes.AgentSession{
+		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, sessionID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName()),
+		Tools:         []provider.Message{},
+		Histories:     sessionHistory.Messages(oldHistory),
+		BaseLen:       len(oldHistory),
+		OldHistories:  sessionHistory.Messages(maxHistory),
+		ToolHistories: []provider.Message{},
+	}
+	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxHistory)); summary != "" {
+		// * if summary not empty, add it
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
 
-	session.OldHistories = sessionHistory.Messages(maxHistory)
-	session.ToolHistories = []provider.Message{}
-
-	userText := strings.TrimSpace(execData.Input)
-	if userText == "" {
-		userText = trimInput
+	// * step3: assemble user input
+	userInput := strings.TrimSpace(execData.Input)
+	if userInput == "" {
+		userInput = strings.TrimSpace(execData.Content)
 	}
-	histText := userText
-	if h := strings.TrimSpace(execData.HistoryContent); h != "" {
-		histText = h
+
+	historyInput := userInput
+	if content := strings.TrimSpace(execData.HistoryContent); content != "" {
+		// * not save full resume input in history
+		historyInput = content
 	}
 
 	session.Sender = execData.Sender
 	session.UserSendAt = time.Now().UnixNano()
+	// * add timestamp prefix to user input, for send at tracking
 	prefix := sessionHistory.Record{
 		SendAt: session.UserSendAt,
 		Sender: session.Sender,
@@ -115,15 +82,15 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 
 	session.Histories = append(session.Histories, provider.Message{
 		Role:    "user",
-		Content: sessionHistory.WithPrefix(prefix, histText),
+		Content: sessionHistory.WithPrefix(prefix, historyInput),
 	})
 	session.UserInput = provider.Message{
 		Role:    "user",
-		Content: sessionHistory.WithPrefix(prefix, buildContent(userText, execData.ImageInputs, execData.FileInputs)),
+		Content: sessionHistory.WithPrefix(prefix, buildInput(userInput, execData.ImageInputs, execData.FileInputs)),
 	}
-	SaveUserInputHistory(ctx, overrideID, histText)
+	SaveUserInputHistory(ctx, sessionID, historyInput)
 
-	session.ID = overrideID
+	session.ID = sessionID
 	return &session, nil
 }
 
@@ -136,14 +103,51 @@ func OldestMessageTime(histories []sessionHistory.Record) time.Time {
 	return time.Time{}
 }
 
+func buildInput(userInput string, imageInputs []string, fileInputs []string) any {
+	// * no file/image, directily return inpur
+	if len(imageInputs) == 0 && len(fileInputs) == 0 {
+		return userInput
+	}
+
+	parts := []provider.ContentPart{
+		{Type: "text", Text: userInput},
+	}
+
+	// * if file is exist, append file content to user input
+	for _, path := range fileInputs {
+		content, err := go_pkg_filesystem.ReadText(path)
+		if err != nil {
+			continue
+		}
+		parts = append(parts, provider.ContentPart{
+			Type: "text",
+			Text: fmt.Sprintf("---\npath: %s\n---\n%s", filepath.Base(path), content),
+		})
+	}
+
+	// * if image is exist, append image content to user input
+	for _, path := range imageInputs {
+		b64, err := convertToBase64(path)
+		if err != nil {
+			continue
+		}
+		data := "data:image/jpeg;base64," + b64
+		parts = append(parts, provider.ContentPart{
+			Type:     "image_url",
+			ImageURL: &provider.ImageURL{URL: data, Detail: "auto"},
+		})
+	}
+	return parts
+}
+
 func convertToBase64(path string) (string, error) {
-	f, err := os.Open(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("os.Open: %w", err)
 	}
-	defer f.Close()
+	defer file.Close()
 
-	img, _, err := image.Decode(f)
+	img, _, err := image.Decode(file)
 	if err != nil {
 		return "", fmt.Errorf("image.Decode: %w", err)
 	}

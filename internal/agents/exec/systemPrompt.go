@@ -25,7 +25,7 @@ import (
 
 const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
+func buildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
