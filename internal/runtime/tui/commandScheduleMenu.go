@@ -14,7 +14,7 @@ func (t TUI) commandScheduleMenu(_ []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      "Schedule",
+		title:      "/schedule",
 		subtitle:   "enter fires it now  d deletes it",
 		options:    labels,
 		optionTail: tails,

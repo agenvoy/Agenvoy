@@ -311,7 +311,7 @@ func renderCmdSelector(p *CmdSelector) string {
 			labelStyle = errorStyle
 		}
 		if i == p.cursor {
-			marker = systemStyle.Render("> ")
+			marker = systemStyle.Render("⏵ ")
 			labelStyle = systemStyle
 			switch {
 			case it.isScheduler:

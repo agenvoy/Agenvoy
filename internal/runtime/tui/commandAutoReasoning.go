@@ -34,7 +34,7 @@ func (t TUI) commandAutoReasoning() (TUI, tea.Cmd, bool) {
 	}
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    "Auto reasoning",
+		title:    "/model reasoning",
 		subtitle: "reasoning effort per request  " + typesafeLabel,
 		options:  []string{"off", "on"},
 		values:   []string{"off", "on"},

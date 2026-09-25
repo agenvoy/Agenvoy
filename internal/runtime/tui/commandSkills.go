@@ -48,7 +48,7 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:     popupMultiSelect,
-		title:    "Skills",
+		title:    "/skills",
 		subtitle: "checked: git clone github.com/agenvoy/skill-<name>  unchecked: remove  " + filesystem.SystemDesignDir,
 		options:  slices.Clone(remoteSkills),
 		values:   remoteSkills,

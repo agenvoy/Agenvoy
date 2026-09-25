@@ -21,6 +21,22 @@ import (
 )
 
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	wasOpen := t.popup != nil
+	next, cmd := t.update(msg)
+	nt, ok := next.(TUI)
+	if !ok {
+		return next, cmd
+	}
+	switch isOpen := nt.popup != nil; {
+	case !wasOpen && isOpen:
+		return nt, tea.Batch(tea.EnterAltScreen, cmd)
+	case wasOpen && !isOpen:
+		return nt, tea.Sequence(tea.ExitAltScreen, cmd)
+	}
+	return nt, cmd
+}
+
+func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	if t.popup != nil {
@@ -47,6 +63,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t.runMcpOAuthDone(msg)
 		case McpOAuthPaste:
 			return t.runMcpOAuthPaste(msg)
+		case AudioModelLoaded:
+			return t.openAudioModelPopup(msg)
+		case ImageModelLoaded:
+			return t.openImageModelPopup(msg)
 		}
 		return t, nil
 	}
@@ -73,7 +93,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if t.running && t.cancelExec != nil {
 				if !t.emitted {
-					return t.Update(CancelRunConfirm{yes: true})
+					return t.update(CancelRunConfirm{yes: true})
 				}
 				t.popup = &Popup{
 					kind:    popupSingleSelect,
@@ -1016,14 +1036,20 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StartupSelectSession:
 		popup := popupSwitch("")
 		if popup == nil {
-			return t, nil
+			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus))
 		}
 		popup.title = "Pick session to attach"
 		popup.onConfirm = func(chosen string) any {
 			return StartupSessionSelect{id: chosen}
 		}
+		popup.onCancel = func() any {
+			return StartupSessionSkip{}
+		}
 		t.popup = popup
 		return t, nil
+
+	case StartupSessionSkip:
+		return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus))
 
 	case StartupSessionSelect:
 		t.currentSessionID = msg.id

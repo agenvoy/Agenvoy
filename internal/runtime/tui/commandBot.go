@@ -55,9 +55,10 @@ func (t TUI) commandBot(parts []string) (TUI, tea.Cmd, bool) {
 	refreshBotName(sid)
 	_, existingName, existingBody := configBot.GetPersona(sid)
 	t.popup = &Popup{
-		kind:  popupText,
-		title: "Bot name",
-		input: newPopupInput(existingName, false),
+		kind:     popupText,
+		title:    "/bot",
+		subtitle: "name",
+		input:    newPopupInput(existingName, false),
 		onConfirm: func(value string) any {
 			return BotNameSubmit{name: strings.TrimSpace(value)}
 		},

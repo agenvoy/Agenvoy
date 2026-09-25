@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"os"
 	"strings"
 	"time"
+
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
@@ -144,12 +145,12 @@ func renderPopupTabs(p *Popup) string {
 	for i, tab := range p.tabs {
 		label := strings.TrimSuffix(tab, "-")
 		if i == p.tabIdx {
-			cells[i] = systemStyle.Render("[" + label + "]")
+			cells[i] = systemStyle.Render("● " + label)
 			continue
 		}
-		cells[i] = hintStyle.Render(" " + label + " ")
+		cells[i] = hintStyle.Render("○ " + label)
 	}
-	return strings.Join(cells, " ")
+	return strings.Join(cells, "   ")
 }
 
 func (t TUI) viewPopup() string {
@@ -166,14 +167,14 @@ func (t TUI) viewPopup() string {
 	if len(p.restricted) > 0 {
 		head = errorStyle.Render("⚠ " + p.title)
 	}
-	body := []string{head}
+	var body []string
+	if p.title != "" {
+		body = append(body, head)
+	}
 	if p.subtitle != "" {
 		body = append(body, textStyle.Render(p.subtitle))
 	}
 	body = append(body, p.styledLines...)
-	if len(p.tabs) > 1 {
-		body = append(body, "", "  "+renderPopupTabs(p))
-	}
 	diffWidth := max(width-6, 20)
 	for _, dl := range p.diffLines {
 		switch {
@@ -190,16 +191,31 @@ func (t TUI) viewPopup() string {
 			body = body[:len(body)-1]
 		}
 	}
+	var tail []string
 	appendFooter := func(hint string) {
 		if p.back != nil && p.kind != popupOAuth {
-			hint = strings.NewReplacer("esc cancel", "esc back", "esc close", "esc back").Replace(hint)
+			hint = strings.NewReplacer("Esc:cancel", "Esc:back", "Esc:close", "Esc:back").Replace(hint)
 		}
 		trimTail()
-		body = append(body, "", hintStyle.Render(hint))
+		tail = []string{renderFooter(hint)}
 	}
 
 	trimTail()
 	body = append(body, "")
+
+	listRows := func(visible int) int {
+		if t.height <= 0 {
+			return visible
+		}
+		used := lipgloss.Height(lipgloss.NewStyle().Width(width-2).Render(strings.Join(body, "\n"))) + 2
+		if len(p.tabs) > 1 {
+			used += 2
+		}
+		if len(p.questions) > 1 {
+			used++
+		}
+		return max(t.height-used, 1)
+	}
 
 	switch p.kind {
 	case popupConfirm, popupSingleSelect:
@@ -215,6 +231,7 @@ func (t TUI) viewPopup() string {
 		if visible <= 0 && p.kind == popupSingleSelect {
 			visible = cmdSelectorMaxVisible
 		}
+		visible = listRows(visible)
 		start, end := 0, total
 		if visible > 0 && total > visible {
 			if p.readOnly {
@@ -230,9 +247,15 @@ func (t TUI) viewPopup() string {
 			marker := "  "
 			var line string
 			if !p.readOnly && i == p.cursor {
-				marker = systemStyle.Render("> ")
+				marker = systemStyle.Render("⏵ ")
 				head, tail := splitOptStyle(opt)
 				line = systemStyle.Render(head)
+				if tail != "" {
+					line += hintStyle.Render(tail)
+				}
+			} else if !p.readOnly {
+				head, tail := splitOptStyle(opt)
+				line = whiteStyle.Render(head)
 				if tail != "" {
 					line += hintStyle.Render(tail)
 				}
@@ -248,27 +271,24 @@ func (t TUI) viewPopup() string {
 		if p.enterAction != "" {
 			action = p.enterAction
 		}
-		hint := "↑/↓ select  enter " + action + "  esc cancel"
-		if len(p.tabs) > 1 {
-			hint = "↑/↓ select  ←/→ filter  enter " + action + "  esc cancel"
-		}
+		hint := "Enter:" + action + "  Esc:cancel"
 		if p.searchable {
-			hint = "type to search  ↑/↓ select  enter " + action + "  esc close"
+			hint = "Enter:" + action + "  Esc:close"
 			if p.input.Value() != "" {
-				hint = "type to search  ↑/↓ select  enter " + action + "  esc clear"
+				hint = "Enter:" + action + "  Esc:clear"
 			}
 		}
 		if p.readOnly {
-			hint = "↑/↓ scroll  esc close"
-			if len(p.tabs) > 1 {
-				hint = "↑/↓ scroll  ←/→ filter  esc close"
-			}
+			hint = "Esc:close"
 		}
 		if p.onDelete != nil {
-			hint += "  d delete"
+			hint += "  d:delete"
 		}
 		if p.onTag != nil {
-			hint += "  t tag"
+			hint += "  t:tier tag"
+		}
+		if p.onMove != nil {
+			hint += "  Shift+w/s:fallback order"
 		}
 		appendFooter(hint)
 
@@ -278,6 +298,7 @@ func (t TUI) viewPopup() string {
 		if visible <= 0 {
 			visible = cmdSelectorMaxVisible
 		}
+		visible = listRows(visible)
 		start, end := windowRange(p.cursor, total, visible)
 		maxLine := max(width-14, 32)
 		for i := start; i < end; i++ {
@@ -286,7 +307,7 @@ func (t TUI) viewPopup() string {
 			head, tail := splitOptStyle(opt)
 			var line string
 			if i == p.cursor {
-				cursor = systemStyle.Render("> ")
+				cursor = systemStyle.Render("⏵ ")
 				line = systemStyle.Render(head)
 			} else {
 				line = whiteStyle.Render(head)
@@ -300,19 +321,15 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
 		}
-		if len(p.tabs) > 1 {
-			appendFooter("↑/↓ move  ←/→ filter  space toggle  enter confirm  esc cancel")
-		} else {
-			appendFooter("↑/↓ move  space toggle  enter confirm  esc cancel")
-		}
+		appendFooter("Space:toggle  Enter:confirm  Esc:cancel")
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))
 		body = append(body, p.input.View())
 		if p.multiline {
-			appendFooter("ctrl+s confirm  enter newline  esc cancel")
+			appendFooter("Ctrl+s:confirm  Enter:newline  Esc:cancel")
 		} else {
-			appendFooter("enter confirm  esc cancel")
+			appendFooter("Enter:confirm  Esc:cancel")
 		}
 
 	case popupSecret:
@@ -323,7 +340,7 @@ func (t TUI) viewPopup() string {
 		secret.SetCursor(cursor)
 		secret.SetWidth(max(width-10, 20))
 		body = append(body, secret.View())
-		appendFooter("enter confirm  esc cancel  (input hidden)")
+		appendFooter("Enter:confirm  Esc:cancel  (input hidden)")
 
 	case popupOAuth:
 		if p.oauth != nil {
@@ -335,18 +352,35 @@ func (t TUI) viewPopup() string {
 			}
 		}
 		if p.oauth != nil && p.oauth.mcpServer != "" {
-			appendFooter("enter re-open browser  p paste redirect URL  esc cancel")
+			appendFooter("Enter:re-open browser  p:paste redirect URL  Esc:cancel")
 		} else {
-			appendFooter("enter re-open browser  esc cancel")
+			appendFooter("Enter:re-open browser  Esc:cancel")
 		}
 	}
 
 	if len(p.questions) > 1 {
 		footer := hintStyle.Render(fmt.Sprintf("question %d/%d", p.questionIdx+1, len(p.questions)))
-		body = append(body, footer)
+		tail = append(tail, footer)
 	}
 
-	return popupStyle.Width(width - 4).Render(strings.Join(body, "\n"))
+	divider := hintStyle.Render(strings.Repeat("─", width))
+	content := popupStyle.Width(width).Render(strings.Join(body, "\n"))
+	if len(p.tabs) > 1 {
+		content = popupStyle.Width(width).Render(renderPopupTabs(p)) + "\n" + divider + "\n" + content
+	}
+	footer, footerHeight := "", 0
+	if len(tail) > 0 {
+		footer = divider + "\n" + popupStyle.Width(width).Render(strings.Join(tail, "\n"))
+		footerHeight = lipgloss.Height(footer)
+	}
+
+	if gap := t.height - lipgloss.Height(content) - footerHeight; t.height > 0 && gap > 0 {
+		content += strings.Repeat("\n", gap)
+	}
+	if footer == "" {
+		return content
+	}
+	return content + "\n" + footer
 }
 
 func (t TUI) modelTag() string {
@@ -375,4 +409,17 @@ func (t TUI) modelTag() string {
 		reasonPart = hintStyle.Render(reasoning)
 	}
 	return modelPart + hintStyle.Render("/") + reasonPart
+}
+
+func renderFooter(hint string) string {
+	var items []string
+	for item := range strings.SplitSeq(hint, "  ") {
+		key, label, ok := strings.Cut(item, ":")
+		if !ok {
+			items = append(items, hintStyle.Render(item))
+			continue
+		}
+		items = append(items, whiteStyle.Render(key)+hintStyle.Render(":"+label))
+	}
+	return strings.Join(items, hintStyle.Render(" | "))
 }

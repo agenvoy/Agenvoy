@@ -310,8 +310,6 @@ var (
 			Padding(0, 1)
 
 	popupStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colWarn).
 			Padding(0, 1)
 
 	searchStyle = lipgloss.NewStyle().

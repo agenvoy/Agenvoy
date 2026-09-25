@@ -167,7 +167,7 @@ func popupSwitch(sid string) *Popup {
 
 	popup := &Popup{
 		kind:        popupSingleSelect,
-		title:       "Sessions",
+		title:       "/sessions",
 		maxVisible:  cmdSelectorMaxVisible,
 		enterAction: "switch",
 		tabs:        sessionTabs(sessions),

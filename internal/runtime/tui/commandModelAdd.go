@@ -122,7 +122,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Model  global add  provider",
+		title:   "/model add",
 		options: options,
 		values:  values,
 		onConfirm: func(chosen string) any {
