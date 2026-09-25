@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,7 +16,9 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 var remoteSkills = []string{
@@ -39,28 +42,91 @@ type SkillsInstallDone struct {
 }
 
 func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
-	multi := make(map[int]bool, len(remoteSkills))
+	installMulti := make(map[int]bool, len(remoteSkills))
 	for i, name := range remoteSkills {
 		if go_pkg_filesystem_reader.Exists(filepath.Join(filesystem.SystemDesignDir, name)) {
-			multi[i] = true
+			installMulti[i] = true
 		}
 	}
 
-	t.popup = &Popup{
-		kind:     popupMultiSelect,
-		title:    "/skills",
-		subtitle: "checked: git clone github.com/agenvoy/skill-<name>  unchecked: remove  " + filesystem.SystemDesignDir,
-		options:  slices.Clone(remoteSkills),
-		values:   remoteSkills,
-		multi:    multi,
+	popup := &Popup{
+		title: "/skill",
+		tabs:  []string{"permission", "system"},
 		onConfirm: func(chosen string) any {
 			if chosen == "" {
 				return SkillsInstallPick{}
 			}
 			return SkillsInstallPick{names: strings.Split(chosen, "\x1F")}
 		},
+		openLabel: "folder",
+		onOpen: func(chosen string) string {
+			scanner := agents.Scanner()
+			if scanner == nil {
+				return ""
+			}
+			one := scanner.Lookup(chosen)
+			if one == nil {
+				return ""
+			}
+			return filepath.Dir(one.AbsPath)
+		},
+		onEnter: func(p *Popup, chosen string) tea.Cmd {
+			if _, err := allowSkill.ToggleGlobal(chosen); err != nil {
+				p.subtitle = errorStyle.Render(fmt.Sprintf("allow %s: %v", chosen, err))
+				return nil
+			}
+			fillAllowSkills(p)
+			return nil
+		},
 	}
+	popup.onTab = func(p *Popup) {
+		p.cursor = 0
+		if p.tabIdx == 1 {
+			p.kind = popupMultiSelect
+			p.enterAction = ""
+			p.subtitle = "checked: git clone github.com/agenvoy/skill-<name>  unchecked: remove  " + filesystem.SystemDesignDir
+			p.options = slices.Clone(remoteSkills)
+			p.values = remoteSkills
+			p.multi = installMulti
+			return
+		}
+		p.kind = popupSingleSelect
+		p.enterAction = "toggle"
+		fillAllowSkills(p)
+	}
+	popup.onTab(popup)
+	t.popup = popup
 	return t, nil, true
+}
+
+func fillAllowSkills(p *Popup) {
+	var names []string
+	scanner := agents.Scanner()
+	if scanner != nil {
+		names = scanner.List()
+		sort.Strings(names)
+	}
+	allowed := allowSkill.LoadGlobal()
+	sources := make([]string, len(names))
+	sourceWidth := 0
+	for i, name := range names {
+		if one := scanner.Lookup(name); one != nil {
+			sources[i] = runtime.SkillSource(one.AbsPath)
+		}
+		sourceWidth = max(sourceWidth, len(sources[i])+2)
+	}
+	settings := make([]string, len(names))
+	for i, name := range names {
+		status := hintStyle.Render("ask")
+		if allowed[name] {
+			status = okayStyle.Render("always allow")
+		}
+		settings[i] = hintStyle.Render(padToWidth(sources[i], sourceWidth)) + status
+	}
+	p.subtitle = "always allowed skills skip the permission prompt  " + filesystem.AllowSkillGlobalPath
+	p.options = optionColumn(names, settings)
+	p.values = names
+	p.cursor = min(p.cursor, max(len(p.options)-1, 0))
 }
 
 func (t TUI) runSkillsInstallPick(msg SkillsInstallPick) (TUI, tea.Cmd) {

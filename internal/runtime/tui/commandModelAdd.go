@@ -140,6 +140,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 		onConfirm: func(chosen string) any {
 			return ModelAddProviderPick{provider: chosen}
 		},
+		openLabel: "console",
 		onOpen: func(chosen string) string {
 			if !slices.Contains(consoles, chosen) {
 				return ""

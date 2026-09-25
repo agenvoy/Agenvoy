@@ -70,6 +70,8 @@ type Popup struct {
 	onTag     func(chosen string) any
 	onMove    func(chosen, neighbor string) error
 	onOpen    func(chosen string) string
+	openLabel string
+	onEnter   func(p *Popup, chosen string) tea.Cmd
 	onCancel  func() any
 	back      *Popup
 
@@ -324,6 +326,9 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.values != nil && p.cursor < len(p.values) {
 			chosen = p.values[p.cursor]
 		}
+		if p.pendingId == "" && p.onEnter != nil {
+			return t, p.onEnter(p, chosen)
+		}
 		if p.pendingId == "" {
 			cb := p.onConfirm
 			t = t.closePopup()
@@ -461,6 +466,9 @@ func (p *Popup) switchTab(step int) {
 
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
+	if len(p.options) == 0 && (msg.Type == tea.KeyUp || msg.Type == tea.KeyDown || msg.Type == tea.KeySpace) {
+		return t, nil
+	}
 	switch msg.Type {
 	case tea.KeyUp:
 		p.cursor = (p.cursor - 1 + len(p.options)) % len(p.options)

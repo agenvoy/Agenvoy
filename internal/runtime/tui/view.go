@@ -163,14 +163,32 @@ func (t TUI) viewPopup() string {
 		return ""
 	}
 
-	head := whiteStyle.Render("⏺ " + p.title)
-	if len(p.restricted) > 0 {
-		head = errorStyle.Render("⚠ " + p.title)
+	header := ""
+	switch {
+	case len(p.tabs) > 1:
+		header = renderPopupTabs(p)
+	case len(p.restricted) > 0:
+		header = errorStyle.Render("⚠ " + p.title)
+	case p.title != "":
+		header = systemStyle.Render("● " + strings.TrimPrefix(p.title, "/"))
 	}
+	divider := hintStyle.Render(strings.Repeat("─", width))
+	headerHeight := 0
+	if header != "" {
+		header = popupStyle.Width(width).Render(header) + "\n" + divider
+	}
+	if p.searchable && (p.kind == popupConfirm || p.kind == popupSingleSelect) {
+		p.input.SetWidth(max(width-4, 20))
+		if header != "" {
+			header += "\n"
+		}
+		header += popupStyle.Width(width).Render(p.input.View()) + "\n" + divider
+	}
+	if header != "" {
+		headerHeight = lipgloss.Height(header)
+	}
+
 	var body []string
-	if p.title != "" {
-		body = append(body, head)
-	}
 	if p.subtitle != "" {
 		body = append(body, textStyle.Render(p.subtitle))
 	}
@@ -207,10 +225,7 @@ func (t TUI) viewPopup() string {
 		if t.height <= 0 {
 			return visible
 		}
-		used := lipgloss.Height(lipgloss.NewStyle().Width(width-2).Render(strings.Join(body, "\n"))) + 2
-		if len(p.tabs) > 1 {
-			used += lipgloss.Height(popupStyle.Width(width).Render(renderPopupTabs(p))) + 1
-		}
+		used := lipgloss.Height(lipgloss.NewStyle().Width(width-2).Render(strings.Join(body, "\n"))) + 2 + headerHeight
 		if len(p.questions) > 1 {
 			used++
 		}
@@ -219,12 +234,8 @@ func (t TUI) viewPopup() string {
 
 	switch p.kind {
 	case popupConfirm, popupSingleSelect:
-		if p.searchable {
-			p.input.SetWidth(max(width-10, 20))
-			body = append(body, searchStyle.Width(max(width-8, 22)).Render(p.input.View()), "")
-			if len(p.options) == 0 {
-				body = append(body, hintStyle.Render("  no matching settings"))
-			}
+		if p.searchable && len(p.options) == 0 {
+			body = append(body, hintStyle.Render("  no matching settings"))
 		}
 		total := len(p.options)
 		visible := p.maxVisible
@@ -291,7 +302,7 @@ func (t TUI) viewPopup() string {
 			hint += "  w/s:fallback order"
 		}
 		if p.link() != "" {
-			hint += "  o:console"
+			hint += "  o:" + p.openLabel
 		}
 		appendFooter(hint)
 
@@ -366,10 +377,9 @@ func (t TUI) viewPopup() string {
 		tail = append(tail, footer)
 	}
 
-	divider := hintStyle.Render(strings.Repeat("─", width))
 	content := popupStyle.Width(width).Render(strings.Join(body, "\n"))
-	if len(p.tabs) > 1 {
-		content = popupStyle.Width(width).Render(renderPopupTabs(p)) + "\n" + divider + "\n" + content
+	if header != "" {
+		content = header + "\n" + content
 	}
 	footer, footerHeight := "", 0
 	if len(tail) > 0 {

@@ -169,7 +169,7 @@ func SkillSource(path string) string {
 		filesystem.SystemDesignDir != "" && strings.HasPrefix(path, filesystem.SystemDesignDir+"/"):
 		return "system"
 	case filesystem.SkillsDir != "" && strings.HasPrefix(path, filesystem.SkillsDir+"/"):
-		return "agenvoy"
+		return "user"
 	case strings.Contains(path, "/.claude/skills/"):
 		return "claude"
 	case strings.Contains(path, "/.opencode/skills/"):

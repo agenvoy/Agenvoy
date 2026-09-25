@@ -536,14 +536,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpOAuthDone:
 		return t.runMcpOAuthDone(msg)
 
-	case AllowSkillScopeSelect:
-		next, cmd := t.openAllowSkillPickerPopup(msg.scope)
-		return next, cmd
-
-	case AllowSkillPick:
-		next, cmd := t.runAllowSkillToggle(msg.scope, msg.name)
-		return next, cmd
-
 	case ModelTagPick:
 		return t.openModelTagPicker(msg.name)
 
@@ -567,31 +559,16 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, _, _ = next.commandModel(nil)
 		return next, cmd
 
-	case BotNameSubmit:
+	case BotFieldPick:
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
-			t.botBodyDraft = ""
 			return t, tea.Println(msgError("no current session") + "\n")
 		}
-		if cmd, ok := t.botCheckConflict(sid, msg.name); !ok {
-			t.botBodyDraft = ""
-			return t, cmd
-		}
-		next, cmd := t.showBotSelfIDPopup(sid, msg.name)
+		next, cmd := t.openBotField(sid, msg.field)
 		return next, cmd
 
-	case BotSelfIDSubmit:
-		sid := strings.TrimSpace(t.currentSessionID)
-		if sid == "" {
-			t.botBodyDraft = ""
-			return t, tea.Println(msgError("no current session") + "\n")
-		}
-		if cmd, ok := t.botCheckSelfID(sid, msg.selfID); !ok {
-			t.botBodyDraft = ""
-			return t, cmd
-		}
-		next, cmd := t.showBotPromptPicker(msg.name, msg.selfID)
-		return next, cmd
+	case BotFieldSubmit:
+		return t.runBotFieldSubmit(msg)
 
 	case BotCustomSubmit:
 		next, cmd := t.showBotCustomPopup(msg.name, msg.selfID)

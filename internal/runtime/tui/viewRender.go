@@ -311,11 +311,6 @@ var (
 
 	popupStyle = lipgloss.NewStyle().
 			Padding(0, 1)
-
-	searchStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colHint).
-			Padding(0, 1)
 )
 
 // * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
