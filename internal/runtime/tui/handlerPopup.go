@@ -69,6 +69,7 @@ type Popup struct {
 	onDelete  func(chosen string) any
 	onTag     func(chosen string) any
 	onMove    func(chosen, neighbor string) error
+	onOpen    func(chosen string) string
 	onCancel  func() any
 	back      *Popup
 
@@ -281,8 +282,14 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.pendingId != "" {
 			break
 		}
-		if step, ok := map[string]int{"W": -1, "S": 1}[string(msg.Runes)]; ok {
+		if step, ok := map[string]int{"w": -1, "s": 1}[strings.ToLower(string(msg.Runes))]; ok {
 			p.swap(step)
+			break
+		}
+		if strings.EqualFold(string(msg.Runes), "o") {
+			if link := p.link(); link != "" {
+				openBrowser(link)
+			}
 			break
 		}
 		var action func(chosen string) any
@@ -391,6 +398,13 @@ func (p *Popup) move(step int) {
 			return
 		}
 	}
+}
+
+func (p *Popup) link() string {
+	if p.onOpen == nil || p.cursor >= len(p.values) {
+		return ""
+	}
+	return p.onOpen(p.values[p.cursor])
 }
 
 func (p *Popup) swap(step int) {

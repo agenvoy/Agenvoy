@@ -634,32 +634,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
 
-	case GrokMethodPick:
-		if t.modelAdd == nil {
-			return t, tea.Println(msgError("model add state lost") + "\n")
-		}
-		switch msg.method {
-		case "grok-oauth":
-			t.modelAdd.provider = "grok-oauth"
-			return t.modelAddViaOAuth()
-		default:
-			t.modelAdd.provider = "grok"
-			return t.openModelAddAPIKey()
-		}
-
-	case OpenAIMethodPick:
-		if t.modelAdd == nil {
-			return t, tea.Println(msgError("model add state lost") + "\n")
-		}
-		switch msg.method {
-		case "codex":
-			t.modelAdd.provider = "codex"
-			return t.modelAddViaOAuth()
-		default:
-			t.modelAdd.provider = "openai"
-			return t.openModelAddAPIKey()
-		}
-
 	case ModelAddAPIKeyReplace:
 		return t.runModelAddAPIKeyReplace(msg.replace)
 

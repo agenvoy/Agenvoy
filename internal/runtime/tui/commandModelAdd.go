@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
+	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
@@ -58,8 +60,6 @@ type ModelAddGatewayIDPick struct{ chosen string }
 type ModelAddGatewayIDSubmit struct{ id string }
 type CompatModelsResult struct{ ids []string }
 type RemoteModelsResult struct{ ids []string }
-type OpenAIMethodPick struct{ method string }
-type GrokMethodPick struct{ method string }
 
 type OAuthInfo struct {
 	url      string
@@ -69,32 +69,45 @@ type OAuthSuccess struct{ provider string }
 type OAuthFailed struct{ err error }
 type OAuthReLoginPick struct{ replace string }
 
+type modelAddMethod struct {
+	key    string
+	detail string
+	value  string
+}
+
 var modelAddProviders = []struct {
-	name  string
-	label string
+	tab     string
+	methods []modelAddMethod
 }{
-	{"openai", "OpenAI          API key or Codex subscription"},
-	{"claude", "Claude          API key"},
-	{"gemini", "Gemini          API key"},
-	{"grok", "Grok            API key or xAI subscription"},
-	{"copilot", "Github Copilot  GitHub subscription"},
-	{"deepseek", "DeepSeek        API key"},
-	{"mistral", "Mistral         API key"},
-	{"nvidia", "NVIDIA NIM      API key"},
-	{"ollama-cloud", "Ollama Cloud    API key"},
-	{"openrouter", "OpenRouter      API key"},
-	{"cloudflare", "Cloudflare      Workers AI  API token + account ID"},
-	{"compat", "Local/Custom    Ollama, LM Studio, or custom URL"},
+	{"OAuth", []modelAddMethod{
+		{"OpenAI Codex", "Codex subscription", "codex"},
+		{"Grok (xAI)", "xAI subscription", "grok-oauth"},
+		{"GitHub Copilot", "GitHub subscription", "copilot"},
+	}},
+	{"API Key", []modelAddMethod{
+		{"OpenAI", "pay per token", "openai"},
+		{"Claude", "pay per token", "claude"},
+		{"Gemini", "pay per token", "gemini"},
+		{"Grok", "pay per token", "grok"},
+		{"DeepSeek", "pay per token", "deepseek"},
+		{"Mistral", "pay per token", "mistral"},
+		{"NVIDIA NIM", "pay per token", "nvidia"},
+		{"Ollama Cloud", "API key", "ollama-cloud"},
+		{"OpenRouter", "pay per token", "openrouter"},
+	}},
+	{"Custom", []modelAddMethod{
+		{"Cloudflare", "Workers AI  API token + account ID", "cloudflare"},
+		{"Local/Custom", "Ollama, LM Studio, or custom URL", "compat"},
+	}},
 }
 
 const localCompatPrefix = "local:"
 
 func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 	t.modelAdd = &modelAddItem{}
-	options := make([]string, 0, len(modelAddProviders)+len(config.LocalCompats)+1)
-	values := make([]string, 0, len(modelAddProviders)+len(config.LocalCompats)+1)
 
 	found := make([]bool, len(config.LocalCompats))
+	var consoles []string
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	var wg sync.WaitGroup
 	for i, one := range config.LocalCompats {
@@ -102,34 +115,78 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 			found[i] = len(fetchModelIDs(ctx, one.URL, one.Provider)) > 0
 		})
 	}
+	wg.Go(func() {
+		consoles = fetchProviderConsoles(ctx)
+	})
 	wg.Wait()
 	cancel()
 
+	var locals []modelAddMethod
 	for i, one := range config.LocalCompats {
 		if found[i] {
-			options = append(options, fmt.Sprintf("%-16s%s", one.Label, one.URL))
-			values = append(values, localCompatPrefix+one.Provider)
+			locals = append(locals, modelAddMethod{one.Label, one.URL, localCompatPrefix + one.Provider})
 		}
 	}
-	if len(options) > 0 {
-		options = append(options, "")
-		values = append(values, "")
-	}
+
+	tabs := make([]string, 0, len(modelAddProviders))
 	for _, p := range modelAddProviders {
-		options = append(options, p.label)
-		values = append(values, p.name)
+		tabs = append(tabs, p.tab)
 	}
 
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "/model add",
-		options: options,
-		values:  values,
+	popup := &Popup{
+		kind:  popupSingleSelect,
+		title: "/model add",
+		tabs:  tabs,
 		onConfirm: func(chosen string) any {
 			return ModelAddProviderPick{provider: chosen}
 		},
+		onOpen: func(chosen string) string {
+			if !slices.Contains(consoles, chosen) {
+				return ""
+			}
+			return daemon.BaseURL() + "/v1/provider/" + url.PathEscape(chosen) + "/console"
+		},
 	}
+	popup.onTab = func(p *Popup) {
+		methods := modelAddProviders[p.tabIdx].methods
+		if modelAddProviders[p.tabIdx].tab == "Custom" {
+			methods = append(slices.Clone(methods), locals...)
+		}
+		keys := make([]string, 0, len(methods))
+		details := make([]string, 0, len(methods))
+		values := make([]string, 0, len(methods))
+		for _, m := range methods {
+			keys = append(keys, m.key)
+			details = append(details, m.detail)
+			values = append(values, m.value)
+		}
+		p.options = optionColumn(keys, details)
+		p.values = values
+		p.cursor = 0
+	}
+	popup.onTab(popup)
+	t.popup = popup
 	return t, nil, true
+}
+
+func fetchProviderConsoles(ctx context.Context) []string {
+	resp, err := daemon.Get[struct {
+		Providers []struct {
+			ID      string   `json:"id"`
+			Console []string `json:"console"`
+		} `json:"providers"`
+	}](ctx, "/v1/providers", nil)
+	if err != nil {
+		slog.Debug("fetchProviderConsoles", slog.String("error", err.Error()))
+		return nil
+	}
+	var list []string
+	for _, one := range resp.Providers {
+		if len(one.Console) > 0 {
+			list = append(list, one.ID)
+		}
+	}
+	return list
 }
 
 func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
@@ -141,28 +198,6 @@ func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
 	}
 	t.modelAdd.provider = name
 	switch name {
-	case "openai":
-		t.popup = &Popup{
-			kind:    popupSingleSelect,
-			title:   "OpenAI  method",
-			options: []string{"API Key  pay per token", "Codex    subscription"},
-			values:  []string{"api-key", "codex"},
-			onConfirm: func(chosen string) any {
-				return OpenAIMethodPick{method: chosen}
-			},
-		}
-		return t, nil
-	case "grok":
-		t.popup = &Popup{
-			kind:    popupSingleSelect,
-			title:   "Grok  method",
-			options: []string{"API Key  pay per token", "xAI      subscription"},
-			values:  []string{"api-key", "grok-oauth"},
-			onConfirm: func(chosen string) any {
-				return GrokMethodPick{method: chosen}
-			},
-		}
-		return t, nil
 	case "cloudflare":
 		return t.openModelAddAccountID()
 	case "copilot", "codex", "grok-oauth":

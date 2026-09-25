@@ -209,7 +209,7 @@ func (t TUI) viewPopup() string {
 		}
 		used := lipgloss.Height(lipgloss.NewStyle().Width(width-2).Render(strings.Join(body, "\n"))) + 2
 		if len(p.tabs) > 1 {
-			used += 2
+			used += lipgloss.Height(popupStyle.Width(width).Render(renderPopupTabs(p))) + 1
 		}
 		if len(p.questions) > 1 {
 			used++
@@ -288,7 +288,10 @@ func (t TUI) viewPopup() string {
 			hint += "  t:tier tag"
 		}
 		if p.onMove != nil {
-			hint += "  Shift+w/s:fallback order"
+			hint += "  w/s:fallback order"
+		}
+		if p.link() != "" {
+			hint += "  o:console"
 		}
 		appendFooter(hint)
 
