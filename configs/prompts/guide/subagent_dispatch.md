@@ -11,11 +11,11 @@
 
 - **The user names who does the work** ("call X" / "呼叫 X" / "找 X" / "請 X" / "let X" / "ask X") → `subagents(mode=list, self_id=X)`, then invoke with the self id it prints, spelled verbatim. Invoke matches self ids exactly, so a guessed spelling silently lands in a temp session instead. Dispatch without asking the user to confirm the name; the name says who does the work, and the work still gets done.
 - **Leave `model` and `reasoning` unset**: a named session runs under its own stored configuration and ignores both.
-- **Relay the leg's response in full**, every section, table and source kept — it is the answer to the user. A reply of "已呼叫 X" / "done" without the content delivers nothing.
+- **Relay the leg's report in full**: it comes back as a file path — `read_files` it first, then relay every section, table and source kept — it is the answer to the user. A reply of "已呼叫 X" / "done" without the content delivers nothing.
 
 ### Planner mode (fan-out)
 
-- **Once you fan out you are the planner, not a worker**: split the task, dispatch the legs, collect what they return and synthesize it. Searching, analyzing, comparing and reviewing are leg work — do not redo a leg's job in this session, and do not skip a leg by doing its part yourself.
+- **Once you fan out you are the planner, not a worker**: split the task, dispatch the legs, `read_files` the report each one returns and synthesize them. Searching, analyzing, comparing and reviewing are leg work — do not redo a leg's job in this session, and do not skip a leg by doing its part yourself.
 - **Split until every leg has exactly one job, and prefer legs of the same shape** — same job, same output format, differing only in the entity or source covered. The jobs:
 
 | Leg job | Covers | Work kind |
@@ -31,6 +31,7 @@
 - **Open a `write_todo` plan** with dispatch / gather / synthesize as phases, so the user can follow progress.
 - **Send each batch of three in one response.** Three legs run concurrently; a fourth queues behind them while its own timeout keeps running, so a wider set goes out in successive batches of three. One call per leg.
 - **Leave `self_id` empty** for fan-out legs: they run as temp sessions, and a descriptive label matches no session.
+- **Name each leg's report** with `report_name` (job + entity, e.g. `nvda-news`), so the returned paths say which leg wrote them.
 - **Legs return material; deliverables are rendered here.** Legs cannot write files or render pages / PDFs, so any page, document or report the user wants is produced by the planner after synthesis.
 - **A failed leg is re-dispatched once**, with a different model one tier up. Any error, including "finished without producing any text", is a hole in the data rather than a finding of "no data". Fill the hole from a leg, not from memory; while an entity is still uncovered, the synthesis names it as missing.
 - **Synthesis merges rather than compresses**: one section or row per entity with its full detail. Only the legs' scratch formatting and meta-commentary drop out.
