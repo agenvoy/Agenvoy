@@ -240,7 +240,7 @@ command = "agen"
 
 ### Session 分類
 
-TUI 的 `/sessions` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API；`temp-`（短期工作）的 session 不會列出。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
+TUI 的 `/session` 選擇器會依 ID 前綴分類：`cli-` 代表本機 CLI、`tg-` 代表 Telegram、`dc-` 代表 Discord、`chat-` 代表 Web／API；`temp-`（短期工作）的 session 不會列出。偵測到至少兩個群組時，選擇器會顯示 `all` 與各前綴分頁，並將目前 session 排在最前。Daemon 會以 `fsnotify` 監看新建立的 session 目錄，將 session ID 與設定名稱寫入 daemon log。
 
 Session persona 現存於 history SQLite 資料庫。`self_id` 會正規化為小寫，只接受最多 32 個 ASCII 字母、數字、`_` 或 `-`，非空值必須唯一。Daemon 啟動時會把舊版每個 session 的 `bot.json`、bot markdown、`config.json` 與 `status.json` 遷移至 SQLite／state table。
 
@@ -258,11 +258,9 @@ agen
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/model`                   | 挑選 session 模型（`auto` 或已註冊模型；`d` 移除游標所在模型、`t` 設定其 tier）；`add` 新增 provider；設定 dispatch（模型或 `TypeSafe/Jev(beta)`）、auto `reasoning`、summary、圖片、STT 與 TTS                                                             |
 | `/mcp`                     | 列出 MCP server（`d` 移除）並 `add` 新增；單一 server 可登入、設定 OAuth client、以 `tools` 多選設定免確認工具（第一列為 `all`）、重連                                                                           |
-| `/sessions` `/new`         | 以 self id 切換 session（`d` 刪除）或建立新的                                                                                                                                                                    |
-| `/bot`                     | 重新命名當前 session 或編輯 persona                                                                                                                                                                              |
+| `/session` `/new`          | 以 self id 切換 session（`d` 刪除）或建立新的；`/session` 清單下方可編輯當前 session 的 `name`／`id`／`role`（`/session name\|id\|role` 直接開啟） |
 | `/compact` `/reset`        | 移除當前 session 的冗餘對話，或重設 session（需二次確認）：`summary` 先重建摘要並保留，`all` 連摘要一併清除 |
-| `/skills` | 多選安裝／移除官方 skill；勾選將 `github.com/agenvoy/skill-<name>` clone 至 `~/.config/agenvoy/skills/.system_design/<name>`，取消勾選則刪除 |
-| `/allow-skill`             | 將 skill 設為一律允許，範圍為全域或此專案                                                                                                                                                                        |
+| `/skill` | 兩個 tab。`permission`：Enter 切換目前這個 skill 的 `always allow`／`ask`，`always allow` 為全域一律允許（略過權限確認），`o` 開啟該 skill 所在資料夾；`system`：多選官方 skill，勾選將 `github.com/agenvoy/skill-<name>` clone 至 `~/.config/agenvoy/skills/.system_design/<name>`，取消勾選則刪除 |
 | `/rule` `/note`            | 列出、新增或編輯 rule 與筆記                                                                                                                                                                                     |
 | `/channel`                 | 啟用或停用 Telegram／Discord（token 會先驗證再存入；`d` 撤銷已授權對話），或選擇接收新對話驗證碼的 `admin` 對話（僅在有頻道啟用時顯示）                                                                          |
 | `/config`                  | 可搜尋的設定清單，`enter` 修改游標所在項目：登入時自動啟動 daemon（macOS 走 launchd agent，Linux 走 systemd user unit）、回覆語言（`auto` 跟隨每則訊息）與輸出資料夾（產生的檔案存放位置；留空為 `~/Downloads`） |

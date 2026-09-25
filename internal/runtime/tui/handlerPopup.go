@@ -68,6 +68,10 @@ type Popup struct {
 	onConfirm func(chosen string) any
 	onDelete  func(chosen string) any
 	onTag     func(chosen string) any
+	onMove    func(chosen, neighbor string) error
+	onOpen    func(chosen string) string
+	openLabel string
+	onEnter   func(p *Popup, chosen string) tea.Cmd
 	onCancel  func() any
 	back      *Popup
 
@@ -280,6 +284,16 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.pendingId != "" {
 			break
 		}
+		if step, ok := map[string]int{"w": -1, "s": 1}[strings.ToLower(string(msg.Runes))]; ok {
+			p.swap(step)
+			break
+		}
+		if strings.EqualFold(string(msg.Runes), "o") {
+			if link := p.link(); link != "" {
+				openBrowser(link)
+			}
+			break
+		}
 		var action func(chosen string) any
 		switch strings.ToLower(string(msg.Runes)) {
 		case "d":
@@ -311,6 +325,9 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		chosen := p.options[p.cursor]
 		if p.values != nil && p.cursor < len(p.values) {
 			chosen = p.values[p.cursor]
+		}
+		if p.pendingId == "" && p.onEnter != nil {
+			return t, p.onEnter(p, chosen)
 		}
 		if p.pendingId == "" {
 			cb := p.onConfirm
@@ -346,7 +363,7 @@ func (t TUI) runPopupChild(msg popupChild) (tea.Model, tea.Cmd) {
 		return t, nil
 	}
 	t.popupOrigin = msg.parent
-	next, cmd := t.Update(msg.msg)
+	next, cmd := t.update(msg.msg)
 	nt, ok := next.(TUI)
 	if !ok {
 		return next, cmd
@@ -388,6 +405,27 @@ func (p *Popup) move(step int) {
 	}
 }
 
+func (p *Popup) link() string {
+	if p.onOpen == nil || p.cursor >= len(p.values) {
+		return ""
+	}
+	return p.onOpen(p.values[p.cursor])
+}
+
+func (p *Popup) swap(step int) {
+	next := p.cursor + step
+	if p.onMove == nil || next < 0 || next >= len(p.values) || p.cursor >= len(p.values) {
+		return
+	}
+	if err := p.onMove(p.values[p.cursor], p.values[next]); err != nil {
+		p.subtitle = err.Error()
+		return
+	}
+	p.options[p.cursor], p.options[next] = p.options[next], p.options[p.cursor]
+	p.values[p.cursor], p.values[next] = p.values[next], p.values[p.cursor]
+	p.cursor = next
+}
+
 func (p *Popup) filter() {
 	query := strings.ToLower(strings.TrimSpace(p.input.Value()))
 	p.options = p.options[:0:0]
@@ -399,6 +437,15 @@ func (p *Popup) filter() {
 		}
 	}
 	p.cursor = 0
+}
+
+func loadingPopup(back *Popup) *Popup {
+	return &Popup{
+		kind:        popupSingleSelect,
+		readOnly:    true,
+		styledLines: []string{hintStyle.Render("loading models...")},
+		back:        back,
+	}
 }
 
 func (p *Popup) scroll(step int) {
@@ -419,6 +466,9 @@ func (p *Popup) switchTab(step int) {
 
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
+	if len(p.options) == 0 && (msg.Type == tea.KeyUp || msg.Type == tea.KeyDown || msg.Type == tea.KeySpace) {
+		return t, nil
+	}
 	switch msg.Type {
 	case tea.KeyUp:
 		p.cursor = (p.cursor - 1 + len(p.options)) % len(p.options)

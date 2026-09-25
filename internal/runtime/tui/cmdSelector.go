@@ -34,13 +34,11 @@ type Command struct {
 var commands = []Command{
 	{"model", "add / remove provider  pick session / dispatch / summary model  image / stt / tts"},
 	{"mcp", "list MCP servers  add  per-server login, reconnect, tools, remove"},
-	{"sessions", "switch current session  enter switch  d delete"},
+	{"session", "switch / delete sessions  edit current session name / id / role  /session name|id|role opens one directly"},
 	{"new", "create / add new session"},
-	{"skills", "install / remove skills  multi-select  checked clones github.com/agenvoy/skill-<name>  unchecked removes"},
-	{"allow-skill", "always-allow skill (skip permission)  global / project"},
+	{"skill", "always-allow skills (skip permission)  install / remove official skills from github.com/agenvoy/skill-<name>"},
 	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis  confirm required"},
 	{"reset", "reset / refresh current session  double-confirm  summary regen first then drop history + task history + action.log"},
-	{"bot", "edit / rename current session  name / self id / description (persona)"},
 	{"rule", "list / add / edit rule  title + description"},
 	{"note", "list / add / edit note  title + description"},
 	{"channel", "enable / disable Telegram or Discord bot  token validated on enable"},
@@ -311,7 +309,7 @@ func renderCmdSelector(p *CmdSelector) string {
 			labelStyle = errorStyle
 		}
 		if i == p.cursor {
-			marker = systemStyle.Render("> ")
+			marker = systemStyle.Render("⏵ ")
 			labelStyle = systemStyle
 			switch {
 			case it.isScheduler:

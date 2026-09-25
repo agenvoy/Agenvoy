@@ -29,25 +29,32 @@ type AudioModelLoaded struct {
 	available []string
 	err       error
 	back      *Popup
+	loading   *Popup
 }
 
 func (t TUI) commandAudioModel(kind string) (TUI, tea.Cmd, bool) {
 	back := t.popupOrigin
+	loading := loadingPopup(back)
+	t.popup = loading
 	load := func() tea.Msg {
 		cfg, err := config.Load()
 		if err != nil {
-			return AudioModelLoaded{kind: kind, err: err}
+			return AudioModelLoaded{kind: kind, err: err, loading: loading}
 		}
 		if kind == "tts" {
-			return AudioModelLoaded{kind: kind, current: cfg.TTSModel, available: audioTool.TTSOptions(context.Background()), back: back}
+			return AudioModelLoaded{kind: kind, current: cfg.TTSModel, available: audioTool.TTSOptions(context.Background()), back: back, loading: loading}
 		}
-		return AudioModelLoaded{kind: kind, current: cfg.STTModel, available: audioTool.STTOptions(context.Background()), back: back}
+		return AudioModelLoaded{kind: kind, current: cfg.STTModel, available: audioTool.STTOptions(context.Background()), back: back, loading: loading}
 	}
-	return t, tea.Sequence(tea.Println(msgLog("loading models...")+"\n"), load), true
+	return t, load, true
 }
 
 func (t TUI) openAudioModelPopup(msg AudioModelLoaded) (TUI, tea.Cmd) {
+	if t.popup != msg.loading {
+		return t, nil
+	}
 	if msg.err != nil {
+		t.popup = nil
 		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", msg.err)) + "\n")
 	}
 
@@ -57,42 +64,13 @@ func (t TUI) openAudioModelPopup(msg AudioModelLoaded) (TUI, tea.Cmd) {
 		label = "text-to-speech"
 	}
 	if len(available) == 0 {
+		t.popup = nil
 		return t, tea.Println(msgLog(fmt.Sprintf("no %s model available  add openai or gemini with /model add", label)) + "\n")
 	}
 
-	options := make([]string, 0, len(available)+2)
-	values := make([]string, 0, len(available)+2)
-	cursor := 0
-
-	for i, name := range available {
-		option := name
-		if current == name {
-			option += "  " + systemStyle.Render("[current]")
-			cursor = i
-		}
-		options = append(options, option)
-		values = append(values, name)
-	}
-
-	disable := hintStyle.Render("disable")
-	if current == "" || current == "off" {
-		disable += "  " + systemStyle.Render("[current]")
-		cursor = len(options) + 1
-	}
-	options = append(options, "", disable)
-	values = append(values, "", "")
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Select " + label + " model",
-		options: options,
-		values:  values,
-		cursor:  cursor,
-		back:    msg.back,
-		onConfirm: func(chosen string) any {
-			return AudioModelSelect{kind: kind, name: chosen}
-		},
-	}
+	t.popup = providerPopup("/model "+kind, available, current, msg.back, func(chosen string) any {
+		return AudioModelSelect{kind: kind, name: chosen}
+	})
 	return t, nil
 }
 

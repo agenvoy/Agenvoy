@@ -27,7 +27,7 @@ func registSubagents() {
 		Description: `Runs a subtask in its own session (invoke), or looks up a named agent's self id (list).
 Naming an agent is an order: 呼叫 X / 請 X / 找 X / call X / ask X → dispatch to X, never answer it yourself.
 Also fan out when one lookup repeats across 3+ entities or 2+ source classes.
-The leg's report comes back whole — relay it; "已呼叫" is not an answer.
+The leg's report is saved to ~/.config/agenvoy/download/temp-<report_name>.md and its path comes back — read_files it and relay it; "已呼叫" is not an answer.
 One job per leg, one call per leg, three at a time. Protocol and model tiers → reasoning_guide(topic=subagent_dispatch).`,
 		Parameters: map[string]any{
 			"type": "object",
@@ -40,7 +40,12 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				},
 				"task": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: the subtask, written to stand on its own — the leg sees none of this conversation. Its result comes back prefixed [subagent · <model> · session=<id> · usage: ...], and that usage line is the leg's whole token cost, to be tallied across every fan-out call when reporting this turn's cost.",
+					"description": "mode=invoke: the subtask, written to stand on its own — the leg sees none of this conversation. Its result comes back as a header [subagent · <model> · session=<id> · usage: ...] plus the path of the report file, and that usage line is the leg's whole token cost, to be tallied across every fan-out call when reporting this turn's cost.",
+				},
+				"report_name": map[string]any{
+					"type":        "string",
+					"description": "mode=invoke: short kebab-case name for the report file, naming the leg's job and entity (e.g. nvda-news, tsmc-earnings); saved as temp-<report_name>.md. Taken names get a random suffix; blank uses a random name.",
+					"default":     "",
 				},
 				"self_id": map[string]any{
 					"type":        "string",

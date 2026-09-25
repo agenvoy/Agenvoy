@@ -51,7 +51,7 @@ func (t TUI) openConfig(focus string) TUI {
 
 	t.popup = &Popup{
 		kind:        popupSingleSelect,
-		title:       "Config",
+		title:       "/config",
 		options:     options,
 		values:      values,
 		allOptions:  options,

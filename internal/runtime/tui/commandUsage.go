@@ -46,7 +46,7 @@ func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 	nameWidth := max(usageNameWidth(sessions), usageNameWidth(totals))
 	popup := &Popup{
 		kind:       popupSingleSelect,
-		title:      "Usage by model",
+		title:      "/usage",
 		subtitle:   hintStyle.Render("  input(cache hit%)/output"),
 		maxVisible: usageMaxVisible,
 		readOnly:   true,

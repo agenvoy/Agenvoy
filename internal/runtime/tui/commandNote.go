@@ -177,10 +177,11 @@ func (t TUI) runNoteListed(msg NoteListed) (TUI, tea.Cmd) {
 
 	kind := msg.kind
 	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   fmt.Sprintf("%s  pick one to edit", spec.label),
-		options: append(options, msg.names...),
-		values:  append(values, msg.names...),
+		kind:     popupSingleSelect,
+		title:    "/" + spec.label,
+		subtitle: "pick one to edit",
+		options:  append(options, msg.names...),
+		values:   append(values, msg.names...),
 		onConfirm: func(chosen string) any {
 			return NotePick{kind: kind, name: chosen}
 		},

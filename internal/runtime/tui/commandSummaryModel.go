@@ -20,31 +20,29 @@ func (t TUI) commandSummaryModel() (TUI, tea.Cmd, bool) {
 		return t, tea.Println(msgLog("no models configured  use /model") + "\n"), true
 	}
 
-	options := make([]string, 0, len(cfg.Models)+2)
-	values := make([]string, 0, len(cfg.Models)+2)
+	auto := "auto"
+	if cfg.SummaryModel == "" {
+		auto += "  " + systemStyle.Render("[current]")
+	}
+	options := make([]string, 0, len(cfg.Models)+1)
+	values := make([]string, 0, len(cfg.Models)+1)
+	options = append(options, auto)
+	values = append(values, "")
 	cursor := 0
 
-	for i, m := range cfg.Models {
+	for _, m := range cfg.Models {
 		label := m.Name
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + systemStyle.Render("[current]")
-			cursor = i
+			cursor = len(options)
 		}
 		options = append(options, label)
 		values = append(values, m.Name)
 	}
 
-	auto := hintStyle.Render("auto")
-	if cfg.SummaryModel == "" {
-		auto += "  " + systemStyle.Render("[current]")
-		cursor = len(options) + 1
-	}
-	options = append(options, "", auto)
-	values = append(values, "", "")
-
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Select summary model",
+		title:   "/model summary",
 		options: options,
 		values:  values,
 		cursor:  cursor,

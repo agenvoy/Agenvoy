@@ -58,7 +58,7 @@ func (t TUI) commandChannel(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Channel",
+		title:   "/channel",
 		options: optionColumn(values, details),
 		values:  values,
 		onConfirm: func(chosen string) any {

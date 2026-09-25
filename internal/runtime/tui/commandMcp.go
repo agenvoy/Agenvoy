@@ -63,7 +63,7 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      "MCP",
+		title:      "/mcp",
 		options:    options,
 		optionTail: tails,
 		values:     values,
@@ -136,7 +136,7 @@ func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:     popupSingleSelect,
-		title:    "MCP  " + name,
+		title:    "/mcp " + name,
 		subtitle: subtitle,
 		options:  options,
 		values:   values,

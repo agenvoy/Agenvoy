@@ -45,7 +45,7 @@ func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   "Select dispatcher model",
+		title:   "/model dispatch",
 		options: options,
 		values:  values,
 		cursor:  cursor,

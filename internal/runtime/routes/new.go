@@ -85,6 +85,7 @@ func New() *gin.Engine {
 	r.GET("/v1/provider/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
 	r.DELETE("/v1/provider/:provider/oauth", localhostOnly(), handler.ClearProviderOAuth())
 	r.GET("/v1/provider/:provider/models", localhostOnly(), handler.ListProviderModels())
+	r.GET("/v1/provider/:provider/console", localhostOnly(), handler.ProviderConsole())
 
 	r.GET("/v1/mcp", localhostOnly(), handler.ListMcpServers())
 	r.GET("/v1/mcp/tools", handler.ListMCPTools())
