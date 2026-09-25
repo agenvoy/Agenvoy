@@ -74,7 +74,8 @@ func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      fmt.Sprintf("Pending tasks (%d)", len(options)),
+		title:      "/pending",
+		subtitle:   fmt.Sprintf("%d pending task(s)", len(options)),
 		options:    options,
 		values:     values,
 		maxVisible: cmdSelectorMaxVisible,

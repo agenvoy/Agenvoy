@@ -24,51 +24,28 @@ function modelError(text) {
 
 const TYPESAFE_CONSOLE = "https://console.typesafe.ai/keys";
 
-const PROVIDER_KEYS = {
-  openai: "https://platform.openai.com/api-keys",
-  claude: "https://platform.claude.com/settings/keys",
-  gemini: "https://aistudio.google.com/apikey",
-  grok: "https://console.x.ai/",
-  deepseek: "https://platform.deepseek.com/api_keys",
-  mistral: "https://console.mistral.ai/api-keys",
-  nvidia: "https://build.nvidia.com/settings/api-keys",
-  "ollama-cloud": "https://ollama.com/settings/keys",
-  openrouter: "https://openrouter.ai/settings/keys",
-  cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
-};
+function providerConsoleLink(id, page) {
+  return `${API}/v1/provider/${encodeURIComponent(id)}/console?page=${page}`;
+}
 
-const PROVIDER_PLANS = {
-  codex: "https://chatgpt.com/pricing",
-  "grok-oauth": "https://grok.com/plans",
-  copilot: "https://github.com/features/copilot/plans",
-};
-
-const PROVIDER_CONSOLE = {
-  openai: "https://platform.openai.com/settings/organization/billing",
-  claude: "https://console.anthropic.com/settings/billing",
-  gemini: "https://aistudio.google.com/apikey",
-  grok: "https://console.x.ai/",
-  deepseek: "https://platform.deepseek.com/top_up",
-  mistral: "https://console.mistral.ai/billing",
-  nvidia: "https://build.nvidia.com/settings/api-keys",
-  "ollama-cloud": "https://ollama.com/settings/keys",
-  openrouter: "https://openrouter.ai/credits",
-  cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
-};
+function providerConsolePages(catalog, id) {
+  return (catalog.find((item) => item.id === id) || {}).console || [];
+}
 
 function providerMethod(catalog, id) {
   const provider = catalog.find((item) => item.id === id);
   return Object.keys((provider || {}).methods || {})[0] || "api_key";
 }
 
-function providerFailure(id, method, error) {
+function providerFailure(id, method, error, pages) {
+  const billing = pages.includes("billing") ? providerConsoleLink(id, "billing") : undefined;
   const status = (String(error).match(/HTTP (\d{3})/) || [])[1] || "";
   const text = String(error);
 
   if (/credit|spending limit|quota|insufficient|billing|payment/i.test(text)) {
     return {
       text: "This account is out of credits or has hit its spending limit. Top it up, then reload.",
-      link: PROVIDER_CONSOLE[id],
+      link: billing,
       linkLabel: "open billing",
     };
   }
@@ -79,14 +56,14 @@ function providerFailure(id, method, error) {
     return {
       text: "The stored key was rejected. Delete it and paste a new one.",
       remove: true,
-      link: PROVIDER_CONSOLE[id],
+      link: billing,
       linkLabel: "open console",
     };
   }
   return {
     text: `The provider answered ${status ? `HTTP ${status}` : "an error"} instead of a model list.`,
     remove: true,
-    link: PROVIDER_CONSOLE[id],
+    link: billing,
     linkLabel: "open console",
   };
 }
@@ -778,20 +755,21 @@ function selectProviderAdd() {
 
 function providerDetails(provider, method, added) {
   const head = _("div.head", [_("strong", provider.label)]);
-  if (method !== "oauth" && PROVIDER_KEYS[provider.id]) {
+  const pages = provider.console || [];
+  if (method !== "oauth" && pages.includes("key")) {
     head.appendChild(
       _("p", [
         `Create one in the ${provider.label} `,
-        _("a", { href: PROVIDER_KEYS[provider.id], target: "_blank", rel: "noreferrer" }, "Console"),
+        _("a", { href: providerConsoleLink(provider.id, "key"), target: "_blank", rel: "noreferrer" }, "Console"),
         ".",
       ]),
     );
   }
-  if (method === "oauth" && PROVIDER_PLANS[provider.id]) {
+  if (method === "oauth" && pages.includes("plan")) {
     head.appendChild(
       _("p", [
         `Subscribe on the ${provider.label} `,
-        _("a", { href: PROVIDER_PLANS[provider.id], target: "_blank", rel: "noreferrer" }, "Plans"),
+        _("a", { href: providerConsoleLink(provider.id, "plan"), target: "_blank", rel: "noreferrer" }, "Plans"),
         " page.",
       ]),
     );
@@ -1144,7 +1122,7 @@ async function renderProviderModels(prefix, registered) {
 
   if (!probe.ok) {
     const catalog = await providerCatalog();
-    const failure = providerFailure(prefix, providerMethod(catalog, prefix), probe.error);
+    const failure = providerFailure(prefix, providerMethod(catalog, prefix), probe.error, providerConsolePages(catalog, prefix));
 
     dom.models.appendChild(_("p.empty", failure.text));
 

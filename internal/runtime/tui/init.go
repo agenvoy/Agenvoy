@@ -98,15 +98,13 @@ type TUI struct {
 }
 
 func (t TUI) Init() tea.Cmd {
-	seq := []tea.Cmd{
-		tea.ClearScreen,
-		tea.Batch(
-			textarea.Blink,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-		),
+	sid := strings.TrimSpace(t.currentSessionID)
+	seq := []tea.Cmd{tea.ClearScreen, textarea.Blink}
+	if sid != "" {
+		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)))
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
-	if sid := strings.TrimSpace(t.currentSessionID); sid != "" {
+	if sid != "" {
 		seq = append(seq, tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(sid))+"\n"))
 		if n := len(interactive.ListResumablePending(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
@@ -128,6 +126,8 @@ type StartupSelectSession struct{}
 type StartupSessionSelect struct {
 	id string
 }
+
+type StartupSessionSkip struct{}
 
 func newModel(ctx context.Context) TUI {
 	textArea := textarea.New()

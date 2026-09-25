@@ -11,13 +11,13 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-type BotNameSubmit struct {
-	name string
+type BotFieldPick struct {
+	field string
 }
 
-type BotSelfIDSubmit struct {
-	name   string
-	selfID string
+type BotFieldSubmit struct {
+	field string
+	value string
 }
 
 type BotPromptSubmit struct {
@@ -36,34 +36,48 @@ type BotSaved struct {
 	err  error
 }
 
-func (t TUI) commandBot(parts []string) (TUI, tea.Cmd, bool) {
-	sid := strings.TrimSpace(t.currentSessionID)
-	if sid == "" {
-		return t, tea.Println(msgError("no current session") + "\n"), true
+func (t TUI) openBotField(sid, field string) (TUI, tea.Cmd) {
+	selfID, name, body := configBot.GetPersona(sid)
+	if field == "role" {
+		t.botBodyDraft = body
+		return t.showBotPromptPicker(name, selfID)
 	}
 
-	if len(parts) >= 3 {
-		name := strings.TrimSpace(parts[1])
-		body := strings.TrimSpace(strings.Join(parts[2:], " "))
-		if cmd, ok := t.botCheckConflict(sid, name); !ok {
-			return t, cmd, true
-		}
-		selfID, _, _ := configBot.GetPersona(sid)
-		return t, t.botSaveCmd(sid, selfID, name, body), true
+	existing, subtitle := name, "session display name"
+	if field == "id" {
+		existing, subtitle = selfID, "self id  A-Z a-z 0-9 _ - only  used to call this session by name"
 	}
-
-	refreshBotName(sid)
-	_, existingName, existingBody := configBot.GetPersona(sid)
 	t.popup = &Popup{
-		kind:  popupText,
-		title: "Bot name",
-		input: newPopupInput(existingName, false),
+		kind:     popupText,
+		title:    "/session " + field,
+		subtitle: subtitle,
+		input:    newPopupInput(existing, false),
 		onConfirm: func(value string) any {
-			return BotNameSubmit{name: strings.TrimSpace(value)}
+			return BotFieldSubmit{field: field, value: strings.TrimSpace(value)}
 		},
 	}
-	t.botBodyDraft = existingBody
-	return t, nil, true
+	return t, nil
+}
+
+func (t TUI) runBotFieldSubmit(msg BotFieldSubmit) (TUI, tea.Cmd) {
+	sid := strings.TrimSpace(t.currentSessionID)
+	if sid == "" {
+		return t, tea.Println(msgError("no current session") + "\n")
+	}
+	selfID, name, body := configBot.GetPersona(sid)
+	switch msg.field {
+	case "name":
+		if cmd, ok := t.botCheckConflict(sid, msg.value); !ok {
+			return t, cmd
+		}
+		name = msg.value
+	case "id":
+		if cmd, ok := t.botCheckSelfID(sid, msg.value); !ok {
+			return t, cmd
+		}
+		selfID = msg.value
+	}
+	return t, t.botSaveCmd(sid, selfID, name, body)
 }
 
 func (t TUI) botCheckConflict(sid, name string) (tea.Cmd, bool) {
@@ -83,19 +97,6 @@ func (t TUI) botCheckSelfID(sid, selfID string) (tea.Cmd, bool) {
 	return nil, true
 }
 
-func (t TUI) showBotSelfIDPopup(sid, name string) (TUI, tea.Cmd) {
-	existing, _, _ := configBot.GetPersona(sid)
-	t.popup = &Popup{
-		kind:  popupText,
-		title: fmt.Sprintf("Bot self id (%s)", name),
-		input: newPopupInput(existing, false),
-		onConfirm: func(value string) any {
-			return BotSelfIDSubmit{name: name, selfID: strings.TrimSpace(value)}
-		},
-	}
-	return t, nil
-}
-
 func (t TUI) showBotPromptPicker(name, selfID string) (TUI, tea.Cmd) {
 	options, values := listPromptTemplates()
 	if len(options) == 0 {
@@ -107,7 +108,7 @@ func (t TUI) showBotPromptPicker(name, selfID string) (TUI, tea.Cmd) {
 
 	t.popup = &Popup{
 		kind:    popupSingleSelect,
-		title:   fmt.Sprintf("Bot description (%s)", name),
+		title:   "/session role",
 		options: displayOptions,
 		values:  displayValues,
 		cursor:  0,
@@ -124,7 +125,7 @@ func (t TUI) showBotPromptPicker(name, selfID string) (TUI, tea.Cmd) {
 func (t TUI) showBotCustomPopup(name, selfID string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:      popupText,
-		title:     fmt.Sprintf("Bot description (%s)", name),
+		title:     "/session role",
 		multiline: true,
 		input:     newPopupInput(t.botBodyDraft, true),
 		onConfirm: func(value string) any {

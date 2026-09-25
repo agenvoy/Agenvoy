@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +30,24 @@ type providerInfo struct {
 
 type providerState struct {
 	providerInfo
-	LoggedIn bool `json:"logged_in"`
+	LoggedIn bool     `json:"logged_in"`
+	Console  []string `json:"console"`
+}
+
+var providerConsole = map[string]map[string]string{
+	"openai":       {"key": "https://platform.openai.com/api-keys", "billing": "https://platform.openai.com/settings/organization/billing"},
+	"claude":       {"key": "https://platform.claude.com/settings/keys", "billing": "https://console.anthropic.com/settings/billing"},
+	"gemini":       {"key": "https://aistudio.google.com/apikey", "billing": "https://aistudio.google.com/apikey"},
+	"grok":         {"key": "https://console.x.ai/", "billing": "https://console.x.ai/"},
+	"deepseek":     {"key": "https://platform.deepseek.com/api_keys", "billing": "https://platform.deepseek.com/top_up"},
+	"mistral":      {"key": "https://console.mistral.ai/api-keys", "billing": "https://console.mistral.ai/billing"},
+	"nvidia":       {"key": "https://build.nvidia.com/settings/api-keys", "billing": "https://build.nvidia.com/settings/api-keys"},
+	"ollama-cloud": {"key": "https://ollama.com/settings/keys", "billing": "https://ollama.com/settings/keys"},
+	"openrouter":   {"key": "https://openrouter.ai/settings/keys", "billing": "https://openrouter.ai/credits"},
+	"cloudflare":   {"key": "https://dash.cloudflare.com/profile/api-tokens", "billing": "https://dash.cloudflare.com/profile/api-tokens"},
+	"codex":        {"plan": "https://chatgpt.com/pricing"},
+	"grok-oauth":   {"plan": "https://grok.com/plans"},
+	"copilot":      {"plan": "https://github.com/features/copilot/plans"},
 }
 
 var providerCatalog = []providerInfo{
@@ -76,9 +95,29 @@ func ListProviders() gin.HandlerFunc {
 			list = append(list, providerState{
 				providerInfo: provider,
 				LoggedIn:     providerLoggedIn(provider.ID),
+				Console:      slices.Sorted(maps.Keys(providerConsole[provider.ID])),
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"providers": list})
+	}
+}
+
+func ProviderConsole() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		dic := providerConsole[c.Param("provider")]
+		page := c.Query("page")
+		if page == "" {
+			page = "key"
+			if _, ok := dic["plan"]; ok {
+				page = "plan"
+			}
+		}
+		link, ok := dic[page]
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("no %s page for provider %q", page, c.Param("provider"))})
+			return
+		}
+		c.Redirect(http.StatusFound, link)
 	}
 }
 

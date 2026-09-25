@@ -33,26 +33,20 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
 		), true
 
-	case "/sessions":
+	case "/session":
 		return t.commandSessions(parts)
 
 	case "/new":
 		return t.commandNew(parts)
 
-	case "/skills":
+	case "/skill":
 		return t.commandSkills()
-
-	case "/allow-skill":
-		return t.commandAllowSkill(parts)
 
 	case "/compact":
 		return t.commandCompact()
 
 	case "/reset":
 		return t.commandReset()
-
-	case "/bot":
-		return t.commandBot(parts)
 
 	case "/rule":
 		return t.commandNote("rule")

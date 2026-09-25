@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -19,7 +20,17 @@ type Session struct {
 	name string
 }
 
+const sessionBotPrefix = "bot:"
+
 func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
+	sid := strings.TrimSpace(t.currentSessionID)
+	if len(parts) == 2 && slices.Contains([]string{"name", "id", "role"}, parts[1]) {
+		if sid == "" {
+			return t, tea.Println(msgError("no current session") + "\n"), true
+		}
+		next, cmd := t.openBotField(sid, parts[1])
+		return next, cmd, true
+	}
 	if len(parts) >= 2 {
 		selfID := strings.Join(parts[1:], " ")
 		id := sessionManager.GetSessionIDBySelfID(selfID)
@@ -34,10 +45,34 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	if popup == nil {
 		return t, tea.Println(msgLog("no sessions available") + "\n"), true
 	}
+	fillSessions := popup.onTab
+	popup.onTab = func(p *Popup) {
+		fillSessions(p)
+		if sid == "" {
+			return
+		}
+		selfID, name, body := configBot.GetPersona(sid)
+		role, _, _ := strings.Cut(strings.TrimSpace(body), "\n")
+		p.options = append(p.options, "")
+		p.values = append(p.values, "")
+		p.options = append(p.options, optionColumn([]string{"name", "id", "role"}, []string{
+			hintStyle.Render(name),
+			hintStyle.Render(selfID),
+			hintStyle.Render(role),
+		})...)
+		p.values = append(p.values, sessionBotPrefix+"name", sessionBotPrefix+"id", sessionBotPrefix+"role")
+	}
+	popup.onTab(popup)
 	popup.onConfirm = func(chosen string) any {
+		if field, ok := strings.CutPrefix(chosen, sessionBotPrefix); ok {
+			return BotFieldPick{field: field}
+		}
 		return SessionSelect{id: chosen}
 	}
 	popup.onDelete = func(chosen string) any {
+		if strings.HasPrefix(chosen, sessionBotPrefix) {
+			return nil
+		}
 		return SessionDeletePick{id: chosen}
 	}
 	t.popup = popup
@@ -169,7 +204,7 @@ func popupSwitch(sid string) *Popup {
 
 	popup := &Popup{
 		kind:        popupSingleSelect,
-		title:       "Sessions",
+		title:       "/session",
 		maxVisible:  cmdSelectorMaxVisible,
 		enterAction: "switch",
 		tabs:        sessionTabs(sessions),

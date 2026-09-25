@@ -51,7 +51,8 @@ func (t TUI) commandKey(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:        popupSingleSelect,
-		title:       "Key  update keychain value",
+		title:       "/key",
+		subtitle:    "update keychain value",
 		options:     cfg.Keys,
 		values:      cfg.Keys,
 		enterAction: "edit",
@@ -98,7 +99,7 @@ func (t TUI) runKeyDelete(key string) (TUI, tea.Cmd) {
 func (t TUI) openKeyValuePrompt(key string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
-		title:    fmt.Sprintf("Key  %s", key),
+		title:    "/key " + key,
 		input:    newPopupInput("", false),
 		subtitle: "Enter new value  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {

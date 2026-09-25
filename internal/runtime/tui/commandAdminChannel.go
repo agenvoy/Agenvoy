@@ -67,8 +67,8 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      "Admin Channel  relay new-chat verification codes",
-		subtitle:   "pick an authorized chat/channel  only listed (already-verified) targets receive codes",
+		title:      "/channel admin",
+		subtitle:   "relay new-chat verification codes  pick an authorized chat/channel  only listed (already-verified) targets receive codes",
 		options:    options,
 		values:     values,
 		cursor:     cursor,

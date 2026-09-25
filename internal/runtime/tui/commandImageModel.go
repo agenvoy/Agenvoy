@@ -19,65 +19,43 @@ type ImageModelLoaded struct {
 	available []string
 	err       error
 	back      *Popup
+	loading   *Popup
 }
 
 func (t TUI) commandImageModel() (TUI, tea.Cmd, bool) {
 	back := t.popupOrigin
+	loading := loadingPopup(back)
+	t.popup = loading
 	load := func() tea.Msg {
 		imageTool.Prune(context.Background())
 
 		cfg, err := config.Load()
 		if err != nil {
-			return ImageModelLoaded{err: err}
+			return ImageModelLoaded{err: err, loading: loading}
 		}
-		return ImageModelLoaded{current: cfg.ImageGenerator, available: imageTool.Available(context.Background()), back: back}
+		return ImageModelLoaded{current: cfg.ImageGenerator, available: imageTool.Available(context.Background()), back: back, loading: loading}
 	}
-	return t, tea.Sequence(tea.Println(msgLog("loading models...")+"\n"), load), true
+	return t, load, true
 }
 
 func (t TUI) openImageModelPopup(msg ImageModelLoaded) (TUI, tea.Cmd) {
+	if t.popup != msg.loading {
+		return t, nil
+	}
 	if msg.err != nil {
+		t.popup = nil
 		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", msg.err)) + "\n")
 	}
 
 	available := msg.available
 	if len(available) == 0 {
+		t.popup = nil
 		return t, tea.Println(msgLog("no image-capable provider has credentials  add one with /model add") + "\n")
 	}
 
-	options := make([]string, 0, len(available)+2)
-	values := make([]string, 0, len(available)+2)
-	cursor := 0
-
-	for i, name := range available {
-		label := name
-		if msg.current == name {
-			label += "  " + systemStyle.Render("[current]")
-			cursor = i
-		}
-		options = append(options, label)
-		values = append(values, name)
-	}
-
-	disable := hintStyle.Render("disable")
-	if msg.current == "" || msg.current == "off" {
-		disable += "  " + systemStyle.Render("[current]")
-		cursor = len(options) + 1
-	}
-	options = append(options, "", disable)
-	values = append(values, "", "")
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "Select image generator",
-		options: options,
-		values:  values,
-		cursor:  cursor,
-		back:    msg.back,
-		onConfirm: func(chosen string) any {
-			return ImageModelSelect{name: chosen}
-		},
-	}
+	t.popup = providerPopup("/model image", available, msg.current, msg.back, func(chosen string) any {
+		return ImageModelSelect{name: chosen}
+	})
 	return t, nil
 }
 
