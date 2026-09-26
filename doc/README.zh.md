@@ -273,7 +273,6 @@ curl -fsSL https://agenvoy.com/scripts/install.sh | bash
 | 即時命令輸出 | 將 `run_command` 進度串流至 TUI 與 Web 儀表板            |
 | 安全檔案邊界 | 存取敏感路徑或 `$HOME` 外路徑前要求確認                  |
 | MCP OAuth    | 登入 HTTP MCP server，並將 token 保存至作業系統 keychain |
-| 知識筆記     | 回答前先讀你留下的筆記                                   |
 | 檔案搜尋     | 從本機檔案回答問題                                       |
 | Sub-Agent    | 多 Agent 協作                                            |
 | MCP client   | 以官方 go-sdk 連接外部 MCP 服務（工具清單即時刷新）      |

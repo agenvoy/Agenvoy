@@ -16,11 +16,11 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "http_request",
 		SystemUse:   false,
-		AlwaysLoad:  false,
+		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: `Sends one HTTP request to any URL and returns status, headers and body — GET through DELETE, multipart upload included.
-Use for 打 API / 呼叫端點 / POST 一份資料, when no api_* tool covers that endpoint.
+Use for 打 API / 呼叫端點 / POST 一份資料, when no api_* tool covers that endpoint — what an endpoint accepts, returns or rejects is settled here, not by reading a project's source or SDK.
 HTML meant to be read → fetch_page; a binary file → download_file; an endpoint you will call again → build an api_* tool with edit_tool.`,
 		Parameters: map[string]any{
 			"type": "object",

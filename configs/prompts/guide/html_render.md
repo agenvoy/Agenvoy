@@ -19,7 +19,7 @@ The page is a QuickUI template bound to one data object. Every figure, row, labe
 Mount it once, at the end of `<body>`, after every library script (and `T` on the §4 branch):
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@0.6.21/dist/QuickUI.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@0/dist/QuickUI.js"></script>
 <script>
 const APP = new QUI({
   id: "app",
@@ -129,7 +129,7 @@ Name the subject, its reader, and the page's one job before choosing anything. D
 - **Motion** — one orchestrated moment (a load sequence, a scroll reveal) lands harder than micro-interactions scattered across the page, and the scattered version is what reads as machine-generated. Honour `prefers-reduced-motion`.
 - **Signature** — the one element the page is remembered by. Spend boldness there and keep everything around it quiet.
 
-Three looks arrive by default rather than by choice, and they turn up whatever the subject is: cream ground near `#F4F1EA` with a high-contrast serif display and a terracotta accent; near-black ground with a single acid-green or vermilion accent; broadsheet with hairline rules, zero border-radius and dense newspaper columns. Each is right when the brief asks for it — on a free axis, spend the freedom somewhere else.
+A look that would arrive whatever the subject is has been chosen by default, not by decision — on a free axis, spend the freedom somewhere the subject asks for it.
 
 Structure carries information: numbering, eyebrows, dividers and labels either encode something true about the content or they decorate it. `01 / 02 / 03` fits a real sequence and misleads on a set of peers.
 

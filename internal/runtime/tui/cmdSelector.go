@@ -40,7 +40,6 @@ var commands = []Command{
 	{"compact", "remove redundant / meaningless exchanges from history via LLM analysis  confirm required"},
 	{"reset", "reset / refresh current session  double-confirm  summary regen first then drop history + task history + action.log"},
 	{"rule", "list / add / edit rule  title + description"},
-	{"note", "list / add / edit note  title + description"},
 	{"channel", "enable / disable Telegram, Discord or LINE bot  token validated on enable"},
 	{"config", "search settings  startup on login  reply language  output dir"},
 	{"schedule", "recurring (cron) and one-shot (task) in one list  enter fires it now  d deletes it  add / edit by asking the agent"},

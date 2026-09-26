@@ -42,6 +42,9 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	if info.Size() > filesystem.DocumentMaxBytes {
 		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), filesystem.DocumentMaxBytes>>20)
 	}
+	if err := requireFresh(e, absPath, info.ModTime()); err != nil {
+		return "", err
+	}
 
 	content, err := go_pkg_filesystem.ReadText(absPath)
 	if err != nil {
@@ -65,13 +68,14 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		return fmt.Sprintf("no write: every target in %s already matches its new_string, so the file is unchanged", absPath), nil
 	}
 	if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
-		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
+		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call edit_file with mode=write if emptying it is the intent", absPath, len(before))
 	}
 
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
 
+	markWritten(e, absPath)
 	e.RecordFile(absPath)
 
 	var unrecorded string
@@ -143,12 +147,18 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 			skipped = append(skipped, i)
 			continue
 		}
+		text := one.NewString
 		if !strings.Contains(content, old) {
-			return nil, nil, fmt.Errorf("targets[%d]: %w", i, anchorNotFound(content, old, absPath))
+			actual, ok := findCurlyAnchor(content, old)
+			if !ok {
+				return nil, nil, fmt.Errorf("targets[%d]: %w", i, anchorNotFound(content, old, absPath))
+			}
+			text = curlQuotes(actual, text)
+			old = actual
 		}
 
 		search := old
-		if one.NewString == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
+		if text == "" && !strings.HasSuffix(old, "\n") && strings.Contains(content, old+"\n") {
 			search = old + "\n"
 		}
 
@@ -160,7 +170,7 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 			at = at[:1]
 		}
 		for _, pos := range at {
-			spans = append(spans, patchSpan{target: i, start: pos, end: pos + len(search), text: one.NewString})
+			spans = append(spans, patchSpan{target: i, start: pos, end: pos + len(search), text: text})
 		}
 	}
 

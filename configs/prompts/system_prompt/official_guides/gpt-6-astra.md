@@ -11,9 +11,7 @@
 
 ## Conflicting sources
 
-- User instructions outrank a skill's guidance
 - Separate a skill's explicit requirement from your reading of its guidance
-- A file that makes you pause, narrow scope or diverge → name it, quote the line
 
 ## Subagents
 

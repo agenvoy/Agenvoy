@@ -17,14 +17,17 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
-const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+const (
+	skillsHeader     = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+	baseGuideKey     = "_base"
+	unlistedGuideKey = "_base_unlisted"
+)
 
 var guardrailRules = loadGuardrailRules()
 
@@ -127,19 +130,11 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
-}
-
-func noteSection() string {
-	if len(note.List()) == 0 {
-		return ""
-	}
-	return "\n## Note\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_note` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"
 }
 
 func agentGuideSection(workDir string) string {
@@ -165,15 +160,29 @@ func agentGuideSection(workDir string) string {
 }
 
 func officialGuideSection(model string) string {
+	matched := ""
+
 	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
 		return len(b) - len(a)
 	})
 	for _, key := range keys {
+		if key == baseGuideKey || key == unlistedGuideKey {
+			continue
+		}
 		if strings.Contains(model, key) {
-			return strings.TrimSpace(configs.OfficialGuides[key])
+			matched = key
+			break
 		}
 	}
-	return ""
+	if matched == "" {
+		matched = unlistedGuideKey
+	}
+
+	sections := []string{
+		strings.TrimSpace(configs.OfficialGuides[baseGuideKey]),
+		strings.TrimSpace(configs.OfficialGuides[matched]),
+	}
+	return strings.Join(slices.DeleteFunc(sections, func(s string) bool { return s == "" }), "\n\n")
 }
 
 func buildPermissionModeSection(allowAll bool) string {
@@ -195,7 +204,6 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))

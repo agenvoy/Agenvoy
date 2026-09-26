@@ -11,7 +11,3 @@ func msgWarn(text string) string {
 func msgLog(text string) string {
 	return hintStyle.Render("[*] " + text)
 }
-
-func msgCode(text string) string {
-	return systemStyle.Render("[*] " + text)
-}

@@ -374,9 +374,9 @@ func thinkingBlock(str string) string {
 		if i > 0 {
 			sb.WriteString("\n  ")
 		} else {
-			sb.WriteString(hintStyle.Render("✻ "))
+			sb.WriteString(thinkStyle.Render("✻ "))
 		}
-		sb.WriteString(hintStyle.Render(line))
+		sb.WriteString(thinkStyle.Render(line))
 	}
 	return sb.String()
 }
@@ -609,7 +609,7 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 	}
 	style := hintStyle
 	if utils.IsSubagentInvoke(name, args) {
-		style = lipgloss.NewStyle().Foreground(colOk)
+		style = okayStyle
 	}
 	header := style.Render(line)
 

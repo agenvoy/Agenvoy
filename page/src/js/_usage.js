@@ -1,6 +1,6 @@
 const USAGE_SERIES = [
-  { key: "input", label: "input", color: "#5FAFFF" },
-  { key: "output", label: "output", color: "#5FAF5F" },
+  { key: "input", label: "input", color: "#005FAF" },
+  { key: "output", label: "output", color: "#2E7D32" },
   { key: "hit", label: "cache read", color: "#D0D0D0" },
 ];
 

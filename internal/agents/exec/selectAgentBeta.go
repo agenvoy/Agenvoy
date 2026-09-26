@@ -39,7 +39,7 @@ var betaWorkCriteria = map[string]any{
 		"examples": []string{
 			"這段有 race condition 嗎？幫我修掉",
 			"Add a retry to the upload handler and write a test for it",
-			"詳細分析這份財報的每一項數字",
+			"幫我把這個函式改成非同步並補上錯誤處理",
 		},
 	},
 	"chat": map[string]any{
@@ -48,15 +48,15 @@ var betaWorkCriteria = map[string]any{
 		"examples": []string{
 			"早安",
 			"Translate this paragraph into Japanese",
-			"謝謝，這樣就可以了",
+			"謝謝",
 		},
 	},
 	"fetch": map[string]any{
 		"what":    betaWorkWhat("fetch"),
 		"not_for": "Comparing, explaining or drawing conclusions from the data.",
 		"examples": []string{
-			"查一下台北現在天氣",
-			"What is AAPL trading at right now?",
+			"查一下現在的天氣",
+			"What is this ticker trading at right now?",
 			"列出這個資料夾的檔案",
 		},
 	},
@@ -65,8 +65,8 @@ var betaWorkCriteria = map[string]any{
 		"not_for": "Fetching one value and returning it as-is, or a task that needs no investigation.",
 		"examples": []string{
 			"比較這三家雲端供應商的價格與限制",
-			"Research how the EU AI Act affects open-weight models",
-			"分析台積電近四季財報的趨勢",
+			"Research how this regulation affects the products we ship",
+			"分析這家公司近四季財報的趨勢",
 		},
 	},
 	"work": map[string]any{

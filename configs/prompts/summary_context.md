@@ -6,10 +6,10 @@ The JSON below is the rolling summary of prior discussion in this session — yo
 
 **When to surface this summary content (MUST include in reply):**
 
-- User asks about memory / state / history / what has been discussed: "目前記憶", "你記得什麼", "what do you remember", "檢視記憶", "我們聊過什麼", "之前討論過哪些", "what did we cover", "今天聊了什麼", "概要", "重點" → **must** quote or paraphrase `key_decisions` **first** (these are the settled outcomes), then `past_discussions` and `current_discussion`, then optionally augment with `chat_history(mode=search)` / `error_history(mode=search)` for specifics.
-- User asks "what decisions were made" / "agreed on" / "要做 / 不要做" / "決定了什麼" → cite `key_decisions` directly and verbatim in spirit; flag clearly if the list is empty.
-- User asks about a specific past topic that appears in `past_discussions` → use that entry's `description` + `direction` as the answer; cross-check against `key_decisions` for any locked-in resolution on that topic; only call `chat_history(mode=search)` if the user needs original quotes.
-- User asks about the current topic / "現在在討論什麼" / "what are we working on" → cite `current_discussion`, and flag any `key_decisions` that constrain the current work.
+- The user asks what is remembered, what has been discussed, or what the session covered → quote or paraphrase `key_decisions` first, then `past_discussions` and `current_discussion`; `chat_history(mode=search)` / `error_history(mode=search)` only when specifics are needed.
+- The user asks what was decided or agreed → cite `key_decisions` directly, and say plainly when the list is empty.
+- The user asks about a past topic present in `past_discussions` → answer from that entry's `description` + `direction`, cross-checked against `key_decisions`; `chat_history(mode=search)` only when original quotes are needed.
+- The user asks what is being worked on now → cite `current_discussion`, and flag any `key_decisions` that constrain it.
 
 **Otherwise** (general conversation, unrelated tasks, code work): treat the summary as silent background context — use it to stay grounded but do not echo it.
 

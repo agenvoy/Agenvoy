@@ -19,7 +19,10 @@ type Handler func(ctx context.Context, e *toolTypes.Executor, args json.RawMessa
 
 type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error)
 
-const DefaultToolTimeout = time.Minute
+const (
+	DefaultToolTimeout = time.Minute
+	NoToolTimeout      = time.Duration(-1)
+)
 
 type Def struct {
 	Name        string
@@ -89,7 +92,7 @@ func Regist(d Def) {
 	if d.SystemUse {
 		systemUseSet[d.Name] = true
 	}
-	if d.Timeout > 0 {
+	if d.Timeout != 0 {
 		timeoutMap[d.Name] = d.Timeout
 	}
 }
@@ -218,7 +221,10 @@ func JSON() []byte {
 
 func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
 	timeout := GetTimeout(name)
-	tctx, cancel := context.WithTimeout(ctx, timeout)
+	tctx, cancel := ctx, func() {}
+	if timeout > 0 {
+		tctx, cancel = context.WithTimeout(ctx, timeout)
+	}
 	defer cancel()
 
 	var run func() (string, error)

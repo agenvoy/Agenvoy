@@ -62,7 +62,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 					"items": map[string]any{
 						"type": "string",
 					},
-					"description": "mode=write: lookup keywords — tool name, error type, parameter traits. Be specific.",
+					"description": "mode=write: lookup keywords — tool name, error type, parameter traits.",
 				},
 				"symptom": map[string]any{
 					"type":        "string",
@@ -80,7 +80,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 				"outcome": map[string]any{
 					"type":        "string",
 					"enum":        []string{"resolved", "failed", "abandoned"},
-					"description": "mode=write: resolved = the fix worked and is stored; failed and abandoned are discarded, not stored.",
+					"description": "mode=write: resolved = the fix worked and is stored; failed and abandoned are discarded.",
 				},
 			},
 		},

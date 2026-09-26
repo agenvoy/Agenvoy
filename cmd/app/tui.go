@@ -13,7 +13,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
@@ -64,12 +63,6 @@ func TUI() {
 	}
 	defer usagelog.Close()
 	usagelog.Migrate()
-
-	if err := note.New(); err != nil {
-		slog.Warn("note.New",
-			slog.String("error", err.Error()))
-	}
-	defer note.Close()
 
 	imageTool.Register()
 	audioTool.Register()

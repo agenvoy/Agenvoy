@@ -45,7 +45,8 @@ func Register() {
 		Timeout:     90 * time.Second,
 		Description: `[system-default] Live web lookup — DuckDuckGo results and Google News headlines together, returned as {"web":[...],"news":[...]}.
 Use for named entities, post-cutoff facts, versions, prices, 新聞 / 最新消息 / 現在怎麼樣了 / 查一下.
-Results are snippets: a result link worth citing → fetch_page. A URL already in hand → fetch_page directly.`,
+Results are snippets: a result link worth citing → fetch_page. A URL already in hand → fetch_page directly.
+Several URLs from one domain on one topic → the most relevant, plus any that carries a figure or date the others lack.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

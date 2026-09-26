@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -17,14 +18,15 @@ import (
 )
 
 var (
-	program atomic.Pointer[tea.Program]
+	program    atomic.Pointer[tea.Program]
+	lightTheme bool
 
-	colSystem = lipgloss.Color("#5FAFFF") // sky blue
-	colHint   = lipgloss.AdaptiveColor{Light: "#767676", Dark: "#626262"}
-	colWarn   = lipgloss.Color("#875FD7") // purple
-	colOk     = lipgloss.Color("#5FAF5F") // green
-	colSkill  = lipgloss.Color("#FF8700") // orange
-	colError  = lipgloss.Color("#FF5F5F") // red
+	colSystem = lipgloss.AdaptiveColor{Light: "#005FAF", Dark: "#5FAFFF"} // sky blue
+	colHint   = lipgloss.AdaptiveColor{Light: "#5A5A5A", Dark: "#626262"}
+	colWarn   = lipgloss.AdaptiveColor{Light: "#5F3DAF", Dark: "#875FD7"} // purple
+	colOk     = lipgloss.AdaptiveColor{Light: "#2E7D32", Dark: "#5FAF5F"} // green
+	colSkill  = lipgloss.AdaptiveColor{Light: "#AF5700", Dark: "#FF8700"} // orange
+	colError  = lipgloss.AdaptiveColor{Light: "#C62828", Dark: "#FF5F5F"} // red
 
 	systemStyle = lipgloss.NewStyle().Foreground(colSystem)
 	okayStyle   = lipgloss.NewStyle().Foreground(colOk)
@@ -32,9 +34,11 @@ var (
 	skillStyle  = lipgloss.NewStyle().Foreground(colSkill)
 	hintStyle   = lipgloss.NewStyle().Foreground(colHint)
 	errorStyle  = lipgloss.NewStyle().Foreground(colError)
-	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#767676", Dark: "#8A8A8A"})
+	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#4A4A4A", Dark: "#8A8A8A"})
 	userStyle   = lipgloss.NewStyle().Foreground(colSkill)
 	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
+	thinkStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6E6E6E", Dark: "#AAAAAA"})
+	keyStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: colSystem.Light, Dark: "#AAAAAA"})
 )
 
 type WorkDir struct {
@@ -50,6 +54,10 @@ type ResumeExec struct {
 }
 
 func Run(ctx context.Context) error {
+	lightTheme = !lipgloss.HasDarkBackground()
+	if lightTheme {
+		boldStyles()
+	}
 	prog := tea.NewProgram(newModel(ctx), tea.WithContext(ctx), tea.WithoutSignalHandler())
 	program.Store(prog)
 	defer program.Store(nil)
@@ -97,5 +105,25 @@ func Run(ctx context.Context) error {
 func send(msg tea.Msg) {
 	if prog := program.Load(); prog != nil {
 		prog.Send(msg)
+	}
+}
+
+func boldStyles() {
+	for _, style := range []*lipgloss.Style{
+		&systemStyle, &okayStyle, &warnStyle, &skillStyle, &hintStyle, &errorStyle,
+		&textStyle, &userStyle, &whiteStyle, &thinkStyle, &keyStyle, &foreignMarkStyle,
+	} {
+		*style = style.Bold(true)
+	}
+}
+
+func boldTextArea(input *textarea.Model) {
+	if !lightTheme {
+		return
+	}
+	for _, style := range []*textarea.Style{&input.FocusedStyle, &input.BlurredStyle} {
+		style.Text = style.Text.Bold(true)
+		style.Placeholder = style.Placeholder.Bold(true)
+		style.CursorLine = style.CursorLine.Bold(true)
 	}
 }

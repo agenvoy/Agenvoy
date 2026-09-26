@@ -17,10 +17,11 @@ type sizeBudget struct {
 	left    int
 	total   int
 	dropped int
+	order   string
 }
 
-func newSizeBudget() *sizeBudget {
-	return &sizeBudget{left: maxFindResultBytes}
+func newSizeBudget(order string) *sizeBudget {
+	return &sizeBudget{left: maxFindResultBytes, order: order}
 }
 
 func entrySize(file go_pkg_filesystem_reader.File) int {
@@ -46,8 +47,8 @@ func (b *sizeBudget) notice() string {
 		return ""
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n[partial result: %d of %d matching entries returned, alphabetical by path; %d omitted to stay under %d KiB",
-		b.total-b.dropped, b.total, b.dropped, maxFindResultBytes>>10)
+	fmt.Fprintf(&sb, "\n[partial result: %d of %d matching entries returned, %s; %d omitted to stay under %d KiB",
+		b.total-b.dropped, b.total, b.order, b.dropped, maxFindResultBytes>>10)
 	sb.WriteString(". What is here is accurate, only incomplete. To see the rest, narrow dir, make pattern more specific, or tighten file_pattern — re-running this query unchanged truncates identically.]")
 	return sb.String()
 }
@@ -66,7 +67,7 @@ func registFindFiles() {
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob), which files contain a string (search, grep by RE2 regex; paged).
+		Description: `Locate files: what a directory holds (list), which paths match a name pattern (glob, most recently modified first), which files contain a string (search, grep by RE2 regex; paged).
 Use for 找檔案 / 這個目錄有什麼 / 哪個檔案有這段, and for list_files / glob_files / search_files / grep.
 A path you are unsure of comes from here, never from a guess. Contents → read_files; past versions → file_history.`,
 		Parameters: map[string]any{
@@ -81,7 +82,7 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 				"output": map[string]any{
 					"type":        "string",
 					"enum":        []string{"files", "content"},
-					"description": "mode=search only. files: each matching path with its match count — start here. content: the matching lines with line numbers, to pick offset/limit for read_files.",
+					"description": "mode=search only. files: each matching path with its match count and the row numbers of its first 5 matches — start here, and read_files around those rows directly when the query was precise. content: the matching lines with their text, for when the rows alone cannot tell which match matters.",
 					"default":     "files",
 				},
 				"offset": map[string]any{
@@ -93,6 +94,11 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 					"type":        "integer",
 					"description": "mode=search only: entries per page (files or matching lines, per output).",
 					"default":     defaultSearchLimit,
+				},
+				"multiline": map[string]any{
+					"type":        "boolean",
+					"description": "mode=search only: match the regex against whole files so '.' crosses newlines ('^'/'$' still anchor lines) — for spans like 'type \\w+ struct \\{.*?Name'. Every row a match spans is reported as a matching line.",
+					"default":     false,
 				},
 				"context": map[string]any{
 					"type":        "integer",
@@ -138,12 +144,13 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 			}
 
 			var params struct {
-				Mode    string      `json:"mode"`
-				Output  string      `json:"output"`
-				Offset  int         `json:"offset"`
-				Limit   int         `json:"limit"`
-				Context int         `json:"context"`
-				Queries []findQuery `json:"queries"`
+				Mode      string      `json:"mode"`
+				Output    string      `json:"output"`
+				Offset    int         `json:"offset"`
+				Limit     int         `json:"limit"`
+				Context   int         `json:"context"`
+				Multiline bool        `json:"multiline"`
+				Queries   []findQuery `json:"queries"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
@@ -173,7 +180,7 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 				if output == "" {
 					output = "files"
 				}
-				return searchBatch(ctx, e, params.Queries, output, params.Offset, params.Limit, params.Context)
+				return searchBatch(ctx, e, params.Queries, output, params.Offset, params.Limit, params.Context, params.Multiline)
 			}
 			return "", fmt.Errorf("unknown mode %q; available: list, glob, search", mode)
 		},

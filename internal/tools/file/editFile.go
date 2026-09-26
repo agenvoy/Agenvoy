@@ -20,7 +20,8 @@ func registEditFile() {
 		Concurrent:  false,
 		Description: `Every change to a file on disk: create or replace (write), edit regions (patch), move aside (remove), put a recorded version back (restore).
 Use for 寫檔 / 改這一段 / 刪掉這個檔 / 還原 / 改回上一版, and for write_file / patch_file / remove_file / restore_file / delete.
-Skill files → edit_skill; tool definitions → edit_tool; past versions → file_history.`,
+Skill files → edit_skill; tool definitions → edit_tool; past versions → file_history.
+Runs on explicit request or a Skill step, never to park a short answer, a tool result or a calculation. A write returns a receipt and drops its content from history: check the receipt, never read the file back to confirm it, never rewrite it to restore text that only looks missing.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -31,7 +32,7 @@ Skill files → edit_skill; tool definitions → edit_tool; past versions → fi
 				},
 				"path": map[string]any{
 					"type":        "string",
-					"description": "The file this call acts on — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'. One file per call. Required for write, patch and remove; on restore it narrows a task_id undo to that one file. Blank on write lands in ~/Downloads.",
+					"description": "The file this call acts on — '/abs/path/foo.go', '~/notes.md', 'relative/file.md'. One file per call. Required for write, patch and remove; on restore it narrows a task_id undo to that one file. A file made for the user with no location asked for belongs in the output directory, which is where a blank path on write lands.",
 					"default":     "",
 				},
 				"content": map[string]any{

@@ -432,7 +432,7 @@ func renderFooter(hint string) string {
 			items = append(items, hintStyle.Render(item))
 			continue
 		}
-		items = append(items, whiteStyle.Render(key)+hintStyle.Render(":"+label))
+		items = append(items, keyStyle.Render(key)+hintStyle.Render(":"+label))
 	}
 	return strings.Join(items, hintStyle.Render(" | "))
 }

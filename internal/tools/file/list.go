@@ -15,7 +15,7 @@ import (
 
 func listBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery) (string, error) {
 	out := make(map[string]any, len(queries))
-	budget := newSizeBudget()
+	budget := newSizeBudget("alphabetical by path")
 	for _, q := range queries {
 		files, err := listOne(ctx, e, q.Dir, q.Recursive)
 		if err != nil {

@@ -33,7 +33,7 @@ async function openPersonaPopup(sessionId) {
       name.field,
       _("p", "self id"),
       self.field,
-      _("p", "rule"),
+      _("p", "role"),
       rule.field,
       _("footer", [cancel, save]),
     ]),

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,25 +47,26 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_web":      "Search Web",
-	"find_tools":      "Tools",
-	"find_files":      "Find",
-	"list_chatbot":    "List Chat",
-	"read_files":      "Read",
-	"edit_file":       "Edit",
-	"fetch_page":      "Fetch",
-	"run_command":     "Run",
-	"run_skill":       "Skill",
-	"calculate":       "Calc",
-	"download_file":   "Download",
-	"write_todo":      "Plan",
-	"subagents":       "Subagent",
-	"chat_history":    "Chat",
-	"file_history":    "History",
-	"error_history":   "Error",
-	"send_to_chatbot": "Send",
-	"http_request":    "Request",
-	"schedules":       "Schedule",
+	"search_web":           "Search Web",
+	"find_tools":           "Tools",
+	"find_files":           "Find",
+	"list_chatbot":         "List Chat",
+	"read_files":           "Read",
+	"edit_file":            "Edit",
+	"fetch_page":           "Fetch",
+	"run_command":          "Run",
+	"run_command_readonly": "Run",
+	"run_skill":            "Skill",
+	"calculate":            "Calc",
+	"download_file":        "Download",
+	"write_todo":           "Plan",
+	"subagents":            "Subagent",
+	"chat_history":         "Chat",
+	"file_history":         "History",
+	"error_history":        "Error",
+	"send_to_chatbot":      "Send",
+	"http_request":         "Request",
+	"schedules":            "Schedule",
 }
 
 func IsPlugTool(name string) bool {
@@ -119,6 +121,14 @@ func ToolName(name string) string {
 }
 
 func FormatToolArgs(name, raw, cwd string) string {
+	return formatToolArgs(name, raw, cwd, false)
+}
+
+func FormatToolConfirmArgs(name, raw string) string {
+	return formatToolArgs(name, raw, "", true)
+}
+
+func formatToolArgs(name, raw, cwd string, fullPath bool) string {
 	if raw == "" {
 		return ""
 	}
@@ -142,6 +152,13 @@ func FormatToolArgs(name, raw, cwd string) string {
 	oneLine := func(s string) string {
 		r := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ")
 		return r.Replace(s)
+	}
+	fileName := func(path string) string {
+		path = strings.TrimSpace(path)
+		if fullPath {
+			return path
+		}
+		return filepath.Base(path)
 	}
 	isCwd := func(dir string) bool {
 		d := strings.TrimRight(strings.TrimSpace(dir), "/")
@@ -219,16 +236,35 @@ func FormatToolArgs(name, raw, cwd string) string {
 				continue
 			}
 			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
-				paths = append(paths, p)
+				paths = append(paths, fileName(p))
 			}
 		}
 		if len(paths) > 0 {
 			return strings.Join(paths, ", ")
 		}
 
-	case "edit_file":
-		if s := pick("path", "pattern"); s != "" {
+	case "edit_file", "open_file":
+		if s := pick("path"); s != "" {
+			return fileName(s)
+		}
+		if s := pick("pattern"); s != "" {
 			return s
+		}
+
+	case "file_history":
+		var names []string
+		if s := pick("path"); s != "" {
+			names = append(names, fileName(s))
+		}
+		if list, ok := dic["paths"].([]any); ok {
+			for _, one := range list {
+				if s, ok := one.(string); ok && strings.TrimSpace(s) != "" {
+					names = append(names, fileName(s))
+				}
+			}
+		}
+		if len(names) > 0 {
+			return strings.Join(names, ", ")
 		}
 
 	case "search_web":
@@ -277,7 +313,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 			return skill
 		}
 
-	case "run_command":
+	case "run_command", "run_command_readonly":
 		var p struct {
 			Argv []string `json:"argv"`
 		}

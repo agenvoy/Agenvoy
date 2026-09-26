@@ -141,11 +141,3 @@ func DeleteKey(key string) error {
 	}
 	return nil
 }
-
-func IsKeyExist(key string) bool {
-	cfg, err := Load()
-	if err != nil {
-		return false
-	}
-	return slices.Contains(cfg.Keys, key)
-}

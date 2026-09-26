@@ -57,7 +57,7 @@ Branch by candidate count:
 - `*.tar`, `*.tar.gz`, `*.tgz`, `*.zip`
 - An existing `manifest.json` (this skill will regenerate it)
 
-`read_file` reads (if present):
+`read_files` reads (if present):
 
 - `tool.json` (**required** — if missing, abort with "tool.json missing in <extension_dir>, refuse to package")
 - All `script.{js,py,sh}` / `*.js` / `*.py` / `*.sh`
@@ -141,7 +141,8 @@ What remains (e.g. `yt-dlp`, `ffmpeg`, `imagemagick`, `pandoc`, `tesseract`) is 
 
 Scan every script file for these patterns to extract key names:
 
-- `localhost:17989/v1/key?key=([A-Z][A-Z0-9_]*_API_KEY)`
+- `find-generic-password -s agenvoy -a ([A-Z][A-Z0-9_]*_API_KEY)`
+- `secret-tool lookup service agenvoy account ([A-Z][A-Z0-9_]*_API_KEY)`
 - `process\.env\.([A-Z][A-Z0-9_]*_API_KEY)`
 - `os\.environ\[["']([A-Z][A-Z0-9_]*_API_KEY)["']\]`
 - `os\.environ\.get\(["']([A-Z][A-Z0-9_]*_API_KEY)["']`
@@ -199,7 +200,7 @@ Reply handling:
 
 ### 5. Get registry email (from config; ask if missing)
 
-`read_file("~/.config/agenvoy/config.json")` → parse JSON → check `email` field:
+`read_files("~/.config/agenvoy/config.json")` → parse JSON → check `email` field:
 
 - Non-empty string → use directly, **do not re-prompt**, jump to §6
 - Missing / empty → fall through to §5.1 first-time setup
@@ -214,7 +215,7 @@ First publish needs a marketplace registry email (stored in ~/.config/agenvoy/co
 
 Validate against `^[^@\s]+@[^@\s]+\.[^@\s]+$`:
 
-- Pass → **lowercase first**, then `read_file` → `patch_file` to persist `"email": "<lowercased>"` into config.json (worker normalizes to lowercase, client must match)
+- Pass → **lowercase first**, then `read_files` → `edit_file(mode=patch)` to persist `"email": "<lowercased>"` into config.json (worker normalizes to lowercase, client must match)
 - Fail → re-prompt; abort after 3 attempts with "email format invalid"
 - Blank / cancel → abort with "no email provided, cannot upload"
 
@@ -258,7 +259,7 @@ Fixed output directory: `~/.config/agenvoy/tools/.extension/.package/` — **not
 
 Fixed filename format: `<name>@<version>.tar.gz` (e.g. `yt-dlp-info@1.0.0.tar.gz`).
 
-`write_file`:
+`edit_file(mode=write)`:
 
 - Path: `<extension_dir>/manifest.json`
 - Content: the manifest that passed §6 validation, pretty-printed (2-space indent), trailing newline
@@ -305,7 +306,7 @@ If `tar` is blocked, tell the user:
 
 Fixed endpoint: `https://pkg.agenvoy.com/upload` — it is not configurable.
 
-`manifest.email` is the registration email (pure email string); keep it for the §9 report. `read_file` `<extension_dir>/manifest.json` to obtain the **full JSON string** for `fields.manifest` below (the worker will `JSON.parse(manifest)` and re-validate).
+`manifest.email` is the registration email (pure email string); keep it for the §9 report. `read_files` `<extension_dir>/manifest.json` to obtain the **full JSON string** for `fields.manifest` below (the worker will `JSON.parse(manifest)` and re-validate).
 
 #### 8.1 First POST — trigger verification email
 
@@ -417,7 +418,7 @@ Upload-stage failure (§8.1 / §8.2 / §8.3) → show `✅ packaged` plus `❌ p
 
 ## Forbidden
 
-- Never hardcode `email`; it must come from `config.json` (and §5.1 `ask_user` + `patch_file` if missing)
+- Never hardcode `email`; it must come from `config.json` (and §5.1 `ask_user` + `edit_file(mode=patch)` if missing)
 - Never touch `git config user.name` / `git config user.email`; marketplace identity uses only the config registry email
 - Never use an `author` field in the manifest; the worker expects `email` (a pure email string, not `<name> (<email>)`)
 - Never skip the §5.2 lowercase normalize; the worker normalizes email to lowercase — mismatched case breaks both KV verification lookup and D1 lookup

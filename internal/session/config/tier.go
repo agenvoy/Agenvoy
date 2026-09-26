@@ -18,7 +18,7 @@ type WorkKind struct {
 var WorkKinds = []WorkKind{
 	{
 		Key:   "code",
-		What:  "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision (詳細分析, 深入, 精確, in-depth, rigorous); a Skill that builds or tests code, or creates, installs, migrates or probes something.",
+		What:  "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision; a Skill that builds or tests code, or creates, installs, migrates or probes something.",
 		Tiers: []string{"S", "A", "B", "C"},
 	},
 	{

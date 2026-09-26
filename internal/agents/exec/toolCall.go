@@ -29,7 +29,10 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const maxConcurrentTools = 5
+const (
+	maxConcurrentTools = 5
+	foregroundOrigin   = "cli-"
+)
 
 func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
 	defer func() {
@@ -292,8 +295,9 @@ func truncateWriteArgs(argsJSON string) string {
 }
 
 var checkpointClearableTool = map[string]bool{
-	"find_files":  true,
-	"run_command": true,
+	"find_files":           true,
+	"run_command":          true,
+	"run_command_readonly": true,
 }
 
 func hasCompletedTodo(argsJSON string) bool {
@@ -555,7 +559,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 	for i := range slots {
 		slot := &slots[i]
-		if slot.state == slotReady && slot.name == "ask_user" {
+		if slot.state == slotReady && slot.name == "ask_user" && agentTypes.OriginFrom(ctx) != foregroundOrigin {
 			for j := range slots {
 				cs := &slots[j]
 				if cs.state == slotReady || cs.name == "ask_user" {
@@ -731,7 +735,7 @@ func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTyp
 		ID:     s.id,
 		Args:   s.args,
 		Result: "error: " + err.Error(),
-	})
+	}, exec.EditedFiles())
 	events <- agentTypes.Event{
 		Type:     agentTypes.EventToolCallEnd,
 		ToolName: s.name,
@@ -799,7 +803,7 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		ID:     s.id,
 		Args:   s.args,
 		Result: result,
-	})
+	}, exec.EditedFiles())
 	if s.name == "write_todo" {
 		if todos := interactive.LoadTodos(exec.SessionID, exec.PendingTask); len(todos) > 0 {
 			events <- agentTypes.Event{

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
@@ -37,6 +38,30 @@ type Executor struct {
 	IgnoreHistory   bool
 	filesMu         sync.Mutex
 	filesEdited     []string
+	readMu          sync.Mutex
+	pathModTime     map[string]time.Time
+}
+
+func (e *Executor) MarkRead(path string, modTime time.Time) {
+	if e == nil || strings.TrimSpace(path) == "" {
+		return
+	}
+	e.readMu.Lock()
+	defer e.readMu.Unlock()
+	if e.pathModTime == nil {
+		e.pathModTime = make(map[string]time.Time)
+	}
+	e.pathModTime[path] = modTime
+}
+
+func (e *Executor) ReadModTime(path string) (time.Time, bool) {
+	if e == nil {
+		return time.Time{}, false
+	}
+	e.readMu.Lock()
+	defer e.readMu.Unlock()
+	modTime, ok := e.pathModTime[path]
+	return modTime, ok
 }
 
 func (e *Executor) RecordFile(path string) {
