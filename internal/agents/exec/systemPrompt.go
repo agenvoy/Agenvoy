@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	skillsHeader     = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
-	baseGuideKey     = "_base"
-	unlistedGuideKey = "_base_unlisted"
+	skillsHeader      = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+	baseGuideKey      = "_base"
+	unlistedGuideKey  = "_base_unlisted"
+	vendorGuidePrefix = "_vendor_"
 )
 
 var guardrailRules = loadGuardrailRules()
@@ -159,30 +160,91 @@ func agentGuideSection(workDir string) string {
 	return ""
 }
 
+func guideKeyMatches(model, key string) bool {
+	if strings.Contains(model, key) {
+		return true
+	}
+	if !strings.HasPrefix(key, "claude") {
+		return false
+	}
+	return strings.Contains(strings.ReplaceAll(model, ".", "-"), strings.ReplaceAll(key, ".", "-"))
+}
+
 func officialGuideSection(model string) string {
-	matched := ""
+	matched, vendor := "", ""
 
 	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
 		return len(b) - len(a)
 	})
 	for _, key := range keys {
+		if vendorKey, ok := strings.CutPrefix(key, vendorGuidePrefix); ok {
+			if vendor == "" && guideKeyMatches(model, vendorKey) {
+				vendor = key
+			}
+			continue
+		}
 		if key == baseGuideKey || key == unlistedGuideKey {
 			continue
 		}
-		if strings.Contains(model, key) {
+		if matched == "" && guideKeyMatches(model, key) {
 			matched = key
-			break
 		}
 	}
-	if matched == "" {
+	if matched == "" && vendor == "" {
 		matched = unlistedGuideKey
 	}
 
-	sections := []string{
-		strings.TrimSpace(configs.OfficialGuides[baseGuideKey]),
-		strings.TrimSpace(configs.OfficialGuides[matched]),
+	return mergeGuideSections(
+		configs.OfficialGuides[baseGuideKey],
+		configs.OfficialGuides[vendor],
+		configs.OfficialGuides[matched],
+	)
+}
+
+func mergeGuideSections(layers ...string) string {
+	order := []string{}
+	dicItems := map[string][]string{}
+	dicSeen := map[string]map[string]bool{}
+
+	for _, layer := range layers {
+		heading := ""
+		for line := range strings.SplitSeq(layer, "\n") {
+			if title, ok := strings.CutPrefix(line, "## "); ok {
+				heading = strings.TrimSpace(title)
+				if _, ok := dicItems[heading]; !ok {
+					order = append(order, heading)
+					dicItems[heading] = nil
+					dicSeen[heading] = map[string]bool{}
+				}
+				continue
+			}
+			if line = strings.TrimSpace(line); line == "" || heading == "" || dicSeen[heading][line] {
+				continue
+			}
+			dicSeen[heading][line] = true
+			dicItems[heading] = append(dicItems[heading], line)
+		}
 	}
-	return strings.Join(slices.DeleteFunc(sections, func(s string) bool { return s == "" }), "\n\n")
+
+	builder := strings.Builder{}
+	for _, heading := range order {
+		if len(dicItems[heading]) == 0 {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString("## ")
+		builder.WriteString(heading)
+		builder.WriteString("\n\n")
+		for i, item := range dicItems[heading] {
+			if i > 0 {
+				builder.WriteByte('\n')
+			}
+			builder.WriteString(item)
+		}
+	}
+	return builder.String()
 }
 
 func buildPermissionModeSection(allowAll bool) string {

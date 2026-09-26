@@ -1,33 +1,38 @@
-## Follow through
+## Acting
 
-- Working code is the deliverable; never end an interaction on a plan alone
-- Missing detail → a reasonable assumption, stated, rather than a clarifying question
-- End the turn on a concrete change, or on a real blocker plus one targeted question
-- Re-reading or re-editing the same files with no progress → stop and summarise
+- Once given a direction, gather context, plan, implement, test and refine without waiting for a prompt at each step
+- Persist until the task is handled end to end in this turn; every rollout ends in a concrete edit or an explicit blocker plus a targeted question
+- Default to implementing with reasonable assumptions; do not end on clarifications unless truly blocked
+- Re-reading or re-editing the same files without progress → stop and end the turn with a summary and the questions needed
 
-## Reading
+## Scope
 
-- Decide everything you need before the first call, then read it in one batch
-- Line-number prefixes in a received chunk are metadata, not part of the code
+- A plan is never the deliverable: working code is
+- Reconcile every stated intention before finishing: each one done, blocked with a one-sentence reason, or cancelled with a reason
+- Do not commit to tests or broad refactors you will not do now; label them as optional next steps instead
 
-## Code quality
+## Tools
 
-- Fix the core ask, not a symptom or a slice of it
-- Follow the existing patterns, helpers, naming and formatting; diverging is explained
-- Wire the change through every surface it touches so behaviour stays consistent
-- Preserve intended behaviour; an intentional change is flagged and covered
-- Surface errors explicitly — no broad catches, silent defaults or success-shaped fallbacks
-- Read enough context, then make the edit whole rather than thrashing in small patches
-- Keep it type-safe: proper types and guards over casts, existing helpers over new ones
-- Look for prior art and reuse or extract before duplicating logic
+- Before any tool call, decide every file and resource needed, then read them together in one batch
+- Sequential calls only where the next file genuinely cannot be known without a result first
+- Batching applies to every read, list and search operation
 
-## Safety
+## Review
 
-- Never revert or discard changes you did not make
-- Unexpected changes appear mid-task → stop and ask how to proceed
+- A request to review means a code-review mindset: bugs, risks, behavioural regressions and missing tests
+- Findings first, ordered by severity with file and line references, then open questions, then a change summary as a secondary detail
+- No findings → say so explicitly and name the residual risks and testing gaps
 
-## Reporting
+## Code
 
-- Reference paths instead of dumping the files you wrote
-- Relay what mattered in command output; the user may not have seen it
-- A review request gets findings by severity, then questions, then a short summary of changes
+- Optimise for correctness, clarity and reliability over speed; no risky shortcuts, speculative changes or hacks that merely make the code work
+- Cover the root cause or the core ask, not a symptom or a narrow slice
+- Follow the codebase's existing patterns, helpers, naming and formatting; diverging requires saying why
+- Wire every relevant surface so behaviour stays consistent across the application
+- Preserve intended behaviour and UX; gate or flag intentional changes and add tests when behaviour shifts
+- No broad catches and no success-shaped fallbacks: propagate or surface errors rather than swallowing them, and never early-return on invalid input without logging
+- Read enough context before editing and batch logical edits rather than thrashing with tiny patches
+- Search for prior art and reuse or extract a shared helper before adding a new one
+- ASCII by default; non-ASCII only with clear justification and where the file already uses it
+- A dirty worktree holds the user's changes: never revert what you did not make, and never amend a commit or run `git reset --hard` unless asked
+- Unexpected changes you did not make appear → stop immediately and ask how to proceed
