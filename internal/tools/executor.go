@@ -27,7 +27,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}
 
-	if len(note.List()) == 0 {
+	if !note.Exists() {
 		tools = slices.DeleteFunc(tools, func(t provider.Tool) bool {
 			return t.Function.Name == toolNote.Name
 		})

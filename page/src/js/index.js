@@ -189,22 +189,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         openSkillPicker();
       },
       rule_save: function () {
-        saveFeature("rule");
+        saveRule();
       },
       rule_reset: function () {
-        resetFeature("rule");
+        resetRule();
       },
       rule_delete: function () {
-        deleteEditing("rule");
-      },
-      note_save: function () {
-        saveFeature("note");
-      },
-      note_reset: function () {
-        resetFeature("note");
-      },
-      note_delete: function () {
-        deleteEditing("note");
+        deleteEditingRule();
       },
       schedule_save: function () {
         commitSchedule();
@@ -437,10 +428,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         if (params.page === "features") {
-          const kind = { Rules: "rule", Note: "note" }[params.tab];
-          if (kind) {
-            resetFeature(kind);
-            renderFeature(kind);
+          if (params.tab === "Rules") {
+            resetRule();
+            renderRule();
           }
           if (params.tab === "Skills") {
             renderSkillTab();

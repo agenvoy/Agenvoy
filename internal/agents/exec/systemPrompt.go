@@ -134,7 +134,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 }
 
 func noteSection() string {
-	if len(note.List()) == 0 {
+	if !note.Exists() {
 		return ""
 	}
 	return "\n## Note\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_note` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"

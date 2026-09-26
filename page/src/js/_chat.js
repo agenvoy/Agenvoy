@@ -285,7 +285,7 @@ async function renderChat(sessionId) {
 }
 
 function assistantFooter(meta, sessionId, task) {
-  const children = [copyBtn(), noteBtn()];
+  const children = [copyBtn()];
   if (sessionId && task) {
     children.push(historyBtn(sessionId, task));
   }

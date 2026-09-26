@@ -581,23 +581,23 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
-	case NoteListed:
-		return t.runNoteListed(msg)
+	case RuleListed:
+		return t.runRuleListed(msg)
 
-	case NotePick:
-		return t.runNotePick(msg)
+	case RulePick:
+		return t.runRulePick(msg)
 
-	case NoteLoaded:
-		return t.runNoteLoaded(msg)
+	case RuleLoaded:
+		return t.runRuleLoaded(msg)
 
-	case NoteTitleSubmit:
-		return t.runNoteTitleSubmit(msg)
+	case RuleTitleSubmit:
+		return t.runRuleTitleSubmit(msg)
 
-	case NoteBodySubmit:
-		return t, t.noteSaveCmd(msg)
+	case RuleBodySubmit:
+		return t, t.ruleSaveCmd(msg)
 
-	case NoteSaved:
-		return t.runNoteSaved(msg)
+	case RuleSaved:
+		return t.runRuleSaved(msg)
 
 	case BotSaved:
 		if msg.err != nil {

@@ -49,10 +49,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		return t.commandReset()
 
 	case "/rule":
-		return t.commandNote("rule")
-
-	case "/note":
-		return t.commandNote("note")
+		return t.commandRule()
 
 	case "/model":
 		return t.commandModel(parts)

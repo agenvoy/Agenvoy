@@ -1,77 +1,14 @@
 package note
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 	"time"
-)
-
-var (
-	ErrNotFound = errors.New("note not found")
-	ErrExists   = errors.New("note already exists")
-	ErrWrite    = errors.New("note write failed")
 )
 
 type Record struct {
 	Name      string `json:"name"`
 	Content   string `json:"content"`
 	UpdatedAt int64  `json:"updated_at"`
-}
-
-const MaxNameRunes = 32
-
-func Name(name, content string) (string, error) {
-	if strings.TrimSpace(name) == "" {
-		name = firstLine(content)
-	}
-	key, err := Key(name)
-	if err != nil {
-		return "", err
-	}
-	if len([]rune(key)) > MaxNameRunes {
-		return "", fmt.Errorf("name cannot exceed %d characters", MaxNameRunes)
-	}
-	return key, nil
-}
-
-func firstLine(content string) string {
-	for line := range strings.SplitSeq(content, "\n") {
-		line = strings.Map(func(r rune) rune {
-			if strings.ContainsRune(`/\*?[]`, r) {
-				return -1
-			}
-			return r
-		}, line)
-		line = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(line), "#. \t"))
-		if line == "" {
-			continue
-		}
-		if list := []rune(line); len(list) > MaxNameRunes {
-			line = strings.TrimSpace(string(list[:MaxNameRunes]))
-		}
-		return line
-	}
-	return ""
-}
-
-func Key(name string) (string, error) {
-	name = strings.TrimSpace(name)
-	name = strings.TrimSuffix(name, ".md")
-
-	switch {
-	case name == "":
-		return "", fmt.Errorf("name is required")
-	case strings.ContainsAny(name, `/\`):
-		return "", fmt.Errorf("name cannot contain a path separator")
-	case name == "." || name == "..":
-		return "", fmt.Errorf("name cannot be a path segment")
-	case strings.HasPrefix(name, "."):
-		return "", fmt.Errorf("name cannot start with a dot")
-	case strings.ContainsAny(name, "*?[]"):
-		return "", fmt.Errorf("name cannot contain a glob character")
-	}
-	return name, nil
 }
 
 func Read(name string) (Record, bool) {
@@ -104,88 +41,14 @@ func Write(name, content string) error {
 	return err
 }
 
-func Delete(name string) bool {
+func Exists() bool {
 	if conn == nil {
 		return false
 	}
 
-	result, err := conn.Exec(`DELETE FROM note WHERE name = ?`, name)
-	if err != nil {
+	var exists bool
+	if err := conn.Read.QueryRow(`SELECT EXISTS(SELECT 1 FROM note)`).Scan(&exists); err != nil {
 		return false
 	}
-	affected, err := result.RowsAffected()
-	return err == nil && affected > 0
-}
-
-func List() []Record {
-	if conn == nil {
-		return nil
-	}
-
-	rows, err := conn.Read.Query(`
-	SELECT name, content, updated_at
-	FROM note
-	ORDER BY name
-	`)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	out := []Record{}
-	for rows.Next() {
-		var record Record
-		if err := rows.Scan(&record.Name, &record.Content, &record.UpdatedAt); err != nil {
-			return nil
-		}
-		out = append(out, record)
-	}
-	if rows.Err() != nil {
-		return nil
-	}
-	return out
-}
-
-func Create(name, content string) (string, error) {
-	key, err := Name(name, content)
-	if err != nil {
-		return "", err
-	}
-	if _, exists := Read(key); exists {
-		return "", ErrExists
-	}
-	if err := Write(key, content); err != nil {
-		return "", fmt.Errorf("%w: %w", ErrWrite, err)
-	}
-	return key, nil
-}
-
-func Update(name, rename, content string) (string, error) {
-	key, err := Key(name)
-	if err != nil {
-		return "", err
-	}
-	if _, exists := Read(key); !exists {
-		return "", ErrNotFound
-	}
-
-	target := key
-	if strings.TrimSpace(rename) != "" {
-		if target, err = Name(rename, content); err != nil {
-			return "", err
-		}
-		if target != key {
-			if _, exists := Read(target); exists {
-				return "", ErrExists
-			}
-		}
-	}
-
-	if err := Write(target, content); err != nil {
-		return "", fmt.Errorf("%w: %w", ErrWrite, err)
-	}
-	if target != key {
-		Delete(key)
-	}
-	return target, nil
+	return exists
 }

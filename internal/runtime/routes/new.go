@@ -104,12 +104,6 @@ func New() *gin.Engine {
 	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRule())
 	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRule())
 
-	r.GET("/v1/notes", localhostOnly(), handler.ListNotes())
-	r.GET("/v1/note/*name", localhostOnly(), handler.GetNote())
-	r.POST("/v1/note", localhostOnly(), handler.CreateNote())
-	r.PATCH("/v1/note", localhostOnly(), handler.UpdateNote())
-	r.DELETE("/v1/note", localhostOnly(), handler.DeleteNote())
-
 	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
 	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())
 	r.DELETE("/v1/skill", localhostOnly(), handler.DeleteSkill())
