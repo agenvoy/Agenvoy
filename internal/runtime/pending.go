@@ -40,6 +40,7 @@ type Request struct {
 	ToolArgs   string
 	Restricted []string
 	AskUser    *UserPayload
+	Inline     bool
 	Ctx        context.Context
 	EnqueueAt  time.Time
 }

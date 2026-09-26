@@ -90,6 +90,7 @@ func modelAvailable(name string) bool {
 func registAskUser() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "ask_user",
+		Timeout:     toolRegister.NoToolTimeout,
 		SystemUse:   true,
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
@@ -134,7 +135,7 @@ A credential is never asked for here → store_secret.`,
 				},
 				"state": map[string]any{
 					"type":        "object",
-					"description": "Context snapshot for task resumption. Summarize current task state so execution can resume after user responds.",
+					"description": "Summarize current task state so execution can resume after the user responds.",
 					"properties": map[string]any{
 						"objective": map[string]any{
 							"type":        "string",
@@ -203,6 +204,35 @@ A credential is never asked for here → store_secret.`,
 	})
 }
 
+const (
+	maxPendingResultBytes = 4 << 10
+	maxPendingArgsBytes   = 1 << 10
+)
+
+func clampPendingText(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	head := limit * 3 / 4
+	tail := limit - head
+	elided := len(text) - head - tail
+	return strings.ToValidUTF8(text[:head], "") +
+		fmt.Sprintf("\n...[%d bytes elided]...\n", elided) +
+		strings.ToValidUTF8(text[len(text)-tail:], "")
+}
+
+func readPending(path string) (pendingMeta, error) {
+	raw, err := go_pkg_filesystem.ReadText(path)
+	if err != nil {
+		return pendingMeta{}, fmt.Errorf("ReadText: %w", err)
+	}
+	var meta pendingMeta
+	if err := json.NewDecoder(strings.NewReader(raw)).Decode(&meta); err != nil {
+		return pendingMeta{}, fmt.Errorf("json Decode: %w", err)
+	}
+	return meta, nil
+}
+
 func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	dir := filesystem.PendingDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
@@ -211,6 +241,10 @@ func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 
 	meta.TaskHash = taskHash
 	meta.SessionID = sessionID
+	for i := range meta.ToolResults {
+		meta.ToolResults[i].Args = clampPendingText(meta.ToolResults[i].Args, maxPendingArgsBytes)
+		meta.ToolResults[i].Result = clampPendingText(meta.ToolResults[i].Result, maxPendingResultBytes)
+	}
 
 	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, false); err != nil {
 		return fmt.Errorf("WriteFile json: %w", err)
@@ -225,7 +259,7 @@ func FinalizePending(sessionID, taskHash, reply string) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return
 	}
@@ -253,7 +287,7 @@ func CompactPending(sessionID, taskHash string) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return
 	}
@@ -342,7 +376,7 @@ func LoadPendingAllowAll(sessionID, taskHash string) bool {
 	if taskHash == "" {
 		return false
 	}
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return false
 	}
@@ -353,7 +387,7 @@ func LoadPendingMessageID(sessionID, taskHash string) string {
 	if taskHash == "" {
 		return ""
 	}
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return ""
 	}
@@ -367,7 +401,7 @@ func RecordToolAttempt(sessionID, taskHash string, attempt ToolAttempt) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return
 	}
@@ -377,19 +411,23 @@ func RecordToolAttempt(sessionID, taskHash string, attempt ToolAttempt) {
 	}
 }
 
-func AppendToolResult(sessionID, taskHash string, result ToolResult) {
+func AppendToolResult(sessionID, taskHash string, result ToolResult, files []string) {
 	if taskHash == "" {
 		return
 	}
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return
 	}
+	meta.Files = mergeFiles(meta.Files, files)
 	for _, existing := range meta.ToolResults {
 		if existing.ID == result.ID {
+			if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+				slog.Debug("AppendToolResult", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+			}
 			return
 		}
 	}
@@ -426,7 +464,7 @@ func mergeFiles(existing, added []string) []string {
 }
 
 func LoadPendingFiles(sessionID, taskHash string) []string {
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return nil
 	}
@@ -442,7 +480,7 @@ type PendingInfo struct {
 
 func LoadPendingInfo(sessionID, taskHash string) (PendingInfo, bool) {
 	path := filesystem.PendingMetaPath(sessionID, taskHash)
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](path)
+	meta, err := readPending(path)
 	if err != nil {
 		return PendingInfo{}, false
 	}
@@ -460,7 +498,7 @@ func LoadPendingInfo(sessionID, taskHash string) (PendingInfo, bool) {
 }
 
 func LoadPendingQuestions(sessionID, taskHash string) ([]runtime.Question, error) {
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +524,7 @@ func buildResumeAnswer(answer any) string {
 }
 
 func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, history string, err error) {
-	meta, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash))
+	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
 		return "", "", fmt.Errorf("ReadJSON: %w", err)
 	}
@@ -668,7 +706,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 	var todos []agentTypes.TodoItem
 	var allowAll bool
 	allFiles := files
-	if existing, err := go_pkg_filesystem.ReadJSON[pendingMeta](filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
+	if existing, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
 		allowAll = existing.AllowAll
 		messageID = existing.MessageID
 		model = existing.Model
@@ -752,6 +790,7 @@ func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Questi
 		DeliverTo: deliverFor(ctx, sessionID),
 		ToolName:  "ask_user",
 		AskUser:   &runtime.UserPayload{Questions: questions},
+		Inline:    true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("runtime Ask: %w", err)

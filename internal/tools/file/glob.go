@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -29,10 +31,19 @@ func globBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery) 
 		}
 	}
 
+	pathModTime := make(map[string]time.Time, len(merged))
+	for _, m := range merged {
+		if info, err := os.Stat(m.Path); err == nil {
+			pathModTime[m.Path] = info.ModTime()
+		}
+	}
 	slices.SortFunc(merged, func(a, b go_pkg_filesystem_reader.File) int {
+		if c := pathModTime[b.Path].Compare(pathModTime[a.Path]); c != 0 {
+			return c
+		}
 		return strings.Compare(a.Path, b.Path)
 	})
-	budget := newSizeBudget()
+	budget := newSizeBudget("most recently modified first")
 	merged = budget.take(merged)
 	raw, err := json.Marshal(merged)
 	if err != nil {

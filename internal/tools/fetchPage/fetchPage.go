@@ -101,12 +101,12 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				},
 				"same_session": map[string]any{
 					"type":        "boolean",
-					"description": "Reuse the persistent Chrome profile so cookies and login state are sent. Default true — cookies always sent so login-required sites (x.com / twitter / threads / facebook / instagram / linkedin / weibo / xiaohongshu / bloomberg / wsj / ft / dashboards) work transparently. Set false only when explicitly testing the anonymous / logged-out view of a page.",
+					"description": "Reuse the persistent Chrome profile so cookies and login state are sent. Default true, so login-required sites (x.com / twitter / threads / facebook / instagram / linkedin / weibo / xiaohongshu / bloomberg / wsj / ft / dashboards) work transparently. Set false only when explicitly testing the anonymous / logged-out view of a page.",
 					"default":     true,
 				},
 				"headless": map[string]any{
 					"type":        "boolean",
-					"description": "Default true — attempt headless fetch first, retrying non-headless only on failure. Set false to force a visible non-headless browser window immediately, skipping the headless attempt (bot checks, JS challenges, sites requiring visible interaction). Request in the form \"open:[url]\" → always set false.",
+					"description": "Default true — attempt headless fetch first, retrying non-headless only on failure. Set false to open a visible browser window immediately, skipping the headless attempt (bot checks, JS challenges, sites requiring visible interaction). Request in the form \"open:[url]\" → always set false.",
 					"default":     true,
 				},
 				"type": map[string]any{

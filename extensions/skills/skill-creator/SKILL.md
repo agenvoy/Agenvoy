@@ -24,7 +24,7 @@ description: Create, edit, improve, or audit AgentSkills. Use when creating a ne
 > **本 Skill 自己的腳本路徑**：`run_command` 的 CWD 是使用者的工作目錄，**不是本 Skill 目錄**，相對路徑 `scripts/...` 必定找不到（實測會讓 agent 反覆 glob 找檔案，白燒數輪）。本 Skill 只服務 Agenvoy、安裝位置固定，一律用絕對路徑 `~/.config/agenvoy/skills/.system/skill-creator/scripts/`。
 
 > **⚠️ 強制執行規則（不可繞過）**：
-> - **建立全新 Skill** — 禁止直接用 `write_file` 建立目錄或 SKILL.md，必須先以 `run_command` 執行 `~/.config/agenvoy/skills/.system/skill-creator/scripts/init_skill.py`初始化目錄結構，再用 `edit_skill(mode=write)` 或 `edit_skill(mode=patch)` 編輯產生的模板內容。跳過此步驟會導致目錄結構錯誤（生成 `skill-name.md` 而非 `skill-name/SKILL.md`）。
+> - **建立全新 Skill** — 禁止直接用 `edit_skill(mode=write)`／`edit_file(mode=write)` 建立目錄或 SKILL.md，必須先以 `run_command` 執行 `~/.config/agenvoy/skills/.system/skill-creator/scripts/init_skill.py`初始化目錄結構，再用 `edit_skill(mode=write)` 或 `edit_skill(mode=patch)` 編輯產生的模板內容。跳過此步驟會導致目錄結構錯誤（生成 `skill-name.md` 而非 `skill-name/SKILL.md`）。
 > - **編輯現有 Skill** — 直接使用 `edit_skill(mode=write)` 或 `edit_skill(mode=patch)` 修改 `skill-name/SKILL.md` 及其資源檔案，不需要執行 `init_skill.py`。
 
 此 Skill 提供建立有效 Skill 的完整指引。
@@ -362,7 +362,7 @@ python3 ~/.config/agenvoy/skills/.system/skill-creator/scripts/init_skill.py my-
 - **儲存位置**：macOS keychain 中 **service = `agenvoy`**、**account = key 名**，組合識別 `agenvoy.{key}`（例 `agenvoy.OPENAI_API_KEY`）
 - **取值方式**：
   - Go 內部：`keychain.Get("<KEY_NAME>")`（只傳 key 名，無 `agenvoy.` 前綴）
-  - Script tool：`GET http://localhost:17989/v1/key?key=<KEY_NAME>`
+  - Script tool：讀 OS keychain（service `agenvoy`）—— macOS `security find-generic-password -s agenvoy -a <KEY_NAME> -w`；Linux `secret-tool lookup service agenvoy account <KEY_NAME>`
   - API tool（registry）：`auth.env: "<KEY_NAME>"`
 - **落地動作**：建立 Skill 時若需要新 key，呼叫 `store_secret({ key: "<KEY_NAME>", prompt: "..." })`；該 tool 內部走遮罩輸入 + `keychain.Set`，**Skill 全程不見明文**
 

@@ -48,7 +48,6 @@ var (
 	AllowSkillGlobalPath    string
 	AllowToolGlobalPath     string
 	PromptsDir              string
-	NoteDir                 string
 	VendorDir               string
 
 	WorkAgenvoyDir     string
@@ -109,7 +108,6 @@ func Init() error {
 		AllowSkillGlobalPath = filepath.Join(AgenvoyDir, "allow_skill")
 		AllowToolGlobalPath = filepath.Join(AgenvoyDir, "allow_tool")
 		PromptsDir = filepath.Join(AgenvoyDir, "prompts")
-		NoteDir = filepath.Join(AgenvoyDir, "knowledge")
 		VendorDir = filepath.Join(AgenvoyDir, "vendor")
 
 		WorkAgenvoyDir = filepath.Join(workDir, ".config", projectName)

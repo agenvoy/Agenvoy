@@ -31,5 +31,3 @@
 ## Research
 
 - Cross-check across several sources
-- Hold competing hypotheses and track the confidence of each
-- Self-critique the current approach and plan at intervals

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -74,6 +75,28 @@ func ReadFile(ctx context.Context, path string, offset, limit int) (string, erro
 		return result, nil
 	}
 
+	result, err := readPlainText(path)
+	if err != nil {
+		return "", err
+	}
+	return sliceLines(result, path, offset, limit), nil
+}
+
+func ReadAround(path string, rows []int, contextLines int) (string, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch {
+	case IsMedia(path), imageExts[ext], ext == ".pdf", ext == ".pptx", ext == ".docx", ext == ".csv", ext == ".tsv":
+		return "", fmt.Errorf("around applies to plain-text files; %s is %s, use offset/limit instead", path, ext)
+	}
+
+	result, err := readPlainText(path)
+	if err != nil {
+		return "", err
+	}
+	return sliceAround(result, path, rows, max(contextLines, 0)), nil
+}
+
+func readPlainText(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return "", fmt.Errorf("os.Stat: %w", err)
@@ -90,7 +113,7 @@ func ReadFile(ctx context.Context, path string, offset, limit int) (string, erro
 	if strings.IndexByte(result[:min(len(result), 512)], 0) >= 0 {
 		return "", fmt.Errorf("%s is binary file", path)
 	}
-	return sliceLines(result, path, offset, limit), nil
+	return result, nil
 }
 
 func sliceChunks(chunks []go_pkg_filesystem_parser.Chunk, path string, offset, limit int, unit string) string {
@@ -143,5 +166,58 @@ func sliceLines(text, path string, offset, limit int) string {
 	if end < len(lines) {
 		fmt.Fprintf(&sb, "[lines %d-%d of %d; call again with offset=%d for more]\n", start+1, end, len(lines), end+1)
 	}
+	return sb.String()
+}
+
+func sliceAround(text, path string, rows []int, contextLines int) string {
+	lines := strings.Split(text, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) == 0 {
+		return fmt.Sprintf("%s is empty", path)
+	}
+
+	type window struct{ start, end int }
+	var windows []window
+	var outside []int
+	for _, row := range rows {
+		if row < 1 || row > len(lines) {
+			outside = append(outside, row)
+			continue
+		}
+		windows = append(windows, window{max(row-contextLines, 1), min(row+contextLines, len(lines))})
+	}
+	if len(windows) == 0 {
+		return fmt.Sprintf("rows %v are outside %s, which has %d lines", outside, path, len(lines))
+	}
+
+	slices.SortFunc(windows, func(a, b window) int { return a.start - b.start })
+	merged := windows[:1]
+	for _, w := range windows[1:] {
+		last := &merged[len(merged)-1]
+		if w.start <= last.end+1 {
+			last.end = max(last.end, w.end)
+			continue
+		}
+		merged = append(merged, w)
+	}
+
+	var sb strings.Builder
+	shown := 0
+	for i, w := range merged {
+		if i > 0 {
+			sb.WriteString("...\n")
+		}
+		for n := w.start; n <= w.end; n++ {
+			fmt.Fprintf(&sb, "%d\t%s\n", n, lines[n-1])
+		}
+		shown += w.end - w.start + 1
+	}
+	fmt.Fprintf(&sb, "[%d of %d lines shown around rows %v", shown, len(lines), rows)
+	if len(outside) > 0 {
+		fmt.Fprintf(&sb, "; rows %v are outside the file", outside)
+	}
+	sb.WriteString("]\n")
 	return sb.String()
 }

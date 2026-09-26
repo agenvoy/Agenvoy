@@ -106,7 +106,7 @@ If extraction fails, or staging contains 0 / >1 subdirectories, abort with:
 
 ### 2. Read and validate manifest.json
 
-`read_file: ~/.config/agenvoy/tools/.extension/.staging/<original-basename>/manifest.json`
+`read_files: ~/.config/agenvoy/tools/.extension/.staging/<original-basename>/manifest.json`
 
 Missing file → abort with "manifest.json missing in tarball, refuse to install".
 

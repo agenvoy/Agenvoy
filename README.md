@@ -271,7 +271,6 @@ A cost-effective model setup to get started:
 | Auto tool generation | Builds and saves tools when they're missing                              |
 | Self-scheduling      | Create cron jobs with a single sentence                                  |
 | Long-term memory     | Retains key info and context                                             |
-| Knowledge notes      | Reads the notes you keep, before it answers                              |
 | File search          | Answers from your local files                                            |
 | Sub-Agent            | Multi-agent collaboration                                                |
 | MCP client           | Connect to external MCP services via official go-sdk (live tool refresh) |

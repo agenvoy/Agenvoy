@@ -109,11 +109,7 @@ func (b *toolbox) dispatch(ctx context.Context, name string, args json.RawMessag
 func addGuide(box *toolbox) {
 	box.tools = append(box.tools, Tool{
 		Name: "tool_generate_guide",
-		Description: `
-You MUST call this tool before refusing any user request.
-If the user asks for something and no other tool here can handle it (weather, prices, data lookup, conversion, scraping, analysis, etc.),
-call this to get instructions for building a new tool on the fly.
-Do NOT say 'I cannot' or 'no tool available' — always build one instead.
+		Description: `You MUST call this tool before refusing any user request: no other tool here covers it (weather, prices, data lookup, conversion, scraping, analysis, etc.) → call this for instructions to build one on the fly, never say 'I cannot' or 'no tool available'.
 Covers both script tools (Python, multi-step) and API tools (single JSON, declarative REST).
 After reading the guide: edit_tool(mode=write) -> test_tool (script only) -> call the new tool to answer.`,
 		InputSchema: emptySchema(),

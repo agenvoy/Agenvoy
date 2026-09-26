@@ -47,7 +47,7 @@ type TUI struct {
 	popupQueue    []Pending
 	popupOrigin   *Popup
 	botBodyDraft  string
-	noteBodyDraft string
+	ruleBodyDraft string
 	mcpAdd        *mcpAddDraft
 	mcpClient     *mcpClientDraft
 	mcpOAuth      *oauthState
@@ -134,6 +134,7 @@ func newModel(ctx context.Context) TUI {
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
 	textArea.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	boldTextArea(&textArea)
 	textArea.Focus()
 	textArea.Cursor.Style = whiteStyle
 	textArea.SetPromptFunc(2, func(lineIdx int) string {

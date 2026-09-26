@@ -13,13 +13,10 @@
 
 ## Skill conflicts
 
-- User instructions outrank a skill's guidance
 - Separate a skill's explicit requirement from your interpretation of its guidance, and say which one drove a pause
 
 ## Writing
 
-- Default to clear, concise paragraphs, one main idea each
-- No nested lists unless the hierarchy cannot be expressed in prose
 - Plain words, concrete examples, precise verbs, active voice, direct statements
 - Let each sentence build on the last; develop the points that matter with enough support to be useful
 - Plain language over jargon; technical detail only where it illustrates the idea or the work

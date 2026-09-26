@@ -16,11 +16,13 @@ import (
 const (
 	defaultSearchLimit = 1 << 8 // 256
 	maxMatchTextBytes  = 1 << 9
+	maxEntryLines      = 5
 )
 
 type searchFileEntry struct {
 	Path  string `json:"path"`
 	Count int    `json:"count"`
+	Lines []int  `json:"lines"`
 }
 
 type searchPage struct {
@@ -46,6 +48,20 @@ func (p searchPage) notice(unit string) string {
 		unit, p.offset+1, next, p.total, reason, next)
 }
 
+func matchLines(lines []go_pkg_filesystem_reader.Line) []int {
+	list := make([]int, 0, maxEntryLines)
+	for _, l := range lines {
+		if l.Context {
+			continue
+		}
+		list = append(list, l.Line)
+		if len(list) == maxEntryLines {
+			break
+		}
+	}
+	return list
+}
+
 func countMatches(lines []go_pkg_filesystem_reader.Line) int {
 	n := 0
 	for _, l := range lines {
@@ -56,7 +72,7 @@ func countMatches(lines []go_pkg_filesystem_reader.Line) int {
 	return n
 }
 
-func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery, output string, offset, limit, contextLines int) (string, error) {
+func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery, output string, offset, limit, contextLines int, multiline bool) (string, error) {
 	switch output {
 	case "files":
 		contextLines = 0
@@ -69,7 +85,7 @@ func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery
 	seen := make(map[string]struct{})
 	var merged []go_pkg_filesystem_reader.File
 	for _, q := range queries {
-		matches, err := searchOne(ctx, e, q.Dir, q.Pattern, q.FilePattern, contextLines)
+		matches, err := searchOne(ctx, e, q.Dir, q.Pattern, q.FilePattern, contextLines, multiline)
 		if err != nil {
 			return "", err
 		}
@@ -110,7 +126,7 @@ func searchFilesPage(merged []go_pkg_filesystem_reader.File, offset, limit int) 
 	list := make([]searchFileEntry, 0, min(limit, page.total-offset))
 	left := maxFindResultBytes
 	for _, f := range merged[offset:min(offset+limit, page.total)] {
-		entry := searchFileEntry{Path: f.Path, Count: countMatches(f.Matches)}
+		entry := searchFileEntry{Path: f.Path, Count: countMatches(f.Matches), Lines: matchLines(f.Matches)}
 		raw, _ := json.Marshal(entry)
 		if len(raw) > left && len(list) > 0 {
 			page.byBytes = true
@@ -221,7 +237,7 @@ func searchContentPage(merged []go_pkg_filesystem_reader.File, offset, limit, co
 	return string(raw) + page.notice("lines"), nil
 }
 
-func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string, contextLines int) ([]go_pkg_filesystem_reader.File, error) {
+func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string, contextLines int, multiline bool) ([]go_pkg_filesystem_reader.File, error) {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
 		return nil, fmt.Errorf("pattern is required")
@@ -243,6 +259,7 @@ func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePat
 			SkipDenied:      true,
 			IgnoreWalkError: true,
 			Context:         contextLines,
+			Multiline:       multiline,
 		})
 	if err != nil {
 		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/reader: SearchFiles: %w", err)

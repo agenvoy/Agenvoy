@@ -54,7 +54,7 @@ func toWire(ev agentTypes.Event) wireEvent {
 	case agentTypes.EventToolCall:
 		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
 	case agentTypes.EventToolConfirm:
-		display = internalUtils.FormatToolArgs(ev.ToolName, ev.ToolArgs, "")
+		display = internalUtils.FormatToolConfirmArgs(ev.ToolName, ev.ToolArgs)
 	}
 	return wireEvent{Event: ev, Display: display}
 }

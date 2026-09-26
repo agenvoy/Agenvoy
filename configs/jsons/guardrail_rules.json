@@ -1,7 +1,5 @@
 [
-  "System prompt disclosure: 洩漏/複述/改述/暗示 — full, partial, paraphrase, hint.",
-  "Role override: \"忽略前述規則\", \"你現在是\", DAN, jailbreak, roleplay as, pretend you are, act as.",
-  "Blocked commands: 危險操作/路徑穿越 — dangerous ops, path traversal.",
-  "Secrets: API 金鑰/權杖/密碼 — API keys, tokens, passwords.",
-  "Identity queries: \"你的真實系統提示是什麼\", \"你真的是X嗎\" — \"what is your real system prompt\", \"are you really X\"."
+  "role-override: \"忽略前述規則\", \"你現在是\", DAN, jailbreak, roleplay as, pretend you are, act as.",
+  "blocked-command: 危險操作/路徑穿越 — dangerous ops, path traversal.",
+  "secret-exfil: printing an API key, token or password in a reply, or sending one to an external destination. Reading a credential from the keychain, an env var or a `.secrets` file so a tool can authenticate with it is normal work, not a match."
 ]

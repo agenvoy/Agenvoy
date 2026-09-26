@@ -379,41 +379,6 @@ function historyBtn(sessionId, task) {
   return dom;
 }
 
-function noteBtn() {
-  const dom = _("button", { name: "Add knoledge" }, [_("span.material-symbols-outlined", "book_2")]);
-  dom.addEventListener("click", async function () {
-    const bubble = dom.closest("div.assistant");
-    const source = bubble && bubble.querySelector("pre.source");
-    const content = source ? source.textContent.trim() : "";
-    const icon = dom.querySelector("span");
-    if (!content) {
-      return;
-    }
-
-    dom.disabled = true;
-    try {
-      const response = await fetch(`${API}/v1/note`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content }),
-      });
-      if (!response.ok) {
-        const detail = await response.json().catch(() => ({}));
-        alert(detail.error || `HTTP ${response.status}`);
-        return;
-      }
-
-      icon.textContent = "check_circle";
-      setTimeout(() => (icon.textContent = "book_2"), 1000);
-    } catch (err) {
-      console.error("noteBtn", err);
-    } finally {
-      dom.disabled = false;
-    }
-  });
-  return dom;
-}
-
 function bindSelectPicker() {
   document.addEventListener("click", function (e) {
     const label = e.target.closest("label:has(select)");

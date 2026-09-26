@@ -534,6 +534,7 @@ func newPopupInput(value string, multiline bool) textarea.Model {
 	input.SetHeight(1)
 	input.SetValue(value)
 	input.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	boldTextArea(&input)
 	input.Focus()
 	input.Cursor.Style = whiteStyle
 	input.SetPromptFunc(2, func(lineIdx int) string {

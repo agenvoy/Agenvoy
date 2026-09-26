@@ -74,7 +74,6 @@ func New() *gin.Engine {
 	r.GET("/v1/file/locate", localhostOnly(), handler.LocateFile())
 	r.GET("/v1/workdir", localhostOnly(), handler.CheckWorkDir())
 
-	r.GET("/v1/key", localhostOnly(), handler.GetKey())
 	r.DELETE("/v1/key", localhostOnly(), handler.DeleteKey())
 	r.GET("/v1/keys", localhostOnly(), handler.ListKeys())
 	r.POST("/v1/keys", localhostOnly(), handler.SetKey())
@@ -103,12 +102,6 @@ func New() *gin.Engine {
 	r.POST("/v1/rule", localhostOnly(), handler.CreateRule())
 	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRule())
 	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRule())
-
-	r.GET("/v1/notes", localhostOnly(), handler.ListNotes())
-	r.GET("/v1/note/*name", localhostOnly(), handler.GetNote())
-	r.POST("/v1/note", localhostOnly(), handler.CreateNote())
-	r.PATCH("/v1/note", localhostOnly(), handler.UpdateNote())
-	r.DELETE("/v1/note", localhostOnly(), handler.DeleteNote())
 
 	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
 	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())

@@ -42,7 +42,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 						"properties": map[string]any{
 							"content": map[string]any{
 								"type":        "string",
-								"description": "Imperative step title (e.g. 'Add lang toggle to nav'). Short, concrete, verifiable.",
+								"description": "Imperative step title (e.g. 'Add lang toggle to nav').",
 							},
 							"status": map[string]any{
 								"type":        "string",
