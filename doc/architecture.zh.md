@@ -4,7 +4,7 @@
 
 ## 概覽
 
-Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client 整合到同一個執行引擎；stdin MCP server 是另一個較窄的介面，只提供生成與 extension 工具，不經過執行引擎。Agent 可依 Skill 與任務選擇模型、呼叫沙箱工具，並將 session、排程、筆記與歷史保留在本機。
+Agenvoy 是以 Go 撰寫、在個人電腦上執行的本機 Agent 執行環境。它把 TUI、Web 儀表板、本機 HTTP API、Telegram／Discord 與 MCP client 整合到同一個執行引擎；stdin MCP server 是另一個較窄的介面，只提供生成與 extension 工具，不經過執行引擎。Agent 可依 Skill 與任務選擇模型、呼叫沙箱工具，並將 session、排程與歷史保留在本機。
 
 ```mermaid
 graph TB
@@ -49,7 +49,7 @@ graph TB
 
 ## 模組：Daemon、Web 與 HTTP API
 
-Daemon 依序初始化 ToriiDB、清除過期的執行中標記、開啟 SQLite 歷史資料庫、遷移筆記，並在提供本機 HTTP API 前先註冊 Web 確認 listener；工具、Agent、Skill scanner、排程與聊天頻道也在此時載入。Dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 只監聽 `127.0.0.1` 與 `[::1]`；另外，`localhostOnly()` 保護 dashboard、session 建立／讀取／更新／刪除、模型路由、用量、憑證、provider、MCP、規則、筆記、Skill、排程、白名單與設定。Agent 執行（`/send`、`/v1/chat/completions`）、確認、取消、pending 工作、session 清單、模型清單、SSE log 與 `/v1/mcp/tools` 不經此守衛。
+Daemon 依序初始化 ToriiDB、清除過期的執行中標記、開啟 SQLite 歷史資料庫，並在提供本機 HTTP API 前先註冊 Web 確認 listener；工具、Agent、Skill scanner、排程與聊天頻道也在此時載入。Dashboard 嵌入二進位檔後由 `/` 提供。HTTP API 只監聽 `127.0.0.1` 與 `[::1]`；另外，`localhostOnly()` 保護本機管理類路由，含 session 管理、模型與 provider 設定、憑證、MCP 設定、規則、Skill、排程、白名單與 runtime 設定。Agent 執行（`/send`、`/v1/chat/completions`）、確認、取消、pending 工作、session 清單、模型清單、SSE log 與 `/v1/mcp/tools` 仍留在未加守衛的 loopback 介面。
 
 ```mermaid
 graph TB
@@ -94,7 +94,9 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。檔案工具也提供 `write_result`，長篇成果（Markdown 或 HTML）寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡；`run_command` 會等待程序結束，因此會啟動 file watcher 的命令（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在執行前即拒絕；檔案搜尋採分頁，`read_files` 預設讀 2048 行並標示下一個 offset。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search 與檔案搜尋可直接提供即時或本機資料；RAG 沒有內建工具，需由外部 MCP server 提供。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。工具只在需要時才載入完整 schema，讓一般請求保持輕量。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證、`run_command` 的 shell AST validation 及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
+
+檔案工具透過共用的邊界檢查解析路徑。`find_files` 支援列出目錄、檔名 glob 與 regex 內容搜尋。glob 結果依修改時間由新到舊排列。search 採分頁：`output=files` 回傳每個符合的路徑、命中次數與前 5 個命中行號，查詢夠精準時可直接接 `read_files`；`output=content` 回傳符合的行，可加 `context` 前後文；`multiline` 讓 regex 對整份檔案比對，`.` 可跨行，`^` 與 `$` 仍為行錨點。序列化結果上限為 128 KiB。`read_files` 批次處理文字與支援的文件、圖片、音訊／影片格式，文字預設每次讀 2048 行。純文字檔可用 `around` 讀取指定行號前後各 `context` 行（預設 20），重疊的窗口會合併，略過的內容以一行 `...` 標示；同一路徑可在一次呼叫中出現多次，結果依序串接。`edit_file` 提供 write、patch、remove、restore 四種模式。寫入或修改既有檔案時，`read_files` 必須已在同一次執行中記錄過它的修改時間，且磁碟上的修改時間之後未變；寫入成功會更新這個記錄，因此連續 patch 不需重讀。patch 的 anchor 無法精確比對時，會把彎引號視為直引號再比對一次，替換內容也會沿用檔案原本的彎引號樣式。檔案變更在可用時記錄於 SQLite 歷史；歷史記錄失敗不會撤銷已完成的寫入，並會回報給呼叫端。長篇成果（Markdown 或 HTML）經 `write_result` 寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡。`run_command` 會等待程序結束，因此會啟動 file watcher 的命令（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在執行前即拒絕。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search 與檔案搜尋可直接提供即時或本機資料；RAG 沒有內建工具，需由外部 MCP server 提供。
 
 ```mermaid
 graph TB
@@ -113,7 +115,7 @@ graph TB
 
 ## 模組：Session、歷史與排程
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。TUI 發出的 `ask_user` 為 inline 提問，執行不中斷；其他來源則中止執行並寫入 pending（其中 tool args 截 1 KiB、result 截 4 KiB），由之後的回答續跑。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
@@ -183,6 +185,7 @@ sequenceDiagram
 
 - Daemon 只監聽 `127.0.0.1` 與 `[::1]`；管理類 endpoint 另有 `localhostOnly()` 守衛。
 - denied path 與 denied command 會直接拒絕；敏感路徑、檔案工具在 `$HOME` 外的讀取與寫入（`read_files`、`find_files`、`file_history`、`edit_file`、`open_file`）及其他受限操作則要求明確確認，支援時再要求系統驗證；核准範圍限於該 session 與所請求的路徑或執行檔。
+- 透過 `edit_file` 寫入或修改既有檔案前，必須在同一次執行中成功以 `read_files` 讀過該檔，且之後修改時間未變，否則拒絕；新檔案不需事先讀取。這項新鮮度檢查是路徑邊界與權限檢查的補充，不取代它們。
 - 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。`run_command` 內一律拒絕 `sudo`；需要寫入 `$HOME` 以外的命令，要在該次呼叫以 `write_paths` 宣告路徑，並由使用者輸入系統密碼核准。
 - 憑證與 provider、MCP 的 OAuth token 存在作業系統 keychain（macOS Keychain、Linux `secret-tool`），不寫入 repository；`secret-tool` 失敗時改存 `~/.config/agenvoy/.secrets`（權限 0600）。
 
@@ -196,7 +199,6 @@ flowchart LR
     Sessions --> Summary[summary.json]
     Sessions --> Pending[Pending 工作]
     SQLite[~/.config/agenvoy/.store/history.db] --> Search[歷史／Session 搜尋]
-    SQLite --> Notes[Notes]
     SQLite --> SessionConfig[Session 設定]
     SQLite --> Usage[Token 用量]
     SQLite --> ActionHistory[Action 與檔案歷史]
