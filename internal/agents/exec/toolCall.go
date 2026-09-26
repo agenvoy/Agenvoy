@@ -292,8 +292,9 @@ func truncateWriteArgs(argsJSON string) string {
 }
 
 var checkpointClearableTool = map[string]bool{
-	"find_files":  true,
-	"run_command": true,
+	"find_files":           true,
+	"run_command":          true,
+	"run_command_readonly": true,
 }
 
 func hasCompletedTodo(argsJSON string) bool {

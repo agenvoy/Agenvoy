@@ -36,7 +36,7 @@ func registRunCommand() {
 		Description: fmt.Sprintf(`Runs a binary in the work directory, waits for it to exit, and returns its combined stdout/stderr.
 Never start a watcher or long-running process (--watch, chokidar, npm run sass/build/dev scripts that watch): it never exits and the call hangs; run the one-shot build instead.
 Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
-Reading a file → read_files; finding one → find_files; %s; opening one in an app → open_file.`, systemPackageRoute()),
+It fills what the built-in tools cannot do, not replaces them: reading a file (cat / head / tail) → read_files; listing, globbing or grepping (ls / find / grep / rg) → find_files; a command that only inspects (git status / log / diff, du, which) → run_command_readonly, which needs no confirmation and runs in parallel; %s; opening a file in an app → open_file.`, systemPackageRoute()),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

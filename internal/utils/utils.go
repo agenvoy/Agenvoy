@@ -47,25 +47,26 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 }
 
 var toolDisplayName = map[string]string{
-	"search_web":      "Search Web",
-	"find_tools":      "Tools",
-	"find_files":      "Find",
-	"list_chatbot":    "List Chat",
-	"read_files":      "Read",
-	"edit_file":       "Edit",
-	"fetch_page":      "Fetch",
-	"run_command":     "Run",
-	"run_skill":       "Skill",
-	"calculate":       "Calc",
-	"download_file":   "Download",
-	"write_todo":      "Plan",
-	"subagents":       "Subagent",
-	"chat_history":    "Chat",
-	"file_history":    "History",
-	"error_history":   "Error",
-	"send_to_chatbot": "Send",
-	"http_request":    "Request",
-	"schedules":       "Schedule",
+	"search_web":           "Search Web",
+	"find_tools":           "Tools",
+	"find_files":           "Find",
+	"list_chatbot":         "List Chat",
+	"read_files":           "Read",
+	"edit_file":            "Edit",
+	"fetch_page":           "Fetch",
+	"run_command":          "Run",
+	"run_command_readonly": "Run",
+	"run_skill":            "Skill",
+	"calculate":            "Calc",
+	"download_file":        "Download",
+	"write_todo":           "Plan",
+	"subagents":            "Subagent",
+	"chat_history":         "Chat",
+	"file_history":         "History",
+	"error_history":        "Error",
+	"send_to_chatbot":      "Send",
+	"http_request":         "Request",
+	"schedules":            "Schedule",
 }
 
 func IsPlugTool(name string) bool {
@@ -312,7 +313,7 @@ func formatToolArgs(name, raw, cwd string, fullPath bool) string {
 			return skill
 		}
 
-	case "run_command":
+	case "run_command", "run_command_readonly":
 		var p struct {
 			Argv []string `json:"argv"`
 		}
