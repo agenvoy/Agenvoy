@@ -45,20 +45,29 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	if popup == nil {
 		return t, tea.Println(msgLog("no sessions available") + "\n"), true
 	}
+	popup.subtitle = "pick a session to switch to"
+	if sid != "" {
+		popup.subtitle = "pick a session to switch to  or edit the current session's name / self id / role below"
+	}
 	fillSessions := popup.onTab
 	popup.onTab = func(p *Popup) {
 		fillSessions(p)
 		if sid == "" {
 			return
 		}
-		selfID, name, body := configBot.GetPersona(sid)
-		role, _, _ := strings.Cut(strings.TrimSpace(body), "\n")
+		selfID, name, _ := configBot.GetPersona(sid)
+		withValue := func(desc, value string) string {
+			if value == "" {
+				return hintStyle.Render(desc)
+			}
+			return hintStyle.Render(desc+" ") + okayStyle.Render("["+value+"]")
+		}
 		p.options = append(p.options, "")
 		p.values = append(p.values, "")
-		p.options = append(p.options, optionColumn([]string{"name", "id", "role"}, []string{
-			hintStyle.Render(name),
-			hintStyle.Render(selfID),
-			hintStyle.Render(role),
+		p.options = append(p.options, optionColumn([]string{"name", "self id", "role"}, []string{
+			withValue("session display name", name),
+			withValue("used to call this session by id", selfID),
+			hintStyle.Render("system prompt for this session"),
 		})...)
 		p.values = append(p.values, sessionBotPrefix+"name", sessionBotPrefix+"id", sessionBotPrefix+"role")
 	}

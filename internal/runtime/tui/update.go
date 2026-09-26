@@ -990,6 +990,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus))
 		}
 		popup.title = "Pick session to attach"
+		popup.subtitle = "Select the session this TUI will work in"
 		popup.onConfirm = func(chosen string) any {
 			return StartupSessionSelect{id: chosen}
 		}

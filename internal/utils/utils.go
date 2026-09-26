@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -219,7 +220,7 @@ func FormatToolArgs(name, raw, cwd string) string {
 				continue
 			}
 			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
-				paths = append(paths, p)
+				paths = append(paths, filepath.Base(strings.TrimSpace(p)))
 			}
 		}
 		if len(paths) > 0 {

@@ -35,6 +35,8 @@ var (
 	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#767676", Dark: "#8A8A8A"})
 	userStyle   = lipgloss.NewStyle().Foreground(colSkill)
 	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
+	thinkStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#AAAAAA"))
+	keyStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: string(colSystem), Dark: "#AAAAAA"})
 )
 
 type WorkDir struct {
