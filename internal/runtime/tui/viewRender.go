@@ -609,7 +609,7 @@ func buildToolLine(bullet, source, name, args, cwd string, width int) string {
 	}
 	style := hintStyle
 	if utils.IsSubagentInvoke(name, args) {
-		style = lipgloss.NewStyle().Foreground(colOk)
+		style = okayStyle
 	}
 	header := style.Render(line)
 

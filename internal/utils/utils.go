@@ -120,6 +120,14 @@ func ToolName(name string) string {
 }
 
 func FormatToolArgs(name, raw, cwd string) string {
+	return formatToolArgs(name, raw, cwd, false)
+}
+
+func FormatToolConfirmArgs(name, raw string) string {
+	return formatToolArgs(name, raw, "", true)
+}
+
+func formatToolArgs(name, raw, cwd string, fullPath bool) string {
 	if raw == "" {
 		return ""
 	}
@@ -143,6 +151,13 @@ func FormatToolArgs(name, raw, cwd string) string {
 	oneLine := func(s string) string {
 		r := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ")
 		return r.Replace(s)
+	}
+	fileName := func(path string) string {
+		path = strings.TrimSpace(path)
+		if fullPath {
+			return path
+		}
+		return filepath.Base(path)
 	}
 	isCwd := func(dir string) bool {
 		d := strings.TrimRight(strings.TrimSpace(dir), "/")
@@ -220,16 +235,35 @@ func FormatToolArgs(name, raw, cwd string) string {
 				continue
 			}
 			if p, ok := fm["path"].(string); ok && strings.TrimSpace(p) != "" {
-				paths = append(paths, filepath.Base(strings.TrimSpace(p)))
+				paths = append(paths, fileName(p))
 			}
 		}
 		if len(paths) > 0 {
 			return strings.Join(paths, ", ")
 		}
 
-	case "edit_file":
-		if s := pick("path", "pattern"); s != "" {
+	case "edit_file", "open_file":
+		if s := pick("path"); s != "" {
+			return fileName(s)
+		}
+		if s := pick("pattern"); s != "" {
 			return s
+		}
+
+	case "file_history":
+		var names []string
+		if s := pick("path"); s != "" {
+			names = append(names, fileName(s))
+		}
+		if list, ok := dic["paths"].([]any); ok {
+			for _, one := range list {
+				if s, ok := one.(string); ok && strings.TrimSpace(s) != "" {
+					names = append(names, fileName(s))
+				}
+			}
+		}
+		if len(names) > 0 {
+			return strings.Join(names, ", ")
 		}
 
 	case "search_web":

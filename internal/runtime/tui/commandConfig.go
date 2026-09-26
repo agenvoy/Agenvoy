@@ -30,9 +30,9 @@ func (t TUI) commandConfig() (TUI, tea.Cmd, bool) {
 }
 
 func (t TUI) openConfig(focus string) TUI {
-	startupValue := hintStyle.Render("false")
+	startupValue := hintStyle.Render("disable")
 	if startup.State() {
-		startupValue = okayStyle.Render("true")
+		startupValue = okayStyle.Render("enable")
 	}
 	names := []string{"Startup on login", "Reply language", "Output dir"}
 	settings := []string{
