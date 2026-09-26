@@ -69,9 +69,11 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值；事件也帶有實際使用的 reasoning 等級，以 `model(quota)/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。執行器建立帶有來源、附件與 session context 的 prompt，依所選模型加入共用官方操作指南與相符的模型專屬指南，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），查無資料時 `copilot@` 模型以 256K、其餘以 128K 計算。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值；事件也帶有實際使用的 reasoning 等級，以 `model(quota)/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。執行器建立帶有來源、附件與 session context 的 prompt，加入 `official_guides/_base.md`（一律注入）以及檔名被模型名包含的那份模型指引（最長 key 優先），都沒命中則改注入 `_base_unlisted.md`，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），查無資料時 `copilot@` 模型以 256K、其餘以 128K 計算。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 Skill 依固定順序掃描，同名時先找到的生效：`<cwd>/.skills`、`<cwd>/.claude/skills`、`~/.config/agenvoy/skills/.system`、`~/.config/agenvoy/skills/.system_design`、`~/.config/agenvoy/skills`，最後是 `~/.claude`、`~/.codex`、`~/.opencode`、`~/.openai` 的 skills。掃描目錄內其他以 `.` 開頭的資料夾會被略過。`.system` 每次 `make build` 都會以 `extensions/skills` 重建；`.system_design` 存放 TUI `/skill` 指令管理的官方 Skill，勾選時從 `github.com/agenvoy/skill-<name>` clone、取消勾選時刪除，因此重建不會清掉它們。兩個資料夾中的 Skill 來源都標為 `system`，Web 介面無法刪除。
+
+Skill 以 `/<name>` 啟動時，執行規則與解析後的 SKILL.md 組成一則 system message 注入；歷史中另補一組假的 `run_skill` 呼叫與一行指標作為 tool result，讓訊息序列成對而不重複載入內容（tool 歷史在 compact 或換模型時會被清空，內容只放在 system message 才留得住）。
 
 ```mermaid
 graph TB
