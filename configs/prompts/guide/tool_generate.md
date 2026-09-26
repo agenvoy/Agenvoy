@@ -256,4 +256,12 @@ if __name__ == "__main__":
 
 All steps are tool calls. Text output only at the final step. `name` without prefix (runtime adds it). Auth-required APIs: script tools use `get_key()`, API tools set `auth.env` + `store_secret` if key missing.
 
-**Fallback:** if `find_edit_tool(mode=search)` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.
+## When not to build
+
+One-off verification, testing or debugging — "測試 X 能不能用", "確認 Y 有沒有生效", probing an endpoint, a parameter or a flag — produces a finding for this turn, not a reusable capability. Write the script inline and run it with `run_command` (`python3 -c`, a heredoc, `curl`); report what came back. No `edit_tool`, no `test_tool`, no saved tool.
+
+The build flow above starts only when the user wants the data itself and will want it again.
+
+---
+
+**Fallback:** on a data request, if `find_edit_tool(mode=search)` returns no match, or a tool call fails, treat as "no existing tool covers it" and enter this flow. Never say "tool not available" — build one and answer.

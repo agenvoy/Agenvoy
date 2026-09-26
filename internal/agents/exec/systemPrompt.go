@@ -17,7 +17,6 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/note"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -125,19 +124,11 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(template)
-}
-
-func noteSection() string {
-	if !note.Exists() {
-		return ""
-	}
-	return "\n## Note\n\nThe operator keeps notes in this workspace and they outrank anything else you find: every non-smalltalk request fires `find_note` with its key terms before you answer — in the same response as any RAG or web lookup, never in place of one — then whichever names look relevant are pulled in full with `mode=read`, those calls issued together. Answering from RAG, the web or memory without that call, or presenting a RAG/web file as one of these notes, is a failed turn.\n"
 }
 
 func agentGuideSection(workDir string) string {
@@ -193,7 +184,6 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
 		"{{.AvailableSkills}}", skillsSection,
-		"{{.AvailableNote}}", noteSection(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))

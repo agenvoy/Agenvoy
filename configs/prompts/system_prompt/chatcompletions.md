@@ -31,7 +31,6 @@ These hold on every response — deep into a long task, after a Skill takes over
 ---
 
 {{.AvailableSkills}}
-{{.AvailableNote}}
 
 ---
 

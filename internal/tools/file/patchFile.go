@@ -68,7 +68,7 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		return fmt.Sprintf("no write: every target in %s already matches its new_string, so the file is unchanged", absPath), nil
 	}
 	if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
-		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call write_file if emptying it is the intent", absPath, len(before))
+		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call edit_file with mode=write if emptying it is the intent", absPath, len(before))
 	}
 
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {

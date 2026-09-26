@@ -75,7 +75,7 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				"exclude_tools": map[string]any{
 					"type":        "array",
 					"items":       map[string]any{"type": "string"},
-					"description": "mode=invoke: extra tool names to exclude on top of the always-excluded set (subagent, write_file, patch_file). The default set cannot be overridden.",
+					"description": "mode=invoke: extra tool names to exclude on top of the always-excluded set (subagents, edit_file, every generate_* tool, and the TUI-only tools). The default set cannot be overridden.",
 					"default":     []string{},
 				},
 			},
