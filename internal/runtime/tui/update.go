@@ -310,7 +310,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 
-		if msg.request.Kind == runtime.KindAskUser {
+		if msg.request.Kind == runtime.KindAskUser && !msg.request.Inline {
 			if t.cancelExec != nil {
 				t.cancelExec(nil)
 				t.cancelExec = nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
@@ -40,6 +41,37 @@ func splitThinkTag(s string) (think, rest string) {
 
 func isGuardrailRefusal(content string) bool {
 	return strings.Contains(content, configs.GuardrailSentinel)
+}
+
+func guardrailLabel(content string) string {
+	_, rest, ok := strings.Cut(content, configs.GuardrailSentinel)
+	if !ok {
+		return ""
+	}
+	label := strings.TrimSpace(rest)
+	if cut := strings.IndexAny(label, " \t\n\r"); cut > 0 {
+		label = label[:cut]
+	}
+	return strings.Trim(label, "[](){}:,.\"'`")
+}
+
+func guardrailRefusal(sessionID, model, content string) string {
+	label := guardrailLabel(content)
+	head := content
+	if len(head) > 120 {
+		head = strings.ToValidUTF8(head[:120], "")
+	}
+	slog.Debug("guardrail refusal",
+		slog.String("session", sessionID),
+		slog.String("model", model),
+		slog.String("label", label),
+		slog.String("head", head))
+
+	refusal := filesystem.RefusalMessage()
+	if label == "" {
+		return refusal
+	}
+	return refusal + " (" + label + ")"
 }
 
 func StripModelResponse(str string) string {

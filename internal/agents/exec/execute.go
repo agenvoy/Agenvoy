@@ -770,7 +770,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			emptyCount = 0
 
 			if isGuardrailRefusal(stripped) {
-				refusal := filesystem.RefusalMessage()
+				refusal := guardrailRefusal(session.ID, data.Agent.Name(), stripped)
 				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
@@ -848,7 +848,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
 			summaryStripped := StripModelResponse(text)
 			if isGuardrailRefusal(summaryStripped) {
-				refusal := filesystem.RefusalMessage()
+				refusal := guardrailRefusal(session.ID, data.Agent.Name(), summaryStripped)
 				sendText(events, refusal)
 				emitChangedFiles()
 				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
