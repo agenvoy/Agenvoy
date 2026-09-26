@@ -28,7 +28,9 @@ func registReadFiles() {
 		Concurrent:  true,
 		Description: `Canonical way to read any file — text, PDF, DOCX, PPTX, CSV/TSV, image, or audio/video (returned as a verbatim transcript) — and the step that must precede edit_file on an existing file: an edit is refused unless the file was read in this turn and is unchanged on disk since.
 Use for 讀檔 / 看一下這個檔案 / 這份 PDF 寫什麼 / 這段錄音說了什麼, and for read_file / cat / head / tail.
-Each path maps to its content, or to an error string for that path. Text lines arrive as "<row>\t<line>" — the number is not in the file, so strip it before using a line as an edit_file anchor. Locating a file → find_files; opening it in an app → open_file.`,
+Each path maps to its content, or to an error string for that path. Text lines arrive as "<row>\t<line>" — the number is not in the file, so strip it before using a line as an edit_file anchor. Locating a file → find_files; opening it in an app → open_file.
+A file this session produced, or an earlier run of the same recurring task, is not reference input — read it back only to diff, continue or cite that file.
+What went wrong in a background, scheduled or chatbot run is in ~/.config/agenvoy/daemon.log — append-only, newest last, so page from the end with offset/limit.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

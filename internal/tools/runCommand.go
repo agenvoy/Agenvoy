@@ -155,6 +155,9 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		return fmt.Sprintf("%s\nError: %s%s", output, err.Error(), sandboxWriteHint(output, binds)), nil
 	}
 
+	if strings.TrimSpace(output) == "" {
+		return "[exit 0] the command succeeded and printed nothing", nil
+	}
 	return output, nil
 }
 

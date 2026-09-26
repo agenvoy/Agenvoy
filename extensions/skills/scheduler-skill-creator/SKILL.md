@@ -221,7 +221,7 @@ scheduler 觸發後，runtime 會把 subagent 產出的最終文字自動送回 
 - **儲存位置**：macOS keychain 中 **service = `agenvoy`**、**account = key 名**，組合識別 `agenvoy.{key}`（例 `agenvoy.OPENAI_API_KEY`）
 - **取值方式**：
   - api_tool：`auth.env: "<KEY_NAME>"`（schema 只記 key 名，無 `agenvoy.` 前綴）
-  - script_tool：`GET http://localhost:17989/v1/key?key=<KEY_NAME>`（同樣不帶前綴）
+  - script_tool：讀 OS keychain（service `agenvoy`）—— macOS `security find-generic-password -s agenvoy -a <KEY_NAME> -w`；Linux `secret-tool lookup service agenvoy account <KEY_NAME>`（key 名同樣不帶前綴）
   - skill body 純文字：直接引用 tool，**不**在 SKILL.md 寫明文 token、**不**寫 `export ENV=value` 之類指令
 - **缺 key 處置**：若觸發時 keychain 無對應 key，subagent 會在 tool 端拿到 401／空值錯誤；skill body 不負責「補登」，請使用者預先用 `store_secret` 落地
 

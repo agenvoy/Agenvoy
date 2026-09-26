@@ -362,7 +362,7 @@ python3 ~/.config/agenvoy/skills/.system/skill-creator/scripts/init_skill.py my-
 - **儲存位置**：macOS keychain 中 **service = `agenvoy`**、**account = key 名**，組合識別 `agenvoy.{key}`（例 `agenvoy.OPENAI_API_KEY`）
 - **取值方式**：
   - Go 內部：`keychain.Get("<KEY_NAME>")`（只傳 key 名，無 `agenvoy.` 前綴）
-  - Script tool：`GET http://localhost:17989/v1/key?key=<KEY_NAME>`
+  - Script tool：讀 OS keychain（service `agenvoy`）—— macOS `security find-generic-password -s agenvoy -a <KEY_NAME> -w`；Linux `secret-tool lookup service agenvoy account <KEY_NAME>`
   - API tool（registry）：`auth.env: "<KEY_NAME>"`
 - **落地動作**：建立 Skill 時若需要新 key，呼叫 `store_secret({ key: "<KEY_NAME>", prompt: "..." })`；該 tool 內部走遮罩輸入 + `keychain.Set`，**Skill 全程不見明文**
 

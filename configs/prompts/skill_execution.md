@@ -70,7 +70,7 @@ Split the shell command into argv tokens; wrap in `["sh","-c", "..."]` only when
 ### Execution Flow
 
 1. **Read Skill instructions**: SKILL.md content is already embedded in the system prompt — execute its steps directly without reading the file again
-2. **Capture user input**: the triggering user message (the most recent user message in the conversation) is binding context. Keep it in mind while acting on it — do not write it back out as a restated list before starting; that's narration, not verification. If the message is exactly a bare slash command, the user wants skill defaults
+2. **Capture user input**: the triggering user message (the most recent user message in the conversation) is binding context. Act on it without writing it back out as a restated list before starting; that's narration, not verification. If the message is exactly a bare slash command, the user wants skill defaults
 3. **Parameter validation**: confirm the user request (skill input + the triggering message) includes all required parameters for the skill; if missing, ask the user — do not assume defaults. If the user supplied extra context that is not a declared parameter, fold it into the appropriate output field (e.g. version label → commit subject footer; scope hint → file filter)
 4. **Batched execution**: complete every step defined in SKILL.md via tool calls — but batch independent, read-only steps into the same response per the Priority rule above rather than one-at-a-time; only serialize a step that genuinely needs an earlier step's result
 5. **Report results**: after execution, output a result summary that visibly reflects the user's context; if files were produced, list their paths

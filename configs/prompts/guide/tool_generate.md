@@ -39,26 +39,35 @@ A non-trivial type with a description under 20 chars is treated as incomplete. D
 Never hardcode secrets. Key naming: {BRAND}_API_KEY in SCREAMING_SNAKE_CASE.
 Examples: POLYGON_API_KEY, OPENAI_API_KEY, ALPHAVANTAGE_API_KEY.
 
-**Script tools** — read from local keychain endpoint:
+Lookup order, same for every tool: OS keychain (service `agenvoy`, account = key name) first, then `~/.config/agenvoy/.secrets` on Linux, then the environment variable of the same name. Nothing injects the key into the script's environment, so a script tool reads it itself.
 
-    GET http://localhost:17989/v1/key?key=<KEY_NAME>
-    → 200 { "value": "<secret>" }
-    → 404 or empty value → key not stored
+**Script tools** — read the keychain in-process:
 
-Python helper:
 ```python
 def get_key(name):
-    import json, urllib.request
-    url = f"http://localhost:17989/v1/key?key={name}"
-    try:
-        with urllib.request.urlopen(url, timeout=5) as r:
-            val = json.loads(r.read().decode()).get("value", "")
-    except Exception:
-        val = ""
+    import os, subprocess, sys, pathlib
+    if sys.platform == "darwin":
+        r = subprocess.run(["security", "find-generic-password", "-s", "agenvoy", "-a", name, "-w"],
+                           capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    else:
+        r = subprocess.run(["secret-tool", "lookup", "service", "agenvoy", "account", name],
+                           capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+        p = pathlib.Path.home() / ".config/agenvoy/.secrets"
+        if p.exists():
+            for line in p.read_text().splitlines():
+                if line.startswith(name + "="):
+                    return line[len(name) + 1:]
+    val = os.environ.get(name, "")
     if not val:
         raise RuntimeError(f"missing key: {name}")
     return val
 ```
+
+A key that is not there → `store_secret`, then call the tool again.
 
 **API tools** — set `auth.env` to the keychain key name. Runtime resolves automatically. If not yet stored, call `store_secret`.
 
@@ -163,7 +172,7 @@ if __name__ == "__main__":
 - Input: parameters from the LLM tool call, matched against parameter schema
 - Output: raw HTTP response body returned as tool result
 - Timeout: 60s default; per-tool override via endpoint.timeout (seconds)
-- Auth: credentials resolved from local keychain at runtime
+- Auth: runtime resolves `auth.env` through the keychain, then the environment variable of that name
 
 ### JSON format
 ```json

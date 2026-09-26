@@ -1,6 +1,6 @@
 ## Office File Guide
 
-Covers every `.docx` / `.xlsx` / `.pptx` you create or modify. Done means the file opens without a repair prompt in Word / Excel / PowerPoint **and** in Pages / Numbers / Keynote. Office silently repairs broken packages; Apple's apps reject the same file as "invalid format" — so "PowerPoint opens it" proves nothing. Real case: a 30-slide deck opened in PowerPoint but Keynote refused it, because `presentation.xml` never listed its notes master.
+Covers every `.docx` / `.xlsx` / `.pptx` you create or modify. Done means the file opens without a repair prompt in Word / Excel / PowerPoint **and** in Pages / Numbers / Keynote. Office silently repairs broken packages; Apple's apps reject the same file as "invalid format" — so "PowerPoint opens it" proves nothing.
 
 ### 1. Build through the library, not the zip
 

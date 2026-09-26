@@ -21,7 +21,8 @@ func registWriteResult() {
 		Concurrent:  false,
 		Description: `Saves one long-form deliverable as a .md or .html file and returns the write receipt with its path.
 Use for the research / analysis / comparison / report body the reply summarises instead of reprinting, and for a finished HTML page.
-Any other file, or a change to a file that already exists → edit_file.`,
+Any other file, or a change to a file that already exists → edit_file.
+Reach for it past roughly 400 words, more than two sections, or a table plus commentary; the same message still carries every key finding, figure and decision.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

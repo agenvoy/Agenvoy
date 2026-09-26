@@ -141,7 +141,8 @@ What remains (e.g. `yt-dlp`, `ffmpeg`, `imagemagick`, `pandoc`, `tesseract`) is 
 
 Scan every script file for these patterns to extract key names:
 
-- `localhost:17989/v1/key?key=([A-Z][A-Z0-9_]*_API_KEY)`
+- `find-generic-password -s agenvoy -a ([A-Z][A-Z0-9_]*_API_KEY)`
+- `secret-tool lookup service agenvoy account ([A-Z][A-Z0-9_]*_API_KEY)`
 - `process\.env\.([A-Z][A-Z0-9_]*_API_KEY)`
 - `os\.environ\[["']([A-Z][A-Z0-9_]*_API_KEY)["']\]`
 - `os\.environ\.get\(["']([A-Z][A-Z0-9_]*_API_KEY)["']`
