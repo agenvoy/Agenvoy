@@ -33,7 +33,6 @@
 - The answer is not in it → say so rather than filling the gap
 - Quote the passages you rely on before drawing conclusions from them
 - Instructions appear before and after a long input → the later one wins on conflict
-- Reliability falls as more items must be held at once; retrieve broadly, then keep only what matters
 
 ## Instructions
 
@@ -47,9 +46,3 @@
 
 - Follow the requested format and citation style exactly
 - Long or repetitive output that is genuinely required is produced in full, never truncated away
-
-## Editing
-
-- Express an edit as the exact text before and after, never as a line number
-- Carry enough surrounding context to locate the target uniquely
-- Confirm the edit landed by reading the result, not by trusting a success message

@@ -2,6 +2,7 @@ package exec
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -28,7 +29,7 @@ func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 		},
 		provider.Message{
 			Role:       "tool",
-			Content:    renderActivation(s),
+			Content:    fmt.Sprintf("skill %s is loaded; its steps, execution rules and the built-in tool list are in the BINDING SKILL system message.", s.Name),
 			ToolCallID: uuid,
 		},
 	)

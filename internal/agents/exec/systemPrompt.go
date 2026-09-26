@@ -23,7 +23,11 @@ import (
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
-const skillsHeader = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — every SKILL.md step binding, tool calls required. Batch independent read-only steps same response; serialize only when a step needs an earlier result. FIRST step (often `ask_user`) before any other tool call — no skip-ahead even if input looks complete.\n\n`run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+const (
+	skillsHeader     = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
+	baseGuideKey     = "_base"
+	unlistedGuideKey = "_base_unlisted"
+)
 
 var guardrailRules = loadGuardrailRules()
 
@@ -154,15 +158,29 @@ func agentGuideSection(workDir string) string {
 }
 
 func officialGuideSection(model string) string {
+	matched := ""
+
 	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
 		return len(b) - len(a)
 	})
 	for _, key := range keys {
+		if key == baseGuideKey || key == unlistedGuideKey {
+			continue
+		}
 		if strings.Contains(model, key) {
-			return strings.TrimSpace(configs.OfficialGuides[key])
+			matched = key
+			break
 		}
 	}
-	return ""
+	if matched == "" {
+		matched = unlistedGuideKey
+	}
+
+	sections := []string{
+		strings.TrimSpace(configs.OfficialGuides[baseGuideKey]),
+		strings.TrimSpace(configs.OfficialGuides[matched]),
+	}
+	return strings.Join(slices.DeleteFunc(sections, func(s string) bool { return s == "" }), "\n\n")
 }
 
 func buildPermissionModeSection(allowAll bool) string {
