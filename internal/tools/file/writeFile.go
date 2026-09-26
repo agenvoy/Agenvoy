@@ -44,6 +44,11 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	if !isNew && info.Size() > filesystem.DocumentMaxBytes {
 		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), filesystem.DocumentMaxBytes>>20)
 	}
+	if !isNew {
+		if err := requireFresh(e, absPath, info.ModTime()); err != nil {
+			return "", err
+		}
+	}
 
 	change, err := historyStore.Capture(absPath)
 	if err != nil {
@@ -57,6 +62,7 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	}
 
 	var unrecorded string
+	markWritten(e, absPath)
 	e.RecordFile(absPath)
 
 	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
