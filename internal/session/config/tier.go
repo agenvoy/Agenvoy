@@ -10,9 +10,10 @@ import (
 )
 
 type WorkKind struct {
-	Key   string
-	What  string
-	Tiers []string
+	Key         string
+	What        string
+	Tiers       []string
+	LongContext bool
 }
 
 var WorkKinds = []WorkKind{
@@ -22,9 +23,10 @@ var WorkKinds = []WorkKind{
 		Tiers: []string{"S", "A", "B", "C"},
 	},
 	{
-		Key:   "research",
-		What:  "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
-		Tiers: []string{"S", "A", "B", "C"},
+		Key:         "research",
+		What:        "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
+		Tiers:       []string{"S", "A", "B", "C"},
+		LongContext: true,
 	},
 	{
 		Key:   "work",
@@ -113,11 +115,24 @@ func ModelTier(tags map[string]string, name string) string {
 	return tier
 }
 
+const smallWindowProvider = "copilot"
+
 var providerRank = map[string]int{
 	"codex":      0,
 	"grok-oauth": 0,
 	"copilot":    1,
 	"openrouter": 3,
+}
+
+func LongContextOrder(work, name string) int {
+	i := slices.IndexFunc(WorkKinds, func(k WorkKind) bool { return k.Key == work })
+	if i < 0 || !WorkKinds[i].LongContext {
+		return 0
+	}
+	if prov, _, _ := strings.Cut(name, "@"); prov == smallWindowProvider {
+		return 1
+	}
+	return 0
 }
 
 func ProviderOrder(name string) int {
