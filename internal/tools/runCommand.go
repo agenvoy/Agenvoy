@@ -33,17 +33,18 @@ func registRunCommand() {
 		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: fmt.Sprintf(`Runs a binary in the work directory, waits for it to exit, and returns its combined stdout/stderr.
-Never start a watcher or long-running process (--watch, chokidar, npm run sass/build/dev scripts that watch): it never exits and the call hangs; run the one-shot build instead.
-Use for 跑一下 / 執行 / build / test / git, and for bash / shell / terminal.
-It fills what the built-in tools cannot do, not replaces them: reading a file (cat / head / tail) → read_files; listing, globbing or grepping (ls / find / grep / rg) → find_files; %s; opening a file in an app → open_file.
-A command that only inspects (git status / log / diff, du, which, docker ps, gh pr list, a tool's --version) runs without asking: it is matched against a read-only allowlist by binary and up to its first two subcommands. Anything outside that list raises a confirmation, so keep such a call to one inspection per argv rather than chaining it behind && with a command that writes.`, systemPackageRoute()),
+		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. No network: git clone / fetch / pull / push, npm install, pip install, go mod download, brew install, curl, wget all fail to resolve a host.
+Use for 跑一下 / 執行 / build / test / lint / format and local git work — one binary and its arguments.
+A script is always run_script, python and shell alike, and that one has network: several chained commands, a loop, a variable, a heredoc, anything you would save as .py or .sh. sh -c here is for a single pipeline or redirect.
+A watcher never exits and hangs the call (--watch, chokidar, npm run sass/build/dev) → run the one-shot build.
+cat / head / tail → read_files; ls / find / grep / rg → find_files; a URL → fetch_page or http_request; %s; open in an app → open_file.
+Inspection only (git status / log / diff, du, which, docker ps, gh pr list, --version) runs without asking, matched against a read-only allowlist by binary plus up to two subcommands; anything else raises a confirmation, so never chain one behind && with a command that writes.`, systemPackageRoute()),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"argv": map[string]any{
 					"type":        "array",
-					"description": "The command as an argv array — ['git','status'], ['python3','script.py','--name','value with spaces']. Pipes, redirects and globbing need ['sh','-c','<full command>']; a plain command with no shell metacharacter (| && > * ~) is called directly, never wrapped in sh -c. ['cd','<path>'] switches the work directory for later calls, and the path is verified first. When the request names a capability rather than an exact command, resolve which binary is installed before running one: a single ['sh','-c','command -v <every candidate>'] prints only those that exist. Guessing the most common name costs one round trip per guess and the failure reads as 'command not found', not as 'wrong binary'.",
+					"description": "The command as an argv array — ['git','status'], ['go','test','./...']. A single pipeline or redirect needs ['sh','-c','<full command>']; without a shell metacharacter (| && > * ~) it is called directly, never wrapped in sh -c. Script source never goes here, inline (python3 -c, a multi-line sh -c) or as a file you just wrote: that is run_script. ['cd','<path>'] switches the work directory for later calls, and the path is verified first. When the request names a capability rather than an exact command, resolve which binary is installed before running one: a single ['sh','-c','command -v <every candidate>'] prints only those that exist. Guessing the most common name costs one round trip per guess and the failure reads as 'command not found', not as 'wrong binary'.",
 					"items":       map[string]any{"type": "string"},
 					"minItems":    1,
 				},
@@ -131,13 +132,11 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 	if err != nil {
 		return "", err
 	}
-	var sandboxOpt *go_pkg_sandbox.Option
+	sandboxOpt := &go_pkg_sandbox.Option{Network: go_pkg_sandbox.NetworkDeny}
 	if len(binds) > 0 {
-		sandboxOpt = &go_pkg_sandbox.Option{
-			MinimalBinds: &go_pkg_sandbox.BindSpec{
-				WriteScope: go_pkg_sandbox.WriteHome,
-				ReadWrite:  binds,
-			},
+		sandboxOpt.MinimalBinds = &go_pkg_sandbox.BindSpec{
+			WriteScope: go_pkg_sandbox.WriteHome,
+			ReadWrite:  binds,
 		}
 	}
 

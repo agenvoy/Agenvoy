@@ -31,6 +31,7 @@ func init() {
 	interactive.Register()
 
 	registRunCommand()
+	registRunScript()
 	registDownloadFile()
 	registOpenFile()
 	registHTMLTemplate()
