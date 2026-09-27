@@ -220,6 +220,17 @@ func stripSafeGitGlobalFlags(argv []string) []string {
 	return append([]string{argv[0]}, argv[i:]...)
 }
 
+func readOnlyCandidates(bin string, argv []string) []string {
+	list := make([]string, 0, 3)
+	if len(argv) > 2 {
+		list = append(list, bin+" "+argv[1]+" "+argv[2])
+	}
+	if len(argv) > 1 {
+		list = append(list, bin+" "+argv[1])
+	}
+	return append(list, bin)
+}
+
 func isReadOnlyRunCommand(toolArgs string) bool {
 	var p struct {
 		Argv []string `json:"argv"`
@@ -233,11 +244,17 @@ func isReadOnlyRunCommand(toolArgs string) bool {
 		argv = stripSafeGitGlobalFlags(argv)
 	}
 
-	matched := slices.Contains(filesystem.ReadOnlyCommand, bin)
-	if !matched && len(argv) > 1 {
-		matched = slices.Contains(filesystem.ReadOnlyCommand, bin+" "+argv[1])
+	matched := false
+	for _, candidate := range readOnlyCandidates(bin, argv) {
+		if slices.Contains(filesystem.ReadOnlyCommand, candidate) {
+			matched = true
+			break
+		}
 	}
 	if !matched {
+		return false
+	}
+	if slices.ContainsFunc(argv[1:], boundary.IsSensitivePath) {
 		return false
 	}
 	if bin == "git" {
@@ -295,9 +312,8 @@ func truncateWriteArgs(argsJSON string) string {
 }
 
 var checkpointClearableTool = map[string]bool{
-	"find_files":           true,
-	"run_command":          true,
-	"run_command_readonly": true,
+	"find_files":  true,
+	"run_command": true,
 }
 
 func hasCompletedTodo(argsJSON string) bool {

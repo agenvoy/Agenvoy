@@ -24,7 +24,6 @@ import (
 var eventLabel = map[string]string{
 	"read_files":            "File",
 	"run_command":           "Run",
-	"run_command_readonly":  "Run",
 	"open_file":             "Open",
 	"download_file":         "Download",
 	"pkg_manage":            "Package",
@@ -140,7 +139,7 @@ func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string
 		}
 		return arg("model")
 
-	case "run_command", "run_command_readonly":
+	case "run_command":
 		return joinArgv(raw)
 
 	case "open_file":
