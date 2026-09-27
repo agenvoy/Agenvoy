@@ -69,7 +69,7 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值；事件也帶有實際使用的 reasoning 等級，以 `model(quota)/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。執行器建立帶有來源、附件與 session context 的 prompt，加入 `official_guides/_base.md`（一律注入）以及檔名被模型名包含的那份模型指引（最長 key 優先），都沒命中則改注入 `_base_unlisted.md`，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），查無資料時 `copilot@` 模型以 256K、其餘以 128K 計算。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值；事件也帶有實際使用的 reasoning 等級，以 `model(quota)/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。執行器建立帶有來源、附件與 session context 的 prompt，依序加入 `official_guides/` 的三層：`_base.md`（一律注入）、模型名含該廠商字樣時的 `_vendor_<vendor>.md`（例如自 Anthropic 總表萃取的 `_vendor_claude.md`）、檔名被模型名包含的那份模型指引（最長 key 優先）；模型檔與 vendor 檔都沒命中時，後兩層改注入 `_base_unlisted.md`。`claude` 開頭的 key 比對時把 `.` 與 `-` 互換後再比，所以 `claude-opus-5.5.md` 同時吃 `claude-opus-5.5` 與 Anthropic 官方的 `claude-opus-5-5`。三層是合併而非串接：同名的 `## 區塊` 只出現一次，後面層的條目接在同一個標題下，逐字相同的條目去重，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），`copilot@` 模型另會非同步向 GitHub Copilot models API 暖機模型限制快取，最多每 24 小時刷新一次；若 API 回報 chat 模型的 `max_context_window_tokens`，就使用該值。未知 Copilot 模型退回一般 128K 上限，其他未列模型也使用 128K。TUI 會以解析出的輸入上限顯示目前 context token 用量，並在達上限 80% 時開始 compact。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 Skill 依固定順序掃描，同名時先找到的生效：`<cwd>/.skills`、`<cwd>/.claude/skills`、`~/.config/agenvoy/skills/.system`、`~/.config/agenvoy/skills/.system_design`、`~/.config/agenvoy/skills`，最後是 `~/.claude`、`~/.codex`、`~/.opencode`、`~/.openai` 的 skills。掃描目錄內其他以 `.` 開頭的資料夾會被略過。`.system` 每次 `make build` 都會以 `extensions/skills` 重建；`.system_design` 存放 TUI `/skill` 指令管理的官方 Skill，勾選時從 `github.com/agenvoy/skill-<name>` clone、取消勾選時刪除，因此重建不會清掉它們。兩個資料夾中的 Skill 來源都標為 `system`，Web 介面無法刪除。
 
@@ -96,7 +96,7 @@ graph TB
 
 ## 模組：工具註冊表與沙箱
 
-內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。工具只在需要時才載入完整 schema，讓一般請求保持輕量。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證、`run_command` 的 shell AST validation 及作業系統沙箱。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
+內建工具、API／script／extension 工具及外部 MCP 工具都進入同一份註冊表。工具只在需要時才載入完整 schema，讓一般請求保持輕量。執行前，工具執行器會檢查 denied path、敏感路徑、命令政策、確認需求、參數驗證、`run_command` 的 shell AST validation 及作業系統沙箱。指令一律在禁網下執行，需要連線的呼叫帶 `network: true`，帶了就一律跳確認且不比對唯讀白名單。一般工具確認會詢問是否允許該次工具呼叫；受限路徑與套件管理操作在支援的頻道還需要系統驗證。命中 denied path 或使用者設定的 denied command 會直接拒絕；不在 denied command 清單不代表失敗，但仍可能進入一般確認流程。
 
 檔案工具透過共用的邊界檢查解析路徑。`find_files` 支援列出目錄、檔名 glob 與 regex 內容搜尋。glob 結果依修改時間由新到舊排列。search 採分頁：`output=files` 回傳每個符合的路徑、命中次數與前 5 個命中行號，查詢夠精準時可直接接 `read_files`；`output=content` 回傳符合的行，可加 `context` 前後文；`multiline` 讓 regex 對整份檔案比對，`.` 可跨行，`^` 與 `$` 仍為行錨點。序列化結果上限為 128 KiB。`read_files` 批次處理文字與支援的文件、圖片、音訊／影片格式，文字預設每次讀 2048 行。純文字檔可用 `around` 讀取指定行號前後各 `context` 行（預設 20），重疊的窗口會合併，略過的內容以一行 `...` 標示；同一路徑可在一次呼叫中出現多次，結果依序串接。`edit_file` 提供 write、patch、remove、restore 四種模式。寫入或修改既有檔案時，`read_files` 必須已在同一次執行中記錄過它的修改時間，且磁碟上的修改時間之後未變；寫入成功會更新這個記錄，因此連續 patch 不需重讀。patch 的 anchor 無法精確比對時，會把彎引號視為直引號再比對一次，替換內容也會沿用檔案原本的彎引號樣式。檔案變更在可用時記錄於 SQLite 歷史；歷史記錄失敗不會撤銷已完成的寫入，並會回報給呼叫端。長篇成果（Markdown 或 HTML）經 `write_result` 寫入設定的輸出資料夾（`output_dir`；預設 `~/Downloads`，不存在時為 `~/.config/agenvoy/download`），不寫入工作目錄，其他替使用者產生的檔案在請求沒指定位置時也放在這裡。`run_command` 會等待程序結束，因此會啟動 file watcher 的命令（`--watch`、`chokidar`，或會啟動 watcher 的 package script，含經 `sh -c` 與 `package.json` 展開者）在執行前即拒絕。缺少即時資料工具時，Agent 可依 Tool Generate 流程建立、測試並保留新工具。Web Search 與檔案搜尋可直接提供即時或本機資料；RAG 沒有內建工具，需由外部 MCP server 提供。
 
@@ -188,7 +188,7 @@ sequenceDiagram
 - Daemon 只監聽 `127.0.0.1` 與 `[::1]`；管理類 endpoint 另有 `localhostOnly()` 守衛。
 - denied path 與 denied command 會直接拒絕；敏感路徑、檔案工具在 `$HOME` 外的讀取與寫入（`read_files`、`find_files`、`file_history`、`edit_file`、`open_file`）及其他受限操作則要求明確確認，支援時再要求系統驗證；核准範圍限於該 session 與所請求的路徑或執行檔。
 - 透過 `edit_file` 寫入或修改既有檔案前，必須在同一次執行中成功以 `read_files` 讀過該檔，且之後修改時間未變，否則拒絕；新檔案不需事先讀取。這項新鮮度檢查是路徑邊界與權限檢查的補充，不取代它們。
-- 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`）。`run_command` 內一律拒絕 `sudo`；需要寫入 `$HOME` 以外的命令，要在該次呼叫以 `write_paths` 宣告路徑，並由使用者輸入系統密碼核准。
+- 命令執行受 shell AST validation 及 OS 沙箱限制（macOS 的 `sandbox-exec`、Linux 的 `bwrap`），且預設禁網，除非該次呼叫帶 `network: true`。`run_command` 內一律拒絕 `sudo`；需要寫入 `$HOME` 以外的命令，要在該次呼叫以 `write_paths` 宣告路徑，並由使用者輸入系統密碼核准。
 - 憑證與 provider、MCP 的 OAuth token 存在作業系統 keychain（macOS Keychain、Linux `secret-tool`），不寫入 repository；`secret-tool` 失敗時改存 `~/.config/agenvoy/.secrets`（權限 0600）。
 
 ## 持久化結構
