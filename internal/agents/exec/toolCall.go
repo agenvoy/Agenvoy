@@ -233,9 +233,10 @@ func readOnlyCandidates(bin string, argv []string) []string {
 
 func isReadOnlyRunCommand(toolArgs string) bool {
 	var p struct {
-		Argv []string `json:"argv"`
+		Argv    []string `json:"argv"`
+		Network bool     `json:"network"`
 	}
-	if json.Unmarshal([]byte(toolArgs), &p) != nil || len(p.Argv) == 0 {
+	if json.Unmarshal([]byte(toolArgs), &p) != nil || len(p.Argv) == 0 || p.Network {
 		return false
 	}
 	argv := p.Argv

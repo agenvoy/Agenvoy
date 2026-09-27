@@ -33,20 +33,23 @@ func registRunCommand() {
 		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. No network: git clone / fetch / pull / push, npm install, pip install, go mod download, brew install, curl, wget all fail to resolve a host.
+		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. Networking is off by default and opened per call with network: true, which always raises a confirmation: git clone / fetch / pull / push, npm or pip or brew install, go mod download, curl and wget each need it set or they fail to resolve a host.
 Use for 跑一下 / 執行 / build / test / lint / format and local git work — one binary and its arguments.
-A script is always run_script, python and shell alike, and that one has network: several chained commands, a loop, a variable, a heredoc, anything you would save as .py or .sh. sh -c here is for a single pipeline or redirect.
 A watcher never exits and hangs the call (--watch, chokidar, npm run sass/build/dev) → run the one-shot build.
 cat / head / tail → read_files; ls / find / grep / rg → find_files; a URL → fetch_page or http_request; %s; open in an app → open_file.
-Inspection only (git status / log / diff, du, which, docker ps, gh pr list, --version) runs without asking, matched against a read-only allowlist by binary plus up to two subcommands; anything else raises a confirmation, so never chain one behind && with a command that writes.`, systemPackageRoute()),
+Inspection only (git status / log / diff, du, which, docker ps, git config --list, --version) runs without asking, matched against a read-only allowlist by binary plus up to two subcommands; anything else raises a confirmation, so never chain one behind && with a command that writes.`, systemPackageRoute()),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"argv": map[string]any{
 					"type":        "array",
-					"description": "The command as an argv array — ['git','status'], ['go','test','./...']. A single pipeline or redirect needs ['sh','-c','<full command>']; without a shell metacharacter (| && > * ~) it is called directly, never wrapped in sh -c. Script source never goes here, inline (python3 -c, a multi-line sh -c) or as a file you just wrote: that is run_script. ['cd','<path>'] switches the work directory for later calls, and the path is verified first. When the request names a capability rather than an exact command, resolve which binary is installed before running one: a single ['sh','-c','command -v <every candidate>'] prints only those that exist. Guessing the most common name costs one round trip per guess and the failure reads as 'command not found', not as 'wrong binary'.",
+					"description": "The command as an argv array — ['git','status'], ['go','test','./...']. A single pipeline or redirect needs ['sh','-c','<full command>']; without a shell metacharacter (| && > * ~) it is called directly, never wrapped in sh -c. A multi-line script goes in a file you write first, then run that file. ['cd','<path>'] switches the work directory for later calls, and the path is verified first. When the request names a capability rather than an exact command, resolve which binary is installed before running one: a single ['sh','-c','command -v <every candidate>'] prints only those that exist. Guessing the most common name costs one round trip per guess and the failure reads as 'command not found', not as 'wrong binary'.",
 					"items":       map[string]any{"type": "string"},
 					"minItems":    1,
+				},
+				"network": map[string]any{
+					"type":        "boolean",
+					"description": "Set true when the command has to reach a host — git clone / fetch / pull / push, npm or pnpm or yarn install, pip install, go mod download, brew install, cargo fetch, curl. The sandbox keeps networking off until this is set, and setting it always raises a confirmation, so leave it out for anything that only touches local files.",
 				},
 				"write_paths": map[string]any{
 					"type":        "array",
@@ -59,12 +62,13 @@ Inspection only (git status / log / diff, du, which, docker ps, gh pr list, --ve
 		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Argv       []string `json:"argv"`
+				Network    bool     `json:"network"`
 				WritePaths []string `json:"write_paths"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-			return runCommand(ctx, e, params.Argv, params.WritePaths)
+			return runCommand(ctx, e, params.Argv, params.WritePaths, params.Network)
 		},
 	})
 }
@@ -81,10 +85,10 @@ func systemPackageRoute() string {
 	if goRuntime.GOOS == "linux" {
 		return "installing or removing a system package → pkg_manage"
 	}
-	return `installing a system package → brew install, declaring write_paths: ["/opt/homebrew"]`
+	return `installing a system package → brew install with network: true, declaring write_paths: ["/opt/homebrew"]`
 }
 
-func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string) (string, error) {
+func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string, network bool) (string, error) {
 	if len(argv) == 0 {
 		return "", fmt.Errorf("run_command requires a non-empty 'argv' array, e.g. [\"git\", \"status\"]")
 	}
@@ -133,6 +137,9 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		return "", err
 	}
 	sandboxOpt := &go_pkg_sandbox.Option{Network: go_pkg_sandbox.NetworkDeny}
+	if network {
+		sandboxOpt.Network = go_pkg_sandbox.NetworkAllow
+	}
 	if len(binds) > 0 {
 		sandboxOpt.MinimalBinds = &go_pkg_sandbox.BindSpec{
 			WriteScope: go_pkg_sandbox.WriteHome,
