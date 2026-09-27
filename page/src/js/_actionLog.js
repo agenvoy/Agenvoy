@@ -284,7 +284,7 @@ function formatTPS(output, elapsed) {
   if (ms <= 0 || !Number.isFinite(tokens) || tokens <= 0) {
     return "";
   }
-  return `${(tokens / (ms / 1000)).toFixed(1)} tok/s`;
+  return `${(tokens / (ms / 1000)).toFixed(1)}t/s`;
 }
 
 function compactDuration(value) {

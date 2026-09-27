@@ -124,7 +124,7 @@ func registPkgManage() {
 		Concurrent:  false,
 		Description: `Drives the Linux package manager (apt / dnf / yum / pacman / apk) outside the sandbox, so the root operations bwrap cannot grant still work.
 Use for 安裝 / 移除套件 / 更新套件庫 / command not found / 缺 ffmpeg 之類的執行檔.
-run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (node / python) → run_command with mise, fnm or uv; language-level packages (pip / npm / cargo) → run_command.`,
+run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (node / python) → run_command with mise, fnm or uv, network: true; language-level packages (pip / npm / cargo) → run_command with network: true.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

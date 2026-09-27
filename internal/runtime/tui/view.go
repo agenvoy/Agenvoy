@@ -6,16 +6,18 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
-	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
+
+func renderContextWindow(modelName string, contextTokens int) string {
+	return go_pkg_utils.CompactNumber(contextTokens) + "/" + go_pkg_utils.CompactNumber(compact.InputWindow(modelName))
+}
 
 func (t TUI) View() string {
 	if t.quitting {
@@ -91,15 +93,11 @@ func (t TUI) viewThinking() string {
 	verb := activityVerb(t.activity)
 	elapsed := formatTime(int(time.Since(t.runStartedAt).Seconds()))
 
-	detail := []string{elapsed}
-	if in := agentTypes.FormatInput(agentTypes.InputTotals(&provider.Usage{
-		Input:       t.lastIn,
-		CacheRead:   t.lastCacheRead,
-		CacheCreate: t.lastCacheCreate,
-	})); in != "" {
-		detail = append(detail, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(t.lastOut)))
+	detail := []string{
+		elapsed,
+		// renderContextWindow(t.currentModel, t.lastContext),
+		"esc to interrupt",
 	}
-	detail = append(detail, "esc to interrupt")
 
 	sb.WriteString(systemStyle.Render(t.spinner.View()))
 	sb.WriteString(" ")

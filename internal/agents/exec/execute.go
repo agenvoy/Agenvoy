@@ -682,7 +682,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		usageSnapshot := usage
-		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
+		events <- agentTypes.Event{
+			Type:          agentTypes.EventUsageUpdate,
+			Usage:         &usageSnapshot,
+			ContextTokens: lastInputTokens,
+		}
 
 		if len(resp.Choices) == 0 {
 			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart, sendElapsedTotal) {

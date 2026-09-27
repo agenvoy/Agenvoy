@@ -404,6 +404,23 @@ func messageRow(text, subagent string) string {
 	return sb.String()
 }
 
+func renderQuotaBadge(quota string) string {
+	if quota = strings.TrimSpace(quota); quota == "" {
+		return ""
+	}
+	style := okayStyle
+	if percent, ok := strings.CutSuffix(quota, "%"); ok {
+		switch value, err := strconv.ParseFloat(percent, 64); {
+		case err != nil:
+		case value < 30:
+			style = errorStyle
+		case value < 50:
+			style = skillStyle
+		}
+	}
+	return style.Render("[" + quota + "]")
+}
+
 func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
@@ -507,7 +524,10 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 				stats = finishedAt
 			}
 		}
-		model := utils.FormatEventFooter(0, 0, ev.Model, ev.Quota, ev.Reasoning, nil)
+		model := utils.FormatEventFooter(0, 0, ev.Model, "", ev.Reasoning, nil)
+		if badge := renderQuotaBadge(ev.Quota); badge != "" {
+			model += " " + badge
+		}
 		if sessionLabel != "" {
 			if model != "" {
 				model += "  [" + sessionLabel + "]"

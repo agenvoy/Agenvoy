@@ -64,6 +64,7 @@ type TUI struct {
 	lastOut            int
 	lastCacheRead      int
 	lastCacheCreate    int
+	lastContext        int
 
 	tailCancel context.CancelFunc
 

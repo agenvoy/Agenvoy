@@ -22,7 +22,6 @@ import (
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
-	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -31,7 +30,7 @@ const maxConcurrentSubagents = 3
 
 var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
 
-func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, parentSessionID string, ignoreHistory bool) (string, error) {
+func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, ignoreHistory bool) (string, error) {
 	registry := agents.Registry()
 	dispatcher := agents.DispatcherBot()
 	if dispatcher == nil || len(registry.Registry) == 0 {
@@ -204,7 +203,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	var sb strings.Builder
 	var totalUsage provider.Usage
-	var totalElapsed time.Duration
 	for ev := range events {
 		pubsub.Pub(sessionID, ev)
 		passSubagentEvent(parentEvents, displayName, ev)
@@ -224,7 +222,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 				totalUsage.Output += ev.Usage.Output
 				totalUsage.CacheCreate += ev.Usage.CacheCreate
 				totalUsage.CacheRead += ev.Usage.CacheRead
-				totalElapsed += ev.OutputElapsed
 			}
 		case agentTypes.EventError:
 			if ev.Err != nil {
@@ -241,11 +238,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	})
 
 	usageLine := fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", totalUsage.Input+totalUsage.CacheRead+totalUsage.CacheCreate, totalUsage.Output, totalUsage.CacheRead, totalUsage.CacheCreate)
-
-	if parentSessionID != "" && parentSessionID != sessionID && (totalUsage.Input > 0 || totalUsage.Output > 0 || totalUsage.CacheRead > 0 || totalUsage.CacheCreate > 0) {
-		prov, usageModel, _ := strings.Cut(agent.Name(), "@")
-		usagelog.Append(parentSessionID, prov, usageModel, totalUsage, totalElapsed)
-	}
 
 	retryHint := ""
 	if ctx.Err() == nil {
