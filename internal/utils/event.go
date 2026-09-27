@@ -341,17 +341,17 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, quota, reas
 	if duration > 0 {
 		elapsed := duration.Round(100 * time.Millisecond).String()
 		if outputElapsed > 0 && usage != nil && usage.Output > 0 {
-			elapsed += fmt.Sprintf("(%.1f tok/s)", float64(usage.Output)/outputElapsed.Seconds())
+			elapsed += fmt.Sprintf("(%.1ft/s)", float64(usage.Output)/outputElapsed.Seconds())
 		}
 		parts = append(parts, elapsed)
 	}
 
 	if model = strings.TrimSpace(model); model != "" {
-		if quota != "" {
-			model += "(" + quota + ")"
-		}
 		if reasoning != "" {
 			model += "/" + reasoning
+		}
+		if quota != "" {
+			model += " [" + quota + "]"
 		}
 		parts = append(parts, model)
 	}

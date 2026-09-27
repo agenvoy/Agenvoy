@@ -72,6 +72,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 
 	t.tokens = 0
 	t.lastIn = 0
+	t.lastContext = 0
 	t.lastOut = 0
 	t.lastCacheRead = 0
 	t.lastCacheCreate = 0
