@@ -239,6 +239,13 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if p.searchable {
 		switch msg.Type {
 		case tea.KeyUp, tea.KeyDown, tea.KeyEnter:
+		case tea.KeyLeft, tea.KeyRight:
+			if len(p.tabs) < 2 {
+				var cmd tea.Cmd
+				p.input, cmd = p.input.Update(msg)
+				p.filter()
+				return t, cmd
+			}
 		case tea.KeyEsc:
 			if p.input.Value() != "" {
 				p.input.Reset()
@@ -526,7 +533,6 @@ func newPopupInput(value string, multiline bool) textarea.Model {
 	input.SetHeight(1)
 	input.SetValue(value)
 	input.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	boldTextArea(&input)
 	input.Focus()
 	input.Cursor.Style = whiteStyle
 	input.Cursor.SetMode(cursor.CursorStatic)

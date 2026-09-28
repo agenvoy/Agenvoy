@@ -94,6 +94,7 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 	popup.onTab = func(p *Popup) tea.Cmd {
 		p.styledLines = nil
 		p.onDelete, p.onTag, p.onMove = nil, nil, nil
+		p.searchable, p.allOptions, p.allValues = false, nil, nil
 
 		switch p.tabIdx {
 		case 1:

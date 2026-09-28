@@ -136,7 +136,6 @@ func newModel(ctx context.Context) TUI {
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
 	textArea.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	boldTextArea(&textArea)
 	textArea.Focus()
 	textArea.Cursor.Style = whiteStyle
 	textArea.Cursor.SetMode(cursor.CursorStatic)

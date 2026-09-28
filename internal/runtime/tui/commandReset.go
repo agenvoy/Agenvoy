@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,27 +20,6 @@ type ResetSessionConfirm2 struct {
 	id   string
 	mode string
 	yes  bool
-}
-
-func (t TUI) commandReset() (TUI, tea.Cmd, bool) {
-	sid := strings.TrimSpace(t.currentSessionID)
-	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
-	}
-
-	label := utils.ShortenSessionID(sid)
-	t.popup = &Popup{
-		kind:     popupSingleSelect,
-		title:    fmt.Sprintf("Reset history for %s ?", label),
-		subtitle: "summary: regenerate then keep  all: also wipe the summary",
-		options:  []string{"No", "Yes  summary first, keep it", "Yes  reset all (summary too)"},
-		values:   []string{"no", "summary", "all"},
-		cursor:   0,
-		onConfirm: func(chosen string) any {
-			return ResetSessionConfirm1{id: sid, mode: chosen}
-		},
-	}
-	return t, nil, true
 }
 
 func (t TUI) openResetConfirm2(sid, mode string) (TUI, tea.Cmd) {

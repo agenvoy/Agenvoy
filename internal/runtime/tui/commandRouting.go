@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -107,5 +109,16 @@ func (t TUI) runRoutingTabLoaded(msg RoutingTabLoaded) (TUI, tea.Cmd) {
 
 	p.styledLines = nil
 	p.options, p.values, p.cursor = options, values, cursor
+
+	if slices.ContainsFunc(msg.available, func(name string) bool { return strings.HasPrefix(name, "openrouter@") }) {
+		input := newPopupInput("", false)
+		input.Placeholder = "Search models..."
+		input.SetPromptFunc(2, func(int) string {
+			return hintStyle.Render("/ ")
+		})
+		p.input = input
+		p.allOptions, p.allValues = options, values
+		p.searchable = true
+	}
 	return t, nil
 }

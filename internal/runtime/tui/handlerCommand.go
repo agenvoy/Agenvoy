@@ -44,10 +44,10 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		return t.commandSkills()
 
 	case "/compact":
-		return t.commandCompact()
+		return t.commandCompactReset(0)
 
 	case "/reset":
-		return t.commandReset()
+		return t.commandCompactReset(1)
 
 	case "/role":
 		return t.commandRole()

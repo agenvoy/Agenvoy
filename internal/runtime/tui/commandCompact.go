@@ -12,6 +12,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
+const (
+	compactPrefix = "compact:"
+	resetPrefix   = "reset:"
+)
+
 type CompactConfirm struct {
 	id  string
 	yes bool
@@ -23,24 +28,40 @@ type CompactDone struct {
 	err     error
 }
 
-func (t TUI) commandCompact() (TUI, tea.Cmd, bool) {
+func (t TUI) commandCompactReset(tab int) (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
 		return t, tea.Println(msgLog("no active session") + "\n"), true
 	}
 
 	label := utils.ShortenSessionID(sid)
-	t.popup = &Popup{
-		kind:     popupSingleSelect,
-		title:    fmt.Sprintf("Compact history for %s ?", label),
-		subtitle: "Redundant and meaningless exchanges will be removed by LLM analysis.",
-		options:  []string{"No", "Yes"},
-		values:   []string{"no", "yes"},
-		cursor:   0,
+	popup := &Popup{
+		kind:  popupSingleSelect,
+		title: "/compact",
+		tabs:  []string{"compact", "reset"},
 		onConfirm: func(chosen string) any {
-			return CompactConfirm{id: sid, yes: chosen == "yes"}
+			if mode, ok := strings.CutPrefix(chosen, resetPrefix); ok {
+				return ResetSessionConfirm1{id: sid, mode: mode}
+			}
+			return CompactConfirm{id: sid, yes: chosen == compactPrefix+"yes"}
 		},
 	}
+	popup.onTab = func(p *Popup) tea.Cmd {
+		p.cursor = 0
+		if p.tabIdx == 1 {
+			p.subtitle = fmt.Sprintf("reset history for %s  summary: regenerate then keep  all: also wipe the summary", label)
+			p.options = []string{"No", "Yes  summary first, keep it", "Yes  reset all (summary too)"}
+			p.values = []string{resetPrefix + "no", resetPrefix + "summary", resetPrefix + "all"}
+			return nil
+		}
+		p.subtitle = fmt.Sprintf("compact history for %s  redundant and meaningless exchanges are removed by LLM analysis", label)
+		p.options = []string{"No", "Yes"}
+		p.values = []string{compactPrefix + "no", compactPrefix + "yes"}
+		return nil
+	}
+	popup.tabIdx = tab
+	popup.onTab(popup)
+	t.popup = popup
 	return t, nil, true
 }
 

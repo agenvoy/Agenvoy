@@ -324,10 +324,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelect:
 		return t.runCommandSwitch(msg.id)
 
-	case SessionNewSubmit:
-		next, cmd := t.showNewPromptPicker(msg.name)
-		return next, cmd
-
 	case SessionNewCustomSubmit:
 		next, cmd := t.showNewCustomPopup(msg.name)
 		return next, cmd
