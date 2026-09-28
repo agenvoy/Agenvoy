@@ -597,6 +597,16 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !p.multiline {
 			return submit()
 		}
+
+	case tea.KeyLeft:
+		if len(p.tabs) > 1 {
+			return t, p.switchTab(-1)
+		}
+
+	case tea.KeyRight:
+		if len(p.tabs) > 1 {
+			return t, p.switchTab(1)
+		}
 	}
 
 	var cmd tea.Cmd

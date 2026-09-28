@@ -838,14 +838,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ChannelSelect:
 		switch msg.channel {
 		case "telegram":
-			next, cmd, _ := t.commandTelegram(nil)
-			return next, cmd
+			return t.openTelegramTokenPrompt()
 		case "discord":
-			next, cmd, _ := t.commandDiscord(nil)
-			return next, cmd
-		case "admin":
-			next, cmd, _ := t.commandAdminChannel(nil)
-			return next, cmd
+			return t.openDiscordTokenPrompt()
 		}
 		return t, nil
 
@@ -865,9 +860,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
 		}
 		if value == "" {
-			return t, tea.Println(msgLog("channel admin  disabled (log-only)") + "\n")
+			return t.openConfig(configAdminChat), tea.Println(msgLog("channel admin  disabled (log-only)") + "\n")
 		}
-		return t, tea.Println(msgLog("channel admin  "+value) + "\n")
+		return t.openConfig(configAdminChat), tea.Println(msgLog("channel admin  "+value) + "\n")
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)

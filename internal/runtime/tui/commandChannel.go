@@ -23,49 +23,123 @@ type ChannelSelect struct {
 }
 
 func (t TUI) commandChannel(parts []string) (TUI, tea.Cmd, bool) {
+	tab := 0
 	if len(parts) > 1 {
-		switch parts[1] {
-		case "telegram":
-			return t.commandTelegram(parts[1:])
-		case "discord":
-			return t.commandDiscord(parts[1:])
-		case "admin":
-			return t.commandAdminChannel(parts[1:])
+		if len(parts) > 2 {
+			switch parts[1] {
+			case "telegram":
+				return t.commandTelegram(parts[1:])
+			case "discord":
+				return t.commandDiscord(parts[1:])
+			}
+		}
+		if parts[1] == "discord" {
+			tab = 1
 		}
 	}
 
+	popup := &Popup{
+		kind:  popupSingleSelect,
+		title: "/channel",
+		tabs:  []string{"telegram", "discord"},
+	}
+	popup.onConfirm = func(chosen string) any {
+		if popup.kind == popupText {
+			token := strings.TrimSpace(chosen)
+			if popup.tabIdx == 1 {
+				return DiscordTokenSubmit{token: token}
+			}
+			return TelegramTokenSubmit{token: token}
+		}
+		{
+			channel, action, _ := strings.Cut(chosen, ":")
+			switch action {
+			case "enable":
+				return ChannelSelect{channel: channel}
+			case "disable":
+				if channel == "discord" {
+					return DiscordAction{action: "disable"}
+				}
+				return TelegramAction{action: "disable"}
+			}
+			return nil
+		}
+	}
+	popup.onDelete = func(chosen string) any {
+		channel, id, _ := strings.Cut(chosen, ":")
+		if id == "" || id == "enable" || id == "disable" {
+			return nil
+		}
+		return ChannelRevokePick{channel: channel, id: id, name: chatName(channel, id)}
+	}
+	popup.onTab = func(p *Popup) tea.Cmd {
+		channel := "telegram"
+		if p.tabIdx == 1 {
+			channel = "discord"
+		}
+		fillChannelTab(p, channel)
+		return nil
+	}
+	popup.tabIdx = tab
+	popup.onTab(popup)
+	t.popup = popup
+	return t, nil, true
+}
+
+func channelEnabled(channel string) bool {
 	cfg, err := config.Load()
 	if err != nil || cfg == nil {
-		cfg = &config.Config{}
+		return false
 	}
+	if channel == "discord" {
+		return cfg.DiscordEnabled && keychain.Get(discord.Key) != ""
+	}
+	return cfg.TelegramEnabled && keychain.Get(telegram.Key) != ""
+}
 
-	state := func(enabled bool) string {
-		if enabled {
-			return okayStyle.Render("[enabled]")
+func chatName(channel, id string) string {
+	for _, one := range utils.ListChats(channelAuthPath(channel)) {
+		if one.ID == id {
+			return strings.TrimSpace(one.Name)
 		}
-		return ""
 	}
+	return ""
+}
 
-	telegramOn := cfg.TelegramEnabled && keychain.Get(telegram.Key) != ""
-	discordOn := cfg.DiscordEnabled && keychain.Get(discord.Key) != ""
-
-	values := []string{"telegram", "discord"}
-	details := []string{state(telegramOn), state(discordOn)}
-	if telegramOn || discordOn {
-		values = append([]string{"admin"}, values...)
-		details = append([]string{hintStyle.Render("relay new-chat verification codes")}, details...)
+func fillChannelTab(p *Popup, channel string) {
+	p.cursor = 0
+	p.styledLines = nil
+	if !channelEnabled(channel) {
+		source := "@BotFather"
+		if channel == "discord" {
+			source = "Discord Developer Portal"
+		}
+		p.kind = popupText
+		p.multiline = false
+		p.input = newPopupInput("", false)
+		p.subtitle = "not connected  enter the token from " + source
+		p.options, p.values = nil, nil
+		return
 	}
+	p.kind = popupSingleSelect
 
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "/channel",
-		options: optionColumn(values, details),
-		values:  values,
-		onConfirm: func(chosen string) any {
-			return ChannelSelect{channel: chosen}
-		},
+	entries := utils.ListChats(channelAuthPath(channel))
+	prefix := channelPrefix(channel)
+	options := make([]string, 0, len(entries)+2)
+	values := make([]string, 0, len(entries)+2)
+	for _, one := range entries {
+		options = append(options, adminChannelLabel(prefix, one))
+		values = append(values, channel+":"+one.ID)
 	}
-	return t, nil, true
+	if len(entries) > 0 {
+		options = append(options, "")
+		values = append(values, "")
+	}
+	options = append(options, "disable")
+	values = append(values, channel+":disable")
+
+	p.subtitle = "authorized chats  d revokes the highlighted one"
+	p.options, p.values = options, values
 }
 
 type ChannelRevokePick struct {
@@ -99,48 +173,6 @@ func channelPrefix(channel string) string {
 		return "dc"
 	}
 	return "tg"
-}
-
-func (t TUI) openChannelMenu(channel, title string, disable func() any) (TUI, tea.Cmd) {
-	entries := utils.ListChats(channelAuthPath(channel))
-	prefix := channelPrefix(channel)
-
-	options := make([]string, 0, len(entries)+2)
-	values := make([]string, 0, len(entries)+2)
-	names := make(map[string]string, len(entries))
-	for _, one := range entries {
-		options = append(options, adminChannelLabel(prefix, one))
-		values = append(values, one.ID)
-		names[one.ID] = strings.TrimSpace(one.Name)
-	}
-	if len(entries) > 0 {
-		options = append(options, "")
-		values = append(values, "")
-	}
-	options = append(options, "(disable "+channel+")")
-	values = append(values, "disable")
-
-	t.popup = &Popup{
-		kind:       popupSingleSelect,
-		title:      title,
-		subtitle:   "authorized chats  d revokes the highlighted one",
-		options:    options,
-		values:     values,
-		maxVisible: cmdSelectorMaxVisible,
-		onConfirm: func(chosen string) any {
-			if chosen == "disable" {
-				return disable()
-			}
-			return nil
-		},
-		onDelete: func(chosen string) any {
-			if chosen == "disable" {
-				return nil
-			}
-			return ChannelRevokePick{channel: channel, id: chosen, name: names[chosen]}
-		},
-	}
-	return t, nil
 }
 
 func (t TUI) openChannelRevokeConfirm(msg ChannelRevokePick) (TUI, tea.Cmd) {

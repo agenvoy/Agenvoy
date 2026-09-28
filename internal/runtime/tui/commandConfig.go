@@ -13,6 +13,7 @@ const (
 	configStartup   = "startup"
 	configReplyLang = "reply_lang"
 	configOutputDir = "output_dir"
+	configAdminChat = "admin_chat"
 )
 
 type ConfigSelect struct {
@@ -34,13 +35,14 @@ func (t TUI) openConfig(focus string) TUI {
 	if startup.State() {
 		startupValue = okayStyle.Render("enable")
 	}
-	names := []string{"Startup on login", "Reply language", "Output dir"}
+	names := []string{"Startup on login", "Reply language", "Output dir", "Admin Channel"}
 	settings := []string{
 		startupValue,
 		filesystem.CanonicalReplyLang(filesystem.ConfigReplyLang),
 		filesystem.OutputDir(),
+		adminChatValue(),
 	}
-	values := []string{configStartup, configReplyLang, configOutputDir}
+	values := []string{configStartup, configReplyLang, configOutputDir, configAdminChat}
 	options := optionColumn(names, settings)
 
 	input := newPopupInput("", false)
@@ -81,6 +83,10 @@ func (t TUI) runConfigSelect(key string) (TUI, tea.Cmd) {
 
 	case configOutputDir:
 		next, cmd, _ := t.commandOutputDir()
+		return next, cmd
+
+	case configAdminChat:
+		next, cmd, _ := t.commandAdminChannel(nil)
 		return next, cmd
 	}
 	return t, nil

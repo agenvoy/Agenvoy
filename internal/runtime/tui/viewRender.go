@@ -318,7 +318,6 @@ var asciiMarkLines = []string{
 	"      .:::::.",
 	"    .::     ::.",
 	"  .::    :::::::.",
-	"",
 	"  ::.         .::",
 	"    ::.     .::",
 	"      :::::::",
@@ -347,11 +346,17 @@ func headerBlock(daemon, http, discord, telegram string) string {
 		"",
 	}
 
-	rows := make([]string, len(asciiMarkLines))
-	for i, mark := range asciiMarkLines {
-		rows[i] = whiteStyle.Render(padTo(mark, markCol)) + textLines[i]
+	rows := make([]string, max(len(asciiMarkLines), len(textLines)))
+	for i := range rows {
+		mark, text := "", ""
+		if i < len(asciiMarkLines) {
+			mark = asciiMarkLines[i]
+		}
+		if i < len(textLines) {
+			text = textLines[i]
+		}
+		rows[i] = whiteStyle.Render(padTo(mark, markCol)) + text
 	}
-	rows = append(rows, "")
 	return headerStyle.Render(strings.Join(rows, "\n"))
 }
 

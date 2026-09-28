@@ -108,24 +108,24 @@ func fillAllowSkills(p *Popup) {
 		sort.Strings(names)
 	}
 	allowed := allowSkill.LoadGlobal()
-	sources := make([]string, len(names))
-	sourceWidth := 0
-	for i, name := range names {
-		if one := scanner.Lookup(name); one != nil {
-			sources[i] = runtime.SkillSource(one.AbsPath)
-		}
-		sourceWidth = max(sourceWidth, len(sources[i])+2)
-	}
+	labels := make([]string, len(names))
 	settings := make([]string, len(names))
 	for i, name := range names {
-		status := hintStyle.Render("ask")
-		if allowed[name] {
-			status = okayStyle.Render("always allow")
+		source := ""
+		if one := scanner.Lookup(name); one != nil {
+			source = runtime.SkillSource(one.AbsPath)
 		}
-		settings[i] = hintStyle.Render(padToWidth(sources[i], sourceWidth)) + status
+		labels[i] = name
+		if source != "" && source != "system" {
+			labels[i] = name + "  (" + source + ")"
+		}
+		settings[i] = hintStyle.Render("ask")
+		if allowed[name] {
+			settings[i] = okayStyle.Render("always allow")
+		}
 	}
 	p.subtitle = "always allowed skills skip the permission prompt  " + filesystem.AllowSkillGlobalPath
-	p.options = optionColumn(names, settings)
+	p.options = optionColumn(labels, settings)
 	p.values = names
 	p.cursor = min(p.cursor, max(len(p.options)-1, 0))
 }
