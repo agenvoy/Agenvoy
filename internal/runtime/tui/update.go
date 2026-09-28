@@ -63,10 +63,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t.runMcpOAuthDone(msg)
 		case McpOAuthPaste:
 			return t.runMcpOAuthPaste(msg)
-		case AudioModelLoaded:
-			return t.openAudioModelPopup(msg)
-		case ImageModelLoaded:
-			return t.openImageModelPopup(msg)
+		case RoutingTabLoaded:
+			return t.runRoutingTabLoaded(msg)
 		}
 		return t, nil
 	}
@@ -347,18 +345,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.scope {
 		case "add":
 			next, cmd, _ := t.commandModelAdd()
-			return next, cmd
-		case "summary":
-			next, cmd, _ := t.commandSummaryModel()
-			return next, cmd
-		case "image":
-			next, cmd, _ := t.commandImageModel()
-			return next, cmd
-		case "stt":
-			next, cmd, _ := t.commandSTTModel()
-			return next, cmd
-		case "tts":
-			next, cmd, _ := t.commandTTSModel()
 			return next, cmd
 		}
 		return t, nil
@@ -918,12 +904,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case OutputDirSubmit:
 		return t.runOutputDirSubmit(msg.value)
-
-	case AudioModelLoaded:
-		return t.openAudioModelPopup(msg)
-
-	case ImageModelLoaded:
-		return t.openImageModelPopup(msg)
 
 	case AudioModelSelect:
 		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)

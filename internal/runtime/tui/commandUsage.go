@@ -52,8 +52,9 @@ func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 		readOnly:   true,
 		tabs:       labels,
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillUsageOptions(p, sessionID != "", sessions, totals, nameWidth)
+		return nil
 	}
 	popup.onTab(popup)
 

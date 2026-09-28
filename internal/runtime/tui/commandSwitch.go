@@ -50,10 +50,10 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 		popup.subtitle = "pick a session to switch to  or edit the current session's name / self id / role below"
 	}
 	fillSessions := popup.onTab
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillSessions(p)
 		if sid == "" {
-			return
+			return nil
 		}
 		selfID, name, _ := configBot.GetPersona(sid)
 		withValue := func(desc, value string) string {
@@ -70,6 +70,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 			hintStyle.Render("system prompt for this session"),
 		})...)
 		p.values = append(p.values, sessionBotPrefix+"name", sessionBotPrefix+"id", sessionBotPrefix+"role")
+		return nil
 	}
 	popup.onTab(popup)
 	popup.onConfirm = func(chosen string) any {
@@ -217,8 +218,9 @@ func popupSwitch(sid string) *Popup {
 		enterAction: "switch",
 		tabs:        sessionTabs(sessions),
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillSwitchOptions(p, sessions, sid)
+		return nil
 	}
 	popup.onTab(popup)
 	return popup

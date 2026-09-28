@@ -437,9 +437,10 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 		}
 	}
 
+	tiers, _, _ := selectorConfig()
 	fallbacks := make([]agentTypes.Agent, 0, len(registry.Entries))
 	for _, e := range registry.Entries {
-		if e.Name == primaryName || dead[e.Name] {
+		if e.Name == primaryName || dead[e.Name] || tiers[e.Name] == config.ModelTagPass {
 			continue
 		}
 		if a, ok := registry.Registry[e.Name]; ok && a != nil {

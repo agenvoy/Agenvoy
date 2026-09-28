@@ -11,48 +11,6 @@ type SummaryModelSelect struct {
 	name string
 }
 
-func (t TUI) commandSummaryModel() (TUI, tea.Cmd, bool) {
-	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
-	}
-	if len(cfg.Models) == 0 {
-		return t, tea.Println(msgLog("no models configured  use /model") + "\n"), true
-	}
-
-	auto := "auto"
-	if cfg.SummaryModel == "" {
-		auto += "  " + systemStyle.Render("[current]")
-	}
-	options := make([]string, 0, len(cfg.Models)+1)
-	values := make([]string, 0, len(cfg.Models)+1)
-	options = append(options, auto)
-	values = append(values, "")
-	cursor := 0
-
-	for _, m := range cfg.Models {
-		label := m.Name
-		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
-			label += "  " + systemStyle.Render("[current]")
-			cursor = len(options)
-		}
-		options = append(options, label)
-		values = append(values, m.Name)
-	}
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "/model summary",
-		options: options,
-		values:  values,
-		cursor:  cursor,
-		onConfirm: func(chosen string) any {
-			return SummaryModelSelect{name: chosen}
-		},
-	}
-	return t, nil, true
-}
-
 func (t TUI) runSummaryModelSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {

@@ -79,7 +79,7 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 			return nil
 		},
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		p.cursor = 0
 		if p.tabIdx == 1 {
 			p.kind = popupMultiSelect
@@ -88,11 +88,12 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 			p.options = slices.Clone(remoteSkills)
 			p.values = remoteSkills
 			p.multi = installMulti
-			return
+			return nil
 		}
 		p.kind = popupSingleSelect
 		p.enterAction = "toggle"
 		fillAllowSkills(p)
+		return nil
 	}
 	popup.onTab(popup)
 	t.popup = popup

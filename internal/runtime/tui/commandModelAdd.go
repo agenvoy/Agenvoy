@@ -148,7 +148,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 			return daemon.BaseURL() + "/v1/provider/" + url.PathEscape(chosen) + "/console"
 		},
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		methods := modelAddProviders[p.tabIdx].methods
 		if modelAddProviders[p.tabIdx].tab == "Custom" {
 			methods = append(slices.Clone(methods), locals...)
@@ -164,6 +164,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 		p.options = optionColumn(keys, details)
 		p.values = values
 		p.cursor = 0
+		return nil
 	}
 	popup.onTab(popup)
 	t.popup = popup

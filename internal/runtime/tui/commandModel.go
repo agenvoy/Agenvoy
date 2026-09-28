@@ -24,13 +24,13 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 		case "reasoning":
 			return t.modelPopup(1)
 		case "summary":
-			return t.commandSummaryModel()
+			return t.modelPopup(3)
 		case "image":
-			return t.commandImageModel()
+			return t.modelPopup(4)
 		case "stt":
-			return t.commandSTTModel()
+			return t.modelPopup(5)
 		case "tts":
-			return t.commandTTSModel()
+			return t.modelPopup(6)
 		}
 	}
 
@@ -65,7 +65,7 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 	popup := &Popup{
 		kind:  popupSingleSelect,
 		title: "/model",
-		tabs:  []string{"model", "reasoning", "dispatch", "config"},
+		tabs:  []string{"model", "reasoning", "dispatch", "summary", "image", "stt", "tts"},
 		onConfirm: func(chosen string) any {
 			if name, ok := strings.CutPrefix(chosen, sessionModelPrefix); ok {
 				return SessionModelSelect{name: name}
@@ -76,10 +76,22 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 			if name, ok := strings.CutPrefix(chosen, dispatcherPrefix); ok {
 				return DispatcherSelect{name: name}
 			}
+			if name, ok := strings.CutPrefix(chosen, summaryPrefix); ok {
+				return SummaryModelSelect{name: name}
+			}
+			if name, ok := strings.CutPrefix(chosen, imagePrefix); ok {
+				return ImageModelSelect{name: name}
+			}
+			if name, ok := strings.CutPrefix(chosen, sttPrefix); ok {
+				return AudioModelSelect{kind: "stt", name: name}
+			}
+			if name, ok := strings.CutPrefix(chosen, ttsPrefix); ok {
+				return AudioModelSelect{kind: "tts", name: name}
+			}
 			return ModelScopeSelect{scope: chosen}
 		},
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		p.styledLines = nil
 		p.onDelete, p.onTag, p.onMove = nil, nil, nil
 
@@ -89,7 +101,7 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 			p.subtitle = "reasoning level for this session  auto follows the kind of work the agent selector reports"
 			p.options, p.values = options, values
 			p.cursor = max(slices.Index(values, sessionReasoningPrefix+currentReasoning(sid)), 0)
-			return
+			return nil
 		case 2:
 			options, values, cursor := dispatcherOptions()
 			p.subtitle = "model that routes each request  Jev replaces it with the CLM classifier"
@@ -97,19 +109,24 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 				p.styledLines = []string{hintStyle.Render("  no models configured")}
 			}
 			p.options, p.values, p.cursor = options, values, cursor
-			return
+			return nil
 		case 3:
-			actions := []string{"summary", "image", "stt", "tts"}
-			p.subtitle = ""
-			p.options = optionColumn(actions, []string{
-				"summary memory",
-				"image generation",
-				"audio analysis",
-				"speech generation",
-			})
-			p.values = actions
-			p.cursor = 0
-			return
+			options, values, cursor := summaryOptions()
+			p.subtitle = "model that writes summary memory"
+			if len(options) == 0 {
+				p.styledLines = []string{hintStyle.Render("  no models configured")}
+			}
+			p.options, p.values, p.cursor = options, values, cursor
+			return nil
+		case 4:
+			p.subtitle = "provider that generates images"
+			return routingTabLoad(p, "image")
+		case 5:
+			p.subtitle = "model that transcribes audio"
+			return routingTabLoad(p, "stt")
+		case 6:
+			p.subtitle = "model that generates speech"
+			return routingTabLoad(p, "tts")
 		}
 
 		options, values, cursor := registeredModelOptions(sid)
@@ -124,9 +141,10 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 		p.options = append(options, optionColumn([]string{"add"}, []string{"add model from provider"})...)
 		p.values = append(values, "add")
 		p.cursor = cursor
+		return nil
 	}
 	popup.tabIdx = tab
-	popup.onTab(popup)
+	cmd := popup.onTab(popup)
 	t.popup = popup
-	return t, nil, true
+	return t, cmd, true
 }
