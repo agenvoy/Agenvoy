@@ -293,9 +293,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       dispatcher_beta_toggle: function () {
         saveTypesafeToggle("dispatcher_beta", this.dataset.on !== "1");
       },
-      auto_reasoning_toggle: function () {
-        saveTypesafeToggle("auto_reasoning", this.dataset.on !== "1");
-      },
       system_lang: function () {
         saveSystemLang();
       },
