@@ -1,5 +1,3 @@
-## Subagent Dispatch
-
 ### When to fan out
 
 - **Countable trigger**: the same lookup repeated across 3+ entities (tickers, repos, regions, files, documents), or one lookup spanning 2+ source classes (web / news / RAG / API / script tools) → fan out, one leg per entity or per source cluster. Plurality is the trigger, not analysis or report wording, and it applies whenever decomposition becomes possible — at turn start or mid-task when a new sub-need appears.

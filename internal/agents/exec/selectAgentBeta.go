@@ -184,17 +184,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 		}
 	}
 
-	rank := func(name string) int {
-		tier, family := config.NameTier(name)
-		i := slices.Index(order, cmp.Or(tiers[name], tier))
-		if i < 0 {
-			i = len(order)
-		}
-		return i*100 + family
-	}
-	ranked := slices.Clone(candidates)
-	slices.SortStableFunc(ranked, func(a, b string) int { return cmp.Compare(rank(a), rank(b)) })
-	for _, name := range ranked {
+	for _, name := range rankCandidates(work, order, tiers, candidates) {
 		if !slices.Contains(list, name) {
 			list = append(list, name)
 		}
@@ -254,4 +244,23 @@ func betaContext(sessionID string) []map[string]string {
 	}
 	slices.Reverse(list)
 	return list
+}
+
+func rankCandidates(work string, order []string, tiers map[string]string, candidates []string) []string {
+	rank := func(name string) int {
+		tier, family := config.NameTier(name)
+		i := slices.Index(order, cmp.Or(tiers[name], tier))
+		if i < 0 {
+			i = len(order)
+		}
+		return i*100 + family
+	}
+	ranked := slices.Clone(candidates)
+	slices.SortStableFunc(ranked, func(a, b string) int {
+		return cmp.Or(
+			cmp.Compare(rank(a), rank(b)),
+			cmp.Compare(config.LongContextOrder(work, a), config.LongContextOrder(work, b)),
+		)
+	})
+	return ranked
 }

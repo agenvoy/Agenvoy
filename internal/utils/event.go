@@ -11,6 +11,7 @@ import (
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -38,19 +39,6 @@ var eventLabel = map[string]string{
 	"mcp__kura__list_rag":   "RAG",
 }
 
-var hiddenEvent = map[string]bool{
-	"ask_user":            true,
-	"store_secret":        true,
-	"write_todo":          true,
-	"run_skill":           true,
-	"reasoning_guide":     true,
-	"find_tools":          true,
-	"chat_history":        true,
-	"error_history":       true,
-	"file_history":        true,
-	"mcp__kura__list_rag": true,
-}
-
 func parseToolArgs(raw string) map[string]any {
 	var argMap map[string]any
 	if raw != "" {
@@ -60,7 +48,7 @@ func parseToolArgs(raw string) map[string]any {
 }
 
 func hideToolEvent(name, mode string) bool {
-	return name == "" || hiddenEvent[name] || mode == "list" || hiddenEvent[name+"/"+mode]
+	return name == "" || toolRegister.IsSystemUse(name) || mode == "list"
 }
 
 func HideToolEvent(name, raw string) bool {

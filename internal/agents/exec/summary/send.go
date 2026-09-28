@@ -59,7 +59,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 	}
 
 	prov, model, _ := strings.Cut(sender.Name(), "@")
-	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed)
+	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed, nil)
 
 	result, ok := resp.Choices[0].Message.Content.(string)
 	if !ok {

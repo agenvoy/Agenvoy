@@ -1,5 +1,3 @@
-## HTML Render Guide
-
 One HTML file — report, dashboard, chart, diagram, map. No build step, no local assets, no server. Both branches below render through QuickUI (§2).
 
 ### 1. Check the gallery — always, before writing a tag
