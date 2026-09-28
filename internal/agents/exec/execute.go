@@ -674,7 +674,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendElapsedTotal += sendDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
+		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur, responseToolCalls(resp))
 		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
@@ -846,7 +846,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendElapsedTotal += summaryDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage, summaryDur)
+		usagelog.Append(session.ID, prov, model, resp.Usage, summaryDur, responseToolCalls(resp))
 
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
@@ -874,6 +874,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		slog.String("name", data.Agent.Name()))
 	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart, sendElapsedTotal)
 	return nil
+}
+
+func responseToolCalls(resp *provider.Output) []provider.ToolCall {
+	if resp == nil || len(resp.Choices) == 0 {
+		return nil
+	}
+	return resp.Choices[0].Message.ToolCalls
 }
 
 func resolveReasoning(sessionID, name string) provider.Reasoning {
