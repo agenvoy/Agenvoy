@@ -86,7 +86,7 @@ type (
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) (execErr error) {
-	execCtx := agentTypes.WithSessionID(ctx, session.ID)
+	execCtx := provider.WithSessionID(agentTypes.WithSessionID(ctx, session.ID), session.ID)
 	execStart := time.Now()
 
 	if !allowAll {
@@ -416,7 +416,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				compactFailed = true
 			}
 		}
-		assembled := compact.AssembleMessages(session, exec.PendingTask)
+		assembled := compact.AssembleMessages(session)
 		sendStart := time.Now()
 		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
@@ -678,7 +678,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendElapsedTotal += sendDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur)
+		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur, responseToolCalls(resp))
 		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
@@ -686,7 +686,11 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		usageSnapshot := usage
-		events <- agentTypes.Event{Type: agentTypes.EventUsageUpdate, Usage: &usageSnapshot}
+		events <- agentTypes.Event{
+			Type:          agentTypes.EventUsageUpdate,
+			Usage:         &usageSnapshot,
+			ContextTokens: lastInputTokens,
+		}
 
 		if len(resp.Choices) == 0 {
 			if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "no choices", &usage, execStart, sendElapsedTotal) {
@@ -827,7 +831,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		return nil
 	}
 
-	assembled := compact.AssembleMessages(session, exec.PendingTask)
+	assembled := compact.AssembleMessages(session)
 	summaryMessages := append(assembled, provider.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
@@ -846,7 +850,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendElapsedTotal += summaryDur
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
-		usagelog.Append(session.ID, prov, model, resp.Usage, summaryDur)
+		usagelog.Append(session.ID, prov, model, resp.Usage, summaryDur, responseToolCalls(resp))
 
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
@@ -874,6 +878,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		slog.String("name", data.Agent.Name()))
 	sendEmptyData(events, session.ID, exec.PendingTask, data.Agent.Name(), &usage, execStart, sendElapsedTotal)
 	return nil
+}
+
+func responseToolCalls(resp *provider.Output) []provider.ToolCall {
+	if resp == nil || len(resp.Choices) == 0 {
+		return nil
+	}
+	return resp.Choices[0].Message.ToolCalls
 }
 
 func resolveReasoning(sessionID, name string) provider.Reasoning {

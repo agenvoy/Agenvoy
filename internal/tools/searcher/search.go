@@ -43,9 +43,10 @@ func searchTools(e *toolTypes.Executor, query string) (string, error) {
 		}
 
 		if i := slices.IndexFunc(e.Tools, func(t provider.Tool) bool { return t.Function.Name == match.Name }); i != -1 {
-			e.Tools = slices.Delete(e.Tools, i, i+1)
+			e.Tools[i] = full
+		} else {
+			e.Tools = append(e.Tools, full)
 		}
-		e.Tools = append(e.Tools, full)
 		delete(e.StubTools, match.Name)
 	}
 	e.ToolsMu.Unlock()

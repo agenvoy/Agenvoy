@@ -1,6 +1,4 @@
-# Tool Build Contract
-
-## Choose the right type
+### Choose the right type
 
 | | Script tool | API tool |
 |---|---|---|
@@ -10,13 +8,13 @@
 | Registered as | script_<name> | api_<name> |
 | edit_tool(mode=write) tags | tag="json" + tag="script" | tag="api" |
 
-## Naming
+### Naming
 snake_case, no prefix (runtime adds `script_` or `api_` automatically).
 Verb + noun pattern: calculate_rsi, fetch_weather, deduplicate_csv.
 Avoid generic verbs: process_*, handle_*, manage_*, execute_*, perform_*, dispatch_*, do_*, run_* (unless the verb IS the literal action, e.g. run_command).
 If a same-domain tool already exists, match its verb and suffix shape — don't mix analyze_* into a fetch_* cluster, don't invent a new suffix vocabulary for the same concept (read_error / remember_error / search_error_memory would be three shapes for one idea — pick one).
 
-## Description
+### Description
 Exactly 3 lines, 60-200 chars total. No filler ("This tool allows you to...", "Use this when needed..."), no **bold**, no output-schema dump, no implementation detail (call-contract stuff belongs in parameter descriptions, not here).
 1. What — core action, one sentence.
 2. When — trigger vs alternatives (`use for X; Y for Z`).
@@ -28,14 +26,14 @@ Use when the user asks for a live crypto price; use fetch_ohlc for historical ca
 Symbol must be a valid exchange ticker (e.g. BTCUSDT).
 ```
 
-## Parameter description
+### Parameter description
 Every `parameters.properties.<name>.description` must cover:
 - How — type, unit, accepted values/enum meanings.
 - When — interaction with other params (omit if the param stands alone).
 - Example — at least one concrete value for non-trivial types (object, array, enum, path, cron, regex).
 A non-trivial type with a description under 20 chars is treated as incomplete. Don't repeat the field name as the description ("user_id: the user id" is not a description).
 
-## Secret / API key access
+### Secret / API key access
 Never hardcode secrets. Key naming: {BRAND}_API_KEY in SCREAMING_SNAKE_CASE.
 Examples: POLYGON_API_KEY, OPENAI_API_KEY, ALPHAVANTAGE_API_KEY.
 
@@ -73,9 +71,9 @@ A key that is not there → `store_secret`, then call the tool again.
 
 ---
 
-## Script tool
+### Script tool
 
-### How it runs
+#### How it runs
 - Language: Python only (python3)
 - Invocation: fork python3 script.py inside OS-native sandbox
 - Input: JSON args from stdin (single line); empty args = {}
@@ -85,7 +83,7 @@ A key that is not there → `store_secret`, then call the tool again.
 - Sandbox: macOS sandbox-exec / Linux bwrap; denies ~/.ssh, ~/.aws, ~/.gcloud, .env, *.pem
 - CWD: set by runtime; script should use absolute paths or Path.home()
 
-### tool.json format
+#### tool.json format
 ```json
 {
   "name": "<tool_name>",
@@ -109,7 +107,7 @@ A key that is not there → `store_secret`, then call the tool again.
 - always_allow: true for read-only/computation; false for writes/sends/payments.
 - concurrent: true when the API is read-only data retrieval with a relaxed rate limit; false (default) for write operations or strict rate-limited endpoints.
 
-### script.py template
+#### script.py template
 ```python
 #!/usr/bin/env python3
 import json
@@ -143,7 +141,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### Implementation rules
+#### Implementation rules
 - Required params missing → stderr + exit 1
 - Single JSON object to stdout; no debug print() to stdout (use stderr)
 - Prefer stdlib (json, urllib, csv, re, math, pathlib, datetime) over third-party
@@ -151,7 +149,7 @@ if __name__ == "__main__":
 - Network requests: timeout ≤ 30s per request, retry ≤ 3
 - No writes to sensitive directories (.ssh, .aws, .env)
 
-### Script tool checklist
+#### Script tool checklist
 1. tool.json is valid JSON; every entry in "required" exists in "properties"
 2. "name" in tool.json matches the directory name passed to edit_tool(mode=write)
 3. Script reads stdin JSON as first action: json.loads(sys.stdin.read() or "{}")
@@ -164,9 +162,9 @@ if __name__ == "__main__":
 
 ---
 
-## API tool
+### API tool
 
-### How it runs
+#### How it runs
 - File: <name>.json (single file, no script)
 - Invocation: runtime reads the JSON definition, builds and executes the HTTP request
 - Input: parameters from the LLM tool call, matched against parameter schema
@@ -174,7 +172,7 @@ if __name__ == "__main__":
 - Timeout: 60s default; per-tool override via endpoint.timeout (seconds)
 - Auth: runtime resolves `auth.env` through the keychain, then the environment variable of that name
 
-### JSON format
+#### JSON format
 ```json
 {
   "name": "<tool_name>",
@@ -209,7 +207,7 @@ if __name__ == "__main__":
 }
 ```
 
-### Field reference
+#### Field reference
 
 **endpoint:**
 - url: full URL; `{param}` placeholders for path parameters — runtime substitutes from parameters, remaining go to query (GET) or body (POST/PUT/PATCH/DELETE)
@@ -229,7 +227,7 @@ if __name__ == "__main__":
 - Remaining: query string (GET) or JSON/form body (POST/PUT/PATCH/DELETE)
 - required: true = LLM must provide; false = uses default if omitted
 
-### API tool checklist
+#### API tool checklist
 1. JSON is valid; name is snake_case without api_ prefix
 2. endpoint.url is a complete URL with correct {param} placeholders
 3. endpoint.method is one of GET/POST/PUT/PATCH/DELETE
@@ -240,7 +238,7 @@ if __name__ == "__main__":
 
 ---
 
-## Execution flow
+### Execution flow
 
 **Step 1 — Find a suitable API:**
 1. `api_public_api_list(type=category)` → pick ≤3 relevant categories → query each
@@ -265,7 +263,7 @@ if __name__ == "__main__":
 
 All steps are tool calls. Text output only at the final step. `name` without prefix (runtime adds it). Auth-required APIs: script tools use `get_key()`, API tools set `auth.env` + `store_secret` if key missing.
 
-## When not to build
+### When not to build
 
 One-off verification, testing or debugging — "測試 X 能不能用", "確認 Y 有沒有生效", probing an endpoint, a parameter or a flag — produces a finding for this turn, not a reusable capability. Write the script inline and run it with `run_command` (`python3 -c`, a heredoc, `curl`); report what came back. No `edit_tool`, no `test_tool`, no saved tool.
 

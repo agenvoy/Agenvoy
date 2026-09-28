@@ -427,6 +427,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.lastOut = ev.Usage.Output
 			t.lastCacheRead = ev.Usage.CacheRead
 			t.lastCacheCreate = ev.Usage.CacheCreate
+			t.lastContext = ev.ContextTokens
 		}
 		return t, nil
 

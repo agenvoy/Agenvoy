@@ -354,6 +354,8 @@ func CleanupPending(sessionID, taskHash string) {
 	os.Remove(src)
 }
 
+var pendingSkipTool = map[string]bool{"write_todo": true}
+
 func CreateExecPending(sessionID, objective, messageID, model, reasoning string, allowAll bool) string {
 	taskHash := go_pkg_utils.UUID()
 	pendingMu.Lock()
@@ -423,6 +425,13 @@ func AppendToolResult(sessionID, taskHash string, result ToolResult, files []str
 		return
 	}
 	meta.Files = mergeFiles(meta.Files, files)
+	if pendingSkipTool[result.Name] {
+		meta.ToolAttempts = nil
+		if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
+			slog.Debug("AppendToolResult", slog.String("session", sessionID), slog.String("error", writeErr.Error()))
+		}
+		return
+	}
 	for _, existing := range meta.ToolResults {
 		if existing.ID == result.ID {
 			if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {

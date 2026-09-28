@@ -75,7 +75,7 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 	}
 
 	output, err := exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning,
-		strings.TrimSpace(params.SystemPrompt), excludeTools, e.SessionID, ignoreHistory)
+		strings.TrimSpace(params.SystemPrompt), excludeTools, ignoreHistory)
 	if err != nil {
 		return "", err
 	}

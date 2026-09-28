@@ -11,6 +11,7 @@ import (
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -24,7 +25,6 @@ import (
 var eventLabel = map[string]string{
 	"read_files":            "File",
 	"run_command":           "Run",
-	"run_command_readonly":  "Run",
 	"open_file":             "Open",
 	"download_file":         "Download",
 	"pkg_manage":            "Package",
@@ -39,19 +39,6 @@ var eventLabel = map[string]string{
 	"mcp__kura__list_rag":   "RAG",
 }
 
-var hiddenEvent = map[string]bool{
-	"ask_user":            true,
-	"store_secret":        true,
-	"write_todo":          true,
-	"run_skill":           true,
-	"reasoning_guide":     true,
-	"find_tools":          true,
-	"chat_history":        true,
-	"error_history":       true,
-	"file_history":        true,
-	"mcp__kura__list_rag": true,
-}
-
 func parseToolArgs(raw string) map[string]any {
 	var argMap map[string]any
 	if raw != "" {
@@ -61,7 +48,7 @@ func parseToolArgs(raw string) map[string]any {
 }
 
 func hideToolEvent(name, mode string) bool {
-	return name == "" || hiddenEvent[name] || mode == "list" || hiddenEvent[name+"/"+mode]
+	return name == "" || toolRegister.IsSystemUse(name) || mode == "list"
 }
 
 func HideToolEvent(name, raw string) bool {
@@ -140,7 +127,7 @@ func eventArgs(name, mode, raw string, argMap map[string]any, arg func(...string
 		}
 		return arg("model")
 
-	case "run_command", "run_command_readonly":
+	case "run_command":
 		return joinArgv(raw)
 
 	case "open_file":
@@ -342,17 +329,17 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, quota, reas
 	if duration > 0 {
 		elapsed := duration.Round(100 * time.Millisecond).String()
 		if outputElapsed > 0 && usage != nil && usage.Output > 0 {
-			elapsed += fmt.Sprintf("(%.1f tok/s)", float64(usage.Output)/outputElapsed.Seconds())
+			elapsed += fmt.Sprintf("(%.1ft/s)", float64(usage.Output)/outputElapsed.Seconds())
 		}
 		parts = append(parts, elapsed)
 	}
 
 	if model = strings.TrimSpace(model); model != "" {
-		if quota != "" {
-			model += "(" + quota + ")"
-		}
 		if reasoning != "" {
 			model += "/" + reasoning
+		}
+		if quota != "" {
+			model += " [" + quota + "]"
 		}
 		parts = append(parts, model)
 	}

@@ -12,6 +12,8 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
+var topicNames = []string{"tool_generate", "tool_error", "rag_web", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"}
+
 var topicGuides = map[string]string{
 	"tool_generate":     configs.GuideToolGenerate,
 	"tool_error":        configs.GuideToolError,
@@ -33,7 +35,7 @@ func registReasoningGuide() {
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `[system-default]
-Full rule per topic — call before acting on any match:
+Full rule per topic — call before acting on any match, listing every topic that matches in one call:
 
 - tool_error: read it after a tool call has come back failed, never before one has — recovery loop, script_*/api_* auto-repair via edit_tool(mode=patch), [RETRY_REQUIRED] handling. Read before retrying, before error_history, before edit_tool(mode=patch).
 - tool_generate: request needs live external data (weather, currency, stock, geocoding, translation, ...) and no api_*/script_*/ext_* covers it — find_tools(mode=search) found nothing, or an existing one fails. Carries the build contract (naming, description rules, tool.json/script.py format, execution flow), then edit_tool(mode=write) → test_tool (script only) → call it. Hard gate, decided by what the turn leaves behind: a capability that will be called again — fetching it directly via http_request or run_command curl/python3 is PROHIBITED even with a known endpoint, fetch_page is for docs, the data fetch lives in script.py. A finding that answers this turn and is then done leaves no tool: call the endpoint as many times as the check needs and report what came back. A missing tool is built, never reported as a limitation.
@@ -48,34 +50,51 @@ Full rule per topic — call before acting on any match:
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"topic": map[string]any{
-					"type":        "string",
-					"enum":        []string{"tool_generate", "tool_error", "rag_web", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"},
-					"description": "Which Reasoning Rules topic to fetch.",
+				"topics": map[string]any{
+					"type":        "array",
+					"items":       map[string]any{"type": "string", "enum": topicNames},
+					"minItems":    1,
+					"description": "Every Reasoning Rules topic this turn needs, in one call — a second call costs a whole round trip.",
 				},
 			},
-			"required": []string{"topic"},
+			"required": []string{"topics"},
 		},
 		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
-				Topic string `json:"topic"`
+				Topics []string `json:"topics"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", fmt.Errorf("json.Unmarshal: %w", err)
 			}
-			topic := strings.TrimSpace(params.Topic)
-			guide, ok := topicGuides[topic]
-			if ok && strings.Contains(guide, "{{.ModelSelection}}") {
-				selection := config.ModelSelection(&config.Config{})
-				if cfg, err := config.Load(); err == nil {
-					selection = config.ModelSelection(cfg)
+
+			selection := ""
+			guides := make([]string, 0, len(params.Topics))
+			seen := make(map[string]bool, len(params.Topics))
+			for _, one := range params.Topics {
+				topic := strings.TrimSpace(one)
+				if topic == "" || seen[topic] {
+					continue
 				}
-				guide = strings.ReplaceAll(guide, "{{.ModelSelection}}", selection)
+				guide, ok := topicGuides[topic]
+				if !ok {
+					return "", fmt.Errorf("unknown topic %q; available: %s", topic, strings.Join(topicNames, ", "))
+				}
+				if strings.Contains(guide, "{{.ModelSelection}}") {
+					if selection == "" {
+						selection = config.ModelSelection(&config.Config{})
+						if cfg, err := config.Load(); err == nil {
+							selection = config.ModelSelection(cfg)
+						}
+					}
+					guide = strings.ReplaceAll(guide, "{{.ModelSelection}}", selection)
+				}
+				seen[topic] = true
+				guides = append(guides, "## "+topic+"\n\n"+strings.TrimSpace(guide))
 			}
-			if !ok {
-				return "", fmt.Errorf("unknown topic %q; available: tool_generate, tool_error, rag_web, market_analysis, targeted_read, ask_user, subagent_dispatch, write_todo, html_render, office", topic)
+			if len(guides) == 0 {
+				return "", fmt.Errorf("topics is required; available: %s", strings.Join(topicNames, ", "))
 			}
-			return guide, nil
+			return strings.Join(guides, "\n\n"), nil
 		},
 	})
 }

@@ -72,7 +72,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	}
 
 	prov, model, _ := strings.Cut(agent.Name(), "@")
-	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed)
+	usagelog.Append(sessionID, prov, model, resp.Usage, sendElapsed, nil)
 
 	content, _ := resp.Choices[0].Message.Content.(string)
 	return parse(content)

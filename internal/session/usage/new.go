@@ -36,6 +36,12 @@ func New() error {
 	}
 
 	if _, err := c.Exec(
+		`ALTER TABLE usage ADD COLUMN tool_calls TEXT NOT NULL DEFAULT ''`); err != nil &&
+		!strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("sql.DB Exec [usage add tool_calls]: %w", err)
+	}
+
+	if _, err := c.Exec(
 		`UPDATE usage SET send_at = send_at * 1000000000 WHERE send_at < 1000000000000`); err != nil {
 		return fmt.Errorf("sql.DB Exec [usage send_at to nano]: %w", err)
 	}

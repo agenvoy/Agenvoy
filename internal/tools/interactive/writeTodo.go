@@ -26,7 +26,7 @@ func registWriteTodo() {
 		SystemUse:   true,
 		AlwaysLoad:  true,
 		AlwaysAllow: true,
-		Concurrent:  false,
+		Concurrent:  true,
 		Description: `A task checklist the user watches update in real time.
 Call it the moment work turns multi-step (3+ steps), at the start or halfway through — N fanned-out searches or subagents count as N steps, and 分析 / 研究 / 調查 / 比較 / 彙整 / 週報 / 盤前 always get a plan.
 It records progress and never executes anything. Single-step work, smalltalk, or anything one tool call resolves → skip it.`,

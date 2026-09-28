@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS usage (
     output     INTEGER NOT NULL DEFAULT 0,
     write      INTEGER NOT NULL DEFAULT 0,
     hit        INTEGER NOT NULL DEFAULT 0,
-    elapsed_ms INTEGER NOT NULL DEFAULT 0
+    elapsed_ms INTEGER NOT NULL DEFAULT 0,
+    tool_calls TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_usage_send_at

@@ -185,6 +185,7 @@ type Event struct {
 	Reasoning       string              `json:"reasoning,omitempty"`
 	Usage           *provider.Usage     `json:"usage,omitempty"`
 	UsageInput      string              `json:"usage_input,omitempty"`
+	ContextTokens   int                 `json:"context_tokens,omitempty"`
 	Duration        time.Duration       `json:"duration,omitempty"`
 	OutputElapsed   time.Duration       `json:"output_elapsed,omitempty"`
 	Todos           []TodoItem          `json:"todos,omitempty"`

@@ -4,17 +4,23 @@ import "strings"
 
 const (
 	thresholdRatio   = 0.8
-	copilotWindow    = 256_000
 	fallbackWindow   = 128_000
 	copilotNamespace = "copilot@"
 )
 
 func CheckThreshold(modelName string) int {
+	return int(float64(InputWindow(modelName)) * thresholdRatio)
+}
+
+func InputWindow(modelName string) int {
 	if in, ok := lookupLimit(modelName); ok {
-		return int(float64(in) * thresholdRatio)
+		return in
 	}
-	if strings.HasPrefix(strings.TrimSpace(modelName), copilotNamespace) {
-		return int(copilotWindow * thresholdRatio)
+	if model, ok := strings.CutPrefix(strings.TrimSpace(modelName), copilotNamespace); ok {
+		WarmCopilot()
+		if in, ok := copilotLimit(model); ok {
+			return in
+		}
 	}
-	return int(fallbackWindow * thresholdRatio)
+	return fallbackWindow
 }

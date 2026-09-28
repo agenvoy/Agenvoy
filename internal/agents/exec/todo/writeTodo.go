@@ -7,23 +7,11 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func Strip(messages []provider.Message, keepLast bool) []provider.Message {
-	keepID := ""
-	if keepLast {
-		for i := len(messages) - 1; i >= 0 && keepID == ""; i-- {
-			for _, tc := range messages[i].ToolCalls {
-				if tc.Function.Name == "write_todo" {
-					keepID = tc.ID
-					break
-				}
-			}
-		}
-	}
-
+func Strip(messages []provider.Message) []provider.Message {
 	todoIDs := make(map[string]bool)
 	for _, msg := range messages {
 		for _, tc := range msg.ToolCalls {
-			if tc.Function.Name == "write_todo" && tc.ID != keepID {
+			if tc.Function.Name == "write_todo" {
 				todoIDs[tc.ID] = true
 			}
 		}
