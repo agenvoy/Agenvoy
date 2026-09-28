@@ -45,7 +45,7 @@ Skill resources (`scripts/`, `templates/`, `assets/`) are already resolved to ab
 
 ### Errors
 
-Tool failures follow `reasoning_guide(topic=tool_error)`. Two skill-specific cases:
+Tool failures follow `reasoning_guide(topics=[tool_error])`. Two skill-specific cases:
 
 - A file SKILL.md expects is missing → confirm the path and report; never create a substitute
 - A step cannot complete → report which step and why; do not silently continue to the next one
