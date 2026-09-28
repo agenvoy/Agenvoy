@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"time"
 
@@ -97,25 +98,8 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		return tools[i].Function.Name < tools[j].Function.Name
 	})
 
-	// * use claude code idea, use one tool to search and insert
-	stubParams := json.RawMessage(`{"type":"object","properties":{}}`)
-	stubTools := make(map[string]bool, len(tools))
-	initial := make([]provider.Tool, 0, len(tools))
-	for _, t := range tools {
-		if toolRegister.IsAlwaysLoad(t.Function.Name) {
-			initial = append(initial, t)
-		} else {
-			stubTools[t.Function.Name] = true
-			initial = append(initial, provider.Tool{
-				Type: t.Type,
-				Function: provider.ToolFunction{
-					Name:        t.Function.Name,
-					Description: t.Function.Description,
-					Parameters:  stubParams,
-				},
-			})
-		}
-	}
+	initial := slices.Clone(tools)
+	stubTools := make(map[string]bool)
 
 	return &toolTypes.Executor{
 		WorkDir:          workPath,
