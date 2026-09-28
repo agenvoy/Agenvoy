@@ -13,9 +13,10 @@ import (
 const systemDefaultMarker = "[system-default]"
 
 type Tool struct {
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	SystemDefault bool   `json:"system_default,omitempty"`
+	Name          string          `json:"name"`
+	Description   string          `json:"description"`
+	Parameters    json.RawMessage `json:"parameters,omitempty"`
+	SystemDefault bool            `json:"system_default,omitempty"`
 }
 
 func registFindTools() {
@@ -34,7 +35,7 @@ A capability that seems missing comes from here before anything is built. Buildi
 				"mode": map[string]any{
 					"type":        "string",
 					"enum":        []string{"search", "list"},
-					"description": "search: match the registry and inject the schemas. list: names and one-line descriptions only. Omitted: query → search, otherwise list.",
+					"description": "search: match the registry and return the matched tools' full parameter schemas. list: names and one-line descriptions only. Omitted: query → search, otherwise list.",
 					"default":     "search",
 				},
 				"query": map[string]any{
