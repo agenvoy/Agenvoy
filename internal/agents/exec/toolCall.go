@@ -443,18 +443,21 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		}
 
 		if exec.StubTools[toolName] || activatedInBatch[toolName] {
+			schema := ""
 			if exec.StubTools[toolName] {
 				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
-				if _, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs); err != nil {
+				out, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs)
+				if err != nil {
 					slog.Warn("stub tool activation failed",
 						slog.String("name", toolName),
 						slog.String("error", err.Error()))
 				}
+				schema = out
 				delete(exec.StubTools, toolName)
 			}
 			activatedInBatch[toolName] = true
 			slots[i].state = slotStubActivated
-			slots[i].preMsg = fmt.Sprintf("[%s] tool schema just loaded. Re-invoke %s with the correct arguments — the previous call was made against a stub with empty params.", toolName, toolName)
+			slots[i].preMsg = fmt.Sprintf("[%s] tool schema below. Re-invoke %s with the correct arguments — the previous call was made against a stub with empty params.\n%s", toolName, toolName, schema)
 			continue
 		}
 
