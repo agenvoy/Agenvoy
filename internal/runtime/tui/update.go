@@ -564,23 +564,23 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
-	case RuleListed:
-		return t.runRuleListed(msg)
+	case RoleListed:
+		return t.runRoleListed(msg)
 
-	case RulePick:
-		return t.runRulePick(msg)
+	case RolePick:
+		return t.runRolePick(msg)
 
-	case RuleLoaded:
-		return t.runRuleLoaded(msg)
+	case RoleLoaded:
+		return t.runRoleLoaded(msg)
 
-	case RuleTitleSubmit:
-		return t.runRuleTitleSubmit(msg)
+	case RoleTitleSubmit:
+		return t.runRoleTitleSubmit(msg)
 
-	case RuleBodySubmit:
-		return t, t.ruleSaveCmd(msg)
+	case RoleBodySubmit:
+		return t, t.roleSaveCmd(msg)
 
-	case RuleSaved:
-		return t.runRuleSaved(msg)
+	case RoleSaved:
+		return t.runRoleSaved(msg)
 
 	case BotSaved:
 		if msg.err != nil {

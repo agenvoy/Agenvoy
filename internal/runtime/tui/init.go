@@ -48,7 +48,7 @@ type TUI struct {
 	popupQueue    []Pending
 	popupOrigin   *Popup
 	botBodyDraft  string
-	ruleBodyDraft string
+	roleBodyDraft string
 	mcpAdd        *mcpAddDraft
 	mcpClient     *mcpClientDraft
 	mcpOAuth      *oauthState

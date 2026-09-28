@@ -129,7 +129,7 @@ func applyBot(row *SessionRow, bot legacyBot) {
 	row.Name = bot.Name
 	row.Model = bot.Model
 	row.Reasoning = bot.Reasoning
-	row.Rule = bot.Body
+	row.Role = bot.Body
 }
 
 func applyChannel(row *SessionRow, dic map[string]string) {

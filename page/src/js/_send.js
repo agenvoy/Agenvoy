@@ -252,7 +252,7 @@ async function send(content, target) {
         session_id: sessionId,
         persist: true,
         model: model === "auto" ? "" : model,
-        system_prompt: primary ? rule : "",
+        system_prompt: primary ? role : "",
         work_dir: chat.work_dir,
         skill: picked,
       }),

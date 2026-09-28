@@ -72,7 +72,7 @@ const CHAT_DRAFT = "new";
 function readChatConfig(chatId) {
   const entry = (readConfig().chat || {})[chatId || CHAT_DRAFT] || {};
   return {
-    rule: typeof entry.rule === "string" ? entry.rule : "",
+    role: typeof entry.role === "string" ? entry.role : typeof entry.rule === "string" ? entry.rule : "",
     work_dir: typeof entry.work_dir === "string" ? entry.work_dir : "",
   };
 }

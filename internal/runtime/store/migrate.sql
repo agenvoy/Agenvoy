@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS session (
     name       TEXT NOT NULL DEFAULT '',
     model      TEXT NOT NULL DEFAULT 'auto',
     reasoning  TEXT NOT NULL DEFAULT 'medium',
+    role       TEXT NOT NULL DEFAULT '',
     rule       TEXT NOT NULL DEFAULT '',
     chat_id    TEXT NOT NULL DEFAULT '',
     guild_id   TEXT NOT NULL DEFAULT '',

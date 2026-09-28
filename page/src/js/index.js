@@ -188,14 +188,14 @@ document.addEventListener("DOMContentLoaded", async function () {
       skill_pick: function () {
         openSkillPicker();
       },
-      rule_save: function () {
-        saveRule();
+      role_save: function () {
+        saveRole();
       },
-      rule_reset: function () {
-        resetRule();
+      role_reset: function () {
+        resetRole();
       },
-      rule_delete: function () {
-        deleteEditingRule();
+      role_delete: function () {
+        deleteEditingRole();
       },
       schedule_save: function () {
         commitSchedule();
@@ -218,8 +218,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       skill_open: function () {
         openSkillFolder();
       },
-      rule_pick: function () {
-        openRulePicker();
+      role_pick: function () {
+        openRolePicker();
       },
       model_pick: function () {
         openModelPicker();
@@ -358,7 +358,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           subscribe(params.chat);
           getModelList(params.chat, models);
           getReasoningList(params.chat);
-          getRuleList();
+          getRoleList();
           renderWorkDirMark();
           renderChat(params.chat);
           renderPendingHint(params.chat);
@@ -425,9 +425,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         if (params.page === "features") {
-          if (params.tab === "Rules") {
-            resetRule();
-            renderRule();
+          if (params.tab === "Roles") {
+            resetRole();
+            renderRole();
           }
           if (params.tab === "Skills") {
             renderSkillTab();

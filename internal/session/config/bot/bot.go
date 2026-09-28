@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const (
@@ -56,12 +57,12 @@ func write(row historyStore.SessionRow) error {
 
 func Get(sessionID string) (name, body string) {
 	row, _ := read(sessionID)
-	return row.Name, row.Rule
+	return row.Name, row.Role
 }
 
 func GetPersona(sessionID string) (selfID, name, body string) {
 	row, _ := read(sessionID)
-	return row.SelfID, row.Name, row.Rule
+	return row.SelfID, row.Name, row.Role
 }
 
 func SavePersona(sessionID, selfID, name, body string) error {
@@ -79,7 +80,7 @@ func SavePersona(sessionID, selfID, name, body string) error {
 	row.SessionID = sessionID
 	row.SelfID = selfID
 	row.Name = name
-	row.Rule = body
+	row.Role = body
 	return write(row)
 }
 
@@ -144,6 +145,7 @@ func FormatName(raw string) string {
 func autoNamed(row historyStore.SessionRow) bool {
 	return row.Name == "" ||
 		row.Name == row.SessionID ||
+		row.Name == utils.ShortenSessionID(row.SessionID) ||
 		strings.HasPrefix(row.Name, "tg-") ||
 		strings.HasPrefix(row.Name, "dc-")
 }
@@ -205,7 +207,7 @@ func Save(sessionID, name, body string, force bool) error {
 
 	row.SessionID = sessionID
 	row.Name = name
-	row.Rule = body
+	row.Role = body
 	if err := write(row); err != nil {
 		return err
 	}
