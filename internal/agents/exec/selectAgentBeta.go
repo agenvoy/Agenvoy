@@ -24,14 +24,6 @@ const (
 	betaLastModelKey   = "lastModel:"
 )
 
-var betaWorkReasoning = map[string]string{
-	"code":     "xhigh",
-	"chat":     "none",
-	"fetch":    "low",
-	"research": "high",
-	"work":     "medium",
-}
-
 var betaWorkCriteria = map[string]any{
 	"code": map[string]any{
 		"what":    betaWorkWhat("code"),
@@ -147,7 +139,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	body := map[string]any{
-		"model": "jev-latest",
+		"model": config.TypesafeModel,
 		"state": map[string]any{
 			"context": turns,
 			"request": request,
@@ -174,7 +166,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
-	level := betaWorkReasoning[work]
+	level := config.WorkReasoning(work)
 	if previous != "" && result.Answers["topic"].Choice == betaTopicSame {
 		if len(list) == 0 || list[0] == previous {
 			level = cmp.Or(previousReasoning, level)

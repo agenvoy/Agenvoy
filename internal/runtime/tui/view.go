@@ -406,10 +406,6 @@ func (t TUI) modelTag() string {
 		modelPart = warnStyle.Render(model)
 	}
 
-	if autoReasoningActive() {
-		return modelPart
-	}
-
 	var reasonPart string
 	switch reasoning {
 	case "none", "low":

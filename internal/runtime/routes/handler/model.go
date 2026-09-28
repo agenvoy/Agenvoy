@@ -227,7 +227,6 @@ func modelRouting(c *gin.Context, cfg *config.Config) gin.H {
 	return gin.H{
 		"dispatcher":      cfg.DispatcherModel,
 		"dispatcher_beta": cfg.DispatcherBeta,
-		"auto_reasoning":  cfg.AutoReasoning,
 		"summary":         cfg.SummaryModel,
 		"image":           cfg.ImageGenerator,
 		"image_options":   imageTool.Available(c.Request.Context()),
@@ -266,7 +265,6 @@ func SetModelRouting() gin.HandlerFunc {
 		var body struct {
 			Dispatcher     *string `json:"dispatcher"`
 			DispatcherBeta *bool   `json:"dispatcher_beta"`
-			AutoReasoning  *bool   `json:"auto_reasoning"`
 			Summary        *string `json:"summary"`
 			Image          *string `json:"image"`
 			STT            *string `json:"stt"`
@@ -303,7 +301,7 @@ func SetModelRouting() gin.HandlerFunc {
 			}
 		}
 
-		enabling := (body.DispatcherBeta != nil && *body.DispatcherBeta) || (body.AutoReasoning != nil && *body.AutoReasoning)
+		enabling := body.DispatcherBeta != nil && *body.DispatcherBeta
 		if enabling && strings.TrimSpace(keychain.Get(config.TypesafeKey)) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "missing key: " + config.TypesafeKey, "missing_key": config.TypesafeKey})
 			return
@@ -346,9 +344,6 @@ func SetModelRouting() gin.HandlerFunc {
 		}
 		if body.DispatcherBeta != nil {
 			cfg.DispatcherBeta = *body.DispatcherBeta
-		}
-		if body.AutoReasoning != nil {
-			cfg.AutoReasoning = *body.AutoReasoning
 		}
 		if body.Summary != nil {
 			cfg.SummaryModel = summary

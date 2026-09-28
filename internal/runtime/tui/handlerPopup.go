@@ -8,6 +8,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -537,6 +538,7 @@ func newPopupInput(value string, multiline bool) textarea.Model {
 	boldTextArea(&input)
 	input.Focus()
 	input.Cursor.Style = whiteStyle
+	input.Cursor.SetMode(cursor.CursorStatic)
 	input.SetPromptFunc(2, func(lineIdx int) string {
 		if lineIdx == 0 {
 			return systemStyle.Render("> ")

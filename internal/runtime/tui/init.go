@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -98,7 +99,7 @@ type TUI struct {
 
 func (t TUI) Init() tea.Cmd {
 	sid := strings.TrimSpace(t.currentSessionID)
-	seq := []tea.Cmd{tea.ClearScreen, textarea.Blink}
+	seq := []tea.Cmd{tea.ClearScreen}
 	if sid != "" {
 		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)))
 	}
@@ -138,6 +139,7 @@ func newModel(ctx context.Context) TUI {
 	boldTextArea(&textArea)
 	textArea.Focus()
 	textArea.Cursor.Style = whiteStyle
+	textArea.Cursor.SetMode(cursor.CursorStatic)
 	textArea.SetPromptFunc(2, func(lineIdx int) string {
 		if lineIdx == 0 {
 			return whiteStyle.Render("❯ ")

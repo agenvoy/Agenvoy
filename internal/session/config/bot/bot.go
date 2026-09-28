@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -18,7 +19,17 @@ import (
 const (
 	DefaultModel     = historyStore.DefaultModel
 	DefaultReasoning = historyStore.DefaultReasoning
+	ReasoningAuto    = "auto"
 )
+
+func ReasoningLevels() []string {
+	out := make([]string, 0, int(provider.ReasoningMax)+2)
+	out = append(out, ReasoningAuto)
+	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+		out = append(out, r.String())
+	}
+	return out
+}
 
 func read(sessionID string) (historyStore.SessionRow, bool) {
 	if sessionID == "" {

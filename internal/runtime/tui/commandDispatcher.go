@@ -9,22 +9,20 @@ import (
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
+const dispatcherPrefix = "dispatch:"
+
 type DispatcherSelect struct {
 	name string
 }
 
-func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
+func dispatcherOptions() (options, values []string, cursor int) {
 	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
-	}
-	if len(cfg.Models) == 0 {
-		return t, tea.Println(msgLog("no models configured  use /model") + "\n"), true
+	if err != nil || len(cfg.Models) == 0 {
+		return nil, nil, 0
 	}
 
-	options := make([]string, len(cfg.Models))
-	values := make([]string, len(cfg.Models))
-	cursor := 0
+	options = make([]string, len(cfg.Models))
+	values = make([]string, len(cfg.Models))
 	for i, m := range cfg.Models {
 		label := m.Name
 		if !cfg.DispatcherBeta && cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
@@ -32,28 +30,17 @@ func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
 			cursor = i
 		}
 		options[i] = label
-		values[i] = m.Name
+		values[i] = dispatcherPrefix + m.Name
 	}
 
-	typesafe := typesafeLabel
+	jev := "Jev  " + hintStyle.Render("use CLM model "+config.TypesafeModel)
 	if cfg.DispatcherBeta {
-		typesafe += "  " + systemStyle.Render("[current]")
+		jev += "  " + systemStyle.Render("[current]")
 		cursor = len(options) + 1
 	}
-	options = append(options, "", typesafe)
-	values = append(values, "", typesafeDispatcher)
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "/model dispatch",
-		options: options,
-		values:  values,
-		cursor:  cursor,
-		onConfirm: func(chosen string) any {
-			return DispatcherSelect{name: chosen}
-		},
-	}
-	return t, nil, true
+	options = append(options, "", jev)
+	values = append(values, "", dispatcherPrefix+typesafeDispatcher)
+	return options, values, cursor
 }
 
 func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {

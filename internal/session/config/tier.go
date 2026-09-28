@@ -13,36 +13,50 @@ type WorkKind struct {
 	Key         string
 	What        string
 	Tiers       []string
+	Reasoning   string
 	LongContext bool
 }
 
 var WorkKinds = []WorkKind{
 	{
-		Key:   "code",
-		What:  "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision; a Skill that builds or tests code, or creates, installs, migrates or probes something.",
-		Tiers: []string{"S", "A", "B", "C"},
+		Key:       "code",
+		Reasoning: "xhigh",
+		What:      "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision; a Skill that builds or tests code, or creates, installs, migrates or probes something.",
+		Tiers:     []string{"S", "A", "B", "C"},
 	},
 	{
 		Key:         "research",
+		Reasoning:   "high",
 		What:        "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
 		Tiers:       []string{"S", "A", "B", "C"},
 		LongContext: true,
 	},
 	{
-		Key:   "work",
-		What:  "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
-		Tiers: []string{"A", "S", "B", "C"},
+		Key:       "work",
+		Reasoning: "medium",
+		What:      "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
+		Tiers:     []string{"A", "S", "B", "C"},
 	},
 	{
-		Key:   "chat",
-		What:  "Greeting, small talk, a short factual answer, or translation.",
-		Tiers: []string{"B", "C", "A", "S"},
+		Key:       "chat",
+		Reasoning: "none",
+		What:      "Greeting, small talk, a short factual answer, or translation.",
+		Tiers:     []string{"B", "C", "A", "S"},
 	},
 	{
-		Key:   "fetch",
-		What:  "Calling tools to fetch data and returning it without judgement; a Skill with fixed input and a deterministic transform.",
-		Tiers: []string{"C", "B", "A", "S"},
+		Key:       "fetch",
+		Reasoning: "low",
+		What:      "Calling tools to fetch data and returning it without judgement; a Skill with fixed input and a deterministic transform.",
+		Tiers:     []string{"C", "B", "A", "S"},
 	},
+}
+
+func WorkReasoning(key string) string {
+	i := slices.IndexFunc(WorkKinds, func(k WorkKind) bool { return k.Key == key })
+	if i < 0 {
+		return ""
+	}
+	return WorkKinds[i].Reasoning
 }
 
 func WorkTiers(key string) ([]string, bool) {
