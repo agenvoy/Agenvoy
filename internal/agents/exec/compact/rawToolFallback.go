@@ -20,7 +20,7 @@ func RawToolFallback(session *agentTypes.AgentSession, taskHash string) bool {
 	var planPair []provider.Message
 	if taskHash != "" {
 		planPair = todo.LastPair(histories)
-		histories = todo.Strip(histories, false)
+		histories = todo.Strip(histories)
 	}
 
 	// * step3: turn histories to string

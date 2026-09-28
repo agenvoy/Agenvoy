@@ -86,7 +86,7 @@ type (
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) (execErr error) {
-	execCtx := agentTypes.WithSessionID(ctx, session.ID)
+	execCtx := provider.WithSessionID(agentTypes.WithSessionID(ctx, session.ID), session.ID)
 	execStart := time.Now()
 
 	if !allowAll {
@@ -412,7 +412,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				compactFailed = true
 			}
 		}
-		assembled := compact.AssembleMessages(session, exec.PendingTask)
+		assembled := compact.AssembleMessages(session)
 		sendStart := time.Now()
 		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
 		sendAgent := data.Agent
@@ -827,7 +827,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		return nil
 	}
 
-	assembled := compact.AssembleMessages(session, exec.PendingTask)
+	assembled := compact.AssembleMessages(session)
 	summaryMessages := append(assembled, provider.Message{
 		Role:    "user",
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",

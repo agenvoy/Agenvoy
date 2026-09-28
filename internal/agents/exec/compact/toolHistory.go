@@ -30,7 +30,7 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 	var planPair []provider.Message
 	if taskHash != "" {
 		planPair = todo.LastPair(histories)
-		histories = todo.Strip(histories, false)
+		histories = todo.Strip(histories)
 	}
 
 	// * step4: get tool call indices
