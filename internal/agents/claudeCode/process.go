@@ -41,6 +41,7 @@ type process struct {
 	stderr     *limitedBuffer
 	exited     chan struct{}
 	spec       string
+	tools      string
 	sent       []string
 	lastAnswer string
 	lastUse    time.Time

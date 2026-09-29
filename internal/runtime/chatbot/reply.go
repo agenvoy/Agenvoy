@@ -95,7 +95,7 @@ func (r Reply) deliver(events <-chan agentTypes.Event, wait func() error) error 
 	text = AppendReplyFooter(r.Channel, text, footer, len(paths) > 0, result.ExecErrors)
 	if r.Channel == Telegram {
 		if r.ReplyTo != "" {
-			text = "​\n" + text
+			text = "\u200b\n" + text
 		}
 		text = SanitizeTelegramHTML(text)
 	}

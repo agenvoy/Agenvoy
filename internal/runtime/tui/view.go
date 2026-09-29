@@ -10,14 +10,9 @@ import (
 	"github.com/muesli/reflow/truncate"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
-
-func renderContextWindow(modelName string, contextTokens int) string {
-	return go_pkg_utils.CompactNumber(contextTokens) + "/" + go_pkg_utils.CompactNumber(compact.InputWindow(modelName))
-}
 
 func (t TUI) View() string {
 	if t.quitting {
@@ -108,7 +103,6 @@ func (t TUI) viewThinking() string {
 
 	detail := []string{
 		elapsed,
-		// renderContextWindow(t.currentModel, t.lastContext),
 		"esc to interrupt",
 	}
 

@@ -724,7 +724,7 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 
 	selected := make(map[string]string)
 	if chosen != "" {
-		for _, entry := range strings.Split(chosen, "\x1F") {
+		for entry := range strings.SplitSeq(chosen, "\x1F") {
 			parts := strings.SplitN(entry, "\x00", 2)
 			name := parts[0]
 			desc := ""
@@ -761,7 +761,7 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 		kept = append(kept, config.ModelEntry{Name: fullName})
 		added = append(added, fullName)
 	}
-	sort.Slice(added, func(i, j int) bool { return added[i] < added[j] })
+	slices.Sort(added)
 
 	cfg.Models = kept
 	if cfg.DispatcherModel != "" && strings.HasPrefix(cfg.DispatcherModel, prefix) {

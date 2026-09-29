@@ -81,7 +81,8 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	p := acquire(sessionID + "|" + a.name)
 	defer p.mu.Unlock()
 
-	spec := specOf(system, toolDefs, effort)
+	spec := specOf(system, effort)
+	tools := renderTools(toolDefs)
 	list := fingerprints(rest)
 
 	reusable := p.alive() && p.spec == spec
@@ -96,8 +97,13 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 			return nil, 0, err
 		}
 		p.spec = spec
+		p.tools = tools
 		p.sent = nil
 		content = renderInitial(system, toolDefs, rest)
+	}
+	if tools != p.tools {
+		content = append([]map[string]any{{"type": "text", "text": tools + "\n\n"}}, content...)
+		p.tools = tools
 	}
 
 	out, code, err := p.turn(ctx, content)

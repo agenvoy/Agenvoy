@@ -312,11 +312,6 @@ var (
 			BorderForeground(colThink).
 			Padding(0, 1, 0, 0)
 
-	frameStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colHint).
-			Padding(0, 1)
-
 	noticeFrameStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(colSystem).

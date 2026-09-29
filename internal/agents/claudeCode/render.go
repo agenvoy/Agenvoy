@@ -85,10 +85,29 @@ func splitSystem(messages []provider.Message) (string, []provider.Message) {
 	return strings.Join(list, "\n\n"), messages[i:]
 }
 
-func specOf(system string, toolDefs []provider.Tool, effort string) string {
-	raw, _ := json.Marshal(toolDefs)
-	sum := sha256.Sum256([]byte(effort + "\x00" + system + "\x00" + string(raw)))
+func specOf(system, effort string) string {
+	sum := sha256.Sum256([]byte(effort + "\x00" + system))
 	return hex.EncodeToString(sum[:])
+}
+
+func renderTools(toolDefs []provider.Tool) string {
+	if len(toolDefs) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(toolDefs))
+	finder := ""
+	for _, t := range toolDefs {
+		names = append(names, t.Function.Name)
+		if t.Function.Name == "find_tools" {
+			raw, _ := json.Marshal(t.Function)
+			finder = string(raw)
+		}
+	}
+	text := "<tools>\nnames: " + strings.Join(names, ", ")
+	if finder != "" {
+		text += "\nfind_tools: " + finder
+	}
+	return text + "\n</tools>"
 }
 
 func fingerprints(messages []provider.Message) []string {
@@ -131,13 +150,8 @@ func toolNames(messages []provider.Message) map[string]string {
 func renderInitial(system string, toolDefs []provider.Tool, messages []provider.Message) []map[string]any {
 	w := &blockWriter{}
 	fmt.Fprintf(&w.text, "<system_prompt>\n%s\n</system_prompt>\n\n", system)
-	if len(toolDefs) > 0 {
-		list := make([]provider.ToolFunction, 0, len(toolDefs))
-		for _, t := range toolDefs {
-			list = append(list, t.Function)
-		}
-		raw, _ := json.Marshal(list)
-		fmt.Fprintf(&w.text, "<tools>\n%s\n</tools>\n\n", raw)
+	if tools := renderTools(toolDefs); tools != "" {
+		w.writeText(tools + "\n\n")
 	}
 	writeMessages(w, messages, toolNames(messages))
 	return w.blocks()

@@ -232,8 +232,8 @@ func displayEnv(ctx context.Context) []string {
 }
 
 func envValue(env []string, key string) string {
-	for i := len(env) - 1; i >= 0; i-- {
-		if value, ok := strings.CutPrefix(env[i], key+"="); ok {
+	for _, one := range slices.Backward(env) {
+		if value, ok := strings.CutPrefix(one, key+"="); ok {
 			return value
 		}
 	}
