@@ -81,10 +81,10 @@ func selectorConfig() (tiers map[string]string, selection string, beta bool) {
 	return tiers, selection, beta
 }
 
-func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates, passOrder []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string) {
+func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string) {
 	if beta {
 		betaCtx, cancel := context.WithTimeout(ctx, TypesafeCallTimeout)
-		list, level, err := selectAgentBeta(betaCtx, candidates, passOrder, tiers, content, sessionID)
+		list, level, err := selectAgentBeta(betaCtx, candidates, tiers, content, sessionID)
 		cancel()
 		if err == nil {
 			return list, level
@@ -154,7 +154,7 @@ func selectAgentDispatcher(ctx context.Context, bot agentTypes.Agent, registry a
 }
 
 func selectReasoning(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, names []string, tiers map[string]string, selection string, beta bool, content, sessionID string) string {
-	_, level := runSelector(ctx, bot, registry, names, nil, tiers, selection, beta, content, sessionID, map[string]bool{})
+	_, level := runSelector(ctx, bot, registry, names, tiers, selection, beta, content, sessionID, map[string]bool{})
 	return level
 }
 
@@ -180,15 +180,13 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	}
 
 	registryOrder := make([]string, 0, len(registry.Entries))
-	passOrder := []string{}
-	known := make(map[string]struct{}, len(registry.Entries))
+	selectable := make(map[string]struct{}, len(registry.Entries))
 	for _, e := range registry.Entries {
-		known[e.Name] = struct{}{}
 		if tiers[e.Name] == config.ModelTagPass {
-			passOrder = append(passOrder, e.Name)
-		} else {
-			registryOrder = append(registryOrder, e.Name)
+			continue
 		}
+		registryOrder = append(registryOrder, e.Name)
+		selectable[e.Name] = struct{}{}
 	}
 
 	if len(registry.Entries) <= 1 {
@@ -206,7 +204,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		}
 	}
 
-	list, level := runSelector(ctx, bot, registry, candidates, passOrder, tiers, selection, beta, userContent, sessionID, dead)
+	list, level := runSelector(ctx, bot, registry, candidates, tiers, selection, beta, userContent, sessionID, dead)
 
 	picked := []string{}
 	seen := map[string]bool{}
@@ -214,7 +212,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		if seen[n] {
 			continue
 		}
-		if _, ok := known[n]; !ok {
+		if _, ok := selectable[n]; !ok {
 			continue
 		}
 		if retryHandler.IsCoolingDown(n) {

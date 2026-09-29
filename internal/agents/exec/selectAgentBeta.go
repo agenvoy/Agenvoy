@@ -86,7 +86,7 @@ type betaAnswer struct {
 	} `json:"answers"`
 }
 
-func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
+func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
 		return nil, "", fmt.Errorf("missing key: %s", config.TypesafeKey)
@@ -96,7 +96,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
-	for _, name := range slices.Concat(candidates, passNames) {
+	for _, name := range candidates {
 		named[name] = "The request asks to use " + name + " (fuzzy match on provider, family or version)."
 	}
 
