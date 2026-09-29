@@ -75,7 +75,7 @@ var ModelTagDetails = map[string]string{
 	"A":          "default for most work  one step below the flagship",
 	"B":          "mainstream mid tier",
 	"C":          "fast and cheap  calls tools reliably as instructed",
-	ModelTagPass: "never picked by auto routing or subagents  fallback still tries it at its place in the priority order  or set for a session",
+	ModelTagPass: "never picked by auto routing, subagents or fallback used only when set for a session",
 }
 
 const ModelTagNoneDetail = "follow the built-in naming rules"
