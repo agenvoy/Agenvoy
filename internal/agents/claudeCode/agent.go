@@ -34,13 +34,6 @@ func Enabled() bool {
 	return EnableClaudeCode && CheckBinary() == nil
 }
 
-func Models(ctx context.Context, _ provider.Config, _ provider.ModelFilter) ([]string, error) {
-	if err := CheckBinary(); err != nil {
-		return nil, err
-	}
-	return listModels(ctx)
-}
-
 type Agent struct {
 	name  string
 	model string

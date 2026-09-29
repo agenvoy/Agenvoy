@@ -867,7 +867,7 @@ var modelsProviders = map[string]func(context.Context, provider.Config, provider
 	"mistral":           mistral.Models,
 	"nvidia":            nvidia.Models,
 	"openrouter":        openrouter.Models,
-	claudeCode.Provider: claudeCode.Models,
+	claudeCode.Provider: claude.Models,
 }
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
