@@ -72,7 +72,15 @@ func (t TUI) viewIdle() string {
 		}
 	}
 
-	return top + box + "\n" + bottom + "\n" + fastMode + confirmMode
+	status := fastMode + confirmMode
+	if t.quotaText != "" {
+		quota := hintStyle.Render(t.quotaModel+" ") + renderQuotaBadge(t.quotaText) + " "
+		if gap := boxWidth - lipgloss.Width(status) - lipgloss.Width(quota); gap >= 1 {
+			status += strings.Repeat(" ", gap) + quota
+		}
+	}
+
+	return top + box + "\n" + bottom + "\n" + status
 }
 
 func (t TUI) viewThinking() string {

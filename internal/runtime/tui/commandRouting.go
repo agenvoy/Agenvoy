@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -40,7 +41,11 @@ func summaryOptions() (options, values []string, cursor int) {
 	options = append(options, auto)
 	values = append(values, summaryPrefix)
 
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		label := m.Name
 		if cfg.SummaryModel != "" && m.Name == cfg.SummaryModel {
 			label += "  " + systemStyle.Render("[current]")

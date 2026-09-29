@@ -80,6 +80,7 @@ func New() *gin.Engine {
 
 	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
 	r.GET("/v1/providers/quota", localhostOnly(), handler.ListProviderQuota())
+	r.GET("/v1/model/quota", localhostOnly(), handler.GetModelQuota())
 	r.POST("/v1/provider/:provider/key", localhostOnly(), handler.AddProviderKey())
 	r.GET("/v1/provider/:provider/oauth", localhostOnly(), handler.ProviderOAuth())
 	r.DELETE("/v1/provider/:provider/oauth", localhostOnly(), handler.ClearProviderOAuth())

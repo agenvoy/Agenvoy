@@ -74,6 +74,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.notice = appendNotice(t.notice, msg.text)
 			t.noticeOffset = 0
 			return t, nil
+		case QuotaLoaded:
+			t.quotaModel, t.quotaText = msg.model, msg.text
+			return t, nil
 		}
 		return t, nil
 	}
@@ -81,6 +84,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case popupChild:
 		return t.runPopupChild(msg)
+
+	case QuotaLoaded:
+		t.quotaModel, t.quotaText = msg.model, msg.text
+		return t, nil
 
 	case tea.WindowSizeMsg:
 		t.width = msg.Width

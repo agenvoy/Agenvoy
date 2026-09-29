@@ -27,7 +27,7 @@ app:
 dev:
 	@$(MAKE) stop
 	@$(MAKE) build
-	@AGENVOY_PAGE_DIR=$(CURDIR)/page agen
+	@AGENVOY_PAGE_DIR=$(CURDIR)/page agen --enable-claude-code
 
 stop:
 	go run ./cmd/app/ stop

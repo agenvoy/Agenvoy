@@ -11,7 +11,6 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
@@ -29,13 +28,10 @@ func Is(name string) bool {
 	return prov == Provider
 }
 
-func Disabled() bool {
-	cfg, err := config.Load()
-	return err == nil && cfg.ClaudeCodeOff
-}
+var EnableClaudeCode bool
 
 func Enabled() bool {
-	return !Disabled() && CheckBinary() == nil
+	return EnableClaudeCode && CheckBinary() == nil
 }
 
 func Models(ctx context.Context, _ provider.Config, _ provider.ModelFilter) ([]string, error) {
@@ -55,11 +51,11 @@ func New(name string) (*Agent, error) {
 	if !ok || prov != Provider || model == "" {
 		return nil, fmt.Errorf("invalid %s model name %q", Provider, name)
 	}
-	if Disabled() {
-		return nil, fmt.Errorf("%s is disabled; enable \"Use Claude Code\" in /config", Provider)
-	}
 	if err := CheckBinary(); err != nil {
 		return nil, err
+	}
+	if !EnableClaudeCode {
+		return nil, fmt.Errorf("%s is not enabled; run `agen stop`, then start with `agen --enable-claude-code`", Provider)
 	}
 	return &Agent{name: name, model: model}, nil
 }
@@ -123,12 +119,11 @@ func answerIndex(messages []provider.Message, answer string) int {
 	if answer == "" {
 		return -1
 	}
-	for i := len(messages) - 1; i >= 0; i-- {
-		m := messages[i]
-		if m.Role != "assistant" {
+	for i, m := range slices.Backward(messages) {
+		if m.Role != "assistant" || len(m.ToolCalls) > 0 {
 			continue
 		}
-		if i == len(messages)-1 || len(m.ToolCalls) > 0 || answerText(m.Content) != answer {
+		if i == len(messages)-1 || answerText(m.Content) != answer {
 			return -1
 		}
 		return i

@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
@@ -39,7 +40,11 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 	options = append(options, auto)
 	values = append(values, sessionModelPrefix+configBot.DefaultModel)
 
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		label := "⇅ " + m.Name
 		if m.Name == current {
 			label += "  " + systemStyle.Render("[current]")

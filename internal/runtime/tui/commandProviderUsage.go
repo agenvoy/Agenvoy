@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -32,6 +33,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	hasOllamaCloud := false
 	hasDeepseek := false
 	hasOpenRouter := false
+	hasClaudeCode := false
 	for _, e := range exec.GetAgent() {
 		prov, _, _ := strings.Cut(e.Name, "@")
 		switch prov {
@@ -47,9 +49,11 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 			hasDeepseek = true
 		case "openrouter":
 			hasOpenRouter = true
+		case claudeCode.Provider:
+			hasClaudeCode = true
 		}
 	}
-	if !hasCodex && !hasGrokOauth && !hasCopilot && !hasOllamaCloud && !hasDeepseek && !hasOpenRouter {
+	if !hasCodex && !hasGrokOauth && !hasCopilot && !hasOllamaCloud && !hasDeepseek && !hasOpenRouter && !hasClaudeCode {
 		return t, nil, true
 	}
 
@@ -57,7 +61,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		lines := make([]string, 6)
+		lines := make([]string, 7)
 		var wg sync.WaitGroup
 
 		fetch := func(idx int, run func() string) {
@@ -67,27 +71,31 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 
 		if hasCodex {
 			wg.Add(1)
-			go fetch(0, func() string { return fetchProviderUsage(ctx, "Codex", "codex", openaicodex.Usage) })
+			go fetch(1, func() string { return fetchProviderUsage(ctx, "Codex", "codex", openaicodex.Usage) })
 		}
 		if hasGrokOauth {
 			wg.Add(1)
-			go fetch(1, func() string { return fetchProviderUsage(ctx, "Grok", "grok-oauth", grokoauth.Usage) })
+			go fetch(2, func() string { return fetchProviderUsage(ctx, "Grok", "grok-oauth", grokoauth.Usage) })
 		}
 		if hasCopilot {
 			wg.Add(1)
-			go fetch(2, func() string { return fetchProviderUsage(ctx, "Copilot", "copilot", copilot.Usage) })
+			go fetch(3, func() string { return fetchProviderUsage(ctx, "Copilot", "copilot", copilot.Usage) })
 		}
 		if hasOllamaCloud {
 			wg.Add(1)
-			go fetch(3, func() string { return fetchProviderUsage(ctx, "Ollama Cloud", "ollama-cloud", ollamacloud.Usage) })
+			go fetch(4, func() string { return fetchProviderUsage(ctx, "Ollama Cloud", "ollama-cloud", ollamacloud.Usage) })
 		}
 		if hasOpenRouter {
 			wg.Add(1)
-			go fetch(4, func() string { return fetchProviderBalance(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
+			go fetch(5, func() string { return fetchProviderBalance(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
 		}
 		if hasDeepseek {
 			wg.Add(1)
-			go fetch(5, func() string { return fetchProviderBalance(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
+			go fetch(6, func() string { return fetchProviderBalance(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
+		}
+		if hasClaudeCode {
+			wg.Add(1)
+			go fetch(0, func() string { return fetchProviderUsage(ctx, "Claude Code", claudeCode.Provider, claudeCode.Usage) })
 		}
 		wg.Wait()
 

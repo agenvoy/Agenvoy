@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
@@ -21,16 +22,18 @@ func dispatcherOptions() (options, values []string, cursor int) {
 		return nil, nil, 0
 	}
 
-	options = make([]string, len(cfg.Models))
-	values = make([]string, len(cfg.Models))
-	for i, m := range cfg.Models {
+	skipClaudeCode := !claudeCode.Enabled()
+	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		label := m.Name
 		if !cfg.DispatcherBeta && cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
-			cursor = i
+			cursor = len(options)
 		}
-		options[i] = label
-		values[i] = dispatcherPrefix + m.Name
+		options = append(options, label)
+		values = append(values, dispatcherPrefix+m.Name)
 	}
 
 	jev := "Jev  " + hintStyle.Render("use CLM model "+config.TypesafeModel)
@@ -56,7 +59,11 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 
 	candidates := make([]string, 0, len(cfg.Models)+1)
 	candidates = append(candidates, configBot.DefaultModel)
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		candidates = append(candidates, m.Name)
 	}
 

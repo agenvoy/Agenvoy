@@ -124,3 +124,9 @@ func ListProviderQuota() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"quota": quotas})
 	}
 }
+
+func GetModelQuota() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"quota": utils.ModelQuota(c.Request.Context(), strings.TrimSpace(c.Query("model")))})
+	}
+}

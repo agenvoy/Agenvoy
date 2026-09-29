@@ -11,6 +11,7 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -73,6 +74,8 @@ func TUI() {
 			slog.Warn("daemon launch failed; running TUI without server",
 				slog.String("error", err.Error()))
 		}
+	} else if r, err := runtime.Read(); err == nil && r.EnableClaudeCode {
+		claudeCode.EnableClaudeCode = true
 	}
 
 	if err := torii.Init(filesystem.StoreDir); err != nil {
