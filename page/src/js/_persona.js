@@ -21,7 +21,7 @@ async function openPersonaPopup(sessionId) {
 
   const self = personaField(current.self_id || "", "a-z 0-9 _ - only, up to 32 characters · stored lowercase", true);
   const name = personaField(current.name || "", "shown as the session title", true);
-  const rule = personaField(current.rule || "", "system prompt for this session", false);
+  const role = personaField(current.role || "", "system prompt for this session", false);
 
   const cancel = _("button", { type: "button" }, "cancel");
   const save = _("button", { type: "button", class: "submit" }, "save");
@@ -34,7 +34,7 @@ async function openPersonaPopup(sessionId) {
       _("p", "self id"),
       self.field,
       _("p", "role"),
-      rule.field,
+      role.field,
       _("footer", [cancel, save]),
     ]),
   ]);
@@ -51,7 +51,7 @@ async function openPersonaPopup(sessionId) {
   };
   const submit = async function () {
     save.disabled = true;
-    const done = await savePersona(sid, self.box.value.trim(), name.box.value.trim(), rule.box.value);
+    const done = await savePersona(sid, self.box.value.trim(), name.box.value.trim(), role.box.value);
     save.disabled = false;
     if (done) {
       close();
@@ -98,12 +98,12 @@ function personaField(value, placeholder, single) {
   return { field: _("label.input", [box, mirror]), box: box };
 }
 
-async function savePersona(sessionId, selfId, name, rule) {
+async function savePersona(sessionId, selfId, name, role) {
   try {
     const response = await fetch(`${API}/v1/session/${encodeURIComponent(sessionId || currentSessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ self_id: selfId, name: name, rule: rule }),
+      body: JSON.stringify({ self_id: selfId, name: name, role: role }),
     });
     const detail = await response.json().catch(() => ({}));
     if (!response.ok) {

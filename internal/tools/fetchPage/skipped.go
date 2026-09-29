@@ -54,10 +54,10 @@ func addToSkippedMap(href string, status int, title string) {
 }
 
 func parseSkipValue(raw string) (int, string) {
-	idx := strings.Index(raw, "|")
-	if idx < 0 {
+	head, tail, ok := strings.Cut(raw, "|")
+	if !ok {
 		return 0, ""
 	}
-	status, _ := strconv.Atoi(raw[:idx])
-	return status, raw[idx+1:]
+	status, _ := strconv.Atoi(head)
+	return status, tail
 }

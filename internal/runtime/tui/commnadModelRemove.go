@@ -36,7 +36,7 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	label := name
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 
 	var kept []config.ModelEntry
@@ -46,7 +46,7 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 		}
 	}
 	if len(kept) == len(cfg.Models) {
-		return t, tea.Println(msgLog("no matching models found") + "\n")
+		return t, notice(msgLog("no matching models found") + "\n")
 	}
 
 	cfg.Models = kept
@@ -62,7 +62,7 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	}
 
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 
 	agents.Reload()
@@ -77,5 +77,5 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	if len(cfg.Models) == 0 {
 		lines = append(lines, msgWarn("no model configured  /model add"))
 	}
-	return t, tea.Println(strings.Join(lines, "\n\n") + "\n")
+	return t, notice(strings.Join(lines, "\n"))
 }

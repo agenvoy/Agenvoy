@@ -8,6 +8,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -50,7 +51,7 @@ type Popup struct {
 
 	tabs   []string
 	tabIdx int
-	onTab  func(p *Popup)
+	onTab  func(p *Popup) tea.Cmd
 
 	searchable bool
 	allOptions []string
@@ -207,7 +208,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
 				}
 				return t, tea.Sequence(
-					tea.Println(msgWarn("restricted path: system password required")+"\n"),
+					notice(msgWarn("restricted path: system password required")+"\n"),
 					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
 						return RestrictedAuthDone{pendingID: id, err: err}
 					}),
@@ -238,6 +239,13 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if p.searchable {
 		switch msg.Type {
 		case tea.KeyUp, tea.KeyDown, tea.KeyEnter:
+		case tea.KeyLeft, tea.KeyRight:
+			if len(p.tabs) < 2 {
+				var cmd tea.Cmd
+				p.input, cmd = p.input.Update(msg)
+				p.filter()
+				return t, cmd
+			}
 		case tea.KeyEsc:
 			if p.input.Value() != "" {
 				p.input.Reset()
@@ -267,10 +275,10 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		p.move(1)
 
 	case tea.KeyLeft:
-		p.switchTab(-1)
+		return t, p.switchTab(-1)
 
 	case tea.KeyRight:
-		p.switchTab(1)
+		return t, p.switchTab(1)
 
 	case tea.KeyEsc:
 		if p.pendingId == "" {
@@ -439,15 +447,6 @@ func (p *Popup) filter() {
 	p.cursor = 0
 }
 
-func loadingPopup(back *Popup) *Popup {
-	return &Popup{
-		kind:        popupSingleSelect,
-		readOnly:    true,
-		styledLines: []string{hintStyle.Render("loading models...")},
-		back:        back,
-	}
-}
-
 func (p *Popup) scroll(step int) {
 	visible := p.maxVisible
 	if visible <= 0 {
@@ -456,12 +455,12 @@ func (p *Popup) scroll(step int) {
 	p.cursor = min(max(p.cursor+step, 0), max(len(p.options)-visible, 0))
 }
 
-func (p *Popup) switchTab(step int) {
+func (p *Popup) switchTab(step int) tea.Cmd {
 	if len(p.tabs) < 2 || p.onTab == nil {
-		return
+		return nil
 	}
 	p.tabIdx = (p.tabIdx + step + len(p.tabs)) % len(p.tabs)
-	p.onTab(p)
+	return p.onTab(p)
 }
 
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -477,10 +476,10 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		p.cursor = (p.cursor + 1) % len(p.options)
 
 	case tea.KeyLeft:
-		p.switchTab(-1)
+		return t, p.switchTab(-1)
 
 	case tea.KeyRight:
-		p.switchTab(1)
+		return t, p.switchTab(1)
 
 	case tea.KeySpace:
 		p.multi[p.cursor] = !p.multi[p.cursor]
@@ -534,9 +533,9 @@ func newPopupInput(value string, multiline bool) textarea.Model {
 	input.SetHeight(1)
 	input.SetValue(value)
 	input.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	boldTextArea(&input)
 	input.Focus()
 	input.Cursor.Style = whiteStyle
+	input.Cursor.SetMode(cursor.CursorStatic)
 	input.SetPromptFunc(2, func(lineIdx int) string {
 		if lineIdx == 0 {
 			return systemStyle.Render("> ")
@@ -597,6 +596,16 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		if !p.multiline {
 			return submit()
+		}
+
+	case tea.KeyLeft:
+		if len(p.tabs) > 1 {
+			return t, p.switchTab(-1)
+		}
+
+	case tea.KeyRight:
+		if len(p.tabs) > 1 {
+			return t, p.switchTab(1)
 		}
 	}
 

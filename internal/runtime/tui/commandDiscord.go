@@ -37,19 +37,7 @@ func (t TUI) commandDiscord(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	enabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		enabled = cfg.DiscordEnabled && keychain.Get(discord.Key) != ""
-	}
-	if !enabled {
-		next, cmd := t.openDiscordTokenPrompt()
-		return next, cmd, true
-	}
-
-	next, cmd := t.openChannelMenu("discord", "Discord", func() any {
-		return DiscordAction{action: "disable"}
-	})
-	return next, cmd, true
+	return t.commandChannel([]string{"channel", "discord"})
 }
 
 func (t TUI) openDiscordTokenPrompt() (TUI, tea.Cmd) {

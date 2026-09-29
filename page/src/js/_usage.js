@@ -113,7 +113,7 @@ function usageRows(summary) {
       write: Number(one.write) || 0,
       hit: Number(one.hit) || 0,
     };
-    row.total = row.input + row.output + row.write + row.hit;
+    row.total = row.input + row.output + row.hit;
     if (row.total > 0) {
       rows.push(row);
     }
@@ -138,19 +138,25 @@ function usageNumber(value) {
   return Number(value || 0).toLocaleString();
 }
 
+function usageHitRate(input, hit) {
+  const read = (input || 0) + (hit || 0);
+  if (read <= 0) {
+    return "0.00";
+  }
+  return ((hit / read) * 100).toFixed(2);
+}
+
 function renderUsageSummary(rows, totals, period) {
   const dom = usageDom();
   if (!dom.summary) {
     return;
   }
 
-  const read = totals.input + totals.hit;
-  const hitRate = read > 0 ? Math.round((totals.hit / read) * 100) : 0;
   const cells = [
     { label: "total tokens · " + period, value: usageNumber(totals.total) },
     { label: "input", value: usageNumber(totals.input) },
     { label: "output", value: usageNumber(totals.output) },
-    { label: "cache read", value: usageNumber(totals.hit) + " (" + hitRate + "%)" },
+    { label: "cache read", value: usageNumber(totals.hit) + " (" + usageHitRate(totals.input, totals.hit) + "%)" },
     { label: "models", value: String(rows.length) },
   ];
 
@@ -187,7 +193,7 @@ function renderUsageTable(rows, period) {
         _("td", row.model),
         _("td.num", usageNumber(row.input)),
         _("td.num", usageNumber(row.output)),
-        _("td.num", usageNumber(row.hit)),
+        _("td.num", usageNumber(row.hit) + " (" + usageHitRate(row.input, row.hit) + "%)"),
         _("td.num.total", usageNumber(row.total)),
       ]),
     );

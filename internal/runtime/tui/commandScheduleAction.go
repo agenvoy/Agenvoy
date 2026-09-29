@@ -65,18 +65,18 @@ func (t TUI) runScheduleRemove(kind, skillName string) (TUI, tea.Cmd) {
 		removed, err = runtime.RemoveTask(skillName)
 	}
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("%s remove: %v", kind, err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("%s remove: %v", kind, err)) + "\n")
 	}
 	if removed == 0 {
-		return t, tea.Println(msgLog(fmt.Sprintf("no %s found for %s", kind, skillName)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("no %s found for %s", kind, skillName)) + "\n")
 	}
 	if err := skill.TrashSchedule(context.Background(), skillName, historyStore.Meta{SessionID: t.currentSessionID}); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("TrashSchedule: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("TrashSchedule: %v", err)) + "\n")
 	}
 
 	next, cmd := t.reopenSchedule()
 	return next, tea.Sequence(
-		tea.Println(msgLog(fmt.Sprintf("removed %s: %s  skill trashed", kind, skillName))+"\n"),
+		notice(msgLog(fmt.Sprintf("removed %s: %s  skill trashed", kind, skillName))+"\n"),
 		cmd,
 	)
 }

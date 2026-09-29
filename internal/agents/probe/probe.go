@@ -24,6 +24,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
@@ -33,6 +34,10 @@ type listFn func(context.Context, provider.Config) ([]string, error)
 func lookup(prov string) listFn {
 	filter := provider.ModelFilter{TextOnly: true}
 	switch prov {
+	case claudeCode.Provider:
+		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+			return claude.Models(ctx, cfg, filter)
+		}
 	case "openai":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return openai.Models(ctx, cfg, filter)

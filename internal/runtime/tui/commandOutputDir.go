@@ -30,18 +30,18 @@ func (t TUI) commandOutputDir() (TUI, tea.Cmd, bool) {
 func (t TUI) runOutputDirSubmit(value string) (TUI, tea.Cmd) {
 	resolved, err := filesystem.ResolveOutputDir(value)
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
 	}
 
 	dic, err := config.Get()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
 	}
 	dic["output_dir"] = value
 	if err := config.Write(dic); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("output-dir: %v", err)) + "\n")
 	}
 	filesystem.ConfigOutputDir = value
 
-	return t.openConfig(configOutputDir), tea.Println(msgLog("output dir: "+resolved) + "\n")
+	return t.openConfig(configOutputDir), notice(msgLog("output dir: "+resolved) + "\n")
 }

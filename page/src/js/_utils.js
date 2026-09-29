@@ -72,7 +72,8 @@ const CHAT_DRAFT = "new";
 function readChatConfig(chatId) {
   const entry = (readConfig().chat || {})[chatId || CHAT_DRAFT] || {};
   return {
-    rule: typeof entry.rule === "string" ? entry.rule : "",
+    // ! rule will deprecate in the future
+    role: typeof entry.role === "string" ? entry.role : typeof entry.rule === "string" ? entry.rule : "",
     work_dir: typeof entry.work_dir === "string" ? entry.work_dir : "",
   };
 }
@@ -172,7 +173,9 @@ function addPinChat(sessionId) {
     return;
   }
   if (config.pin_chat.length >= PIN_CHAT_MAX) {
-    alert(`Pinned panels are limited to ${PIN_CHAT_MAX}.\n\nUnpin one from its panel header, then pin this chat again.`);
+    alert(
+      `Pinned panels are limited to ${PIN_CHAT_MAX}.\n\nUnpin one from its panel header, then pin this chat again.`,
+    );
     return;
   }
 
@@ -233,7 +236,9 @@ const DOC_EXTENSION = ["md", "markdown", "txt", "text"];
 const PAGE_EXTENSION = ["html", "htm"];
 
 function pathExtension(path) {
-  const name = String(path || "").split("/").pop();
+  const name = String(path || "")
+    .split("/")
+    .pop();
   const at = name.lastIndexOf(".");
   return at > 0 ? name.slice(at + 1).toLowerCase() : "";
 }
@@ -280,12 +285,17 @@ async function openFileInSubview(path) {
     frame.srcdoc = subviewDocument(`<section class="md-render">${renderMarkdownHTML(await response.text())}</section>`);
   } catch (err) {
     console.error("openFileInSubview", err);
-    frame.srcdoc = subviewDocument(`<p>Failed to open "${escapeSubviewText(path)}": ${escapeSubviewText(err.message)}</p>`);
+    frame.srcdoc = subviewDocument(
+      `<p>Failed to open "${escapeSubviewText(path)}": ${escapeSubviewText(err.message)}</p>`,
+    );
   }
 }
 
 function escapeSubviewText(text) {
-  return String(text == null ? "" : text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(text == null ? "" : text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function subviewDocument(body) {

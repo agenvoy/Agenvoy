@@ -37,19 +37,7 @@ func (t TUI) commandTelegram(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	enabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		enabled = cfg.TelegramEnabled && keychain.Get(telegram.Key) != ""
-	}
-	if !enabled {
-		next, cmd := t.openTelegramTokenPrompt()
-		return next, cmd, true
-	}
-
-	next, cmd := t.openChannelMenu("telegram", "Telegram", func() any {
-		return TelegramAction{action: "disable"}
-	})
-	return next, cmd, true
+	return t.commandChannel([]string{"channel", "telegram"})
 }
 
 func (t TUI) openTelegramTokenPrompt() (TUI, tea.Cmd) {

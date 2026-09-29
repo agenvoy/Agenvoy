@@ -60,16 +60,11 @@ function renderEvent(view, event) {
   }
 
   if (type === "EventDone") {
-    if (event.quota || event.reasoning) {
-      const name = (event.model || view.model.textContent) + (event.reasoning ? `/${event.reasoning}` : "");
-      const parts = [name];
-      if (event.quota) {
-        const quota = _("span.quota", event.quota);
-        quota.dataset.level = quotaLevel(event.quota.endsWith("%") ? "percent" : "balance", parseFloat(event.quota));
-        parts.push(quota);
-      }
-      view.model.replaceChildren(...parts);
+    const model = event.model || view.model.textContent;
+    if (event.reasoning) {
+      view.model.replaceChildren(`${model}/${event.reasoning}`);
     }
+    loadModelQuota(view, model);
     view.think.open = false;
     delete view.think.dataset.streaming;
     const usage = event.usage || {};
@@ -172,4 +167,26 @@ function formatEvent(event) {
   }
 
   return event.text || "";
+}
+
+async function loadModelQuota(view, model) {
+  if (!model || !model.includes("@")) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API}/v1/model/quota?model=${encodeURIComponent(model)}`);
+    if (!response.ok) {
+      return;
+    }
+    const text = (await response.json()).quota || "";
+    if (!text) {
+      return;
+    }
+    const quota = _("span.quota", text);
+    quota.dataset.level = quotaLevel(text.endsWith("%") ? "percent" : "balance", parseFloat(text));
+    view.model.querySelector("span.quota")?.remove();
+    view.model.appendChild(quota);
+  } catch (err) {
+    console.error("loadModelQuota", err);
+  }
 }

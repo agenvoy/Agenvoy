@@ -96,7 +96,7 @@ func registAskUser() {
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Puts one or more questions to the user and stops there — execution pauses, and a new turn resumes automatically once they answer.
-Use when the target, scope, format or timing is not fixed by what they said, or when more than one tool would fit.
+Use when the target, scope, format or timing is not fixed by what they said, by an active Skill's SKILL.md, or by data a tool can fetch (git state, files), or when more than one tool would fit. A bare /<skill> command is fully specified by its SKILL.md: run it, never ask.
 A credential is never asked for here → store_secret.`,
 		Parameters: map[string]any{
 			"type": "object",

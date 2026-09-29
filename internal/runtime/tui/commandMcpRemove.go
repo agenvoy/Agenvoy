@@ -34,20 +34,20 @@ func (t TUI) openMcpRemoveConfirm(server string) (TUI, tea.Cmd) {
 func (t TUI) runMcpRemove(server string) (TUI, tea.Cmd) {
 	cfg, err := mcp.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp.Load: %v", err)) + "\n")
 	}
 	if _, ok := cfg.Servers[server]; !ok {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp server %q not found", server)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp server %q not found", server)) + "\n")
 	}
 	delete(cfg.Servers, server)
 	if err := mcp.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp.Save: %v", err)) + "\n")
 	}
 	mcp.Manager().Disconnect(server)
 
 	removed := msgLog(fmt.Sprintf("removed: %s", server))
 	if err := mcp.ClearOAuth(server); err != nil {
-		return t, tea.Println(removed + "\n" + msgWarn(fmt.Sprintf("oauth credentials left in keychain: %v", err)) + "\n")
+		return t, notice(removed + "\n" + msgWarn(fmt.Sprintf("oauth credentials left in keychain: %v", err)) + "\n")
 	}
-	return t, tea.Println(removed + "\n")
+	return t, notice(removed)
 }

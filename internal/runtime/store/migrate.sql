@@ -88,11 +88,14 @@ CREATE TABLE IF NOT EXISTS session (
     name       TEXT NOT NULL DEFAULT '',
     model      TEXT NOT NULL DEFAULT 'auto',
     reasoning  TEXT NOT NULL DEFAULT 'medium',
-    rule       TEXT NOT NULL DEFAULT '',
+    role       TEXT NOT NULL DEFAULT '',
     chat_id    TEXT NOT NULL DEFAULT '',
     guild_id   TEXT NOT NULL DEFAULT '',
     channel_id TEXT NOT NULL DEFAULT '',
-    user_id    TEXT NOT NULL DEFAULT ''
+    user_id    TEXT NOT NULL DEFAULT '',
+
+    -- ! will deprecate in the future
+    rule       TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_chat    ON session(chat_id)    WHERE chat_id    <> '';

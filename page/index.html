@@ -158,7 +158,7 @@
               <pre></pre>
             </label>
             <section>
-              <button class="rule left" type="button" @click="rule_pick" name="Use rule">
+              <button class="role left" type="button" @click="role_pick" name="Use role">
                 <span class="material-symbols-outlined"> contract </span>
               </button>
               <button class="skill left" type="button" @click="skill_pick" name="Use skill">
@@ -232,7 +232,7 @@
               <pre></pre>
             </label>
             <section>
-              <button class="rule left" type="button" @click="rule_pick" name="Use rule">
+              <button class="role left" type="button" @click="role_pick" name="Use role">
                 <span class="material-symbols-outlined"> contract </span>
               </button>
               <button class="skill left" type="button" @click="skill_pick" name="Use skill">
@@ -268,32 +268,32 @@
           <div></div>
         </header>
 
-        <section :if="params.tab == Rules" class="editor">
+        <section :if="params.tab == Roles" class="editor">
           <div class="side">
-            <button type="button" class="new" @click="rule_reset">
+            <button type="button" class="new" @click="role_reset">
               <span class="material-symbols-outlined"> add_2 </span>
-              <p>Add Rule</p>
+              <p>Add Role</p>
             </button>
             <details class="group" open>
               <summary>
-                Rules
+                Roles
                 <span class="material-symbols-outlined"> keyboard_arrow_down </span>
               </summary>
-              <div class="list" id="rule-list"></div>
+              <div class="list" id="role-list"></div>
             </details>
           </div>
-          <form id="rule-form">
-            <label for="rule-title">
+          <form id="role-form">
+            <label for="role-title">
               <span>Name</span>
-              <input id="rule-title" type="text" placeholder="Name this rule" />
+              <input id="role-title" type="text" placeholder="Name this role" />
             </label>
-            <label for="rule-content">
+            <label for="role-content">
               <span>Content</span>
-              <textarea id="rule-content" rows="12" placeholder="The system prompt this rule applies"></textarea>
+              <textarea id="role-content" rows="12" placeholder="The system prompt this role applies"></textarea>
             </label>
             <footer>
-              <button type="button" class="remove" @click="rule_delete">delete</button>
-              <button type="button" class="submit" @click="rule_save">add</button>
+              <button type="button" class="remove" @click="role_delete">delete</button>
+              <button type="button" class="submit" @click="role_save">add</button>
             </footer>
           </form>
         </section>
@@ -409,13 +409,6 @@
                     <a data-kind="dispatcher_beta" @click="dispatcher_beta_toggle" hidden></a>
                   </div>
                   <select data-kind="dispatcher" @change="routing_change"></select>
-                </div>
-                <div class="routing">
-                  <div class="label">
-                    <strong>Auto reasoning(beta)</strong>
-                    <p>reasoning effort per request</p>
-                    <a data-kind="auto_reasoning" @click="auto_reasoning_toggle" hidden></a>
-                  </div>
                 </div>
                 <div class="routing">
                   <div class="label">

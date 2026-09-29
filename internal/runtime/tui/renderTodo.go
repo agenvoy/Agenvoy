@@ -7,7 +7,7 @@ import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func renderTodoList(todos []agentTypes.TodoItem) string {
+func renderTodoList(todos []agentTypes.TodoItem, spinner string) string {
 	if len(todos) == 0 {
 		return ""
 	}
@@ -19,8 +19,13 @@ func renderTodoList(todos []agentTypes.TodoItem) string {
 		}
 	}
 
+	mark := "⏺"
+	if done < len(todos) && spinner != "" {
+		mark = spinner
+	}
+
 	var sb strings.Builder
-	sb.WriteString(systemStyle.Render("⏺ Plan"))
+	sb.WriteString(systemStyle.Render(mark + " Plan"))
 	sb.WriteString(hintStyle.Render(fmt.Sprintf(" (%d/%d)", done, len(todos))))
 	for _, td := range todos {
 		sb.WriteByte('\n')

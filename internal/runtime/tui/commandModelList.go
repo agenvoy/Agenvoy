@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
@@ -39,7 +40,11 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 	options = append(options, auto)
 	values = append(values, sessionModelPrefix+configBot.DefaultModel)
 
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		label := "⇅ " + m.Name
 		if m.Name == current {
 			label += "  " + systemStyle.Render("[current]")
@@ -67,7 +72,7 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n")
+		return t, notice(msgLog("no active session") + "\n")
 	}
 	configBot.SetModel(sid, name, "")
 	return t, nil
@@ -89,70 +94,4 @@ func swapModelPriority(name, other string) error {
 	}
 	agents.Reload()
 	return nil
-}
-
-func providerPopup(title string, available []string, current string, back *Popup, onConfirm func(chosen string) any) *Popup {
-	popup := &Popup{
-		kind:      popupSingleSelect,
-		title:     title,
-		back:      back,
-		tabs:      providerTabs(available),
-		onConfirm: onConfirm,
-	}
-	popup.onTab = func(p *Popup) {
-		fillProviderOptions(p, available, current)
-	}
-	popup.onTab(popup)
-	return popup
-}
-
-func modelProvider(name string) string {
-	provider, _, _ := strings.Cut(name, "@")
-	return provider
-}
-
-func providerTabs(available []string) []string {
-	var providers []string
-	for _, name := range available {
-		if provider := modelProvider(name); !slices.Contains(providers, provider) {
-			providers = append(providers, provider)
-		}
-	}
-	if len(providers) < 2 {
-		return nil
-	}
-	return append([]string{"all"}, providers...)
-}
-
-func fillProviderOptions(p *Popup, available []string, current string) {
-	tab := ""
-	if p.tabIdx > 0 && p.tabIdx < len(p.tabs) {
-		tab = p.tabs[p.tabIdx]
-	}
-
-	disable := "disable"
-	if current == "" || current == "off" {
-		disable += "  " + systemStyle.Render("[current]")
-	}
-	options := make([]string, 0, len(available)+1)
-	values := make([]string, 0, len(available)+1)
-	options = append(options, disable)
-	values = append(values, "")
-	cursor := 0
-	for _, name := range available {
-		if tab != "" && modelProvider(name) != tab {
-			continue
-		}
-		label := name
-		if current == name {
-			label += "  " + systemStyle.Render("[current]")
-			cursor = len(options)
-		}
-		options = append(options, label)
-		values = append(values, name)
-	}
-
-	p.options = options
-	p.values = values
-	p.cursor = cursor
 }

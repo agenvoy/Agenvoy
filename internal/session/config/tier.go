@@ -13,36 +13,50 @@ type WorkKind struct {
 	Key         string
 	What        string
 	Tiers       []string
+	Reasoning   string
 	LongContext bool
 }
 
 var WorkKinds = []WorkKind{
 	{
-		Key:   "code",
-		What:  "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision; a Skill that builds or tests code, or creates, installs, migrates or probes something.",
-		Tiers: []string{"S", "A", "B", "C"},
+		Key:       "code",
+		Reasoning: "xhigh",
+		What:      "Writing, fixing, debugging or testing code; a request that asks outright for depth or precision; a Skill that builds or tests code, or creates, installs, migrates or probes something.",
+		Tiers:     []string{"S", "A", "B", "C"},
 	},
 	{
 		Key:         "research",
+		Reasoning:   "high",
 		What:        "Research, analysis, comparison and reports: gathering from several sources or data points, then synthesizing findings and drawing conclusions.",
 		Tiers:       []string{"S", "A", "B", "C"},
 		LongContext: true,
 	},
 	{
-		Key:   "work",
-		What:  "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
-		Tiers: []string{"A", "S", "B", "C"},
+		Key:       "work",
+		Reasoning: "medium",
+		What:      "General tasks: planning, reviewing, drafting, editing or organizing content the user already has, and anything that fits none of the other options.",
+		Tiers:     []string{"A", "S", "B", "C"},
 	},
 	{
-		Key:   "chat",
-		What:  "Greeting, small talk, a short factual answer, or translation.",
-		Tiers: []string{"B", "C", "A", "S"},
+		Key:       "chat",
+		Reasoning: "none",
+		What:      "Greeting, small talk, a short factual answer, or translation.",
+		Tiers:     []string{"B", "C", "A", "S"},
 	},
 	{
-		Key:   "fetch",
-		What:  "Calling tools to fetch data and returning it without judgement; a Skill with fixed input and a deterministic transform.",
-		Tiers: []string{"C", "B", "A", "S"},
+		Key:       "fetch",
+		Reasoning: "low",
+		What:      "Calling tools to fetch data and returning it without judgement; a Skill with fixed input and a deterministic transform.",
+		Tiers:     []string{"C", "B", "A", "S"},
 	},
+}
+
+func WorkReasoning(key string) string {
+	i := slices.IndexFunc(WorkKinds, func(k WorkKind) bool { return k.Key == key })
+	if i < 0 {
+		return ""
+	}
+	return WorkKinds[i].Reasoning
 }
 
 func WorkTiers(key string) ([]string, bool) {
@@ -118,11 +132,14 @@ func ModelTier(tags map[string]string, name string) string {
 const smallWindowProvider = "copilot"
 
 var providerRank = map[string]int{
-	"codex":      0,
-	"grok-oauth": 0,
-	"copilot":    1,
-	"openrouter": 3,
+	"claude-code": 0,
+	"codex":       1,
+	"grok-oauth":  1,
+	"copilot":     2,
+	"openrouter":  4,
 }
+
+var preferredProviders = []string{"claude-code", "codex"}
 
 func LongContextOrder(work, name string) int {
 	i := slices.IndexFunc(WorkKinds, func(k WorkKind) bool { return k.Key == work })
@@ -140,10 +157,43 @@ func ProviderOrder(name string) int {
 	if rank, ok := providerRank[prov]; ok {
 		return rank
 	}
-	return 2
+	return 3
+}
+
+func ProviderPreference(name string) int {
+	prov, _, _ := strings.Cut(name, "@")
+	if i := slices.Index(preferredProviders, prov); i >= 0 {
+		return i
+	}
+	return len(preferredProviders)
 }
 
 func ModelSelection(cfg *Config) string {
+	return modelSelection(cfg, false)
+}
+
+func SubagentModelSelection(cfg *Config) string {
+	return modelSelection(cfg, true)
+}
+
+var lowerTier = map[string]string{"S": "A", "A": "B", "B": "C", "C": "C"}
+
+func SubagentTiers(order []string) []string {
+	list := make([]string, 0, len(order))
+	for _, tier := range order {
+		if lower := lowerTier[tier]; !slices.Contains(list, lower) {
+			list = append(list, lower)
+		}
+	}
+	for _, tier := range order {
+		if !slices.Contains(list, tier) {
+			list = append(list, tier)
+		}
+	}
+	return list
+}
+
+func modelSelection(cfg *Config, subagent bool) string {
 	groups := make(map[string][]string, len(ModelTags))
 	for _, m := range cfg.Models {
 		tier := ModelTier(cfg.ModelTag, m.Name)
@@ -159,7 +209,7 @@ func ModelSelection(cfg *Config) string {
 		slices.SortStableFunc(names, func(a, b string) int {
 			_, fa := NameTier(a)
 			_, fb := NameTier(b)
-			return cmp.Or(cmp.Compare(fa, fb), cmp.Compare(ProviderOrder(a), ProviderOrder(b)))
+			return cmp.Or(cmp.Compare(ProviderPreference(a), ProviderPreference(b)), cmp.Compare(fa, fb), cmp.Compare(ProviderOrder(a), ProviderOrder(b)))
 		})
 		tierLines = append(tierLines, fmt.Sprintf("- %s: %s", tier, strings.Join(names, ", ")))
 	}
@@ -170,7 +220,11 @@ func ModelSelection(cfg *Config) string {
 
 	workLines := make([]string, 0, len(WorkKinds))
 	for _, k := range WorkKinds {
-		workLines = append(workLines, fmt.Sprintf("- %s (%s): %s", k.Key, strings.Join(k.Tiers, " > "), k.What))
+		order := k.Tiers
+		if subagent {
+			order = SubagentTiers(order)
+		}
+		workLines = append(workLines, fmt.Sprintf("- %s (%s): %s", k.Key, strings.Join(order, " > "), k.What))
 	}
 
 	return strings.NewReplacer(

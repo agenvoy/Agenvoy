@@ -53,10 +53,11 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 	}
 
 	model := strings.TrimSpace(params.Model)
-	if model != "" {
-		if err := checkLegModel(model); err != nil {
-			return "", err
-		}
+	if model == "" {
+		return "", fmt.Errorf("model is required when mode=invoke")
+	}
+	if err := checkLegModel(model); err != nil {
+		return "", err
 	}
 
 	reasoning := strings.TrimSpace(params.Reasoning)

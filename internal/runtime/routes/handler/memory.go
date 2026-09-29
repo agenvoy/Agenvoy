@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func memoryCtx() (context.Context, context.CancelFunc) {
@@ -37,11 +37,7 @@ func sessionParam(c *gin.Context) (string, bool) {
 }
 
 func reasoningLevels() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+1)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
-		out = append(out, r.String())
-	}
-	return out
+	return configBot.ReasoningLevels()
 }
 
 func SessionMemory() gin.HandlerFunc {

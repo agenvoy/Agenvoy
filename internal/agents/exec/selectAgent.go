@@ -27,6 +27,7 @@ import (
 
 const (
 	DispatcherCallTimeout        = 30 * time.Second
+	TypesafeCallTimeout          = 3 * time.Second
 	UnresponsiveProbeInterval    = 30 * time.Second
 	UnresponsiveRetryInterval    = 10 * time.Second
 	MaxUnresponsiveProbeFailures = 3
@@ -69,149 +70,158 @@ func SkillHint(s *skill.Skill) string {
 	return strings.TrimSpace(s.Description)
 }
 
-func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool, string) {
-	dead := map[string]bool{}
-
-	tiers := map[string]string{}
-	selection := config.ModelSelection(&config.Config{})
-	beta, autoReasoning := false, false
+func selectorConfig() (tiers map[string]string, selection string, beta bool) {
+	tiers = map[string]string{}
+	selection = config.ModelSelection(&config.Config{})
 	if cfg, err := config.Load(); err == nil {
 		tiers = cfg.ModelTag
 		selection = config.ModelSelection(cfg)
 		beta = cfg.DispatcherBeta
-		autoReasoning = cfg.AutoReasoning
+	}
+	return tiers, selection, beta
+}
+
+func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string) {
+	if beta {
+		betaCtx, cancel := context.WithTimeout(ctx, TypesafeCallTimeout)
+		list, level, err := selectAgentBeta(betaCtx, candidates, tiers, content, sessionID)
+		cancel()
+		if err == nil {
+			return list, level
+		}
+		if ctx.Err() == nil {
+			slog.Debug("beta dispatcher failed", slog.String("error", err.Error()))
+		}
+	}
+	return selectAgentDispatcher(ctx, bot, registry, selection, content, sessionID, dead)
+}
+
+func selectAgentDispatcher(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, selection, content, sessionID string, dead map[string]bool) ([]string, string) {
+	bot = retryHandler.Check(bot, registry)
+	if bot == nil {
+		return nil, ""
+	}
+	agentJson, err := json.Marshal(registry.Entries)
+	if err != nil {
+		return nil, ""
 	}
 
+	messages := []provider.Message{
+		{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelSelection}}", selection)},
+		{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), content)},
+	}
+	dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
+	for range len(registry.Entries) {
+		if ctx.Err() != nil {
+			return nil, ""
+		}
+		routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
+		resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode())
+		cancel()
+		if sendErr == nil {
+			retryHandler.Clear(bot.Name())
+			if resp == nil || len(resp.Choices) == 0 {
+				return nil, ""
+			}
+			content, ok := resp.Choices[0].Message.Content.(string)
+			if !ok {
+				return nil, ""
+			}
+			work, names := parseDispatcherReply(content)
+			return names, config.WorkReasoning(work)
+		}
+		dead[bot.Name()] = true
+		rateLimited := sendCode == 429
+		if rateLimited {
+			retryHandler.Register(bot.Name())
+		}
+		next := retryHandler.Check(nil, registry)
+		if ctx.Err() == nil && !rateLimited {
+			slog.Debug("dispatcher routing failed",
+				slog.String("name", bot.Name()),
+				slog.String("error", sendErr.Error()))
+		}
+		if next == nil || dead[next.Name()] {
+			return nil, ""
+		}
+		if ctx.Err() == nil && !rateLimited {
+			slog.Debug("dispatcher retrying with fallback",
+				slog.String("name", next.Name()))
+		}
+		bot = next
+	}
+	return nil, ""
+}
+
+func selectReasoning(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, names []string, tiers map[string]string, selection string, beta bool, content, sessionID string) string {
+	_, level := runSelector(ctx, bot, registry, names, tiers, selection, beta, content, sessionID, map[string]bool{})
+	return level
+}
+
+func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) ([]string, map[string]bool, string) {
+	dead := map[string]bool{}
+	tiers, selection, beta := selectorConfig()
 	userContent := requestContent(userInput, hasSkill, skillHint)
 
-	reasoningOnly := func(names []string) string {
-		if !autoReasoning {
-			return ""
-		}
-		return autoReasoningLevel(ctx, names, tiers, userContent, sessionID)
-	}
-
+	sessionModel, sessionReasoning := "", ""
 	if sessionID != "" {
-		model, _ := configBot.GetModel(sessionID)
-		if model != "" && model != configBot.DefaultModel {
-			if _, ok := registry.Registry[model]; ok {
-				return []string{model}, dead, reasoningOnly([]string{model})
+		sessionModel, sessionReasoning = configBot.GetModel(sessionID)
+	}
+	autoReasoning := sessionReasoning == configBot.ReasoningAuto
+
+	if sessionModel != "" && sessionModel != configBot.DefaultModel {
+		if _, ok := registry.Registry[sessionModel]; ok {
+			level := ""
+			if autoReasoning {
+				level = selectReasoning(ctx, bot, registry, []string{sessionModel}, tiers, selection, beta, userContent, sessionID)
 			}
+			return []string{sessionModel}, dead, level
 		}
 	}
 
 	registryOrder := make([]string, 0, len(registry.Entries))
-	passOrder := []string{}
-	known := make(map[string]struct{}, len(registry.Entries))
+	selectable := make(map[string]struct{}, len(registry.Entries))
 	for _, e := range registry.Entries {
-		known[e.Name] = struct{}{}
 		if tiers[e.Name] == config.ModelTagPass {
-			passOrder = append(passOrder, e.Name)
-		} else {
-			registryOrder = append(registryOrder, e.Name)
+			continue
 		}
+		registryOrder = append(registryOrder, e.Name)
+		selectable[e.Name] = struct{}{}
 	}
 
 	if len(registry.Entries) <= 1 {
-		return registryOrder, dead, reasoningOnly(registryOrder)
+		level := ""
+		if autoReasoning {
+			level = selectReasoning(ctx, bot, registry, registryOrder, tiers, selection, beta, userContent, sessionID)
+		}
+		return registryOrder, dead, level
 	}
+
+	candidates := make([]string, 0, len(registryOrder))
+	for _, n := range registryOrder {
+		if !retryHandler.IsCoolingDown(n) {
+			candidates = append(candidates, n)
+		}
+	}
+
+	list, level := runSelector(ctx, bot, registry, candidates, tiers, selection, beta, userContent, sessionID, dead)
 
 	picked := []string{}
 	seen := map[string]bool{}
-	reasoning := ""
-
-	bot = retryHandler.Check(bot, registry)
-
-	if beta || autoReasoning {
-		candidates := make([]string, 0, len(registryOrder))
-		for _, n := range registryOrder {
-			if !retryHandler.IsCoolingDown(n) {
-				candidates = append(candidates, n)
-			}
+	for _, n := range list {
+		if seen[n] {
+			continue
 		}
-		if list, level, err := selectAgentBeta(ctx, candidates, passOrder, tiers, userContent, sessionID); err != nil {
-			if ctx.Err() == nil {
-				slog.Debug("beta dispatcher failed", slog.String("error", err.Error()))
-			}
-		} else {
-			if autoReasoning {
-				reasoning = level
-			}
-			if beta {
-				for _, n := range list {
-					picked = append(picked, n)
-					seen[n] = true
-				}
-				bot = nil
-			}
+		if _, ok := selectable[n]; !ok {
+			continue
 		}
+		if retryHandler.IsCoolingDown(n) {
+			dead[n] = true
+			continue
+		}
+		picked = append(picked, n)
+		seen[n] = true
 	}
-
-	if bot != nil {
-		agentJson, err := json.Marshal(registry.Entries)
-		if err == nil {
-			messages := []provider.Message{
-				{Role: "system", Content: strings.ReplaceAll(strings.TrimSpace(configs.AgentSelector), "{{.ModelSelection}}", selection)},
-				{Role: "user", Content: fmt.Sprintf("Available agents:\n%s\nUser request: %s", string(agentJson), userContent)},
-			}
-			dispatchCtx := agentTypes.WithSessionID(ctx, sessionID)
-			for range len(registry.Entries) {
-				if ctx.Err() != nil {
-					break
-				}
-				routingCtx, cancel := context.WithTimeout(dispatchCtx, DispatcherCallTimeout)
-				resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode())
-				cancel()
-				if sendErr == nil {
-					retryHandler.Clear(bot.Name())
-					if resp != nil && len(resp.Choices) > 0 {
-						if content, ok := resp.Choices[0].Message.Content.(string); ok {
-							raw := strings.Trim(strings.TrimSpace(content), "\"'` \n")
-							if raw != "" && raw != "NONE" {
-								for n := range strings.SplitSeq(raw, ",") {
-									n = strings.Trim(strings.TrimSpace(n), "\"'`")
-									if n == "" || seen[n] {
-										continue
-									}
-									if _, ok := known[n]; !ok {
-										continue
-									}
-									if retryHandler.IsCoolingDown(n) {
-										dead[n] = true
-										continue
-									}
-									picked = append(picked, n)
-									seen[n] = true
-								}
-							}
-						}
-					}
-					break
-				}
-				dead[bot.Name()] = true
-				rateLimited := sendCode == 429
-				if rateLimited {
-					retryHandler.Register(bot.Name())
-				}
-				next := retryHandler.Check(nil, registry)
-				hasNext := next != nil && !dead[next.Name()]
-				if ctx.Err() == nil && !rateLimited {
-					slog.Debug("dispatcher routing failed",
-						slog.String("name", bot.Name()),
-						slog.String("error", sendErr.Error()))
-				}
-				if !hasNext {
-					break
-				}
-				if ctx.Err() == nil && !rateLimited {
-					slog.Debug("dispatcher retrying with fallback",
-						slog.String("name", next.Name()))
-				}
-				bot = next
-			}
-		}
-	}
-
 	for _, n := range registryOrder {
 		if seen[n] || dead[n] {
 			continue
@@ -219,7 +229,36 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		picked = append(picked, n)
 		seen[n] = true
 	}
+
+	reasoning := ""
+	if autoReasoning {
+		reasoning = level
+	}
 	return orderProviders(picked), dead, reasoning
+}
+
+func parseDispatcherReply(raw string) (string, []string) {
+	work := ""
+	names := []string{}
+	for line := range strings.SplitSeq(raw, "\n") {
+		line = strings.Trim(strings.TrimSpace(line), "\"'` ")
+		if line == "" {
+			continue
+		}
+		if work == "" {
+			key := strings.ToLower(line)
+			if _, ok := config.WorkTiers(key); ok {
+				work = key
+				continue
+			}
+		}
+		for n := range strings.SplitSeq(line, ",") {
+			if n = strings.Trim(strings.TrimSpace(n), "\"'`"); n != "" {
+				names = append(names, n)
+			}
+		}
+	}
+	return work, names
 }
 
 func baseModel(name string) string {
@@ -267,17 +306,6 @@ func requestContent(userInput string, hasSkill bool, skillHint string) string {
 		}
 	}
 	return content
-}
-
-func autoReasoningLevel(ctx context.Context, names []string, tiers map[string]string, content, sessionID string) string {
-	_, level, err := selectAgentBeta(ctx, names, nil, tiers, content, sessionID)
-	if err != nil {
-		if ctx.Err() == nil {
-			slog.Debug("auto reasoning failed", slog.String("error", err.Error()))
-		}
-		return ""
-	}
-	return level
 }
 
 func SelectAgent(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, userInput string, hasSkill bool, skillHint string, sessionID string) agentTypes.Agent {
@@ -390,8 +418,9 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 			return nil, nil, "", fmt.Errorf("model %q not found", model)
 		}
 		reasoning := ""
-		if cfg, err := config.Load(); err == nil && cfg.AutoReasoning {
-			reasoning = autoReasoningLevel(ctx, []string{model}, cfg.ModelTag, requestContent(userInput, hasSkill, skillHint), sessionID)
+		if _, level := configBot.GetModel(sessionID); level == configBot.ReasoningAuto {
+			tiers, selection, beta := selectorConfig()
+			reasoning = selectReasoning(ctx, agents.DispatcherBot(), registry, []string{model}, tiers, selection, beta, requestContent(userInput, hasSkill, skillHint), sessionID)
 		}
 		return agent, nil, reasoning, nil
 	}
@@ -409,9 +438,10 @@ func ResolveAgent(ctx context.Context, model, userInput string, hasSkill bool, s
 		}
 	}
 
+	tiers, _, _ := selectorConfig()
 	fallbacks := make([]agentTypes.Agent, 0, len(registry.Entries))
 	for _, e := range registry.Entries {
-		if e.Name == primaryName || dead[e.Name] {
+		if e.Name == primaryName || dead[e.Name] || tiers[e.Name] == config.ModelTagPass {
 			continue
 		}
 		if a, ok := registry.Registry[e.Name]; ok && a != nil {

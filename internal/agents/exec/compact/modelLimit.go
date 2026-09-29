@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -37,14 +38,15 @@ var vendorAlias = map[string]string{
 }
 
 var providerVendor = map[string]string{
-	"openai":     "openai",
-	"codex":      "openai",
-	"claude":     "claude",
-	"gemini":     "gemini",
-	"grok":       "grok",
-	"grok-oauth": "grok",
-	"mistral":    "mistral",
-	"deepseek":   "deepseek",
+	"openai":      "openai",
+	"codex":       "openai",
+	"claude":      "claude",
+	"claude-code": "claude",
+	"gemini":      "gemini",
+	"grok":        "grok",
+	"grok-oauth":  "grok",
+	"mistral":     "mistral",
+	"deepseek":    "deepseek",
 }
 
 var vendorInModel = map[string]bool{
@@ -67,14 +69,23 @@ func limitPair(modelName string) (string, string) {
 		if alias, ok := vendorAlias[vendor]; ok {
 			vendor = alias
 		}
-		return vendor, rest
+		return vendor, claudeVersion(vendor, rest)
 	}
 
 	vendor, ok := providerVendor[prefix]
 	if !ok {
 		return "", ""
 	}
-	return vendor, model
+	return vendor, claudeVersion(vendor, model)
+}
+
+var claudeDashVersion = regexp.MustCompile(`^(claude-.*-\d+)-(\d{1,2})$`)
+
+func claudeVersion(vendor, model string) string {
+	if vendor != "claude" {
+		return model
+	}
+	return claudeDashVersion.ReplaceAllString(model, "$1.$2")
 }
 
 func Warm(ctx context.Context) {

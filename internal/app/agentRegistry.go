@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -21,6 +22,9 @@ func (a *resolvedAgent) Name() string {
 }
 
 func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
+	if claudeCode.Is(a.name) {
+		return claudeCode.New(a.name)
+	}
 	cfg, err := routerConfig(ctx, a.name)
 	if err != nil {
 		return nil, err
@@ -69,7 +73,11 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
 		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
 	}
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, e := range agentEntries {
+		if skipClaudeCode && claudeCode.Is(e.Name) {
+			continue
+		}
 		a := &resolvedAgent{name: e.Name}
 		if _, err := a.build(context.Background()); err != nil {
 			slog.Warn("failed to initialize",
