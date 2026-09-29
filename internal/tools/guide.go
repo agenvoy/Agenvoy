@@ -81,9 +81,9 @@ Full rule per topic — call before acting on any match, listing every topic tha
 				}
 				if strings.Contains(guide, "{{.ModelSelection}}") {
 					if selection == "" {
-						selection = config.ModelSelection(&config.Config{})
+						selection = config.SubagentModelSelection(&config.Config{})
 						if cfg, err := config.Load(); err == nil {
-							selection = config.ModelSelection(cfg)
+							selection = config.SubagentModelSelection(cfg)
 						}
 					}
 					guide = strings.ReplaceAll(guide, "{{.ModelSelection}}", selection)

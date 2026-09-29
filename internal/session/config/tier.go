@@ -169,6 +169,31 @@ func ProviderPreference(name string) int {
 }
 
 func ModelSelection(cfg *Config) string {
+	return modelSelection(cfg, false)
+}
+
+func SubagentModelSelection(cfg *Config) string {
+	return modelSelection(cfg, true)
+}
+
+var lowerTier = map[string]string{"S": "A", "A": "B", "B": "C", "C": "C"}
+
+func SubagentTiers(order []string) []string {
+	list := make([]string, 0, len(order))
+	for _, tier := range order {
+		if lower := lowerTier[tier]; !slices.Contains(list, lower) {
+			list = append(list, lower)
+		}
+	}
+	for _, tier := range order {
+		if !slices.Contains(list, tier) {
+			list = append(list, tier)
+		}
+	}
+	return list
+}
+
+func modelSelection(cfg *Config, subagent bool) string {
 	groups := make(map[string][]string, len(ModelTags))
 	for _, m := range cfg.Models {
 		tier := ModelTier(cfg.ModelTag, m.Name)
@@ -195,7 +220,11 @@ func ModelSelection(cfg *Config) string {
 
 	workLines := make([]string, 0, len(WorkKinds))
 	for _, k := range WorkKinds {
-		workLines = append(workLines, fmt.Sprintf("- %s (%s): %s", k.Key, strings.Join(k.Tiers, " > "), k.What))
+		order := k.Tiers
+		if subagent {
+			order = SubagentTiers(order)
+		}
+		workLines = append(workLines, fmt.Sprintf("- %s (%s): %s", k.Key, strings.Join(order, " > "), k.What))
 	}
 
 	return strings.NewReplacer(
