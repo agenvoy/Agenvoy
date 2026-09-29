@@ -91,11 +91,11 @@ func (r Reply) deliver(events <-chan agentTypes.Event, wait func() error) error 
 	}
 
 	text, paths := utils.ExtractFileMarkers(text)
-	footer := utils.FormatEventFooter(result.Done.Duration, result.Done.OutputElapsed, result.Done.Model, result.Done.Quota, result.Done.Reasoning, result.Done.Usage)
+	footer := utils.FormatEventFooter(result.Done.Duration, result.Done.OutputElapsed, result.Done.Model, result.Done.Reasoning, result.Done.Usage)
 	text = AppendReplyFooter(r.Channel, text, footer, len(paths) > 0, result.ExecErrors)
 	if r.Channel == Telegram {
 		if r.ReplyTo != "" {
-			text = "​\n" + text
+			text = "\u200b\n" + text
 		}
 		text = SanitizeTelegramHTML(text)
 	}

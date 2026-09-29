@@ -112,7 +112,7 @@ func mcpStateLabel(s mcp.ServerInfo) string {
 func (t TUI) openMcpServerMenu(name string) (TUI, tea.Cmd) {
 	info, ok := mcpServerStatus(name)
 	if !ok {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp server %q not found", name)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp server %q not found", name)) + "\n")
 	}
 
 	subtitle := fmt.Sprintf("%s  %s", info.Transport, mcpStateLabel(info))

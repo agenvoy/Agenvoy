@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -48,15 +49,19 @@ type TUI struct {
 	popupQueue    []Pending
 	popupOrigin   *Popup
 	botBodyDraft  string
-	ruleBodyDraft string
+	roleBodyDraft string
 	mcpAdd        *mcpAddDraft
 	mcpClient     *mcpClientDraft
 	mcpOAuth      *oauthState
 	modelAdd      *modelAddItem
 
-	selector *CmdSelector
+	selector     *CmdSelector
+	notice       string
+	noticeOffset int
 
 	currentModel       string
+	quotaModel         string
+	quotaText          string
 	currentSessionID   string
 	currentSessionName string
 	activity           string
@@ -100,16 +105,15 @@ type TUI struct {
 
 func (t TUI) Init() tea.Cmd {
 	sid := strings.TrimSpace(t.currentSessionID)
-	seq := []tea.Cmd{tea.ClearScreen, textarea.Blink}
+	seq := []tea.Cmd{tea.ClearScreen}
 	if sid != "" {
-		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)))
+		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)))
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid != "" {
-		seq = append(seq, tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(sid))+"\n"))
 		if n := len(interactive.ListResumablePending(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
-			seq = append(seq, tea.Println(msgLog(hint)+"\n"))
+			seq = append(seq, notice(msgLog(hint)+"\n"))
 		}
 	} else {
 		seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
@@ -137,9 +141,9 @@ func newModel(ctx context.Context) TUI {
 	textArea.SetHeight(1)
 	textArea.ShowLineNumbers = false
 	textArea.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	boldTextArea(&textArea)
 	textArea.Focus()
 	textArea.Cursor.Style = whiteStyle
+	textArea.Cursor.SetMode(cursor.CursorStatic)
 	textArea.SetPromptFunc(2, func(lineIdx int) string {
 		if lineIdx == 0 {
 			return whiteStyle.Render("❯ ")
@@ -291,7 +295,7 @@ func loadSessionTail(sid string, width int, all bool) []tea.Cmd {
 	}
 
 	cmds := make([]tea.Cmd, 0, len(lines)*2+2)
-	cmds = append(cmds, tea.Println(msgLog(""+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
+	cmds = append(cmds, notice(msgLog(""+label+" ("+strconv.Itoa(len(lines))+")")+"\n"))
 	for i, l := range lines {
 		if i > 0 && l.kind != "done" && l.kind != "canceled" {
 			cmds = append(cmds, tea.Println(""))

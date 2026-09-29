@@ -152,6 +152,7 @@ async function getSessionModel(sessionId) {
 }
 
 const REASONING_ICON = {
+  auto: "auto_awesome",
   none: "signal_cellular_0_bar",
   low: "signal_cellular_1_bar",
   medium: "signal_cellular_2_bar",
@@ -179,23 +180,7 @@ function markReasoning(level) {
   }
 }
 
-async function markAutoReasoning() {
-  const picker = $("#chat-reasoning");
-  if (!picker) {
-    return;
-  }
-  try {
-    const response = await fetch(`${API}/v1/model`);
-    if (response.ok) {
-      picker.hidden = ((await response.json()) || {}).auto_reasoning === true;
-    }
-  } catch (err) {
-    console.error("markAutoReasoning", err);
-  }
-}
-
 async function getReasoningList(sessionId) {
-  markAutoReasoning();
   if (!SESSION_ID.test(sessionId || "")) {
     return;
   }

@@ -13,6 +13,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
+
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 const (
@@ -23,14 +25,6 @@ const (
 	betaTopicSame      = "same"
 	betaLastModelKey   = "lastModel:"
 )
-
-var betaWorkReasoning = map[string]string{
-	"code":     "xhigh",
-	"chat":     "none",
-	"fetch":    "low",
-	"research": "high",
-	"work":     "medium",
-}
 
 var betaWorkCriteria = map[string]any{
 	"code": map[string]any{
@@ -94,7 +88,7 @@ type betaAnswer struct {
 	} `json:"answers"`
 }
 
-func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
+func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
 		return nil, "", fmt.Errorf("missing key: %s", config.TypesafeKey)
@@ -104,7 +98,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
-	for _, name := range slices.Concat(candidates, passNames) {
+	for _, name := range candidates {
 		named[name] = "The request asks to use " + name + " (fuzzy match on provider, family or version)."
 	}
 
@@ -147,7 +141,7 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	}
 
 	body := map[string]any{
-		"model": "jev-latest",
+		"model": config.TypesafeModel,
 		"state": map[string]any{
 			"context": turns,
 			"request": request,
@@ -174,10 +168,14 @@ func selectAgentBeta(ctx context.Context, candidates, passNames []string, tiers 
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
-	level := betaWorkReasoning[work]
+	level := config.WorkReasoning(work)
 	if previous != "" && result.Answers["topic"].Choice == betaTopicSame {
 		if len(list) == 0 || list[0] == previous {
-			level = cmp.Or(previousReasoning, level)
+			prev, prevOK := provider.ParseReasoning(previousReasoning)
+			cur, curOK := provider.ParseReasoning(level)
+			if prevOK && (!curOK || prev > cur) {
+				level = previousReasoning
+			}
 		}
 		if !slices.Contains(list, previous) {
 			list = append(list, previous)
@@ -253,7 +251,7 @@ func rankCandidates(work string, order []string, tiers map[string]string, candid
 		if i < 0 {
 			i = len(order)
 		}
-		return i*100 + family
+		return i*1000 + config.ProviderPreference(name)*100 + family
 	}
 	ranked := slices.Clone(candidates)
 	slices.SortStableFunc(ranked, func(a, b string) int {

@@ -5,55 +5,45 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
+
+const dispatcherPrefix = "dispatch:"
 
 type DispatcherSelect struct {
 	name string
 }
 
-func (t TUI) commandDispatcher() (TUI, tea.Cmd, bool) {
+func dispatcherOptions() (options, values []string, cursor int) {
 	cfg, err := config.Load()
-	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
-	}
-	if len(cfg.Models) == 0 {
-		return t, tea.Println(msgLog("no models configured  use /model") + "\n"), true
+	if err != nil || len(cfg.Models) == 0 {
+		return nil, nil, 0
 	}
 
-	options := make([]string, len(cfg.Models))
-	values := make([]string, len(cfg.Models))
-	cursor := 0
-	for i, m := range cfg.Models {
+	skipClaudeCode := !claudeCode.Enabled()
+	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		label := m.Name
 		if !cfg.DispatcherBeta && cfg.DispatcherModel != "" && m.Name == cfg.DispatcherModel {
 			label += "  " + systemStyle.Render("[current]")
-			cursor = i
+			cursor = len(options)
 		}
-		options[i] = label
-		values[i] = m.Name
+		options = append(options, label)
+		values = append(values, dispatcherPrefix+m.Name)
 	}
 
-	typesafe := typesafeLabel
+	jev := "Jev  " + hintStyle.Render("use CLM model "+config.TypesafeModel)
 	if cfg.DispatcherBeta {
-		typesafe += "  " + systemStyle.Render("[current]")
+		jev += "  " + systemStyle.Render("[current]")
 		cursor = len(options) + 1
 	}
-	options = append(options, "", typesafe)
-	values = append(values, "", typesafeDispatcher)
-
-	t.popup = &Popup{
-		kind:    popupSingleSelect,
-		title:   "/model dispatch",
-		options: options,
-		values:  values,
-		cursor:  cursor,
-		onConfirm: func(chosen string) any {
-			return DispatcherSelect{name: chosen}
-		},
-	}
-	return t, nil, true
+	options = append(options, "", jev)
+	values = append(values, "", dispatcherPrefix+typesafeDispatcher)
+	return options, values, cursor
 }
 
 func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
@@ -69,7 +59,11 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 
 	candidates := make([]string, 0, len(cfg.Models)+1)
 	candidates = append(candidates, configBot.DefaultModel)
+	skipClaudeCode := !claudeCode.Enabled()
 	for _, m := range cfg.Models {
+		if skipClaudeCode && claudeCode.Is(m.Name) {
+			continue
+		}
 		candidates = append(candidates, m.Name)
 	}
 
@@ -98,19 +92,19 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if name == typesafeDispatcher {
 		return t.enableTypesafe(fieldDispatcher)
 	}
 	if cfg.DispatcherModel == name && !cfg.DispatcherBeta {
-		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
 	}
 
 	cfg.DispatcherModel = name
 	cfg.DispatcherBeta = false
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
+	return t, notice(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
@@ -324,7 +325,7 @@ func joinArgv(raw string) string {
 	return strings.Join(parts, " ")
 }
 
-func FormatEventFooter(duration, outputElapsed time.Duration, model, quota, reasoning string, usage *provider.Usage) string {
+func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning string, usage *provider.Usage) string {
 	var parts []string
 	if duration > 0 {
 		elapsed := duration.Round(100 * time.Millisecond).String()
@@ -337,9 +338,6 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, quota, reas
 	if model = strings.TrimSpace(model); model != "" {
 		if reasoning != "" {
 			model += "/" + reasoning
-		}
-		if quota != "" {
-			model += " [" + quota + "]"
 		}
 		parts = append(parts, model)
 	}
@@ -363,6 +361,7 @@ var QuotaSources = []QuotaSource{
 	{"ollama-cloud", "percent", ollamacloud.Usage},
 	{"openrouter", "balance", openrouter.Usage},
 	{"deepseek", "balance", deepseek.Usage},
+	{claudeCode.Provider, "percent", claudeCode.Usage},
 }
 
 func ModelQuota(ctx context.Context, model string) string {
@@ -378,7 +377,7 @@ func ModelQuota(ctx context.Context, model string) string {
 	}
 	source := QuotaSources[i]
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	cfg, err := agentKeychain.Config(ctx, source.ID)

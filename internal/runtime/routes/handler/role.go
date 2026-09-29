@@ -14,7 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-func rulePath(name string) (string, error) {
+func rolePath(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	name = strings.TrimSuffix(name, ".md")
 
@@ -31,17 +31,18 @@ func rulePath(name string) (string, error) {
 	return filepath.Join(filesystem.PromptsDir, name+".md"), nil
 }
 
-type ruleBody struct {
+type roleBody struct {
 	Name    string `json:"name"`
 	Content string `json:"content"`
 }
 
-func ListRules() gin.HandlerFunc {
+func ListRoles() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		dir := filesystem.PromptsDir
-		rules := make([]gin.H, 0)
+		roles := make([]gin.H, 0)
 		if !go_pkg_filesystem_reader.IsDir(dir) {
-			c.JSON(http.StatusOK, gin.H{"rules": rules})
+			// ! will deprecate in the future
+			c.JSON(http.StatusOK, gin.H{"roles": roles, "rules": roles})
 			return
 		}
 
@@ -55,27 +56,28 @@ func ListRules() gin.HandlerFunc {
 			if !strings.HasSuffix(f.Name, ".md") || strings.HasPrefix(f.Name, ".") {
 				continue
 			}
-			rule := gin.H{"name": strings.TrimSuffix(f.Name, ".md")}
+			role := gin.H{"name": strings.TrimSuffix(f.Name, ".md")}
 			// * os.Stat retained: go-pkg exposes no accessor for size or mtime.
 			if info, err := os.Stat(filepath.Join(dir, f.Name)); err == nil {
-				rule["size"] = info.Size()
-				rule["updated_at"] = info.ModTime().Unix()
+				role["size"] = info.Size()
+				role["updated_at"] = info.ModTime().Unix()
 			}
-			rules = append(rules, rule)
+			roles = append(roles, role)
 		}
-		c.JSON(http.StatusOK, gin.H{"rules": rules})
+		// ! will deprecate in the future
+		c.JSON(http.StatusOK, gin.H{"roles": roles, "rules": roles})
 	}
 }
 
-func GetRule() gin.HandlerFunc {
+func GetRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		path, err := rulePath(strings.TrimPrefix(c.Param("name"), "/"))
+		path, err := rolePath(strings.TrimPrefix(c.Param("name"), "/"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "rule not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "role not found"})
 			return
 		}
 
@@ -91,21 +93,21 @@ func GetRule() gin.HandlerFunc {
 	}
 }
 
-func CreateRule() gin.HandlerFunc {
+func CreateRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var body ruleBody
+		var body roleBody
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		path, err := rulePath(body.Name)
+		path, err := rolePath(body.Name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		if go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusConflict, gin.H{"error": "rule already exists"})
+			c.JSON(http.StatusConflict, gin.H{"error": "role already exists"})
 			return
 		}
 		if err := go_pkg_filesystem.CheckDir(filesystem.PromptsDir, true); err != nil {
@@ -120,10 +122,10 @@ func CreateRule() gin.HandlerFunc {
 	}
 }
 
-func UpdateRule() gin.HandlerFunc {
+func UpdateRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
-			ruleBody
+			roleBody
 			Rename string `json:"rename"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
@@ -131,25 +133,25 @@ func UpdateRule() gin.HandlerFunc {
 			return
 		}
 
-		path, err := rulePath(body.Name)
+		path, err := rolePath(body.Name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "rule not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "role not found"})
 			return
 		}
 
 		target := path
 		if strings.TrimSpace(body.Rename) != "" {
-			target, err = rulePath(body.Rename)
+			target, err = rolePath(body.Rename)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 			if target != path && go_pkg_filesystem_reader.Exists(target) {
-				c.JSON(http.StatusConflict, gin.H{"error": "rule already exists"})
+				c.JSON(http.StatusConflict, gin.H{"error": "role already exists"})
 				return
 			}
 		}
@@ -168,23 +170,23 @@ func UpdateRule() gin.HandlerFunc {
 	}
 }
 
-func DeleteRule() gin.HandlerFunc {
+func DeleteRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Query("name")
 		if name == "" {
-			var body ruleBody
+			var body roleBody
 			if err := c.ShouldBindJSON(&body); err == nil {
 				name = body.Name
 			}
 		}
 
-		path, err := rulePath(name)
+		path, err := rolePath(name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "rule not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "role not found"})
 			return
 		}
 		if err := go_pkg_filesystem.Remove(path); err != nil {

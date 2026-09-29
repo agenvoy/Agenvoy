@@ -264,7 +264,7 @@ async function renderChat(sessionId) {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    if (item.pending && item.rule === "assistant" && i === items.length - 1) {
+    if (item.pending && item.role === "assistant" && i === items.length - 1) {
       dom.appendChild(frame);
       const view = newStreamItem(
         { model: item.meta.model, trace: item.Reasoning, text: item.content, task: item.task },
@@ -278,7 +278,7 @@ async function renderChat(sessionId) {
       continue;
     }
 
-    if (item.rule === "user") {
+    if (item.role === "user") {
       frame.appendChild(newUserItem(item));
       continue;
     }

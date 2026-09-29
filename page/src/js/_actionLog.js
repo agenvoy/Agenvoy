@@ -53,7 +53,7 @@ function parseActionLog(content) {
 
         writerItem.delete(writer);
         if (body) {
-          list.push({ rule: "user", content: body, meta: { send_at: sendAt } });
+          list.push({ role: "user", content: body, meta: { send_at: sendAt } });
         }
         break;
 
@@ -61,13 +61,13 @@ function parseActionLog(content) {
         if (!body) {
           break;
         }
-        const last = list.findLast((entry) => entry.rule === "user" || (entry.finished && (entry.content || entry.Reasoning)));
-        if (last && last.rule === "user") {
+        const last = list.findLast((entry) => entry.role === "user" || (entry.finished && (entry.content || entry.Reasoning)));
+        if (last && last.role === "user") {
           last.content += steerMark(sendAt, body, !last.steered);
           last.steered = true;
           break;
         }
-        list.push({ rule: "user", content: body, meta: { send_at: sendAt } });
+        list.push({ role: "user", content: body, meta: { send_at: sendAt } });
         break;
       }
 
@@ -174,7 +174,7 @@ function parseActionLog(content) {
   }
 
   return list.filter((item) => {
-    if (item.rule === "user") {
+    if (item.role === "user") {
       return true;
     }
     item.pending = !item.finished;
@@ -206,7 +206,7 @@ function actionTaskState(content, taskHash) {
 
 function logItem(sendAt) {
   return {
-    rule: "assistant",
+    role: "assistant",
     task: "",
     content: "",
     Reasoning: "",

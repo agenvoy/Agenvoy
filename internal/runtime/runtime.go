@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -23,9 +24,10 @@ const (
 var ErrAlreadyRunning = errors.New("agenvoy daemon already running")
 
 type Runtime struct {
-	UID       string `json:"uid"`
-	PID       int    `json:"pid"`
-	StartedAt string `json:"started_at"`
+	UID              string `json:"uid"`
+	PID              int    `json:"pid"`
+	StartedAt        string `json:"started_at"`
+	EnableClaudeCode bool   `json:"enable_claude_code"`
 }
 
 func path() string {
@@ -68,9 +70,10 @@ func Init() (*Runtime, error) {
 		}
 	}
 	r := &Runtime{
-		UID:       go_pkg_utils.UUID(),
-		PID:       os.Getpid(),
-		StartedAt: time.Now().Format(time.RFC3339),
+		UID:              go_pkg_utils.UUID(),
+		PID:              os.Getpid(),
+		StartedAt:        time.Now().Format(time.RFC3339),
+		EnableClaudeCode: claudeCode.EnableClaudeCode,
 	}
 	if err := write(r); err != nil {
 		return nil, err

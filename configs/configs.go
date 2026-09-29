@@ -13,6 +13,12 @@ var SkillExecution string
 //go:embed prompts/summary_context.md
 var SummaryContext string
 
+//go:embed prompts/claude_code/tool_prompt.md
+var ClaudeCodeToolPrompt string
+
+//go:embed prompts/claude_code/plain_prompt.md
+var ClaudeCodePlainPrompt string
+
 //go:embed prompts/followup.md
 var FollowupPrompt string
 

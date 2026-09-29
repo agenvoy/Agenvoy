@@ -34,7 +34,6 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -158,7 +157,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					}
 				}
 				if ev.Type == agentTypes.EventDone && ev.Source == "" {
-					ev.Quota = utils.ModelQuota(context.WithoutCancel(execCtx), ev.Model)
 					if r := reasoningRef.Load(); r != nil {
 						ev.Reasoning = *r
 					}
@@ -216,7 +214,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						SessionID:     sid,
 						Text:          text,
 						Model:         pushDoneEv.Model,
-						Quota:         pushDoneEv.Quota,
 						Reasoning:     pushDoneEv.Reasoning,
 						Usage:         pushDoneEv.Usage,
 						Duration:      pushDoneEv.Duration,

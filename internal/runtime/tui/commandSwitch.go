@@ -26,7 +26,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if len(parts) == 2 && slices.Contains([]string{"name", "id", "role"}, parts[1]) {
 		if sid == "" {
-			return t, tea.Println(msgError("no current session") + "\n"), true
+			return t, notice(msgError("no current session") + "\n"), true
 		}
 		next, cmd := t.openBotField(sid, parts[1])
 		return next, cmd, true
@@ -35,7 +35,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 		selfID := strings.Join(parts[1:], " ")
 		id := sessionManager.GetSessionIDBySelfID(selfID)
 		if id == "" {
-			return t, tea.Println(msgError(fmt.Sprintf("no session with self id %q", selfID)) + "\n"), true
+			return t, notice(msgError(fmt.Sprintf("no session with self id %q", selfID)) + "\n"), true
 		}
 		next, cmd := t.runCommandSwitch(id)
 		return next, cmd, true
@@ -43,17 +43,17 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 
 	popup := popupSwitch(t.currentSessionID)
 	if popup == nil {
-		return t, tea.Println(msgLog("no sessions available") + "\n"), true
+		return t, notice(msgLog("no sessions available") + "\n"), true
 	}
 	popup.subtitle = "pick a session to switch to"
 	if sid != "" {
 		popup.subtitle = "pick a session to switch to  or edit the current session's name / self id / role below"
 	}
 	fillSessions := popup.onTab
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillSessions(p)
 		if sid == "" {
-			return
+			return nil
 		}
 		selfID, name, _ := configBot.GetPersona(sid)
 		withValue := func(desc, value string) string {
@@ -70,6 +70,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 			hintStyle.Render("system prompt for this session"),
 		})...)
 		p.values = append(p.values, sessionBotPrefix+"name", sessionBotPrefix+"id", sessionBotPrefix+"role")
+		return nil
 	}
 	popup.onTab(popup)
 	popup.onConfirm = func(chosen string) any {
@@ -90,7 +91,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if id == t.currentSessionID {
-		return t, tea.Println(msgLog(fmt.Sprintf("already on: %s", utils.ShortenSessionID(id))) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("already on: %s", utils.ShortenSessionID(id))) + "\n")
 	}
 	previous := t.currentSessionID
 	t.currentSessionID = id
@@ -112,11 +113,11 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if previous != "" && previous != id {
 		switchLines = append(switchLines, hintStyle.Render(fmt.Sprintf("  previous: %s", utils.ShortenSessionID(previous))))
 	}
-	switchBlock := tea.Println(strings.Join(switchLines, "\n") + "\n")
+	switchBlock := notice(strings.Join(switchLines, "\n"))
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		switchBlock,
 	)
 }
@@ -219,8 +220,9 @@ func popupSwitch(sid string) *Popup {
 		enterAction: "switch",
 		tabs:        sessionTabs(sessions),
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillSwitchOptions(p, sessions, sid)
+		return nil
 	}
 	popup.onTab(popup)
 	return popup

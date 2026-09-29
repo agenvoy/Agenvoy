@@ -54,7 +54,7 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: worker model for a temp run — set it whenever `self_id` is empty; a `self_id` that resolves to an existing session runs under that session's own model and ignores this. Map the leg's one job to its work kind and take the first model the tier list in reasoning_guide(topic=subagent_dispatch) gives for it. An unregistered or `pass`-tier name is rejected. Blank spends an extra dispatcher call.",
+					"description": "mode=invoke: required. Worker model for the leg: map the leg's one job to its work kind and take the first model the tier list in reasoning_guide(topic=subagent_dispatch) gives for it. When `self_id` resolves to a session pinned to its own model, that model runs and this is ignored; a session left on auto runs this one. `auto` hands the choice to the dispatcher, which picks from the task as for a normal request. Any other unregistered or `pass`-tier name is rejected.",
 					"default":     "",
 				},
 				"reasoning": map[string]any{

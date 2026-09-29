@@ -12,6 +12,11 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
+const (
+	compactPrefix = "compact:"
+	resetPrefix   = "reset:"
+)
+
 type CompactConfirm struct {
 	id  string
 	yes bool
@@ -23,24 +28,40 @@ type CompactDone struct {
 	err     error
 }
 
-func (t TUI) commandCompact() (TUI, tea.Cmd, bool) {
+func (t TUI) commandCompactReset(tab int) (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
+		return t, notice(msgLog("no active session") + "\n"), true
 	}
 
 	label := utils.ShortenSessionID(sid)
-	t.popup = &Popup{
-		kind:     popupSingleSelect,
-		title:    fmt.Sprintf("Compact history for %s ?", label),
-		subtitle: "Redundant and meaningless exchanges will be removed by LLM analysis.",
-		options:  []string{"No", "Yes"},
-		values:   []string{"no", "yes"},
-		cursor:   0,
+	popup := &Popup{
+		kind:  popupSingleSelect,
+		title: "/compact",
+		tabs:  []string{"compact", "reset"},
 		onConfirm: func(chosen string) any {
-			return CompactConfirm{id: sid, yes: chosen == "yes"}
+			if mode, ok := strings.CutPrefix(chosen, resetPrefix); ok {
+				return ResetSessionConfirm1{id: sid, mode: mode}
+			}
+			return CompactConfirm{id: sid, yes: chosen == compactPrefix+"yes"}
 		},
 	}
+	popup.onTab = func(p *Popup) tea.Cmd {
+		p.cursor = 0
+		if p.tabIdx == 1 {
+			p.subtitle = fmt.Sprintf("reset history for %s  summary: regenerate then keep  all: also wipe the summary", label)
+			p.options = []string{"No", "Yes  summary first, keep it", "Yes  reset all (summary too)"}
+			p.values = []string{resetPrefix + "no", resetPrefix + "summary", resetPrefix + "all"}
+			return nil
+		}
+		p.subtitle = fmt.Sprintf("compact history for %s  redundant and meaningless exchanges are removed by LLM analysis", label)
+		p.options = []string{"No", "Yes"}
+		p.values = []string{compactPrefix + "no", compactPrefix + "yes"}
+		return nil
+	}
+	popup.tabIdx = tab
+	popup.onTab(popup)
+	t.popup = popup
 	return t, nil, true
 }
 
@@ -51,7 +72,7 @@ func (t TUI) runCompact(sid string) (TUI, tea.Cmd) {
 	t.activity = "compacting history..."
 
 	return t, tea.Batch(
-		tea.Println(msgLog(fmt.Sprintf("compacting history for %s...", utils.ShortenSessionID(sid)))+"\n"),
+		notice(msgLog(fmt.Sprintf("compacting history for %s...", utils.ShortenSessionID(sid)))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
@@ -67,7 +88,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 	t.runTarget = ""
 
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("compact failed: %v", msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("compact failed: %v", msg.err)) + "\n")
 	}
 
 	t.tokens = 0
@@ -84,14 +105,14 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 	}
 	tail := loadSessionTail(msg.id, t.width, false)
 	if len(tail) == 0 {
-		seq = append(seq, tea.Println(msgLog("no history yet")+"\n"))
+		seq = append(seq, notice(msgLog("no history yet")+"\n"))
 	} else {
 		seq = append(seq, tail...)
 	}
-	seq = append(seq, tea.Println(msgLog(hint)+"\n"))
+	seq = append(seq, notice(msgLog(hint)+"\n"))
 	return t, tea.Sequence(seq...)
 }

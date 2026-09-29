@@ -23,6 +23,14 @@ func adminChannelLabel(prefix string, e utils.ChatEntry) string {
 	return padToWidth(prefix, adminChannelPad) + e.Name + " (" + e.ID + ")"
 }
 
+func adminChatValue() string {
+	cfg, err := config.Load()
+	if err != nil || cfg == nil || strings.TrimSpace(cfg.AdminChannel) == "" {
+		return hintStyle.Render("disable")
+	}
+	return okayStyle.Render(strings.TrimSpace(cfg.AdminChannel))
+}
+
 func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 	if len(parts) > 1 {
 		value := strings.TrimSpace(strings.Join(parts[1:], " "))
@@ -67,7 +75,7 @@ func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {
 
 	t.popup = &Popup{
 		kind:       popupSingleSelect,
-		title:      "/channel admin",
+		title:      "/config admin channel",
 		subtitle:   "relay new-chat verification codes  pick an authorized chat/channel  only listed (already-verified) targets receive codes",
 		options:    options,
 		values:     values,

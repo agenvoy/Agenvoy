@@ -17,10 +17,9 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 	}
 	switch parts[0] {
 	case "/exit", "/quit":
-		return t, tea.Sequence(
-			tea.Println(msgLog("bye.")+"\n"),
-			tea.Quit,
-		), true
+		t.notice = ""
+		t.quitting = true
+		return t, tea.Quit, true
 
 	case "/clear":
 		t.tokens = 0
@@ -31,7 +30,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		t.lastCacheCreate = 0
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		), true
 
 	case "/session":
@@ -44,13 +43,13 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 		return t.commandSkills()
 
 	case "/compact":
-		return t.commandCompact()
+		return t.commandCompactReset(0)
 
 	case "/reset":
-		return t.commandReset()
+		return t.commandCompactReset(1)
 
-	case "/rule":
-		return t.commandRule()
+	case "/role":
+		return t.commandRole()
 
 	case "/model":
 		return t.commandModel(parts)
@@ -92,15 +91,15 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
+		return t, notice(msgLog("no active session") + "\n"), true
 	}
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 	}
 	tail := loadSessionTail(sid, t.width, true)
 	if len(tail) == 0 {
-		seq = append(seq, tea.Println(msgLog("no history yet")+"\n"))
+		seq = append(seq, notice(msgLog("no history yet")+"\n"))
 	} else {
 		seq = append(seq, tail...)
 	}

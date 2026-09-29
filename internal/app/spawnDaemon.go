@@ -6,6 +6,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
@@ -28,7 +29,11 @@ func SpawnDaemon() error {
 	}
 	defer devNull.Close()
 
-	proc, err := os.StartProcess(exe, []string{exe, "--daemon"}, &os.ProcAttr{
+	args := []string{exe, "--daemon"}
+	if claudeCode.EnableClaudeCode {
+		args = append(args, "--enable-claude-code")
+	}
+	proc, err := os.StartProcess(exe, args, &os.ProcAttr{
 		Files: []*os.File{devNull, logFile, logFile},
 		Sys:   &syscall.SysProcAttr{Setsid: true},
 	})

@@ -88,13 +88,13 @@ func (t TUI) runMcpClientSave(redirectURI string) (TUI, tea.Cmd) {
 	draft := t.mcpClient
 	t.mcpClient = nil
 	if draft == nil {
-		return t, tea.Println(msgError("mcp client state lost") + "\n")
+		return t, notice(msgError("mcp client state lost") + "\n")
 	}
 	if err := mcp.ClearOAuth(draft.server); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp.ClearOAuth: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp.ClearOAuth: %v", err)) + "\n")
 	}
 	if err := mcp.SaveOAuthClient(draft.server, draft.id, draft.secret, redirectURI); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("mcp.SaveOAuthClient: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("mcp.SaveOAuthClient: %v", err)) + "\n")
 	}
 	return t.startMcpLogin(draft.server)
 }
@@ -150,7 +150,7 @@ func (t TUI) runMcpOAuthPaste(msg McpOAuthPaste) (TUI, tea.Cmd) {
 		oauth:    state,
 	}
 	if err := mcp.SubmitCallback(msg.server, msg.url); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("%s oauth paste: %v", msg.server, err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("%s oauth paste: %v", msg.server, err)) + "\n")
 	}
 	return t, nil
 }
@@ -174,11 +174,11 @@ func (t TUI) runMcpOAuthDone(msg McpOAuthDone) (TUI, tea.Cmd) {
 	switch {
 	case msg.err == nil:
 		next, cmd := t.reconnectMcpServer(msg.name)
-		return next, tea.Batch(tea.Println(msgLog(fmt.Sprintf("%s  oauth authorized", msg.name))), cmd)
+		return next, tea.Batch(notice(msgLog(fmt.Sprintf("%s  oauth authorized", msg.name))), cmd)
 	case errors.Is(msg.err, context.Canceled):
 		return t, nil
 	case errors.Is(msg.err, context.DeadlineExceeded):
-		return t, tea.Println(msgWarn("oauth timed out") + "\n")
+		return t, notice(msgWarn("oauth timed out") + "\n")
 	}
-	return t, tea.Println(msgError(fmt.Sprintf("%s oauth: %v", msg.name, msg.err)) + "\n")
+	return t, notice(msgError(fmt.Sprintf("%s oauth: %v", msg.name, msg.err)) + "\n")
 }

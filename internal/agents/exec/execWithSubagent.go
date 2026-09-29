@@ -32,8 +32,7 @@ var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
 
 func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, ignoreHistory bool) (string, error) {
 	registry := agents.Registry()
-	dispatcher := agents.DispatcherBot()
-	if dispatcher == nil || len(registry.Registry) == 0 {
+	if len(registry.Registry) == 0 {
 		return "", fmt.Errorf("subagent host not initialized")
 	}
 
@@ -51,7 +50,6 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	if strings.TrimSpace(sessionIDInput) != "" && !strings.HasPrefix(sessionID, "temp-") {
 		sessionModel, sessionReasoning := configBot.GetModel(sessionID)
-		model = ""
 		if sessionModel != configBot.DefaultModel {
 			model = sessionModel
 		}
@@ -59,13 +57,13 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 
 	var agent agentTypes.Agent
-	if model != "" {
-		agent = registry.Registry[model]
+	if model == configBot.DefaultModel {
+		agent = SelectAgent(ctx, agents.DispatcherBot(), registry, task, false, "", sessionID)
 	} else {
-		agent = SelectAgent(ctx, dispatcher, registry, task, false, "", "")
+		agent = registry.Registry[model]
 	}
 	if agent == nil {
-		return "", fmt.Errorf("no agent available")
+		return "", fmt.Errorf("model %q is not available", model)
 	}
 
 	allowAll, ok := ctx.Value(allowAllCtxKey{}).(bool)

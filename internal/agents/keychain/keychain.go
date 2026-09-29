@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	sessionConfig "github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
@@ -19,6 +20,12 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 	prov, _, _ := strings.Cut(providerFull, "[")
 
 	switch prov {
+	case claudeCode.Provider:
+		if err := claudeCode.CheckBinary(); err != nil {
+			return provider.Config{}, err
+		}
+		return provider.Config{}, nil
+
 	case "claude":
 		apiKey := go_pkg_keychain.Get("CLAUDE_API_KEY")
 		if apiKey == "" {
@@ -157,7 +164,7 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 
 var builtinProviders = []string{
 	"claude", "openai", "gemini", "grok", "deepseek", "mistral", "nvidia",
-	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth", "ollama-cloud",
+	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth", "ollama-cloud", claudeCode.Provider,
 }
 
 func CompatInstance(name string) (string, bool) {

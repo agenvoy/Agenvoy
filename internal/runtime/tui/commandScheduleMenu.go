@@ -9,7 +9,7 @@ import (
 func (t TUI) commandScheduleMenu(_ []string) (TUI, tea.Cmd, bool) {
 	labels, tails, values := t.scheduleOptions()
 	if len(labels) == 0 {
-		return t, tea.Println(msgLog("nothing scheduled") + "\n"), true
+		return t, notice(msgLog("nothing scheduled") + "\n"), true
 	}
 
 	t.popup = &Popup{

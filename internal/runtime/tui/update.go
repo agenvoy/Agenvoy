@@ -16,7 +16,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -63,10 +62,21 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t.runMcpOAuthDone(msg)
 		case McpOAuthPaste:
 			return t.runMcpOAuthPaste(msg)
-		case AudioModelLoaded:
-			return t.openAudioModelPopup(msg)
-		case ImageModelLoaded:
-			return t.openImageModelPopup(msg)
+		case RoutingTabLoaded:
+			return t.runRoutingTabLoaded(msg)
+		case CompatModelsResult:
+			return t.runCompatModelsResult(msg)
+		case RemoteModelsResult:
+			return t.runRemoteModelsResult(msg)
+		case Log:
+			return t, notice(renderLogLine(msg))
+		case noticeMsg:
+			t.notice = appendNotice(t.notice, msg.text)
+			t.noticeOffset = 0
+			return t, nil
+		case QuotaLoaded:
+			t.quotaModel, t.quotaText = msg.model, msg.text
+			return t, nil
 		}
 		return t, nil
 	}
@@ -74,6 +84,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case popupChild:
 		return t.runPopupChild(msg)
+
+	case QuotaLoaded:
+		t.quotaModel, t.quotaText = msg.model, msg.text
+		return t, nil
 
 	case tea.WindowSizeMsg:
 		t.width = msg.Width
@@ -110,6 +124,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)
 				t.inputHistoryIdx = -1
+				return t, nil
+			}
+			if t.notice != "" {
+				t.notice, t.noticeOffset = "", 0
 				return t, nil
 			}
 
@@ -175,6 +193,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t = t.selectCommand()
 				return t, nil
 			}
+			if t.notice != "" {
+				return t.scrollNotice(), nil
+			}
 
 		case tea.KeyEnter:
 			if t.selector != nil {
@@ -215,12 +236,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return next, cmd
 				}
 				if !noMatches(content) {
-					return t, tea.Println(msgWarn(fmt.Sprintf("unknown command: %s", strings.Fields(content)[0])) + "\n")
+					return t, notice(msgWarn(fmt.Sprintf("unknown command: %s", strings.Fields(content)[0])) + "\n")
 				}
 			}
 
 			if len(agents.Registry().Entries) == 0 {
-				return t, tea.Println(msgWarn("no model configured  /model global add") + "\n")
+				return t, notice(msgWarn("no model configured  /model global add") + "\n")
 			}
 
 			t.running = true
@@ -279,7 +300,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		var doneCmds []tea.Cmd
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
-			doneCmds = append(doneCmds, tea.Println(msgError(fmt.Sprintf("exec error: %v", msg.err))+"\n"))
+			doneCmds = append(doneCmds, notice(msgError(fmt.Sprintf("exec error: %v", msg.err))+"\n"))
 		}
 		if len(doneCmds) == 0 {
 			return t, nil
@@ -326,10 +347,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelect:
 		return t.runCommandSwitch(msg.id)
 
-	case SessionNewSubmit:
-		next, cmd := t.showNewPromptPicker(msg.name)
-		return next, cmd
-
 	case SessionNewCustomSubmit:
 		next, cmd := t.showNewCustomPopup(msg.name)
 		return next, cmd
@@ -340,28 +357,13 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionModelSelect:
 		return t.runSessionModelSelect(msg.name)
 
+	case SessionReasoningSelect:
+		return t.runSessionReasoningSelect(msg.level)
+
 	case ModelScopeSelect:
 		switch msg.scope {
 		case "add":
 			next, cmd, _ := t.commandModelAdd()
-			return next, cmd
-		case "dispatch":
-			next, cmd, _ := t.commandDispatcher()
-			return next, cmd
-		case "reasoning":
-			next, cmd, _ := t.commandAutoReasoning()
-			return next, cmd
-		case "summary":
-			next, cmd, _ := t.commandSummaryModel()
-			return next, cmd
-		case "image":
-			next, cmd, _ := t.commandImageModel()
-			return next, cmd
-		case "stt":
-			next, cmd, _ := t.commandSTTModel()
-			return next, cmd
-		case "tts":
-			next, cmd, _ := t.commandTTSModel()
 			return next, cmd
 		}
 		return t, nil
@@ -386,9 +388,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case McpReconnectDone:
 		if msg.err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("%s reconnect: %v", msg.server, msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("%s reconnect: %v", msg.server, msg.err)) + "\n")
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("%s reconnected", msg.server)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("%s reconnected", msg.server)) + "\n")
 
 	case McpPermissionResult:
 		return t.runMcpPermissionResult(msg)
@@ -408,11 +410,11 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddName:
 		if msg.name == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(msgError("mcp name required") + "\n")
+			return t, notice(msgError("mcp name required") + "\n")
 		}
 		if !isValidMcpServerName(msg.name) {
 			t.mcpAdd = nil
-			return t, tea.Println(msgError("mcp name must match [A-Za-z0-9_-]") + "\n")
+			return t, notice(msgError("mcp name must match [A-Za-z0-9_-]") + "\n")
 		}
 		t.mcpAdd.name = msg.name
 		next, cmd := t.openMcpAddTransport()
@@ -434,7 +436,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddCommand:
 		if msg.command == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(msgError("command required") + "\n")
+			return t, notice(msgError("command required") + "\n")
 		}
 		t.mcpAdd.command = msg.command
 		next, cmd := t.openMcpAddArgs()
@@ -452,7 +454,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case McpAddURL:
 		if msg.url == "" {
 			t.mcpAdd = nil
-			return t, tea.Println(msgError("url required") + "\n")
+			return t, notice(msgError("url required") + "\n")
 		}
 		t.mcpAdd.url = msg.url
 		next, cmd := t.openMcpAddAuthMethod()
@@ -506,19 +508,19 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case McpAddSaved:
 		if msg.err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("mcp add: %v", msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("mcp add: %v", msg.err)) + "\n")
 		}
 		if msg.oauth {
 			next, cmd := t.startMcpLogin(msg.name)
-			return next, tea.Batch(tea.Println(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
+			return next, tea.Batch(notice(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
 		}
 		next, cmd := t.reconnectMcpServer(msg.name)
-		return next, tea.Batch(tea.Println(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
+		return next, tea.Batch(notice(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
 
 	case McpClientID:
 		if msg.id == "" {
 			t.mcpClient = nil
-			return t, tea.Println(msgError("client id required") + "\n")
+			return t, notice(msgError("client id required") + "\n")
 		}
 		t.mcpClient.id = msg.id
 		return t.openMcpClientSecret()
@@ -541,7 +543,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ModelTagSubmit:
 		if err := config.SetModelTag(msg.name, msg.tag); err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("model tag: %v", err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("model tag: %v", err)) + "\n")
 		}
 		next, _, _ := t.commandModel(nil)
 		return next, nil
@@ -562,7 +564,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case BotFieldPick:
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
-			return t, tea.Println(msgError("no current session") + "\n")
+			return t, notice(msgError("no current session") + "\n")
 		}
 		next, cmd := t.openBotField(sid, msg.field)
 		return next, cmd
@@ -577,36 +579,36 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case BotPromptSubmit:
 		sid := strings.TrimSpace(t.currentSessionID)
 		if sid == "" {
-			return t, tea.Println(msgError("no current session") + "\n")
+			return t, notice(msgError("no current session") + "\n")
 		}
 		return t, t.botSaveCmd(sid, msg.selfID, msg.name, msg.body)
 
-	case RuleListed:
-		return t.runRuleListed(msg)
+	case RoleListed:
+		return t.runRoleListed(msg)
 
-	case RulePick:
-		return t.runRulePick(msg)
+	case RolePick:
+		return t.runRolePick(msg)
 
-	case RuleLoaded:
-		return t.runRuleLoaded(msg)
+	case RoleLoaded:
+		return t.runRoleLoaded(msg)
 
-	case RuleTitleSubmit:
-		return t.runRuleTitleSubmit(msg)
+	case RoleTitleSubmit:
+		return t.runRoleTitleSubmit(msg)
 
-	case RuleBodySubmit:
-		return t, t.ruleSaveCmd(msg)
+	case RoleBodySubmit:
+		return t, t.roleSaveCmd(msg)
 
-	case RuleSaved:
-		return t.runRuleSaved(msg)
+	case RoleSaved:
+		return t.runRoleSaved(msg)
 
 	case BotSaved:
 		if msg.err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("bot save: %v", msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("bot save: %v", msg.err)) + "\n")
 		}
 		if t.currentSessionID != "" {
 			t.currentSessionName = msg.name
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("bot saved: %s", msg.name)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("bot saved: %s", msg.name)) + "\n")
 
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
@@ -651,7 +653,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.runRemoteModelsResult(msg)
 
 	case ProviderUsageResult:
-		return t, tea.Println(msgLog("") + " " + strings.Join(msg.lines, " / ") + "\n")
+		return t, notice(msgLog("") + " " + strings.Join(msg.lines, " / ") + "\n")
 
 	case OAuthInfo:
 		return t.runOAuthInfo(msg)
@@ -668,13 +670,13 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(msgError(fmt.Sprintf("add-model: %v", msg.err))+"\n"))
+			seq = append(seq, notice(msgError(fmt.Sprintf("add-model: %v", msg.err))+"\n"))
 		} else {
 			agents.Reload()
-			seq = append(seq, tea.Println(msgLog("model added  registry reloaded")+"\n"))
+			seq = append(seq, notice(msgLog("model added  registry reloaded")+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -685,7 +687,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "disable":
 			return t, tea.Sequence(
-				tea.Println(msgLog("discord disabling")+"\n"),
+				notice(msgLog("discord disabling")+"\n"),
 				disableDiscord(),
 			)
 		}
@@ -693,7 +695,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DiscordTokenSubmit:
 		return t, tea.Sequence(
-			tea.Println(msgLog("discord verifying token (≤10s)")+"\n"),
+			notice(msgLog("discord verifying token (≤10s)")+"\n"),
 			enableDiscord(msg.token),
 		)
 
@@ -704,7 +706,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "disable":
 			return t, tea.Sequence(
-				tea.Println(msgLog("telegram disabling")+"\n"),
+				notice(msgLog("telegram disabling")+"\n"),
 				disableTelegram(),
 			)
 		}
@@ -712,7 +714,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TelegramTokenSubmit:
 		return t, tea.Sequence(
-			tea.Println(msgLog("telegram verifying token (≤10s)")+"\n"),
+			notice(msgLog("telegram verifying token (≤10s)")+"\n"),
 			enableTelegram(msg.token),
 		)
 
@@ -723,7 +725,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		case "disable":
 			return t, tea.Sequence(
-				tea.Println(msgLog("line disabling")+"\n"),
+				notice(msgLog("line disabling")+"\n"),
 				disableLine(),
 			)
 		}
@@ -735,7 +737,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case LineTokenSubmit:
 		return t, tea.Sequence(
-			tea.Println(msgLog("line verifying token (≤10s)")+"\n"),
+			notice(msgLog("line verifying token (≤10s)")+"\n"),
 			enableLine(msg.secret, msg.token),
 		)
 
@@ -817,12 +819,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(msgError(fmt.Sprintf("discord %s: %v", msg.action, msg.err))+"\n"))
+			seq = append(seq, notice(msgError(fmt.Sprintf("discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println(msgLog(fmt.Sprintf("discord %sd  daemon reloading", msg.action))+"\n"))
+			seq = append(seq, notice(msgLog(fmt.Sprintf("discord %sd  daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -830,12 +832,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.telegramStatus = getTelegramStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(msgError(fmt.Sprintf("telegram %s: %v", msg.action, msg.err))+"\n"))
+			seq = append(seq, notice(msgError(fmt.Sprintf("telegram %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println(msgLog(fmt.Sprintf("telegram %sd  daemon reloading", msg.action))+"\n"))
+			seq = append(seq, notice(msgLog(fmt.Sprintf("telegram %sd  daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -843,12 +845,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.lineStatus = getLineStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
-			seq = append(seq, tea.Println(msgError(fmt.Sprintf("line %s: %v", msg.action, msg.err))+"\n"))
+			seq = append(seq, notice(msgError(fmt.Sprintf("line %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, tea.Println(msgLog(fmt.Sprintf("line %sd  daemon reloading", msg.action))+"\n"))
+			seq = append(seq, notice(msgLog(fmt.Sprintf("line %sd  daemon reloading", msg.action))+"\n"))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -858,7 +860,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StartupDone:
 		t = t.openConfig(configStartup)
 		if msg.err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("startup %s: %v", msg.action, msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("startup %s: %v", msg.action, msg.err)) + "\n")
 		}
 		return t, nil
 
@@ -875,10 +877,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ChannelRevokeDone:
 		if msg.err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("revoke %s: %v", msg.channel, msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("revoke %s: %v", msg.channel, msg.err)) + "\n")
 		}
 		next, cmd, _ := t.commandChannel([]string{"channel", msg.channel})
-		return next, tea.Sequence(tea.Println(msgLog("revoked  "+msg.name)+"\n"), cmd)
+		return next, tea.Sequence(notice(msgLog("revoked  "+msg.name)+"\n"), cmd)
 
 	case KeyDeletePick:
 		next, cmd := t.openKeyDeleteConfirm(msg.key)
@@ -895,17 +897,11 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ChannelSelect:
 		switch msg.channel {
 		case "telegram":
-			next, cmd, _ := t.commandTelegram(nil)
-			return next, cmd
+			return t.openTelegramTokenPrompt()
 		case "discord":
-			next, cmd, _ := t.commandDiscord(nil)
-			return next, cmd
+			return t.openDiscordTokenPrompt()
 		case "line":
-			next, cmd, _ := t.commandLine(nil)
-			return next, cmd
-		case "admin":
-			next, cmd, _ := t.commandAdminChannel(nil)
-			return next, cmd
+			return t.openLineSecretPrompt()
 		}
 		return t, nil
 
@@ -913,21 +909,21 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
 			if _, _, ok := exec.ParseAdminChannel(value); !ok {
-				return t, tea.Println(msgError("channel admin: format must be tg@<chatID>, dc@<channelID> or ln@<sourceID>") + "\n")
+				return t, notice(msgError("channel admin: format must be tg@<chatID>, dc@<channelID> or ln@<sourceID>") + "\n")
 			}
 		}
 		cfg, err := config.Load()
 		if err != nil || cfg == nil {
-			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Load: %v", err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("channel admin: session.Load: %v", err)) + "\n")
 		}
 		cfg.AdminChannel = value
 		if err := config.Save(cfg); err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
 		}
 		if value == "" {
-			return t, tea.Println(msgLog("channel admin  disabled (log-only)") + "\n")
+			return t.openConfig(configAdminChat), notice(msgLog("channel admin  disabled (log-only)") + "\n")
 		}
-		return t, tea.Println(msgLog("channel admin  "+value) + "\n")
+		return t.openConfig(configAdminChat), notice(msgLog("channel admin  "+value) + "\n")
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -935,15 +931,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case KeySubmit:
 		if msg.value == "" {
-			return t, tea.Println(msgError(fmt.Sprintf("key %s: value is required", msg.key)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("key %s: value is required", msg.key)) + "\n")
 		}
 		if err := keychain.Set(msg.key, msg.value); err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("keychain.Set %s: %v", msg.key, err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("keychain.Set %s: %v", msg.key, err)) + "\n")
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("%s updated", msg.key)) + "\n")
-
-	case AutoReasoningPick:
-		return t.runAutoReasoningPick(msg.on)
+		return t, notice(msgLog(fmt.Sprintf("%s updated", msg.key)) + "\n")
 
 	case TypesafeKeySubmit:
 		return t.runTypesafeKeySubmit(msg.field, msg.value)
@@ -964,12 +957,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case OutputDirSubmit:
 		return t.runOutputDirSubmit(msg.value)
 
-	case AudioModelLoaded:
-		return t.openAudioModelPopup(msg)
-
-	case ImageModelLoaded:
-		return t.openImageModelPopup(msg)
-
 	case AudioModelSelect:
 		next, cmd := t.runAudioModelSelect(msg.kind, msg.name)
 		return next, cmd
@@ -982,7 +969,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 		return t, tea.Sequence(
-			tea.Println(msgLog("stopping daemon  downloading latest  expect sudo prompt")+"\n"),
+			notice(msgLog("stopping daemon  downloading latest  expect sudo prompt")+"\n"),
 			runUpdateExec(),
 		)
 
@@ -990,7 +977,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.quitting = true
 		if msg.err != nil {
 			return t, tea.Sequence(
-				tea.Println(msgError(fmt.Sprintf("update: %v", msg.err))+"\n"),
+				notice(msgError(fmt.Sprintf("update: %v", msg.err))+"\n"),
 				tea.Quit,
 			)
 		}
@@ -1002,31 +989,31 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Approve: false,
 				Reason:  "system password verification failed",
 			})
-			return t, tea.Println(msgError(fmt.Sprintf("restricted path: %v", msg.err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("restricted path: %v", msg.err)) + "\n")
 		}
 		runtime.Resolve(msg.pendingID, runtime.Reply{Approve: true, Verified: true})
 		if msg.cached {
 			return t, nil
 		}
-		return t, tea.Println(msgWarn("⚠ restricted path approved") + "\n")
+		return t, notice(msgWarn("⚠ restricted path approved") + "\n")
 
 	case LogDone:
 		if msg.err != nil {
 			return t, tea.Sequence(
 				tea.ClearScreen,
-				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-				tea.Println(msgError(fmt.Sprintf("log: %v", msg.err))+"\n"),
+				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
+				notice(msgError(fmt.Sprintf("log: %v", msg.err))+"\n"),
 			)
 		}
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		)
 
 	case StartupSelectSession:
 		popup := popupSwitch("")
 		if popup == nil {
-			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus))
+			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID))
 		}
 		popup.title = "Pick session to attach"
 		popup.subtitle = "Select the session this TUI will work in"
@@ -1040,7 +1027,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case StartupSessionSkip:
-		return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus))
+		return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID))
 
 	case StartupSessionSelect:
 		t.currentSessionID = msg.id
@@ -1059,15 +1046,19 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-			tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(msg.id))+"\n"),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
 		)
 
 	case tailLine:
 		return t, tea.Println(msg.line)
 
 	case Log:
-		return t, tea.Println(renderLogLine(msg))
+		return t, notice(renderLogLine(msg))
+
+	case noticeMsg:
+		t.notice = appendNotice(t.notice, msg.text)
+		t.noticeOffset = 0
+		return t, nil
 
 	case initTailer:
 		return t.restartTailer(), nil

@@ -2,31 +2,53 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-var reasoningLevels = func() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+1)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
-		out = append(out, r.String())
-	}
-	return out
-}()
+const sessionReasoningPrefix = "reasoning:"
 
-func autoReasoningActive() bool {
-	cfg, err := config.Load()
-	return err == nil && cfg.AutoReasoning
+var reasoningLevels = configBot.ReasoningLevels()
+
+type SessionReasoningSelect struct {
+	level string
+}
+
+func currentReasoning(sid string) string {
+	if sid == "" {
+		return ""
+	}
+	_, current := configBot.GetModel(sid)
+	return current
+}
+
+func reasoningOptions(sid string) (options, values []string) {
+	current := currentReasoning(sid)
+
+	options = make([]string, 0, len(reasoningLevels))
+	values = make([]string, 0, len(reasoningLevels))
+	for _, level := range reasoningLevels {
+		label := level
+		if level == current {
+			label += "  " + systemStyle.Render("[current]")
+		}
+		options = append(options, label)
+		values = append(values, sessionReasoningPrefix+level)
+	}
+	return options, values
+}
+
+func (t TUI) runSessionReasoningSelect(level string) (TUI, tea.Cmd) {
+	sid := t.currentSessionID
+	if sid == "" {
+		return t, notice(msgLog("no active session") + "\n")
+	}
+	configBot.SetModel(sid, "", level)
+	return t, nil
 }
 
 func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, nil
-	}
-
-	if autoReasoningActive() {
 		return t, nil
 	}
 

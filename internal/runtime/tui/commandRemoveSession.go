@@ -76,7 +76,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	}
 
 	if len(removed) == 0 {
-		return t, tea.Println(msgError("failed to remove sessions") + "\n")
+		return t, notice(msgError("failed to remove sessions") + "\n")
 	}
 
 	if removedCurrent {
@@ -84,7 +84,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 		if fallback == "" {
 			created, err := session.New("cli-")
 			if err != nil {
-				return t, tea.Println(msgError(fmt.Sprintf("create fallback session: %v", err)) + "\n")
+				return t, notice(msgError(fmt.Sprintf("create fallback session: %v", err)) + "\n")
 			}
 			fallback = created
 		}
@@ -104,8 +104,8 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	next, _, _ := t.commandSessions(nil)
 	return next, tea.Sequence(
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-		tea.Println(msgLog(fmt.Sprintf("removed: %s", strings.Join(removed, ", ")))+"\n"),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
+		notice(msgLog(fmt.Sprintf("removed: %s", strings.Join(removed, ", ")))+"\n"),
 	)
 }
 

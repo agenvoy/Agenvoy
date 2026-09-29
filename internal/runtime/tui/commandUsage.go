@@ -32,13 +32,13 @@ func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 		if sessionID != "" {
 			summary, err := usagelog.Usage(sessionID, period.days, now)
 			if err != nil {
-				return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+				return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 			}
 			sessions[i] = summary
 		}
 		total, err := usagelog.Total(period.days, now)
 		if err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+			return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 		}
 		totals[i] = total
 	}
@@ -52,8 +52,9 @@ func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 		readOnly:   true,
 		tabs:       labels,
 	}
-	popup.onTab = func(p *Popup) {
+	popup.onTab = func(p *Popup) tea.Cmd {
 		fillUsageOptions(p, sessionID != "", sessions, totals, nameWidth)
+		return nil
 	}
 	popup.onTab(popup)
 

@@ -552,7 +552,6 @@ async function modelRouting() {
       return {
         dispatcher: body.dispatcher || "",
         dispatcherBeta: Boolean(body.dispatcher_beta),
-        autoReasoning: Boolean(body.auto_reasoning),
         summary: body.summary || "",
         image: body.image || "",
         imageOptions: body.image_options || [],
@@ -563,7 +562,7 @@ async function modelRouting() {
   } catch (err) {
     console.error("modelRouting", err);
   }
-  return { dispatcher: "", dispatcherBeta: false, autoReasoning: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
+  return { dispatcher: "", dispatcherBeta: false, summary: "", image: "", imageOptions: [], stt: "", tts: "" };
 }
 
 async function saveRoutingModel(kind, model) {
@@ -739,7 +738,6 @@ async function renderModelRouting(registered) {
 
   fillRoutingSelect("dispatcher", routing.dispatcher, registered, "auto · first registered model");
   markTypesafeToggle("dispatcher_beta", routing.dispatcherBeta);
-  markTypesafeToggle("auto_reasoning", routing.autoReasoning);
   fillRoutingSelect("summary", routing.summary, registered, "auto · first registered model");
   fillRoutingSelect("image", routing.image, routing.imageOptions, "off");
   fillAudioOptions(routing.stt, routing.tts);
@@ -836,7 +834,7 @@ function renderProviderCatalog(catalog, added) {
   dom.catalog.dataset.open = "1";
 
   const filter = modelFilter();
-  const visible = catalog.filter((item) => matchModelFilter(item, filter));
+  const visible = catalog.filter((item) => !item.hidden && matchModelFilter(item, filter));
 
   for (const group of MODEL_GROUPS) {
     const list = visible.filter((item) => providerGroup(item, providerMethod(catalog, item.id)) === group);

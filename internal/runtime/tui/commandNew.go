@@ -17,10 +17,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-type SessionNewSubmit struct {
-	name string
-}
-
 type SessionNewPromptSubmit struct {
 	name string
 	body string
@@ -36,15 +32,8 @@ func (t TUI) commandNew(parts []string) (TUI, tea.Cmd, bool) {
 		next, cmd := t.showNewPromptPicker(name)
 		return next, cmd, true
 	}
-	t.popup = &Popup{
-		kind:  popupText,
-		title: "New session name (empty = unnamed)",
-		input: newPopupInput("", false),
-		onConfirm: func(value string) any {
-			return SessionNewSubmit{name: strings.TrimSpace(value)}
-		},
-	}
-	return t, nil, true
+	next, cmd := t.showNewPromptPicker("")
+	return next, cmd, true
 }
 
 func (t TUI) showNewPromptPicker(name string) (TUI, tea.Cmd) {
@@ -88,13 +77,14 @@ func (t TUI) showNewCustomPopup(name string) (TUI, tea.Cmd) {
 func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	id, err := session.New("cli-")
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("create session failed: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("create session failed: %v", err)) + "\n")
 	}
 
-	if name != "" || body != "" {
-		if err := configBot.Save(id, name, body, true); err != nil {
-			slog.Debug("sessionBot.Save", slog.String("session", id), slog.String("error", err.Error()))
-		}
+	if name == "" {
+		name = utils.ShortenSessionID(id)
+	}
+	if err := configBot.Save(id, name, body, true); err != nil {
+		slog.Debug("sessionBot.Save", slog.String("session", id), slog.String("error", err.Error()))
 	}
 
 	previous := t.currentSessionID
@@ -113,7 +103,7 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	t = t.restartTailer()
 
 	label := utils.ShortenSessionID(id)
-	if name != "" {
+	if name != "" && name != label {
 		label = fmt.Sprintf("%s (%s)", name, label)
 	}
 	lines := []string{msgLog(fmt.Sprintf("new session: %s", label))}
@@ -123,8 +113,8 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus)),
-		tea.Println(strings.Join(lines, "\n")+"\n"),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
+		notice(strings.Join(lines, "\n")),
 	)
 }
 

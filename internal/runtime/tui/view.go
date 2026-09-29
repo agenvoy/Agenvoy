@@ -10,14 +10,9 @@ import (
 	"github.com/muesli/reflow/truncate"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
-
-func renderContextWindow(modelName string, contextTokens int) string {
-	return go_pkg_utils.CompactNumber(contextTokens) + "/" + go_pkg_utils.CompactNumber(compact.InputWindow(modelName))
-}
 
 func (t TUI) View() string {
 	if t.quitting {
@@ -47,27 +42,40 @@ func (t TUI) viewIdle() string {
 		confirmMode = okayStyle.Render(" safe") + hintStyle.Render(" "+t.shortCwd())
 	}
 
-	prefix := "\n"
 	var top string
 	if t.running {
-		top = t.viewThinking() + "\n"
+		if block := t.viewThinking(); block != "" {
+			top = "\n" + block + "\n"
+		}
 	}
 
 	if t.selector != nil {
 		top += renderCmdSelector(t.selector) + "\n"
 	}
 
-	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
+	if t.notice != "" {
+		top += noticeBlock(t.notice, t.noticeOffset, width-4) + "\n"
+	}
+
+	box := textAreaStyle.Width(width - 1).Render(t.textarea.View())
 	boxWidth := lipgloss.Width(box)
-	bottom := hintStyle.Render(strings.Repeat("─", boxWidth))
+	bottom := thinkStyle.Render(strings.Repeat("─", boxWidth))
 	if model := t.modelTag(); model != "" {
 		tag := " " + model + " "
 		if fill := boxWidth - lipgloss.Width(tag) - 1; fill >= 1 {
-			bottom = hintStyle.Render(strings.Repeat("─", fill)) + tag + hintStyle.Render("─")
+			bottom = thinkStyle.Render(strings.Repeat("─", fill)) + tag + thinkStyle.Render("─")
 		}
 	}
 
-	return prefix + top + box + "\n" + bottom + "\n" + fastMode + confirmMode
+	status := fastMode + confirmMode
+	if t.quotaText != "" {
+		quota := hintStyle.Render(t.quotaModel+" ") + renderQuotaBadge(t.quotaText) + " "
+		if gap := boxWidth - lipgloss.Width(status) - lipgloss.Width(quota); gap >= 1 {
+			status += strings.Repeat(" ", gap) + quota
+		}
+	}
+
+	return top + box + "\n" + bottom + "\n" + status
 }
 
 func (t TUI) viewThinking() string {
@@ -95,7 +103,6 @@ func (t TUI) viewThinking() string {
 
 	detail := []string{
 		elapsed,
-		// renderContextWindow(t.currentModel, t.lastContext),
 		"esc to interrupt",
 	}
 
@@ -105,7 +112,7 @@ func (t TUI) viewThinking() string {
 	sb.WriteString(" ")
 	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, "  ") + ")"))
 
-	if block := renderTodoList(t.todos); block != "" {
+	if block := renderTodoList(t.todos, t.spinner.View()); block != "" {
 		sb.WriteString("\n\n")
 		sb.WriteString(block)
 	}
@@ -170,7 +177,7 @@ func (t TUI) viewPopup() string {
 	case p.title != "":
 		header = systemStyle.Render("● " + strings.TrimPrefix(p.title, "/"))
 	}
-	divider := hintStyle.Render(strings.Repeat("─", width))
+	divider := thinkStyle.Render(strings.Repeat("─", width))
 	headerHeight := 0
 	if header != "" {
 		header = popupStyle.Width(width).Render(header) + "\n" + divider
@@ -404,10 +411,6 @@ func (t TUI) modelTag() string {
 	modelPart := hintStyle.Render(model)
 	if model != configBot.DefaultModel {
 		modelPart = warnStyle.Render(model)
-	}
-
-	if autoReasoningActive() {
-		return modelPart
 	}
 
 	var reasonPart string

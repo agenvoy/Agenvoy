@@ -18,6 +18,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
@@ -53,7 +54,10 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 	}
 
 	model := strings.TrimSpace(params.Model)
-	if model != "" {
+	if model == "" {
+		return "", fmt.Errorf("model is required when mode=invoke")
+	}
+	if model != configBot.DefaultModel {
 		if err := checkLegModel(model); err != nil {
 			return "", err
 		}

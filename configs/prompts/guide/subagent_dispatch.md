@@ -8,7 +8,7 @@
 ### Named delegation
 
 - **The user names who does the work** ("call X" / "呼叫 X" / "找 X" / "請 X" / "let X" / "ask X") → `subagents(mode=list, self_id=X)`, then invoke with the self id it prints, spelled verbatim. Invoke matches self ids exactly, so a guessed spelling silently lands in a temp session instead. Dispatch without asking the user to confirm the name; the name says who does the work, and the work still gets done.
-- **Leave `model` and `reasoning` unset**: a named session runs under its own stored configuration and ignores both.
+- **Still set `model`**: it is required. A named session pinned to its own model runs that model and ignores yours; one left on auto runs yours. Its stored reasoning always wins.
 - **Relay the leg's report in full**: it comes back as a file path — `read_files` it first, then relay every section, table and source kept — it is the answer to the user. A reply of "已呼叫 X" / "done" without the content delivers nothing.
 
 ### Planner mode (fan-out)
@@ -40,7 +40,7 @@ Open each task with the leg's one job. A collect leg names its entities and asks
 
 ### Model sizing
 
-Set `model` on every fan-out leg: a blank one spends an extra dispatcher call, and that call routes by the task text rather than by the leg's job. Map the leg's job to its work kind with the table above, then pick with the same rules the dispatcher uses:
+Set `model` on every leg — it is required. Map the leg's job to its work kind with the table above, then pick with these rules, which run one tier lower than the dispatcher's:
 
 {{.ModelSelection}}
 

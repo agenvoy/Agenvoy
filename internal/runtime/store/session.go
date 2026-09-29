@@ -19,14 +19,18 @@ type SessionRow struct {
 	Name      string
 	Model     string
 	Reasoning string
-	Rule      string
+	Role      string
 	ChatID    string
 	GuildID   string
 	ChannelID string
 	UserID    string
 }
 
-const sessionColumns = `session_id, self_id, name, model, reasoning, rule, chat_id, guild_id, channel_id, user_id`
+// ! the rule column is kept for older builds and will deprecate in the future
+const (
+	sessionInsertColumns = `session_id, self_id, name, model, reasoning, role, rule, chat_id, guild_id, channel_id, user_id`
+	sessionSelectColumns = `session_id, self_id, name, model, reasoning, COALESCE(NULLIF(role, ''), rule), chat_id, guild_id, channel_id, user_id`
+)
 
 const SelfIDLimit = 32
 
@@ -59,7 +63,7 @@ func scanSession(rows interface {
 	Scan(dest ...any) error
 }) (SessionRow, error) {
 	var one SessionRow
-	if err := rows.Scan(&one.SessionID, &one.SelfID, &one.Name, &one.Model, &one.Reasoning, &one.Rule,
+	if err := rows.Scan(&one.SessionID, &one.SelfID, &one.Name, &one.Model, &one.Reasoning, &one.Role,
 		&one.ChatID, &one.GuildID, &one.ChannelID, &one.UserID); err != nil {
 		return SessionRow{}, fmt.Errorf("sql.Rows Scan [SELECT session]: %w", err)
 	}
@@ -85,19 +89,20 @@ func WriteSession(ctx context.Context, r SessionRow) error {
 	}
 
 	if _, err := conn.ExecContext(ctx, `
-	INSERT INTO session (`+sessionColumns+`)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO session (`+sessionInsertColumns+`)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(session_id) DO UPDATE SET
 		self_id    = excluded.self_id,
 		name       = excluded.name,
 		model      = excluded.model,
 		reasoning  = excluded.reasoning,
+		role       = excluded.role,
 		rule       = excluded.rule,
 		chat_id    = excluded.chat_id,
 		guild_id   = excluded.guild_id,
 		channel_id = excluded.channel_id,
 		user_id    = excluded.user_id`,
-		r.SessionID, r.SelfID, r.Name, r.Model, r.Reasoning, r.Rule,
+		r.SessionID, r.SelfID, r.Name, r.Model, r.Reasoning, r.Role, r.Role,
 		r.ChatID, r.GuildID, r.ChannelID, r.UserID); err != nil {
 		if isSelfIDConflict(err) {
 			return fmt.Errorf("%w: %s", ErrDuplicateSelfID, r.SelfID)
@@ -113,7 +118,7 @@ func ReadSession(ctx context.Context, sessionID string) (SessionRow, bool, error
 	}
 
 	rows, err := conn.QueryContext(ctx,
-		`SELECT `+sessionColumns+` FROM session WHERE session_id = ?`, sessionID)
+		`SELECT `+sessionSelectColumns+` FROM session WHERE session_id = ?`, sessionID)
 	if err != nil {
 		return SessionRow{}, false, fmt.Errorf("sql.DB QueryContext [SELECT session]: %w", err)
 	}
@@ -134,7 +139,7 @@ func ListSessionRows(ctx context.Context) (map[string]SessionRow, error) {
 		return nil, nil
 	}
 
-	rows, err := conn.QueryContext(ctx, `SELECT `+sessionColumns+` FROM session`)
+	rows, err := conn.QueryContext(ctx, `SELECT `+sessionSelectColumns+` FROM session`)
 	if err != nil {
 		return nil, fmt.Errorf("sql.DB QueryContext [SELECT session]: %w", err)
 	}

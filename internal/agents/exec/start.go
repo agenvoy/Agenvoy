@@ -9,6 +9,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -75,7 +76,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	if err != nil {
 		return fmt.Errorf("ResolveAgent: %w", err)
 	}
-	if data.Reasoning == "" {
+	if data.Reasoning == "" || data.Reasoning == configBot.ReasoningAuto {
 		data.Reasoning = reasoning
 	}
 	agentName := strings.TrimSpace(agent.Name())

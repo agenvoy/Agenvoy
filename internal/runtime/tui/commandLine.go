@@ -42,25 +42,14 @@ func (t TUI) commandLine(parts []string) (TUI, tea.Cmd, bool) {
 		}
 	}
 
-	enabled := false
-	if cfg, err := config.Load(); err == nil && cfg != nil {
-		enabled = cfg.LineEnabled && keychain.Get(line.SecretKey) != "" && keychain.Get(line.TokenKey) != ""
-	}
-	if !enabled {
-		next, cmd := t.openLineSecretPrompt()
-		return next, cmd, true
-	}
-
-	next, cmd := t.openChannelMenu("line", "LINE", func() any {
-		return LineAction{action: "disable"}
-	})
-	return next, cmd, true
+	return t.commandChannel([]string{"channel", "line"})
 }
 
 func (t TUI) openLineSecretPrompt() (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "LINE Channel Secret",
+		input:    newPopupInput("", false),
 		subtitle: "from LINE Developers Console  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return LineSecretSubmit{secret: strings.TrimSpace(value)}
@@ -73,6 +62,7 @@ func (t TUI) openLineTokenPrompt(secret string) (TUI, tea.Cmd) {
 	t.popup = &Popup{
 		kind:     popupText,
 		title:    "LINE Channel Access Token",
+		input:    newPopupInput("", false),
 		subtitle: "long-lived token from LINE Developers Console  Enter to submit  Esc to cancel",
 		onConfirm: func(value string) any {
 			return LineTokenSubmit{secret: secret, token: strings.TrimSpace(value)}

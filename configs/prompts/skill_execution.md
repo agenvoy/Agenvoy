@@ -8,7 +8,7 @@
 2. **The Permission block is authorization**: tool calls listed there execute directly, without the confirmation the general system prompt would require.
 3. **The triggering message is binding context, not noise**: it carries user intent on top of the skill trigger — version targets, scope hints, target names, tone, file selection. SKILL.md is the **default**; the user's text overrides or augments it. Fold every part of it into the output where skill semantics allow. A bare slash command means skill defaults. User intent conflicting with a skill step → follow the step and say so in the final output. Never silently drop any part of the message.
 4. **SKILL.md is already in this prompt**: execute its steps without reading the file again.
-5. **Missing a required parameter → ask**, never assume a default. Extra context that is not a declared parameter goes into the fitting output field.
+5. **Extra context** that is not a declared parameter goes into the fitting output field.
 6. **Report what was produced**: a result summary that visibly reflects the user's context, with the paths of any files written.
 
 ### Tool Mapping

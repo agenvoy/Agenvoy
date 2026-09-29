@@ -145,28 +145,26 @@ func CreateSession() gin.HandlerFunc {
 }
 
 func sessionDetail(sid string) gin.H {
-	selfID, name, rule := configBot.GetPersona(sid)
+	selfID, name, role := configBot.GetPersona(sid)
 	model, reasoning := configBot.GetModel(sid)
 	levels := reasoningLevels()
 	if !slices.Contains(levels, reasoning) {
 		reasoning = provider.ReasoningDefault.String()
 	}
 	status := configStatus.Get(sid)
-	autoReasoning := false
-	if cfg, err := config.Load(); err == nil {
-		autoReasoning = cfg.AutoReasoning
-	}
 	return gin.H{
-		"id":             sid,
-		"self_id":        selfID,
-		"name":           name,
-		"rule":           rule,
-		"state":          status.State,
-		"model":          model,
-		"reasoning":      reasoning,
-		"levels":         levels,
-		"count":          status.Count,
-		"auto_reasoning": autoReasoning,
+		"id":        sid,
+		"self_id":   selfID,
+		"name":      name,
+		"role":      role,
+		"state":     status.State,
+		"model":     model,
+		"reasoning": reasoning,
+		"levels":    levels,
+		"count":     status.Count,
+
+		// ! will deprecate in the future
+		"rule": role,
 	}
 }
 
@@ -207,9 +205,12 @@ func UpdateSession() gin.HandlerFunc {
 		var body struct {
 			SelfID    *string `json:"self_id"`
 			Name      *string `json:"name"`
-			Rule      *string `json:"rule"`
+			Role      *string `json:"role"`
 			Model     *string `json:"model"`
 			Reasoning *string `json:"reasoning"`
+
+			// ! will deprecate in the future
+			Rule *string `json:"rule"` // * keep this for older version compatibility
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -238,22 +239,28 @@ func UpdateSession() gin.HandlerFunc {
 			}
 		}
 
-		if body.SelfID != nil || body.Name != nil || body.Rule != nil {
-			selfID, name, rule := configBot.GetPersona(sid)
+		if body.SelfID != nil || body.Name != nil || body.Role != nil || body.Rule != nil {
+			selfID, name, role := configBot.GetPersona(sid)
 			if body.SelfID != nil {
 				selfID = strings.TrimSpace(*body.SelfID)
 			}
 			if body.Name != nil {
 				name = *body.Name
 			}
-			if body.Rule != nil {
-				rule = *body.Rule
+			if body.Role != nil {
+				role = *body.Role
 			}
+
+			// ! will deprecate in the future
+			if body.Rule != nil {
+				role = *body.Rule
+			}
+
 			if err := historyStore.ValidSelfID(selfID); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := configBot.SavePersona(sid, selfID, name, rule); err != nil {
+			if err := configBot.SavePersona(sid, selfID, name, role); err != nil {
 				status := http.StatusInternalServerError
 				if errors.Is(err, historyStore.ErrDuplicateSelfID) {
 					status = http.StatusConflict

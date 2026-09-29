@@ -389,18 +389,19 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			t.lastCacheCreate = ev.Usage.CacheCreate
 		}
 		finishedAt := formatFinishedAt(time.Now())
+		quota := loadQuota(ev.Model)
 		if collapse != nil {
 			line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 			if !ok {
-				return t, collapse
+				return t, tea.Batch(collapse, quota)
 			}
-			return t, tea.Sequence(collapse, tea.Println(line))
+			return t, tea.Batch(tea.Sequence(collapse, tea.Println(line)), quota)
 		}
 		line, ok := renderAgentEvent(ev, t.runTarget, t.cwd, t.width, finishedAt)
 		if !ok {
-			return t, nil
+			return t, quota
 		}
-		return t, tea.Println(line)
+		return t, tea.Batch(tea.Println(line), quota)
 
 	case agentTypes.EventCanceled:
 		if ev.Source != "" {
@@ -490,7 +491,7 @@ func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
 	if !t.interruptAt.IsZero() && time.Since(t.interruptAt) <= interruptWindow {
 		t.quitting = true
 		return t, tea.Sequence(
-			tea.Println(msgLog("force quit")+"\n"),
+			notice(msgLog("force quit")+"\n"),
 			tea.Quit,
 		)
 	}
@@ -498,7 +499,18 @@ func (t TUI) handleInterrupt() (tea.Model, tea.Cmd) {
 	t.interruptAt = time.Now()
 	if t.running && t.cancelExec != nil {
 		t.cancelExec(runtime.ErrUserCanceled)
-		return t, tea.Println(msgLog("cancelling  ctrl+c again to force quit") + "\n")
+		return t, notice(msgLog("cancelling  ctrl+c again to force quit") + "\n")
 	}
-	return t, tea.Println(msgLog("ctrl+c again to quit") + "\n")
+	return t, notice(msgLog("ctrl+c again to quit") + "\n")
+}
+
+type QuotaLoaded struct {
+	model string
+	text  string
+}
+
+func loadQuota(model string) tea.Cmd {
+	return func() tea.Msg {
+		return QuotaLoaded{model: model, text: utils.ModelQuota(context.Background(), model)}
+	}
 }

@@ -270,7 +270,7 @@ func (t TUI) openMcpAddBasicToken() (TUI, tea.Cmd) {
 
 func parseKV(raw string) map[string]string {
 	out := map[string]string{}
-	for _, line := range strings.Split(raw, "\n") {
+	for line := range strings.SplitSeq(raw, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

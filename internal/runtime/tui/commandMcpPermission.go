@@ -46,10 +46,10 @@ func (t TUI) openMcpPermission(name string) (TUI, tea.Cmd) {
 
 func (t TUI) runMcpPermissionResult(msg McpPermissionResult) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("%s tools: %v", msg.server, msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("%s tools: %v", msg.server, msg.err)) + "\n")
 	}
 	if len(msg.tools) == 0 {
-		return t, tea.Println(msgLog(fmt.Sprintf("%s exposes no tools", msg.server)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("%s exposes no tools", msg.server)) + "\n")
 	}
 
 	nameSummary := make(map[string]string, len(msg.tools))
@@ -149,14 +149,14 @@ func (t TUI) runMcpPermissionPick(msg McpPermissionPick) (TUI, tea.Cmd) {
 	}
 
 	if err := allowTool.ReplaceGlobalPrefix(mcpToolPrefix(msg.server), entries); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("%s permission: %v", msg.server, err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("%s permission: %v", msg.server, err)) + "\n")
 	}
 
 	if len(entries) == 0 {
-		return t, tea.Println(msgLog(fmt.Sprintf("%s: every tool now asks for confirmation", msg.server)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("%s: every tool now asks for confirmation", msg.server)) + "\n")
 	}
 	if entries[0] == allowAllEntry(msg.server) {
-		return t, tea.Println(msgLog(fmt.Sprintf("%s: all tools always allowed", msg.server)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("%s: all tools always allowed", msg.server)) + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("%s: %d tool(s) always allowed", msg.server, len(entries))) + "\n")
+	return t, notice(msgLog(fmt.Sprintf("%s: %d tool(s) always allowed", msg.server, len(entries))) + "\n")
 }
