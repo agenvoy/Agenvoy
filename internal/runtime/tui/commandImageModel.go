@@ -15,7 +15,7 @@ type ImageModelSelect struct {
 func (t TUI) runImageModelSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if name == "off" {
 		name = ""
@@ -27,7 +27,7 @@ func (t TUI) runImageModelSelect(name string) (TUI, tea.Cmd) {
 
 	cfg.ImageGenerator = name
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 	return t, nil
 }

@@ -85,19 +85,19 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if name == typesafeDispatcher {
 		return t.enableTypesafe(fieldDispatcher)
 	}
 	if cfg.DispatcherModel == name && !cfg.DispatcherBeta {
-		return t, tea.Println(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
 	}
 
 	cfg.DispatcherModel = name
 	cfg.DispatcherBeta = false
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
+	return t, notice(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
 }

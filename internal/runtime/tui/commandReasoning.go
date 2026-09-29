@@ -40,7 +40,7 @@ func reasoningOptions(sid string) (options, values []string) {
 func (t TUI) runSessionReasoningSelect(level string) (TUI, tea.Cmd) {
 	sid := t.currentSessionID
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n")
+		return t, notice(msgLog("no active session") + "\n")
 	}
 	configBot.SetModel(sid, "", level)
 	return t, nil

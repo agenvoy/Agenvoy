@@ -333,7 +333,7 @@ var asciiMarkLines = []string{
 	"      :::::::",
 }
 
-const noticeMaxLines = 3
+const noticeMaxLines = 4
 
 func lastLines(s string, limit int) string {
 	lines := strings.Split(s, "\n")
@@ -359,9 +359,14 @@ func framedBlock(body string, width int, tag string, frame, line lipgloss.Style)
 	return strings.Join(lines, "\n")
 }
 
-func noticeBlock(body string, width int) string {
-	return framedBlock(lastLines(body, noticeMaxLines), width,
-		textStyle.Render("Esc")+hintStyle.Render(":close"),
+func noticeBlock(body string, offset, width int) string {
+	lines := strings.Split(body, "\n")
+	end := max(len(lines)-offset, 0)
+	tag := textStyle.Render("Esc") + hintStyle.Render(":close")
+	if len(lines) > noticeMaxLines {
+		tag = textStyle.Render("Tab") + hintStyle.Render(":up  ") + tag
+	}
+	return framedBlock(strings.Join(lines[max(end-noticeMaxLines, 0):end], "\n"), width, tag,
 		noticeFrameStyle, systemStyle)
 }
 
@@ -571,10 +576,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 				stats = finishedAt
 			}
 		}
-		model := utils.FormatEventFooter(0, 0, ev.Model, "", ev.Reasoning, nil)
-		if badge := renderQuotaBadge(ev.Quota); badge != "" {
-			model += " " + badge
-		}
+		model := utils.FormatEventFooter(0, 0, ev.Model, ev.Reasoning, nil)
 		if sessionLabel != "" {
 			if model != "" {
 				model += "  [" + sessionLabel + "]"

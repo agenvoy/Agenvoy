@@ -17,7 +17,7 @@ type LogDone struct{ err error }
 func (t TUI) commandLog() (TUI, tea.Cmd, bool) {
 	path := filesystem.DaemonLogPath
 	if !go_pkg_filesystem_reader.Exists(path) {
-		return t, tea.Println(msgLog("no daemon log yet") + "\n"), true
+		return t, notice(msgLog("no daemon log yet") + "\n"), true
 	}
 
 	pager := strings.TrimSpace(os.Getenv("PAGER"))

@@ -54,8 +54,9 @@ type TUI struct {
 	mcpOAuth      *oauthState
 	modelAdd      *modelAddItem
 
-	selector *CmdSelector
-	notice   string
+	selector     *CmdSelector
+	notice       string
+	noticeOffset int
 
 	currentModel       string
 	currentSessionID   string

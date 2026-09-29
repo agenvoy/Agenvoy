@@ -40,13 +40,13 @@ func (t TUI) enableTypesafe(field string) (TUI, tea.Cmd) {
 
 func (t TUI) runTypesafeKeySubmit(field, value string) (TUI, tea.Cmd) {
 	if value == "" {
-		return t, tea.Println(msgError(config.TypesafeKey+" is required") + "\n")
+		return t, notice(msgError(config.TypesafeKey+" is required") + "\n")
 	}
 	if err := keychain.Set(config.TypesafeKey, value); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("keychain.Set: %v", err)) + "\n")
 	}
 	if err := config.SaveKey(config.TypesafeKey); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("config.SaveKey: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("config.SaveKey: %v", err)) + "\n")
 	}
 	return t, saveTypesafe(field, true)
 }
@@ -54,7 +54,7 @@ func (t TUI) runTypesafeKeySubmit(field, value string) (TUI, tea.Cmd) {
 func saveTypesafe(field string, on bool) tea.Cmd {
 	cfg, err := config.Load()
 	if err != nil {
-		return tea.Println(msgError(fmt.Sprintf("config.Load: %v", err)) + "\n")
+		return notice(msgError(fmt.Sprintf("config.Load: %v", err)) + "\n")
 	}
 	var text string
 	switch field {
@@ -66,7 +66,7 @@ func saveTypesafe(field string, on bool) tea.Cmd {
 		}
 	}
 	if err := config.Save(cfg); err != nil {
-		return tea.Println(msgError(fmt.Sprintf("config.Save: %v", err)) + "\n")
+		return notice(msgError(fmt.Sprintf("config.Save: %v", err)) + "\n")
 	}
-	return tea.Println(msgLog(text) + "\n")
+	return notice(msgLog(text) + "\n")
 }

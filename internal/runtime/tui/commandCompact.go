@@ -31,7 +31,7 @@ type CompactDone struct {
 func (t TUI) commandCompactReset(tab int) (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
+		return t, notice(msgLog("no active session") + "\n"), true
 	}
 
 	label := utils.ShortenSessionID(sid)
@@ -72,7 +72,7 @@ func (t TUI) runCompact(sid string) (TUI, tea.Cmd) {
 	t.activity = "compacting history..."
 
 	return t, tea.Batch(
-		tea.Println(msgLog(fmt.Sprintf("compacting history for %s...", utils.ShortenSessionID(sid)))+"\n"),
+		notice(msgLog(fmt.Sprintf("compacting history for %s...", utils.ShortenSessionID(sid)))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
@@ -88,7 +88,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 	t.runTarget = ""
 
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("compact failed: %v", msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("compact failed: %v", msg.err)) + "\n")
 	}
 
 	t.tokens = 0
@@ -109,10 +109,10 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 	}
 	tail := loadSessionTail(msg.id, t.width, false)
 	if len(tail) == 0 {
-		seq = append(seq, tea.Println(msgLog("no history yet")+"\n"))
+		seq = append(seq, notice(msgLog("no history yet")+"\n"))
 	} else {
 		seq = append(seq, tail...)
 	}
-	seq = append(seq, tea.Println(msgLog(hint)+"\n"))
+	seq = append(seq, notice(msgLog(hint)+"\n"))
 	return t, tea.Sequence(seq...)
 }

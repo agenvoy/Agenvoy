@@ -33,12 +33,12 @@ type PendingDeleteConfirm struct {
 func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
+		return t, notice(msgLog("no active session") + "\n"), true
 	}
 
 	hashes := interactive.ListResumablePending(sid)
 	if len(hashes) == 0 {
-		return t, tea.Println(msgLog("no pending tasks") + "\n"), true
+		return t, notice(msgLog("no pending tasks") + "\n"), true
 	}
 
 	options := make([]string, 0, len(hashes))
@@ -63,7 +63,7 @@ func (t TUI) commandPending() (TUI, tea.Cmd, bool) {
 	}
 
 	if len(options) == 0 {
-		return t, tea.Println(msgLog("no pending tasks") + "\n"), true
+		return t, notice(msgLog("no pending tasks") + "\n"), true
 	}
 
 	sessionID := sid
@@ -109,33 +109,33 @@ func (t TUI) openPendingDeleteConfirm(msg PendingDeletePick) (TUI, tea.Cmd) {
 func (t TUI) runPendingDelete(msg PendingDeleteConfirm) (TUI, tea.Cmd) {
 	if _, ok := interactive.LoadPendingInfo(msg.id, msg.taskHash); !ok {
 		next, cmd, _ := t.commandPending()
-		return next, tea.Sequence(tea.Println(msgLog("pending task already resolved in another session")+"\n"), cmd)
+		return next, tea.Sequence(notice(msgLog("pending task already resolved in another session")+"\n"), cmd)
 	}
 
 	interactive.DeletePending(msg.id, msg.taskHash)
 
 	next, cmd, _ := t.commandPending()
-	return next, tea.Sequence(tea.Println(msgLog("dropped pending task: "+msg.label)+"\n"), cmd)
+	return next, tea.Sequence(notice(msgLog("dropped pending task: "+msg.label)+"\n"), cmd)
 }
 
 func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {
 	info, ok := interactive.LoadPendingInfo(msg.id, msg.taskHash)
 	if !ok {
-		return t, tea.Println(msgLog("pending task already resolved in another session") + "\n")
+		return t, notice(msgLog("pending task already resolved in another session") + "\n")
 	}
 
 	if !info.HasQuestions {
 		allowAll := interactive.LoadPendingAllowAll(msg.id, msg.taskHash)
 		full, history, err := interactive.LoadResumeMessage(msg.id, msg.taskHash, nil)
 		if err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("load resume: %v", err)) + "\n")
+			return t, notice(msgError(fmt.Sprintf("load resume: %v", err)) + "\n")
 		}
 		return t.startResume(ResumeExec{SessionID: msg.id, Content: full, PendingTask: msg.taskHash, HistoryContent: history, AllowAll: allowAll})
 	}
 
 	meta, err := interactive.LoadPendingQuestions(msg.id, msg.taskHash)
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("load pending: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("load pending: %v", err)) + "\n")
 	}
 
 	sid := msg.id

@@ -77,7 +77,7 @@ func (t TUI) showNewCustomPopup(name string) (TUI, tea.Cmd) {
 func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	id, err := session.New("cli-")
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("create session failed: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("create session failed: %v", err)) + "\n")
 	}
 
 	if name == "" {
@@ -114,7 +114,7 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
-		tea.Println(strings.Join(lines, "\n")+"\n"),
+		notice(strings.Join(lines, "\n")),
 	)
 }
 

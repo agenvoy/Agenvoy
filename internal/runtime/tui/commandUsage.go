@@ -32,13 +32,13 @@ func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 		if sessionID != "" {
 			summary, err := usagelog.Usage(sessionID, period.days, now)
 			if err != nil {
-				return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+				return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 			}
 			sessions[i] = summary
 		}
 		total, err := usagelog.Total(period.days, now)
 		if err != nil {
-			return t, tea.Println(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
+			return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 		}
 		totals[i] = total
 	}

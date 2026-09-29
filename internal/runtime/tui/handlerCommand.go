@@ -91,7 +91,7 @@ func (t TUI) handleCommand(cmd string) (TUI, tea.Cmd, bool) {
 func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n"), true
+		return t, notice(msgLog("no active session") + "\n"), true
 	}
 	seq := []tea.Cmd{
 		tea.ClearScreen,
@@ -99,7 +99,7 @@ func (t TUI) commandHistory() (TUI, tea.Cmd, bool) {
 	}
 	tail := loadSessionTail(sid, t.width, true)
 	if len(tail) == 0 {
-		seq = append(seq, tea.Println(msgLog("no history yet")+"\n"))
+		seq = append(seq, notice(msgLog("no history yet")+"\n"))
 	} else {
 		seq = append(seq, tail...)
 	}

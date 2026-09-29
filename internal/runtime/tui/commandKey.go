@@ -34,16 +34,16 @@ type KeyDeleteConfirm struct {
 func (t TUI) commandKey(parts []string) (TUI, tea.Cmd, bool) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n"), true
 	}
 	if len(cfg.Keys) == 0 {
-		return t, tea.Println(msgLog("no keys recorded  run /model add or store_secret first") + "\n"), true
+		return t, notice(msgLog("no keys recorded  run /model add or store_secret first") + "\n"), true
 	}
 
 	if len(parts) > 1 {
 		target := strings.TrimSpace(parts[1])
 		if !slices.Contains(cfg.Keys, target) {
-			return t, tea.Println(msgError(fmt.Sprintf("key not recorded: %q", target)) + "\n"), true
+			return t, notice(msgError(fmt.Sprintf("key not recorded: %q", target)) + "\n"), true
 		}
 		next, cmd := t.openKeyValuePrompt(target)
 		return next, cmd, true
@@ -85,15 +85,15 @@ func (t TUI) openKeyDeleteConfirm(key string) (TUI, tea.Cmd) {
 
 func (t TUI) runKeyDelete(key string) (TUI, tea.Cmd) {
 	if err := keychain.Delete(key); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("keychain.Delete %s: %v", key, err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("keychain.Delete %s: %v", key, err)) + "\n")
 	}
 	if err := config.DeleteKey(key); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("config.DeleteKey %s: %v", key, err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("config.DeleteKey %s: %v", key, err)) + "\n")
 	}
 	imageTool.Prune(context.Background())
 
 	next, cmd, _ := t.commandKey(nil)
-	return next, tea.Sequence(tea.Println(msgLog("key deleted: "+key)+"\n"), cmd)
+	return next, tea.Sequence(notice(msgLog("key deleted: "+key)+"\n"), cmd)
 }
 
 func (t TUI) openKeyValuePrompt(key string) (TUI, tea.Cmd) {

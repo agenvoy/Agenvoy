@@ -73,7 +73,7 @@ func (t TUI) commandRole() (TUI, tea.Cmd, bool) {
 
 func (t TUI) runRoleListed(msg RoleListed) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("role list: %v", msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("role list: %v", msg.err)) + "\n")
 	}
 
 	options := []string{"New"}
@@ -117,7 +117,7 @@ func (t TUI) runRolePick(msg RolePick) (TUI, tea.Cmd) {
 
 func (t TUI) runRoleLoaded(msg RoleLoaded) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("role read %s: %v", msg.name, msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("role read %s: %v", msg.name, msg.err)) + "\n")
 	}
 
 	t.roleBodyDraft = msg.content
@@ -139,7 +139,7 @@ func (t TUI) showRoleTitlePopup(origin, title string) (TUI, tea.Cmd) {
 func (t TUI) runRoleTitleSubmit(msg RoleTitleSubmit) (TUI, tea.Cmd) {
 	if msg.title == "" {
 		t.roleBodyDraft = ""
-		return t, tea.Println(msgError("role title required") + "\n")
+		return t, notice(msgError("role title required") + "\n")
 	}
 	return t.showRoleBodyPopup(msg.origin, msg.title)
 }
@@ -183,7 +183,7 @@ func (t TUI) roleSaveCmd(msg RoleBodySubmit) tea.Cmd {
 
 func (t TUI) runRoleSaved(msg RoleSaved) (TUI, tea.Cmd) {
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("role save %s: %v", msg.name, msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("role save %s: %v", msg.name, msg.err)) + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("role saved: %s", msg.name)) + "\n")
+	return t, notice(msgLog(fmt.Sprintf("role saved: %s", msg.name)) + "\n")
 }

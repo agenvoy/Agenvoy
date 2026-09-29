@@ -208,7 +208,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
 				}
 				return t, tea.Sequence(
-					tea.Println(msgWarn("restricted path: system password required")+"\n"),
+					notice(msgWarn("restricted path: system password required")+"\n"),
 					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
 						return RestrictedAuthDone{pendingID: id, err: err}
 					}),

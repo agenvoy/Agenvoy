@@ -16,7 +16,7 @@ type AudioModelSelect struct {
 func (t TUI) runAudioModelSelect(kind, name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if name == "off" {
 		name = ""
@@ -32,7 +32,7 @@ func (t TUI) runAudioModelSelect(kind, name string) (TUI, tea.Cmd) {
 
 	*current = name
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 	return t, nil
 }

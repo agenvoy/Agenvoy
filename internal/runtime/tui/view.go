@@ -59,7 +59,7 @@ func (t TUI) viewIdle() string {
 	}
 
 	if t.notice != "" {
-		top += noticeBlock(t.notice, width-4) + "\n"
+		top += noticeBlock(t.notice, t.noticeOffset, width-4) + "\n"
 	}
 
 	box := textAreaStyle.Width(width - 1).Render(t.textarea.View())

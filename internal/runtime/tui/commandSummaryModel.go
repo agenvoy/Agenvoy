@@ -14,21 +14,21 @@ type SummaryModelSelect struct {
 func (t TUI) runSummaryModelSelect(name string) (TUI, tea.Cmd) {
 	cfg, err := config.Load()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Load: %v", err)) + "\n")
 	}
 	if cfg.SummaryModel == name {
 		if name == "" {
-			return t, tea.Println(msgLog("summary unchanged: auto") + "\n")
+			return t, notice(msgLog("summary unchanged: auto") + "\n")
 		}
-		return t, tea.Println(msgLog(fmt.Sprintf("summary unchanged: %s", name)) + "\n")
+		return t, notice(msgLog(fmt.Sprintf("summary unchanged: %s", name)) + "\n")
 	}
 
 	cfg.SummaryModel = name
 	if err := config.Save(cfg); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
 	if name == "" {
-		return t, tea.Println(msgLog("summary: auto") + "\n")
+		return t, notice(msgLog("summary: auto") + "\n")
 	}
-	return t, tea.Println(msgLog(fmt.Sprintf("summary: %s", name)) + "\n")
+	return t, notice(msgLog(fmt.Sprintf("summary: %s", name)) + "\n")
 }

@@ -67,7 +67,7 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgLog("no active session") + "\n")
+		return t, notice(msgLog("no active session") + "\n")
 	}
 	configBot.SetModel(sid, name, "")
 	return t, nil

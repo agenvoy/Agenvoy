@@ -62,7 +62,7 @@ func (t TUI) openBotField(sid, field string) (TUI, tea.Cmd) {
 func (t TUI) runBotFieldSubmit(msg BotFieldSubmit) (TUI, tea.Cmd) {
 	sid := strings.TrimSpace(t.currentSessionID)
 	if sid == "" {
-		return t, tea.Println(msgError("no current session") + "\n")
+		return t, notice(msgError("no current session") + "\n")
 	}
 	selfID, name, body := configBot.GetPersona(sid)
 	switch msg.field {
@@ -82,17 +82,17 @@ func (t TUI) runBotFieldSubmit(msg BotFieldSubmit) (TUI, tea.Cmd) {
 
 func (t TUI) botCheckConflict(sid, name string) (tea.Cmd, bool) {
 	if name == "" {
-		return tea.Println(msgError("bot name required") + "\n"), false
+		return notice(msgError("bot name required") + "\n"), false
 	}
 	return nil, true
 }
 
 func (t TUI) botCheckSelfID(sid, selfID string) (tea.Cmd, bool) {
 	if err := historyStore.ValidSelfID(selfID); err != nil {
-		return tea.Println(msgError(""+err.Error()) + "\n"), false
+		return notice(msgError(""+err.Error()) + "\n"), false
 	}
 	if owner := session.GetSessionIDBySelfID(selfID); owner != "" && owner != sid {
-		return tea.Println(msgError(fmt.Sprintf("self id %q already used by session %s", selfID, owner)) + "\n"), false
+		return notice(msgError(fmt.Sprintf("self id %q already used by session %s", selfID, owner)) + "\n"), false
 	}
 	return nil, true
 }

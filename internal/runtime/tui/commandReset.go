@@ -60,7 +60,7 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 	if mode == "all" {
 		t.activity = "resetting (history + summary)..."
 		return t, tea.Batch(
-			tea.Println(msgLog(fmt.Sprintf("clearing history and summary for %s...", label))+"\n"),
+			notice(msgLog(fmt.Sprintf("clearing history and summary for %s...", label))+"\n"),
 			t.spinner.Tick,
 			func() tea.Msg {
 				keys, err := exec.ResetSessionAll(sid)
@@ -71,7 +71,7 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 
 	t.activity = "resetting (summary refresh first)..."
 	return t, tea.Batch(
-		tea.Println(msgLog(fmt.Sprintf("refreshing summary for %s, then clearing history...", label))+"\n"),
+		notice(msgLog(fmt.Sprintf("refreshing summary for %s, then clearing history...", label))+"\n"),
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
@@ -87,7 +87,7 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 	t.runTarget = ""
 
 	if msg.err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("reset failed: %v", msg.err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("reset failed: %v", msg.err)) + "\n")
 	}
 
 	t.tokens = 0
@@ -105,7 +105,7 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 	seq := []tea.Cmd{
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
-		tea.Println(msgLog(fmt.Sprintf("reset: %s (%s, %d torii keys purged)", utils.ShortenSessionID(msg.id), summaryNote, msg.keys)) + "\n"),
+		notice(msgLog(fmt.Sprintf("reset: %s (%s, %d torii keys purged)", utils.ShortenSessionID(msg.id), summaryNote, msg.keys)) + "\n"),
 	}
 	return t, tea.Sequence(seq...)
 }

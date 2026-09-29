@@ -16,7 +16,7 @@ type ReplyLanguageSelect struct {
 func (t TUI) commandReplyLanguage() (TUI, tea.Cmd, bool) {
 	languages := filesystem.ReplyLangOptions()
 	if len(languages) == 0 {
-		return t, tea.Println(msgLog("no languages available") + "\n"), true
+		return t, notice(msgLog("no languages available") + "\n"), true
 	}
 
 	keys := make([]string, 0, len(languages))
@@ -53,13 +53,13 @@ func (t TUI) runReplyLanguageSelect(code string) (TUI, tea.Cmd) {
 
 	dic, err := config.Get()
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
 	}
 	dic["reply_lang"] = lang
 	if err := config.Write(dic); err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
+		return t, notice(msgError(fmt.Sprintf("reply-language: %v", err)) + "\n")
 	}
 	filesystem.ConfigReplyLang = lang
 
-	return t.openConfig(configReplyLang), tea.Println(msgLog("reply language: "+lang) + "\n")
+	return t.openConfig(configReplyLang), notice(msgLog("reply language: "+lang) + "\n")
 }

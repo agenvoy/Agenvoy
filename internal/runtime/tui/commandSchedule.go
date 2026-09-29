@@ -14,18 +14,18 @@ import (
 func (t TUI) commandSchedule(parts []string) (TUI, tea.Cmd, bool) {
 	name := strings.TrimPrefix(parts[0], "/sched-")
 	if name == "" {
-		return t, tea.Println(msgError("scheduler skill name required") + "\n"), true
+		return t, notice(msgError("scheduler skill name required") + "\n"), true
 	}
 	if !go_pkg_filesystem_reader.Exists(filesystem.ScheduleSkillPath(name)) {
-		return t, tea.Println(msgError(fmt.Sprintf("scheduler skill %q not found", name)) + "\n"), true
+		return t, notice(msgError(fmt.Sprintf("scheduler skill %q not found", name)) + "\n"), true
 	}
 	body, err := skill.GetSchedule(name)
 	if err != nil {
-		return t, tea.Println(msgError(fmt.Sprintf("read scheduler skill: %v", err)) + "\n"), true
+		return t, notice(msgError(fmt.Sprintf("read scheduler skill: %v", err)) + "\n"), true
 	}
 	body = strings.TrimSpace(body)
 	if body == "" {
-		return t, tea.Println(msgError(fmt.Sprintf("scheduler skill %q is empty", name)) + "\n"), true
+		return t, notice(msgError(fmt.Sprintf("scheduler skill %q is empty", name)) + "\n"), true
 	}
 
 	extra := strings.TrimSpace(strings.Join(parts[1:], " "))
