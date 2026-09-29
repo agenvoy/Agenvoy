@@ -13,7 +13,6 @@ type PushPayload struct {
 	SessionID     string
 	Text          string
 	Model         string
-	Quota         string
 	Reasoning     string
 	Usage         *provider.Usage
 	Duration      time.Duration

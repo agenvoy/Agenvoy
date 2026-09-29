@@ -563,7 +563,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		return hintStyle.Render("⏵ " + srcPrefix + "Compact(" + target + ")"), true
 
 	case agentTypes.EventDone:
-		stats := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, "", "", "", ev.Usage)
+		stats := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, "", "", ev.Usage)
 		if finishedAt != "" {
 			if stats != "" {
 				stats += "  " + finishedAt
