@@ -110,7 +110,7 @@ func (t TUI) viewThinking() string {
 	sb.WriteString(" ")
 	sb.WriteString(hintStyle.Render("(" + strings.Join(detail, "  ") + ")"))
 
-	if block := renderTodoList(t.todos); block != "" {
+	if block := renderTodoList(t.todos, t.spinner.View()); block != "" {
 		sb.WriteString("\n\n")
 		sb.WriteString(block)
 	}
