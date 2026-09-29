@@ -27,11 +27,11 @@ graph TB
 
 ## 模組：進入點與執行模式
 
-`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`（同時監聽 `[::1]:17989`）。
+`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。`agen --enable-claude-code` 啟用 `claude-code` provider（以本機 `claude` CLI 作為模型），daemon 執行中會被拒絕，需先 `agen stop`；由它啟動的 daemon 會帶著這個設定，之後不帶參數啟動的 TUI 沿用執行中 daemon 的狀態。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`（同時監聽 `[::1]:17989`）。
 
-所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>`；接著 `exec.Start` 查找以名稱指定的 Skill、記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓 Telegram 與 Discord 的驗證碼顯示在終端機。
+所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>`；接著 `exec.Start` 查找以名稱指定的 Skill、記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓 Telegram 與 Discord 的驗證碼顯示在 TUI 的 notice 框；所有 log、警告與錯誤都集中在這個框（顯示最後 4 行、保留 32 行，`Tab` 往上捲，`Esc` 清除）。
 
-輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，選中的模型失敗後依此順序由上而下嘗試（含 `pass` tier）。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；開啟 `dispatcher_beta` 時由 TypeSafe 的 `jev-latest` 模型取代 dispatcher 模型：它把請求分為 `code`、`chat`、`fetch`、`research`、`work` 並判斷是否點名模型、是否延續上一則請求（延續時沿用 session 前一個模型以重用快取），再由程式依該類型的 tier 順序排序（`research` 先 S、`work` 先 A），TypeSafe 出錯時退回 dispatcher 模型；開啟 `auto_reasoning` 時同一分類也決定 reasoning 等級（`xhigh`、`none`、`low`、`high`、`medium`），固定模型的 session 也適用，請求自帶的等級仍優先；同一模型註冊在多個 provider 時，優先 `codex`／`grok-oauth`，其次 `copilot`、直接 API、`openrouter`；標記為長 context 的工作類型（目前是 `research`）反轉其中一段，同 tier 內把 `copilot` 排到最後，因為同一個模型經該 provider 轉售的 context window 較小。subagent 的 leg 也依工作類型套用同一套 tier。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。免費試用 Agenvoy 建議使用 `ollama-cloud` 的 `gemma4:31b`（免費 API key，有用量上限），它不是必要的 dispatcher 或主要模型。
+輸入區為空時可按 `Shift+F` 切換只存在於目前行程的 fast mode；執行器、dispatcher 與 summary 呼叫會把模式傳給 `go-llm-router`。Runtime 支援多個模型 provider 與 `compat` 的 OpenAI 相容端點，並可獨立設定 dispatcher、summary、圖片生成、STT 與 TTS；已註冊模型的順序可自訂，選中的模型失敗後依此順序由上而下嘗試（略過 `pass` tier）。每個模型可在 `model_tag` 設定 tier（`S` `A` `B` `C` `pass`）；dispatcher 依工作類型排序 tier，預設為 A；開啟 `dispatcher_beta` 時由 TypeSafe 的 `jev-latest` 模型取代 dispatcher 模型：它把請求分為 `code`、`chat`、`fetch`、`research`、`work` 並判斷是否點名模型、是否延續上一則請求（延續時沿用 session 前一個模型以重用快取），再由程式依該類型的 tier 順序排序（`research` 先 S、`work` 先 A），TypeSafe 出錯或 2 秒內沒回應時退回 dispatcher 模型；selector 回的工作類型同時決定 reasoning 等級（`xhigh`、`none`、`low`、`high`、`medium`），僅在 session reasoning 設為 `auto` 時採用（固定模型的 session 也適用），請求自帶的等級仍優先；同一 tier 內先排訂閱制的 `claude-code`、其次 `codex`；同一模型註冊在多個 provider 時，優先 `claude-code`，其次 `codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`；標記為長 context 的工作類型（目前是 `research`）反轉其中一段，同 tier 內把 `copilot` 排到最後，因為同一個模型經該 provider 轉售的 context window 較小。subagent 的 leg 依同樣的工作類型分級，但整體低一階：順序中每個 tier 各降一級（S→A、A→B、B→C），例如 `code` 變成 A > B > C > S、`work` 變成 B > A > C > S。每條 leg 都必須指定 `model`；指定的 session 若固定了自己的模型則改用該模型，設為 auto 時才使用傳入的模型。本機 OpenAI 相容端點以 `<name>@<model>` 註冊；自訂端點網址記錄在 `config.json` 的 `compats`，`/model add` 在預設 port 偵測到的 Ollama 與 llama.cpp 則為內建端點。免費試用 Agenvoy 建議使用 `ollama-cloud` 的 `gemma4:31b`（免費 API key，有用量上限），它不是必要的 dispatcher 或主要模型。
 
 ```mermaid
 graph TB
@@ -69,11 +69,11 @@ graph TB
 
 ## 模組：Agent 執行、Skill 與模型路由
 
-每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件會在送出前取一次 provider 剩餘額度（`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額），TUI footer、Web 標籤與聊天頻道 footer 顯示同一個值；事件也帶有實際使用的 reasoning 等級，以 `model(quota)/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。執行器建立帶有來源、附件與 session context 的 prompt，依序加入 `official_guides/` 的三層：`_base.md`（一律注入）、模型名含該廠商字樣時的 `_vendor_<vendor>.md`（例如自 Anthropic 總表萃取的 `_vendor_claude.md`）、檔名被模型名包含的那份模型指引（最長 key 優先）；模型檔與 vendor 檔都沒命中時，後兩層改注入 `_base_unlisted.md`。`claude` 開頭的 key 比對時把 `.` 與 `-` 互換後再比，所以 `claude-opus-5.5.md` 同時吃 `claude-opus-5.5` 與 Anthropic 官方的 `claude-opus-5-5`。三層是合併而非串接：同名的 `## 區塊` 只出現一次，後面層的條目接在同一個標題下，逐字相同的條目去重，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），`copilot@` 模型另會非同步向 GitHub Copilot models API 暖機模型限制快取，最多每 24 小時刷新一次；若 API 回報 chat 模型的 `max_context_window_tokens`，就使用該值。未知 Copilot 模型退回一般 128K 上限，其他未列模型也使用 128K。TUI 會以解析出的輸入上限顯示目前 context token 用量，並在達上限 80% 時開始 compact。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
+每個請求先檢查 Skill；開頭的 `/<skill_name>` 是唯一的行內語法，委派給特定 session 則透過 `subagents` 工具帶 `self_id`。Skill 描述會作為模型選擇提示。呼叫端明確指定的模型（例如 `/send` 的 `model` 欄位）會直接使用，未註冊時回傳錯誤；未指定時由 session 綁定的模型或 dispatcher 決定。完成事件帶有實際使用的 reasoning 等級，以 `model/reasoning` 顯示，並以 `reasoning=` 記錄在 `action.log` 的 `done` 行。事件不帶 provider 額度：TUI 與 Web 聊天在收到事件後，另外非同步查詢回答所用模型的剩餘額度，不阻塞事件（`claude-code`（讀 `claude -p /usage`，不打 API）、`codex`、`grok-oauth`、`copilot`、`ollama-cloud` 為百分比，`openrouter`、`deepseek` 為餘額）。TUI 顯示在狀態列右側，Web 聊天顯示為回覆上的標籤；Telegram 與 Discord 的 footer 不顯示額度。執行器建立帶有來源、附件與 session context 的 prompt，依序加入 `official_guides/` 的三層：`_base.md`（一律注入）、模型名含該廠商字樣時的 `_vendor_<vendor>.md`（例如自 Anthropic 總表萃取的 `_vendor_claude.md`）、檔名被模型名包含的那份模型指引（最長 key 優先）；模型檔與 vendor 檔都沒命中時，後兩層改注入 `_base_unlisted.md`。`claude` 開頭的 key 比對時把 `.` 與 `-` 互換後再比，所以 `claude-opus-5.5.md` 同時吃 `claude-opus-5.5` 與 Anthropic 官方的 `claude-opus-5-5`。三層是合併而非串接：同名的 `## 區塊` 只出現一次，後面層的條目接在同一個標題下，逐字相同的條目去重，選定主要 Agent 後迭代執行模型回應與工具呼叫。歷史達模型輸入上限的 80% 時會 compact；上限值取自 `llm-io.agenvoy.com`，執行前最多每小時刷新一次，依 vendor 與模型查找（`nvidia`、`openrouter` 模型以模型名稱內的 vendor 解析），`copilot@` 模型另會非同步向 GitHub Copilot models API 暖機模型限制快取，最多每 24 小時刷新一次；若 API 回報 chat 模型的 `max_context_window_tokens`，就使用該值。未知 Copilot 模型退回一般 128K 上限，其他未列模型也使用 128K。TUI 會以解析出的輸入上限顯示目前 context token 用量，並在達上限 80% 時開始 compact。模型傳送失敗時會使用 fallback Agent。圖片生成、STT 與 TTS 是可各自設定的模型路由能力。
 
 Skill 依固定順序掃描，同名時先找到的生效：`<cwd>/.skills`、`<cwd>/.claude/skills`、`~/.config/agenvoy/skills/.system`、`~/.config/agenvoy/skills/.system_design`、`~/.config/agenvoy/skills`，最後是 `~/.claude`、`~/.codex`、`~/.opencode`、`~/.openai` 的 skills。掃描目錄內其他以 `.` 開頭的資料夾會被略過。`.system` 每次 `make build` 都會以 `extensions/skills` 重建；`.system_design` 存放 TUI `/skill` 指令管理的官方 Skill，勾選時從 `github.com/agenvoy/skill-<name>` clone、取消勾選時刪除，因此重建不會清掉它們。兩個資料夾中的 Skill 來源都標為 `system`，Web 介面無法刪除。
 
-Skill 以 `/<name>` 啟動時，執行規則與解析後的 SKILL.md 組成一則 system message 注入；歷史中另補一組假的 `run_skill` 呼叫與一行指標作為 tool result，讓訊息序列成對而不重複載入內容（tool 歷史在 compact 或換模型時會被清空，內容只放在 system message 才留得住）。
+Skill 以 `/<name>` 啟動時，歷史中補一組假的 `run_skill` 呼叫，執行規則與解析後的 SKILL.md 放在它的 tool result。system prompt 有無 Skill 都相同，Skill 與一般對話切換時 prompt cache 不會中斷。tool 歷史在 compact 或換模型時會被清空，Skill 內容隨之移除，後續步驟由 todo 清單承接。
 
 ```mermaid
 graph TB
@@ -90,8 +90,7 @@ graph TB
     Compact --> Model
     Result -->|傳送失敗| Fallback[Fallback Agent]
     Fallback --> Model
-    Result -->|最終回應| Quota[完成事件附上 provider 額度]
-    Quota --> Events[回傳事件與結果]
+    Result -->|最終回應| Events[回傳事件與結果]
 ```
 
 ## 模組：工具註冊表與沙箱
@@ -117,7 +116,7 @@ graph TB
 
 ## 模組：Session、歷史與排程
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。TUI 發出的 `ask_user` 為 inline 提問，執行不中斷；其他來源則中止執行並寫入 pending（其中 tool args 截 1 KiB、result 截 4 KiB），由之後的回答續跑。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量（`claude` 與 `claude-code` 的 input 含 cache 寫入量，與其他 provider 回報「未命中 cache 的 input」一致）、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。TUI 發出的 `ask_user` 為 inline 提問，執行不中斷；其他來源則中止執行並寫入 pending（其中 tool args 截 1 KiB、result 截 4 KiB），由之後的回答續跑。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
