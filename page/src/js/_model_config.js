@@ -834,7 +834,7 @@ function renderProviderCatalog(catalog, added) {
   dom.catalog.dataset.open = "1";
 
   const filter = modelFilter();
-  const visible = catalog.filter((item) => matchModelFilter(item, filter));
+  const visible = catalog.filter((item) => !item.hidden && matchModelFilter(item, filter));
 
   for (const group of MODEL_GROUPS) {
     const list = visible.filter((item) => providerGroup(item, providerMethod(catalog, item.id)) === group);

@@ -113,7 +113,7 @@ function usageRows(summary) {
       write: Number(one.write) || 0,
       hit: Number(one.hit) || 0,
     };
-    row.total = row.input + row.output + row.write + row.hit;
+    row.total = row.input + row.output + row.hit;
     if (row.total > 0) {
       rows.push(row);
     }
