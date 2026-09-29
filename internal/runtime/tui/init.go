@@ -55,6 +55,7 @@ type TUI struct {
 	modelAdd      *modelAddItem
 
 	selector *CmdSelector
+	notice   string
 
 	currentModel       string
 	currentSessionID   string
@@ -101,11 +102,10 @@ func (t TUI) Init() tea.Cmd {
 	sid := strings.TrimSpace(t.currentSessionID)
 	seq := []tea.Cmd{tea.ClearScreen}
 	if sid != "" {
-		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)))
+		seq = append(seq, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)))
 	}
 	seq = append(seq, func() tea.Msg { return initTailer{} })
 	if sid != "" {
-		seq = append(seq, tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(sid))+"\n"))
 		if n := len(interactive.ListResumablePending(sid)); n > 0 {
 			hint := fmt.Sprintf("  %d pending task(s) — /pending to resume", n)
 			seq = append(seq, tea.Println(msgLog(hint)+"\n"))

@@ -117,7 +117,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		switchBlock,
 	)
 }

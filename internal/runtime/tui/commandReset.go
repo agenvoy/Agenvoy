@@ -104,7 +104,7 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		tea.Println(msgLog(fmt.Sprintf("reset: %s (%s, %d torii keys purged)", utils.ShortenSessionID(msg.id), summaryNote, msg.keys)) + "\n"),
 	}
 	return t, tea.Sequence(seq...)

@@ -27,6 +27,7 @@ import (
 
 const (
 	DispatcherCallTimeout        = 30 * time.Second
+	TypesafeCallTimeout          = 2 * time.Second
 	UnresponsiveProbeInterval    = 30 * time.Second
 	UnresponsiveRetryInterval    = 10 * time.Second
 	MaxUnresponsiveProbeFailures = 3
@@ -82,7 +83,9 @@ func selectorConfig() (tiers map[string]string, selection string, beta bool) {
 
 func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates, passOrder []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string) {
 	if beta {
-		list, level, err := selectAgentBeta(ctx, candidates, passOrder, tiers, content, sessionID)
+		betaCtx, cancel := context.WithTimeout(ctx, TypesafeCallTimeout)
+		list, level, err := selectAgentBeta(betaCtx, candidates, passOrder, tiers, content, sessionID)
+		cancel()
 		if err == nil {
 			return list, level
 		}

@@ -105,7 +105,7 @@ func (t TUI) finishCompact(msg CompactDone) (TUI, tea.Cmd) {
 
 	seq := []tea.Cmd{
 		tea.ClearScreen,
-		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 	}
 	tail := loadSessionTail(msg.id, t.width, false)
 	if len(tail) == 0 {

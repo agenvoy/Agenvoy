@@ -47,27 +47,32 @@ func (t TUI) viewIdle() string {
 		confirmMode = okayStyle.Render(" safe") + hintStyle.Render(" "+t.shortCwd())
 	}
 
-	prefix := "\n"
 	var top string
 	if t.running {
-		top = t.viewThinking() + "\n"
+		if block := t.viewThinking(); block != "" {
+			top = "\n" + block + "\n"
+		}
 	}
 
 	if t.selector != nil {
 		top += renderCmdSelector(t.selector) + "\n"
 	}
 
-	box := textAreaStyle.Width(width - 2).Render(t.textarea.View())
+	if t.notice != "" {
+		top += noticeBlock(t.notice, width-4) + "\n"
+	}
+
+	box := textAreaStyle.Width(width - 1).Render(t.textarea.View())
 	boxWidth := lipgloss.Width(box)
-	bottom := hintStyle.Render(strings.Repeat("─", boxWidth))
+	bottom := thinkStyle.Render(strings.Repeat("─", boxWidth))
 	if model := t.modelTag(); model != "" {
 		tag := " " + model + " "
 		if fill := boxWidth - lipgloss.Width(tag) - 1; fill >= 1 {
-			bottom = hintStyle.Render(strings.Repeat("─", fill)) + tag + hintStyle.Render("─")
+			bottom = thinkStyle.Render(strings.Repeat("─", fill)) + tag + thinkStyle.Render("─")
 		}
 	}
 
-	return prefix + top + box + "\n" + bottom + "\n" + fastMode + confirmMode
+	return top + box + "\n" + bottom + "\n" + fastMode + confirmMode
 }
 
 func (t TUI) viewThinking() string {
@@ -170,7 +175,7 @@ func (t TUI) viewPopup() string {
 	case p.title != "":
 		header = systemStyle.Render("● " + strings.TrimPrefix(p.title, "/"))
 	}
-	divider := hintStyle.Render(strings.Repeat("─", width))
+	divider := thinkStyle.Render(strings.Repeat("─", width))
 	headerHeight := 0
 	if header != "" {
 		header = popupStyle.Width(width).Render(header) + "\n" + divider

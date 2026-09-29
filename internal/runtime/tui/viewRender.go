@@ -304,13 +304,23 @@ func buildTable(header []string, rows [][]string, termWidth int) string {
 var (
 	headerStyle = lipgloss.NewStyle()
 
+	popupStyle = lipgloss.NewStyle().
+			Padding(0, 1)
+
 	textAreaStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), true, false, false, false).
+			BorderForeground(colThink).
+			Padding(0, 1, 0, 0)
+
+	frameStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colHint).
 			Padding(0, 1)
 
-	popupStyle = lipgloss.NewStyle().
-			Padding(0, 1)
+	noticeFrameStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(colSystem).
+				Padding(0, 1)
 )
 
 // * one row per line of headerBlock's body; top half reads as "A", bottom half as "V"
@@ -323,7 +333,39 @@ var asciiMarkLines = []string{
 	"      :::::::",
 }
 
-func headerBlock(daemon, http, discord, telegram string) string {
+const noticeMaxLines = 3
+
+func lastLines(s string, limit int) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) <= limit {
+		return s
+	}
+	return strings.Join(lines[len(lines)-limit:], "\n")
+}
+
+func framedBlock(body string, width int, tag string, frame, line lipgloss.Style) string {
+	rendered := frame.Width(width).Render(body)
+	if tag == "" {
+		return rendered
+	}
+
+	lines := strings.Split(rendered, "\n")
+	last := len(lines) - 1
+	fill := lipgloss.Width(lines[last]) - lipgloss.Width(tag) - 5
+	if fill < 1 {
+		return rendered
+	}
+	lines[last] = line.Render("╰"+strings.Repeat("─", fill)+" ") + tag + line.Render(" ─╯")
+	return strings.Join(lines, "\n")
+}
+
+func noticeBlock(body string, width int) string {
+	return framedBlock(lastLines(body, noticeMaxLines), width,
+		textStyle.Render("Esc")+hintStyle.Render(":close"),
+		noticeFrameStyle, systemStyle)
+}
+
+func headerBlock(daemon, http, discord, telegram, sessionID string) string {
 	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(runtime.CurrentVersion)
 
 	const markCol = 20
@@ -339,7 +381,7 @@ func headerBlock(daemon, http, discord, telegram string) string {
 	textLines := []string{
 		logo,
 		hintStyle.Render("Make AI actually work for you"),
-		hintStyle.Render("Your productivity infrastructure"),
+		hintStyle.Render("Session ID: " + utils.ShortenSessionID(sessionID)),
 		"",
 		daemon + gap + discord,
 		http + gap + telegram,
@@ -366,9 +408,9 @@ func messageBlock(str string) string {
 		if i > 0 {
 			sb.WriteString("\n  ")
 		} else {
-			sb.WriteString(hintStyle.Render("❯ "))
+			sb.WriteString(userStyle.Bold(true).Render("❯ "))
 		}
-		sb.WriteString(userStyle.Render(line))
+		sb.WriteString(whiteStyle.Render(line))
 	}
 	return sb.String()
 }

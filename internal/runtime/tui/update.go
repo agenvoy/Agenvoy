@@ -16,7 +16,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
@@ -108,6 +107,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)
 				t.inputHistoryIdx = -1
+				return t, nil
+			}
+			if t.notice != "" {
+				t.notice = ""
 				return t, nil
 			}
 
@@ -647,7 +650,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModelAddDone:
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(msgError(fmt.Sprintf("add-model: %v", msg.err))+"\n"))
@@ -773,7 +776,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.discordStatus = getDiscordStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(msgError(fmt.Sprintf("discord %s: %v", msg.action, msg.err))+"\n"))
@@ -786,7 +789,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.telegramStatus = getTelegramStatus()
 		seq := []tea.Cmd{
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		}
 		if msg.err != nil {
 			seq = append(seq, tea.Println(msgError(fmt.Sprintf("telegram %s: %v", msg.action, msg.err))+"\n"))
@@ -940,19 +943,19 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, tea.Sequence(
 				tea.ClearScreen,
-				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+				tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 				tea.Println(msgError(fmt.Sprintf("log: %v", msg.err))+"\n"),
 			)
 		}
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		)
 
 	case StartupSelectSession:
 		popup := popupSwitch("")
 		if popup == nil {
-			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus))
+			return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID))
 		}
 		popup.title = "Pick session to attach"
 		popup.subtitle = "Select the session this TUI will work in"
@@ -966,7 +969,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case StartupSessionSkip:
-		return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus))
+		return t, tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID))
 
 	case StartupSessionSelect:
 		t.currentSessionID = msg.id
@@ -985,8 +988,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return t, tea.Sequence(
 			tea.ClearScreen,
-			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus)),
-			tea.Println(msgLog("Session ID: "+utils.ShortenSessionID(msg.id))+"\n"),
+			tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.currentSessionID)),
 		)
 
 	case tailLine:
