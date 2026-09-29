@@ -26,6 +26,7 @@ type SessionRow struct {
 	UserID    string
 }
 
+// ! the rule column is kept for older builds and will deprecate in the future
 const (
 	sessionInsertColumns = `session_id, self_id, name, model, reasoning, role, rule, chat_id, guild_id, channel_id, user_id`
 	sessionSelectColumns = `session_id, self_id, name, model, reasoning, COALESCE(NULLIF(role, ''), rule), chat_id, guild_id, channel_id, user_id`

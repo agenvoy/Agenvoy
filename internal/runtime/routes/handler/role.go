@@ -41,6 +41,7 @@ func ListRoles() gin.HandlerFunc {
 		dir := filesystem.PromptsDir
 		roles := make([]gin.H, 0)
 		if !go_pkg_filesystem_reader.IsDir(dir) {
+			// ! will deprecate in the future
 			c.JSON(http.StatusOK, gin.H{"roles": roles, "rules": roles})
 			return
 		}
@@ -63,6 +64,7 @@ func ListRoles() gin.HandlerFunc {
 			}
 			roles = append(roles, role)
 		}
+		// ! will deprecate in the future
 		c.JSON(http.StatusOK, gin.H{"roles": roles, "rules": roles})
 	}
 }

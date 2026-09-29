@@ -102,11 +102,6 @@ func New() *gin.Engine {
 	r.POST("/v1/role", localhostOnly(), handler.CreateRole())
 	r.PATCH("/v1/role", localhostOnly(), handler.UpdateRole())
 	r.DELETE("/v1/role", localhostOnly(), handler.DeleteRole())
-	r.GET("/v1/rules", localhostOnly(), handler.ListRoles())
-	r.GET("/v1/rule/*name", localhostOnly(), handler.GetRole())
-	r.POST("/v1/rule", localhostOnly(), handler.CreateRole())
-	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRole())
-	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRole())
 
 	r.GET("/v1/skills", localhostOnly(), handler.ListSkills())
 	r.GET("/v1/skill/*name", localhostOnly(), handler.GetSkill())
@@ -134,6 +129,13 @@ func New() *gin.Engine {
 	r.POST("/v1/channel/admin", localhostOnly(), handler.SetAdminChannel())
 	r.GET("/v1/channel/:channel/chats", localhostOnly(), handler.ListChannelChats())
 	r.DELETE("/v1/channel/:channel/chat", localhostOnly(), handler.DeleteChannelChat())
+
+	// ! will deprecate in the future
+	r.GET("/v1/rules", localhostOnly(), handler.ListRoles())
+	r.GET("/v1/rule/*name", localhostOnly(), handler.GetRole())
+	r.POST("/v1/rule", localhostOnly(), handler.CreateRole())
+	r.PATCH("/v1/rule", localhostOnly(), handler.UpdateRole())
+	r.DELETE("/v1/rule", localhostOnly(), handler.DeleteRole())
 
 	r.NoRoute(localhostOnly(), func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/v1/") {

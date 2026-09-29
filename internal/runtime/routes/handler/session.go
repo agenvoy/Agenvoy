@@ -157,12 +157,14 @@ func sessionDetail(sid string) gin.H {
 		"self_id":   selfID,
 		"name":      name,
 		"role":      role,
-		"rule":      role,
 		"state":     status.State,
 		"model":     model,
 		"reasoning": reasoning,
 		"levels":    levels,
 		"count":     status.Count,
+
+		// ! will deprecate in the future
+		"rule": role,
 	}
 }
 
@@ -204,9 +206,11 @@ func UpdateSession() gin.HandlerFunc {
 			SelfID    *string `json:"self_id"`
 			Name      *string `json:"name"`
 			Role      *string `json:"role"`
-			Rule      *string `json:"rule"`
 			Model     *string `json:"model"`
 			Reasoning *string `json:"reasoning"`
+
+			// ! will deprecate in the future
+			Rule *string `json:"rule"` // * keep this for older version compatibility
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -243,12 +247,15 @@ func UpdateSession() gin.HandlerFunc {
 			if body.Name != nil {
 				name = *body.Name
 			}
-			if body.Rule != nil {
-				role = *body.Rule
-			}
 			if body.Role != nil {
 				role = *body.Role
 			}
+
+			// ! will deprecate in the future
+			if body.Rule != nil {
+				role = *body.Rule
+			}
+
 			if err := historyStore.ValidSelfID(selfID); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
