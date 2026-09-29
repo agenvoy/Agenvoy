@@ -56,7 +56,12 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		reasoning = sessionReasoning
 	}
 
-	agent := registry.Registry[model]
+	var agent agentTypes.Agent
+	if model == configBot.DefaultModel {
+		agent = SelectAgent(ctx, agents.DispatcherBot(), registry, task, false, "", sessionID)
+	} else {
+		agent = registry.Registry[model]
+	}
 	if agent == nil {
 		return "", fmt.Errorf("model %q is not available", model)
 	}

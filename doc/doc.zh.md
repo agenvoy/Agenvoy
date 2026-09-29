@@ -164,7 +164,7 @@ compat 通道只送 request body 與 `Authorization: Bearer <key>`，不夾帶�
 
 session 固定了模型就不走分派。否則 dispatcher 會收到每個已註冊模型解析後的 tier；沒設 tier 的模型依名稱判斷（`claude-opus` 為 S、`claude-sonnet` 為 A、`claude-haiku` 為 B、`*-mini` 與 `gemma*`／`qwen*` 等開源模型為 C 等）。排序依工作類型決定：寫程式或明確要求深度、精確 → S 優先；從多個來源蒐集再綜整的研究 → S 優先；審閱、規劃、撰寫與其餘工作 → A 優先；打招呼、短答、閒聊、翻譯 → B 優先；用工具取資料並原樣回傳 → C 優先。LLM dispatcher、TypeSafe 分類與 subagent planner 共用同一張工作類型表與同一套名稱規則，排序結果一致。同一 tier 內，訂閱制 provider `claude-code`、其次 `codex` 的模型排在其他 provider 之前。同一個模型註冊在多個 provider 時，順序為 `claude-code`、`codex`／`grok-oauth`、`copilot`、直接 API、`openrouter`。`pass` 同時由 prompt 與 fallback 規範：dispatcher 被要求一律不回傳 `pass` 模型，selector 回傳的 `pass` 名稱也會被剔除；fallback 依優先順序嘗試其他已註冊模型（排除 `pass`），跳過失敗模型的 provider 與 context window 放不下輸入的模型，全部用盡才失敗。context 上限方面，`copilot@` 模型會非同步向 GitHub Copilot models API 暖機專用模型限制快取，最多每 24 小時刷新一次；若 chat 模型有回報 `max_context_window_tokens`，就採用該值。未知 Copilot 模型與其他未列模型使用一般 128K 輸入上限。TUI 顯示目前 context token 相對於解析出的輸入上限；歷史達上限 80% 時開始 compact。
 
-subagent 依同一套 tier，但整體低一階（S→A、A→B、B→C）。主 agent 一旦分派，只負責拆分任務、呼叫 leg 與綜整結果；每條 leg 只做一種工作——collect、analyze、compare、review、transform 或 code——並對應到工作類型：collect → fetch（C>B>A>S）、transform → chat（C>B>A>S）、analyze／compare／review → work（B>A>C>S）、程式碼或高精確工作 → code（A>B>C>S）。leg 的 `model` 以即時的 registry 驗證，啟動後新增的模型也能使用，未註冊或 `pass` 模型會被拒絕。
+subagent 依同一套 tier，但整體低一階（S→A、A→B、B→C）。主 agent 一旦分派，只負責拆分任務、呼叫 leg 與綜整結果；每條 leg 只做一種工作——collect、analyze、compare、review、transform 或 code——並對應到工作類型：collect → fetch（C>B>A>S）、transform → chat（C>B>A>S）、analyze／compare／review → work（B>A>C>S）、程式碼或高精確工作 → code（A>B>C>S）。leg 的 `model` 以即時的 registry 驗證，啟動後新增的模型也能使用，未註冊或 `pass` 模型會被拒絕；傳 `auto` 則由 dispatcher 依 leg 的任務選模。
 
 ### TypeSafe/Jev（beta）
 
@@ -172,7 +172,7 @@ beta dispatcher 會呼叫 TypeSafe 的 `jev-latest` 模型（`https://api.typesa
 
 | 設定 | 開啟方式 | 效果 |
 | --- | --- | --- |
-| `dispatcher_beta` | Web **Config › Model**：Dispatcher 卡片的 `enable TypeSafe/Jev(beta)`（綠色；`disable` 為紅色，開啟時隱藏 dispatcher 模型選單）。TUI：`/model` → `dispatch` → `TypeSafe/Jev(beta)`；改選模型即關閉 | 取代 dispatcher 模型；TypeSafe 出錯或 2 秒內沒回應時退回 dispatcher 模型 |
+| `dispatcher_beta` | Web **Config › Model**：Dispatcher 卡片的 `enable TypeSafe/Jev(beta)`（綠色；`disable` 為紅色，開啟時隱藏 dispatcher 模型選單）。TUI：`/model` → `dispatch` → `TypeSafe/Jev(beta)`；改選模型即關閉 | 取代 dispatcher 模型；TypeSafe 出錯或 3 秒內沒回應時退回 dispatcher 模型 |
 
 Jev 會把請求歸成一種工作類型，模型排序與 reasoning 等級都依這個結果。另一題判斷請求是否明確指定「使用／用 <模型>」（不含 `pass` 模型），是的話把該模型排第一。session 的前一個模型仍在候選內時，第三題判斷請求是否延續上一則使用者訊息；是的話把該模型排在點名模型之後，且除非點名了其他模型，reasoning 等級取前一次與本次較高者，對話以閒聊開頭、之後工作升級時仍會拿到較深的等級。前一個模型在每次成功回覆後記錄，`openai`／`codex` 保留 30 分鐘、`gemini` 60 分鐘、其他 provider 5 分鐘。
 
@@ -507,7 +507,7 @@ Daemon 只綁定 loopback（`127.0.0.1` 與 `[::1]`）。標示 **local** 的 en
 |            | `generate_audio`                  | 文字轉語音並存檔——未選 TTS 模型時排除                                                                                                                                                                                                                                                     |
 |            | `list_chatbot`、`send_to_chatbot` | 跨頻道推送——需啟用 Telegram 或 Discord                                                                                                                                                                                                                                                    |
 
-14 個工具會帶完整 schema 送出——`ask_user`、`calculate`、`chat_history`、`edit_file`、`fetch_page`、`find_files`、`find_tools`、`read_files`、`reasoning_guide`、`run_command`、`run_skill`、`search_web`、`write_result`、`write_todo`；其餘工具初始只送名稱與描述，參數由 `find_tools(mode=search)` 以工具回傳內容交付，不寫回 tool payload，因此整個 session 的工具序列化結果逐位元組不變，查詢 schema 不會打斷 prompt 快取。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
+所有工具第一輪即帶完整 schema 送出，並依名稱排序，因此整個 session 的工具序列化結果逐位元組不變，prompt 快取得以保留。`claude-code` provider 是例外：只收到工具名稱與完整的 `find_tools` schema，其餘 schema 由 `find_tools(mode=search)` 以工具回傳內容交付，不寫回 tool payload。`edit_file` 的 patch 模式每個 target 只接受 `{old_string, new_string}`（另可帶 `replace_all`）；`new_string` 取代 `old_string`，插入則是在 `new_string` 開頭重複 `old_string`。所有 target 都對寫入前的磁碟原始內容比對，因此列出順序不影響結果；`old_string` 在未帶 `replace_all` 時比對到多處，或兩個 target 覆蓋同一段，整批都會拒絕且不寫入。
 
 ## 架構
 
