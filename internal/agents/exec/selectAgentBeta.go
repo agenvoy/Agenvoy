@@ -13,6 +13,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
+
+	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 const (
@@ -169,7 +171,11 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 	level := config.WorkReasoning(work)
 	if previous != "" && result.Answers["topic"].Choice == betaTopicSame {
 		if len(list) == 0 || list[0] == previous {
-			level = cmp.Or(previousReasoning, level)
+			prev, prevOK := provider.ParseReasoning(previousReasoning)
+			cur, curOK := provider.ParseReasoning(level)
+			if prevOK && (!curOK || prev > cur) {
+				level = previousReasoning
+			}
 		}
 		if !slices.Contains(list, previous) {
 			list = append(list, previous)
@@ -245,7 +251,7 @@ func rankCandidates(work string, order []string, tiers map[string]string, candid
 		if i < 0 {
 			i = len(order)
 		}
-		return i*100 + family
+		return i*1000 + config.ProviderPreference(name)*100 + family
 	}
 	ranked := slices.Clone(candidates)
 	slices.SortStableFunc(ranked, func(a, b string) int {

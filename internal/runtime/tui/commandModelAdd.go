@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
@@ -80,6 +81,7 @@ var modelAddProviders = []struct {
 	methods []modelAddMethod
 }{
 	{"OAuth", []modelAddMethod{
+		{"Claude Code", "Claude subscription via claude -p", "claude-code"},
 		{"OpenAI Codex", "Codex subscription", "codex"},
 		{"Grok (xAI)", "xAI subscription", "grok-oauth"},
 		{"GitHub Copilot", "GitHub subscription", "copilot"},
@@ -206,6 +208,12 @@ func (t TUI) runModelAddProviderPick(name string) (TUI, tea.Cmd) {
 		return t.modelAddViaOAuth()
 	case "compat":
 		return t.openModelAddCompatURL()
+	case claudeCode.Provider:
+		if err := claudeCode.CheckBinary(); err != nil {
+			t.modelAdd = nil
+			return t, tea.Println(msgError(err.Error()) + "\n")
+		}
+		return t.openModelAddModelPick()
 	default:
 		return t.openModelAddAPIKey()
 	}
@@ -831,19 +839,20 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 }
 
 var modelsProviders = map[string]func(context.Context, provider.Config, provider.ModelFilter) ([]string, error){
-	"codex":        openaicodex.Models,
-	"grok-oauth":   grokoauth.Models,
-	"copilot":      copilot.Models,
-	"cloudflare":   cloudflare.Models,
-	"openai":       openai.Models,
-	"claude":       claude.Models,
-	"gemini":       gemini.Models,
-	"ollama-cloud": ollamacloud.Models,
-	"grok":         grok.Models,
-	"deepseek":     deepseek.Models,
-	"mistral":      mistral.Models,
-	"nvidia":       nvidia.Models,
-	"openrouter":   openrouter.Models,
+	"codex":             openaicodex.Models,
+	"grok-oauth":        grokoauth.Models,
+	"copilot":           copilot.Models,
+	"cloudflare":        cloudflare.Models,
+	"openai":            openai.Models,
+	"claude":            claude.Models,
+	"gemini":            gemini.Models,
+	"ollama-cloud":      ollamacloud.Models,
+	"grok":              grok.Models,
+	"deepseek":          deepseek.Models,
+	"mistral":           mistral.Models,
+	"nvidia":            nvidia.Models,
+	"openrouter":        openrouter.Models,
+	claudeCode.Provider: claudeCode.Models,
 }
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {

@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"log/slog"
+	"strings"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -21,6 +23,9 @@ func (a *resolvedAgent) Name() string {
 }
 
 func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
+	if prov, _, _ := strings.Cut(a.name, "@"); prov == claudeCode.Provider {
+		return claudeCode.New(a.name)
+	}
 	cfg, err := routerConfig(ctx, a.name)
 	if err != nil {
 		return nil, err

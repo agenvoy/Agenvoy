@@ -1,4 +1,4 @@
-Registered models by tier, best first inside each tier (a user-set tier wins over the name rule; the same model on several providers is already ordered `codex`/`grok-oauth` > `copilot` > direct API > `openrouter`):
+Registered models by tier, best first inside each tier (a user-set tier wins over the name rule; inside a tier the subscription providers `claude-code` then `codex` come first, and the same model on several providers is already ordered `claude-code` > `codex`/`grok-oauth` > `copilot` > direct API > `openrouter`):
 {{.ModelTier}}
 
 Classify the work into one kind below, walk its tier order left to right, and take the first model listed in the first tier that has one. A `[Run Skill]` request is classified by the work the Skill does, not by its name.

@@ -29,6 +29,7 @@ type Config struct {
 	AdminChannel     string            `json:"admin_channel"`
 	OutputDir        string            `json:"output_dir"`
 	ModelTag         map[string]string `json:"model_tag"`
+	ClaudeCodeOff    bool              `json:"claude_code_disabled"`
 }
 
 const (

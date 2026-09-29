@@ -132,11 +132,14 @@ func ModelTier(tags map[string]string, name string) string {
 const smallWindowProvider = "copilot"
 
 var providerRank = map[string]int{
-	"codex":      0,
-	"grok-oauth": 0,
-	"copilot":    1,
-	"openrouter": 3,
+	"claude-code": 0,
+	"codex":       1,
+	"grok-oauth":  1,
+	"copilot":     2,
+	"openrouter":  4,
 }
+
+var preferredProviders = []string{"claude-code", "codex"}
 
 func LongContextOrder(work, name string) int {
 	i := slices.IndexFunc(WorkKinds, func(k WorkKind) bool { return k.Key == work })
@@ -154,7 +157,15 @@ func ProviderOrder(name string) int {
 	if rank, ok := providerRank[prov]; ok {
 		return rank
 	}
-	return 2
+	return 3
+}
+
+func ProviderPreference(name string) int {
+	prov, _, _ := strings.Cut(name, "@")
+	if i := slices.Index(preferredProviders, prov); i >= 0 {
+		return i
+	}
+	return len(preferredProviders)
 }
 
 func ModelSelection(cfg *Config) string {
@@ -173,7 +184,7 @@ func ModelSelection(cfg *Config) string {
 		slices.SortStableFunc(names, func(a, b string) int {
 			_, fa := NameTier(a)
 			_, fb := NameTier(b)
-			return cmp.Or(cmp.Compare(fa, fb), cmp.Compare(ProviderOrder(a), ProviderOrder(b)))
+			return cmp.Or(cmp.Compare(ProviderPreference(a), ProviderPreference(b)), cmp.Compare(fa, fb), cmp.Compare(ProviderOrder(a), ProviderOrder(b)))
 		})
 		tierLines = append(tierLines, fmt.Sprintf("- %s: %s", tier, strings.Join(names, ", ")))
 	}

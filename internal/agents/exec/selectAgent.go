@@ -27,7 +27,7 @@ import (
 
 const (
 	DispatcherCallTimeout        = 30 * time.Second
-	TypesafeCallTimeout          = 2 * time.Second
+	TypesafeCallTimeout          = 3 * time.Second
 	UnresponsiveProbeInterval    = 30 * time.Second
 	UnresponsiveRetryInterval    = 10 * time.Second
 	MaxUnresponsiveProbeFailures = 3
