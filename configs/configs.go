@@ -22,6 +22,9 @@ var ClaudeCodePlainPrompt string
 //go:embed prompts/followup.md
 var FollowupPrompt string
 
+//go:embed prompts/voice.md
+var VoicePrompt string
+
 //go:embed prompts/assign_skill.md
 var AssignSkill string
 

@@ -81,7 +81,29 @@ type resultLine struct {
 	} `json:"usage"`
 }
 
-var toolCallPattern = regexp.MustCompile(`(?s)<tool_call name="([^"]+)">(.*?)</tool_call>`)
+var (
+	toolCallPattern  = regexp.MustCompile(`(?s)<tool_call name="([^"]+)">(.*?)</tool_call>`)
+	invokePattern    = regexp.MustCompile(`(?s)<invoke name="([^"]+)">(.*?)</invoke>`)
+	parameterPattern = regexp.MustCompile(`(?s)<parameter name="([^"]+)">(.*?)</parameter>`)
+)
+
+func invokeArguments(body string) string {
+	dic := map[string]any{}
+	for _, m := range parameterPattern.FindAllStringSubmatch(body, -1) {
+		value := strings.TrimSpace(m[2])
+		var parsed any
+		if json.Unmarshal([]byte(value), &parsed) == nil {
+			dic[m[1]] = parsed
+			continue
+		}
+		dic[m[1]] = value
+	}
+	raw, err := json.Marshal(dic)
+	if err != nil {
+		return "{}"
+	}
+	return string(raw)
+}
 
 func acquire(key string) *process {
 	reapStart.Do(func() { go reap() })
@@ -249,21 +271,26 @@ func (p *process) readResult() (*resultLine, error) {
 func buildOutput(line *resultLine) (*provider.Output, int, error) {
 	message := provider.Message{
 		Role:    "assistant",
-		Content: strings.TrimSpace(toolCallPattern.ReplaceAllString(line.Result, "")),
+		Content: strings.TrimSpace(invokePattern.ReplaceAllString(toolCallPattern.ReplaceAllString(line.Result, ""), "")),
 	}
-	for _, m := range toolCallPattern.FindAllStringSubmatch(line.Result, -1) {
-		name := strings.TrimSpace(m[1])
-		if name == "" {
-			continue
-		}
-		args := strings.TrimSpace(m[2])
-		if args == "" {
-			args = "{}"
+	addCall := func(name, args string) {
+		if name = strings.TrimSpace(name); name == "" {
+			return
 		}
 		call := provider.ToolCall{ID: "call_" + strings.ReplaceAll(go_pkg_utils.UUID(), "-", "")[:24], Type: "function"}
 		call.Function.Name = name
 		call.Function.Arguments = args
 		message.ToolCalls = append(message.ToolCalls, call)
+	}
+	for _, m := range toolCallPattern.FindAllStringSubmatch(line.Result, -1) {
+		args := strings.TrimSpace(m[2])
+		if args == "" {
+			args = "{}"
+		}
+		addCall(m[1], args)
+	}
+	for _, m := range invokePattern.FindAllStringSubmatch(line.Result, -1) {
+		addCall(m[1], invokeArguments(m[2]))
 	}
 
 	finish := "stop"
