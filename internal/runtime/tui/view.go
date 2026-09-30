@@ -18,7 +18,7 @@ func (t TUI) View() string {
 	if t.quitting {
 		return ""
 	}
-	if t.popup != nil {
+	if t.popup != nil && t.popupOnScreen {
 		return t.viewPopup()
 	}
 	return t.viewIdle()

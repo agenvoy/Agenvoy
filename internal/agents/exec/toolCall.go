@@ -312,60 +312,6 @@ func truncateWriteArgs(argsJSON string) string {
 	return string(out)
 }
 
-var checkpointClearableTool = map[string]bool{
-	"find_files":  true,
-	"run_command": true,
-}
-
-func hasCompletedTodo(argsJSON string) bool {
-	var p struct {
-		Todos []struct {
-			Status string `json:"status"`
-		} `json:"todos"`
-	}
-	if json.Unmarshal([]byte(argsJSON), &p) != nil {
-		return false
-	}
-	for _, t := range p.Todos {
-		if t.Status == agentTypes.TodoCompleted {
-			return true
-		}
-	}
-	return false
-}
-
-func clearCheckpointedToolResults(sessionData *agentTypes.AgentSession) {
-	start := sessionData.ToolCheckpoint
-	if start < 0 || start >= len(sessionData.ToolHistories) {
-		sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
-		return
-	}
-
-	segment := sessionData.ToolHistories[start:]
-	nameByID := make(map[string]string, len(segment))
-	for _, msg := range segment {
-		for _, tc := range msg.ToolCalls {
-			nameByID[tc.ID] = tc.Function.Name
-		}
-	}
-
-	const cleared = "[cleared after step completed — already acted on]"
-	for i := range segment {
-		msg := &segment[i]
-		if msg.Role != "tool" || msg.ToolCallID == "" {
-			continue
-		}
-		if !checkpointClearableTool[nameByID[msg.ToolCallID]] {
-			continue
-		}
-		if content, ok := msg.Content.(string); ok && content != cleared {
-			msg.Content = cleared
-		}
-	}
-
-	sessionData.ToolCheckpoint = len(sessionData.ToolHistories)
-}
-
 func isSensitiveReadFile(argsJSON string) bool {
 	var p struct {
 		Files []struct {
@@ -472,7 +418,10 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			reason := ""
 			origin := originFor(ctx, sessionData.ID)
 			if runtime.HasListener(origin) {
-				askCtx, cancelAsk := context.WithTimeout(ctx, confirmTimeout)
+				askCtx, cancelAsk := context.WithCancel(ctx)
+				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
+					askCtx, cancelAsk = context.WithTimeout(ctx, confirmTimeout)
+				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:       runtime.KindToolConfirm,
 					SessionID:  sessionData.ID,
@@ -580,6 +529,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	for i := range slots {
 		slot := &slots[i]
 		if slot.state == slotReady && slot.name == "ask_user" && agentTypes.OriginFrom(ctx) != foregroundOrigin {
+			var imageURLs []string
 			for j := range slots {
 				cs := &slots[j]
 				if cs.state == slotReady || cs.name == "ask_user" {
@@ -593,15 +543,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				}
 				switch cs.state {
 				case slotCached:
-					for _, url := range cs.imageURLs {
-						injectImageToUserInput(sessionData, url)
-					}
+					imageURLs = append(imageURLs, cs.imageURLs...)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				default:
 					sessionData.Tools = append(sessionData.Tools, msg)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				}
 			}
+			appendImageMessage(sessionData, imageURLs)
 
 			toolResults := toolResults(sessionData)
 
@@ -651,15 +600,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		return sessionData, alreadyCall, err
 	}
 
-	todoCheckpointHit := false
-
+	var imageURLs []string
 	for i := range slots {
 		s := &slots[i]
 		switch s.state {
 		case slotCached:
-			for _, url := range s.imageURLs {
-				injectImageToUserInput(sessionData, url)
-			}
+			imageURLs = append(imageURLs, s.imageURLs...)
 			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
@@ -697,9 +643,6 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if s.name == "edit_file" && s.execErr == "" {
 			invalidateReadFileCache(alreadyCall, s.args)
 		}
-		if s.name == "write_todo" && s.execErr == "" && hasCompletedTodo(s.args) {
-			todoCheckpointHit = true
-		}
 		if isWriteLikeTool[s.name] && s.execErr == "" {
 			calls[i].Function.Arguments = truncateWriteArgs(calls[i].Function.Arguments)
 		}
@@ -719,9 +662,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		toolMsgContent := strings.TrimSpace(fmt.Sprintf("[%s] %s", s.name, result))
 		if images, rest := splitImageResult(result); len(images) > 0 {
 			toolMsgContent = imageLoadedMessage(s.name, len(images), rest)
-			for _, url := range images {
-				injectImageToUserInput(sessionData, url)
-			}
+			imageURLs = append(imageURLs, images...)
 		}
 		toolMsg := provider.Message{
 			Role:       "tool",
@@ -739,10 +680,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			sessionData.ToolHistories = append(sessionData.ToolHistories, toolMsg)
 		}
 	}
-
-	if todoCheckpointHit {
-		clearCheckpointedToolResults(sessionData)
-	}
+	appendImageMessage(sessionData, imageURLs)
 
 	return sessionData, alreadyCall, nil
 }
@@ -943,18 +881,16 @@ func imageLoadedMessage(toolName string, count int, rest string) string {
 	return msg
 }
 
-func injectImageToUserInput(session *agentTypes.AgentSession, dataURL string) {
-	part := provider.ContentPart{
-		Type:     "image_url",
-		ImageURL: &provider.ImageURL{URL: dataURL, Detail: "auto"},
+func appendImageMessage(session *agentTypes.AgentSession, dataURLs []string) {
+	if len(dataURLs) == 0 {
+		return
 	}
-	switch v := session.UserInput.Content.(type) {
-	case []provider.ContentPart:
-		session.UserInput.Content = append(v, part)
-	case string:
-		session.UserInput.Content = []provider.ContentPart{
-			{Type: "text", Text: v},
-			part,
-		}
+	parts := make([]provider.ContentPart, 0, len(dataURLs))
+	for _, url := range dataURLs {
+		parts = append(parts, provider.ContentPart{
+			Type:     "image_url",
+			ImageURL: &provider.ImageURL{URL: url, Detail: "auto"},
+		})
 	}
+	session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: parts})
 }

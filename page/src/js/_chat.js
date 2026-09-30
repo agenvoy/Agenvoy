@@ -262,6 +262,22 @@ async function renderChat(sessionId) {
   const items = parseActionLog(content);
   const frame = _("temp");
 
+  if (sessionId === currentSessionId) {
+    HISTORY = [];
+    resetTasking();
+    for (const item of items) {
+      if (item.role === "assistant" && item.pending) {
+        if (item.task) {
+          const tasking = taskingOf(item.task);
+          tasking.thinking = item.Reasoning || "";
+          tasking.result = item.content || "";
+        }
+        continue;
+      }
+      HISTORY.push({ role: item.role, content: item.content || "" });
+    }
+  }
+
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item.pending && item.role === "assistant" && i === items.length - 1) {

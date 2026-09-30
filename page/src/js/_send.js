@@ -13,6 +13,77 @@ const SKIP_EVENTS = [
   "EventPending",
 ];
 let currentSessionId = "";
+
+let HISTORY = [];
+const TASK = {};
+const taskingMarks = new Map();
+
+function resetTasking() {
+  for (const hash of Object.keys(TASK)) {
+    delete TASK[hash];
+  }
+  taskingMarks.clear();
+}
+
+function taskingOf(hash) {
+  if (!TASK[hash]) {
+    const asked = HISTORY.findLast((entry) => entry.role === "user");
+    TASK[hash] = { input: asked ? asked.content : "", thinking: "", result: "", is_completed: false };
+    taskingMarks.set(hash, { streamed: false, resumed: false });
+  }
+  return TASK[hash];
+}
+
+function trackTasking(hash, event) {
+  const type = event.type;
+  if (type === "EventAgentResult" || type === "EventSuggest" || type === "EventFileChanged" || type === "EventTodoUpdate") {
+    return;
+  }
+
+  if (type === "EventDone" || type === "EventCanceled" || type === "EventError") {
+    const ended = TASK[hash];
+    if (ended && !ended.is_completed) {
+      ended.is_completed = true;
+      if (type === "EventDone") {
+        HISTORY.push({ role: "assistant", content: ended.result });
+      }
+    }
+    taskingMarks.delete(hash);
+    return;
+  }
+
+  const tasking = taskingOf(hash);
+  const mark = taskingMarks.get(hash);
+  if (!mark) {
+    return;
+  }
+
+  if (type === "EventTextDelta" || type === "EventText") {
+    if (type === "EventText" && mark.streamed) {
+      return;
+    }
+    const text = event.text || "";
+    if (!text) {
+      return;
+    }
+    if (type === "EventTextDelta") {
+      mark.streamed = true;
+    }
+    if (tasking.result && (mark.resumed || type === "EventText")) {
+      tasking.result += mark.resumed ? "\n\n" : "\n";
+    }
+    mark.resumed = false;
+    tasking.result += text;
+    return;
+  }
+
+  const line = (type === "EventReasoning" ? event.text || "" : formatEvent(event)).trim();
+  if (!line) {
+    return;
+  }
+  tasking.thinking += (tasking.thinking ? "\n\n" : "") + line;
+  mark.resumed = Boolean(tasking.result);
+}
 const streamViews = new Map();
 const assistantViews = new WeakMap();
 const assistantItems = new WeakMap();
@@ -229,6 +300,10 @@ async function send(content, target) {
     clearSkill();
   }
 
+  if (primary) {
+    HISTORY.push({ role: "user", content: content });
+  }
+
   const dom = chatMessages(sessionId);
   clearPending(sessionId);
   const running = taskStream(sessionId, inputTasks.get(sessionId) || "");
@@ -379,6 +454,9 @@ function appendInboundUser(text, sessionId) {
   const dom = chatMessages(sessionId);
   if (!dom) {
     return;
+  }
+  if ((sessionId || currentSessionId) === currentSessionId) {
+    HISTORY.push({ role: "user", content: text });
   }
   setStream(sessionId, null);
   dom.appendChild(newUserItem({ content: text, meta: { send_at: sendAt() } }));

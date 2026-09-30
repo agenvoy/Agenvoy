@@ -851,6 +851,15 @@ function renderProviderCatalog(catalog, added) {
 function providerCredentialForm(provider, method, added) {
   const submitLabel = added ? "renew" : method === "oauth" ? "login" : "add";
 
+  if (provider.id === "claude-code") {
+    if (added) {
+      return _("div.row.end");
+    }
+    const start = _("button.submit", { type: "button" }, "add");
+    start.addEventListener("click", () => selectProvider(provider.id));
+    return _("div.row.end", [start]);
+  }
+
   if (method === "oauth") {
     if (modelOAuth.id === provider.id && modelOAuth.code) {
       return _("div.row", [_("p", "enter this code in the browser"), codeButton(modelOAuth.code)]);

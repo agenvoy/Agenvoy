@@ -88,13 +88,13 @@ type betaAnswer struct {
 	} `json:"answers"`
 }
 
-func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, error) {
+func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, int, error) {
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
-		return nil, "", fmt.Errorf("missing key: %s", config.TypesafeKey)
+		return nil, "", 0, fmt.Errorf("missing key: %s", config.TypesafeKey)
 	}
 	if len(candidates) == 0 {
-		return candidates, "", nil
+		return candidates, "", 0, nil
 	}
 
 	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
@@ -155,13 +155,13 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		"Authorization": "Bearer " + key,
 	}, body, "json")
 	if err != nil {
-		return nil, "", fmt.Errorf("go_pkg_http.POST: %w", err)
+		return nil, "", 0, fmt.Errorf("go_pkg_http.POST: %w", err)
 	}
 
 	work := result.Answers["work"].Choice
 	order, ok := config.WorkTiers(work)
 	if !ok {
-		return nil, "", fmt.Errorf("invalid work choice: %q", work)
+		return nil, "", 0, fmt.Errorf("invalid work choice: %q", work)
 	}
 
 	list := make([]string, 0, len(candidates)+1)
@@ -169,25 +169,22 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		list = append(list, choice)
 	}
 	level := config.WorkReasoning(work)
-	if previous != "" && result.Answers["topic"].Choice == betaTopicSame {
-		if len(list) == 0 || list[0] == previous {
-			prev, prevOK := provider.ParseReasoning(previousReasoning)
-			cur, curOK := provider.ParseReasoning(level)
-			if prevOK && (!curOK || prev > cur) {
-				level = previousReasoning
-			}
+	if previous != "" && result.Answers["topic"].Choice == betaTopicSame && (len(list) == 0 || list[0] == previous) {
+		if _, ok := provider.ParseReasoning(previousReasoning); ok {
+			level = previousReasoning
 		}
-		if !slices.Contains(list, previous) {
+		if len(list) == 0 {
 			list = append(list, previous)
 		}
 	}
+	pinned := len(list)
 
 	for _, name := range rankCandidates(work, order, tiers, candidates) {
 		if !slices.Contains(list, name) {
 			list = append(list, name)
 		}
 	}
-	return list, level, nil
+	return list, level, pinned, nil
 }
 
 func betaLastModelTTL(name string) int64 {

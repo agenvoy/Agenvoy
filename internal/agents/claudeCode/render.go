@@ -129,12 +129,13 @@ func fingerprint(m provider.Message) string {
 			sb.WriteString(c.Function.Name)
 			sb.WriteByte(0)
 		}
-		return sb.String()
+	} else {
+		sb.WriteString(m.ToolCallID)
+		sb.WriteByte(0)
+		sb.WriteString(contentText(m.Content))
 	}
-	sb.WriteString(m.ToolCallID)
-	sb.WriteByte(0)
-	sb.WriteString(contentText(m.Content))
-	return sb.String()
+	sum := sha256.Sum256([]byte(sb.String()))
+	return hex.EncodeToString(sum[:])
 }
 
 func toolNames(messages []provider.Message) map[string]string {

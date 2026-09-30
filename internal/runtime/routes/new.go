@@ -77,6 +77,7 @@ func New() *gin.Engine {
 	r.DELETE("/v1/key", localhostOnly(), handler.DeleteKey())
 	r.GET("/v1/keys", localhostOnly(), handler.ListKeys())
 	r.POST("/v1/keys", localhostOnly(), handler.SetKey())
+	r.GET("/v1/voice/live", localhostOnly(), handler.VoiceLive())
 
 	r.GET("/v1/providers", localhostOnly(), handler.ListProviders())
 	r.GET("/v1/providers/quota", localhostOnly(), handler.ListProviderQuota())

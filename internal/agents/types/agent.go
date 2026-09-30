@@ -81,5 +81,4 @@ type AgentSession struct {
 	Sender         string
 	UserSendAt     int64
 	Stateless      bool
-	ToolCheckpoint int
 }

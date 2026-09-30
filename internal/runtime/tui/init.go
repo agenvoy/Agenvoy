@@ -100,6 +100,8 @@ type TUI struct {
 
 	quitting bool
 
+	popupOnScreen bool
+
 	allowAll bool
 }
 
