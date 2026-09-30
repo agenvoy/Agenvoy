@@ -81,19 +81,20 @@ func selectorConfig() (tiers map[string]string, selection string, beta bool) {
 	return tiers, selection, beta
 }
 
-func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string) {
+func runSelector(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, candidates []string, tiers map[string]string, selection string, beta bool, content, sessionID string, dead map[string]bool) ([]string, string, int) {
 	if beta {
 		betaCtx, cancel := context.WithTimeout(ctx, TypesafeCallTimeout)
-		list, level, err := selectAgentBeta(betaCtx, candidates, tiers, content, sessionID)
+		list, level, pinned, err := selectAgentBeta(betaCtx, candidates, tiers, content, sessionID)
 		cancel()
 		if err == nil {
-			return list, level
+			return list, level, pinned
 		}
 		if ctx.Err() == nil {
 			slog.Debug("beta dispatcher failed", slog.String("error", err.Error()))
 		}
 	}
-	return selectAgentDispatcher(ctx, bot, registry, selection, content, sessionID, dead)
+	list, level := selectAgentDispatcher(ctx, bot, registry, selection, content, sessionID, dead)
+	return list, level, 0
 }
 
 func selectAgentDispatcher(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, selection, content, sessionID string, dead map[string]bool) ([]string, string) {
@@ -154,7 +155,7 @@ func selectAgentDispatcher(ctx context.Context, bot agentTypes.Agent, registry a
 }
 
 func selectReasoning(ctx context.Context, bot agentTypes.Agent, registry agentTypes.AgentRegistry, names []string, tiers map[string]string, selection string, beta bool, content, sessionID string) string {
-	_, level := runSelector(ctx, bot, registry, names, tiers, selection, beta, content, sessionID, map[string]bool{})
+	_, level, _ := runSelector(ctx, bot, registry, names, tiers, selection, beta, content, sessionID, map[string]bool{})
 	return level
 }
 
@@ -204,7 +205,7 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 		}
 	}
 
-	list, level := runSelector(ctx, bot, registry, candidates, tiers, selection, beta, userContent, sessionID, dead)
+	list, level, pinned := runSelector(ctx, bot, registry, candidates, tiers, selection, beta, userContent, sessionID, dead)
 
 	picked := []string{}
 	seen := map[string]bool{}
@@ -234,7 +235,12 @@ func SelectAgentNames(ctx context.Context, bot agentTypes.Agent, registry agentT
 	if autoReasoning {
 		reasoning = level
 	}
-	return orderProviders(picked), dead, reasoning
+	sticky := list[:min(pinned, len(list))]
+	head := 0
+	for head < len(picked) && slices.Contains(sticky, picked[head]) {
+		head++
+	}
+	return append(picked[:head:head], orderProviders(picked[head:])...), dead, reasoning
 }
 
 func parseDispatcherReply(raw string) (string, []string) {
