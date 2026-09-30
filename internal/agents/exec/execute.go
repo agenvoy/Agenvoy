@@ -378,6 +378,23 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 	compact.Warm(execCtx)
 
+	compactHistory := func() {
+		compacted := false
+		if !oldHistoriesCompacted {
+			compacted = compact.ExtractOldHistories(execCtx, data.Agent, session, &usage, events)
+			oldHistoriesCompacted = true
+		}
+		if !compacted {
+			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+			compacted = compact.ToolHistory(execCtx, data.Agent, session, &usage, exec.PendingTask)
+		}
+		if compacted {
+			lastInputTokens = 0
+		} else {
+			compactFailed = true
+		}
+	}
+
 	for range limit {
 		if execCtx.Err() != nil {
 			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
@@ -394,20 +411,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if firstAttempt {
 			firstAttempt = false
 		} else if !compactFailed && lastInputTokens >= compact.CheckThreshold(data.Agent.Name()) {
-			compacted := false
-			if !oldHistoriesCompacted {
-				compacted = compact.ExtractOldHistories(execCtx, data.Agent, session, &usage, events)
-				oldHistoriesCompacted = true
-			}
-			if !compacted {
-				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
-				compacted = compact.ToolHistory(execCtx, data.Agent, session, &usage, exec.PendingTask)
-			}
-			if compacted {
-				lastInputTokens = 0
-			} else {
-				compactFailed = true
-			}
+			compactHistory()
 		}
 		assembled := compact.AssembleMessages(session)
 		sendStart := time.Now()
@@ -562,6 +566,15 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
+				if !compactFailed {
+					compactHistory()
+					if !compactFailed {
+						slog.Warn("data.Agent.Send context length exceeded, compacted history",
+							slog.String("session", session.ID),
+							slog.Int("attempts", sendFailCount))
+						continue
+					}
+				}
 				compact.TrimFallback(&session.OldHistories, &session.ToolHistories)
 				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
 					slog.String("session", session.ID),
