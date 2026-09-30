@@ -24,7 +24,7 @@
     "url": "https://cloud.pardn.io/nanomd-pre-test-v1.js"
   },
   {
-    "path": "cloud.pardn.io/voice.js",
-    "url": "https://cloud.pardn.io/voice.js"
+    "path": "cloud.pardn.io/voice-realtime.js",
+    "url": "https://cloud.pardn.io/voice-realtime.js"
   }
 ]
