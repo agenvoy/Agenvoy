@@ -3,12 +3,14 @@ package claudeCode
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
 	"time"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -64,7 +66,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 
 	if len(toolDefs) == 0 || sessionID == "" {
 		p := &process{}
-		if err := p.start(a.model, effort, len(toolDefs) > 0); err != nil {
+		if err := p.start(a.model, effort, len(toolDefs) > 0, "", false, cacheTTLShort); err != nil {
 			return nil, 0, err
 		}
 		defer p.stop()
@@ -74,25 +76,54 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	p := acquire(sessionID + "|" + a.name)
 	defer p.mu.Unlock()
 
+	path := statePath(sessionID, a.name)
+	if !p.loaded {
+		p.loaded = true
+		p.restore(path)
+	}
+
 	spec := specOf(system, effort)
 	tools := renderTools(toolDefs)
 	list := fingerprints(rest)
+	cacheTTL := cacheTTLOf(ctx, sessionID)
+	if p.alive() && p.cacheTTL != cacheTTL {
+		p.stop()
+	}
 
-	reusable := p.alive() && p.spec == spec
+	startFresh := func() ([]map[string]any, error) {
+		p.stop()
+		p.id = go_pkg_utils.UUID()
+		if err := p.start(a.model, effort, true, p.id, false, cacheTTL); err != nil {
+			return nil, err
+		}
+		p.spec = spec
+		p.tools = tools
+		p.sent = nil
+		return renderInitial(system, toolDefs, rest), nil
+	}
+
+	reusable := p.id != "" && p.spec == spec
+	resumed := false
 	var content []map[string]any
 	if reusable && len(list) > len(p.sent) && slices.Equal(list[:len(p.sent)], p.sent) {
 		content = renderMessages(rest[len(p.sent):], toolNames(rest))
 	} else if i := answerIndex(rest, p.lastAnswer); reusable && i >= 0 {
 		content = renderMessages(rest[i+1:], toolNames(rest))
 	} else {
-		p.stop()
-		if err := p.start(a.model, effort, true); err != nil {
+		reusable = false
+	}
+	if !reusable {
+		fresh, err := startFresh()
+		if err != nil {
 			return nil, 0, err
 		}
-		p.spec = spec
-		p.tools = tools
-		p.sent = nil
-		content = renderInitial(system, toolDefs, rest)
+		content = fresh
+	} else if !p.alive() {
+		p.stop()
+		if err := p.start(a.model, effort, true, p.id, true, cacheTTL); err != nil {
+			return nil, 0, err
+		}
+		resumed = true
 	}
 	if tools != p.tools {
 		content = append([]map[string]any{{"type": "text", "text": tools + "\n\n"}}, content...)
@@ -100,8 +131,17 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	}
 
 	out, code, err := p.turn(ctx, content)
+	if err != nil && resumed && ctx.Err() == nil {
+		fresh, startErr := startFresh()
+		if startErr != nil {
+			return nil, 0, startErr
+		}
+		out, code, err = p.turn(ctx, fresh)
+	}
 	if err != nil {
 		p.stop()
+		p.id = ""
+		_ = os.Remove(path)
 		return nil, code, err
 	}
 	message := out.Choices[0].Message
@@ -111,6 +151,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		p.lastAnswer = answerText(message.Content)
 	}
 	p.lastUse = time.Now()
+	p.save(path)
 	return out, code, nil
 }
 

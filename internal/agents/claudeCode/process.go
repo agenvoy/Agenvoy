@@ -6,24 +6,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 )
 
 const (
-	idleTimeout   = 15 * time.Minute
-	reapInterval  = time.Minute
-	stderrLimit   = 8 << 10
-	maxOutputLine = 64 << 20
+	cacheTTLShort   = "5m"
+	cacheTTLLong    = "1h"
+	reasoningAuto   = "auto"
+	placeholderText = "Processing..."
+	idleTimeout     = 15 * time.Minute
+	reapInterval    = time.Minute
+	stderrLimit     = 8 << 10
+	maxOutputLine   = 64 << 20
 )
 
 var (
@@ -40,6 +50,9 @@ type process struct {
 	lines      *bufio.Scanner
 	stderr     *limitedBuffer
 	exited     chan struct{}
+	loaded     bool
+	id         string
+	cacheTTL   string
 	spec       string
 	tools      string
 	sent       []string
@@ -82,9 +95,9 @@ type resultLine struct {
 }
 
 var (
-	toolCallPattern  = regexp.MustCompile(`(?s)<tool_call name="([^"]+)">(.*?)</tool_call>`)
-	invokePattern    = regexp.MustCompile(`(?s)<invoke name="([^"]+)">(.*?)</invoke>`)
-	parameterPattern = regexp.MustCompile(`(?s)<parameter name="([^"]+)">(.*?)</parameter>`)
+	toolCallPattern  = regexp.MustCompile(`(?s)<(?:tool_call|(?:[a-z]+:)?invoke) name="([^"]+)">(.*?)</(?:tool_call|(?:[a-z]+:)?invoke)>`)
+	parameterPattern = regexp.MustCompile(`(?s)<(?:[a-z]+:)?parameter name="([^"]+)">(.*?)</(?:[a-z]+:)?parameter>`)
+	emptyTagsPattern = regexp.MustCompile(`^(?:\s*<[A-Za-z_:]+>\s*</[A-Za-z_:]+>\s*)+$`)
 )
 
 func invokeArguments(body string) string {
@@ -103,6 +116,67 @@ func invokeArguments(body string) string {
 		return "{}"
 	}
 	return string(raw)
+}
+
+type processState struct {
+	PID        int      `json:"pid"`
+	ID         string   `json:"id"`
+	Spec       string   `json:"spec"`
+	Tools      string   `json:"tools"`
+	Sent       []string `json:"sent"`
+	LastAnswer string   `json:"last_answer"`
+}
+
+var stateFileName = strings.NewReplacer("@", "_", "/", "_")
+
+func statePath(sessionID, name string) string {
+	return filepath.Join(filesystem.SessionDir(sessionID), "claude_code_"+stateFileName.Replace(name)+".json")
+}
+
+func (p *process) restore(path string) {
+	state, err := go_pkg_filesystem.ReadJSON[processState](path)
+	if err != nil || state.ID == "" {
+		return
+	}
+	if state.PID != os.Getpid() && pidAlive(state.PID) {
+		return
+	}
+	p.id, p.spec, p.tools, p.sent, p.lastAnswer = state.ID, state.Spec, state.Tools, state.Sent, state.LastAnswer
+}
+
+func (p *process) save(path string) {
+	err := go_pkg_filesystem.WriteJSON(path, processState{
+		PID:        os.Getpid(),
+		ID:         p.id,
+		Spec:       p.spec,
+		Tools:      p.tools,
+		Sent:       p.sent,
+		LastAnswer: p.lastAnswer,
+	}, false)
+	if err != nil {
+		slog.Debug("go_pkg_filesystem.WriteJSON",
+			slog.String("path", path),
+			slog.String("error", err.Error()))
+	}
+}
+
+func cacheTTLOf(ctx context.Context, sessionID string) string {
+	row, ok, err := historyStore.ReadSession(ctx, sessionID)
+	if err != nil || !ok {
+		return cacheTTLShort
+	}
+	if row.Model == "" || row.Model == historyStore.DefaultModel || row.Reasoning == reasoningAuto {
+		return cacheTTLShort
+	}
+	return cacheTTLLong
+}
+
+func pidAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := syscall.Kill(pid, 0)
+	return err == nil || err == syscall.EPERM
 }
 
 func acquire(key string) *process {
@@ -147,7 +221,7 @@ func reap() {
 	}
 }
 
-func (p *process) start(model, effort string, withTools bool) error {
+func (p *process) start(model, effort string, withTools bool, sessionID string, resume bool, cacheTTL string) error {
 	args := []string{
 		"-p",
 		"--input-format", "stream-json",
@@ -158,7 +232,14 @@ func (p *process) start(model, effort string, withTools bool) error {
 		"--tools", "",
 		"--strict-mcp-config",
 		"--safe-mode",
-		"--no-session-persistence",
+	}
+	switch {
+	case sessionID == "":
+		args = append(args, "--no-session-persistence")
+	case resume:
+		args = append(args, "--resume", sessionID)
+	default:
+		args = append(args, "--session-id", sessionID)
 	}
 	if withTools {
 		args = append(args, "--system-prompt", strings.TrimSpace(configs.ClaudeCodeToolPrompt))
@@ -168,6 +249,11 @@ func (p *process) start(model, effort string, withTools bool) error {
 
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = os.TempDir()
+	cmd.Env = append(os.Environ(), "CLAUDE_CODE_PROMPT_CACHE_TTL="+cacheTTL)
+	if sessionID != "" {
+		cmd.Env = append(cmd.Env, "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1")
+	}
+	p.cacheTTL = cacheTTL
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("cmd.StdinPipe: %w", err)
@@ -271,7 +357,11 @@ func (p *process) readResult() (*resultLine, error) {
 func buildOutput(line *resultLine) (*provider.Output, int, error) {
 	message := provider.Message{
 		Role:    "assistant",
-		Content: strings.TrimSpace(invokePattern.ReplaceAllString(toolCallPattern.ReplaceAllString(line.Result, ""), "")),
+		Content: strings.TrimSpace(toolCallPattern.ReplaceAllString(line.Result, "")),
+	}
+	placeholder := emptyTagsPattern.MatchString(message.Content.(string))
+	if placeholder {
+		message.Content = ""
 	}
 	addCall := func(name, args string) {
 		if name = strings.TrimSpace(name); name == "" {
@@ -284,18 +374,21 @@ func buildOutput(line *resultLine) (*provider.Output, int, error) {
 	}
 	for _, m := range toolCallPattern.FindAllStringSubmatch(line.Result, -1) {
 		args := strings.TrimSpace(m[2])
-		if args == "" {
+		switch {
+		case parameterPattern.MatchString(args):
+			args = invokeArguments(args)
+		case args == "":
 			args = "{}"
 		}
 		addCall(m[1], args)
-	}
-	for _, m := range invokePattern.FindAllStringSubmatch(line.Result, -1) {
-		addCall(m[1], invokeArguments(m[2]))
 	}
 
 	finish := "stop"
 	if len(message.ToolCalls) > 0 {
 		finish = "tool_calls"
+		if placeholder {
+			message.Content = placeholderText
+		}
 	} else if message.Content == "" {
 		return nil, 0, fmt.Errorf("claude returned neither an answer nor tool calls")
 	}
