@@ -157,6 +157,9 @@ function parseEvent(event) {
   }
 
   const task = event.task_hash || "";
+  if (active && (task || taskOf(sessionId))) {
+    trackTasking(task || taskOf(sessionId), event);
+  }
   const terminal = event.type === "EventDone" || event.type === "EventCanceled" || event.type === "EventError";
   let view = taskStream(sessionId, task);
   if (!view) {

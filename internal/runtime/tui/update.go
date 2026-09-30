@@ -19,7 +19,13 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
+type popupScreenReady struct{}
+
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(popupScreenReady); ok {
+		t.popupOnScreen = t.popup != nil
+		return t, nil
+	}
 	wasOpen := t.popup != nil
 	next, cmd := t.update(msg)
 	nt, ok := next.(TUI)
@@ -28,8 +34,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch isOpen := nt.popup != nil; {
 	case !wasOpen && isOpen:
-		return nt, tea.Batch(tea.EnterAltScreen, cmd)
+		nt.popupOnScreen = false
+		return nt, tea.Batch(tea.Sequence(tea.EnterAltScreen, func() tea.Msg { return popupScreenReady{} }), cmd)
 	case wasOpen && !isOpen:
+		nt.popupOnScreen = false
 		return nt, tea.Sequence(tea.ExitAltScreen, cmd)
 	}
 	return nt, cmd
