@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -40,8 +41,6 @@ func Selected() string {
 func Enabled() bool {
 	return Selected() != Off
 }
-
-const modelsCacheTTL = 15 * 60
 
 func modelsCacheKey(name string) string {
 	return "provider:models:image:" + name
@@ -68,7 +67,7 @@ func Available(ctx context.Context) []string {
 			}
 
 			base := provider.Config{APIKey: cfg.APIKey, AccountID: cfg.AccountID}
-			models, err := torii.CachedList(ctx, modelsCacheKey(name), modelsCacheTTL, func() ([]string, error) {
+			models, err := torii.CachedList(ctx, modelsCacheKey(name), configs.TTL_MODELS_CACHE_SEC, func() ([]string, error) {
 				switch name {
 				case "openai":
 					return openai.Models(ctx, base, filter)

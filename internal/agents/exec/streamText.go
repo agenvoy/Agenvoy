@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	partialMarkers = []string{"<think>", configs.GuardrailSentinel}
+	partialMarkers = []string{"<think>", configs.BAN_TAG}
 )
 
 func streamSend(

@@ -7,11 +7,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -69,7 +69,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 }
 
 func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Message, reasoning provider.Reasoning) (*provider.Output, time.Duration, error) {
-	sendCtx, cancel := context.WithTimeout(ctx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+	sendCtx, cancel := context.WithTimeout(ctx, time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second)
 	defer cancel()
 
 	sendStart := time.Now()

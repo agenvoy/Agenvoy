@@ -5,10 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
-
-const rateLimitCooldown = 30 * time.Minute
 
 var (
 	cooldownMap      sync.Map
@@ -29,7 +28,7 @@ var (
 )
 
 func Register(agentName string) {
-	cooldownMap.Store(agentName, time.Now().Add(rateLimitCooldown).Unix())
+	cooldownMap.Store(agentName, time.Now().Add(configs.RATE_LIMIT_COOLDOWN).Unix())
 }
 
 func Clear(agentName string) {

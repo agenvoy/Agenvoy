@@ -24,6 +24,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -35,9 +36,7 @@ func lookup(prov string) listFn {
 	filter := provider.ModelFilter{TextOnly: true}
 	switch prov {
 	case claudeCode.Provider:
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
-			return claude.Models(ctx, cfg, filter)
-		}
+		return claudeCode.Models
 	case "openai":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return openai.Models(ctx, cfg, filter)
@@ -110,7 +109,7 @@ func Models(ctx context.Context, name string) ([]string, error) {
 			return CompatModels(ctx, cfg.BaseURL, cfg.APIKey)
 		}
 	}
-	return torii.CachedList(ctx, modelsCacheKey(name), modelsCacheTTL, func() ([]string, error) {
+	return torii.CachedList(ctx, modelsCacheKey(name), configs.TTL_MODELS_CACHE_SEC, func() ([]string, error) {
 		cfg, err := agentKeychain.Config(ctx, name)
 		if err != nil {
 			return nil, err
@@ -118,8 +117,6 @@ func Models(ctx context.Context, name string) ([]string, error) {
 		return fn(ctx, cfg)
 	})
 }
-
-const modelsCacheTTL = 15 * 60
 
 func modelsCacheKey(name string) string {
 	return "provider:models:list:" + strings.TrimSuffix(name, "@")

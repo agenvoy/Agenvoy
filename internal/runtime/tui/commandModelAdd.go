@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/url"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
@@ -60,8 +63,15 @@ type ModelAddAccountIDReplace struct{ replace string }
 type ModelAddAccountIDSubmit struct{ id string }
 type ModelAddGatewayIDPick struct{ chosen string }
 type ModelAddGatewayIDSubmit struct{ id string }
-type CompatModelsResult struct{ ids []string }
-type RemoteModelsResult struct{ ids []string }
+type CompatModelsResult struct {
+	ids     []string
+	windows map[string]string
+}
+
+type RemoteModelsResult struct {
+	ids     []string
+	windows map[string]string
+}
 
 type OAuthInfo struct {
 	url      string
@@ -659,7 +669,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			ids := fetchModelIDs(ctx, url, prov)
-			send(CompatModelsResult{ids: ids})
+			send(CompatModelsResult{ids: ids, windows: modelWindowLabels(ctx, prefix, ids)})
 		}()
 		return t.openModelAddLoading(prov), nil
 	}
@@ -680,7 +690,7 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 					slog.String("provider", prov),
 					slog.Any("error", err))
 			}
-			send(RemoteModelsResult{ids: ids})
+			send(RemoteModelsResult{ids: ids, windows: modelWindowLabels(ctx, prefix, ids)})
 		}()
 		return t.openModelAddLoading(label), nil
 	}
@@ -835,8 +845,10 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	for i, id := range msg.ids {
 		fullName := prefix + id
 		label := id
+		if window := msg.windows[id]; window != "" {
+			label += "  " + window
+		}
 		if existing[fullName] {
-			label += "  (added)"
 			preSelected[i] = true
 		}
 		options[i] = label
@@ -857,20 +869,22 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 }
 
 var modelsProviders = map[string]func(context.Context, provider.Config, provider.ModelFilter) ([]string, error){
-	"codex":             openaicodex.Models,
-	"grok-oauth":        grokoauth.Models,
-	"copilot":           copilot.Models,
-	"cloudflare":        cloudflare.Models,
-	"openai":            openai.Models,
-	"claude":            claude.Models,
-	"gemini":            gemini.Models,
-	"ollama-cloud":      ollamacloud.Models,
-	"grok":              grok.Models,
-	"deepseek":          deepseek.Models,
-	"mistral":           mistral.Models,
-	"nvidia":            nvidia.Models,
-	"openrouter":        openrouter.Models,
-	claudeCode.Provider: claude.Models,
+	"codex":        openaicodex.Models,
+	"grok-oauth":   grokoauth.Models,
+	"copilot":      copilot.Models,
+	"cloudflare":   cloudflare.Models,
+	"openai":       openai.Models,
+	"claude":       claude.Models,
+	"gemini":       gemini.Models,
+	"ollama-cloud": ollamacloud.Models,
+	"grok":         grok.Models,
+	"deepseek":     deepseek.Models,
+	"mistral":      mistral.Models,
+	"nvidia":       nvidia.Models,
+	"openrouter":   openrouter.Models,
+	claudeCode.Provider: func(ctx context.Context, cfg provider.Config, _ provider.ModelFilter) ([]string, error) {
+		return claudeCode.Models(ctx, cfg)
+	},
 }
 
 func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
@@ -903,8 +917,10 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 	for i, id := range msg.ids {
 		fullName := prefix + id
 		label := id
+		if window := msg.windows[id]; window != "" {
+			label += "  " + window
+		}
 		if existing[fullName] {
-			label += "  (added)"
 			preSelected[i] = true
 		}
 		options[i] = label
@@ -930,4 +946,34 @@ func fetchModelIDs(ctx context.Context, baseURL, provider string) []string {
 		return nil
 	}
 	return ids
+}
+
+func modelWindowLabels(ctx context.Context, prefix string, ids []string) map[string]string {
+	dic := make(map[string]string, len(ids))
+	for _, id := range ids {
+		in, out, ok := compact.Window(ctx, prefix+id)
+		if !ok {
+			continue
+		}
+		var parts []string
+		if in > 0 {
+			parts = append(parts, windowTokenText(in))
+		}
+		if out > 0 {
+			parts = append(parts, windowTokenText(out))
+		}
+		dic[id] = strings.Join(parts, "/")
+	}
+	return dic
+}
+
+func windowTokenText(value int) string {
+	switch {
+	case value >= 1_000_000:
+		return fmt.Sprintf("%dM", int(math.Round(float64(value)/1_000_000)))
+	case value >= 1_000:
+		return fmt.Sprintf("%dK", int(math.Round(float64(value)/1_000)))
+	default:
+		return strconv.Itoa(value)
+	}
 }

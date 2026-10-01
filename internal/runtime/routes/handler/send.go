@@ -86,11 +86,9 @@ func Send() gin.HandlerFunc {
 
 		execCtx := agentTypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
 		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
-			withFollowup(execCtx, sessionID, stream, func(wrapped chan<- agentTypes.Event) {
-				if err := exec.Start(execCtx, data, wrapped); err != nil {
-					wrapped <- agentTypes.ErrorEvent(err)
-				}
-			})
+			if err := exec.Start(execCtx, data, stream); err != nil {
+				stream <- agentTypes.ErrorEvent(err)
+			}
 			return nil
 		})
 

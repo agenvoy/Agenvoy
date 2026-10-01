@@ -5,19 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const TimeLayout = "2006-01-02 15:04:05"
-
 var (
-	prefixRegex       = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*\n`)
-	prefixHeadRegex   = regexp.MustCompile(`^(?:sendAt|sender|channelId)\s*:`)
-	legacyBlockRegex  = regexp.MustCompile(`\A\s*-{3,}\n?(?:(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)[^\n]*\n?)+-{3,}\n?`)
-	legacyLineRegex   = regexp.MustCompile(`\A\s*(?:當前時間|工作目錄|傳送者|當前 chat ID|當前 channel)\s*[:：][^\n]*\n?`)
-	legacyTimeRegex   = regexp.MustCompile(`當前時間:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
-	legacySenderRegex = regexp.MustCompile(`傳送者:\s*([^\n]*)`)
+	prefixRegex     = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*\n`)
+	prefixHeadRegex = regexp.MustCompile(`^(?:sendAt|sender|channelId)\s*:`)
 )
 
 type Record struct {
@@ -30,7 +25,7 @@ type Record struct {
 func (r Record) Prefix() string {
 	var parts []string
 	if r.SendAt > 0 {
-		parts = append(parts, "sendAt: "+time.Unix(0, r.SendAt).Format(TimeLayout))
+		parts = append(parts, "sendAt: "+time.Unix(0, r.SendAt).Format(configs.TIME_LAYOUT))
 	}
 	if r.Sender != "" {
 		parts = append(parts, "sender: "+r.Sender)
@@ -78,14 +73,6 @@ func WithPrefix(prefix string, content any) any {
 }
 
 func StripPrefix(content string) string {
-	content = legacyBlockRegex.ReplaceAllString(content, "")
-	for {
-		trimmed := legacyLineRegex.ReplaceAllString(content, "")
-		if trimmed == content {
-			break
-		}
-		content = trimmed
-	}
 	return prefixRegex.ReplaceAllString(content, "")
 }
 
@@ -109,18 +96,6 @@ func normalize(list []Record) []Record {
 		str, ok := r.Content.(string)
 		if !ok {
 			continue
-		}
-		if r.SendAt == 0 {
-			if match := legacyTimeRegex.FindStringSubmatch(str); len(match) > 1 {
-				if t, err := time.ParseInLocation(TimeLayout, match[1], time.Local); err == nil {
-					list[i].SendAt = t.UnixNano()
-				}
-			}
-		}
-		if r.Sender == "" {
-			if match := legacySenderRegex.FindStringSubmatch(str); len(match) > 1 {
-				list[i].Sender = strings.TrimSpace(match[1])
-			}
 		}
 		list[i].Content = StripPrefix(str)
 	}

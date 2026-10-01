@@ -5,6 +5,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 type Result struct {
@@ -15,13 +17,6 @@ type Result struct {
 }
 
 const ftsMinRunes = 3
-
-var searchTimeRanges = map[string]time.Duration{
-	"1d": 24 * time.Hour,
-	"7d": 7 * 24 * time.Hour,
-	"1m": 30 * 24 * time.Hour,
-	"1y": 365 * 24 * time.Hour,
-}
 
 func escapeLike(keyword string) string {
 	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(keyword)
@@ -42,7 +37,7 @@ func Search(sessionID, keyword, timeRange string, limit int) ([]Result, error) {
 	}
 
 	var after int64
-	if d, ok := searchTimeRanges[timeRange]; ok {
+	if d, ok := configs.TIME_RANGES[timeRange]; ok {
 		after = time.Now().Add(-d).UnixNano()
 	}
 

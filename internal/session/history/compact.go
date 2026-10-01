@@ -7,7 +7,7 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
@@ -17,7 +17,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 		return
 	}
 
-	targetBtyes := filesystem.MaxHistoryBytes * 3 / 4
+	targetBtyes := configs.MAX_HISTORY_BYTES * 3 / 4
 	needRemove := currentBytes - targetBtyes
 	if needRemove <= 0 {
 		return

@@ -22,7 +22,7 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 const (
@@ -30,7 +30,6 @@ const (
 	oauthClientKeyPrefix = "MCP_OAUTH_CLIENT_"
 	oauthCallbackPath    = "/callback"
 	oauthCallbackAddr    = "localhost:17988"
-	oauthClientName      = "Agenvoy"
 
 	DefaultRedirectURI = "http://" + oauthCallbackAddr + oauthCallbackPath
 )
@@ -566,7 +565,7 @@ func (r *loginRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
-	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, filesystem.DocumentMaxBytes))
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, configs.MAX_DOCUMENT_BYTES))
 	resp.Body.Close()
 	if readErr != nil {
 		return nil, fmt.Errorf("read %s: %w", req.URL, readErr)
@@ -689,5 +688,5 @@ func registrationClientName(configured, serverURL string) string {
 	if parsed, err := url.Parse(serverURL); err == nil && strings.HasSuffix(strings.ToLower(parsed.Hostname()), "figma.com") {
 		return "Claude Code"
 	}
-	return oauthClientName
+	return configs.APP_NAME
 }

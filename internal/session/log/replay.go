@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -17,7 +18,6 @@ import (
 var (
 	lineRegex     = regexp.MustCompile(`^\[([^\]]+)\]\[([^\]]*)\]\[([^\]]+)\](?:\[([^\]]*)\])?\s*(.*)$`)
 	metaWrapRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n`)
-	cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 )
 
 func RecentEvents(sessionID string, limit int) []agentTypes.Event {
@@ -116,7 +116,7 @@ func parseDone(body string) agentTypes.Event {
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {
-		if m := cacheHitPctRe.FindStringSubmatch(f); m != nil {
+		if m := configs.CACHE_HIT_PCT_REGEX.FindStringSubmatch(f); m != nil {
 			if n, err := strconv.Atoi(m[1]); err == nil {
 				hitPct = n
 			}

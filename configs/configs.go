@@ -2,7 +2,112 @@ package configs
 
 import (
 	"embed"
+	"regexp"
 	"strings"
+	"time"
+)
+
+const (
+	// * App
+	APP_NAME           = "Agenvoy"
+	TIME_LAYOUT        = "2006-01-02 15:04:05"
+	REASONING_AUTO     = "auto"
+	BAN_TAG            = "[KARAPPO]"
+	DAEMON_LOG_CHANNEL = "daemon"
+
+	// * Context
+	COMPACT_THRESHOLD_RATIO = 0.8
+	FALLBACK_CONTEXT_WINDOW = 128_000
+	SUMMARY_RUNES           = 32_000
+
+	// * Cache
+	TTL_MEMORY_SEC       = 90 * 24 * 60 * 60
+	TTL_TOOL_CACHE_SEC   = 30 * 60
+	TTL_MODELS_CACHE_SEC = 15 * 60
+
+	// * Concurrency
+	MAX_CONCURRENT_SUBAGENTS = 3
+	MAX_CONCURRENT_TOOLS     = 5
+	MAX_SESSION_TASKS        = 3
+
+	// * Routing
+	TIMEOUT_DISPATCH_CALL = 30 * time.Second
+
+	// * Jev
+	TIMEOUT_JEV_CALL         = 3 * time.Second
+	MAX_JEV_HISTORY_MESSAGES = 4
+	MAX_JEV_RUNES            = 2048
+
+	// * Retry
+	MAX_RETRY_TIMES             = 3
+	UNRESPONSIVE_PROBE_INTERVAL = 30 * time.Second
+	HEALTH_CHECK_TIMEOUT        = 10 * time.Second
+	SEND_TIMEOUT_RETRY_INTERVAL = 15 * time.Second
+	RATE_LIMIT_COOLDOWN         = 30 * time.Minute
+
+	// * Tool
+	CONFIRM_TIMEOUT        = 5 * time.Minute
+	DEFAULT_TOOL_TIMEOUT   = 15 * time.Minute
+	RUN_COMMAND_TIMEOUT    = 30 * time.Minute
+	MAX_WATCH_SCRIPT_DEPTH = 4
+
+	// * Followup
+	FOLLOWUP_TIMEOUT        = 30 * time.Second
+	FOLLOWUP_MAX_TURNS      = 4
+	FOLLOWUP_MAX_TURN_RUNES = 512
+	FOLLOWUP_MAX_TITLE      = 32
+	FOLLOWUP_MAX_SUGGEST    = 3
+	FOLLOWUP_SUGGEST_RUNES  = 32
+
+	// * Size
+	MAX_DOCUMENT_BYTES       = 1 << 20
+	MAX_PENDING_RESULT_BYTES = MAX_DOCUMENT_BYTES / 32
+	MAX_PENDING_ARGS_BYTES   = MAX_DOCUMENT_BYTES / 256
+
+	// * Endpoint
+	ENDPOINT_LLM_WINDOW    = "https://llm-io.agenvoy.com/"
+	ENDPOINT_UPDATE_SHELL  = "https://agenvoy.com/scripts/update.sh"
+	ENDPOINT_HTML_TEMPLATE = "https://view.agenvoy.com"
+
+	// * Claude Code
+	CLAUDE_IDLE_TIMEOUT  = 15 * time.Minute
+	CLAUDE_REAP_INTERVAL = time.Minute
+)
+
+var (
+	// * Runtime
+	MAX_TOOL_ITERATIONS      = 256
+	AGENT_SEND_TIMEOUT_SEC   = 10 * 60
+	MAX_HISTORY_MESSAGES     = 16
+	MAX_HISTORY_BYTES        = MAX_DOCUMENT_BYTES * 4
+	MAX_SUBAGENT_TIMEOUT_MIN = 30
+	MAX_RESUME_WAIT_MIN      = 60
+
+	// * Pattern
+	RETRY_INTERVALS = []time.Duration{
+		5 * time.Second,
+		10 * time.Second,
+		15 * time.Second,
+	}
+	TIME_RANGES = map[string]time.Duration{
+		"1d": 24 * time.Hour,
+		"7d": 7 * 24 * time.Hour,
+		"1m": 30 * 24 * time.Hour,
+		"1y": 365 * 24 * time.Hour,
+	}
+	USAGE_PERIODS = []struct {
+		Label string
+		Days  int
+	}{
+		{Label: "24h", Days: 1},
+		{Label: "7d", Days: 7},
+		{Label: "28d", Days: 28},
+	}
+
+	// * Regex
+	FRONTMATTER_REGEX   = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
+	HTML_TAG_REGEX      = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
+	CACHE_HIT_PCT_REGEX = regexp.MustCompile(`^\((\d+)%\)$`)
 )
 
 // * Prompts
@@ -157,7 +262,3 @@ func loadOfficialGuides() map[string]string {
 	}
 	return guides
 }
-
-const (
-	GuardrailSentinel = "[KARAPPO]"
-)

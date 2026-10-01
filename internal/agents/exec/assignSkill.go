@@ -15,10 +15,11 @@ func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 	uuid := go_pkg_utils.UUID()
 	raw, _ := json.Marshal(map[string]string{"skill": s.Name})
 
-	tool := provider.ToolCall{ID: uuid, Type: "function"}
-	// TODO: gp append type ToolCallFunction to go-llm-router
-	tool.Function.Name = "run_skill"
-	tool.Function.Arguments = string(raw)
+	tool := provider.ToolCall{
+		ID:       uuid,
+		Type:     "function",
+		Function: provider.ToolCallFunction{Name: "run_skill", Arguments: string(raw)},
+	}
 
 	// * pretend assistant already called this tool, record tool call in history
 	session.ToolHistories = append(session.ToolHistories,

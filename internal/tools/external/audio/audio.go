@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -62,8 +63,6 @@ func TTSEnabled() bool {
 	return SelectedTTS() != Off
 }
 
-const modelsCacheTTL = 15 * 60
-
 func modelsCacheKey(kind, name string) string {
 	return "provider:models:" + kind + ":" + name
 }
@@ -89,7 +88,7 @@ func options(ctx context.Context, kind string, filter llmrouter.ModelFilter) []s
 			if err != nil {
 				return
 			}
-			models, err := torii.CachedList(ctx, modelsCacheKey(kind, name), modelsCacheTTL, func() ([]string, error) {
+			models, err := torii.CachedList(ctx, modelsCacheKey(kind, name), configs.TTL_MODELS_CACHE_SEC, func() ([]string, error) {
 				switch name {
 				case "openai":
 					return openai.Models(ctx, llmrouter.Config{APIKey: cfg.APIKey}, filter)

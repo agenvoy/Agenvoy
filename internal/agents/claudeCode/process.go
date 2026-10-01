@@ -28,10 +28,7 @@ import (
 const (
 	cacheTTLShort   = "5m"
 	cacheTTLLong    = "1h"
-	reasoningAuto   = "auto"
 	placeholderText = "Processing..."
-	idleTimeout     = 15 * time.Minute
-	reapInterval    = time.Minute
 	stderrLimit     = 8 << 10
 	maxOutputLine   = 64 << 20
 )
@@ -165,7 +162,7 @@ func cacheTTLOf(ctx context.Context, sessionID string) string {
 	if err != nil || !ok {
 		return cacheTTLShort
 	}
-	if row.Model == "" || row.Model == historyStore.DefaultModel || row.Reasoning == reasoningAuto {
+	if row.Model == "" || row.Model == historyStore.DefaultModel || row.Reasoning == configs.REASONING_AUTO {
 		return cacheTTLShort
 	}
 	return cacheTTLLong
@@ -203,7 +200,7 @@ func acquire(key string) *process {
 }
 
 func reap() {
-	ticker := time.NewTicker(reapInterval)
+	ticker := time.NewTicker(configs.CLAUDE_REAP_INTERVAL)
 	defer ticker.Stop()
 	for range ticker.C {
 		poolMu.Lock()
@@ -211,7 +208,7 @@ func reap() {
 			if !p.mu.TryLock() {
 				continue
 			}
-			if !p.alive() || time.Since(p.lastUse) > idleTimeout {
+			if !p.alive() || time.Since(p.lastUse) > configs.CLAUDE_IDLE_TIMEOUT {
 				p.stop()
 				delete(pool, key)
 			}
@@ -367,10 +364,11 @@ func buildOutput(line *resultLine) (*provider.Output, int, error) {
 		if name = strings.TrimSpace(name); name == "" {
 			return
 		}
-		call := provider.ToolCall{ID: "call_" + strings.ReplaceAll(go_pkg_utils.UUID(), "-", "")[:24], Type: "function"}
-		call.Function.Name = name
-		call.Function.Arguments = args
-		message.ToolCalls = append(message.ToolCalls, call)
+		message.ToolCalls = append(message.ToolCalls, provider.ToolCall{
+			ID:       "call_" + strings.ReplaceAll(go_pkg_utils.UUID(), "-", "")[:24],
+			Type:     "function",
+			Function: provider.ToolCallFunction{Name: name, Arguments: args},
+		})
 	}
 	for _, m := range toolCallPattern.FindAllStringSubmatch(line.Result, -1) {
 		args := strings.TrimSpace(m[2])

@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 const (
@@ -13,7 +15,6 @@ const (
 )
 
 var (
-	tagRegex   = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
 	fenceRegex = regexp.MustCompile("```([a-zA-Z0-9_+-]*)")
 )
 
@@ -100,7 +101,7 @@ func Chunk(ch Channel, str string) []string {
 
 func scanOpenTags(s string) []openTag {
 	var stack []openTag
-	for _, m := range tagRegex.FindAllStringSubmatch(s, -1) {
+	for _, m := range configs.HTML_TAG_REGEX.FindAllStringSubmatch(s, -1) {
 		closing := m[1] == "/"
 		name := strings.ToLower(m[2])
 		attrs := m[3]

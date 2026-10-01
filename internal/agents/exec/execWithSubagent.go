@@ -26,9 +26,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
-const maxConcurrentSubagents = 3
-
-var subagentSlots = make(chan struct{}, maxConcurrentSubagents)
+var subagentSlots = make(chan struct{}, min(configs.MAX_CONCURRENT_TOOLS, configs.MAX_CONCURRENT_SUBAGENTS))
 
 func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, ignoreHistory bool) (string, error) {
 	registry := agents.Registry()
@@ -152,7 +150,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if deliverTo == "" {
 		deliverTo = agentTypes.SessionIDFrom(ctx)
 	}
-	subCtx, cancel := context.WithTimeout(agentTypes.WithDeliverTo(ctx, deliverTo), time.Duration(filesystem.MaxSubagentTimeoutMin)*time.Minute)
+	subCtx, cancel := context.WithTimeout(agentTypes.WithDeliverTo(ctx, deliverTo), time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN)*time.Minute)
 	defer cancel()
 
 	parentEvents, ok := ctx.Value(parentEventsKey{}).(chan<- agentTypes.Event)

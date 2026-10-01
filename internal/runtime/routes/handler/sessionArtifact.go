@@ -10,20 +10,12 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
-
-var usagePeriods = []struct {
-	label string
-	days  int
-}{
-	{label: "24h", days: 1},
-	{label: "7d", days: 7},
-	{label: "28d", days: 28},
-}
 
 func sessionChatLog(sid string) (string, error) {
 	path := filesystem.ActionLogPath(sid)
@@ -39,13 +31,13 @@ func sessionChatLog(sid string) (string, error) {
 
 func sessionUsage(sid string) (map[string]map[string]usagelog.ModelUsage, error) {
 	now := time.Now()
-	periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
-	for _, period := range usagePeriods {
-		summary, err := usagelog.Usage(sid, period.days, now)
+	periods := make(map[string]map[string]usagelog.ModelUsage, len(configs.USAGE_PERIODS))
+	for _, period := range configs.USAGE_PERIODS {
+		summary, err := usagelog.Usage(sid, period.Days, now)
 		if err != nil {
 			return nil, err
 		}
-		periods[period.label] = summary
+		periods[period.Label] = summary
 	}
 	return periods, nil
 }
@@ -54,14 +46,14 @@ func GetTotalUsage() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 
-		periods := make(map[string]map[string]usagelog.ModelUsage, len(usagePeriods))
-		for _, period := range usagePeriods {
-			summary, err := usagelog.Total(period.days, now)
+		periods := make(map[string]map[string]usagelog.ModelUsage, len(configs.USAGE_PERIODS))
+		for _, period := range configs.USAGE_PERIODS {
+			summary, err := usagelog.Total(period.Days, now)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			periods[period.label] = summary
+			periods[period.Label] = summary
 		}
 		c.JSON(http.StatusOK, gin.H{"periods": periods})
 	}

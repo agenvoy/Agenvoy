@@ -51,8 +51,5 @@ func ResetAll(sessionID string) (int, error) {
 	if err := os.Remove(filesystem.SummaryCursorPath(sessionID)); err != nil && !os.IsNotExist(err) {
 		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.SummaryCursorPath(sessionID), err)
 	}
-	if err := os.Remove(filesystem.LegacySummaryMetaPath(sessionID)); err != nil && !os.IsNotExist(err) {
-		return keys, fmt.Errorf("os.Remove [%s]: %w", filesystem.LegacySummaryMetaPath(sessionID), err)
-	}
 	return keys, nil
 }

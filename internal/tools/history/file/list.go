@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
@@ -55,7 +56,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 			"session_id": row.SessionID,
 			"task_id":    row.TaskID,
 			"objective":  actionHistory.Objective(row.SessionID, row.TaskID),
-			"changed_at": time.Unix(0, row.ChangedAt).Format(historyStore.TimeLayout),
+			"changed_at": time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT),
 		}
 		if reason := row.RestoreBlock(); reason != "" {
 			item["restorable"] = false

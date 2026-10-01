@@ -11,7 +11,7 @@ import (
 
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/configs"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -76,7 +76,7 @@ Fetching any other web page → fetch_page.`,
 func listHTMLTemplate(ctx context.Context) (string, error) {
 	body, _, err := go_pkg_http.GET[struct {
 		Templates []htmlTemplate `json:"templates"`
-	}](ctx, http.DefaultClient, runtime.ENDPOINT_HTML_TEMPLATE+"/list", nil)
+	}](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/list", nil)
 	if err != nil {
 		return "", fmt.Errorf("go_pkg_http.GET: %w", err)
 	}
@@ -92,7 +92,7 @@ func listHTMLTemplate(ctx context.Context) (string, error) {
 }
 
 func readHTMLTemplate(ctx context.Context, name string) (string, error) {
-	body, _, err := go_pkg_http.GET[string](ctx, http.DefaultClient, runtime.ENDPOINT_HTML_TEMPLATE+"/view/"+url.PathEscape(name), nil)
+	body, _, err := go_pkg_http.GET[string](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/view/"+url.PathEscape(name), nil)
 	if err != nil {
 		return "", fmt.Errorf("go_pkg_http.GET %s: %w; call mode=list for valid names", name, err)
 	}

@@ -2,19 +2,17 @@ package tui
 
 import (
 	"errors"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
-
-var cacheHitPctRe = regexp.MustCompile(`^\((\d+)%\)$`)
 
 type parsedAction struct {
 	timestamp string
@@ -172,7 +170,7 @@ func formatDone(body string) agentTypes.Event {
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {
-		if m := cacheHitPctRe.FindStringSubmatch(f); m != nil {
+		if m := configs.CACHE_HIT_PCT_REGEX.FindStringSubmatch(f); m != nil {
 			if n, err := strconv.Atoi(m[1]); err == nil {
 				hitPct = n
 			}

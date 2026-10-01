@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -23,7 +24,7 @@ func restore(ctx context.Context, id int64, meta Meta) (string, bool, error) {
 		return "", false, err
 	}
 	if reason := row.RestoreBlock(); reason != "" {
-		return "", false, fmt.Errorf("%s cannot be restored to %s: %s", filepath.Join(row.Dir, row.Name), time.Unix(0, row.ChangedAt).Format(TimeLayout), reason)
+		return "", false, fmt.Errorf("%s cannot be restored to %s: %s", filepath.Join(row.Dir, row.Name), time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT), reason)
 	}
 
 	path := filepath.Join(row.Dir, row.Name)
@@ -47,7 +48,7 @@ func restoreCreate(ctx context.Context, row Row, path string, meta Meta) (string
 	if err != nil {
 		return "", false, fmt.Errorf("internal/filesystem: MoveToStoreTemp: %w", err)
 	}
-	done := fmt.Sprintf("%s did not exist yet at %s, so it is now removed to %s", path, time.Unix(0, row.ChangedAt).Format(TimeLayout), trashPath)
+	done := fmt.Sprintf("%s did not exist yet at %s, so it is now removed to %s", path, time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT), trashPath)
 	if err := RecordDelete(ctx, path, trashPath, meta); err != nil {
 		return done + fmt.Sprintf(notRecorded, err), true, nil
 	}
@@ -60,7 +61,7 @@ func restoreModify(ctx context.Context, row Row, path string, content []byte, me
 		return "", false, fmt.Errorf("Capture [%s]: %w", path, err)
 	}
 	if change.hash != "" && change.hash == row.Hash {
-		return fmt.Sprintf("%s already holds its version from %s", path, time.Unix(0, row.ChangedAt).Format(TimeLayout)), false, nil
+		return fmt.Sprintf("%s already holds its version from %s", path, time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT)), false, nil
 	}
 
 	if row.TrashPath != "" {
@@ -71,7 +72,7 @@ func restoreModify(ctx context.Context, row Row, path string, content []byte, me
 		return "", false, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteFile [%s]: %w", path, err)
 	}
 
-	done := fmt.Sprintf("%s rolled back to its version from %s (%d bytes)", path, time.Unix(0, row.ChangedAt).Format(TimeLayout), row.Size)
+	done := fmt.Sprintf("%s rolled back to its version from %s (%d bytes)", path, time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT), row.Size)
 	if err := recordRestored(ctx, change, path, meta); err != nil {
 		return done + fmt.Sprintf(notRecorded, err), true, nil
 	}
@@ -118,7 +119,7 @@ func RestoreTo(ctx context.Context, id int64, meta Meta) (string, error) {
 	}
 
 	path := filepath.Join(row.Dir, row.Name)
-	asked := fmt.Sprintf("%s (version %d)", time.Unix(0, row.ChangedAt).Format(TimeLayout), row.ID)
+	asked := fmt.Sprintf("%s (version %d)", time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT), row.ID)
 
 	var nextID int64
 	err = conn.Read.QueryRowContext(ctx, `

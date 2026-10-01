@@ -8,14 +8,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-)
-
-const (
-	daemonLogChannel = "daemon"
 )
 
 type daemonLogHandler struct {
@@ -69,7 +65,7 @@ func InstallDaemonLog() {
 	daemonLogOnce.Do(func() {
 		go func() {
 			for event := range daemonLogQueue {
-				pubsub.Pub(daemonLogChannel, event)
+				pubsub.Pub(configs.DAEMON_LOG_CHANNEL, event)
 			}
 		}()
 	})
@@ -94,7 +90,7 @@ func (w *daemonLogWriter) Write(raw []byte) (int, error) {
 
 	n, err := os.Stderr.Write(raw)
 	w.size += int64(n)
-	if w.size <= filesystem.DocumentMaxBytes {
+	if w.size <= configs.MAX_DOCUMENT_BYTES {
 		return n, err
 	}
 	if record.TrimLog() == nil {

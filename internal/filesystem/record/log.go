@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -19,12 +20,12 @@ func TrimLog() error {
 	if err != nil {
 		return fmt.Errorf("file.Stat [%s]: %w", filesystem.DaemonLogPath, err)
 	}
-	if stat.Size() <= filesystem.DocumentMaxBytes {
+	if stat.Size() <= configs.MAX_DOCUMENT_BYTES {
 		return nil
 	}
 
-	raw := make([]byte, filesystem.DocumentMaxBytes*3/4)
-	if _, err := file.ReadAt(raw, stat.Size()-filesystem.DocumentMaxBytes*3/4); err != nil {
+	raw := make([]byte, configs.MAX_DOCUMENT_BYTES*3/4)
+	if _, err := file.ReadAt(raw, stat.Size()-configs.MAX_DOCUMENT_BYTES*3/4); err != nil {
 		return fmt.Errorf("file.ReadAt [%s]: %w", filesystem.DaemonLogPath, err)
 	}
 	if i := bytes.IndexByte(raw, '\n'); i >= 0 {

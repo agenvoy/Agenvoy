@@ -20,15 +20,6 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const (
-	Timeout      = 30 * time.Second
-	maxTurns     = 6
-	maxTurnRunes = 600
-	maxTitle     = 40
-	maxSuggest   = 3
-	suggestRunes = 40
-)
-
 var jsonRegex = regexp.MustCompile(`(?s)\{.*\}`)
 
 type Result struct {
@@ -51,7 +42,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 		return Result{}
 	}
 
-	sendCtx, cancel := context.WithTimeout(agentTypes.WithSessionID(ctx, sessionID), Timeout)
+	sendCtx, cancel := context.WithTimeout(agentTypes.WithSessionID(ctx, sessionID), configs.FOLLOWUP_TIMEOUT)
 	defer cancel()
 
 	sendStart := time.Now()
@@ -114,16 +105,16 @@ func parse(content string) Result {
 		return Result{}
 	}
 
-	out := Result{Title: clamp(raw.Title, maxTitle)}
+	out := Result{Title: clamp(raw.Title, configs.FOLLOWUP_MAX_TITLE)}
 	seen := make(map[string]bool, len(raw.Suggests))
 	for _, s := range raw.Suggests {
-		s = clamp(s, suggestRunes)
+		s = clamp(s, configs.FOLLOWUP_SUGGEST_RUNES)
 		if s == "" || seen[s] {
 			continue
 		}
 		seen[s] = true
 		out.Suggests = append(out.Suggests, s)
-		if len(out.Suggests) == maxSuggest {
+		if len(out.Suggests) == configs.FOLLOWUP_MAX_SUGGEST {
 			break
 		}
 	}
@@ -139,13 +130,13 @@ func clamp(str string, limit int) string {
 }
 
 func transcript(histories []sessionHistory.Record) string {
-	if len(histories) > maxTurns {
-		histories = histories[len(histories)-maxTurns:]
+	if len(histories) > configs.FOLLOWUP_MAX_TURNS {
+		histories = histories[len(histories)-configs.FOLLOWUP_MAX_TURNS:]
 	}
 
 	var sb strings.Builder
 	for _, record := range histories {
-		text := clamp(record.Text(), maxTurnRunes)
+		text := clamp(record.Text(), configs.FOLLOWUP_MAX_TURN_RUNES)
 		if text == "" {
 			continue
 		}

@@ -40,11 +40,11 @@ func splitThinkTag(s string) (think, rest string) {
 }
 
 func isGuardrailRefusal(content string) bool {
-	return strings.Contains(content, configs.GuardrailSentinel)
+	return strings.Contains(content, configs.BAN_TAG)
 }
 
 func guardrailLabel(content string) string {
-	_, rest, ok := strings.Cut(content, configs.GuardrailSentinel)
+	_, rest, ok := strings.Cut(content, configs.BAN_TAG)
 	if !ok {
 		return ""
 	}

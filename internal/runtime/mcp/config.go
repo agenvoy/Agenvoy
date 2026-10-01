@@ -10,13 +10,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -154,7 +154,7 @@ func headerClient(headers map[string]string) *http.Client {
 	if base, ok := http.DefaultTransport.(*http.Transport); ok {
 		transport = base.Clone()
 	}
-	transport.ResponseHeaderTimeout = 60 * time.Second
+	transport.ResponseHeaderTimeout = configs.DEFAULT_TOOL_TIMEOUT
 
 	var roundTripper http.RoundTripper = transport
 	if len(headers) > 0 {
@@ -176,7 +176,7 @@ func (r *jsonrpcStatusRoundTripper) RoundTrip(req *http.Request) (*http.Response
 		return resp, nil
 	}
 
-	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, filesystem.DocumentMaxBytes*8))
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, configs.MAX_DOCUMENT_BYTES*8))
 	resp.Body.Close()
 	if readErr != nil {
 		return nil, fmt.Errorf("read forbidden body: %w", readErr)
