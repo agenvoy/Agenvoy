@@ -76,10 +76,15 @@ func limitPair(modelName string) (string, string) {
 	if !ok {
 		return "", ""
 	}
+	if prefix == "claude-code" {
+		model = claudeDateSuffix.ReplaceAllString(model, "")
+	}
 	return vendor, claudeVersion(vendor, model)
 }
 
 var claudeDashVersion = regexp.MustCompile(`^(claude-.*-\d+)-(\d{1,2})$`)
+
+var claudeDateSuffix = regexp.MustCompile(`-\d{8}$`)
 
 func claudeVersion(vendor, model string) string {
 	if vendor != "claude" {

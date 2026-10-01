@@ -36,9 +36,7 @@ func lookup(prov string) listFn {
 	filter := provider.ModelFilter{TextOnly: true}
 	switch prov {
 	case claudeCode.Provider:
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
-			return claude.Models(ctx, cfg, filter)
-		}
+		return claudeCode.Models
 	case "openai":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
 			return openai.Models(ctx, cfg, filter)

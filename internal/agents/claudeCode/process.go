@@ -364,10 +364,11 @@ func buildOutput(line *resultLine) (*provider.Output, int, error) {
 		if name = strings.TrimSpace(name); name == "" {
 			return
 		}
-		call := provider.ToolCall{ID: "call_" + strings.ReplaceAll(go_pkg_utils.UUID(), "-", "")[:24], Type: "function"}
-		call.Function.Name = name
-		call.Function.Arguments = args
-		message.ToolCalls = append(message.ToolCalls, call)
+		message.ToolCalls = append(message.ToolCalls, provider.ToolCall{
+			ID:       "call_" + strings.ReplaceAll(go_pkg_utils.UUID(), "-", "")[:24],
+			Type:     "function",
+			Function: provider.ToolCallFunction{Name: name, Arguments: args},
+		})
 	}
 	for _, m := range toolCallPattern.FindAllStringSubmatch(line.Result, -1) {
 		args := strings.TrimSpace(m[2])
