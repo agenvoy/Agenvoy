@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var timeLayouts = []string{
 	time.RFC3339,
-	historyStore.TimeLayout,
+	configs.TIME_LAYOUT,
 	"2006-01-02T15:04:05",
 	"2006-01-02 15:04",
 	"2006-01-02",

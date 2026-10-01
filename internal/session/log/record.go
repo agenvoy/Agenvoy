@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -122,7 +123,7 @@ func appendAction(sessionID, line string) {
 	}
 
 	info, err := os.Stat(path)
-	if err != nil || info.Size() <= filesystem.DocumentMaxBytes {
+	if err != nil || info.Size() <= configs.MAX_DOCUMENT_BYTES {
 		return
 	}
 	trim(path)
@@ -138,11 +139,11 @@ func trim(path string) {
 	}
 
 	data := []byte(text)
-	if len(data) <= filesystem.DocumentMaxBytes {
+	if len(data) <= configs.MAX_DOCUMENT_BYTES {
 		return
 	}
 
-	cut := max(len(data)-filesystem.DocumentMaxBytes*3/4, 0)
+	cut := max(len(data)-configs.MAX_DOCUMENT_BYTES*3/4, 0)
 	for cut < len(data) && data[cut] != '\n' {
 		cut++
 	}

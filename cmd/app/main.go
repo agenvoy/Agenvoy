@@ -10,6 +10,7 @@ import (
 	"slices"
 	"syscall"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -115,8 +116,8 @@ func update() {
 		os.Exit(130)
 	}()
 
-	fmt.Printf("Fetching updater from %s -> %s\n", runtime.ENDPOINT_UPDATE_SHELL, tmpPath)
-	curl := osexec.Command("curl", "-fsSL", runtime.ENDPOINT_UPDATE_SHELL, "-o", tmpPath)
+	fmt.Printf("Fetching updater from %s -> %s\n", configs.ENDPOINT_UPDATE_SHELL, tmpPath)
+	curl := osexec.Command("curl", "-fsSL", configs.ENDPOINT_UPDATE_SHELL, "-o", tmpPath)
 	curl.Stdout = os.Stdout
 	curl.Stderr = os.Stderr
 	if err := curl.Run(); err != nil {

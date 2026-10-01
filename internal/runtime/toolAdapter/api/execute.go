@@ -12,6 +12,8 @@ import (
 
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 func (a *Adapter) Execute(ctx context.Context, name string, params map[string]any) (string, error) {
@@ -58,11 +60,11 @@ func (a *Adapter) send(ctx context.Context, key string, doc *Document, params ma
 		}
 	}
 
-	sec := doc.Endpoint.Timeout
-	if sec <= 0 {
-		sec = 60
+	timeout := configs.DEFAULT_TOOL_TIMEOUT
+	if doc.Endpoint.Timeout > 0 {
+		timeout = time.Duration(doc.Endpoint.Timeout) * time.Second
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, time.Duration(sec)*time.Second)
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	name := a.prefix + key
@@ -120,7 +122,7 @@ func (a *Adapter) send(ctx context.Context, key string, doc *Document, params ma
 		case <-ticker.C:
 			slog.Debug("running",
 				slog.String("name", name),
-				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), sec)))
+				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), int(timeout.Seconds()))))
 
 		case <-reqCtx.Done():
 			return "", reqCtx.Err()

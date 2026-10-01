@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
-
-const TimeLayout = "2006-01-02 15:04:05"
 
 var (
 	prefixRegex     = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*\n`)
@@ -26,7 +25,7 @@ type Record struct {
 func (r Record) Prefix() string {
 	var parts []string
 	if r.SendAt > 0 {
-		parts = append(parts, "sendAt: "+time.Unix(0, r.SendAt).Format(TimeLayout))
+		parts = append(parts, "sendAt: "+time.Unix(0, r.SendAt).Format(configs.TIME_LAYOUT))
 	}
 	if r.Sender != "" {
 		parts = append(parts, "sender: "+r.Sender)

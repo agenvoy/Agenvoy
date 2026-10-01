@@ -10,9 +10,9 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	"mvdan.cc/sh/v3/syntax"
-)
 
-const maxWatchScriptDepth = 5
+	"github.com/pardnchiu/agenvoy/configs"
+)
 
 var watchBinaries = map[string]bool{
 	"chokidar": true,
@@ -23,15 +23,15 @@ var packageRunners = map[string]bool{
 }
 
 func watchCommandErr(command string) error {
-	return fmt.Errorf("%q starts a file watcher that never exits; run_command waits for the process to end, so it would hang until the %s timeout. Run a one-shot build instead (e.g. the same tool without --watch, or the package script that builds once) and do not retry this command", command, runCommandTimeout)
+	return fmt.Errorf("%q starts a file watcher that never exits; run_command waits for the process to end, so it would hang until the %s timeout. Run a one-shot build instead (e.g. the same tool without --watch, or the package script that builds once) and do not retry this command", command, configs.RUN_COMMAND_TIMEOUT)
 }
 
 func isWatchFlag(arg string) bool {
 	return arg == "--watch" || strings.HasPrefix(arg, "--watch=")
 }
 
-func checkWatchArgs(args []string, dir string, depth int) error {
-	if len(args) == 0 || depth > maxWatchScriptDepth {
+func checkWatchArgs(args []string, dir string, depth int, seen map[string]bool) error {
+	if len(args) == 0 || depth > configs.MAX_WATCH_SCRIPT_DEPTH {
 		return nil
 	}
 
@@ -40,7 +40,7 @@ func checkWatchArgs(args []string, dir string, depth int) error {
 		return watchCommandErr(strings.Join(args, " "))
 	}
 	if (base == "sh" || base == "bash") && len(args) >= 3 && args[1] == "-c" {
-		return checkWatchScript(args[2], dir, depth+1)
+		return checkWatchScript(args[2], dir, depth+1, seen)
 	}
 	if !packageRunners[base] {
 		return nil
@@ -54,13 +54,18 @@ func checkWatchArgs(args []string, dir string, depth int) error {
 	if script == "" {
 		return nil
 	}
-	if err := checkWatchScript(script, pkgDir, depth+1); err != nil {
+	key := filepath.Join(pkgDir, "package.json") + "#" + name
+	if seen[key] {
+		return nil
+	}
+	seen[key] = true
+	if err := checkWatchScript(script, pkgDir, depth+1, seen); err != nil {
 		return fmt.Errorf("%q runs package script %q (%s): %w", strings.Join(args, " "), name, script, err)
 	}
 	return nil
 }
 
-func checkWatchScript(script, dir string, depth int) error {
+func checkWatchScript(script, dir string, depth int, seen map[string]bool) error {
 	file, err := syntax.NewParser().Parse(strings.NewReader(script), "")
 	if err != nil {
 		return nil
@@ -91,7 +96,7 @@ func checkWatchScript(script, dir string, depth int) error {
 			}
 			return true
 		}
-		bad = checkWatchArgs(args, dir, depth)
+		bad = checkWatchArgs(args, dir, depth, seen)
 		return bad == nil
 	})
 	return bad

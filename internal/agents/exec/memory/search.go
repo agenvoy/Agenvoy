@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
@@ -80,7 +81,7 @@ func vectorSearch(ctx context.Context, db *torii.Session, pattern, keyword strin
 		if err := json.Unmarshal([]byte(entry.Value()), &rec); err != nil {
 			continue
 		}
-		if err := db.Expire(ctx, key, ttlSeconds); err != nil {
+		if err := db.Expire(ctx, key, configs.TTL_MEMORY_SEC); err != nil {
 			slog.Debug("memory.Expire",
 				slog.String("key", key),
 				slog.String("error", err.Error()))
@@ -144,7 +145,7 @@ func scanWithFilter(ctx context.Context, db *torii.Session, pattern string, matc
 		}
 	}
 
-	if err := db.ExpireMany(ctx, touched, ttlSeconds); err != nil {
+	if err := db.ExpireMany(ctx, touched, configs.TTL_MEMORY_SEC); err != nil {
 		slog.Debug("memory.ExpireMany", slog.String("error", err.Error()))
 	}
 	return out

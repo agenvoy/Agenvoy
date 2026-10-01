@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -204,11 +205,6 @@ A credential is never asked for here → store_secret.`,
 	})
 }
 
-const (
-	maxPendingResultBytes = 4 << 10
-	maxPendingArgsBytes   = 1 << 10
-)
-
 func clampPendingText(text string, limit int) string {
 	if len(text) <= limit {
 		return text
@@ -242,8 +238,8 @@ func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	meta.TaskHash = taskHash
 	meta.SessionID = sessionID
 	for i := range meta.ToolResults {
-		meta.ToolResults[i].Args = clampPendingText(meta.ToolResults[i].Args, maxPendingArgsBytes)
-		meta.ToolResults[i].Result = clampPendingText(meta.ToolResults[i].Result, maxPendingResultBytes)
+		meta.ToolResults[i].Args = clampPendingText(meta.ToolResults[i].Args, configs.MAX_PENDING_ARGS_BYTES)
+		meta.ToolResults[i].Result = clampPendingText(meta.ToolResults[i].Result, configs.MAX_PENDING_RESULT_BYTES)
 	}
 
 	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, false); err != nil {
@@ -590,7 +586,7 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 
 	if len(meta.ToolResults) > 0 {
 		msg.WriteString("\n## Completed Tool Results\n")
-		msg.WriteString("Actual output from each tool call completed before this task was interrupted — this is the ground truth referenced above, use it directly instead of re-deriving or guessing.\n")
+		msg.WriteString("Actual output from each tool call completed before this task was interrupted — this is the ground truth referenced above, use it directly instead of re-deriving or guessing. A result or args containing `...[N bytes elided]...` is truncated: when the elided part matters, call the same tool with the same args again instead of filling the gap yourself.\n")
 		for _, tr := range meta.ToolResults {
 			msg.WriteString(fmt.Sprintf("\n### %s (id=%s)\n", tr.Name, tr.ID))
 			if tr.Args != "" {

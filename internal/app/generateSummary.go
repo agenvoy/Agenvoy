@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionSummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )
@@ -22,7 +22,7 @@ func GenerateSummary() {
 		if len(histories) == 0 {
 			continue
 		}
-		bgCtx, cancel := context.WithTimeout(context.Background(), time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+		bgCtx, cancel := context.WithTimeout(context.Background(), time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second)
 		err := agentSummary.Generate(bgCtx, sid, histories)
 		cancel()
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -23,7 +23,7 @@ func registSubagents() {
 		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Timeout:     time.Duration(filesystem.MaxSubagentTimeoutMin) * time.Minute,
+		Timeout:     time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN) * time.Minute,
 		Description: `Runs a subtask in its own session (invoke), or looks up a named agent's self id (list).
 Naming an agent is an order: 呼叫 X / 請 X / 找 X / call X / ask X → dispatch to X, never answer it yourself.
 Also fan out when one lookup repeats across 3+ entities or 2+ source classes.

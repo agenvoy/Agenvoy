@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -29,10 +29,7 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const (
-	maxConcurrentTools = 5
-	foregroundOrigin   = "cli-"
-)
+const foregroundOrigin = "cli-"
 
 func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string, toolResults []interactive.ToolResult, files []string) {
 	defer func() {
@@ -82,8 +79,6 @@ func deliverFor(ctx context.Context, sessionID string) string {
 	}
 	return sessionID
 }
-
-const confirmTimeout = 5 * time.Minute
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
@@ -420,7 +415,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			if runtime.HasListener(origin) {
 				askCtx, cancelAsk := context.WithCancel(ctx)
 				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
-					askCtx, cancelAsk = context.WithTimeout(ctx, confirmTimeout)
+					askCtx, cancelAsk = context.WithTimeout(ctx, configs.CONFIRM_TIMEOUT)
 				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
 					Kind:       runtime.KindToolConfirm,
@@ -438,12 +433,12 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 						ToolName: toolName,
 						ToolArgs: toolArg,
 						ToolID:   toolID,
-						Text:     "no answer within " + confirmTimeout.String() + "; task kept as pending",
+						Text:     "no answer within " + configs.CONFIRM_TIMEOUT.String() + "; task kept as pending",
 					}
 					if exec.CancelExecution != nil {
 						exec.CancelExecution()
 					}
-					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", confirmTimeout)
+					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", configs.CONFIRM_TIMEOUT)
 				}
 				if errors.Is(err, context.Canceled) {
 					if errors.Is(context.Cause(ctx), runtime.ErrUserCanceled) {
@@ -563,7 +558,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	}
 
 	var wg sync.WaitGroup
-	toolSlots := make(chan struct{}, maxConcurrentTools)
+	toolSlots := make(chan struct{}, configs.MAX_CONCURRENT_TOOLS)
 	for i := range slots {
 		s := &slots[i]
 		if s.state != slotReady {

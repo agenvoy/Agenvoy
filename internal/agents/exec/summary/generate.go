@@ -20,10 +20,6 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const (
-	summaryChunkRunes = 32_000
-)
-
 var (
 	fencedBlockRegex    = regexp.MustCompile("(?s)" + "```" + `(?:json|summary)\s*\n([\s\S]*?)\s*\n` + "```")
 	summaryTagRegex     = regexp.MustCompile(`(?s)<summary>\s*([\s\S]*?)\s*</summary>`)
@@ -97,7 +93,7 @@ func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessio
 		end, total := i, 0
 		for end < len(histories) {
 			n := contentRunes(histories[end])
-			if end > i && total+n > summaryChunkRunes {
+			if end > i && total+n > configs.SUMMARY_RUNES {
 				break
 			}
 			total += n
@@ -184,5 +180,5 @@ func extractTime(msg sessionHistory.Record) string {
 	if msg.SendAt <= 0 {
 		return ""
 	}
-	return time.Unix(0, msg.SendAt).Format(sessionHistory.TimeLayout)
+	return time.Unix(0, msg.SendAt).Format(configs.TIME_LAYOUT)
 }

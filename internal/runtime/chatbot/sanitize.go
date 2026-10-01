@@ -3,6 +3,8 @@ package chatbot
 import (
 	"regexp"
 	"strings"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 var (
@@ -17,13 +19,12 @@ var (
 		"tg-spoiler": true, "tg-emoji": true,
 		"span": true,
 	}
-	htmlTagRegex    = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
 	allowedTagRegex = regexp.MustCompile(`<(/?)(?i)(b|strong|i|em|u|ins|s|strike|del|code|pre|a|blockquote|tg-spoiler|tg-emoji|span)(\s[^>]*)?>`)
 )
 
 func SanitizeTelegramHTML(s string) string {
-	s = htmlTagRegex.ReplaceAllStringFunc(s, func(tag string) string {
-		m := htmlTagRegex.FindStringSubmatch(tag)
+	s = configs.HTML_TAG_REGEX.ReplaceAllStringFunc(s, func(tag string) string {
+		m := configs.HTML_TAG_REGEX.FindStringSubmatch(tag)
 		if m == nil {
 			return ""
 		}

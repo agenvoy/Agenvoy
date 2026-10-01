@@ -176,3 +176,13 @@ func (a *Adapter) ConcurrentNames() []string {
 	}
 	return names
 }
+
+func (a *Adapter) Timeouts() map[string]int {
+	out := make(map[string]int, len(a.apis))
+	for _, key := range slices.Sorted(maps.Keys(a.apis)) {
+		if api := a.apis[key]; api.Endpoint.Timeout > 0 {
+			out[a.prefix+api.Name] = api.Endpoint.Timeout
+		}
+	}
+	return out
+}

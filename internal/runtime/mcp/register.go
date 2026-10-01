@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -52,8 +52,8 @@ func (t Tool) getDef(server string, m *MCP) (toolRegister.Def, bool) {
 			if err != nil {
 				return "", err
 			}
-			if len(out) > filesystem.DocumentMaxBytes {
-				out = out[:filesystem.DocumentMaxBytes] + fmt.Sprintf("\n\n[mcp output truncated: %d bytes total, %d kept]", len(out), filesystem.DocumentMaxBytes)
+			if len(out) > configs.MAX_DOCUMENT_BYTES {
+				out = out[:configs.MAX_DOCUMENT_BYTES] + fmt.Sprintf("\n\n[mcp output truncated: %d bytes total, %d kept]", len(out), configs.MAX_DOCUMENT_BYTES)
 			}
 			return out, nil
 		},

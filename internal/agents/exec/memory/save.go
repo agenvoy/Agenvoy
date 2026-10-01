@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
-
-const ttlSeconds int64 = 90 * 24 * 3600
 
 var ErrRecordNotFound = errors.New("record not found")
 
@@ -53,7 +52,7 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 	key := fmt.Sprintf("%s:%d", record.ToolName, now.UnixNano())
 	db := torii.DB(torii.DBErrorMemory)
 	value := string(raw)
-	expireAt := torii.TTL(ttlSeconds)
+	expireAt := torii.TTL(configs.TTL_MEMORY_SEC)
 
 	if err := db.SetVector(ctx, key, value, expireAt); err != nil {
 		return "", fmt.Errorf("store.Set: %w", err)
@@ -90,7 +89,7 @@ func UpdateAction(ctx context.Context, id, action string) (*Record, error) {
 		if err != nil {
 			return nil, fmt.Errorf("json.Marshal: %w", err)
 		}
-		if err := db.SetVector(ctx, entry.Key, string(raw), torii.TTL(ttlSeconds)); err != nil {
+		if err := db.SetVector(ctx, entry.Key, string(raw), torii.TTL(configs.TTL_MEMORY_SEC)); err != nil {
 			return nil, fmt.Errorf("store.Set: %w", err)
 		}
 		return &record, nil

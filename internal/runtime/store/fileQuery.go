@@ -10,12 +10,10 @@ import (
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 var errNotFound = errors.New("no such change")
-
-const TimeLayout = "2006-01-02 15:04:05"
 
 type Row struct {
 	ID        int64
@@ -43,7 +41,7 @@ func (r Row) RestoreBlock() string {
 	case r.TrashPath != "":
 		return ""
 	case r.Truncated:
-		return fmt.Sprintf("the file was over %d MiB and no copy of it could be kept", filesystem.DocumentMaxBytes>>20)
+		return fmt.Sprintf("the file was over %d MiB and no copy of it could be kept", configs.MAX_DOCUMENT_BYTES>>20)
 	case r.Action == ActionDelete:
 		return "no copy location was recorded"
 	}

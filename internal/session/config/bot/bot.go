@@ -20,12 +20,11 @@ import (
 const (
 	DefaultModel     = historyStore.DefaultModel
 	DefaultReasoning = historyStore.DefaultReasoning
-	ReasoningAuto    = "auto"
 )
 
 func ReasoningLevels() []string {
 	out := make([]string, 0, int(provider.ReasoningMax)+2)
-	out = append(out, ReasoningAuto)
+	out = append(out, configs.REASONING_AUTO)
 	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
 		out = append(out, r.String())
 	}

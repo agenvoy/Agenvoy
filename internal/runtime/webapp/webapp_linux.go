@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	"github.com/pardnchiu/agenvoy/page"
 )
@@ -67,7 +68,7 @@ func Install(ctx context.Context) (string, error) {
 func desktopEntry(binary string) string {
 	return `[Desktop Entry]
 Type=Application
-Name=` + appName + `
+Name=` + configs.APP_NAME + `
 Comment=Agenvoy web console
 Exec=` + binary + ` --app=` + appURL() + `
 Icon=agenvoy
@@ -86,12 +87,12 @@ func installWindows(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("windows Desktop resolved empty")
 	}
 
-	link := desktop + `\` + appName + ".lnk"
+	link := desktop + `\` + configs.APP_NAME + ".lnk"
 	linkDir, err := wslPath(ctx, "-u", desktop)
 	if err != nil {
 		return "", err
 	}
-	if go_pkg_filesystem_reader.Exists(filepath.Join(linkDir, appName+".lnk")) {
+	if go_pkg_filesystem_reader.Exists(filepath.Join(linkDir, configs.APP_NAME+".lnk")) {
 		return link, nil
 	}
 
@@ -112,8 +113,8 @@ func installWindows(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("windows LOCALAPPDATA resolved empty")
 	}
 
-	iconWin := localApp + `\` + appName + `\icon.ico`
-	iconDir, err := wslPath(ctx, "-u", localApp+`\`+appName)
+	iconWin := localApp + `\` + configs.APP_NAME + `\icon.ico`
+	iconDir, err := wslPath(ctx, "-u", localApp+`\`+configs.APP_NAME)
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +135,7 @@ func installWindows(ctx context.Context) (string, error) {
 		"$s.TargetPath = " + psQuote(target),
 		"$s.Arguments = " + psQuote("--app="+windowsURL()),
 		"$s.IconLocation = " + psQuote(iconWin),
-		"$s.Description = " + psQuote(appName+" "+appVersion()),
+		"$s.Description = " + psQuote(configs.APP_NAME+" "+appVersion()),
 		"$s.Save()",
 	}, "; ")
 	if _, err := powershell(ctx, script); err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -14,16 +13,6 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-)
-
-var (
-	MaxToolIterations     = 128
-	AgentSendTimeoutSec   = 600
-	MaxHistoryMessages    = 24
-	MaxHistoryBytes       = DocumentMaxBytes * 4
-	MaxSessionTasks       = runtime.NumCPU() * 4
-	MaxSubagentTimeoutMin = 30
-	MaxResumeWaitMin      = 60
 )
 
 type SensitiveConfig struct {
@@ -77,29 +66,10 @@ func LoadRuntime() error {
 
 	changed := false
 
-	if limits.MaxToolIterations <= 0 {
-		limits.MaxToolIterations = MaxToolIterations
-		changed = true
-	}
-	MaxToolIterations = limits.MaxToolIterations
-
-	if limits.AgentSendTimeoutSec <= 0 {
-		limits.AgentSendTimeoutSec = AgentSendTimeoutSec
-		changed = true
-	}
-	AgentSendTimeoutSec = limits.AgentSendTimeoutSec
-
-	if limits.MaxHistoryMessages <= 0 {
-		limits.MaxHistoryMessages = MaxHistoryMessages
-		changed = true
-	}
-	MaxHistoryMessages = limits.MaxHistoryMessages
-
-	if limits.MaxHistoryBytes <= 0 {
-		limits.MaxHistoryBytes = MaxHistoryBytes
-		changed = true
-	}
-	MaxHistoryBytes = limits.MaxHistoryBytes
+	configs.MAX_TOOL_ITERATIONS = max(limits.MaxToolIterations, configs.MAX_TOOL_ITERATIONS)
+	configs.AGENT_SEND_TIMEOUT_SEC = max(limits.AgentSendTimeoutSec, configs.AGENT_SEND_TIMEOUT_SEC)
+	configs.MAX_HISTORY_MESSAGES = max(limits.MaxHistoryMessages, configs.MAX_HISTORY_MESSAGES)
+	configs.MAX_HISTORY_BYTES = max(limits.MaxHistoryBytes, configs.MAX_HISTORY_BYTES)
 
 	ConfigReplyLang = ReplyLangAuto
 	if data, ok := raw["reply_lang"]; ok && len(data) > 0 {

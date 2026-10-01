@@ -12,7 +12,7 @@ func AssembleMessages(session *agentTypes.AgentSession) []provider.Message {
 	result := make([]provider.Message, 0, len(session.SystemPrompts)+len(session.OldHistories)+2+len(session.ToolHistories))
 	result = append(result, session.SystemPrompts...)
 	for _, msg := range session.OldHistories {
-		if content, ok := msg.Content.(string); ok && strings.Contains(content, configs.GuardrailSentinel) {
+		if content, ok := msg.Content.(string); ok && strings.Contains(content, configs.BAN_TAG) {
 			continue
 		}
 		result = append(result, msg)

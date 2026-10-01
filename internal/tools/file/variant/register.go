@@ -9,7 +9,7 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -58,8 +58,8 @@ func patch(path, old, new string, replaceAll bool) error {
 	if err != nil {
 		return fmt.Errorf("os.Stat [%s]: %w", path, err)
 	}
-	if info.Size() > filesystem.DocumentMaxBytes {
-		return fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), filesystem.DocumentMaxBytes>>20)
+	if info.Size() > configs.MAX_DOCUMENT_BYTES {
+		return fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 
 	content, err := go_pkg_filesystem.ReadText(path)

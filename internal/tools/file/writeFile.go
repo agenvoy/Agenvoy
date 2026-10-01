@@ -10,6 +10,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
@@ -41,8 +42,8 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	if err != nil && !isNew {
 		return "", fmt.Errorf("os.Stat: %w", err)
 	}
-	if !isNew && info.Size() > filesystem.DocumentMaxBytes {
-		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), filesystem.DocumentMaxBytes>>20)
+	if !isNew && info.Size() > configs.MAX_DOCUMENT_BYTES {
+		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 	if !isNew {
 		if err := requireFresh(e, absPath, info.ModTime()); err != nil {

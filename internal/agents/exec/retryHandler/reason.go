@@ -3,6 +3,8 @@ package retryHandler
 import (
 	"strings"
 	"time"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 const (
@@ -10,22 +12,16 @@ const (
 	ReasonRateLimited = "rate limited"
 )
 
-var retryIntervals = []time.Duration{
-	5 * time.Second,
-	10 * time.Second,
-	15 * time.Second,
-}
-
 func Handle(agentName string, err error, code, attempt int) (string, time.Duration) {
 	reason := Reason(err, code)
 	if reason == "" {
 		return "", 0
 	}
 	Register(agentName)
-	if reason != ReasonRateLimited || attempt >= len(retryIntervals) {
+	if reason != ReasonRateLimited || attempt >= len(configs.RETRY_INTERVALS) {
 		return reason, 0
 	}
-	return reason, retryIntervals[attempt]
+	return reason, configs.RETRY_INTERVALS[attempt]
 }
 
 var quotaMarkers = []string{

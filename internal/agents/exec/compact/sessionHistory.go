@@ -14,7 +14,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -37,7 +36,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 
 	compactCtx, cancel := context.WithTimeout(
 		agentTypes.WithSessionID(ctx, sessionID),
-		2*time.Duration(filesystem.AgentSendTimeoutSec)*time.Second,
+		2*time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second,
 	)
 	defer cancel()
 

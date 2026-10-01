@@ -10,6 +10,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/page"
 )
 
@@ -21,7 +22,7 @@ func Install(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("os.UserHomeDir: %w", err)
 	}
 
-	bundle := filepath.Join(home, "Applications", appName+".app")
+	bundle := filepath.Join(home, "Applications", configs.APP_NAME+".app")
 	if go_pkg_filesystem_reader.Exists(bundle) {
 		return bundle, nil
 	}
@@ -43,13 +44,13 @@ func Install(ctx context.Context) (string, error) {
 		}
 	}
 
-	if err := go_pkg_filesystem.WriteFile(filepath.Join(resDir, appName+".icns"), string(icns), 0644); err != nil {
+	if err := go_pkg_filesystem.WriteFile(filepath.Join(resDir, configs.APP_NAME+".icns"), string(icns), 0644); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
 	if err := go_pkg_filesystem.WriteFile(filepath.Join(bundle, "Contents", "Info.plist"), infoPlist(), 0644); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
-	if err := go_pkg_filesystem.WriteFile(filepath.Join(binDir, appName), launcher(), 0755); err != nil {
+	if err := go_pkg_filesystem.WriteFile(filepath.Join(binDir, configs.APP_NAME), launcher(), 0755); err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
 	}
 
@@ -71,15 +72,15 @@ func infoPlist() string {
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>` + appName + `</string>
+	<string>` + configs.APP_NAME + `</string>
 	<key>CFBundleDisplayName</key>
-	<string>` + appName + `</string>
+	<string>` + configs.APP_NAME + `</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.pardnchiu.agenvoy.webapp</string>
 	<key>CFBundleExecutable</key>
-	<string>` + appName + `</string>
+	<string>` + configs.APP_NAME + `</string>
 	<key>CFBundleIconFile</key>
-	<string>` + appName + `</string>
+	<string>` + configs.APP_NAME + `</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

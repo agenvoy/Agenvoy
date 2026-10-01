@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -32,13 +33,6 @@ const (
 	maxSearchLimit      = 32
 )
 
-var historyTimeRanges = map[string]time.Duration{
-	"1d": 24 * time.Hour,
-	"7d": 7 * 24 * time.Hour,
-	"1m": 30 * 24 * time.Hour,
-	"1y": 365 * 24 * time.Hour,
-}
-
 func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, timeRange string, limit int) (string, error) {
 	if e.SessionID == "" {
 		return "", fmt.Errorf("session not exist")
@@ -53,7 +47,7 @@ func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, 
 		match = "semantic"
 	}
 
-	if _, ok := historyTimeRanges[strings.TrimSpace(timeRange)]; !ok {
+	if _, ok := configs.TIME_RANGES[strings.TrimSpace(timeRange)]; !ok {
 		timeRange = defaultTimeRange
 	}
 
@@ -91,7 +85,7 @@ func keywordHandler(ctx context.Context, sessionID, keyword, timeRange string, l
 	db := torii.DB(torii.DBSessionHist)
 	var afterNano int64
 	scan := torii.ScanOption{Contains: keyword, Limit: historyScanCap}
-	if d, ok := historyTimeRanges[timeRange]; ok {
+	if d, ok := configs.TIME_RANGES[timeRange]; ok {
 		afterNano = time.Now().Add(-d).UnixNano()
 		scan.After = time.Now().Add(-d).Unix()
 	}

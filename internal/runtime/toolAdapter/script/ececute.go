@@ -11,9 +11,9 @@ import (
 	"time"
 
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
-)
 
-const defaultScriptTimeoutSec = 300
+	"github.com/pardnchiu/agenvoy/configs"
+)
 
 func (t *Translator) Execute(ctx context.Context, name string, args json.RawMessage, workDir string) (string, error) {
 	key := strings.TrimPrefix(name, t.prefix)
@@ -32,11 +32,10 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 		input = "{}"
 	}
 
-	timeoutSec := data.Doc.Timeout
-	if timeoutSec <= 0 {
-		timeoutSec = defaultScriptTimeoutSec
+	timeout := configs.DEFAULT_TOOL_TIMEOUT
+	if data.Doc.Timeout > 0 {
+		timeout = time.Duration(data.Doc.Timeout) * time.Second
 	}
-	timeout := time.Duration(timeoutSec) * time.Second
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -81,7 +80,7 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 		case <-ticker.C:
 			slog.Debug("running",
 				slog.String("name", key),
-				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), timeoutSec)))
+				slog.String("elapsed", fmt.Sprintf("%ds/%ds", int(time.Since(start).Seconds()), int(timeout.Seconds()))))
 		}
 	}
 }

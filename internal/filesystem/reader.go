@@ -10,12 +10,11 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_parser "github.com/pardnchiu/go-pkg/filesystem/parser"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
-const (
-	DocumentMaxBytes = 1 << 20
-	MediaMaxBytes    = 10 << 20
-)
+const MediaMaxBytes = 10 << 20
 
 var imageExts = map[string]bool{
 	".jpg":  true,
@@ -101,8 +100,8 @@ func readPlainText(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("os.Stat: %w", err)
 	}
-	if info.Size() > DocumentMaxBytes {
-		return "", fmt.Errorf("file too large (max %d MiB): %d MiB", DocumentMaxBytes>>20, info.Size()>>20)
+	if info.Size() > configs.MAX_DOCUMENT_BYTES {
+		return "", fmt.Errorf("file too large (max %d MiB): %d MiB", configs.MAX_DOCUMENT_BYTES>>20, info.Size()>>20)
 	}
 
 	result, err := go_pkg_filesystem.ReadText(path)
