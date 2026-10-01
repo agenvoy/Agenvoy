@@ -82,8 +82,8 @@ var modelAddProviders = []struct {
 	methods []modelAddMethod
 }{
 	{"OAuth", []modelAddMethod{
-		{"Claude Code", "Claude subscription via claude -p", "claude-code"},
 		{"OpenAI Codex", "Codex subscription", "codex"},
+		{"Claude Code", "Claude subscription via claude -p", "claude-code"},
 		{"Grok (xAI)", "xAI subscription", "grok-oauth"},
 		{"GitHub Copilot", "GitHub subscription", "copilot"},
 	}},
@@ -160,6 +160,9 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 		details := make([]string, 0, len(methods))
 		values := make([]string, 0, len(methods))
 		for _, m := range methods {
+			if m.value == claudeCode.Provider && !claudeCode.Enabled() {
+				continue
+			}
 			keys = append(keys, m.key)
 			details = append(details, m.detail)
 			values = append(values, m.value)
