@@ -1,67 +1,42 @@
 package handler
 
 import (
-	"context"
 	"log/slog"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/followup"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
-func withFollowup(ctx context.Context, sessionID string, dst chan<- agentTypes.Event, run func(events chan<- agentTypes.Event)) {
-	src := make(chan agentTypes.Event, cap(dst))
-	done := make(chan struct{})
+func GetSessionFollowup() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID, ok := sessionParam(c)
+		if !ok {
+			return
+		}
 
-	go func() {
-		defer close(done)
+		_, histories := sessionHistory.Get(sessionID)
+		if len(histories) == 0 {
+			c.JSON(http.StatusOK, gin.H{"title": "", "suggests": []string{}})
+			return
+		}
 
-		failed := false
-		for event := range src {
-			switch event.Type {
-			case agentTypes.EventError, agentTypes.EventExecError, agentTypes.EventCanceled:
-				failed = true
-
-			case agentTypes.EventDone:
-				if !failed && event.Source == "" {
-					if suggest, ok := generateFollowup(ctx, sessionID); ok {
-						dst <- suggest
-					}
-				}
+		result := followup.Generate(c.Request.Context(), sessionID, histories, configBot.NeedTitle(sessionID))
+		if result.Title != "" {
+			if err := configBot.SetTitle(sessionID, result.Title); err != nil {
+				slog.Debug("configBot.SetTitle",
+					slog.String("session", sessionID),
+					slog.String("error", err.Error()))
 			}
-			dst <- event
 		}
-	}()
 
-	run(src)
-	close(src)
-	<-done
-}
-
-func generateFollowup(ctx context.Context, sessionID string) (agentTypes.Event, bool) {
-	_, histories := sessionHistory.Get(sessionID)
-	if len(histories) == 0 {
-		return agentTypes.Event{}, false
-	}
-
-	needTitle := configBot.NeedTitle(sessionID)
-	result := followup.Generate(ctx, sessionID, histories, needTitle)
-	if result.Empty() {
-		return agentTypes.Event{}, false
-	}
-
-	if result.Title != "" {
-		if err := configBot.SetTitle(sessionID, result.Title); err != nil {
-			slog.Debug("configBot.SetTitle",
-				slog.String("session", sessionID),
-				slog.String("error", err.Error()))
+		suggests := result.Suggests
+		if suggests == nil {
+			suggests = []string{}
 		}
+		c.JSON(http.StatusOK, gin.H{"title": result.Title, "suggests": suggests})
 	}
-
-	return agentTypes.Event{
-		Type:     agentTypes.EventSuggest,
-		Text:     result.Title,
-		Suggests: result.Suggests,
-	}, true
 }
