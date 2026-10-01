@@ -56,6 +56,9 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		for _, name := range tb.ConcurrentNames() {
 			toolRegister.MarkConcurrent(name)
 		}
+		for name, timeoutSec := range tb.Timeouts() {
+			toolRegister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
+		}
 	}
 
 	scriptToolbox := scriptAdapter.New("script_")

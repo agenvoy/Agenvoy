@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -20,8 +21,7 @@ type Handler func(ctx context.Context, e *toolTypes.Executor, args json.RawMessa
 type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error)
 
 const (
-	DefaultToolTimeout = time.Minute
-	NoToolTimeout      = time.Duration(-1)
+	NoToolTimeout = time.Duration(-1)
 )
 
 type Def struct {
@@ -126,7 +126,7 @@ func GetTimeout(name string) time.Duration {
 	if t, ok := timeoutMap[name]; ok {
 		return t
 	}
-	return DefaultToolTimeout
+	return configs.DEFAULT_TOOL_TIMEOUT
 }
 
 func IsAlwaysLoad(name string) bool {

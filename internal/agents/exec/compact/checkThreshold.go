@@ -1,15 +1,17 @@
 package compact
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/pardnchiu/agenvoy/configs"
+)
 
 const (
-	thresholdRatio   = 0.8
-	fallbackWindow   = 128_000
 	copilotNamespace = "copilot@"
 )
 
 func CheckThreshold(modelName string) int {
-	return int(float64(InputWindow(modelName)) * thresholdRatio)
+	return int(float64(InputWindow(modelName)) * configs.COMPACT_THRESHOLD_RATIO)
 }
 
 func InputWindow(modelName string) int {
@@ -22,5 +24,5 @@ func InputWindow(modelName string) int {
 			return in
 		}
 	}
-	return fallbackWindow
+	return configs.FALLBACK_CONTEXT_WINDOW
 }

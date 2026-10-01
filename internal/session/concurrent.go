@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 var (
@@ -37,7 +37,7 @@ func AddConcurrent(ctx context.Context, sessionID string) error {
 	delete(concurrentMap, sessionID)
 	slot, ok := concurrentSlots[sessionID]
 	if !ok {
-		slot = make(chan struct{}, filesystem.MaxSessionTasks)
+		slot = make(chan struct{}, configs.MAX_SESSION_TASKS)
 		concurrentSlots[sessionID] = slot
 	}
 	concurrentMu.Unlock()

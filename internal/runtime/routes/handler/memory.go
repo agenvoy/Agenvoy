@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -19,7 +20,7 @@ import (
 func memoryCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(
 		context.Background(),
-		2*time.Duration(filesystem.AgentSendTimeoutSec)*time.Second,
+		2*time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second,
 	)
 }
 

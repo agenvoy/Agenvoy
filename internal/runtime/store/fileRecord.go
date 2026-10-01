@@ -11,6 +11,7 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
@@ -50,7 +51,7 @@ func Capture(path string) (Change, error) {
 		return Change{}, fmt.Errorf("os.Stat [%s]: %w", path, err)
 	case info.IsDir():
 		return Change{}, nil
-	case info.Size() > filesystem.DocumentMaxBytes:
+	case info.Size() > configs.MAX_DOCUMENT_BYTES:
 		return oversized(path, info.Size()), nil
 	}
 
@@ -101,7 +102,7 @@ func (c Change) WithCreated(content string) Change {
 
 func withContent(c Change, content string) Change {
 	c.size = int64(len(content))
-	if len(content) > filesystem.DocumentMaxBytes {
+	if len(content) > configs.MAX_DOCUMENT_BYTES {
 		c.truncated = true
 		return c
 	}

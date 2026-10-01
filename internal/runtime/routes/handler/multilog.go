@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
@@ -19,9 +20,8 @@ import (
 )
 
 const (
-	mergeBlockWait   = 250 * time.Millisecond
-	logHeartbeat     = 25 * time.Second
-	daemonLogChannel = "daemon"
+	mergeBlockWait = 250 * time.Millisecond
+	logHeartbeat   = 25 * time.Second
 )
 
 type taggedEvent struct {
@@ -145,7 +145,7 @@ func StreamMultiLog() gin.HandlerFunc {
 		var fanInDropped atomic.Int64
 
 		if withDaemon {
-			sids = append(sids, daemonLogChannel)
+			sids = append(sids, configs.DAEMON_LOG_CHANNEL)
 		}
 
 		for _, sid := range sids {

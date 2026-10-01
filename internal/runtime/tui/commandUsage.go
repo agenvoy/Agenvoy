@@ -8,35 +8,27 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
-
-var usagePeriods = []struct {
-	label string
-	days  int
-}{
-	{label: "24h", days: 1},
-	{label: "7d", days: 7},
-	{label: "28d", days: 28},
-}
 
 func (t TUI) commandUsage() (TUI, tea.Cmd, bool) {
 	now := time.Now()
 	sessionID := strings.TrimSpace(t.currentSessionID)
 
-	sessions := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
-	totals := make([]map[string]usagelog.ModelUsage, len(usagePeriods))
-	labels := make([]string, len(usagePeriods))
-	for i, period := range usagePeriods {
-		labels[i] = period.label
+	sessions := make([]map[string]usagelog.ModelUsage, len(configs.USAGE_PERIODS))
+	totals := make([]map[string]usagelog.ModelUsage, len(configs.USAGE_PERIODS))
+	labels := make([]string, len(configs.USAGE_PERIODS))
+	for i, period := range configs.USAGE_PERIODS {
+		labels[i] = period.Label
 		if sessionID != "" {
-			summary, err := usagelog.Usage(sessionID, period.days, now)
+			summary, err := usagelog.Usage(sessionID, period.Days, now)
 			if err != nil {
 				return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 			}
 			sessions[i] = summary
 		}
-		total, err := usagelog.Total(period.days, now)
+		total, err := usagelog.Total(period.Days, now)
 		if err != nil {
 			return t, notice(msgError(fmt.Sprintf("usage: %v", err)) + "\n"), true
 		}

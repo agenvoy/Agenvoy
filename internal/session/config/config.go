@@ -116,7 +116,6 @@ func Save(cfg *Config) error {
 	}
 
 	maps.Copy(oldDic, newDic)
-	delete(oldDic, "planner_model")
 	return Write(oldDic)
 }
 

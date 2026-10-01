@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -196,7 +196,7 @@ type resumeResult struct {
 func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 	var text strings.Builder
 	var lastErr string
-	timeout := time.After(time.Duration(filesystem.MaxResumeWaitMin) * time.Minute)
+	timeout := time.After(time.Duration(configs.MAX_RESUME_WAIT_MIN) * time.Minute)
 
 	for {
 		select {

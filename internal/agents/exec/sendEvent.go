@@ -5,17 +5,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const maxEmptyRetry = 3
 const emptyDataReply = "no usable data, retry later, or using other tools."
 
 func emptyRetryExhausted(emptyCount *int, events chan<- agentTypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time, outputElapsed time.Duration) bool {
 	*emptyCount++
-	if *emptyCount >= maxEmptyRetry {
+	if *emptyCount > configs.MAX_RETRY_TIMES {
 		slog.Error("model returned empty response, retries exhausted",
 			slog.String("session", sessionID),
 			slog.String("name", model),

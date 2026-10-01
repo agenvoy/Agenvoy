@@ -10,6 +10,7 @@ import (
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
@@ -18,12 +19,10 @@ import (
 )
 
 const (
-	typesafeEndpoint   = "https://api.typesafe.ai/v1/systemone"
-	betaContextTurns   = 4
-	betaContextMaxRune = 2048
-	betaNamedNone      = "none"
-	betaTopicSame      = "same"
-	betaLastModelKey   = "lastModel:"
+	typesafeEndpoint = "https://api.typesafe.ai/v1/systemone"
+	betaNamedNone    = "none"
+	betaTopicSame    = "same"
+	betaLastModelKey = "lastModel:"
 )
 
 var betaWorkCriteria = map[string]any{
@@ -149,7 +148,7 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		"questions": questions,
 	}
 
-	routingCtx, cancel := context.WithTimeout(ctx, DispatcherCallTimeout)
+	routingCtx, cancel := context.WithTimeout(ctx, configs.TIMEOUT_DISPATCH_CALL)
 	defer cancel()
 	result, _, err := go_pkg_http.POST[betaAnswer](routingCtx, nil, typesafeEndpoint, map[string]string{
 		"Authorization": "Bearer " + key,
@@ -222,7 +221,7 @@ func betaContext(sessionID string) []map[string]string {
 
 	list := []map[string]string{}
 	for _, r := range slices.Backward(records) {
-		if len(list) >= betaContextTurns {
+		if len(list) >= configs.MAX_JEV_HISTORY_MESSAGES {
 			break
 		}
 		if r.Role != "user" && r.Role != "assistant" {
@@ -232,8 +231,8 @@ func betaContext(sessionID string) []map[string]string {
 		if text == "" {
 			continue
 		}
-		if runes := []rune(text); len(runes) > betaContextMaxRune {
-			text = string(runes[:betaContextMaxRune]) + "..."
+		if runes := []rune(text); len(runes) > configs.MAX_JEV_RUNES {
+			text = string(runes[:configs.MAX_JEV_RUNES]) + "..."
 		}
 		list = append(list, map[string]string{"role": r.Role, "content": text})
 	}

@@ -8,6 +8,7 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 )
@@ -55,7 +56,7 @@ func Append(sessionID string, delta []Record) error {
 		}
 	}
 
-	if filesystem.MaxHistoryBytes > 0 && len(raw) > filesystem.MaxHistoryBytes {
+	if len(raw) > configs.MAX_HISTORY_BYTES {
 		compact(sessionID, historyPath, latest, len(raw))
 	}
 
@@ -75,8 +76,8 @@ func Get(sessionID string) (old, max []Record) {
 	oldHistory = normalize(oldHistory)
 
 	maxHistory := oldHistory
-	if len(oldHistory) > filesystem.MaxHistoryMessages {
-		maxHistory = oldHistory[len(oldHistory)-filesystem.MaxHistoryMessages:]
+	if len(oldHistory) > configs.MAX_HISTORY_MESSAGES {
+		maxHistory = oldHistory[len(oldHistory)-configs.MAX_HISTORY_MESSAGES:]
 	}
 	return oldHistory, maxHistory
 }

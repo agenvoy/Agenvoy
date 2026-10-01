@@ -7,12 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-)
-
-const (
-	ttlSeconds = 1800
 )
 
 type toolHistory struct {
@@ -119,7 +116,7 @@ func Store(sessionID, callID, toolName, args, result string) {
 		return
 	}
 	db := torii.DB(torii.DBToolCache)
-	if err := db.Set(context.Background(), keyPrefix(sessionID, toolName)+callID, string(raw), torii.TTL(ttlSeconds)); err != nil {
+	if err := db.Set(context.Background(), keyPrefix(sessionID, toolName)+callID, string(raw), torii.TTL(configs.TTL_TOOL_CACHE_SEC)); err != nil {
 		slog.Debug("toolcache Store",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))

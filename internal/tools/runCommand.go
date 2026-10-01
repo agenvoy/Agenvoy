@@ -17,18 +17,17 @@ import (
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-const runCommandTimeout = 60 * time.Minute
-
 func registRunCommand() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "run_command",
-		Timeout:     runCommandTimeout,
+		Timeout:     configs.RUN_COMMAND_TIMEOUT,
 		SystemUse:   false,
 		AlwaysLoad:  true,
 		AlwaysAllow: false,
@@ -125,11 +124,11 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		}
 	}
 
-	if err := checkWatchArgs(argv, e.WorkDir, 0); err != nil {
+	if err := checkWatchArgs(argv, e.WorkDir, 0, map[string]bool{}); err != nil {
 		return "", err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, runCommandTimeout)
+	ctx, cancel := context.WithTimeout(ctx, configs.RUN_COMMAND_TIMEOUT)
 	defer cancel()
 
 	binds, err := boundary.WriteBinds(e.SessionID, e.WorkDir, writePaths)

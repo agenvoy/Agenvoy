@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
@@ -69,7 +70,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				},
 				"time_range": map[string]any{
 					"type":        "string",
-					"enum":        slices.Sorted(maps.Keys(historyTimeRanges)),
+					"enum":        slices.Sorted(maps.Keys(configs.TIME_RANGES)),
 					"description": "mode=search: how far back to look.",
 					"default":     defaultTimeRange,
 				},

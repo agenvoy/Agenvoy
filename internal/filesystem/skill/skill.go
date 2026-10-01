@@ -9,6 +9,8 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 type Skill struct {
@@ -20,9 +22,8 @@ type Skill struct {
 }
 
 var (
-	frontRegex = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
-	nameRegex  = regexp.MustCompile(`(?m)^name:\s*(.+)$`)
-	bodyRegex  = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
+	nameRegex = regexp.MustCompile(`(?m)^name:\s*(.+)$`)
+	bodyRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n?`)
 )
 
 func Get(path string) (*Skill, error) {
@@ -56,7 +57,7 @@ func Get(path string) (*Skill, error) {
 }
 
 func getFront(content []byte) ([]byte, string, error) {
-	matches := frontRegex.FindSubmatch(content)
+	matches := configs.FRONTMATTER_REGEX.FindSubmatch(content)
 	if matches == nil {
 		return nil, "", fmt.Errorf("header not found")
 	}

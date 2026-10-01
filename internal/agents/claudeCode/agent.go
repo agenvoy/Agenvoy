@@ -76,23 +76,27 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	p := acquire(sessionID + "|" + a.name)
 	defer p.mu.Unlock()
 
-	path := statePath(sessionID, a.name)
-	if !p.loaded {
-		p.loaded = true
-		p.restore(path)
-	}
-
 	spec := specOf(system, effort)
 	tools := renderTools(toolDefs)
 	list := fingerprints(rest)
 	cacheTTL := cacheTTLOf(ctx, sessionID)
+	persist := cacheTTL == cacheTTLLong
 	if p.alive() && p.cacheTTL != cacheTTL {
 		p.stop()
 	}
 
+	path := statePath(sessionID, a.name)
+	if persist && !p.loaded {
+		p.loaded = true
+		p.restore(path)
+	}
+
 	startFresh := func() ([]map[string]any, error) {
 		p.stop()
-		p.id = go_pkg_utils.UUID()
+		p.id = ""
+		if persist {
+			p.id = go_pkg_utils.UUID()
+		}
 		if err := p.start(a.model, effort, true, p.id, false, cacheTTL); err != nil {
 			return nil, err
 		}
@@ -102,7 +106,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		return renderInitial(system, toolDefs, rest), nil
 	}
 
-	reusable := p.id != "" && p.spec == spec
+	reusable := p.spec == spec && (p.alive() || (persist && p.id != ""))
 	resumed := false
 	var content []map[string]any
 	if reusable && len(list) > len(p.sent) && slices.Equal(list[:len(p.sent)], p.sent) {
@@ -151,7 +155,9 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		p.lastAnswer = answerText(message.Content)
 	}
 	p.lastUse = time.Now()
-	p.save(path)
+	if persist {
+		p.save(path)
+	}
 	return out, code, nil
 }
 

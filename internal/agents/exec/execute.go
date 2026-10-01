@@ -13,13 +13,13 @@ import (
 
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
@@ -349,7 +349,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		exec.Tools = append(exec.Tools, t)
 	}
 
-	limit := filesystem.MaxToolIterations
+	limit := configs.MAX_TOOL_ITERATIONS
 	reasoning := resolveReasoning(session.ID, data.Reasoning)
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
@@ -419,7 +419,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		assembled := compact.AssembleMessages(session)
 		sendStart := time.Now()
-		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(filesystem.AgentSendTimeoutSec)*time.Second)
+		sendCtx, cancelSend := context.WithTimeout(execCtx, time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second)
 		sendAgent := data.Agent
 		resultCh := make(chan sendOutcome, 1)
 		sendDone := make(chan struct{})
@@ -440,7 +440,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 		}
 
-		watchdog := time.NewTimer(UnresponsiveProbeInterval)
+		watchdog := time.NewTimer(configs.UNRESPONSIVE_PROBE_INTERVAL)
 		unresponsiveFailures := 0
 		var resp *provider.Output
 		var sendCode int
@@ -463,18 +463,18 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if checkAgentResponsive(execCtx, data.Agent, HealthCheckTimeout) {
+				if checkAgentResponsive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
 					unresponsiveFailures = 0
-					watchdog.Reset(UnresponsiveProbeInterval)
+					watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 					continue
 				}
 				unresponsiveFailures++
-				if unresponsiveFailures < MaxUnresponsiveProbeFailures {
+				if unresponsiveFailures < configs.MAX_RETRY_TIMES {
 					slog.Debug("agent health probe failed, retrying",
 						slog.String("session", session.ID),
 						slog.String("name", data.Agent.Name()),
 						slog.Int("failures", unresponsiveFailures))
-					watchdog.Reset(UnresponsiveRetryInterval)
+					watchdog.Reset(configs.HEALTH_CHECK_TIMEOUT)
 					continue
 				}
 				next, nextName := nextAgent(execCtx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
@@ -498,7 +498,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
 				}
 				unresponsiveFailures = 0
-				watchdog.Reset(UnresponsiveProbeInterval)
+				watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 				slog.Debug("agent unresponsive, switching model",
 					slog.String("session", session.ID),
 					slog.String("from", data.Agent.Name()),
@@ -591,7 +591,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				slog.String("error", err.Error()),
 				slog.Bool("timeout", isTimeout))
 
-			if isTimeout && timeoutRetryCount < MaxSendTimeoutRetries-1 {
+			if isTimeout && timeoutRetryCount < configs.MAX_RETRY_TIMES {
 				timeoutRetryCount++
 				slog.Debug("data.Agent.Send timed out, retrying same model",
 					slog.String("session", session.ID),
@@ -604,7 +604,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						interactive.DeletePending(session.ID, exec.PendingTask)
 					}
 					return execCtx.Err()
-				case <-time.After(SendTimeoutRetryInterval):
+				case <-time.After(configs.SEND_TIMEOUT_RETRY_INTERVAL):
 				}
 				continue
 			}

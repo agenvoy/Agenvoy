@@ -3,7 +3,6 @@ package historyStore
 import (
 	_ "embed"
 	"fmt"
-	"strings"
 
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
 
@@ -20,113 +19,14 @@ func New() error {
 	if c == nil {
 		return fmt.Errorf("internal/filesystem: OpenDB has not run")
 	}
-	if err := renameSessionMeta(c); err != nil {
-		return err
-	}
-	if err := addSessionSelfID(c); err != nil {
-		return err
-	}
 	if err := addSessionRole(c); err != nil {
-		return err
-	}
-	if err := migrateActionColumns(c); err != nil {
-		return err
-	}
-	rebuild, err := retokenizeMessages(c)
-	if err != nil {
 		return err
 	}
 	if _, err := c.Exec(migrateSQL); err != nil {
 		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
 	}
-	if rebuild {
-		if _, err := c.Exec(`INSERT INTO messages_fts5(messages_fts5) VALUES('rebuild')`); err != nil {
-			return fmt.Errorf("sql.DB Exec [rebuild messages_fts5]: %w", err)
-		}
-	}
-	if err := syncColumns(c); err != nil {
-		return err
-	}
 
 	conn = c
-	return nil
-}
-
-func retokenizeMessages(c *go_sqlkit_core.Connector) (bool, error) {
-	var schema string
-	if err := c.Read.QueryRow(`
-	SELECT COALESCE(MAX(sql), '')
-	FROM sqlite_master
-	WHERE type = 'table' AND name = 'messages_fts5'`).Scan(&schema); err != nil {
-		return false, fmt.Errorf("sql.DB QueryRow [sqlite_master messages_fts5]: %w", err)
-	}
-	if schema == "" || strings.Contains(schema, "trigram") {
-		return false, nil
-	}
-
-	if _, err := c.Exec(`DROP TABLE messages_fts5`); err != nil {
-		return false, fmt.Errorf("sql.DB Exec [DROP TABLE messages_fts5]: %w", err)
-	}
-	return true, nil
-}
-
-func syncColumns(c *go_sqlkit_core.Connector) error {
-	rows, err := c.Query(`PRAGMA table_info(messages)`)
-	if err != nil {
-		return fmt.Errorf("sql.DB Query [PRAGMA table_info]: %w", err)
-	}
-	defer rows.Close()
-
-	existing := make(map[string]bool)
-	for rows.Next() {
-		var (
-			cid, notNull, pk int
-			name, dataType   string
-			defaultValue     any
-		)
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info]: %w", err)
-		}
-		existing[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("sql.Rows Err [PRAGMA table_info]: %w", err)
-	}
-
-	for _, name := range []string{"sender"} {
-		if existing[name] {
-			continue
-		}
-		if _, err := c.Exec(fmt.Sprintf(`ALTER TABLE messages ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, name)); err != nil {
-			return fmt.Errorf("sql.DB Exec [ALTER TABLE messages ADD COLUMN %s]: %w", name, err)
-		}
-	}
-
-	for _, name := range []string{"channel_id"} {
-		if !existing[name] {
-			continue
-		}
-		if _, err := c.Exec(fmt.Sprintf(`ALTER TABLE messages DROP COLUMN %s`, name)); err != nil {
-			return fmt.Errorf("sql.DB Exec [ALTER TABLE messages DROP COLUMN %s]: %w", name, err)
-		}
-	}
-
-	if err := backfillSessionDefaults(c); err != nil {
-		return err
-	}
-	return dropActionColumns(c)
-}
-
-func backfillSessionDefaults(c *go_sqlkit_core.Connector) error {
-	if _, err := c.Exec(`UPDATE session SET model = ? WHERE model = ''`, DefaultModel); err != nil {
-		return fmt.Errorf("sql.DB Exec [UPDATE session model]: %w", err)
-	}
-	if _, err := c.Exec(`UPDATE session SET reasoning = ? WHERE reasoning = ''`, DefaultReasoning); err != nil {
-		return fmt.Errorf("sql.DB Exec [UPDATE session reasoning]: %w", err)
-	}
-	if _, err := c.Exec(`UPDATE session SET self_id = LOWER(self_id) WHERE self_id <> LOWER(self_id)`); err != nil {
-		return fmt.Errorf("sql.DB Exec [UPDATE session self_id]: %w", err)
-	}
 	return nil
 }
 
@@ -164,99 +64,6 @@ func addSessionRole(c *go_sqlkit_core.Connector) error {
 	}
 	if _, err := c.Exec(`UPDATE session SET role = rule WHERE role = '' AND rule <> ''`); err != nil {
 		return fmt.Errorf("sql.DB Exec [UPDATE session SET role]: %w", err)
-	}
-	return nil
-}
-
-func addSessionSelfID(c *go_sqlkit_core.Connector) error {
-	rows, err := c.Query(`PRAGMA table_info(session)`)
-	if err != nil {
-		return fmt.Errorf("sql.DB Query [PRAGMA table_info session]: %w", err)
-	}
-	defer rows.Close()
-
-	var columns, found int
-	for rows.Next() {
-		var (
-			cid, notNull, pk int
-			name, dataType   string
-			defaultValue     any
-		)
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info session]: %w", err)
-		}
-		columns++
-		if name == "self_id" {
-			found++
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("sql.Rows Err [PRAGMA table_info session]: %w", err)
-	}
-	if columns == 0 || found > 0 {
-		return nil
-	}
-
-	if _, err := c.Exec(`ALTER TABLE session ADD COLUMN self_id TEXT NOT NULL DEFAULT ''`); err != nil {
-		return fmt.Errorf("sql.DB Exec [ALTER TABLE session ADD COLUMN self_id]: %w", err)
-	}
-	return nil
-}
-
-func renameSessionMeta(c *go_sqlkit_core.Connector) error {
-	var legacy, current int
-	if err := c.Read.QueryRow(`
-	SELECT
-		COALESCE(SUM(name = 'session_meta'), 0),
-		COALESCE(SUM(name = 'message_meta'), 0)
-	FROM sqlite_master WHERE type = 'table'`).Scan(&legacy, &current); err != nil {
-		return fmt.Errorf("sql.DB QueryRow [sqlite_master]: %w", err)
-	}
-	if legacy == 0 || current > 0 {
-		return nil
-	}
-
-	if _, err := c.Exec(`ALTER TABLE session_meta RENAME TO message_meta`); err != nil {
-		return fmt.Errorf("sql.DB Exec [ALTER TABLE session_meta RENAME]: %w", err)
-	}
-	return nil
-}
-
-func dropActionColumns(c *go_sqlkit_core.Connector) error {
-	rows, err := c.Query(`PRAGMA table_info(action_history)`)
-	if err != nil {
-		return fmt.Errorf("sql.DB Query [PRAGMA table_info action_history]: %w", err)
-	}
-	defer rows.Close()
-
-	existing := make(map[string]bool)
-	for rows.Next() {
-		var (
-			cid, notNull, pk int
-			name, dataType   string
-			defaultValue     any
-		)
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info action_history]: %w", err)
-		}
-		existing[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("sql.Rows Err [PRAGMA table_info action_history]: %w", err)
-	}
-
-	for _, name := range []string{"completed", "next_steps", "answer", "tool_attempts"} {
-		if !existing[name] {
-			continue
-		}
-		if _, err := c.Exec(fmt.Sprintf(`ALTER TABLE action_history DROP COLUMN %s`, name)); err != nil {
-			return fmt.Errorf("sql.DB Exec [ALTER TABLE action_history DROP COLUMN %s]: %w", name, err)
-		}
-	}
-
-	if _, err := c.Exec(
-		`UPDATE action_history SET end_at = end_at * 1000000000 WHERE end_at < 1000000000000`); err != nil {
-		return fmt.Errorf("sql.DB Exec [action_history end_at to nano]: %w", err)
 	}
 	return nil
 }
@@ -307,35 +114,4 @@ func GetStartAt(sessionID string) int64 {
 	WHERE session_id = ?
 	`, sessionID).Scan(&ts)
 	return ts
-}
-
-func migrateActionColumns(c *go_sqlkit_core.Connector) error {
-	rows, err := c.Query(`PRAGMA table_info(action_history)`)
-	if err != nil {
-		return fmt.Errorf("sql.DB Query [PRAGMA table_info action_history]: %w", err)
-	}
-	defer rows.Close()
-
-	existing := make(map[string]bool)
-	for rows.Next() {
-		var (
-			cid, notNull, pk int
-			name, dataType   string
-			defaultValue     any
-		)
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info action_history]: %w", err)
-		}
-		existing[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("sql.Rows Err [PRAGMA table_info action_history]: %w", err)
-	}
-
-	if existing["todos"] {
-		if _, err := c.Exec(`ALTER TABLE action_history DROP COLUMN todos`); err != nil {
-			return fmt.Errorf("sql.DB Exec [ALTER TABLE action_history DROP COLUMN todos]: %w", err)
-		}
-	}
-	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -100,7 +101,7 @@ func skillFiles(skillPath string) []skillFile {
 			return nil
 		}
 		info, err := entry.Info()
-		if err != nil || info.Size() > filesystem.DocumentMaxBytes {
+		if err != nil || info.Size() > configs.MAX_DOCUMENT_BYTES {
 			return nil
 		}
 		content, err := go_pkg_filesystem.ReadText(path)

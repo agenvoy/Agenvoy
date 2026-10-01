@@ -7,8 +7,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-const appName = "Agenvoy"
-
 func port() string {
 	return filesystem.Port
 }

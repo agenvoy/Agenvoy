@@ -140,25 +140,8 @@ func SessionDir(sessionID string) string {
 	return filepath.Join(SessionsDir, sessionID)
 }
 
-func SessionConfigPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "config.json")
-}
-
-func BotPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "bot.json")
-}
-
-// DELETE will deprecate, use bot.json replacement
-func LegacyBotPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "bot.md")
-}
-
 func ActionLogPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), "action.log")
-}
-
-func UsageLogPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "usage.log")
 }
 
 func HistoryPath(sessionID string) string {
@@ -173,10 +156,6 @@ func SummaryCursorPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), ".summary_cursor")
 }
 
-func LegacySummaryMetaPath(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "summary.meta.json")
-}
-
 func InputHistoryPath(sessionID string) string {
 	return filepath.Join(SessionDir(sessionID), ".cmd_history")
 }
@@ -187,10 +166,6 @@ func PendingDir(sessionID string) string {
 
 func PendingMetaPath(sessionID, taskHash string) string {
 	return filepath.Join(PendingDir(sessionID), taskHash+".json")
-}
-
-func TaskHistoryDir(sessionID string) string {
-	return filepath.Join(SessionDir(sessionID), "history")
 }
 
 func AllowSkillProjectPath(workDir string) string {

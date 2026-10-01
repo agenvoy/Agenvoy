@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -16,16 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 )
 
-var (
-	LinePort              = "16722"
-	MaxToolIterations     = 128
-	AgentSendTimeoutSec   = 600
-	MaxHistoryMessages    = 24
-	MaxHistoryBytes       = DocumentMaxBytes * 4
-	MaxSessionTasks       = runtime.NumCPU() * 4
-	MaxSubagentTimeoutMin = 30
-	MaxResumeWaitMin      = 60
-)
+var LinePort = "16722"
 
 type SensitiveConfig struct {
 	Dirs       []string `json:"dirs"`
@@ -85,29 +75,10 @@ func LoadRuntime() error {
 	}
 	LinePort = limits.LinePort
 
-	if limits.MaxToolIterations <= 0 {
-		limits.MaxToolIterations = MaxToolIterations
-		changed = true
-	}
-	MaxToolIterations = limits.MaxToolIterations
-
-	if limits.AgentSendTimeoutSec <= 0 {
-		limits.AgentSendTimeoutSec = AgentSendTimeoutSec
-		changed = true
-	}
-	AgentSendTimeoutSec = limits.AgentSendTimeoutSec
-
-	if limits.MaxHistoryMessages <= 0 {
-		limits.MaxHistoryMessages = MaxHistoryMessages
-		changed = true
-	}
-	MaxHistoryMessages = limits.MaxHistoryMessages
-
-	if limits.MaxHistoryBytes <= 0 {
-		limits.MaxHistoryBytes = MaxHistoryBytes
-		changed = true
-	}
-	MaxHistoryBytes = limits.MaxHistoryBytes
+	configs.MAX_TOOL_ITERATIONS = max(limits.MaxToolIterations, configs.MAX_TOOL_ITERATIONS)
+	configs.AGENT_SEND_TIMEOUT_SEC = max(limits.AgentSendTimeoutSec, configs.AGENT_SEND_TIMEOUT_SEC)
+	configs.MAX_HISTORY_MESSAGES = max(limits.MaxHistoryMessages, configs.MAX_HISTORY_MESSAGES)
+	configs.MAX_HISTORY_BYTES = max(limits.MaxHistoryBytes, configs.MAX_HISTORY_BYTES)
 
 	ConfigReplyLang = ReplyLangAuto
 	if data, ok := raw["reply_lang"]; ok && len(data) > 0 {
@@ -158,14 +129,6 @@ func LoadRuntime() error {
 		SensitivePath.Prefixes = merge(SensitivePath.Prefixes, user.Prefixes)
 		SensitivePath.Extensions = merge(SensitivePath.Extensions, user.Extensions)
 	}
-	for key, note := range legacyKeys {
-		if data, ok := raw[key]; ok && len(data) > 0 {
-			slog.Warn("config key is no longer read",
-				slog.String("key", key),
-				slog.String("note", note))
-		}
-	}
-
 	if data, ok := raw["denied_command"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
@@ -228,12 +191,6 @@ func LoadRuntime() error {
 		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
 	}
 	return nil
-}
-
-var legacyKeys = map[string]string{
-	"sensitive_map":   "renamed to sensitive_path",
-	"white_list":      "removed; commands run unless listed in denied_command",
-	"path_white_list": "removed; paths outside $HOME are approved per session",
 }
 
 func normalizeDeniedPath(list []string) []string {

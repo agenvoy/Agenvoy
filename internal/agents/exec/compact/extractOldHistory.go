@@ -12,10 +12,6 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-const (
-	minOldHistoryRunes = 32_000
-)
-
 func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
 	// * step1: check user input is exist or not
 	userInput := extractUserInput(session.UserInput)
@@ -46,7 +42,7 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 
 	// * step4: check length is over threshold or not
 	raw := sb.String()
-	if utf8.RuneCountInString(raw) < minOldHistoryRunes {
+	if utf8.RuneCountInString(raw) < configs.SUMMARY_RUNES {
 		return false
 	}
 

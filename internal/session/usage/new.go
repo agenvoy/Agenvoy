@@ -41,11 +41,6 @@ func New() error {
 		return fmt.Errorf("sql.DB Exec [usage add tool_calls]: %w", err)
 	}
 
-	if _, err := c.Exec(
-		`UPDATE usage SET send_at = send_at * 1000000000 WHERE send_at < 1000000000000`); err != nil {
-		return fmt.Errorf("sql.DB Exec [usage send_at to nano]: %w", err)
-	}
-
 	conn = c
 	return nil
 }

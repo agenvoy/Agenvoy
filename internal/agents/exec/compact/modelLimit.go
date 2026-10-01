@@ -11,7 +11,7 @@ import (
 
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/configs"
 )
 
 const (
@@ -76,10 +76,15 @@ func limitPair(modelName string) (string, string) {
 	if !ok {
 		return "", ""
 	}
+	if prefix == "claude-code" {
+		model = claudeDateSuffix.ReplaceAllString(model, "")
+	}
 	return vendor, claudeVersion(vendor, model)
 }
 
 var claudeDashVersion = regexp.MustCompile(`^(claude-.*-\d+)-(\d{1,2})$`)
+
+var claudeDateSuffix = regexp.MustCompile(`-\d{8}$`)
 
 func claudeVersion(vendor, model string) string {
 	if vendor != "claude" {
@@ -97,7 +102,7 @@ func Warm(ctx context.Context) {
 	}
 
 	client := &http.Client{Timeout: limitTimeout}
-	dic, status, err := go_pkg_http.GET[map[string]map[string]modelLimit](ctx, client, runtime.ENDPOINT_LLM_WINDOW, nil)
+	dic, status, err := go_pkg_http.GET[map[string]map[string]modelLimit](ctx, client, configs.ENDPOINT_LLM_WINDOW, nil)
 	if err != nil {
 		slog.Debug("compact.Warm", slog.String("error", err.Error()))
 		return

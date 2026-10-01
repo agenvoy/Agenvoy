@@ -54,6 +54,7 @@ func New() *gin.Engine {
 	r.POST("/v1/session/:session_id", localhostOnly(), handler.UpdateSession())
 	r.DELETE("/v1/session/:session_id", localhostOnly(), handler.DeleteSession())
 	r.POST("/v1/session/:session_id/memory", localhostOnly(), handler.SessionMemory())
+	r.POST("/v1/session/:session_id/followup", localhostOnly(), handler.GetSessionFollowup())
 
 	r.POST("/v1/session/:session_id/confirm/:confirm_hash", handler.ResolveToolConfirm())
 	r.POST("/v1/session/:session_id/cancel/:task_hash", handler.CancelSessionTask())

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aymanbagabas/go-udiff"
+	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
@@ -41,7 +42,7 @@ func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, e
 func describe(ctx context.Context, row historyStore.Row) string {
 	path := filepath.Join(row.Dir, row.Name)
 	header := fmt.Sprintf("%s — %s by %s at %s",
-		path, row.Action, row.Tool, time.Unix(0, row.ChangedAt).Format(historyStore.TimeLayout))
+		path, row.Action, row.Tool, time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT))
 
 	if reason := row.RestoreBlock(); reason != "" {
 		return fmt.Sprintf("%s\ncannot be shown or restored: %s", header, reason)
