@@ -30,31 +30,32 @@ func extractThinkTag(content string) (think, rest string) {
 	return strings.TrimSpace(content[loc[2]:loc[3]]), strings.TrimSpace(content[loc[1]:])
 }
 
-func guardrailLabel(content string) string {
-	_, rest, ok := strings.Cut(content, configs.BAN_TAG)
-	if !ok {
-		return ""
-	}
-	label := strings.TrimSpace(rest)
-	if cut := strings.IndexAny(label, " \t\n\r"); cut > 0 {
-		label = label[:cut]
-	}
-	return strings.Trim(label, "[](){}:,.\"'`")
-}
-
 func guardrailRefusal(sessionID, model, content string) string {
-	label := guardrailLabel(content)
+	rule := guardrailRule(content)
 	runes := []rune(content)
 	head := runes[:min(len(runes), configs.LOG_HEAD_RUNES)]
-	slog.Debug("guardrail refusal",
+	slog.Debug("refusal",
 		slog.String("session", sessionID),
 		slog.String("model", model),
-		slog.String("label", label),
+		slog.String("rule", rule),
 		slog.String("head", string(head)))
 
 	refusal := filesystem.RefusalMessage()
-	if label == "" {
+	if rule == "" {
 		return refusal
 	}
-	return refusal + " (" + label + ")"
+	return refusal + " (" + rule + ")"
+}
+
+func guardrailRule(content string) string {
+	_, after, ok := strings.Cut(content, configs.BAN_TAG)
+	if !ok {
+		return ""
+	}
+
+	rule := strings.TrimSpace(after)
+	if cut := strings.IndexAny(rule, " \t\n\r"); cut > 0 {
+		rule = rule[:cut]
+	}
+	return strings.Trim(rule, "[](){}:,.\"'`")
 }
