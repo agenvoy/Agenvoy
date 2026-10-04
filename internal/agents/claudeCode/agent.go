@@ -2,6 +2,8 @@ package claudeCode
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -64,7 +66,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	system, rest := splitSystem(messages)
 	sessionID := agentTypes.SessionIDFrom(ctx)
 
-	if len(toolDefs) == 0 || sessionID == "" {
+	if sessionID == "" {
 		p := &process{}
 		if err := p.start(a.model, effort, len(toolDefs) > 0, "", false, cacheTTLShort); err != nil {
 			return nil, 0, err
@@ -73,7 +75,9 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		return p.turn(ctx, renderInitial(system, toolDefs, rest))
 	}
 
-	p := acquire(sessionID + "|" + a.name)
+	sum := sha256.Sum256([]byte(system))
+	slot := a.model + "|" + hex.EncodeToString(sum[:8])
+	p := acquire(sessionID + "|" + slot)
 	defer p.mu.Unlock()
 
 	spec := specOf(system, effort)
@@ -85,7 +89,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		p.stop()
 	}
 
-	path := statePath(sessionID, a.name)
+	path := statePath(sessionID, slot)
 	if persist && !p.loaded {
 		p.loaded = true
 		p.restore(path)
