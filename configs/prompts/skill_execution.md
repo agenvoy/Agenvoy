@@ -44,6 +44,36 @@ Skill resources (`scripts/`, `templates/`, `assets/`) are already resolved to ab
 
 `~` expands to the user home. Keep every path under `$HOME`: outside it the call is refused until the user approves that exact path, and retrying the same path without approval fails identically.
 
+### Self-repair
+
+A failure or wrong result caused by the skill itself — a step that no longer matches the tools or environment, a broken script, a stale path, flag or API field, a step the run had to improvise — is fixed in the skill, not only worked around for this run. User input, transient network and tool errors are not the skill's fault.
+
+`CHANGELOG.md` in the skill directory lists breaking changes only. When this run reads or updates files an earlier run of this skill produced, check them against it and fix every hit before continuing.
+
+Where the fix goes follows the `skill directory` in the header — the path this run actually loaded:
+
+| skill directory | Action |
+|---|---|
+| Under `~/.config/agenvoy/skills/.system/` | Skip self-repair entirely: no edit, no copy, no mention in the output |
+| Elsewhere under `~/.config/agenvoy/skills/` | Fix it with `edit_skill` now, then finish the run on the fixed skill |
+| Anywhere else | Finish the run with a workaround, then `ask_user` whether to copy the skill into `~/.config/agenvoy/skills/` and optimize it there. Yes → copy the whole skill directory to `<skill name>/` under it and apply the fix to the copy. No → leave the skill untouched |
+
+Every fix updates `CHANGELOG.md` in the same change, creating it when missing:
+
+```markdown
+# Changelog
+
+Last updated: YYYY-MM-DD
+
+## Breaking changes
+
+- <one line each, newest first>
+```
+
+Set `Last updated` to today. Add an entry only when the fix removes behavior or requires files earlier runs produced to change; additions and plain fixes stay out — the current SKILL.md already carries them.
+
+The final output lists every fix: what was wrong, what changed, which files.
+
 ### Errors
 
 Tool failures follow `reasoning_guide(topics=[tool_error])`. Two skill-specific cases:
