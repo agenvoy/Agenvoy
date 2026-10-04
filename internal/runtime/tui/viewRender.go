@@ -381,7 +381,7 @@ func headerBlock(daemon, http, discord, telegram, sessionID string) string {
 	textLines := []string{
 		logo,
 		hintStyle.Render("Make AI actually work for you"),
-		hintStyle.Render("Session ID: " + utils.ShortenSessionID(sessionID)),
+		hintStyle.Render("Session ID: ") + whiteStyle.Render(utils.ShortenSessionID(sessionID)),
 		"",
 		daemon + gap + discord,
 		http + gap + telegram,

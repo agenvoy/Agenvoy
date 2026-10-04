@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -398,7 +399,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return t, notice(msgError(fmt.Sprintf("%s reconnect: %v", msg.server, msg.err)) + "\n")
 		}
-		return t, notice(msgLog(fmt.Sprintf("%s reconnected", msg.server)) + "\n")
+		slog.Debug("mcp reconnected", slog.String("server", msg.server))
+		return t, nil
 
 	case McpPermissionResult:
 		return t.runMcpPermissionResult(msg)
@@ -519,11 +521,11 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, notice(msgError(fmt.Sprintf("mcp add: %v", msg.err)) + "\n")
 		}
 		if msg.oauth {
-			next, cmd := t.startMcpLogin(msg.name)
-			return next, tea.Batch(notice(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
+			slog.Debug("mcp added", slog.String("server", msg.name))
+			return t.startMcpLogin(msg.name)
 		}
-		next, cmd := t.reconnectMcpServer(msg.name)
-		return next, tea.Batch(notice(msgLog(fmt.Sprintf("mcp added: %s", msg.name))), cmd)
+		slog.Debug("mcp added", slog.String("server", msg.name))
+		return t.reconnectMcpServer(msg.name)
 
 	case McpClientID:
 		if msg.id == "" {
@@ -616,7 +618,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if t.currentSessionID != "" {
 			t.currentSessionName = msg.name
 		}
-		return t, notice(msgLog(fmt.Sprintf("bot saved: %s", msg.name)) + "\n")
+		slog.Debug("bot saved", slog.String("name", msg.name))
+		return t, nil
 
 	case ModelAddProviderPick:
 		return t.runModelAddProviderPick(msg.provider)
@@ -684,7 +687,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			seq = append(seq, notice(msgError(fmt.Sprintf("add-model: %v", msg.err))+"\n"))
 		} else {
 			agents.Reload()
-			seq = append(seq, notice(msgLog("model added  registry reloaded")+"\n"))
+			slog.Debug("model added")
 		}
 		return t, tea.Sequence(seq...)
 
@@ -809,7 +812,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			seq = append(seq, notice(msgError(fmt.Sprintf("discord %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, notice(msgLog(fmt.Sprintf("discord %sd  daemon reloading", msg.action))+"\n"))
+			slog.Debug("discord toggled", slog.String("action", msg.action))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -822,7 +825,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			seq = append(seq, notice(msgError(fmt.Sprintf("telegram %s: %v", msg.action, msg.err))+"\n"))
 		} else {
-			seq = append(seq, notice(msgLog(fmt.Sprintf("telegram %sd  daemon reloading", msg.action))+"\n"))
+			slog.Debug("telegram toggled", slog.String("action", msg.action))
 		}
 		return t, tea.Sequence(seq...)
 
@@ -852,7 +855,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, notice(msgError(fmt.Sprintf("revoke %s: %v", msg.channel, msg.err)) + "\n")
 		}
 		next, cmd, _ := t.commandChannel([]string{"channel", msg.channel})
-		return next, tea.Sequence(notice(msgLog("revoked  "+msg.name)+"\n"), cmd)
+		slog.Debug("channel revoked", slog.String("name", msg.name))
+		return next, cmd
 
 	case KeyDeletePick:
 		next, cmd := t.openKeyDeleteConfirm(msg.key)
@@ -890,10 +894,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err := config.Save(cfg); err != nil {
 			return t, notice(msgError(fmt.Sprintf("channel admin: session.Save: %v", err)) + "\n")
 		}
-		if value == "" {
-			return t.openConfig(configAdminChat), notice(msgLog("channel admin  disabled (log-only)") + "\n")
-		}
-		return t.openConfig(configAdminChat), notice(msgLog("channel admin  "+value) + "\n")
+		slog.Debug("channel admin updated", slog.String("value", value))
+		return t.openConfig(configAdminChat), nil
 
 	case KeySelect:
 		next, cmd := t.openKeyValuePrompt(msg.key)
@@ -906,7 +908,8 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err := keychain.Set(msg.key, msg.value); err != nil {
 			return t, notice(msgError(fmt.Sprintf("keychain.Set %s: %v", msg.key, err)) + "\n")
 		}
-		return t, notice(msgLog(fmt.Sprintf("%s updated", msg.key)) + "\n")
+		slog.Debug("key updated", slog.String("key", msg.key))
+		return t, nil
 
 	case TypesafeKeySubmit:
 		return t.runTypesafeKeySubmit(msg.field, msg.value)

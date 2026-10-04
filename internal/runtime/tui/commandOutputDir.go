@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -43,5 +44,6 @@ func (t TUI) runOutputDirSubmit(value string) (TUI, tea.Cmd) {
 	}
 	filesystem.ConfigOutputDir = value
 
-	return t.openConfig(configOutputDir), notice(msgLog("output dir: "+resolved) + "\n")
+	slog.Debug("output dir updated", slog.String("dir", resolved))
+	return t.openConfig(configOutputDir), nil
 }

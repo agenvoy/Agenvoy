@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -176,18 +177,15 @@ func syncSkills(selected []string) SkillsInstallDone {
 }
 
 func (t TUI) runSkillsInstallDone(msg SkillsInstallDone) (TUI, tea.Cmd) {
+	slog.Debug("skills synced",
+		slog.String("installed", strings.Join(msg.installed, ", ")),
+		slog.String("removed", strings.Join(msg.removed, ", ")))
 	var cmds []tea.Cmd
-	if len(msg.installed) > 0 {
-		cmds = append(cmds, notice(msgLog("installed: "+strings.Join(msg.installed, ", "))+"\n"))
-	}
-	if len(msg.removed) > 0 {
-		cmds = append(cmds, notice(msgLog("removed: "+strings.Join(msg.removed, ", "))+"\n"))
-	}
 	for _, line := range msg.failed {
 		cmds = append(cmds, notice(msgError(line)+"\n"))
 	}
 	if len(cmds) == 0 {
-		return t, notice(msgLog("skills unchanged") + "\n")
+		return t, nil
 	}
 	return t, tea.Sequence(cmds...)
 }

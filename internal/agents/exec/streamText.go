@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	partialMarkers = []string{"<think>", configs.BAN_TAG}
+	partialMarkers = []string{configs.BAN_TAG}
 )
 
 func streamSend(
@@ -191,6 +191,7 @@ type lineEmitter struct {
 	raw         strings.Builder
 	line        strings.Builder
 	inThink     bool
+	thinkDone   bool
 	inFence     bool
 	headerDone  bool
 	headerBytes int
@@ -205,7 +206,7 @@ func (e *lineEmitter) write(delta string) {
 	}
 
 	e.seen.WriteString(delta)
-	if seen := e.seen.String(); strings.Contains(seen, configs.BAN_TAG) || summaryLeakMarkerRegex.MatchString(seen) {
+	if seen := e.seen.String(); strings.Contains(seen, configs.BAN_TAG) || configs.SUMMARY_LEAK_MARKER_REGEX.MatchString(seen) {
 		e.stopped = true
 		e.raw.Reset()
 		e.line.Reset()
@@ -217,7 +218,7 @@ func (e *lineEmitter) write(delta string) {
 		rest := e.raw.String()
 
 		if e.inThink {
-			loc := thinkCloseRegex.FindStringIndex(rest)
+			loc := configs.THINK_TAG_CLOSE_REGEX.FindStringIndex(rest)
 			if loc == nil {
 				return
 			}
@@ -226,11 +227,17 @@ func (e *lineEmitter) write(delta string) {
 			continue
 		}
 
-		if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
-			e.feed(rest[:loc[0]])
-			e.setRaw(rest[loc[1]:])
-			e.inThink = true
-			continue
+		if !e.thinkDone {
+			trimmed := strings.TrimLeft(rest, " \t\r\n")
+			if len(trimmed) < len(configs.THINK_TAG) && strings.EqualFold(trimmed, configs.THINK_TAG[:len(trimmed)]) {
+				return
+			}
+			e.thinkDone = true
+			if len(trimmed) >= len(configs.THINK_TAG) && strings.EqualFold(trimmed[:len(configs.THINK_TAG)], configs.THINK_TAG) {
+				e.setRaw(trimmed[len(configs.THINK_TAG):])
+				e.inThink = true
+				continue
+			}
 		}
 
 		hold := holdLen(rest)

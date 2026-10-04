@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -115,7 +116,8 @@ func (t TUI) runPendingDelete(msg PendingDeleteConfirm) (TUI, tea.Cmd) {
 	interactive.DeletePending(msg.id, msg.taskHash)
 
 	next, cmd, _ := t.commandPending()
-	return next, tea.Sequence(notice(msgLog("dropped pending task: "+msg.label)+"\n"), cmd)
+	slog.Debug("pending task dropped", slog.String("label", msg.label))
+	return next, cmd
 }
 
 func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {

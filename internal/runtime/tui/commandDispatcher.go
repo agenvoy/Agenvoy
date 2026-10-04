@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -98,7 +99,7 @@ func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 		return t.enableTypesafe(fieldDispatcher)
 	}
 	if cfg.DispatcherModel == name && !cfg.DispatcherBeta {
-		return t, notice(msgLog(fmt.Sprintf("dispatcher unchanged: %s", name)) + "\n")
+		return t, nil
 	}
 
 	cfg.DispatcherModel = name
@@ -106,5 +107,6 @@ func (t TUI) runDispatcherSelect(name string) (TUI, tea.Cmd) {
 	if err := config.Save(cfg); err != nil {
 		return t, notice(msgError(fmt.Sprintf("session.Save: %v", err)) + "\n")
 	}
-	return t, notice(msgLog(fmt.Sprintf("dispatcher: %s", name)) + "\n")
+	slog.Debug("dispatcher updated", slog.String("model", name))
+	return t, nil
 }
