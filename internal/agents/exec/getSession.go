@@ -48,14 +48,14 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
 	session := agentTypes.AgentSession{
-		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, sessionID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName()),
+		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, sessionID, execData.AllowAll, execData.ExcludeSkills, execData.Agent.Name()),
 		Tools:         []provider.Message{},
 		Histories:     sessionHistory.Messages(oldHistory),
 		BaseLen:       len(oldHistory),
 		OldHistories:  sessionHistory.Messages(maxHistory),
 		ToolHistories: []provider.Message{},
 	}
-	if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxHistory)); summary != "" {
+	if summary := summary.GetPrompt(sessionID, GetOldestMessageTime(maxHistory)); summary != "" {
 		// * if summary not empty, add it
 		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 	}
@@ -94,7 +94,7 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	return &session, nil
 }
 
-func OldestMessageTime(histories []sessionHistory.Record) time.Time {
+func GetOldestMessageTime(histories []sessionHistory.Record) time.Time {
 	for _, record := range histories {
 		if record.SendAt > 0 {
 			return time.Unix(0, record.SendAt)

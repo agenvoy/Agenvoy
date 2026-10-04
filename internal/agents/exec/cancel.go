@@ -16,7 +16,6 @@ func Cancel(taskHash string) bool {
 	cancelFnMapMu.Lock()
 	fn, ok := cancelFnMap[taskHash]
 	cancelFnMapMu.Unlock()
-
 	if !ok {
 		return false
 	}

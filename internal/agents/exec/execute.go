@@ -72,13 +72,6 @@ const (
 	fanoutStopGrace = 3 * time.Second
 )
 
-func (m ExecuteMeta) ModelName() string {
-	if m.Agent == nil {
-		return ""
-	}
-	return m.Agent.Name()
-}
-
 type (
 	allowAllCtxKey   struct{}
 	parentEventsKey  struct{}
@@ -263,11 +256,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			runModel := ""
-			if data.Agent != nil {
-				runModel = data.Agent.Name()
-			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, data.Reasoning, allowAll)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {
@@ -346,7 +335,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		exec.Tools = append(exec.Tools, t)
 	}
 
-	if data.Agent != nil && claudeCode.Is(data.Agent.Name()) {
+	if claudeCode.Is(data.Agent.Name()) {
 		for _, t := range exec.Tools {
 			if name := t.Function.Name; name != "find_tools" && !clientTools[name] {
 				exec.StubTools[name] = true
@@ -468,7 +457,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if checkAgentResponsive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
+				if checkAgentAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
 					unresponsiveFailures = 0
 					watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 					continue

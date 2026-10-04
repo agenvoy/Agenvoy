@@ -57,7 +57,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		AllowAll:       true,
 	}
 
-	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills, data.ModelName())
+	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills, data.Agent.Name())
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
