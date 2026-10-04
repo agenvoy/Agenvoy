@@ -75,8 +75,12 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		return p.turn(ctx, renderInitial(system, toolDefs, rest))
 	}
 
+	withTools := len(toolDefs) > 0
 	sum := sha256.Sum256([]byte(system))
 	slot := a.model + "|" + hex.EncodeToString(sum[:8])
+	if !withTools {
+		slot += "|plain"
+	}
 	p := acquire(sessionID + "|" + slot)
 	defer p.mu.Unlock()
 
@@ -101,7 +105,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		if persist {
 			p.id = go_pkg_utils.UUID()
 		}
-		if err := p.start(a.model, effort, true, p.id, false, cacheTTL); err != nil {
+		if err := p.start(a.model, effort, withTools, p.id, false, cacheTTL); err != nil {
 			return nil, err
 		}
 		p.spec = spec
@@ -128,7 +132,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		content = fresh
 	} else if !p.alive() {
 		p.stop()
-		if err := p.start(a.model, effort, true, p.id, true, cacheTTL); err != nil {
+		if err := p.start(a.model, effort, withTools, p.id, true, cacheTTL); err != nil {
 			return nil, 0, err
 		}
 		resumed = true

@@ -15,6 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -343,6 +344,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		clientTools[name] = true
 		exec.Tools = append(exec.Tools, t)
+	}
+
+	if data.Agent != nil && claudeCode.Is(data.Agent.Name()) {
+		for _, t := range exec.Tools {
+			if name := t.Function.Name; name != "find_tools" && !clientTools[name] {
+				exec.StubTools[name] = true
+			}
+		}
 	}
 
 	limit := configs.MAX_TOOL_ITERATIONS
