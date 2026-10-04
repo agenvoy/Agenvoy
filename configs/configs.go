@@ -19,6 +19,7 @@ const (
 	COMPACT_THRESHOLD_RATIO = 0.8
 	FALLBACK_CONTEXT_WINDOW = 128_000
 	SUMMARY_RUNES           = 32_000
+	LOG_HEAD_RUNES          = 160
 
 	// * Cache
 	TTL_MEMORY_SEC       = 90 * 24 * 60 * 60
@@ -105,9 +106,13 @@ var (
 	}
 
 	// * Regex
-	FRONTMATTER_REGEX   = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
-	HTML_TAG_REGEX      = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
-	CACHE_HIT_PCT_REGEX = regexp.MustCompile(`^\((\d+)%\)$`)
+	FRONTMATTER_REGEX         = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
+	HTML_TAG_REGEX            = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
+	CACHE_HIT_PCT_REGEX       = regexp.MustCompile(`^\((\d+)%\)$`)
+	MESSAGE_PREFIX_REGEX      = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*(?:\n|\z)`)
+	SUMMARY_LEAK_MARKER_REGEX = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
+	THINK_TAG_REGEX           = regexp.MustCompile(`(?is)\A\s*<think>(.*?)(?:</think>|\z)\s*`)
+	THINK_TAG_CLOSE_REGEX     = regexp.MustCompile(`(?i)</think>`)
 )
 
 // * Prompts

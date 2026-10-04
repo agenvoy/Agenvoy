@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
 	"strings"
@@ -152,11 +153,6 @@ func (t TUI) runMcpPermissionPick(msg McpPermissionPick) (TUI, tea.Cmd) {
 		return t, notice(msgError(fmt.Sprintf("%s permission: %v", msg.server, err)) + "\n")
 	}
 
-	if len(entries) == 0 {
-		return t, notice(msgLog(fmt.Sprintf("%s: every tool now asks for confirmation", msg.server)) + "\n")
-	}
-	if entries[0] == allowAllEntry(msg.server) {
-		return t, notice(msgLog(fmt.Sprintf("%s: all tools always allowed", msg.server)) + "\n")
-	}
-	return t, notice(msgLog(fmt.Sprintf("%s: %d tool(s) always allowed", msg.server, len(entries))) + "\n")
+	slog.Debug("mcp permission updated", slog.String("server", msg.server), slog.Int("allowed", len(entries)))
+	return t, nil
 }

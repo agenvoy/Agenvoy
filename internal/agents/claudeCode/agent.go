@@ -2,6 +2,8 @@ package claudeCode
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,8 +14,8 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 const Provider = "claude-code"
@@ -64,7 +66,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 	system, rest := splitSystem(messages)
 	sessionID := agentTypes.SessionIDFrom(ctx)
 
-	if len(toolDefs) == 0 || sessionID == "" {
+	if sessionID == "" {
 		p := &process{}
 		if err := p.start(a.model, effort, len(toolDefs) > 0, "", false, cacheTTLShort); err != nil {
 			return nil, 0, err
@@ -73,7 +75,13 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		return p.turn(ctx, renderInitial(system, toolDefs, rest))
 	}
 
-	p := acquire(sessionID + "|" + a.name)
+	withTools := len(toolDefs) > 0
+	sum := sha256.Sum256([]byte(system))
+	slot := a.model + "|" + hex.EncodeToString(sum[:8])
+	if !withTools {
+		slot += "|plain"
+	}
+	p := acquire(sessionID + "|" + slot)
 	defer p.mu.Unlock()
 
 	spec := specOf(system, effort)
@@ -85,7 +93,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		p.stop()
 	}
 
-	path := statePath(sessionID, a.name)
+	path := statePath(sessionID, slot)
 	if persist && !p.loaded {
 		p.loaded = true
 		p.restore(path)
@@ -97,7 +105,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		if persist {
 			p.id = go_pkg_utils.UUID()
 		}
-		if err := p.start(a.model, effort, true, p.id, false, cacheTTL); err != nil {
+		if err := p.start(a.model, effort, withTools, p.id, false, cacheTTL); err != nil {
 			return nil, err
 		}
 		p.spec = spec
@@ -124,7 +132,7 @@ func (a *Agent) Send(ctx context.Context, messages []provider.Message, toolDefs 
 		content = fresh
 	} else if !p.alive() {
 		p.stop()
-		if err := p.start(a.model, effort, true, p.id, true, cacheTTL); err != nil {
+		if err := p.start(a.model, effort, withTools, p.id, true, cacheTTL); err != nil {
 			return nil, 0, err
 		}
 		resumed = true
@@ -178,7 +186,7 @@ func answerIndex(messages []provider.Message, answer string) int {
 }
 
 func answerText(content any) string {
-	return strings.TrimSpace(sessionHistory.StripPrefix(contentText(content)))
+	return strings.TrimSpace(configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(contentText(content), ""))
 }
 
 func effortOf(reasoning provider.Reasoning) string {

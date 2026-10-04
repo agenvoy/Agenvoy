@@ -282,7 +282,7 @@ func decodeHit(key string, ts int64, val string) (historyHit, bool) {
 	if err := json.Unmarshal([]byte(val), &msg); err != nil {
 		return historyHit{}, false
 	}
-	content := strings.TrimSpace(sessionHistory.StripPrefix(msg.Content))
+	content := strings.TrimSpace(configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(msg.Content, ""))
 	if content == "" {
 		return historyHit{}, false
 	}

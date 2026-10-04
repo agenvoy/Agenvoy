@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -61,5 +62,6 @@ func (t TUI) runReplyLanguageSelect(code string) (TUI, tea.Cmd) {
 	}
 	filesystem.ConfigReplyLang = lang
 
-	return t.openConfig(configReplyLang), notice(msgLog("reply language: "+lang) + "\n")
+	slog.Debug("reply language updated", slog.String("lang", lang))
+	return t.openConfig(configReplyLang), nil
 }

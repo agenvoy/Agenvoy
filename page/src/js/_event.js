@@ -195,7 +195,8 @@ async function loadModelQuota(view, model) {
       return;
     }
     const quota = _("span.quota", text);
-    quota.dataset.level = quotaLevel(text.endsWith("%") ? "percent" : "balance", parseFloat(text));
+    const percents = (text.match(/\d+(?:\.\d+)?(?=%)/g) || []).map(Number);
+    quota.dataset.level = quotaLevel(percents.length ? "percent" : "balance", percents.length ? Math.min(...percents) : parseFloat(text));
     view.model.querySelector("span.quota")?.remove();
     view.model.appendChild(quota);
   } catch (err) {

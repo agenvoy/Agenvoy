@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"sort"
 	"strings"
@@ -185,5 +186,6 @@ func (t TUI) runRoleSaved(msg RoleSaved) (TUI, tea.Cmd) {
 	if msg.err != nil {
 		return t, notice(msgError(fmt.Sprintf("role save %s: %v", msg.name, msg.err)) + "\n")
 	}
-	return t, notice(msgLog(fmt.Sprintf("role saved: %s", msg.name)) + "\n")
+	slog.Debug("role saved", slog.String("name", msg.name))
+	return t, nil
 }

@@ -8,12 +8,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
-	partialMarkers = []string{"<think>", configs.BAN_TAG}
+	partialMarkers = []string{configs.BAN_TAG}
 )
 
 func streamSend(
@@ -192,6 +191,7 @@ type lineEmitter struct {
 	raw         strings.Builder
 	line        strings.Builder
 	inThink     bool
+	thinkDone   bool
 	inFence     bool
 	headerDone  bool
 	headerBytes int
@@ -206,7 +206,7 @@ func (e *lineEmitter) write(delta string) {
 	}
 
 	e.seen.WriteString(delta)
-	if seen := e.seen.String(); isGuardrailRefusal(seen) || summaryLeakMarkerRegex.MatchString(seen) {
+	if seen := e.seen.String(); strings.Contains(seen, configs.BAN_TAG) || configs.SUMMARY_LEAK_MARKER_REGEX.MatchString(seen) {
 		e.stopped = true
 		e.raw.Reset()
 		e.line.Reset()
@@ -218,7 +218,7 @@ func (e *lineEmitter) write(delta string) {
 		rest := e.raw.String()
 
 		if e.inThink {
-			loc := thinkCloseRegex.FindStringIndex(rest)
+			loc := configs.THINK_TAG_CLOSE_REGEX.FindStringIndex(rest)
 			if loc == nil {
 				return
 			}
@@ -227,11 +227,16 @@ func (e *lineEmitter) write(delta string) {
 			continue
 		}
 
-		if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
-			e.feed(rest[:loc[0]])
-			e.setRaw(rest[loc[1]:])
-			e.inThink = true
-			continue
+		if !e.thinkDone {
+			if len(strings.TrimSpace(rest)) < 7 {
+				return
+			}
+			e.thinkDone = true
+			if loc := configs.THINK_TAG_REGEX.FindStringSubmatchIndex(rest); loc != nil {
+				e.setRaw(rest[loc[2]:])
+				e.inThink = true
+				continue
+			}
 		}
 
 		hold := holdLen(rest)
@@ -337,7 +342,7 @@ func (e *lineEmitter) header(line string) bool {
 	}
 
 	e.headerDone = true
-	if !sessionHistory.HasPrefix(trimmed) {
+	if !configs.MESSAGE_PREFIX_REGEX.MatchString(trimmed) {
 		e.releaseDelta()
 		return false
 	}
@@ -356,7 +361,7 @@ func (e *lineEmitter) normalize(line string) (string, bool) {
 		return line, true
 	}
 
-	stripped := stripModelArtifacts(line)
+	stripped := Response(line)
 	return stripped, strings.TrimSpace(stripped) != ""
 }
 

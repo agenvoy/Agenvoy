@@ -123,7 +123,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 
 	session := &agentTypes.AgentSession{
 		ID:            sessionID,
-		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills, execData.ModelName()),
+		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, agents.Scanner(), sessionID, execData.AllowAll, execData.ExcludeSkills, execData.Agent.Name()),
 		OldHistories:  maxHistory,
 		ToolHistories: []provider.Message{},
 		Tools:         []provider.Message{},
@@ -133,7 +133,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 		UserInput:     provider.Message{Role: "user", Content: prefixed},
 	}
 	if !ignoreHistory {
-		if summary := summary.GetPrompt(sessionID, OldestMessageTime(maxRecords)); summary != "" {
+		if summary := summary.GetPrompt(sessionID, GetOldestMessageTime(maxRecords)); summary != "" {
 			session.SummaryMessage = provider.Message{Role: "user", Content: summary}
 		}
 	}

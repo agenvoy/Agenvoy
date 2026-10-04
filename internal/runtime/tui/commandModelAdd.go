@@ -812,7 +812,8 @@ func (t TUI) runModelAddModelMultiPick(chosen string) (TUI, tea.Cmd) {
 	if len(summary) == 0 {
 		return t, nil
 	}
-	return t, notice(msgLog(fmt.Sprintf("%s  registry reloaded", strings.Join(summary, "  "))) + "\n")
+	slog.Debug("models updated", slog.String("summary", strings.Join(summary, "  ")))
+	return t, nil
 }
 
 func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {

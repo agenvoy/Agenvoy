@@ -381,7 +381,7 @@ func headerBlock(daemon, http, discord, telegram, line, sessionID string) string
 	textLines := []string{
 		logo,
 		hintStyle.Render("Make AI actually work for you"),
-		hintStyle.Render("Session ID: " + utils.ShortenSessionID(sessionID)),
+		hintStyle.Render("Session ID: ") + whiteStyle.Render(utils.ShortenSessionID(sessionID)),
 		"",
 		daemon + gap + discord,
 		http + gap + telegram,
@@ -455,17 +455,21 @@ func renderQuotaBadge(quota string) string {
 	if quota = strings.TrimSpace(quota); quota == "" {
 		return ""
 	}
-	style := okayStyle
-	if percent, ok := strings.CutSuffix(quota, "%"); ok {
-		switch value, err := strconv.ParseFloat(percent, 64); {
-		case err != nil:
-		case value < 30:
-			style = errorStyle
-		case value < 50:
-			style = skillStyle
+	parts := strings.Split(quota, "/")
+	for i, part := range parts {
+		style := okayStyle
+		if percent, ok := strings.CutSuffix(part, "%"); ok {
+			switch value, err := strconv.ParseFloat(percent, 64); {
+			case err != nil:
+			case value < 30:
+				style = errorStyle
+			case value < 50:
+				style = skillStyle
+			}
 		}
+		parts[i] = style.Render(part)
 	}
-	return style.Render("[" + quota + "]")
+	return hintStyle.Render("[") + strings.Join(parts, hintStyle.Render("/")) + hintStyle.Render("]")
 }
 
 func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {

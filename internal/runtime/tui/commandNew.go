@@ -106,15 +106,11 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	if name != "" && name != label {
 		label = fmt.Sprintf("%s (%s)", name, label)
 	}
-	lines := []string{msgLog(fmt.Sprintf("new session: %s", label))}
-	if previous != "" && previous != id {
-		lines = append(lines, hintStyle.Render(fmt.Sprintf("  previous: %s", utils.ShortenSessionID(previous))))
-	}
+	slog.Debug("session created", slog.String("session", label), slog.String("previous", previous))
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
-		notice(strings.Join(lines, "\n")),
 	)
 }
 

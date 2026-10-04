@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -91,7 +92,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 
 func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	if id == t.currentSessionID {
-		return t, notice(msgLog(fmt.Sprintf("already on: %s", utils.ShortenSessionID(id))) + "\n")
+		return t, nil
 	}
 	previous := t.currentSessionID
 	t.currentSessionID = id
@@ -109,16 +110,11 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	t.currentModel = ""
 	t.activity = ""
 
-	switchLines := []string{msgLog(fmt.Sprintf("switched to: %s", utils.ShortenSessionID(id)))}
-	if previous != "" && previous != id {
-		switchLines = append(switchLines, hintStyle.Render(fmt.Sprintf("  previous: %s", utils.ShortenSessionID(previous))))
-	}
-	switchBlock := notice(strings.Join(switchLines, "\n"))
+	slog.Debug("session switched", slog.String("to", id), slog.String("from", previous))
 
 	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
-		switchBlock,
 	)
 }
 

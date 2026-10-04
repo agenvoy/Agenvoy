@@ -37,7 +37,7 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 
 		record := sessionHistory.Record{Role: message.Role, Content: message.Content, SendAt: now}
 		if content, ok := message.Content.(string); ok {
-			record.Content = sessionHistory.StripPrefix(content)
+			record.Content = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(content, "")
 		}
 		if message.Role == "user" {
 			record.Sender = session.Sender
@@ -71,7 +71,7 @@ func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.M
 		return
 	}
 	if content, ok := msg.Content.(string); ok {
-		msg.Content = sessionHistory.StripPrefix(content)
+		msg.Content = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(content, "")
 	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
