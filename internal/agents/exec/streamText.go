@@ -8,7 +8,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -206,7 +205,7 @@ func (e *lineEmitter) write(delta string) {
 	}
 
 	e.seen.WriteString(delta)
-	if seen := e.seen.String(); isGuardrailRefusal(seen) || summaryLeakMarkerRegex.MatchString(seen) {
+	if seen := e.seen.String(); strings.Contains(seen, configs.BAN_TAG) || summaryLeakMarkerRegex.MatchString(seen) {
 		e.stopped = true
 		e.raw.Reset()
 		e.line.Reset()
@@ -337,7 +336,7 @@ func (e *lineEmitter) header(line string) bool {
 	}
 
 	e.headerDone = true
-	if !sessionHistory.HasPrefix(trimmed) {
+	if !configs.MESSAGE_PREFIX_REGEX.MatchString(trimmed) {
 		e.releaseDelta()
 		return false
 	}
@@ -356,7 +355,7 @@ func (e *lineEmitter) normalize(line string) (string, bool) {
 		return line, true
 	}
 
-	stripped := stripModelArtifacts(line)
+	stripped := Response(line)
 	return stripped, strings.TrimSpace(stripped) != ""
 }
 

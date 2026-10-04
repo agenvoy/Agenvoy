@@ -14,8 +14,8 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 const Provider = "claude-code"
@@ -186,7 +186,7 @@ func answerIndex(messages []provider.Message, answer string) int {
 }
 
 func answerText(content any) string {
-	return strings.TrimSpace(sessionHistory.StripPrefix(contentText(content)))
+	return strings.TrimSpace(configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(contentText(content), ""))
 }
 
 func effortOf(reasoning provider.Reasoning) string {

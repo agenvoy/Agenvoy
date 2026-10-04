@@ -723,7 +723,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if len(choice.Message.ToolCalls) > 0 {
 			emptyCount = 0
 			if text, ok := choice.Message.Content.(string); ok {
-				if stripped := StripModelResponse(text); stripped != "" && !isGuardrailRefusal(stripped) {
+				if stripped := Response(text); stripped != "" && !strings.Contains(stripped, configs.BAN_TAG) {
 					if textEmitted {
 						events <- agentTypes.Event{Type: agentTypes.EventTextDone}
 					} else {
@@ -772,7 +772,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
-			stripped := StripModelResponse(str)
+			stripped := Response(str)
 			if stripped == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart, sendElapsedTotal) {
 					return nil
@@ -781,7 +781,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 			emptyCount = 0
 
-			if isGuardrailRefusal(stripped) {
+			if strings.Contains(stripped, configs.BAN_TAG) {
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), stripped)
 				sendText(events, refusal)
 				emitChangedFiles()
@@ -858,8 +858,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
-			summaryStripped := StripModelResponse(text)
-			if isGuardrailRefusal(summaryStripped) {
+			summaryStripped := Response(text)
+			if strings.Contains(summaryStripped, configs.BAN_TAG) {
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), summaryStripped)
 				sendText(events, refusal)
 				emitChangedFiles()
