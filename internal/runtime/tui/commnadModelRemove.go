@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -67,7 +68,8 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 
 	agents.Reload()
 
-	lines := []string{msgLog(fmt.Sprintf("removed: %s  registry reloaded", label))}
+	slog.Debug("model removed", slog.String("model", label))
+	var lines []string
 	if clearedDispatcher {
 		lines = append(lines, msgWarn("dispatcher cleared  run /model or set a new dispatcher"))
 	}
@@ -76,6 +78,9 @@ func (t TUI) runModelRemove(name string) (TUI, tea.Cmd) {
 	}
 	if len(cfg.Models) == 0 {
 		lines = append(lines, msgWarn("no model configured  /model add"))
+	}
+	if len(lines) == 0 {
+		return t, nil
 	}
 	return t, notice(strings.Join(lines, "\n"))
 }

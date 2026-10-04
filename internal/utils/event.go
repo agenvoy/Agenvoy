@@ -349,19 +349,31 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning s
 }
 
 type QuotaSource struct {
-	ID   string
-	Kind string
-	Fn   func(context.Context, provider.Config) (float64, error)
+	ID string
+	Fn func(context.Context, provider.Config) (provider.UsageRemaining, error)
 }
 
 var QuotaSources = []QuotaSource{
-	{"codex", "percent", openaicodex.Usage},
-	{"grok-oauth", "percent", grokoauth.Usage},
-	{"copilot", "percent", copilot.Usage},
-	{"ollama-cloud", "percent", ollamacloud.Usage},
-	{"openrouter", "balance", openrouter.Usage},
-	{"deepseek", "balance", deepseek.Usage},
-	{claudeCode.Provider, "percent", claudeCode.Usage},
+	{"codex", openaicodex.Usage},
+	{"grok-oauth", grokoauth.Usage},
+	{"copilot", copilot.Usage},
+	{"ollama-cloud", ollamacloud.Usage},
+	{"openrouter", openrouter.Usage},
+	{"deepseek", deepseek.Usage},
+	{claudeCode.Provider, claudeCode.Usage},
+}
+
+func FormatQuota(remaining provider.UsageRemaining) string {
+	if remaining.Balance != nil {
+		return fmt.Sprintf("$%.2f", *remaining.Balance)
+	}
+	list := []string{}
+	for _, value := range []*float64{remaining.FiveHour, remaining.Week, remaining.Total} {
+		if value != nil {
+			list = append(list, fmt.Sprintf("%.0f%%", *value))
+		}
+	}
+	return strings.Join(list, "/")
 }
 
 func ModelQuota(ctx context.Context, model string) string {
@@ -384,12 +396,9 @@ func ModelQuota(ctx context.Context, model string) string {
 	if err != nil {
 		return ""
 	}
-	value, err := source.Fn(ctx, cfg)
+	remaining, err := source.Fn(ctx, cfg)
 	if err != nil {
 		return ""
 	}
-	if source.Kind == "balance" {
-		return fmt.Sprintf("$%.2f", value)
-	}
-	return fmt.Sprintf("%.0f%%", value)
+	return FormatQuota(remaining)
 }

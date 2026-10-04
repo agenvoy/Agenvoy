@@ -21,7 +21,7 @@ func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 		Function: provider.ToolCallFunction{Name: "run_skill", Arguments: string(raw)},
 	}
 
-	// * pretend assistant already called this tool, record tool call in history
+	// * pretend assistant called this tool to assign skill
 	session.ToolHistories = append(session.ToolHistories,
 		provider.Message{
 			Role:      "assistant",

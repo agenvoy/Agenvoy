@@ -6,8 +6,8 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 func RetainExchanges(sessionID string, keptRawContents []string) {
@@ -71,7 +71,7 @@ func RetainExchanges(sessionID string, keptRawContents []string) {
 
 func canonical(str string) string {
 	str = strings.ReplaceAll(str, ActionNewlineMarker, "\n")
-	return flatten(strings.TrimSpace(sessionHistory.StripPrefix(str)))
+	return flatten(strings.TrimSpace(configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(str, "")))
 }
 
 func extractKindBody(line, kind string) (string, bool) {

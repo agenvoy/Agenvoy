@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -45,9 +46,9 @@ func (t TUI) runMcpRemove(server string) (TUI, tea.Cmd) {
 	}
 	mcp.Manager().Disconnect(server)
 
-	removed := msgLog(fmt.Sprintf("removed: %s", server))
+	slog.Debug("mcp removed", slog.String("server", server))
 	if err := mcp.ClearOAuth(server); err != nil {
-		return t, notice(removed + "\n" + msgWarn(fmt.Sprintf("oauth credentials left in keychain: %v", err)) + "\n")
+		return t, notice(msgWarn(fmt.Sprintf("oauth credentials left in keychain: %v", err)) + "\n")
 	}
-	return t, notice(removed)
+	return t, nil
 }

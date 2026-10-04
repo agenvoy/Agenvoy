@@ -13,11 +13,11 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
-var usedPattern = regexp.MustCompile(`(?m)^Current (?:session|week \(all models\)): (\d+(?:\.\d+)?)% used`)
+var usedPattern = regexp.MustCompile(`(?m)^Current (session|week \(all models\)): (\d+(?:\.\d+)?)% used`)
 
-func Usage(ctx context.Context, _ provider.Config) (float64, error) {
+func Usage(ctx context.Context, _ provider.Config) (provider.UsageRemaining, error) {
 	if err := CheckBinary(); err != nil {
-		return 0, err
+		return provider.UsageRemaining{}, err
 	}
 
 	cmd := exec.CommandContext(ctx, "claude", "-p", "/usage",
@@ -27,21 +27,22 @@ func Usage(ctx context.Context, _ provider.Config) (float64, error) {
 	cmd.Stderr = stderr
 	raw, err := cmd.Output()
 	if err != nil {
-		return 0, fmt.Errorf("claude /usage: %w: %s", err, stderr.String())
+		return provider.UsageRemaining{}, fmt.Errorf("claude /usage: %w: %s", err, stderr.String())
 	}
 
 	text := string(raw)
-	matches := usedPattern.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 {
-		return 0, fmt.Errorf("claude /usage: no subscription limits in output: %s", go_pkg_utils.TruncateString(strings.TrimSpace(text), 200))
-	}
-	used := 0.0
-	for _, m := range matches {
-		value, err := strconv.ParseFloat(m[1], 64)
+	dic := map[string]float64{}
+	for _, m := range usedPattern.FindAllStringSubmatch(text, -1) {
+		value, err := strconv.ParseFloat(m[2], 64)
 		if err != nil {
-			return 0, fmt.Errorf("strconv.ParseFloat %q: %w", m[1], err)
+			return provider.UsageRemaining{}, fmt.Errorf("strconv.ParseFloat %q: %w", m[2], err)
 		}
-		used = max(used, value)
+		dic[m[1]] = 100 - value
 	}
-	return 100 - used, nil
+	fiveHour, hasFiveHour := dic["session"]
+	week, hasWeek := dic["week (all models)"]
+	if !hasFiveHour || !hasWeek {
+		return provider.UsageRemaining{}, fmt.Errorf("claude /usage: no subscription limits in output: %s", go_pkg_utils.TruncateString(strings.TrimSpace(text), 200))
+	}
+	return provider.UsageRemaining{FiveHour: &fiveHour, Week: &week}, nil
 }

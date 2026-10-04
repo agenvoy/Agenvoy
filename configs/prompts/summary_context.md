@@ -15,7 +15,7 @@ The JSON below is the rolling summary of prior discussion in this session — yo
 
 **Hard constraints (apply even when surfacing):**
 
-- Never output a literal `<summary>...</summary>` or `[summary]...[/summary]` block, and never emit the raw JSON structure. Always paraphrase into natural prose / bullets.
+- Never emit the raw JSON structure. Always paraphrase into natural prose / bullets.
 - Never invent fields or facts not present in the JSON below.
 - Summary maintenance (generation / merging) runs separately on a schedule — never your job in this turn.
 

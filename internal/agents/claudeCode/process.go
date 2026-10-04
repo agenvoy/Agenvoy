@@ -124,10 +124,10 @@ type processState struct {
 	LastAnswer string   `json:"last_answer"`
 }
 
-var stateFileName = strings.NewReplacer("@", "_", "/", "_")
+var stateFileName = strings.NewReplacer("@", "_", "/", "_", "|", "_")
 
 func statePath(sessionID, name string) string {
-	return filepath.Join(filesystem.SessionDir(sessionID), "claude_code_"+stateFileName.Replace(name)+".json")
+	return filepath.Join(filesystem.SessionDir(sessionID), ".claude_code", stateFileName.Replace(name)+".json")
 }
 
 func (p *process) restore(path string) {

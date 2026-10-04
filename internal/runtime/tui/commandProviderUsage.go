@@ -87,11 +87,11 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 		}
 		if hasOpenRouter {
 			wg.Add(1)
-			go fetch(5, func() string { return fetchProviderBalance(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
+			go fetch(5, func() string { return fetchProviderUsage(ctx, "OpenRouter", "openrouter", openrouter.Usage) })
 		}
 		if hasDeepseek {
 			wg.Add(1)
-			go fetch(6, func() string { return fetchProviderBalance(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
+			go fetch(6, func() string { return fetchProviderUsage(ctx, "DeepSeek", "deepseek", deepseek.Usage) })
 		}
 		if hasClaudeCode {
 			wg.Add(1)
@@ -111,32 +111,33 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	return t, nil, true
 }
 
-func fetchProviderUsage(ctx context.Context, label, prov string, fn func(context.Context, provider.Config) (float64, error)) string {
+func fetchProviderUsage(ctx context.Context, label, prov string, fn func(context.Context, provider.Config) (provider.UsageRemaining, error)) string {
 	cfg, err := agentKeychain.Config(ctx, prov)
 	if err == nil {
-		var remaining float64
+		var remaining provider.UsageRemaining
 		remaining, err = fn(ctx, cfg)
 		if err == nil {
-			return textStyle.Render(label+": ") + remainingPctStyle(remaining).Render(fmt.Sprintf("%.0f%%", remaining))
+			return textStyle.Render(label+": ") + renderRemaining(remaining)
 		}
 	}
 	return textStyle.Render(label+": ") + errorStyle.Render("failed")
 }
 
-func fetchProviderBalance(ctx context.Context, label, prov string, fn func(context.Context, provider.Config) (float64, error)) string {
-	cfg, err := agentKeychain.Config(ctx, prov)
-	if err == nil {
-		var balance float64
-		balance, err = fn(ctx, cfg)
-		if err == nil {
-			style := okayStyle
-			if balance <= 0 {
-				style = errorStyle
-			}
-			return textStyle.Render(label+": ") + style.Render(fmt.Sprintf("$%.2f", balance))
+func renderRemaining(remaining provider.UsageRemaining) string {
+	if remaining.Balance != nil {
+		style := okayStyle
+		if *remaining.Balance <= 0 {
+			style = errorStyle
+		}
+		return style.Render(fmt.Sprintf("$%.2f", *remaining.Balance))
+	}
+	list := []string{}
+	for _, value := range []*float64{remaining.FiveHour, remaining.Week, remaining.Total} {
+		if value != nil {
+			list = append(list, remainingPctStyle(*value).Render(fmt.Sprintf("%.0f%%", *value)))
 		}
 	}
-	return textStyle.Render(label+": ") + errorStyle.Render("failed")
+	return strings.Join(list, hintStyle.Render("/"))
 }
 
 func remainingPctStyle(remaining float64) lipgloss.Style {

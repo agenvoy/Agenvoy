@@ -227,7 +227,7 @@ func betaContext(sessionID string) []map[string]string {
 		if r.Role != "user" && r.Role != "assistant" {
 			continue
 		}
-		text := strings.TrimSpace(history.StripPrefix(r.Text()))
+		text := strings.TrimSpace(configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(r.Text(), ""))
 		if text == "" {
 			continue
 		}

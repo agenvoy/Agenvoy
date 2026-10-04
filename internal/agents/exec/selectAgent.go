@@ -390,7 +390,7 @@ func pickHealthyFallback(ctx context.Context, fallbacks *[]agentTypes.Agent) (ag
 		if cand == nil {
 			continue
 		}
-		if checkAgentResponsive(ctx, cand, configs.HEALTH_CHECK_TIMEOUT) {
+		if checkAgentAlive(ctx, cand, configs.HEALTH_CHECK_TIMEOUT) {
 			return cand, cand.Name()
 		}
 		if ctx.Err() == nil {

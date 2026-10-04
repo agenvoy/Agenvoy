@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -93,7 +94,8 @@ func (t TUI) runKeyDelete(key string) (TUI, tea.Cmd) {
 	imageTool.Prune(context.Background())
 
 	next, cmd, _ := t.commandKey(nil)
-	return next, tea.Sequence(notice(msgLog("key deleted: "+key)+"\n"), cmd)
+	slog.Debug("key deleted", slog.String("key", key))
+	return next, cmd
 }
 
 func (t TUI) openKeyValuePrompt(key string) (TUI, tea.Cmd) {

@@ -222,14 +222,18 @@ function applyQuotaBadges(quotas) {
 }
 
 function quotaLabel(entry) {
-  if (!entry || entry.value === undefined) {
+  const remaining = entry?.remaining;
+  if (!remaining) {
     return null;
   }
-  if (entry.kind === "balance") {
-    return { text: `$${entry.value.toFixed(2)}`, state: quotaLevel(entry.kind, entry.value) };
+  if (remaining.balance !== undefined) {
+    return { text: `$${remaining.balance.toFixed(2)}`, state: quotaLevel("balance", remaining.balance) };
   }
-  const value = Math.round(entry.value);
-  return { text: `${value}%`, state: quotaLevel(entry.kind, value) };
+  const values = [remaining.five_hour, remaining.week, remaining.total].filter((value) => value !== undefined).map(Math.round);
+  if (values.length === 0) {
+    return null;
+  }
+  return { text: values.map((value) => `${value}%`).join("/"), state: quotaLevel("percent", Math.min(...values)) };
 }
 
 function quotaLevel(kind, value) {

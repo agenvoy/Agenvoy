@@ -8,7 +8,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -65,7 +64,7 @@ func renderActionLine(p parsedAction, width int) string {
 
 	switch p.kind {
 	case "user", "steer":
-		body = sessionHistory.StripPrefix(body)
+		body = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(body, "")
 		if strings.Contains(body, "[Resumed Task") {
 			return ""
 		}

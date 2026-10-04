@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -74,11 +75,8 @@ func (t TUI) runScheduleRemove(kind, skillName string) (TUI, tea.Cmd) {
 		return t, notice(msgError(fmt.Sprintf("TrashSchedule: %v", err)) + "\n")
 	}
 
-	next, cmd := t.reopenSchedule()
-	return next, tea.Sequence(
-		notice(msgLog(fmt.Sprintf("removed %s: %s  skill trashed", kind, skillName))+"\n"),
-		cmd,
-	)
+	slog.Debug("schedule removed", slog.String("kind", kind), slog.String("skill", skillName))
+	return t.reopenSchedule()
 }
 
 func scheduleLabels(fields, names []string) (labels []string) {

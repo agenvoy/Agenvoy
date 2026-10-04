@@ -15,6 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -70,13 +71,6 @@ const (
 	fanoutSendGrace = 3 * time.Second
 	fanoutStopGrace = 3 * time.Second
 )
-
-func (m ExecuteMeta) ModelName() string {
-	if m.Agent == nil {
-		return ""
-	}
-	return m.Agent.Name()
-}
 
 type (
 	allowAllCtxKey   struct{}
@@ -262,11 +256,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			runModel := ""
-			if data.Agent != nil {
-				runModel = data.Agent.Name()
-			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, runModel, data.Reasoning, allowAll)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {
@@ -343,6 +333,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 		clientTools[name] = true
 		exec.Tools = append(exec.Tools, t)
+	}
+
+	if claudeCode.Is(data.Agent.Name()) {
+		for _, t := range exec.Tools {
+			if name := t.Function.Name; name != "find_tools" && !clientTools[name] {
+				exec.StubTools[name] = true
+			}
+		}
 	}
 
 	limit := configs.MAX_TOOL_ITERATIONS
@@ -459,7 +457,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if checkAgentResponsive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
+				if checkAgentAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
 					unresponsiveFailures = 0
 					watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 					continue
@@ -708,7 +706,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		choice := resp.Choices[0]
 		if choice.Message.ReasoningContent == "" {
 			if s, ok := choice.Message.Content.(string); ok {
-				if think, rest := splitThinkTag(s); think != "" {
+				if think, rest := extractThinkTag(s); think != "" {
 					choice.Message.ReasoningContent = think
 					choice.Message.Content = rest
 				}
@@ -725,7 +723,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if len(choice.Message.ToolCalls) > 0 {
 			emptyCount = 0
 			if text, ok := choice.Message.Content.(string); ok {
-				if stripped := StripModelResponse(text); stripped != "" && !isGuardrailRefusal(stripped) {
+				if stripped := Response(text); stripped != "" && !strings.Contains(stripped, configs.BAN_TAG) {
 					if textEmitted {
 						events <- agentTypes.Event{Type: agentTypes.EventTextDone}
 					} else {
@@ -774,7 +772,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
-			stripped := StripModelResponse(str)
+			stripped := Response(str)
 			if stripped == "" {
 				if emptyRetryExhausted(&emptyCount, events, session.ID, exec.PendingTask, data.Agent.Name(), "content stripped to empty", &usage, execStart, sendElapsedTotal) {
 					return nil
@@ -783,7 +781,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 			emptyCount = 0
 
-			if isGuardrailRefusal(stripped) {
+			if strings.Contains(stripped, configs.BAN_TAG) {
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), stripped)
 				sendText(events, refusal)
 				emitChangedFiles()
@@ -860,8 +858,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		emitReasoning(events, resp.Choices[0].Message.ReasoningContent, &shownReasoning)
 		if text, ok := resp.Choices[0].Message.Content.(string); ok && text != "" {
-			summaryStripped := StripModelResponse(text)
-			if isGuardrailRefusal(summaryStripped) {
+			summaryStripped := Response(text)
+			if strings.Contains(summaryStripped, configs.BAN_TAG) {
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), summaryStripped)
 				sendText(events, refusal)
 				emitChangedFiles()

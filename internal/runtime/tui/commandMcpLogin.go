@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -173,8 +174,8 @@ func (t TUI) runMcpOAuthDone(msg McpOAuthDone) (TUI, tea.Cmd) {
 	t.mcpOAuth = nil
 	switch {
 	case msg.err == nil:
-		next, cmd := t.reconnectMcpServer(msg.name)
-		return next, tea.Batch(notice(msgLog(fmt.Sprintf("%s  oauth authorized", msg.name))), cmd)
+		slog.Debug("mcp oauth authorized", slog.String("server", msg.name))
+		return t.reconnectMcpServer(msg.name)
 	case errors.Is(msg.err, context.Canceled):
 		return t, nil
 	case errors.Is(msg.err, context.DeadlineExceeded):

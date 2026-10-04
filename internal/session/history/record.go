@@ -1,18 +1,12 @@
 package history
 
 import (
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	provider "github.com/pardnchiu/go-llm-router/core"
-)
-
-var (
-	prefixRegex     = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*\n`)
-	prefixHeadRegex = regexp.MustCompile(`^(?:sendAt|sender|channelId)\s*:`)
 )
 
 type Record struct {
@@ -72,14 +66,6 @@ func WithPrefix(prefix string, content any) any {
 	}
 }
 
-func StripPrefix(content string) string {
-	return prefixRegex.ReplaceAllString(content, "")
-}
-
-func HasPrefix(line string) bool {
-	return prefixHeadRegex.MatchString(line)
-}
-
 func Messages(list []Record) []provider.Message {
 	if len(list) == 0 {
 		return nil
@@ -97,7 +83,7 @@ func normalize(list []Record) []Record {
 		if !ok {
 			continue
 		}
-		list[i].Content = StripPrefix(str)
+		list[i].Content = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(str, "")
 	}
 	return list
 }
