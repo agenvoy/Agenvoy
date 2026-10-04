@@ -46,6 +46,7 @@ type TUI struct {
 
 	popup         *Popup
 	popupQueue    []Pending
+	eventQueue    []agentTypes.Event
 	popupOrigin   *Popup
 	botBodyDraft  string
 	roleBodyDraft string

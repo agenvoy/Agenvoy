@@ -39,7 +39,15 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return nt, tea.Batch(tea.Sequence(tea.EnterAltScreen, func() tea.Msg { return popupScreenReady{} }), cmd)
 	case wasOpen && !isOpen:
 		nt.popupOnScreen = false
-		return nt, tea.Sequence(tea.ExitAltScreen, cmd)
+		cmds := []tea.Cmd{tea.ExitAltScreen, cmd}
+		queued := nt.eventQueue
+		nt.eventQueue = nil
+		for _, ev := range queued {
+			model, evCmd := nt.handleAgentEvent(ev)
+			nt = model.(TUI)
+			cmds = append(cmds, evCmd)
+		}
+		return nt, tea.Sequence(cmds...)
 	}
 	return nt, cmd
 }
@@ -58,6 +66,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Batch(cmds...)
 		case Pending:
 			t.popupQueue = append(t.popupQueue, msg)
+			return t, nil
+		case agentEvent:
+			t.eventQueue = append(t.eventQueue, msg.event)
 			return t, nil
 		case OAuthInfo:
 			return t.runOAuthInfo(msg)
