@@ -706,7 +706,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		choice := resp.Choices[0]
 		if choice.Message.ReasoningContent == "" {
 			if s, ok := choice.Message.Content.(string); ok {
-				if think, rest := splitThinkTag(s); think != "" {
+				if think, rest := extractThinkTag(s); think != "" {
 					choice.Message.ReasoningContent = think
 					choice.Message.Content = rest
 				}

@@ -2,53 +2,32 @@ package exec
 
 import (
 	"log/slog"
-	"regexp"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
-var (
-	summaryLeakMarkerRegex = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
-	thinkTagRegex          = regexp.MustCompile(`(?is)<think>(.*?)</think>\s*`)
-	thinkOpenRegex         = regexp.MustCompile(`(?i)<think>`)
-	thinkCloseRegex        = regexp.MustCompile(`(?i)</think>`)
-)
-
-func Response(str string) string {
+func Response(content string) string {
 	// * remove system prefix
-	str = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(str, "")
-	if loc := summaryLeakMarkerRegex.FindStringIndex(str); loc != nil {
-		dropped := []rune(strings.TrimSpace(str[loc[0]:]))
+	content = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(content, "")
+	if loc := configs.SUMMARY_LEAK_MARKER_REGEX.FindStringIndex(content); loc != nil {
+		dropped := []rune(strings.TrimSpace(content[loc[0]:]))
 		head := dropped[:min(len(dropped), configs.LOG_HEAD_RUNES)]
-		str = strings.TrimRight(str[:loc[0]], " \t\n\r#")
-		slog.Debug("StripModelResponse summary leak stripped",
-			slog.Int("dropped_chars", len(dropped)),
-			slog.String("dropped_head", string(head)))
+		content = strings.TrimRight(content[:loc[0]], " \t\n\r#")
+		slog.Debug("response summary leak",
+			slog.String("dropped_head", string(head)),
+			slog.Int("dropped_chars", len(dropped)))
 	}
-	return strings.TrimSpace(str)
+	return strings.TrimSpace(content)
 }
 
-func splitThinkTag(s string) (think, rest string) {
-	var parts []string
-	for _, m := range thinkTagRegex.FindAllStringSubmatch(s, -1) {
-		if t := strings.TrimSpace(m[1]); t != "" {
-			parts = append(parts, t)
-		}
+func extractThinkTag(content string) (think, rest string) {
+	loc := configs.THINK_TAG_REGEX.FindStringSubmatchIndex(content)
+	if loc == nil {
+		return "", strings.TrimSpace(content)
 	}
-	rest = thinkTagRegex.ReplaceAllString(s, "")
-	if loc := thinkOpenRegex.FindStringIndex(rest); loc != nil {
-		if t := strings.TrimSpace(rest[loc[1]:]); t != "" {
-			parts = append(parts, t)
-		}
-		rest = rest[:loc[0]]
-	}
-	rest = strings.TrimSpace(rest)
-	if len(parts) == 0 {
-		return "", rest
-	}
-	return strings.Join(parts, "\n"), rest
+	return strings.TrimSpace(content[loc[2]:loc[3]]), strings.TrimSpace(content[loc[1]:])
 }
 
 func guardrailLabel(content string) string {

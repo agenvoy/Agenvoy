@@ -228,13 +228,12 @@ func (e *lineEmitter) write(delta string) {
 		}
 
 		if !e.thinkDone {
-			trimmed := strings.TrimLeft(rest, " \t\r\n")
-			if len(trimmed) < len(configs.THINK_TAG) && strings.EqualFold(trimmed, configs.THINK_TAG[:len(trimmed)]) {
+			if len(strings.TrimSpace(rest)) < 7 {
 				return
 			}
 			e.thinkDone = true
-			if len(trimmed) >= len(configs.THINK_TAG) && strings.EqualFold(trimmed[:len(configs.THINK_TAG)], configs.THINK_TAG) {
-				e.setRaw(trimmed[len(configs.THINK_TAG):])
+			if loc := configs.THINK_TAG_REGEX.FindStringSubmatchIndex(rest); loc != nil {
+				e.setRaw(rest[loc[2]:])
 				e.inThink = true
 				continue
 			}

@@ -106,10 +106,13 @@ var (
 	}
 
 	// * Regex
-	FRONTMATTER_REGEX    = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
-	HTML_TAG_REGEX       = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
-	CACHE_HIT_PCT_REGEX  = regexp.MustCompile(`^\((\d+)%\)$`)
-	MESSAGE_PREFIX_REGEX = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*(?:\n|\z)`)
+	FRONTMATTER_REGEX         = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?(.*)$`)
+	HTML_TAG_REGEX            = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>`)
+	CACHE_HIT_PCT_REGEX       = regexp.MustCompile(`^\((\d+)%\)$`)
+	MESSAGE_PREFIX_REGEX      = regexp.MustCompile(`\A\s*(?:sendAt|sender|channelId)\s*:[^\n]*(?:\n|\z)`)
+	SUMMARY_LEAK_MARKER_REGEX = regexp.MustCompile(`(?i)(?:Prior Conversation Context|Prior summary|"key_decisions"\s*:\s*\[|"current_discussion"\s*:\s*\{)`)
+	THINK_TAG_REGEX           = regexp.MustCompile(`(?is)\A\s*<think>(.*?)(?:</think>|\z)\s*`)
+	THINK_TAG_CLOSE_REGEX     = regexp.MustCompile(`(?i)</think>`)
 )
 
 // * Prompts
