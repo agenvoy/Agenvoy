@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	provider "github.com/pardnchiu/go-llm-router/core"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
@@ -22,31 +23,26 @@ const (
 	quotaKeyPrefix       = "provider:quota:"
 )
 
-type quotaEntry struct {
-	Kind  string  `json:"kind"`
-	Value float64 `json:"value"`
-}
-
-func readQuotaCache(id string) (quotaEntry, bool) {
+func readQuotaCache(id string) (provider.UsageRemaining, bool) {
 	if !torii.Ready() {
-		return quotaEntry{}, false
+		return provider.UsageRemaining{}, false
 	}
 	db := torii.DB(torii.DBToolCache)
 	if db == nil {
-		return quotaEntry{}, false
+		return provider.UsageRemaining{}, false
 	}
 	record, ok := db.Get(context.Background(), quotaKeyPrefix+id)
 	if !ok {
-		return quotaEntry{}, false
+		return provider.UsageRemaining{}, false
 	}
-	var entry quotaEntry
+	var entry provider.UsageRemaining
 	if err := json.Unmarshal([]byte(record.Value()), &entry); err != nil {
-		return quotaEntry{}, false
+		return provider.UsageRemaining{}, false
 	}
 	return entry, true
 }
 
-func writeQuotaCache(id string, entry quotaEntry) {
+func writeQuotaCache(id string, entry provider.UsageRemaining) {
 	if !torii.Ready() {
 		return
 	}
@@ -93,7 +89,7 @@ func ListProviderQuota() gin.HandlerFunc {
 			if refresh {
 				DropQuotaCache(source.ID)
 			} else if cached, ok := readQuotaCache(source.ID); ok {
-				quotas[source.ID] = gin.H{"kind": cached.Kind, "value": cached.Value, "cached": true}
+				quotas[source.ID] = gin.H{"remaining": cached, "cached": true}
 				continue
 			}
 
@@ -101,13 +97,13 @@ func ListProviderQuota() gin.HandlerFunc {
 			go func(source utils.QuotaSource) {
 				defer wg.Done()
 
-				entry := gin.H{"kind": source.Kind}
+				entry := gin.H{}
 				cfg, err := agentKeychain.Config(ctx, source.ID)
 				if err == nil {
-					var value float64
-					if value, err = source.Fn(ctx, cfg); err == nil {
-						entry["value"] = value
-						writeQuotaCache(source.ID, quotaEntry{Kind: source.Kind, Value: value})
+					var remaining provider.UsageRemaining
+					if remaining, err = source.Fn(ctx, cfg); err == nil {
+						entry["remaining"] = remaining
+						writeQuotaCache(source.ID, remaining)
 					}
 				}
 				if err != nil {
