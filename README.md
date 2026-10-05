@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  Open source, single Go binary that runs on your computer. From live research and file work to automation,<br>
-  Agenvoy takes action and delivers results; through MCP, it shares sandboxed tools with Claude Code, Codex, and other agents.
+  Agenvoy is an open-source, self-hosted 24/7 personal AI agent that runs on your own computer — your memory, schedules, tools and credentials stay local.<br>
+  From live research and file work to automation, it takes action and delivers results in a single Go binary; through MCP, it shares sandboxed tools with Claude Code, Codex, and other agents.
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 ## Taiwan-developed AI Agent Harness
 
-Agenvoy is a Taiwan-developed AI Agent Harness built to turn conversation into completed work on your computer. It coordinates models, context, tools, real-time data, task routing, memory, schedules, and execution in one workflow, while keeping control of your files and environment in your hands. Through the Web interface, it also supports hands-free voice interaction with natural speech, wake-word detection, and interruptible spoken replies; the full result remains available in the chat.
+Agenvoy is a Taiwan-developed AI Agent Harness by [Pardn Chiu](https://pardn.io/), built to turn conversation into completed work on your computer. It coordinates models, context, tools, real-time data, task routing, memory, schedules, and execution in one workflow, while keeping control of your files and environment in your hands. Through the Web interface, it also supports hands-free voice interaction with natural speech, wake-word detection, and interruptible spoken replies; the full result remains available in the chat.
 
 ## Why Agenvoy
 
