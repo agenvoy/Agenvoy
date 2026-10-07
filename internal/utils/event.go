@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
@@ -360,7 +360,7 @@ var QuotaSources = []QuotaSource{
 	{"ollama-cloud", ollamacloud.Usage},
 	{"openrouter", openrouter.Usage},
 	{"deepseek", deepseek.Usage},
-	{claudeCode.Provider, claudeCode.Usage},
+	{"claude-code", claudeCode.Usage},
 }
 
 func FormatQuota(remaining provider.UsageRemaining) string {

@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
@@ -30,7 +30,7 @@ func main() {
 			return
 
 		case "--daemon":
-			claudeCode.EnableClaudeCode = slices.Contains(os.Args[2:], "--enable-claude-code")
+			agentTypes.EnableClaudeCode = slices.Contains(os.Args[2:], "--enable-claude-code")
 			Daemon()
 			return
 
@@ -43,7 +43,7 @@ func main() {
 				fmt.Fprintln(os.Stderr, "--enable-claude-code needs a stopped daemon: run `agen stop` first")
 				os.Exit(1)
 			}
-			claudeCode.EnableClaudeCode = true
+			agentTypes.EnableClaudeCode = true
 			TUI()
 			return
 

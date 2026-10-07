@@ -4,12 +4,15 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/router"
 )
 
@@ -22,9 +25,6 @@ func (a *resolvedAgent) Name() string {
 }
 
 func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
-	if claudeCode.Is(a.name) {
-		return claudeCode.New(a.name)
-	}
 	cfg, err := routerConfig(ctx, a.name)
 	if err != nil {
 		return nil, err
@@ -36,6 +36,9 @@ func (a *resolvedAgent) Send(ctx context.Context, messages []provider.Message, t
 	inner, err := a.build(ctx)
 	if err != nil {
 		return nil, 0, err
+	}
+	if claudeCode.Is(a.name) {
+		ctx = claudeCodeContext(ctx)
 	}
 	return inner.Send(ctx, messages, toolDefs, reasoning, mode)
 }
@@ -64,7 +67,23 @@ func routerConfig(ctx context.Context, name string) (router.Config, error) {
 		AccountID: cfg.AccountID,
 		GatewayID: cfg.GatewayID,
 		BaseURL:   cfg.BaseURL,
+
+		EnableClaude: agentTypes.EnableClaudeCode,
+		StateDir:     filesystem.SessionsDir,
 	}, nil
+}
+
+func claudeCodeContext(ctx context.Context) context.Context {
+	sessionID := agentTypes.SessionIDFrom(ctx)
+	if sessionID == "" {
+		return ctx
+	}
+	ctx = provider.WithSessionID(ctx, sessionID)
+	row, ok, err := historyStore.ReadSession(ctx, sessionID)
+	if err != nil || !ok || row.Model == "" || row.Model == historyStore.DefaultModel || row.Reasoning == configs.REASONING_AUTO {
+		return ctx
+	}
+	return provider.WithCacheTTL(ctx, "1h")
 }
 
 func NewAgentRegistry() agentTypes.AgentRegistry {
@@ -73,7 +92,7 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
 		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
 	}
-	skipClaudeCode := !claudeCode.Enabled()
+	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
 	for _, e := range agentEntries {
 		if skipClaudeCode && claudeCode.Is(e.Name) {
 			continue

@@ -7,8 +7,6 @@ import (
 	"time"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
-
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 )
 
 func Append(sessionID, providerName, model string, u provider.Usage, elapsed time.Duration, toolCalls []provider.ToolCall) {
@@ -17,7 +15,7 @@ func Append(sessionID, providerName, model string, u provider.Usage, elapsed tim
 	}
 
 	input := u.Input
-	if (providerName == "claude" || providerName == claudeCode.Provider) && input < u.CacheCreate {
+	if (providerName == "claude" || providerName == "claude-code") && input < u.CacheCreate {
 		input += u.CacheCreate
 	}
 

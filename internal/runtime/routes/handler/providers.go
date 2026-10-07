@@ -10,13 +10,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
@@ -37,27 +38,27 @@ type providerState struct {
 }
 
 var providerConsole = map[string]map[string]string{
-	"openai":            {"key": "https://platform.openai.com/api-keys", "billing": "https://platform.openai.com/settings/organization/billing"},
-	"claude":            {"key": "https://platform.claude.com/settings/keys", "billing": "https://console.anthropic.com/settings/billing"},
-	"gemini":            {"key": "https://aistudio.google.com/apikey", "billing": "https://aistudio.google.com/apikey"},
-	"grok":              {"key": "https://console.x.ai/", "billing": "https://console.x.ai/"},
-	"deepseek":          {"key": "https://platform.deepseek.com/api_keys", "billing": "https://platform.deepseek.com/top_up"},
-	"mistral":           {"key": "https://console.mistral.ai/api-keys", "billing": "https://console.mistral.ai/billing"},
-	"nvidia":            {"key": "https://build.nvidia.com/settings/api-keys", "billing": "https://build.nvidia.com/settings/api-keys"},
-	"ollama-cloud":      {"key": "https://ollama.com/settings/keys", "billing": "https://ollama.com/settings/keys"},
-	"openrouter":        {"key": "https://openrouter.ai/settings/keys", "billing": "https://openrouter.ai/credits"},
-	"cloudflare":        {"key": "https://dash.cloudflare.com/profile/api-tokens", "billing": "https://dash.cloudflare.com/profile/api-tokens"},
-	claudeCode.Provider: {"plan": "https://claude.com/pricing"},
-	"codex":             {"plan": "https://chatgpt.com/pricing"},
-	"grok-oauth":        {"plan": "https://grok.com/plans"},
-	"copilot":           {"plan": "https://github.com/features/copilot/plans"},
+	"openai":       {"key": "https://platform.openai.com/api-keys", "billing": "https://platform.openai.com/settings/organization/billing"},
+	"claude":       {"key": "https://platform.claude.com/settings/keys", "billing": "https://console.anthropic.com/settings/billing"},
+	"gemini":       {"key": "https://aistudio.google.com/apikey", "billing": "https://aistudio.google.com/apikey"},
+	"grok":         {"key": "https://console.x.ai/", "billing": "https://console.x.ai/"},
+	"deepseek":     {"key": "https://platform.deepseek.com/api_keys", "billing": "https://platform.deepseek.com/top_up"},
+	"mistral":      {"key": "https://console.mistral.ai/api-keys", "billing": "https://console.mistral.ai/billing"},
+	"nvidia":       {"key": "https://build.nvidia.com/settings/api-keys", "billing": "https://build.nvidia.com/settings/api-keys"},
+	"ollama-cloud": {"key": "https://ollama.com/settings/keys", "billing": "https://ollama.com/settings/keys"},
+	"openrouter":   {"key": "https://openrouter.ai/settings/keys", "billing": "https://openrouter.ai/credits"},
+	"cloudflare":   {"key": "https://dash.cloudflare.com/profile/api-tokens", "billing": "https://dash.cloudflare.com/profile/api-tokens"},
+	"claude-code":  {"plan": "https://claude.com/pricing"},
+	"codex":        {"plan": "https://chatgpt.com/pricing"},
+	"grok-oauth":   {"plan": "https://grok.com/plans"},
+	"copilot":      {"plan": "https://github.com/features/copilot/plans"},
 }
 
 var providerCatalog = []providerInfo{
 	{"openai", "OpenAI", map[string]string{"api_key": "pay per token"}},
 	{"codex", "OpenAI Codex", map[string]string{"oauth": "Codex subscription"}},
 	{"claude", "Claude", map[string]string{"api_key": "pay per token"}},
-	{claudeCode.Provider, "Claude Code", map[string]string{"oauth": "Claude subscription via claude -p"}},
+	{"claude-code", "Claude Code", map[string]string{"oauth": "Claude subscription via claude -p"}},
 	{"gemini", "Gemini", map[string]string{"api_key": "pay per token"}},
 	{"grok", "Grok", map[string]string{"api_key": "pay per token"}},
 	{"grok-oauth", "Grok (xAI)", map[string]string{"oauth": "xAI subscription"}},
@@ -82,8 +83,8 @@ func findProvider(id string) *providerInfo {
 
 func providerLoggedIn(id string) bool {
 	switch id {
-	case claudeCode.Provider:
-		return claudeCode.Enabled()
+	case "claude-code":
+		return agentTypes.ClaudeCodeEnabled()
 	case "codex":
 		return oauthCodex.HasToken()
 	case "copilot":
@@ -102,7 +103,7 @@ func ListProviders() gin.HandlerFunc {
 				providerInfo: provider,
 				LoggedIn:     providerLoggedIn(provider.ID),
 				Console:      slices.Sorted(maps.Keys(providerConsole[provider.ID])),
-				Hidden:       provider.ID == claudeCode.Provider && !claudeCode.Enabled(),
+				Hidden:       provider.ID == "claude-code" && !agentTypes.ClaudeCodeEnabled(),
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"providers": list})
@@ -262,7 +263,7 @@ func ProviderOAuth() gin.HandlerFunc {
 		ctx := c.Request.Context()
 		var err error
 		switch prov {
-		case claudeCode.Provider:
+		case "claude-code":
 			err = claudeCode.CheckBinary()
 		case "copilot":
 			_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {

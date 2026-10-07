@@ -10,10 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
@@ -49,7 +49,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 			hasDeepseek = true
 		case "openrouter":
 			hasOpenRouter = true
-		case claudeCode.Provider:
+		case "claude-code":
 			hasClaudeCode = true
 		}
 	}
@@ -95,7 +95,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 		}
 		if hasClaudeCode {
 			wg.Add(1)
-			go fetch(0, func() string { return fetchProviderUsage(ctx, "Claude Code", claudeCode.Provider, claudeCode.Usage) })
+			go fetch(0, func() string { return fetchProviderUsage(ctx, "Claude Code", "claude-code", claudeCode.Usage) })
 		}
 		wg.Wait()
 
