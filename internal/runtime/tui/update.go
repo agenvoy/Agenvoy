@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -167,6 +168,13 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						fast.Disable()
 					} else {
 						fast.Enable()
+					}
+					return t, nil
+				case "G":
+					if guide.IsEnabled() {
+						guide.Disable()
+					} else {
+						guide.Enable()
 					}
 					return t, nil
 				case "U":

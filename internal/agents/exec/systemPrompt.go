@@ -15,6 +15,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -137,7 +138,10 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 }
 
 func agentGuideSection(workDir string) string {
-	for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
+	if !guide.IsEnabled() {
+		return ""
+	}
+	for _, name := range guide.Files {
 		path := filepath.Join(workDir, name)
 		if !go_pkg_filesystem_reader.IsFile(path) {
 			continue
