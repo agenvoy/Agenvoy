@@ -69,10 +69,6 @@ const (
 	ENDPOINT_LLM_WINDOW    = "https://llm-io.agenvoy.com/"
 	ENDPOINT_UPDATE_SHELL  = "https://agenvoy.com/scripts/update.sh"
 	ENDPOINT_HTML_TEMPLATE = "https://view.agenvoy.com"
-
-	// * Claude Code
-	CLAUDE_IDLE_TIMEOUT  = 15 * time.Minute
-	CLAUDE_REAP_INTERVAL = time.Minute
 )
 
 var (
@@ -122,12 +118,6 @@ var SkillExecution string
 
 //go:embed prompts/summary_context.md
 var SummaryContext string
-
-//go:embed prompts/claude_code/tool_prompt.md
-var ClaudeCodeToolPrompt string
-
-//go:embed prompts/claude_code/plain_prompt.md
-var ClaudeCodePlainPrompt string
 
 //go:embed prompts/followup.md
 var FollowupPrompt string

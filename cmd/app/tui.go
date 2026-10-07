@@ -11,7 +11,7 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -70,7 +70,7 @@ func TUI() {
 				slog.String("error", err.Error()))
 		}
 	} else if r, err := runtime.Read(); err == nil && r.EnableClaudeCode {
-		claudeCode.EnableClaudeCode = true
+		agentTypes.EnableClaudeCode = true
 	}
 
 	if err := torii.Init(filesystem.StoreDir); err != nil {

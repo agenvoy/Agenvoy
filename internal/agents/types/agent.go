@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
 type Agent = provider.Agent
@@ -81,4 +82,10 @@ type AgentSession struct {
 	Sender         string
 	UserSendAt     int64
 	Stateless      bool
+}
+
+var EnableClaudeCode bool
+
+func ClaudeCodeEnabled() bool {
+	return EnableClaudeCode && claudeCode.CheckBinary() == nil
 }

@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	sessionConfig "github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
@@ -20,7 +20,7 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 	prov, _, _ := strings.Cut(providerFull, "[")
 
 	switch prov {
-	case claudeCode.Provider:
+	case "claude-code":
 		if err := claudeCode.CheckBinary(); err != nil {
 			return provider.Config{}, err
 		}
@@ -162,11 +162,6 @@ func Config(ctx context.Context, name string) (provider.Config, error) {
 	}
 }
 
-var builtinProviders = []string{
-	"claude", "openai", "gemini", "grok", "deepseek", "mistral", "nvidia",
-	"openrouter", "cloudflare", "copilot", "codex", "grok-oauth", "ollama-cloud", claudeCode.Provider,
-}
-
 func CompatInstance(name string) (string, bool) {
 	providerFull, _, found := strings.Cut(name, "@")
 	if !found {
@@ -180,7 +175,7 @@ func CompatInstance(name string) (string, bool) {
 		instance, _, _ := strings.Cut(rest, "]")
 		return strings.ToUpper(instance), true
 	}
-	if prov == "" || slices.Contains(builtinProviders, prov) {
+	if prov == "" || slices.Contains(provider.Providers(), prov) {
 		return "", false
 	}
 	return strings.ToUpper(prov), true

@@ -7,10 +7,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
 const (
@@ -41,7 +43,7 @@ func summaryOptions() (options, values []string, cursor int) {
 	options = append(options, auto)
 	values = append(values, summaryPrefix)
 
-	skipClaudeCode := !claudeCode.Enabled()
+	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
