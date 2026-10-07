@@ -38,8 +38,8 @@ func (t TUI) openConfig(focus string) TUI {
 	names := []string{"Startup on login", "Reply language", "Output dir", "Admin Channel"}
 	settings := []string{
 		startupValue,
-		filesystem.CanonicalReplyLang(filesystem.ConfigReplyLang),
-		filesystem.OutputDir(),
+		whiteStyle.Render(filesystem.CanonicalReplyLang(filesystem.ConfigReplyLang)),
+		whiteStyle.Render(filesystem.OutputDir()),
 		adminChatValue(),
 	}
 	values := []string{configStartup, configReplyLang, configOutputDir, configAdminChat}
