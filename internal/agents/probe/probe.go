@@ -11,6 +11,7 @@ import (
 
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/cloudflare"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -25,7 +26,6 @@ import (
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
@@ -35,7 +35,7 @@ type listFn func(context.Context, provider.Config) ([]string, error)
 func lookup(prov string) listFn {
 	filter := provider.ModelFilter{TextOnly: true}
 	switch prov {
-	case claudeCode.Provider:
+	case "claude-code":
 		return claudeCode.Models
 	case "openai":
 		return func(ctx context.Context, cfg provider.Config) ([]string, error) {

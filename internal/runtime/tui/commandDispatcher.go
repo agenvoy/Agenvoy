@@ -6,9 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/claudeCode"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
 const dispatcherPrefix = "dispatch:"
@@ -23,7 +25,7 @@ func dispatcherOptions() (options, values []string, cursor int) {
 		return nil, nil, 0
 	}
 
-	skipClaudeCode := !claudeCode.Enabled()
+	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
@@ -60,7 +62,7 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 
 	candidates := make([]string, 0, len(cfg.Models)+1)
 	candidates = append(candidates, configBot.DefaultModel)
-	skipClaudeCode := !claudeCode.Enabled()
+	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
