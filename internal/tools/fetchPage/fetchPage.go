@@ -216,7 +216,7 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 		MaxLength:   maxMarkdownLength,
 		KeepLinks:   keepLinks,
 		SameSession: sameSession,
-		Headless:    !headless,
+		Visible:     !headless,
 		Type:        outType,
 		ScrollCount: defaultScroll,
 	}
