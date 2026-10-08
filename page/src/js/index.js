@@ -299,6 +299,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       system_startup: function () {
         saveSystemStartup();
       },
+      system_official_guide: function () {
+        saveSystemOfficialGuide();
+      },
       system_output: function () {
         saveSystemOutput();
       },

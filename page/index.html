@@ -608,6 +608,16 @@
             </div>
             <div class="card">
               <div class="label">
+                <strong>Official guide</strong>
+                <p>injects the vendor prompting guide for the active model · applies from the next message</p>
+              </div>
+              <select id="system-official-guide" @change="system_official_guide">
+                <option value="enabled">enabled</option>
+                <option value="disabled">disabled</option>
+              </select>
+            </div>
+            <div class="card">
+              <div class="label">
                 <strong>Output Dir</strong>
                 <p>where generated files land</p>
                 <a id="system-output-open" @click="system_output_open">open dir</a>

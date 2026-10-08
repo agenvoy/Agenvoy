@@ -34,6 +34,13 @@ func GetConfig() gin.HandlerFunc {
 				"output_dir": filesystem.ConfigOutputDir,
 				"resolved":   filesystem.OutputDir(),
 			})
+		case "official_guide":
+			cfg, err := config.Load()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"enabled": !cfg.OfficialGuideOff})
 		default:
 			c.JSON(http.StatusNotFound, gin.H{"error": "unknown config target"})
 		}
@@ -49,6 +56,8 @@ func SetConfig() gin.HandlerFunc {
 			setSystemConfig(c)
 		case "output_dir":
 			setOutputDir(c)
+		case "official_guide":
+			setOfficialGuide(c)
 		default:
 			c.JSON(http.StatusNotFound, gin.H{"error": "unknown config target"})
 		}
@@ -159,4 +168,31 @@ func setOutputDir(c *gin.Context) {
 	filesystem.ConfigOutputDir = raw
 
 	c.JSON(http.StatusOK, gin.H{"ok": true, "output_dir": raw, "resolved": resolved})
+}
+
+func setOfficialGuide(c *gin.Context) {
+	var body struct {
+		Enable *bool `json:"enable"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.Enable == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enable is required"})
+		return
+	}
+
+	dic, err := config.Get()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	dic["official_guide_disabled"] = !*body.Enable
+	if err := config.Write(dic); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "enabled": *body.Enable})
 }
