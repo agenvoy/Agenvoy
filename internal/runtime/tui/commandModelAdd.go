@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
@@ -858,11 +859,15 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	}
 
 	t.popup = &Popup{
-		kind:    popupMultiSelect,
-		title:   fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.compatProvider),
-		options: options,
-		values:  values,
-		multi:   preSelected,
+		kind:       popupMultiSelect,
+		title:      fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.compatProvider),
+		options:    options,
+		values:     values,
+		multi:      preSelected,
+		allOptions: options,
+		allValues:  values,
+		searchable: true,
+		input:      newModelSearchInput(),
 		onConfirm: func(chosen string) any {
 			return ModelAddModelMultiPick{chosen: chosen}
 		},
@@ -930,11 +935,15 @@ func (t TUI) runRemoteModelsResult(msg RemoteModelsResult) (TUI, tea.Cmd) {
 	}
 
 	t.popup = &Popup{
-		kind:    popupMultiSelect,
-		title:   fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.provider),
-		options: options,
-		values:  values,
-		multi:   preSelected,
+		kind:       popupMultiSelect,
+		title:      fmt.Sprintf("Select %s models (space toggle  enter confirm)", t.modelAdd.provider),
+		options:    options,
+		values:     values,
+		multi:      preSelected,
+		allOptions: options,
+		allValues:  values,
+		searchable: true,
+		input:      newModelSearchInput(),
 		onConfirm: func(chosen string) any {
 			return ModelAddModelMultiPick{chosen: chosen}
 		},
@@ -978,4 +987,13 @@ func windowTokenText(value int) string {
 	default:
 		return strconv.Itoa(value)
 	}
+}
+
+func newModelSearchInput() textarea.Model {
+	input := newPopupInput("", false)
+	input.Placeholder = "Search models..."
+	input.SetPromptFunc(2, func(int) string {
+		return hintStyle.Render("/ ")
+	})
+	return input
 }

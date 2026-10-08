@@ -56,6 +56,8 @@ type Popup struct {
 	searchable bool
 	allOptions []string
 	allValues  []string
+	allMulti   map[int]bool
+	indexes    []int
 
 	input          textarea.Model
 	multiline      bool
@@ -435,16 +437,42 @@ func (p *Popup) swap(step int) {
 }
 
 func (p *Popup) filter() {
+	if p.kind == popupMultiSelect {
+		p.syncMulti()
+	}
 	query := strings.ToLower(strings.TrimSpace(p.input.Value()))
 	p.options = p.options[:0:0]
 	p.values = p.values[:0:0]
+	p.indexes = p.indexes[:0:0]
 	for i, one := range p.allOptions {
 		if strings.Contains(strings.ToLower(ansi.Strip(one)), query) {
 			p.options = append(p.options, one)
 			p.values = append(p.values, p.allValues[i])
+			p.indexes = append(p.indexes, i)
+		}
+	}
+	if p.kind == popupMultiSelect {
+		p.multi = make(map[int]bool, len(p.indexes))
+		for i, idx := range p.indexes {
+			if p.allMulti[idx] {
+				p.multi[i] = true
+			}
 		}
 	}
 	p.cursor = 0
+}
+
+func (p *Popup) syncMulti() {
+	if p.allMulti == nil {
+		p.allMulti = make(map[int]bool, len(p.allOptions))
+	}
+	for i := range p.options {
+		idx := i
+		if p.indexes != nil {
+			idx = p.indexes[i]
+		}
+		p.allMulti[idx] = p.multi[i]
+	}
 }
 
 func (p *Popup) scroll(step int) {
@@ -465,6 +493,29 @@ func (p *Popup) switchTab(step int) tea.Cmd {
 
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
+	if p.searchable {
+		switch msg.Type {
+		case tea.KeyUp, tea.KeyDown, tea.KeySpace, tea.KeyEnter:
+		case tea.KeyLeft, tea.KeyRight:
+			if len(p.tabs) < 2 {
+				var cmd tea.Cmd
+				p.input, cmd = p.input.Update(msg)
+				p.filter()
+				return t, cmd
+			}
+		case tea.KeyEsc:
+			if p.input.Value() != "" {
+				p.input.Reset()
+				p.filter()
+				return t, nil
+			}
+		default:
+			var cmd tea.Cmd
+			p.input, cmd = p.input.Update(msg)
+			p.filter()
+			return t, cmd
+		}
+	}
 	if len(p.options) == 0 && (msg.Type == tea.KeyUp || msg.Type == tea.KeyDown || msg.Type == tea.KeySpace) {
 		return t, nil
 	}
@@ -497,12 +548,17 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		t = t.closePopup()
 
 	case tea.KeyEnter:
-		selected := make([]string, 0, len(p.multi))
-		for i := range p.options {
-			if p.multi[i] {
-				v := p.options[i]
-				if p.values != nil && i < len(p.values) {
-					v = p.values[i]
+		options, values, multi := p.options, p.values, p.multi
+		if p.searchable {
+			p.syncMulti()
+			options, values, multi = p.allOptions, p.allValues, p.allMulti
+		}
+		selected := make([]string, 0, len(multi))
+		for i := range options {
+			if multi[i] {
+				v := options[i]
+				if values != nil && i < len(values) {
+					v = values[i]
 				}
 				selected = append(selected, v)
 			}

@@ -191,7 +191,7 @@ func (t TUI) viewPopup() string {
 	if header != "" {
 		header = popupStyle.Width(width).Render(header) + "\n" + divider
 	}
-	if p.searchable && (p.kind == popupConfirm || p.kind == popupSingleSelect) {
+	if p.searchable && (p.kind == popupConfirm || p.kind == popupSingleSelect || p.kind == popupMultiSelect) {
 		p.input.SetWidth(max(width-4, 20))
 		if header != "" {
 			header += "\n"
@@ -321,6 +321,9 @@ func (t TUI) viewPopup() string {
 		appendFooter(hint)
 
 	case popupMultiSelect:
+		if p.searchable && len(p.options) == 0 {
+			body = append(body, hintStyle.Render("  no matches"))
+		}
 		total := len(p.options)
 		visible := p.maxVisible
 		if visible <= 0 {
@@ -349,7 +352,11 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
 		}
-		appendFooter("Space:toggle  Enter:confirm  Esc:cancel")
+		hint := "Space:toggle  Enter:confirm  Esc:cancel"
+		if p.searchable && p.input.Value() != "" {
+			hint = "Space:toggle  Enter:confirm  Esc:clear"
+		}
+		appendFooter(hint)
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))
