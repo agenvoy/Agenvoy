@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
@@ -92,12 +93,15 @@ func mcpInstructionsSection() string {
 func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
 	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
+	if extraSection != "" {
+		extraSection = "## Additional Instructions\n\n" + extraSection + "\n\n---\n\n"
+	}
 
 	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
 
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list
+		skillsSection = skillsHeader + list + "\n\n---\n\n"
 	}
 
 	personaSection := ""
@@ -157,7 +161,7 @@ func agentGuideSection(workDir string) string {
 		if content = strings.TrimSpace(content); content == "" {
 			continue
 		}
-		return "`" + path + "`\n\n" + content
+		return "## External Agent Guide\n\n`" + path + "`\n\n" + content + "\n\n---\n\n"
 	}
 	return ""
 }
@@ -173,6 +177,10 @@ func guideKeyMatches(model, key string) bool {
 }
 
 func officialGuideSection(model string) string {
+	if cfg, err := config.Load(); err == nil && cfg.OfficialGuideOff {
+		return ""
+	}
+
 	matched, vendor := "", ""
 
 	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
@@ -196,11 +204,15 @@ func officialGuideSection(model string) string {
 		matched = unlistedGuideKey
 	}
 
-	return mergeGuideSections(
+	body := mergeGuideSections(
 		configs.OfficialGuides[baseGuideKey],
 		configs.OfficialGuides[vendor],
 		configs.OfficialGuides[matched],
 	)
+	if body == "" {
+		return ""
+	}
+	return "## Model Guide\n\n" + body + "\n\n---\n\n"
 }
 
 func mergeGuideSections(layers ...string) string {
@@ -259,7 +271,7 @@ func buildPermissionModeSection(allowAll bool) string {
 func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) string {
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list
+		skillsSection = skillsHeader + list + "\n\n---\n\n"
 	}
 
 	return strings.NewReplacer(
@@ -300,7 +312,7 @@ func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) strin
 		if excluded[n] {
 			continue
 		}
-		desc := go_pkg_utils.TruncateString(scanner.Skills.ByName[n].Description, 512)
+		desc := go_pkg_utils.TruncateString(scanner.Skills.ByName[n].Description, 256)
 		b.WriteString("- ")
 		b.WriteString(n)
 		if desc != "" {
