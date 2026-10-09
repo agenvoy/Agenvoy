@@ -123,6 +123,20 @@ func GetTimeout(name string) time.Duration {
 	return configs.DEFAULT_TOOL_TIMEOUT
 }
 
+func Exists(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	if _, ok := handlerMap[name]; ok {
+		return true
+	}
+	for prefix := range groupHandlerMap {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func IsReadOnly(name string) bool {
 	mu.RLock()
 	defer mu.RUnlock()

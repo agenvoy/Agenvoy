@@ -422,6 +422,18 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
+		if !toolRegister.Exists(toolName) {
+			events <- agentTypes.Event{
+				Type:     agentTypes.EventToolCall,
+				ToolName: toolName,
+				ToolArgs: toolArg,
+				ToolID:   toolID,
+			}
+			slots[i].state = slotValidateFailed
+			slots[i].preMsg = fmt.Sprintf("tool=%s failed: not exist: %s. Look up available tools with find_tools.", toolName, toolName)
+			continue
+		}
+
 		restrictedPaths := boundary.Restricted(exec.SessionID, exec.WorkDir, toolName, toolArg)
 		restrictedList := append(append([]string{}, restrictedPaths...), interactive.RestrictedPkgManage(toolName, toolArg)...)
 		restricted := len(restrictedList) > 0
