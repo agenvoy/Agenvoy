@@ -34,7 +34,8 @@ body[data-rendered="1"] section.right-content section.feature {
       }
 
       form#skill-form[data-editing="1"] > p.empty,
-      form#skill-form[data-view="config"] > p.empty {
+      form#skill-form[data-view="config"] > p.empty,
+      form#skill-form[data-view="source"] > p.empty {
         display: none;
       }
 
@@ -144,8 +145,13 @@ body[data-rendered="1"] section.right-content section.feature {
       form#skill-form:not([data-editing="1"]) > input,
       form#skill-form:not([data-editing="1"]) > textarea,
       form#skill-form:not([data-editing="1"]) > nav,
-      form#skill-form:not([data-editing="1"]) > footer {
+      form#skill-form:not([data-editing="1"]) > footer,
+      form#skill-form > footer.source {
         display: none;
+      }
+
+      form#skill-form[data-view="source"] > footer.source {
+        display: flex;
       }
 
       form#skill-form > nav.tab,

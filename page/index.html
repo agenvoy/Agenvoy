@@ -300,6 +300,10 @@
 
         <section :elif="params.tab == Skills" class="editor">
           <div class="side">
+            <button type="button" class="new" @click="skill_source">
+              <span class="material-symbols-outlined"> source </span>
+              <p>Skill Source</p>
+            </button>
             <button type="button" class="new" @click="skill_config">
               <span class="material-symbols-outlined"> checklist </span>
               <p>Setting Skills</p>
@@ -314,6 +318,7 @@
           </div>
           <form id="skill-form">
             <p class="empty">select skills</p>
+            <section class="tools" id="skill-source-list"></section>
             <section class="tools" id="skill-allow-list"></section>
             <label for="skill-name">
               <span>Name</span>
@@ -321,6 +326,9 @@
             </label>
             <nav class="tab" id="skill-files"></nav>
             <textarea id="skill-content" rows="20" disabled></textarea>
+            <footer class="source">
+              <button type="button" class="submit" @click="skill_source_save">save</button>
+            </footer>
             <footer>
               <button type="button" class="remove" @click="skill_delete">delete</button>
               <button type="button" class="submit" @click="skill_open">open</button>
