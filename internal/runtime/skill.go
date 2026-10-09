@@ -43,6 +43,8 @@ func NewSkillScanner() *SkillScanner {
 		filepath.Join(home, ".codex", "skills"),
 		filepath.Join(home, ".opencode", "skills"),
 		filepath.Join(home, ".openai", "skills"),
+		filepath.Join(home, ".copilot", "skills"),
+		filepath.Join(home, ".agents", "skills"),
 	}
 
 	scanner := &SkillScanner{paths: paths}
@@ -178,6 +180,10 @@ func SkillSource(path string) string {
 		return "openai"
 	case strings.Contains(path, "/.codex/skills/"):
 		return "codex"
+	case strings.Contains(path, "/.copilot/skills/"):
+		return "copilot"
+	case strings.Contains(path, "/.agents/skills/"):
+		return "agents"
 	case strings.Contains(path, "/.skills/"):
 		return "local"
 	case strings.HasPrefix(path, "/mnt/skills/"):

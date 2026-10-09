@@ -26,7 +26,6 @@ import (
 )
 
 const (
-	skillsHeader      = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
 	baseGuideKey      = "_base"
 	unlistedGuideKey  = "_base_unlisted"
 	vendorGuidePrefix = "_vendor_"
@@ -51,12 +50,12 @@ func loadGuardrailRules() string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
+func buildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, allowAll bool, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
 	}
-	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills, model)})
+	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, allowAll, model)})
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
@@ -91,16 +90,11 @@ func mcpInstructionsSection() string {
 	return sb.String()
 }
 
-func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
+func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string, allowAll bool, model string) string {
 	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
 	if extraSection != "" {
 		extraSection = "## Additional Instructions\n\n" + extraSection + "\n\n---\n\n"
-	}
-
-	skillsSection := ""
-	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list + "\n\n---\n\n"
 	}
 
 	personaSection := ""
@@ -132,7 +126,6 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
-		"{{.AvailableSkills}}", skillsSection,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),
@@ -274,25 +267,19 @@ func buildPermissionModeSection(allowAll bool) string {
 	return strings.TrimRight(configs.PermissionSingleConfirm, "\n")
 }
 
-func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) string {
-	skillsSection := ""
-	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list + "\n\n---\n\n"
-	}
-
+func getChatCompletionsSystemPrompt(workDir string, model string) string {
 	return strings.NewReplacer(
 		"{{.SystemOS}}", getSystemInfo().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", replyLanguage(),
-		"{{.AvailableSkills}}", skillsSection,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) []provider.Message {
-	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills, model)}}
+func BuildChatCompletionsSystemPrompts(workDir string, model string) []provider.Message {
+	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, model)}}
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}

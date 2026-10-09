@@ -274,10 +274,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 	}
 
-	if data.Skill != nil {
-		assignSkill(session, data.Skill)
-	}
-
 	cfg, _ := config.Load()
 	if !imageTool.Enabled() {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
@@ -329,6 +325,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		for name := range excluded {
 			delete(exec.UnmarkedTools, name)
 		}
+	}
+
+	if !exec.ExcludeTools["run_skill"] {
+		assignSkillList(session, scanner, data.ExcludeSkills)
+	}
+	if data.Skill != nil {
+		assignSkill(session, data.Skill)
 	}
 
 	if !claudeCode.Is(data.Agent.Name()) {

@@ -48,7 +48,7 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 
 	oldHistory, maxHistory := sessionHistory.Get(sessionID)
 	session := agentTypes.AgentSession{
-		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, scanner, sessionID, execData.AllowAll, execData.ExcludeSkills, execData.Agent.Name()),
+		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, sessionID, execData.AllowAll, execData.Agent.Name()),
 		Tools:         []provider.Message{},
 		Histories:     sessionHistory.Messages(oldHistory),
 		BaseLen:       len(oldHistory),
