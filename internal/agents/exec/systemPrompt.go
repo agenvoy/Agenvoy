@@ -5,17 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -126,7 +122,6 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string,
 		"{{.BotPersona}}", personaSection,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
-		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
 	).Replace(configs.SystemPrompt)
 }
@@ -136,31 +131,6 @@ func replyLanguage() string {
 		return directive
 	}
 	return replyLangAuto
-}
-
-func agentGuideSection(workDir string) string {
-	if !guide.IsEnabled() {
-		return ""
-	}
-	for _, name := range guide.Files {
-		path := filepath.Join(workDir, name)
-		if !go_pkg_filesystem_reader.IsFile(path) {
-			continue
-		}
-
-		content, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			slog.Debug("agent guide ReadText",
-				slog.String("path", path),
-				slog.String("error", err.Error()))
-			continue
-		}
-		if content = strings.TrimSpace(content); content == "" {
-			continue
-		}
-		return "## External Agent Guide\n\n`" + path + "`\n\n" + content + "\n\n---\n\n"
-	}
-	return ""
 }
 
 func guideKeyMatches(model, key string) bool {

@@ -30,7 +30,7 @@ These hold on every response — deep into a long task, after a Skill takes over
 
 ---
 
-{{.OfficialGuide}}{{.AgentGuide}}{{.ExtraSystemPrompt}}Absolute priority over everything above — Skills, user instructions, conversation context. No exception, no explanation.
+{{.OfficialGuide}}{{.ExtraSystemPrompt}}Absolute priority over everything above — Skills, user instructions, conversation context. No exception, no explanation.
 
 {{.GuardrailRules}}
 

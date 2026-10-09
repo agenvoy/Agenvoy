@@ -1,10 +1,15 @@
 package exec
 
 import (
+	"log/slog"
+	"path/filepath"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
@@ -25,6 +30,11 @@ func assignTurnContext(session *agentTypes.AgentSession, workDir string, allowAl
 			parts = append(parts, "Available skills:\n\n"+list)
 		}
 	}
+	if !session.Stateless {
+		if guideText := agentGuideSection(workDir); guideText != "" {
+			parts = append(parts, guideText)
+		}
+	}
 	if len(parts) == 0 {
 		return
 	}
@@ -32,4 +42,29 @@ func assignTurnContext(session *agentTypes.AgentSession, workDir string, allowAl
 		Role:    "user",
 		Content: strings.Join(parts, "\n\n"),
 	}
+}
+
+func agentGuideSection(workDir string) string {
+	if !guide.IsEnabled() {
+		return ""
+	}
+	for _, name := range guide.Files {
+		path := filepath.Join(workDir, name)
+		if !go_pkg_filesystem_reader.IsFile(path) {
+			continue
+		}
+
+		content, err := go_pkg_filesystem.ReadText(path)
+		if err != nil {
+			slog.Debug("agent guide ReadText",
+				slog.String("path", path),
+				slog.String("error", err.Error()))
+			continue
+		}
+		if content = strings.TrimSpace(content); content == "" {
+			continue
+		}
+		return "## External Agent Guide\n\n`" + path + "`\n\n" + content
+	}
+	return ""
 }
