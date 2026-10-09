@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -12,7 +13,10 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
+
+var SkillSources = []string{"claude", "codex", "copilot", "opencode", "openai", "agents"}
 
 type SkillScanner struct {
 	paths  []string
@@ -59,7 +63,15 @@ func (s *SkillScanner) Scan() {
 		Paths:  s.paths,
 	}
 
+	var disabled []string
+	if cfg, err := config.Load(); err == nil {
+		disabled = cfg.SkillSourceOff
+	}
+
 	for _, path := range s.paths {
+		if slices.Contains(disabled, SkillSource(path+"/")) {
+			continue
+		}
 		if err := s.scan(path, list); err != nil {
 			slog.Warn("scan error",
 				slog.String("path", path),

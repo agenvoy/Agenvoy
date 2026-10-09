@@ -433,6 +433,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SkillsInstallDone:
 		return t.runSkillsInstallDone(msg)
 
+	case SkillSourcePick:
+		return t.runSkillSourcePick(msg)
+
 	case McpOAuthPaste:
 		return t.runMcpOAuthPaste(msg)
 
