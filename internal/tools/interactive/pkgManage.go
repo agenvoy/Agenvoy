@@ -119,7 +119,6 @@ func registPkgManage() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "pkg_manage",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: `Drives the Linux package manager (apt / dnf / yum / pacman / apk) outside the sandbox, so the root operations bwrap cannot grant still work.

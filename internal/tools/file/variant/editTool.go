@@ -14,7 +14,6 @@ func registEditTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_tool",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `The tool definitions themselves: create or overwrite one (write), fix an exact string inside one (patch), trash an obsolete one (remove).

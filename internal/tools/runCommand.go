@@ -29,7 +29,6 @@ func registRunCommand() {
 		Name:        "run_command",
 		Timeout:     configs.RUN_COMMAND_TIMEOUT,
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. Networking is off by default and opened per call with network: true, which always raises a confirmation: git clone / fetch / pull / push, npm or pip or brew install, go mod download, curl and wget each need it set or they fail to resolve a host.

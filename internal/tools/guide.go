@@ -31,7 +31,6 @@ func registReasoningGuide() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "reasoning_guide",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `[system-default]

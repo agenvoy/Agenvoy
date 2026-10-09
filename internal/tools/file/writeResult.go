@@ -16,7 +16,6 @@ func registWriteResult() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "write_result",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Saves one long-form deliverable as a .md or .html file and returns the write receipt with its path.

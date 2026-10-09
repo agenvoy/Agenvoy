@@ -25,7 +25,6 @@ func registErrorHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "error_history",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Tool failures kept across sessions, each paired with the fix that resolved it.

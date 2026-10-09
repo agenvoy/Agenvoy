@@ -93,7 +93,6 @@ func registAskUser() {
 		Name:        "ask_user",
 		Timeout:     toolRegister.NoToolTimeout,
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Puts one or more questions to the user and stops there — execution pauses, and a new turn resumes automatically once they answer.

@@ -16,7 +16,6 @@ func registListChatbot() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "list_chatbot",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `[system-default] List authorized chats for the specified platform (Telegram or Discord).`,

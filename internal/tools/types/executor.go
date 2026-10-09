@@ -25,7 +25,7 @@ type Executor struct {
 	SessionID        string
 	Tools            []provider.Tool
 	AllTools         []provider.Tool
-	StubTools        map[string]bool
+	UnmarkedTools    map[string]bool
 	ExcludeTools     map[string]bool
 	APIToolbox       *apiAdapter.Adapter
 	ScriptToolbox    ScriptToolExecutor

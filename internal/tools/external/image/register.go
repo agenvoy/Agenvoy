@@ -14,7 +14,6 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "generate_image",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Timeout:     15 * time.Minute,

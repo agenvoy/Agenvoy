@@ -17,7 +17,6 @@ func registRunSkill() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "run_skill",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Loads a named skill's reference material into this turn.

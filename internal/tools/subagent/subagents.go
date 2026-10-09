@@ -20,7 +20,6 @@ func registSubagents() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "subagents",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN) * time.Minute,

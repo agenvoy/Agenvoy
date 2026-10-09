@@ -15,7 +15,6 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "calculate",
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Evaluates mathematical expressions — arithmetic, unit conversions, currency arithmetic — and returns {expression: result}.

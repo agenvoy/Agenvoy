@@ -29,8 +29,8 @@ func ListMCPTools() gin.HandlerFunc {
 			Parameters  json.RawMessage `json:"parameters"`
 		}
 
-		items := make([]toolItem, 0, len(executor.Tools))
-		for _, t := range executor.Tools {
+		items := make([]toolItem, 0, len(executor.AllTools))
+		for _, t := range executor.AllTools {
 			if !strings.HasPrefix(t.Function.Name, "mcp__") {
 				continue
 			}

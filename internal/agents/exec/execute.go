@@ -291,6 +291,12 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			"list_chatbot", "send_to_chatbot")
 	}
 
+	if claudeCode.Is(data.Agent.Name()) {
+		exec.Tools = slices.DeleteFunc(slices.Clone(exec.AllTools), func(t provider.Tool) bool {
+			return t.Function.Name == "run_tool"
+		})
+	}
+
 	if len(data.ExcludeTools) > 0 {
 		excluded := make(map[string]bool, len(data.ExcludeTools))
 		var prefixes []string
@@ -302,7 +308,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			excluded[name] = true
 		}
 		if len(prefixes) > 0 {
-			for _, t := range exec.Tools {
+			for _, t := range exec.AllTools {
 				if slices.ContainsFunc(prefixes, func(p string) bool {
 					return strings.HasPrefix(t.Function.Name, p)
 				}) {
@@ -321,7 +327,21 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		exec.Tools = filtered
 
 		for name := range excluded {
-			delete(exec.StubTools, name)
+			delete(exec.UnmarkedTools, name)
+		}
+	}
+
+	if !claudeCode.Is(data.Agent.Name()) {
+		var names []string
+		for _, t := range exec.AllTools {
+			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && !exec.ExcludeTools[name] {
+				names = append(names, name)
+			}
+		}
+		if idx := slices.IndexFunc(exec.Tools, func(t provider.Tool) bool {
+			return t.Function.Name == "run_tool"
+		}); idx != -1 && len(names) > 0 {
+			exec.Tools[idx].Function.Description += "\n\nTools: " + strings.Join(names, ", ")
 		}
 	}
 
@@ -338,7 +358,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	if claudeCode.Is(data.Agent.Name()) {
 		for _, t := range exec.Tools {
 			if name := t.Function.Name; name != "find_tools" && !clientTools[name] {
-				exec.StubTools[name] = true
+				exec.UnmarkedTools[name] = true
 			}
 		}
 	}

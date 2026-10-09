@@ -32,7 +32,7 @@ func searchTools(e *toolTypes.Executor, query string) (string, error) {
 		if e.ExcludeTools[match.Name] {
 			continue
 		}
-		delete(e.StubTools, match.Name)
+		delete(e.UnmarkedTools, match.Name)
 		delivered = append(delivered, match)
 	}
 	matches = delivered

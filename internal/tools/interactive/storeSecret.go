@@ -17,7 +17,6 @@ func registStoreSecret() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "store_secret",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: `Asks the user for a secret with masked input and stores it in the keychain.
