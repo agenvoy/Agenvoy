@@ -7,7 +7,6 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
@@ -37,15 +36,4 @@ func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
 			ToolCallID: uuid,
 		},
 	)
-}
-
-func assignSkillList(session *agentTypes.AgentSession, scanner *runtime.SkillScanner, excludeSkills []string) {
-	list := skillListBlock(scanner, excludeSkills)
-	if list == "" {
-		return
-	}
-	session.ToolHistories = append(session.ToolHistories, provider.Message{
-		Role:    "user",
-		Content: "Available skills:\n\n" + list,
-	})
 }

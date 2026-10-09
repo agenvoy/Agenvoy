@@ -28,7 +28,7 @@ These hold on every response — deep into a long task, after a Skill takes over
 
 ## Skills
 
-**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`. The available skills are listed in a message after each user input.
+**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`. The available skills are listed in a message before each user input.
 
 ---
 

@@ -388,6 +388,27 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			Args: toolArg,
 		})
 
+		if !wrapped && !slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == toolName }) {
+			reason := ""
+			switch {
+			case exec.ExcludeTools[toolName]:
+				reason = fmt.Sprintf("tool=%s failed: %s is not available in this session", toolName, toolName)
+			case slices.ContainsFunc(exec.AllTools, func(t provider.Tool) bool { return t.Function.Name == toolName }):
+				reason = fmt.Sprintf("tool=%s failed: %s is not callable directly. Fetch its schema with find_tools, then call run_tool(name=%s, args=...).", toolName, toolName, toolName)
+			}
+			if reason != "" {
+				events <- agentTypes.Event{
+					Type:     agentTypes.EventToolCall,
+					ToolName: toolName,
+					ToolArgs: toolArg,
+					ToolID:   toolID,
+				}
+				slots[i].state = slotValidateFailed
+				slots[i].preMsg = reason
+				continue
+			}
+		}
+
 		if cached, ok := alreadyCall[hash]; ok && cached != "" {
 			cachedContent := strings.TrimSpace(cached)
 			if images, rest := splitImageResult(cached); len(images) > 0 {

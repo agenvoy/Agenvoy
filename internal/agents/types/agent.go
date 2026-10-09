@@ -74,6 +74,7 @@ type AgentSession struct {
 	SystemPrompts  []provider.Message
 	OldHistories   []provider.Message
 	SummaryMessage provider.Message
+	TurnContext    provider.Message
 	UserInput      provider.Message
 	ToolHistories  []provider.Message
 	Tools          []provider.Message

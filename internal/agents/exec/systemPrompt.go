@@ -50,12 +50,12 @@ func loadGuardrailRules() string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, allowAll bool, model string) []provider.Message {
+func buildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
 	}
-	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, allowAll, model)})
+	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, model)})
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
@@ -90,7 +90,7 @@ func mcpInstructionsSection() string {
 	return sb.String()
 }
 
-func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string, allowAll bool, model string) string {
+func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string, model string) string {
 	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
 	if extraSection != "" {
@@ -120,12 +120,10 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string,
 
 	return strings.NewReplacer(
 		"{{.SystemOS}}", systemOS,
-		"{{.WorkPath}}", workDir,
 		"{{.OutputDir}}", filesystem.OutputDir(),
 		"{{.HostNote}}", hostNoteSection(),
 		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.BotPersona}}", personaSection,
-		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),

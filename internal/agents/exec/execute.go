@@ -327,25 +327,17 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 	}
 
-	if !exec.ExcludeTools["run_skill"] {
-		assignSkillList(session, scanner, data.ExcludeSkills)
-	}
-	if data.Skill != nil {
-		assignSkill(session, data.Skill)
-	}
-
-	if !claudeCode.Is(data.Agent.Name()) {
-		var names []string
+	var toolNames []string
+	if slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == "run_tool" }) {
 		for _, t := range exec.AllTools {
 			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && !exec.ExcludeTools[name] {
-				names = append(names, name)
+				toolNames = append(toolNames, name)
 			}
 		}
-		if idx := slices.IndexFunc(exec.Tools, func(t provider.Tool) bool {
-			return t.Function.Name == "run_tool"
-		}); idx != -1 && len(names) > 0 {
-			exec.Tools[idx].Function.Description += "\n\nTools: " + strings.Join(names, ", ")
-		}
+	}
+	assignTurnContext(session, data.WorkDir, allowAll, scanner, data.ExcludeSkills, !exec.ExcludeTools["run_skill"], toolNames)
+	if data.Skill != nil {
+		assignSkill(session, data.Skill)
 	}
 
 	clientTools := make(map[string]bool, len(data.ClientTools))

@@ -1,9 +1,6 @@
-{{.BotPersona}}{{.PermissionMode}}
-
-`sendAt: <YYYY-MM-DD HH:mm:ss>[, sender: <name>]` is system-injected on both sides of history; use it for timing and sender, never write it yourself.
+{{.BotPersona}}`sendAt: <YYYY-MM-DD HH:mm:ss>[, sender: <name>]` is system-injected on both sides of history; use it for timing and sender, never write it yourself.
 
 Host OS: {{.SystemOS}}
-Work directory: `{{.WorkPath}}` is authoritative this turn; ignore earlier ones in history. `run_command` already starts there — `cd` only to reach another directory: `run_command argv=["cd", "<path>"]`.
 {{.HostNote}}
 Credentials live in the OS keychain (service `agenvoy`); `store_secret` describes the lookup.
 
@@ -29,7 +26,7 @@ These hold on every response — deep into a long task, after a Skill takes over
 
 ## Skills
 
-**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`. The available skills are listed in a message after each user input.
+**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`. The available skills are listed in a message before each user input.
 
 ---
 
