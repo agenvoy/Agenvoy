@@ -30,6 +30,7 @@ const (
 	baseGuideKey      = "_base"
 	unlistedGuideKey  = "_base_unlisted"
 	vendorGuidePrefix = "_vendor_"
+	replyLangAuto     = "user's language, else English; Chinese → 繁體中文（台灣用語）."
 )
 
 var guardrailRules = loadGuardrailRules()
@@ -97,8 +98,6 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		extraSection = "## Additional Instructions\n\n" + extraSection + "\n\n---\n\n"
 	}
 
-	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
-
 	skillsSection := ""
 	if list := skillListBlock(scanner, excludeSkills); list != "" {
 		skillsSection = skillsHeader + list + "\n\n---\n\n"
@@ -130,7 +129,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.WorkPath}}", workDir,
 		"{{.OutputDir}}", filesystem.OutputDir(),
 		"{{.HostNote}}", hostNoteSection(),
-		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
+		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.BotPersona}}", personaSection,
 		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
 		"{{.AvailableSkills}}", skillsSection,
@@ -138,7 +137,14 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
-	).Replace(template)
+	).Replace(configs.SystemPrompt)
+}
+
+func replyLanguage() string {
+	if directive := filesystem.ReplyLangDirective(); directive != "" {
+		return directive
+	}
+	return replyLangAuto
 }
 
 func agentGuideSection(workDir string) string {
@@ -278,11 +284,11 @@ func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanne
 		"{{.SystemOS}}", getSystemInfo().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
-		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
+		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.AvailableSkills}}", skillsSection,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
-	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))
+	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
 func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) []provider.Message {
