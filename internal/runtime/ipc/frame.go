@@ -3,6 +3,7 @@ package ipc
 import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	FrameSteer   = "steer"
 	FrameVerify  = "verify"
 	FrameWorkDir = "workdir"
+	FrameMCP     = "mcp"
 )
 
 type Frame struct {
@@ -30,6 +32,14 @@ type Frame struct {
 	Event     *agentTypes.Event `json:"event,omitempty"`
 	Ask       *Ask              `json:"ask,omitempty"`
 	Reply     *Reply            `json:"reply,omitempty"`
+	MCP       *MCP              `json:"mcp,omitempty"`
+}
+
+type MCP struct {
+	Action  string           `json:"action,omitempty"`
+	Server  string           `json:"server,omitempty"`
+	Servers []mcp.ServerInfo `json:"servers,omitempty"`
+	Tools   []mcp.Tool       `json:"tools,omitempty"`
 }
 
 type Ask struct {

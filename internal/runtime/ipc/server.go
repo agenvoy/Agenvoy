@@ -122,6 +122,8 @@ func serve(ctx context.Context, raw net.Conn) {
 			}
 		case FramePending:
 			go c.pending(connCtx, f)
+		case FrameMCP:
+			go c.mcp(connCtx, f)
 		case FrameReply:
 			if f.Reply != nil {
 				go c.reply(ctx, f.Reply)

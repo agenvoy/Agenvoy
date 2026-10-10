@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
@@ -78,10 +80,11 @@ func (c *Client) read(conn net.Conn) {
 			return
 		}
 		switch f.Type {
-		case FrameEvent, FrameDone:
+		case FrameEvent, FrameDone, FrameMCP:
+			last := f.Type != FrameEvent
 			c.mu.Lock()
 			ch := c.runs[f.UUID]
-			if f.Type == FrameDone {
+			if last {
 				delete(c.runs, f.UUID)
 			}
 			c.mu.Unlock()
@@ -89,7 +92,7 @@ func (c *Client) read(conn net.Conn) {
 				continue
 			}
 			ch <- f
-			if f.Type == FrameDone {
+			if last {
 				close(ch)
 			}
 		case FrameWorkDir:
@@ -185,4 +188,19 @@ func (c *Client) Reply(id string, r runtime.Reply, password string) error {
 		Answers:   r.Answers,
 		Password:  password,
 	}})
+}
+
+func (c *Client) MCP(action, server string) (*MCP, error) {
+	frames, err := c.Run(Frame{Type: FrameMCP, UUID: go_pkg_utils.UUID(), MCP: &MCP{Action: action, Server: server}})
+	if err != nil {
+		return nil, err
+	}
+	f := <-frames
+	if f.Error != "" {
+		return nil, errors.New(f.Error)
+	}
+	if f.MCP == nil {
+		return &MCP{}, nil
+	}
+	return f.MCP, nil
 }
