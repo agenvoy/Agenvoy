@@ -3,8 +3,6 @@ package exec
 import (
 	"context"
 	"sync"
-
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 var (
@@ -12,14 +10,14 @@ var (
 	cancelFnMapMu sync.Mutex
 )
 
-func Cancel(taskHash string) bool {
+func Cancel(taskHash string, cause error) bool {
 	cancelFnMapMu.Lock()
 	fn, ok := cancelFnMap[taskHash]
 	cancelFnMapMu.Unlock()
 	if !ok {
 		return false
 	}
-	fn(runtime.ErrUserCanceled)
+	fn(cause)
 	return true
 }
 

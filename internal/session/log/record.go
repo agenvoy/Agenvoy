@@ -23,21 +23,21 @@ var (
 	actionLogMu     sync.Mutex
 )
 
-func Append(sessionID, str string) {
+func Append(sessionID, windowHash, str string) {
 	str = strings.TrimSpace(str)
 	if str == "" {
 		return
 	}
-	appendAction(sessionID, withTimestamp("user", "", flatten(str)))
+	appendAction(sessionID, withTimestamp(windowHash, "user", "", flatten(str)))
 }
 
-func Steer(sessionID, str string) {
+func Steer(sessionID, windowHash, str string) {
 	str = strings.TrimSpace(str)
 	if str == "" {
 		return
 	}
-	flushAssistant(sessionID, agentTypes.Event{})
-	appendAction(sessionID, withTimestamp("steer", "", flatten(str)))
+	flushAssistant(sessionID, agentTypes.Event{WindowHash: windowHash})
+	appendAction(sessionID, withTimestamp(windowHash, "steer", "", flatten(str)))
 }
 
 func Record(sessionID string, event agentTypes.Event) {
@@ -99,7 +99,7 @@ func flushAssistant(sessionID string, event agentTypes.Event) {
 		return
 	}
 
-	line := withTimestamp("assistant", event.TaskHash, flatten(full))
+	line := withTimestamp(event.WindowHash, "assistant", event.TaskHash, flatten(full))
 	appendAction(sessionID, line)
 }
 

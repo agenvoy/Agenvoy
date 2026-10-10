@@ -16,7 +16,6 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "generate_audio",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Timeout:     5 * time.Minute,

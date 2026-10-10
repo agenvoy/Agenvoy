@@ -8,22 +8,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
-	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
-	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
@@ -60,10 +54,6 @@ func TUI() {
 	}
 	defer usagelog.Close()
 
-	imageTool.Register()
-	audioTool.Register()
-	chatbotTool.Register()
-
 	if !runtime.IsCurrent() {
 		if err := app.SpawnDaemon(); err != nil {
 			slog.Warn("daemon launch failed; running TUI without server",
@@ -85,19 +75,14 @@ func TUI() {
 			slog.String("error", err.Error()))
 	}
 
-	subagent.Register()
-
-	mcpManager := app.NewMCP(context.Background(), "")
-	defer mcpManager.Close()
-	mcp.SetManager(mcpManager)
-
 	registry := app.NewAgentRegistry()
 	scanner := runtime.NewSkillScanner()
-	selectorBot := app.SelectDispatcher(registry)
-	summaryBot := app.SelectSummary(registry)
 
-	agents.Set(selectorBot, summaryBot, registry, scanner)
-	agents.SetRefresher(app.RefreshHost)
+	agents.Set(nil, app.SelectSummary(registry), registry, scanner)
+	agents.SetRefresher(func() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
+		registry := app.NewAgentRegistry()
+		return nil, app.SelectSummary(registry), registry
+	})
 	agents.MarkLoaded()
 
 	ctx, cancel := context.WithCancel(context.Background())

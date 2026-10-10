@@ -68,6 +68,7 @@ type entry struct {
 type listenerEntry struct {
 	prefix string
 	notify chan struct{}
+	match  func(context.Context) bool
 }
 
 var (
@@ -79,8 +80,12 @@ var (
 )
 
 func RegisterListener(prefix string) (<-chan struct{}, func()) {
+	return RegisterListenerMatch(prefix, nil)
+}
+
+func RegisterListenerMatch(prefix string, match func(context.Context) bool) (<-chan struct{}, func()) {
 	ch := make(chan struct{}, 1)
-	le := &listenerEntry{prefix: prefix, notify: ch}
+	le := &listenerEntry{prefix: prefix, notify: ch, match: match}
 
 	listenerMu.Lock()
 	listeners = append(listeners, le)
@@ -117,11 +122,14 @@ func OriginOf(sessionID string) string {
 	return ""
 }
 
-func HasListener(origin string) bool {
+func HasListener(ctx context.Context, origin string) bool {
 	listenerMu.RLock()
 	defer listenerMu.RUnlock()
 	for _, l := range listeners {
-		if l.prefix == "" || strings.HasPrefix(origin, l.prefix) {
+		if l.prefix != "" && !strings.HasPrefix(origin, l.prefix) {
+			continue
+		}
+		if l.match == nil || l.match(ctx) {
 			return true
 		}
 	}
@@ -163,10 +171,6 @@ func Ask(ctx context.Context, req Request) (Reply, error) {
 	case <-ctx.Done():
 		return Reply{}, ctx.Err()
 	}
-}
-
-func PickNext(prefix string) (id string, req Request, ok bool) {
-	return PickNextMatch(prefix, nil)
 }
 
 func PickNextMatch(prefix string, accept func(Request) bool) (id string, req Request, ok bool) {

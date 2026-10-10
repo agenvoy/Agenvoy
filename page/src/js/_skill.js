@@ -80,6 +80,7 @@ function markSkill(name) {
 
 let skillTabName = "";
 let skillTabPath = "";
+let skillSourceBoxes = {};
 
 function skillTabDom() {
   return {
@@ -89,6 +90,7 @@ function skillTabDom() {
     content: $("#skill-content"),
     files: $("#skill-files"),
     allowList: $("#skill-allow-list"),
+    sourceList: $("#skill-source-list"),
     remove: document.querySelector("#skill-form button.remove"),
   };
 }
@@ -166,6 +168,7 @@ async function openSkillTab(name) {
   dom.form.dataset.editing = "1";
   delete dom.form.dataset.view;
   delete dom.allowList.dataset.open;
+  delete dom.sourceList.dataset.open;
   dom.remove.style.display = body.deletable ? "" : "none";
 }
 
@@ -207,7 +210,72 @@ async function openSkillConfig() {
   delete dom.form.dataset.editing;
   dom.form.dataset.view = "config";
   markSelectedCard(dom.list, "");
+  delete dom.sourceList.dataset.open;
   renderSkillAllowList();
+}
+
+async function openSkillSource() {
+  const dom = skillTabDom();
+  if (!dom.form) {
+    return;
+  }
+
+  skillTabName = "";
+  skillTabPath = "";
+  renderSkillFiles(dom, []);
+  delete dom.form.dataset.editing;
+  dom.form.dataset.view = "source";
+  markSelectedCard(dom.list, "");
+  delete dom.allowList.dataset.open;
+
+  let body = null;
+  try {
+    const response = await fetch(`${API}/v1/config/skill_source`);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+      return;
+    }
+    body = await response.json();
+  } catch (err) {
+    console.error("openSkillSource", err);
+    alert(err.message || "failed");
+    return;
+  }
+
+  const disabled = body.disabled || [];
+  skillSourceBoxes = {};
+  dom.sourceList.innerHTML = "";
+  dom.sourceList.dataset.open = "1";
+  dom.sourceList.appendChild(_("strong", "Skill source · unchecked sources are not scanned"));
+  for (const name of body.sources || []) {
+    const box = _("input", { type: "checkbox" });
+    box.checked = !disabled.includes(name);
+    skillSourceBoxes[name] = box;
+    dom.sourceList.appendChild(_("label.tool", [box, _("p", name)]));
+  }
+}
+
+async function saveSkillSource() {
+  const boxes = skillSourceBoxes;
+  const disabled = Object.keys(boxes).filter((name) => !boxes[name].checked);
+  try {
+    const response = await fetch(`${API}/v1/config/skill_source`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disabled: disabled }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+      return;
+    }
+  } catch (err) {
+    console.error("saveSkillSource", err);
+    alert(err.message || "failed");
+    return;
+  }
+  renderSkillTab();
 }
 
 async function renderSkillAllowList() {

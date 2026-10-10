@@ -57,7 +57,7 @@ func isDcPushSuppressed(ctx context.Context) bool {
 
 type pushPrefixKey struct{}
 
-func WithDcPushPrefix(ctx context.Context, prefix string) context.Context {
+func WithBotPushPrefix(ctx context.Context, prefix string) context.Context {
 	return context.WithValue(ctx, pushPrefixKey{}, prefix)
 }
 

@@ -19,7 +19,6 @@ func registTestTool() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "test_tool",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Runs a script tool's script.py in the sandbox with JSON on stdin and returns what it printed.

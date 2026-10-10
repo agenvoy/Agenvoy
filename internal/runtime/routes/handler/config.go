@@ -2,11 +2,14 @@ package handler
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/startup"
 )
@@ -34,6 +37,24 @@ func GetConfig() gin.HandlerFunc {
 				"output_dir": filesystem.ConfigOutputDir,
 				"resolved":   filesystem.OutputDir(),
 			})
+		case "official_guide":
+			cfg, err := config.Load()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"enabled": !cfg.OfficialGuideOff})
+		case "skill_source":
+			cfg, err := config.Load()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			disabled := cfg.SkillSourceOff
+			if disabled == nil {
+				disabled = []string{}
+			}
+			c.JSON(http.StatusOK, gin.H{"sources": runtime.SkillSources, "disabled": disabled})
 		default:
 			c.JSON(http.StatusNotFound, gin.H{"error": "unknown config target"})
 		}
@@ -49,6 +70,10 @@ func SetConfig() gin.HandlerFunc {
 			setSystemConfig(c)
 		case "output_dir":
 			setOutputDir(c)
+		case "official_guide":
+			setOfficialGuide(c)
+		case "skill_source":
+			setSkillSource(c)
 		default:
 			c.JSON(http.StatusNotFound, gin.H{"error": "unknown config target"})
 		}
@@ -159,4 +184,74 @@ func setOutputDir(c *gin.Context) {
 	filesystem.ConfigOutputDir = raw
 
 	c.JSON(http.StatusOK, gin.H{"ok": true, "output_dir": raw, "resolved": resolved})
+}
+
+func setOfficialGuide(c *gin.Context) {
+	var body struct {
+		Enable *bool `json:"enable"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.Enable == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enable is required"})
+		return
+	}
+
+	dic, err := config.Get()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	dic["official_guide_disabled"] = !*body.Enable
+	if err := config.Write(dic); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "enabled": *body.Enable})
+}
+
+func setSkillSource(c *gin.Context) {
+	var body struct {
+		Disabled *[]string `json:"disabled"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.Disabled == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "disabled is required"})
+		return
+	}
+
+	for _, name := range *body.Disabled {
+		if !slices.Contains(runtime.SkillSources, name) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown skill source: " + name})
+			return
+		}
+	}
+	disabled := []string{}
+	for _, name := range runtime.SkillSources {
+		if slices.Contains(*body.Disabled, name) {
+			disabled = append(disabled, name)
+		}
+	}
+
+	dic, err := config.Get()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	dic["skill_source_disabled"] = disabled
+	if err := config.Write(dic); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if scanner := agents.Scanner(); scanner != nil {
+		scanner.Scan()
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "disabled": disabled})
 }

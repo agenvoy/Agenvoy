@@ -23,7 +23,6 @@ func registFindTools() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "find_tools",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `The tool registry: what exists (list), and pulling a tool's schema in so it can be called (search).
@@ -40,7 +39,7 @@ A capability that seems missing comes from here before anything is built. Buildi
 				},
 				"query": map[string]any{
 					"type":        "string",
-					"description": `mode=search: keywords, all of which must match, or "select:<name>,<name>" to activate by exact name. Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.`,
+					"description": `mode=search: "select:NAME[,NAME]" for names in the Tools list; keywords, all of which must match, only when no listed name fits. Prefer unmarked tools (mcp__* > script_* > api_*) over [system-default] for the same intent.`,
 				},
 				"mcp": map[string]any{
 					"type":        "boolean",

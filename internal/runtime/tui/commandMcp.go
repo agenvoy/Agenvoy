@@ -1,10 +1,8 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -82,11 +80,11 @@ func (t TUI) commandMcp(parts []string) (TUI, tea.Cmd, bool) {
 }
 
 func mcpStatusList() []mcp.ServerInfo {
-	m := mcp.Manager()
-	if m == nil {
+	result, err := ipcClient.Load().MCP("status", "")
+	if err != nil {
 		return nil
 	}
-	return m.Status("")
+	return result.Servers
 }
 
 func mcpServerStatus(name string) (mcp.ServerInfo, bool) {
@@ -174,8 +172,7 @@ func (t TUI) runMcpServerAction(msg McpServerAction) (TUI, tea.Cmd) {
 
 func (t TUI) reconnectMcpServer(name string) (TUI, tea.Cmd) {
 	return t, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		return McpReconnectDone{server: name, err: mcp.Manager().ReconnectServer(ctx, name)}
+		_, err := ipcClient.Load().MCP("reconnect", name)
+		return McpReconnectDone{server: name, err: err}
 	}
 }

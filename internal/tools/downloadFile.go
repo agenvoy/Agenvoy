@@ -22,7 +22,6 @@ func registDownloadFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "download_file",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: `Downloads a binary file from a URL onto local disk.

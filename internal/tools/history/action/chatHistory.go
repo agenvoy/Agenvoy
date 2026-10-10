@@ -23,7 +23,6 @@ func registChatHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "chat_history",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `This session's action log: each past run's objective, its tool calls with arguments and output, and the messages.

@@ -52,7 +52,7 @@ func SyncAsset(ctx context.Context) error {
 		if err := go_pkg_filesystem.WriteFile(filepath.Join(filesystem.VendorDir, item.Path), body, 0644); err != nil {
 			return fmt.Errorf("write %s: %w", item.Path, err)
 		}
-		slog.Info("webapp asset downloaded",
+		slog.Debug("webapp asset downloaded",
 			slog.String("path", item.Path),
 			slog.Int("bytes", len(body)))
 	}

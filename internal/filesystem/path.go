@@ -19,6 +19,7 @@ var (
 	AgenvoyDir              string
 	ConfigPath              string
 	DaemonLogPath           string
+	DaemonSocketPath        string
 	McpPath                 string
 	StoreDir                string
 	HistoryDBPath           string
@@ -77,6 +78,7 @@ func Init() error {
 		AgenvoyDir = filepath.Join(homeDir, ".config", projectName)
 		ConfigPath = filepath.Join(AgenvoyDir, "config.json")
 		DaemonLogPath = filepath.Join(AgenvoyDir, "daemon.log")
+		DaemonSocketPath = filepath.Join(AgenvoyDir, "daemon.sock")
 		McpPath = filepath.Join(AgenvoyDir, "mcp.json")
 
 		StoreDir = filepath.Join(AgenvoyDir, ".store")

@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -19,15 +16,16 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 const (
-	skillsHeader      = "## Skills\n\n**`/<name>` = STRICT EXECUTION** — the whole procedure binds, and its rules arrive with it. `run_skill` path = advisory — consult, integrate fitting parts, ignore rest. Activate matching skill by intent even without explicit `/<name>`.\n\n"
 	baseGuideKey      = "_base"
 	unlistedGuideKey  = "_base_unlisted"
 	vendorGuidePrefix = "_vendor_"
+	replyLangAuto     = "user's language, else English; Chinese → 繁體中文（台灣用語）."
 )
 
 var guardrailRules = loadGuardrailRules()
@@ -48,12 +46,12 @@ func loadGuardrailRules() string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSystemPrompts(workDir, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) []provider.Message {
+func buildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
 	}
-	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, scanner, sessionID, allowAll, excludeSkills, model)})
+	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, model)})
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
@@ -90,15 +88,11 @@ func mcpInstructionsSection() string {
 	return sb.String()
 }
 
-func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.SkillScanner, sessionID string, allowAll bool, excludeSkills []string, model string) string {
+func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string, model string) string {
 	systemOS := getSystemInfo().os
 	extraSection := strings.TrimSpace(extraSystemPrompt)
-
-	template := filesystem.ApplyReplyLang(configs.SystemPrompt)
-
-	skillsSection := ""
-	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list
+	if extraSection != "" {
+		extraSection = "## Additional Instructions\n\n" + extraSection + "\n\n---\n\n"
 	}
 
 	personaSection := ""
@@ -124,40 +118,21 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, scanner *runtime.
 
 	return strings.NewReplacer(
 		"{{.SystemOS}}", systemOS,
-		"{{.WorkPath}}", workDir,
 		"{{.OutputDir}}", filesystem.OutputDir(),
 		"{{.HostNote}}", hostNoteSection(),
-		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
+		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.BotPersona}}", personaSection,
-		"{{.PermissionMode}}", buildPermissionModeSection(allowAll),
-		"{{.AvailableSkills}}", skillsSection,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
-		"{{.AgentGuide}}", agentGuideSection(workDir),
 		"{{.ExtraSystemPrompt}}", extraSection,
-	).Replace(template)
+	).Replace(configs.SystemPrompt)
 }
 
-func agentGuideSection(workDir string) string {
-	for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
-		path := filepath.Join(workDir, name)
-		if !go_pkg_filesystem_reader.IsFile(path) {
-			continue
-		}
-
-		content, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			slog.Debug("agent guide ReadText",
-				slog.String("path", path),
-				slog.String("error", err.Error()))
-			continue
-		}
-		if content = strings.TrimSpace(content); content == "" {
-			continue
-		}
-		return "`" + path + "`\n\n" + content
+func replyLanguage() string {
+	if directive := filesystem.ReplyLangDirective(); directive != "" {
+		return directive
 	}
-	return ""
+	return replyLangAuto
 }
 
 func guideKeyMatches(model, key string) bool {
@@ -171,6 +146,10 @@ func guideKeyMatches(model, key string) bool {
 }
 
 func officialGuideSection(model string) string {
+	if cfg, err := config.Load(); err == nil && cfg.OfficialGuideOff {
+		return ""
+	}
+
 	matched, vendor := "", ""
 
 	keys := slices.SortedFunc(maps.Keys(configs.OfficialGuides), func(a, b string) int {
@@ -194,11 +173,15 @@ func officialGuideSection(model string) string {
 		matched = unlistedGuideKey
 	}
 
-	return mergeGuideSections(
+	body := mergeGuideSections(
 		configs.OfficialGuides[baseGuideKey],
 		configs.OfficialGuides[vendor],
 		configs.OfficialGuides[matched],
 	)
+	if body == "" {
+		return ""
+	}
+	return "## Model Guide\n\n" + body + "\n\n---\n\n"
 }
 
 func mergeGuideSections(layers ...string) string {
@@ -254,25 +237,19 @@ func buildPermissionModeSection(allowAll bool) string {
 	return strings.TrimRight(configs.PermissionSingleConfirm, "\n")
 }
 
-func getChatCompletionsSystemPrompt(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) string {
-	skillsSection := ""
-	if list := skillListBlock(scanner, excludeSkills); list != "" {
-		skillsSection = skillsHeader + list
-	}
-
+func getChatCompletionsSystemPrompt(workDir string, model string) string {
 	return strings.NewReplacer(
 		"{{.SystemOS}}", getSystemInfo().os,
 		"{{.WorkPath}}", workDir,
 		"{{.HostNote}}", hostNoteSection(),
-		"{{.ReplyLanguage}}", filesystem.ReplyLangDirective(),
-		"{{.AvailableSkills}}", skillsSection,
+		"{{.ReplyLanguage}}", replyLanguage(),
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
-	).Replace(filesystem.ApplyReplyLang(configs.ChatCompletionsSystemPrompt))
+	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) []provider.Message {
-	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, scanner, excludeSkills, model)}}
+func BuildChatCompletionsSystemPrompts(workDir string, model string) []provider.Message {
+	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, model)}}
 	if section := mcpInstructionsSection(); section != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: section})
 	}
@@ -298,7 +275,7 @@ func skillListBlock(scanner *runtime.SkillScanner, excludeSkills []string) strin
 		if excluded[n] {
 			continue
 		}
-		desc := go_pkg_utils.TruncateString(scanner.Skills.ByName[n].Description, 512)
+		desc := go_pkg_utils.TruncateString(scanner.Skills.ByName[n].Description, 256)
 		b.WriteString("- ")
 		b.WriteString(n)
 		if desc != "" {

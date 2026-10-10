@@ -28,7 +28,7 @@ func adminChatValue() string {
 	if err != nil || cfg == nil || strings.TrimSpace(cfg.AdminChannel) == "" {
 		return hintStyle.Render("disable")
 	}
-	return okayStyle.Render(strings.TrimSpace(cfg.AdminChannel))
+	return whiteStyle.Render(strings.TrimSpace(cfg.AdminChannel))
 }
 
 func (t TUI) commandAdminChannel(parts []string) (TUI, tea.Cmd, bool) {

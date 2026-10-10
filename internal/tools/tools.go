@@ -32,7 +32,7 @@ func init() {
 	TUIOnlySkills = data.Skills
 }
 
-var WorkDirChangeHook func(path string)
+var WorkDirChangeHook func(sessionID, path string)
 
 func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 	var positional []string
@@ -57,7 +57,7 @@ func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 
 	e.WorkDir = abs
 	if WorkDirChangeHook != nil {
-		WorkDirChangeHook(abs)
+		WorkDirChangeHook(e.SessionID, abs)
 	}
 	return fmt.Sprintf("Changed working directory to: %s", abs), nil
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 )
 
 func listCronEntries() []runtime.CronEntry {
@@ -25,6 +26,9 @@ func listCronEntries() []runtime.CronEntry {
 }
 
 func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
+	if t.connecting {
+		return t, nil
+	}
 	if content == "" {
 		return t, nil
 	}
@@ -37,7 +41,7 @@ func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
 	t.currentModel = ""
 	t.runTarget = ""
 
-	go runExec(t.ctx, content, false, t.cwd, t.currentSessionID, "", "")
+	go runExec(ipc.Frame{Type: ipc.FrameRun, SessionID: t.currentSessionID, Rayload: &ipc.Payload{Input: content, WorkDir: t.cwd}})
 
 	return t, tea.Batch(
 		tea.Println(messageBlock(content)),

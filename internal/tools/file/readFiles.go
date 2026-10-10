@@ -23,7 +23,6 @@ func registReadFiles() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "read_files",
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Canonical way to read any file — text, PDF, DOCX, PPTX, CSV/TSV, image, or audio/video (returned as a verbatim transcript) — and the step that must precede edit_file on an existing file: an edit is refused unless the file was read in this turn and is unchanged on disk since.

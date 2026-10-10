@@ -17,18 +17,17 @@ func registRunSkill() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "run_skill",
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Loads a named skill's reference material into this turn.
-Use when '## Skills' lists one that fits the task, or when the user names a skill.
+Use when the available-skills list has one that fits the task, or when the user names a skill.
 What comes back is reference, not a script to execute line by line: take the parts that fit. Changing a skill → edit_skill.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"skill": map[string]any{
 					"type":        "string",
-					"description": "Exact skill name from the '## Skills' section of the system prompt.",
+					"description": "Exact skill name from the available-skills list.",
 				},
 			},
 			"required": []string{"skill"},

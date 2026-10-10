@@ -14,15 +14,25 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 type popupScreenReady struct{}
 
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if state, ok := msg.(daemonState); ok {
+		t.connecting = !state.connected
+		if t.connecting {
+			return t, t.spinner.Tick
+		}
+		return t, nil
+	}
 	if _, ok := msg.(popupScreenReady); ok {
 		t.popupOnScreen = t.popup != nil
 		return t, nil
@@ -125,6 +135,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.selector = nil
 				return t, nil
 			}
+			if t.notice != "" {
+				t.notice, t.noticeOffset = "", 0
+				return t, nil
+			}
 			if t.running && t.cancelExec != nil {
 				if !t.emitted {
 					return t.update(CancelRunConfirm{yes: true})
@@ -146,10 +160,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.inputHistoryIdx = -1
 				return t, nil
 			}
-			if t.notice != "" {
-				t.notice, t.noticeOffset = "", 0
-				return t, nil
-			}
 
 		case tea.KeyRunes:
 			if !t.running && t.selector == nil && strings.TrimSpace(t.textarea.Value()) == "" {
@@ -167,6 +177,13 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						fast.Disable()
 					} else {
 						fast.Enable()
+					}
+					return t, nil
+				case "G":
+					if guide.IsEnabled() {
+						guide.Disable()
+					} else {
+						guide.Enable()
 					}
 					return t, nil
 				case "U":
@@ -231,10 +248,12 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if t.running {
 				raw := t.textarea.Value()
-				if strings.TrimSpace(raw) == "" {
+				if trimmed := strings.TrimSpace(raw); trimmed == "" || strings.HasPrefix(trimmed, "/") {
 					return t, nil
 				}
-				exec.AppendSteer(t.currentSessionID, raw)
+				if err := ipcClient.Load().Steer(t.currentSessionID, tuiHash.Get(), raw); err != nil {
+					return t, notice(msgError(fmt.Sprintf("steer: %v", err)) + "\n")
+				}
 				t.pendingSteer = append(t.pendingSteer, raw)
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)
@@ -244,6 +263,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			raw := t.textarea.Value()
 			content := strings.TrimSpace(raw)
 			if content == "" {
+				return t, nil
+			}
+			if t.connecting && (!strings.HasPrefix(content, "/") || noMatches(content)) {
 				return t, nil
 			}
 			t = t.recordInputHistory(raw)
@@ -271,7 +293,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate, t.lastContext = 0, 0, 0, 0, 0
 			t.runTarget = ""
 
-			go runExec(t.ctx, raw, t.allowAll, t.cwd, t.currentSessionID, "", "")
+			go runExec(ipc.Frame{Type: ipc.FrameRun, SessionID: t.currentSessionID, Rayload: &ipc.Payload{Input: raw, WorkDir: t.cwd, AllowAll: t.allowAll}})
 
 			cmds = append(cmds,
 				tea.Println(messageBlock(raw)),
@@ -313,11 +335,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if t.currentSessionID != "" {
 			t.currentSessionName, _ = configBot.Get(t.currentSessionID)
 		}
-		if t.pendingResume != nil {
-			resume := *t.pendingResume
-			t.pendingResume = nil
-			return t.startResume(resume)
-		}
 		var doneCmds []tea.Cmd
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
 			doneCmds = append(doneCmds, notice(msgError(fmt.Sprintf("exec error: %v", msg.err))+"\n"))
@@ -326,13 +343,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 		return t, tea.Sequence(doneCmds...)
-
-	case ResumeExec:
-		if t.running {
-			t.pendingResume = &msg
-			return t, nil
-		}
-		return t.startResume(msg)
 
 	case PendingSelect:
 		return t.resumePending(msg)
@@ -345,9 +355,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.handleAgentEvent(msg.event)
 
 	case Pending:
-		popup := newPopup(msg.id, msg.request)
+		popup := newPopup(msg)
 		if popup == nil {
-			runtime.Resolve(msg.id, runtime.Reply{Error: fmt.Errorf("invalid pending request")})
+			resolvePending(msg.id, runtime.Reply{Error: fmt.Errorf("invalid pending request")})
 			return t, nil
 		}
 
@@ -379,6 +389,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case SessionReasoningSelect:
 		return t.runSessionReasoningSelect(msg.level)
+
+	case ModelOrderSave:
+		return t.runModelOrderSave(msg)
 
 	case ModelScopeSelect:
 		switch msg.scope {
@@ -424,6 +437,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case SkillsInstallDone:
 		return t.runSkillsInstallDone(msg)
+
+	case SkillSourcePick:
+		return t.runSkillSourcePick(msg)
 
 	case McpOAuthPaste:
 		return t.runMcpOAuthPaste(msg)
@@ -1005,17 +1021,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Quit
 
-	case RestrictedAuthDone:
+	case restrictedVerified:
 		if msg.err != nil {
-			runtime.Resolve(msg.pendingID, runtime.Reply{
-				Approve: false,
-				Reason:  "system password verification failed",
-			})
 			return t, notice(msgError(fmt.Sprintf("restricted path: %v", msg.err)) + "\n")
-		}
-		runtime.Resolve(msg.pendingID, runtime.Reply{Approve: true, Verified: true})
-		if msg.cached {
-			return t, nil
 		}
 		return t, notice(msgWarn("⚠ restricted path approved") + "\n")
 
@@ -1086,7 +1094,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t.restartTailer(), nil
 
 	case spinner.TickMsg:
-		if t.running {
+		if t.running || t.connecting {
 			var cmd tea.Cmd
 			t.spinner, cmd = t.spinner.Update(msg)
 			cmds = append(cmds, cmd)
@@ -1113,18 +1121,14 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, tea.Batch(cmds...)
 }
 
-func (t TUI) startResume(msg ResumeExec) (tea.Model, tea.Cmd) {
-	sid := msg.SessionID
-	if sid == "" {
-		sid = t.currentSessionID
-	}
+func (t TUI) startPending(sessionID, taskHash string) (tea.Model, tea.Cmd) {
 	t.running = true
 	t.runStartedAt = time.Now()
 	t.activity = ""
 	t.currentModel = ""
 	t.lastIn, t.lastOut, t.lastCacheRead, t.lastCacheCreate, t.lastContext = 0, 0, 0, 0, 0
 	t.runTarget = ""
-	go runExec(t.ctx, msg.Content, t.allowAll || msg.AllowAll, t.cwd, sid, msg.PendingTask, msg.HistoryContent)
+	go runExec(ipc.Frame{Type: ipc.FramePending, SessionID: sessionID, Rayload: &ipc.Payload{PendingTask: taskHash, WorkDir: t.cwd, AllowAll: t.allowAll}})
 	return t, t.spinner.Tick
 }
 

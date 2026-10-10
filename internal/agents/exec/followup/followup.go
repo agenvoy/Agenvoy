@@ -49,7 +49,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	resp, _, err := agent.Send(sendCtx, []provider.Message{
 		{Role: "system", Content: prompt(needTitle)},
 		{Role: "user", Content: "<conversation>\n" + transcript + "\n</conversation>"},
-	}, nil, provider.ReasoningNone, fast.Mode())
+	}, nil, provider.ReasoningNone, fast.Mode(ctx))
 	sendElapsed := time.Since(sendStart)
 	if err != nil {
 		slog.Debug("followup.Generate",

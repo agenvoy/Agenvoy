@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -59,8 +60,9 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 	label := utils.ShortenSessionID(sid)
 	if mode == "all" {
 		t.activity = "resetting (history + summary)..."
+		slog.Debug("clearing history and summary",
+			slog.String("session", label))
 		return t, tea.Batch(
-			notice(msgLog(fmt.Sprintf("clearing history and summary for %s...", label))+"\n"),
 			t.spinner.Tick,
 			func() tea.Msg {
 				keys, err := exec.ResetSessionAll(sid)
@@ -102,10 +104,12 @@ func (t TUI) finishResetSession(msg ResetSessionDone) (TUI, tea.Cmd) {
 		summaryNote = "summary cleared"
 	}
 
-	seq := []tea.Cmd{
+	slog.Debug("reset",
+		slog.String("session", utils.ShortenSessionID(msg.id)),
+		slog.String("summary", summaryNote),
+		slog.Int("torii_keys_purged", msg.keys))
+	return t, tea.Sequence(
 		tea.ClearScreen,
 		tea.Println(headerBlock(t.daemonStatus, t.httpStatus, t.discordStatus, t.telegramStatus, t.lineStatus, t.currentSessionID)),
-		notice(msgLog(fmt.Sprintf("reset: %s (%s, %d torii keys purged)", utils.ShortenSessionID(msg.id), summaryNote, msg.keys)) + "\n"),
-	}
-	return t, tea.Sequence(seq...)
+	)
 }

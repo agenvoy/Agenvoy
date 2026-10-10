@@ -36,7 +36,7 @@ func getSession(ctx context.Context, in go_bot_line.Input, content string, data 
 	if userText == "" {
 		userText = strings.TrimSpace(content)
 	}
-	sessionLog.Append(sessionID, userText)
+	sessionLog.Append(sessionID, agentTypes.WindowHash(ctx), userText)
 
 	return sess, nil
 }

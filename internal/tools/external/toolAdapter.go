@@ -16,7 +16,6 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "http_request",
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: `Sends one HTTP request to any URL and returns status, headers and body — GET through DELETE, multipart upload included.

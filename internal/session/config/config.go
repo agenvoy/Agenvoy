@@ -30,6 +30,8 @@ type Config struct {
 	TTSModel         string            `json:"tts_model"`
 	AdminChannel     string            `json:"admin_channel"`
 	OutputDir        string            `json:"output_dir"`
+	OfficialGuideOff bool              `json:"official_guide_disabled"`
+	SkillSourceOff   []string          `json:"skill_source_disabled"`
 	ModelTag         map[string]string `json:"model_tag"`
 }
 

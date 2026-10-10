@@ -308,6 +308,10 @@
 
         <section :elif="params.tab == Skills" class="editor">
           <div class="side">
+            <button type="button" class="new" @click="skill_source">
+              <span class="material-symbols-outlined"> source </span>
+              <p>Skill Source</p>
+            </button>
             <button type="button" class="new" @click="skill_config">
               <span class="material-symbols-outlined"> checklist </span>
               <p>Setting Skills</p>
@@ -322,6 +326,7 @@
           </div>
           <form id="skill-form">
             <p class="empty">select skills</p>
+            <section class="tools" id="skill-source-list"></section>
             <section class="tools" id="skill-allow-list"></section>
             <label for="skill-name">
               <span>Name</span>
@@ -329,6 +334,9 @@
             </label>
             <nav class="tab" id="skill-files"></nav>
             <textarea id="skill-content" rows="20" disabled></textarea>
+            <footer class="source">
+              <button type="button" class="submit" @click="skill_source_save">save</button>
+            </footer>
             <footer>
               <button type="button" class="remove" @click="skill_delete">delete</button>
               <button type="button" class="submit" @click="skill_open">open</button>
@@ -623,6 +631,16 @@
             </div>
             <div class="card">
               <div class="label">
+                <strong>Official guide</strong>
+                <p>injects the vendor prompting guide for the active model · applies from the next message</p>
+              </div>
+              <select id="system-official-guide" @change="system_official_guide">
+                <option value="enabled">enabled</option>
+                <option value="disabled">disabled</option>
+              </select>
+            </div>
+            <div class="card">
+              <div class="label">
                 <strong>Output Dir</strong>
                 <p>where generated files land</p>
                 <a id="system-output-open" @click="system_output_open">open dir</a>
@@ -632,6 +650,7 @@
                 <button type="button" class="submit" @click="system_output">save</button>
               </div>
             </div>
+            <strong class="group">Other</strong>
             <div class="card">
               <div class="label">
                 <strong id="system-update-title">Update</strong>
@@ -643,7 +662,6 @@
                 <button id="system-update" type="button" class="submit" @click="system_update" hidden>update</button>
               </div>
             </div>
-            <strong class="group">Other</strong>
             <div class="card">
               <div class="label">
                 <strong>Doc</strong>

@@ -1,9 +1,7 @@
 package daemon
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"sync"
@@ -47,22 +45,4 @@ func Patch[T any](ctx context.Context, path string, body map[string]any) (T, err
 func Delete[T any](ctx context.Context, path string, body map[string]any) (T, error) {
 	out, _, err := go_pkg_http.DELETE[T](ctx, client, BaseURL()+path, nil, body, "")
 	return out, err
-}
-
-func Publish(ctx context.Context, path string, body any) {
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, BaseURL()+path, bytes.NewReader(raw))
-	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	resp.Body.Close()
 }

@@ -59,6 +59,7 @@ type ExecuteMeta struct {
 	AllowAll          bool
 	TUI               bool
 	PendingTask       string
+	TaskHash          string
 	KeepPending       bool
 	IgnoreHistory     bool
 	ReplyMessageID    string
@@ -103,6 +104,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	defer execCancel(nil)
 
 	var runTaskHash *atomic.Pointer[string]
+	windowHash := agentTypes.WindowHash(ctx)
 	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
@@ -118,7 +120,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if execErr == nil || stateless || terminalRecorded.Load() {
 				return
 			}
-			sessionLog.Record(session.ID, agentTypes.ErrorEvent(execErr))
+			errEvent := agentTypes.ErrorEvent(execErr)
+			errEvent.WindowHash = windowHash
+			sessionLog.Record(session.ID, errEvent)
 		}()
 
 		original := events
@@ -145,6 +149,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range fanoutEvents {
+				if ev.WindowHash == "" {
+					ev.WindowHash = windowHash
+				}
 				if ev.TaskHash == "" && ev.Source == "" {
 					if h := taskHashRef.Load(); h != nil {
 						ev.TaskHash = *h
@@ -256,7 +263,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, data.TaskHash, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {
@@ -272,10 +279,6 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			hash := exec.PendingTask
 			runTaskHash.Store(&hash)
 		}
-	}
-
-	if data.Skill != nil {
-		assignSkill(session, data.Skill)
 	}
 
 	cfg, _ := config.Load()
@@ -295,6 +298,12 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			"generate_image", "generate_audio", "ask_user", "store_secret")
 	}
 
+	if claudeCode.Is(data.Agent.Name()) {
+		exec.Tools = slices.DeleteFunc(slices.Clone(exec.AllTools), func(t provider.Tool) bool {
+			return t.Function.Name == "run_tool"
+		})
+	}
+
 	if len(data.ExcludeTools) > 0 {
 		excluded := make(map[string]bool, len(data.ExcludeTools))
 		var prefixes []string
@@ -306,7 +315,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			excluded[name] = true
 		}
 		if len(prefixes) > 0 {
-			for _, t := range exec.Tools {
+			for _, t := range exec.AllTools {
 				if slices.ContainsFunc(prefixes, func(p string) bool {
 					return strings.HasPrefix(t.Function.Name, p)
 				}) {
@@ -325,8 +334,21 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		exec.Tools = filtered
 
 		for name := range excluded {
-			delete(exec.StubTools, name)
+			delete(exec.UnmarkedTools, name)
 		}
+	}
+
+	var toolNames []string
+	if slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == "run_tool" }) {
+		for _, t := range exec.AllTools {
+			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && !exec.ExcludeTools[name] {
+				toolNames = append(toolNames, name)
+			}
+		}
+	}
+	assignTurnContext(ctx, session, data.WorkDir, allowAll, scanner, data.ExcludeSkills, !exec.ExcludeTools["run_skill"], toolNames)
+	if data.Skill != nil {
+		assignSkill(session, data.Skill)
 	}
 
 	clientTools := make(map[string]bool, len(data.ClientTools))
@@ -342,7 +364,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	if claudeCode.Is(data.Agent.Name()) {
 		for _, t := range exec.Tools {
 			if name := t.Function.Name; name != "find_tools" && !clientTools[name] {
-				exec.StubTools[name] = true
+				exec.UnmarkedTools[name] = true
 			}
 		}
 	}
@@ -423,7 +445,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendDone := make(chan struct{})
 		go func() {
 			defer close(sendDone)
-			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(), events, &shownReasoning)
+			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(sendCtx), events, &shownReasoning)
 			resultCh <- sendOutcome{resp: r, code: c, err: e, textEmitted: textEmitted, reasoned: reasoned}
 		}()
 
@@ -845,7 +867,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
 	summaryStart := time.Now()
-	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
+	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode(execCtx))
 	summaryDur := time.Since(summaryStart)
 	if err == nil {
 		retryHandler.Clear(data.Agent.Name())

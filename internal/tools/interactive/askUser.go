@@ -93,7 +93,6 @@ func registAskUser() {
 		Name:        "ask_user",
 		Timeout:     toolRegister.NoToolTimeout,
 		SystemUse:   true,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Puts one or more questions to the user and stops there — execution pauses, and a new turn resumes automatically once they answer.
@@ -352,8 +351,10 @@ func CleanupPending(sessionID, taskHash string) {
 
 var pendingSkipTool = map[string]bool{"write_todo": true}
 
-func CreateExecPending(sessionID, objective, messageID, model, reasoning string, allowAll bool) string {
-	taskHash := go_pkg_utils.UUID()
+func CreateExecPending(sessionID, taskHash, objective, messageID, model, reasoning string, allowAll bool) string {
+	if taskHash == "" {
+		taskHash = go_pkg_utils.UUID()
+	}
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
@@ -784,7 +785,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 
 func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Question) ([]any, error) {
 	origin := originFor(ctx, sessionID)
-	if !runtime.HasListener(origin) {
+	if !runtime.HasListener(ctx, origin) {
 		return nil, fmt.Errorf("ask_user requires an interactive channel (TUI / Telegram / Discord)")
 	}
 

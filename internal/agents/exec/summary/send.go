@@ -73,7 +73,7 @@ func send(ctx context.Context, agent agentTypes.Agent, messages []provider.Messa
 	defer cancel()
 
 	sendStart := time.Now()
-	resp, _, err := agent.Send(sendCtx, messages, nil, reasoning, fast.Mode())
+	resp, _, err := agent.Send(sendCtx, messages, nil, reasoning, fast.Mode(ctx))
 	return resp, time.Since(sendStart), err
 }
 

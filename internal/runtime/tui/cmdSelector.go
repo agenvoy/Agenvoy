@@ -55,7 +55,7 @@ var commands = []Command{
 
 func (t TUI) refreshCmdSelector() TUI {
 	query, ok := queryCmdSelector(t.textarea.Value())
-	if !ok {
+	if !ok || t.running {
 		t.selector = nil
 		return t
 	}

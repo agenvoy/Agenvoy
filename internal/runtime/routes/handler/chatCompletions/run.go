@@ -10,7 +10,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -57,17 +56,17 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		AllowAll:       true,
 	}
 
-	session := buildStatelessSession(req, trimContent, workDir, scanner, data.ExcludeSkills, data.Agent.Name())
+	session := buildStatelessSession(req, trimContent, workDir, data.Agent.Name())
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 	}
 }
 
-func buildStatelessSession(req Request, userInput, workDir string, scanner *runtime.SkillScanner, excludeSkills []string, model string) *agentTypes.AgentSession {
+func buildStatelessSession(req Request, userInput, workDir string, model string) *agentTypes.AgentSession {
 	var systemPrompts []provider.Message
 	if req.agentMode {
-		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, scanner, excludeSkills, model)
+		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, model)
 	}
 	systemPrompts = append(systemPrompts, req.systemPrompts...)
 

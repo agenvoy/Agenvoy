@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"slices"
 	"sort"
 	"time"
 
@@ -101,15 +100,23 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		return tools[i].Function.Name < tools[j].Function.Name
 	})
 
-	initial := slices.Clone(tools)
-	stubTools := make(map[string]bool)
+	initial := make([]provider.Tool, 0, len(tools))
+	unmarkedTools := make(map[string]bool)
+	for _, tool := range tools {
+		name := tool.Function.Name
+		if name == "find_tools" || name == "run_tool" {
+			initial = append(initial, tool)
+			continue
+		}
+		unmarkedTools[name] = true
+	}
 
 	return &toolTypes.Executor{
 		WorkDir:          workPath,
 		SessionID:        sessionID,
 		Tools:            initial,
 		AllTools:         tools,
-		StubTools:        stubTools,
+		UnmarkedTools:    unmarkedTools,
 		APIToolbox:       apiToolbox,
 		ScriptToolbox:    scriptToolbox,
 		ExtAPIToolbox:    extAPIToolbox,
@@ -140,14 +147,14 @@ func normalizeArgs(args json.RawMessage) json.RawMessage {
 func Execute(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
 	args = normalizeArgs(args)
 
-	if e.StubTools[name] {
+	if e.UnmarkedTools[name] {
 		activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + name})
 		if _, err := toolRegister.Dispatch(ctx, e, "find_tools", activateArgs); err != nil {
-			slog.Warn("stub tool activation failed",
+			slog.Warn("tool schema marking failed",
 				slog.String("name", name),
 				slog.String("error", err.Error()))
 		}
-		delete(e.StubTools, name)
+		delete(e.UnmarkedTools, name)
 	}
 
 	return toolRegister.Dispatch(ctx, e, name, args)

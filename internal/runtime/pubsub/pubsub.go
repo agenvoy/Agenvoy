@@ -11,9 +11,6 @@ import (
 var (
 	mu   sync.RWMutex
 	subs = map[string][]*Subscriber{}
-
-	forwardMu sync.RWMutex
-	forward   func(string, agentTypes.Event)
 )
 
 func Sub(sessionID string, length int) *Subscriber {
@@ -32,12 +29,6 @@ func Sub(sessionID string, length int) *Subscriber {
 	return sub
 }
 
-func SetForwarder(fn func(string, agentTypes.Event)) {
-	forwardMu.Lock()
-	forward = fn
-	forwardMu.Unlock()
-}
-
 func Pub(sessionID string, event agentTypes.Event) {
 	if sessionID == "" {
 		return
@@ -52,13 +43,6 @@ func Pub(sessionID string, event agentTypes.Event) {
 
 	for _, s := range list {
 		s.send(event)
-	}
-
-	forwardMu.RLock()
-	fn := forward
-	forwardMu.RUnlock()
-	if fn != nil {
-		fn(sessionID, event)
 	}
 }
 

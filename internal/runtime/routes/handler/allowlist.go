@@ -23,6 +23,7 @@ func allowSkillBlock(c *gin.Context) (gin.H, bool) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "skill scanner unavailable"})
 		return nil, false
 	}
+	scanner.Scan()
 	names := scanner.List()
 	sort.Strings(names)
 

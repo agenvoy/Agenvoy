@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"fmt"
 	"slices"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/startup"
 )
 
@@ -14,6 +16,7 @@ const (
 	configReplyLang = "reply_lang"
 	configOutputDir = "output_dir"
 	configAdminChat = "admin_chat"
+	configOfficial  = "official_guide"
 )
 
 type ConfigSelect struct {
@@ -35,14 +38,19 @@ func (t TUI) openConfig(focus string) TUI {
 	if startup.State() {
 		startupValue = okayStyle.Render("enable")
 	}
-	names := []string{"Startup on login", "Reply language", "Output dir", "Admin Channel"}
+	officialValue := okayStyle.Render("enable")
+	if cfg, err := config.Load(); err == nil && cfg.OfficialGuideOff {
+		officialValue = hintStyle.Render("disable")
+	}
+	names := []string{"Startup on login", "Reply language", "Output dir", "Admin Channel", "Official guide"}
 	settings := []string{
 		startupValue,
-		filesystem.CanonicalReplyLang(filesystem.ConfigReplyLang),
-		filesystem.OutputDir(),
+		whiteStyle.Render(filesystem.CanonicalReplyLang(filesystem.ConfigReplyLang)),
+		whiteStyle.Render(filesystem.OutputDir()),
 		adminChatValue(),
+		officialValue,
 	}
-	values := []string{configStartup, configReplyLang, configOutputDir, configAdminChat}
+	values := []string{configStartup, configReplyLang, configOutputDir, configAdminChat, configOfficial}
 	options := optionColumn(names, settings)
 
 	input := newPopupInput("", false)
@@ -88,6 +96,9 @@ func (t TUI) runConfigSelect(key string) (TUI, tea.Cmd) {
 	case configAdminChat:
 		next, cmd, _ := t.commandAdminChannel(nil)
 		return next, cmd
+
+	case configOfficial:
+		return t.toggleOfficialGuide()
 	}
 	return t, nil
 }
@@ -105,4 +116,20 @@ func setStartup(action string) tea.Cmd {
 		}
 		return StartupDone{action: action, detail: detail, err: err}
 	}
+}
+
+func (t TUI) toggleOfficialGuide() (TUI, tea.Cmd) {
+	cfg, err := config.Load()
+	if err != nil {
+		return t, notice(msgError(fmt.Sprintf("official-guide: %v", err)) + "\n")
+	}
+	dic, err := config.Get()
+	if err != nil {
+		return t, notice(msgError(fmt.Sprintf("official-guide: %v", err)) + "\n")
+	}
+	dic["official_guide_disabled"] = !cfg.OfficialGuideOff
+	if err := config.Write(dic); err != nil {
+		return t, notice(msgError(fmt.Sprintf("official-guide: %v", err)) + "\n")
+	}
+	return t.openConfig(configOfficial), nil
 }

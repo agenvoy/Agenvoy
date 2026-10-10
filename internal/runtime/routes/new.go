@@ -26,9 +26,6 @@ func New() *gin.Engine {
 	r.GET("/v1/models", handler.ListModels())
 	r.GET("/v1/models/*id", handler.GetModel())
 
-	// * TUI usage ()
-	r.POST("/v1/session/:session_id/event", localhostOnly(), handler.PublishSessionEvent())
-
 	// * WebUI API
 	r.POST("/v1/send", handler.Send())
 	r.GET("/v1/log", handler.StreamMultiLog())

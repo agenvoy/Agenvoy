@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	goRuntime "runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,10 +28,9 @@ func registRunCommand() {
 		Name:        "run_command",
 		Timeout:     configs.RUN_COMMAND_TIMEOUT,
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. Networking is off by default and opened per call with network: true, which always raises a confirmation: git clone / fetch / pull / push, npm or pip or brew install, go mod download, curl and wget each need it set or they fail to resolve a host.
+		Description: fmt.Sprintf(`Runs one binary in the work directory, waits for it to exit, returns its combined stdout/stderr. Networking is off by default and opened per call with network: true, which always raises a confirmation: git clone / fetch / pull / push, npm or pip install, go mod download, curl and wget each need it set or they fail to resolve a host.
 Use for 跑一下 / 執行 / build / test / lint / format and local git work — one binary and its arguments.
 A watcher never exits and hangs the call (--watch, chokidar, npm run sass/build/dev) → run the one-shot build.
 cat / head / tail → read_files; ls / find / grep / rg → find_files; a URL → fetch_page or http_request; %s; open in an app → open_file.
@@ -48,11 +46,11 @@ Inspection only (git status / log / diff, du, which, docker ps, git config --lis
 				},
 				"network": map[string]any{
 					"type":        "boolean",
-					"description": "Set true when the command has to reach a host — git clone / fetch / pull / push, npm or pnpm or yarn install, pip install, go mod download, brew install, cargo fetch, curl. The sandbox keeps networking off until this is set, and setting it always raises a confirmation, so leave it out for anything that only touches local files.",
+					"description": "Set true when the command has to reach a host — git clone / fetch / pull / push, npm or pnpm or yarn install, pip install, go mod download, cargo fetch, curl. The sandbox keeps networking off until this is set, and setting it always raises a confirmation, so leave it out for anything that only touches local files.",
 				},
 				"write_paths": map[string]any{
 					"type":        "array",
-					"description": "Absolute paths outside $HOME this command has to write to — ['/opt/homebrew'] for brew upgrade, ['/usr/local'] for a system install. The sandbox only allows writes under $HOME, so a command touching anything else fails with a permission error that looks like a file ownership problem and is not one. Each path needs the user's approval on this call. Paths under $HOME need not be listed.",
+					"description": "Absolute paths outside $HOME this command has to write to — ['/usr/local'] for a system install. The sandbox only allows writes under $HOME, so a command touching anything else fails with a permission error that looks like a file ownership problem and is not one. Each path needs the user's approval on this call. Paths under $HOME need not be listed.",
 					"items":       map[string]any{"type": "string"},
 				},
 			},
@@ -81,10 +79,7 @@ func sudoCommandErr() error {
 }
 
 func systemPackageRoute() string {
-	if goRuntime.GOOS == "linux" {
-		return "installing or removing a system package → pkg_manage"
-	}
-	return `installing a system package → brew install with network: true, declaring write_paths: ["/opt/homebrew"]`
+	return "installing or removing a system package → pkg_manage"
 }
 
 func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string, network bool) (string, error) {

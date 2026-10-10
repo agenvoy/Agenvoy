@@ -209,6 +209,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       schedule_test: function () {
         testSchedule();
       },
+      skill_source: function () {
+        openSkillSource();
+      },
+      skill_source_save: function () {
+        saveSkillSource();
+      },
       skill_config: function () {
         openSkillConfig();
       },
@@ -298,6 +304,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       },
       system_startup: function () {
         saveSystemStartup();
+      },
+      system_official_guide: function () {
+        saveSystemOfficialGuide();
       },
       system_output: function () {
         saveSystemOutput();
