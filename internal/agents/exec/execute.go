@@ -104,6 +104,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	defer execCancel(nil)
 
 	var runTaskHash *atomic.Pointer[string]
+	windowHash := agentTypes.WindowHash(ctx)
 	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
@@ -119,7 +120,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if execErr == nil || stateless || terminalRecorded.Load() {
 				return
 			}
-			sessionLog.Record(session.ID, agentTypes.ErrorEvent(execErr))
+			errEvent := agentTypes.ErrorEvent(execErr)
+			errEvent.WindowHash = windowHash
+			sessionLog.Record(session.ID, errEvent)
 		}()
 
 		original := events
@@ -146,6 +149,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 			}()
 			for ev := range fanoutEvents {
+				if ev.WindowHash == "" {
+					ev.WindowHash = windowHash
+				}
 				if ev.TaskHash == "" && ev.Source == "" {
 					if h := taskHashRef.Load(); h != nil {
 						ev.TaskHash = *h
@@ -336,7 +342,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 		}
 	}
-	assignTurnContext(session, data.WorkDir, allowAll, scanner, data.ExcludeSkills, !exec.ExcludeTools["run_skill"], toolNames)
+	assignTurnContext(ctx, session, data.WorkDir, allowAll, scanner, data.ExcludeSkills, !exec.ExcludeTools["run_skill"], toolNames)
 	if data.Skill != nil {
 		assignSkill(session, data.Skill)
 	}
@@ -435,7 +441,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		sendDone := make(chan struct{})
 		go func() {
 			defer close(sendDone)
-			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(), events, &shownReasoning)
+			r, c, textEmitted, reasoned, e := streamSend(sendCtx, sendAgent, assembled, exec.Tools, reasoning, fast.Mode(sendCtx), events, &shownReasoning)
 			resultCh <- sendOutcome{resp: r, code: c, err: e, textEmitted: textEmitted, reasoned: reasoned}
 		}()
 
@@ -857,7 +863,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
 	})
 	summaryStart := time.Now()
-	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode())
+	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode(execCtx))
 	summaryDur := time.Since(summaryStart)
 	if err == nil {
 		retryHandler.Clear(data.Agent.Name())

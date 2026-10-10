@@ -58,4 +58,7 @@ type Payload struct {
 	AllowAll       bool   `json:"allow_all,omitempty"`
 	PendingTask    string `json:"pending_task,omitempty"`
 	HistoryContent string `json:"history_content,omitempty"`
+	WindowHash     string `json:"window_hash,omitempty"`
+	Fast           bool   `json:"fast,omitempty"`
+	Guide          bool   `json:"guide,omitempty"`
 }

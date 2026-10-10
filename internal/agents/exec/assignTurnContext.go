@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-func assignTurnContext(session *agentTypes.AgentSession, workDir string, allowAll bool, scanner *runtime.SkillScanner, excludeSkills []string, withSkills bool, toolNames []string) {
+func assignTurnContext(ctx context.Context, session *agentTypes.AgentSession, workDir string, allowAll bool, scanner *runtime.SkillScanner, excludeSkills []string, withSkills bool, toolNames []string) {
 	var parts []string
 	if !session.Stateless {
 		parts = append(parts,
@@ -31,7 +32,7 @@ func assignTurnContext(session *agentTypes.AgentSession, workDir string, allowAl
 		}
 	}
 	if !session.Stateless {
-		if guideText := agentGuideSection(workDir); guideText != "" {
+		if guideText := agentGuideSection(ctx, workDir); guideText != "" {
 			parts = append(parts, guideText)
 		}
 	}
@@ -44,8 +45,8 @@ func assignTurnContext(session *agentTypes.AgentSession, workDir string, allowAl
 	}
 }
 
-func agentGuideSection(workDir string) string {
-	if !guide.IsEnabled() {
+func agentGuideSection(ctx context.Context, workDir string) string {
+	if !guide.IsEnabledCtx(ctx) {
 		return ""
 	}
 	for _, name := range guide.Files {

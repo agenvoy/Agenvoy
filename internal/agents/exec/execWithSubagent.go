@@ -139,10 +139,10 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	}
 
 	if isSchedule(ctx) {
-		sessionLog.Append(sessionID, "[Scheduled Task: "+dcPushPrefix(ctx)+"]")
+		sessionLog.Append(sessionID, agentTypes.WindowHash(ctx), "[Scheduled Task: "+dcPushPrefix(ctx)+"]")
 	} else {
 		pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: userText})
-		sessionLog.Append(sessionID, userText)
+		sessionLog.Append(sessionID, agentTypes.WindowHash(ctx), userText)
 	}
 	SaveUserInputHistory(ctx, sessionID, userText)
 

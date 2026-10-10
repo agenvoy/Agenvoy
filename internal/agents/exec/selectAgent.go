@@ -105,7 +105,7 @@ func selectAgentDispatcher(ctx context.Context, bot agentTypes.Agent, registry a
 			return nil, ""
 		}
 		routingCtx, cancel := context.WithTimeout(dispatchCtx, configs.TIMEOUT_DISPATCH_CALL)
-		resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode())
+		resp, sendCode, sendErr := bot.Send(routingCtx, messages, nil, provider.ReasoningNone, fast.Mode(ctx))
 		cancel()
 		if sendErr == nil {
 			retryHandler.Clear(bot.Name())

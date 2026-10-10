@@ -1,6 +1,7 @@
 package fast
 
 import (
+	"context"
 	"sync/atomic"
 
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -22,8 +23,18 @@ func IsEnabled() bool {
 	return enable.Load()
 }
 
-func Mode() provider.Mode {
-	if enable.Load() {
+type ctxKey struct{}
+
+func With(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, ctxKey{}, enabled)
+}
+
+func Mode(ctx context.Context) provider.Mode {
+	enabled, ok := ctx.Value(ctxKey{}).(bool)
+	if !ok {
+		enabled = enable.Load()
+	}
+	if enabled {
 		return provider.ModeFast
 	}
 	return provider.ModeDefault

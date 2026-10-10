@@ -45,6 +45,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 		return fmt.Errorf("data.SessionID is required")
 	}
 
+	windowHash := agentTypes.WindowHash(ctx)
 	taskHash := data.PendingTask
 	if taskHash == "" {
 		taskHash = go_pkg_utils.UUID()
@@ -72,17 +73,17 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	}
 
 	if data.Skill != nil {
-		skillResult := agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash}
+		skillResult := agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
 		events <- skillResult
 		sessionLog.Record(sessionID, skillResult)
 	}
 
 	if input := strings.TrimSpace(data.Input); input != "" {
-		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: input, TaskHash: taskHash}
-		sessionLog.Append(sessionID, input)
+		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
+		sessionLog.Append(sessionID, windowHash, input)
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash}
+	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
 	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Content, data.Skill != nil, SkillHint(data.Skill), sessionID)
 	if err != nil {
@@ -93,10 +94,11 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	}
 	agentName := strings.TrimSpace(agent.Name())
 	agentResult := agentTypes.Event{
-		Type:      agentTypes.EventAgentResult,
-		Text:      agentName,
-		Reasoning: resolveReasoning(sessionID, data.Reasoning).String(),
-		TaskHash:  taskHash,
+		Type:       agentTypes.EventAgentResult,
+		Text:       agentName,
+		Reasoning:  resolveReasoning(sessionID, data.Reasoning).String(),
+		TaskHash:   taskHash,
+		WindowHash: windowHash,
 	}
 	events <- agentResult
 	sessionLog.Record(sessionID, agentResult)

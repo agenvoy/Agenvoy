@@ -8,6 +8,8 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -32,6 +34,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	}
 
 	execCtx := agentTypes.WithOrigin(context.WithoutCancel(ctx), "cli-")
+	execCtx = agentTypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
+	execCtx = fast.With(execCtx, f.Rayload.Fast)
+	execCtx = guide.With(execCtx, f.Rayload.Guide)
 	content := strings.TrimSpace(f.Rayload.Input)
 	data := exec.Prepare(exec.ExecuteMeta{
 		Model:          f.Rayload.Model,

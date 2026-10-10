@@ -21,6 +21,17 @@ func SessionIDFrom(ctx context.Context) string {
 	return sid
 }
 
+type windowHashCtxKey struct{}
+
+func WithWindowHash(ctx context.Context, hash string) context.Context {
+	return context.WithValue(ctx, windowHashCtxKey{}, hash)
+}
+
+func WindowHash(ctx context.Context) string {
+	hash, _ := ctx.Value(windowHashCtxKey{}).(string)
+	return hash
+}
+
 type originCtxKey struct{}
 
 func WithOrigin(ctx context.Context, origin string) context.Context {

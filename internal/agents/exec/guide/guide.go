@@ -1,6 +1,7 @@
 package guide
 
 import (
+	"context"
 	"path/filepath"
 	"slices"
 	"sync/atomic"
@@ -23,6 +24,19 @@ func Disable() {
 
 func IsEnabled() bool {
 	return enable.Load()
+}
+
+func IsEnabledCtx(ctx context.Context) bool {
+	if enabled, ok := ctx.Value(ctxKey{}).(bool); ok {
+		return enabled
+	}
+	return enable.Load()
+}
+
+type ctxKey struct{}
+
+func With(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, ctxKey{}, enabled)
 }
 
 func Name(workDir string) string {
