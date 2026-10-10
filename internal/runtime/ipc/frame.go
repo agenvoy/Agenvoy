@@ -2,20 +2,48 @@ package ipc
 
 import (
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
 const (
 	FrameRun   = "run"
 	FrameEvent = "event"
 	FrameDone  = "done"
+	FrameAsk   = "ask"
+	FrameReply = "reply"
 )
 
 type Frame struct {
 	Type      string            `json:"type"`
+	UUID      string            `json:"uuid,omitempty"`
 	SessionID string            `json:"session_id,omitempty"`
 	Error     string            `json:"error,omitempty"`
 	Rayload   *Payload          `json:"run,omitempty"`
 	Event     *agentTypes.Event `json:"event,omitempty"`
+	Ask       *Ask              `json:"ask,omitempty"`
+	Reply     *Reply            `json:"reply,omitempty"`
+}
+
+type Ask struct {
+	ID           string             `json:"id"`
+	Kind         runtime.Kind       `json:"kind"`
+	ToolName     string             `json:"tool_name,omitempty"`
+	ToolArgs     string             `json:"tool_args,omitempty"`
+	Restricted   []string           `json:"restricted,omitempty"`
+	NeedPassword bool               `json:"need_password,omitempty"`
+	Questions    []runtime.Question `json:"questions,omitempty"`
+}
+
+type Reply struct {
+	ID        string `json:"id"`
+	Approve   bool   `json:"approve,omitempty"`
+	Remember  bool   `json:"remember,omitempty"`
+	AllowTurn bool   `json:"allow_turn,omitempty"`
+	Skip      bool   `json:"skip,omitempty"`
+	Abort     bool   `json:"abort,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	Answers   []any  `json:"answers,omitempty"`
+	Password  string `json:"password,omitempty"`
 }
 
 type Payload struct {
