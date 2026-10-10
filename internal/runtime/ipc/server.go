@@ -10,16 +10,11 @@ import (
 	"net"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 )
 
@@ -55,7 +50,7 @@ func Listen(ctx context.Context) (func(), error) {
 
 type conn struct {
 	raw     net.Conn
-	uuid    string
+	uuids   map[string]struct{}
 	writeMu sync.Mutex
 	enc     *json.Encoder
 	askMu   sync.Mutex
@@ -70,9 +65,10 @@ var (
 
 func serve(ctx context.Context, raw net.Conn) {
 	c := &conn{
-		raw:  raw,
-		enc:  json.NewEncoder(raw),
-		asks: map[string]runtime.Request{},
+		raw:   raw,
+		enc:   json.NewEncoder(raw),
+		asks:  map[string]runtime.Request{},
+		uuids: map[string]struct{}{},
 	}
 	ownerMu.Lock()
 	conns[c] = struct{}{}
@@ -85,7 +81,7 @@ func serve(ctx context.Context, raw net.Conn) {
 		c.detach()
 		c.resolveAll(errors.New("client disconnected"))
 	}()
-	go c.pumpAsks(connCtx)
+	go c.askUser(connCtx)
 
 	dec := json.NewDecoder(raw)
 	for {
@@ -96,6 +92,10 @@ func serve(ctx context.Context, raw net.Conn) {
 		switch f.Type {
 		case FrameRun:
 			go c.run(ctx, f)
+		case FrameCancel:
+			exec.Cancel(f.TaskHash)
+		case FramePending:
+			go c.pending(ctx, f)
 		case FrameReply:
 			if f.Reply != nil {
 				go c.reply(ctx, f.Reply)
@@ -110,47 +110,10 @@ func (c *conn) write(f Frame) {
 	c.enc.Encode(f)
 }
 
-func (c *conn) pumpAsks(ctx context.Context) {
-	notify, unregister := runtime.RegisterListener("cli-")
-	defer unregister()
-
-	for {
-		for {
-			id, req, ok := runtime.PickNextMatch("cli-", c.accepts)
-			if !ok {
-				break
-			}
-			ask := &Ask{
-				ID:         id,
-				Kind:       req.Kind,
-				ToolName:   req.ToolName,
-				ToolArgs:   req.ToolArgs,
-				Restricted: req.Restricted,
-			}
-			if len(req.Restricted) > 0 {
-				ask.NeedPassword = !sudo.Cached(ctx)
-			}
-			if req.AskUser != nil {
-				ask.Questions = req.AskUser.Questions
-			}
-			c.askMu.Lock()
-			c.asks[id] = req
-			c.askMu.Unlock()
-			c.write(Frame{Type: FrameAsk, SessionID: req.DeliverTo, Ask: ask})
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-notify:
-		}
-	}
-}
-
 func (c *conn) own(uuid, sessionID string) {
 	ownerMu.Lock()
 	defer ownerMu.Unlock()
-	c.uuid = uuid
+	c.uuids[uuid] = struct{}{}
 	sessionOwner[sessionID] = uuid
 }
 
@@ -161,23 +124,25 @@ func (c *conn) accepts(req runtime.Request) bool {
 	if !ok {
 		owner = sessionOwner[req.SessionID]
 	}
-	return owner == "" || owner == c.uuid
+	if owner == "" {
+		return true
+	}
+	_, mine := c.uuids[owner]
+	return mine
 }
 
 func (c *conn) detach() {
 	ownerMu.Lock()
 	defer ownerMu.Unlock()
 	delete(conns, c)
-	if c.uuid == "" {
-		return
-	}
+	alive := map[string]bool{}
 	for other := range conns {
-		if other.uuid == c.uuid {
-			return
+		for uuid := range other.uuids {
+			alive[uuid] = true
 		}
 	}
 	for sessionID, owner := range sessionOwner {
-		if owner == c.uuid {
+		if _, mine := c.uuids[owner]; mine && !alive[owner] {
 			delete(sessionOwner, sessionID)
 		}
 	}
@@ -221,58 +186,4 @@ func (c *conn) resolveAll(err error) {
 	for _, id := range ids {
 		runtime.Resolve(id, runtime.Reply{Error: err})
 	}
-}
-
-func (c *conn) run(ctx context.Context, f Frame) {
-	if f.Rayload == nil {
-		c.write(Frame{Type: FrameDone, Error: "run payload is required"})
-		return
-	}
-
-	sessionID := strings.TrimSpace(f.SessionID)
-	if sessionID == "" {
-		sessionID = "temp-" + go_pkg_utils.UUID()
-		if err := configBot.Save(sessionID, "", "", false); err != nil {
-			c.write(Frame{Type: FrameDone, Error: err.Error()})
-			return
-		}
-	}
-	if f.UUID != "" {
-		c.own(f.UUID, sessionID)
-	}
-
-	execCtx := agentTypes.WithOrigin(context.WithoutCancel(ctx), "cli-")
-	content := strings.TrimSpace(f.Rayload.Input)
-	data := exec.Prepare(exec.ExecuteMeta{
-		Model:          f.Rayload.Model,
-		Reasoning:      strings.TrimSpace(f.Rayload.Reasoning),
-		WorkDir:        f.Rayload.WorkDir,
-		Content:        content,
-		Input:          content,
-		SessionID:      sessionID,
-		AllowAll:       f.Rayload.AllowAll,
-		TUI:            true,
-		PendingTask:    f.Rayload.PendingTask,
-		HistoryContent: f.Rayload.HistoryContent,
-	})
-
-	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
-		return exec.Start(execCtx, data, stream)
-	})
-	for ev := range events {
-		if ev.Type == agentTypes.EventTextDelta {
-			continue
-		}
-		frame := Frame{Type: FrameEvent, SessionID: sessionID, Event: &ev}
-		if ev.Err != nil {
-			frame.Error = ev.Err.Error()
-		}
-		c.write(frame)
-	}
-
-	result := Frame{Type: FrameDone, SessionID: sessionID}
-	if err := wait(); err != nil {
-		result.Error = err.Error()
-	}
-	c.write(result)
 }

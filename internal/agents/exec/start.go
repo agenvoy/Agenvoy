@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -43,6 +45,16 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 		return fmt.Errorf("data.SessionID is required")
 	}
 
+	taskHash := data.PendingTask
+	if taskHash == "" {
+		taskHash = go_pkg_utils.UUID()
+		data.TaskHash = taskHash
+	}
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	registerCancel(taskHash, cancel)
+	defer unregisterCancel(taskHash)
+
 	if name := data.SkillName; name != "" && data.Skill == nil {
 		if slices.Contains(data.ExcludeSkills, name) {
 			return fmt.Errorf("skill %q is not available here", name)
@@ -60,17 +72,17 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	}
 
 	if data.Skill != nil {
-		skillResult := agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name)}
+		skillResult := agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash}
 		events <- skillResult
 		sessionLog.Record(sessionID, skillResult)
 	}
 
 	if input := strings.TrimSpace(data.Input); input != "" {
-		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: input}
+		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: input, TaskHash: taskHash}
 		sessionLog.Append(sessionID, input)
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: data.PendingTask}
+	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash}
 
 	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Content, data.Skill != nil, SkillHint(data.Skill), sessionID)
 	if err != nil {
@@ -84,7 +96,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 		Type:      agentTypes.EventAgentResult,
 		Text:      agentName,
 		Reasoning: resolveReasoning(sessionID, data.Reasoning).String(),
-		TaskHash:  data.PendingTask,
+		TaskHash:  taskHash,
 	}
 	events <- agentResult
 	sessionLog.Record(sessionID, agentResult)

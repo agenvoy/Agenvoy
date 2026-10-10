@@ -90,7 +90,7 @@ func ExecWithSubagent(ctx context.Context, task, sessionIDInput, model, reasonin
 	if extra := strings.TrimSpace(systemPrompt); extra != "" {
 		charter += "\n\n---\n\n" + extra
 	}
-	pendingTask := interactive.CreateExecPending(sessionID, task, "", agent.Name(), reasoning, allowAll)
+	pendingTask := interactive.CreateExecPending(sessionID, "", task, "", agent.Name(), reasoning, allowAll)
 	pendingPath := filesystem.PendingMetaPath(sessionID, pendingTask)
 
 	execData := ExecuteMeta{

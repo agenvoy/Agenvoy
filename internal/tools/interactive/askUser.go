@@ -351,8 +351,10 @@ func CleanupPending(sessionID, taskHash string) {
 
 var pendingSkipTool = map[string]bool{"write_todo": true}
 
-func CreateExecPending(sessionID, objective, messageID, model, reasoning string, allowAll bool) string {
-	taskHash := go_pkg_utils.UUID()
+func CreateExecPending(sessionID, taskHash, objective, messageID, model, reasoning string, allowAll bool) string {
+	if taskHash == "" {
+		taskHash = go_pkg_utils.UUID()
+	}
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 

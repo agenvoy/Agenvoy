@@ -6,18 +6,22 @@ import (
 )
 
 const (
-	FrameRun   = "run"
-	FrameEvent = "event"
-	FrameDone  = "done"
-	FrameAsk   = "ask"
-	FrameReply = "reply"
+	FrameRun     = "run"
+	FrameEvent   = "event"
+	FrameDone    = "done"
+	FrameAsk     = "ask"
+	FrameReply   = "reply"
+	FramePending = "pending"
+	FrameCancel  = "cancel"
 )
 
 type Frame struct {
 	Type      string            `json:"type"`
 	UUID      string            `json:"uuid,omitempty"`
 	SessionID string            `json:"session_id,omitempty"`
+	TaskHash  string            `json:"task_hash,omitempty"`
 	Error     string            `json:"error,omitempty"`
+	Canceled  bool              `json:"canceled,omitempty"`
 	Rayload   *Payload          `json:"run,omitempty"`
 	Event     *agentTypes.Event `json:"event,omitempty"`
 	Ask       *Ask              `json:"ask,omitempty"`

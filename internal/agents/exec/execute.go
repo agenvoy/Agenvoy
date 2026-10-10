@@ -59,6 +59,7 @@ type ExecuteMeta struct {
 	AllowAll          bool
 	TUI               bool
 	PendingTask       string
+	TaskHash          string
 	KeepPending       bool
 	IgnoreHistory     bool
 	ReplyMessageID    string
@@ -256,7 +257,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					objective = s
 				}
 			}
-			exec.PendingTask = interactive.CreateExecPending(session.ID, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
+			exec.PendingTask = interactive.CreateExecPending(session.ID, data.TaskHash, objective, data.ReplyMessageID, data.Agent.Name(), data.Reasoning, allowAll)
 		}
 		defer func() {
 			if keepPending || data.KeepPending {
