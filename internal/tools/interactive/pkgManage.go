@@ -74,6 +74,14 @@ var pkgCommands = map[string]map[string][]string{
 		"search":  {"-Ss"},
 		"info":    {"-Si"},
 	},
+	"brew": {
+		"install": {"install"},
+		"remove":  {"uninstall"},
+		"update":  {"update"},
+		"upgrade": {"upgrade"},
+		"search":  {"search"},
+		"info":    {"info"},
+	},
 	"apk": {
 		"install": {"add"},
 		"remove":  {"del"},
@@ -85,7 +93,7 @@ var pkgCommands = map[string]map[string][]string{
 }
 
 func RestrictedPkgManage(toolName, toolArgs string) []string {
-	if toolName != "pkg_manage" {
+	if toolName != "pkg_manage" || goRuntime.GOOS == "darwin" {
 		return nil
 	}
 	var p struct {
@@ -112,17 +120,16 @@ func RestrictedPkgManage(toolName, toolArgs string) []string {
 }
 
 func registPkgManage() {
-	if goRuntime.GOOS != "linux" {
+	if goRuntime.GOOS != "linux" && goRuntime.GOOS != "darwin" {
 		return
 	}
 
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "pkg_manage",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
-		Description: `Drives the Linux package manager (apt / dnf / yum / pacman / apk) outside the sandbox, so the root operations bwrap cannot grant still work.
+		Description: `Drives the system package manager (Linux: apt / dnf / yum / pacman / apk; macOS: Homebrew) outside the sandbox, so root operations and Homebrew's own nested sandbox still work.
 Use for 安裝 / 移除套件 / 更新套件庫 / command not found / 缺 ffmpeg 之類的執行檔.
 run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (node / python) → run_command with mise, fnm or uv, network: true; language-level packages (pip / npm / cargo) → run_command with network: true.`,
 		Parameters: map[string]any{
@@ -257,8 +264,18 @@ func jsonString(dic map[string]any) (string, error) {
 }
 
 func buildCommand(action, name string, spec pkgAction) (string, []string, string, bool, error) {
+	if goRuntime.GOOS == "darwin" {
+		if _, err := exec.LookPath("brew"); err != nil {
+			return "", nil, "", false, fmt.Errorf("brew not found on this macOS system")
+		}
+		argv := pkgCommands["brew"][action]
+		if spec.needsPackage {
+			argv = append(slices.Clone(argv), name)
+		}
+		return "brew", argv, "brew", false, nil
+	}
 	if goRuntime.GOOS != "linux" {
-		return "", nil, "", false, fmt.Errorf("unsupported OS: %s (pkg_manage only serves the Linux package managers)", goRuntime.GOOS)
+		return "", nil, "", false, fmt.Errorf("unsupported OS: %s (pkg_manage serves Linux package managers and macOS Homebrew)", goRuntime.GOOS)
 	}
 
 	isRoot := os.Geteuid() == 0

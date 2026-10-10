@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -12,7 +13,10 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
+
+var SkillSources = []string{"claude", "codex", "copilot", "opencode", "openai", "agents"}
 
 type SkillScanner struct {
 	paths  []string
@@ -43,6 +47,8 @@ func NewSkillScanner() *SkillScanner {
 		filepath.Join(home, ".codex", "skills"),
 		filepath.Join(home, ".opencode", "skills"),
 		filepath.Join(home, ".openai", "skills"),
+		filepath.Join(home, ".copilot", "skills"),
+		filepath.Join(home, ".agents", "skills"),
 	}
 
 	scanner := &SkillScanner{paths: paths}
@@ -57,7 +63,15 @@ func (s *SkillScanner) Scan() {
 		Paths:  s.paths,
 	}
 
+	var disabled []string
+	if cfg, err := config.Load(); err == nil {
+		disabled = cfg.SkillSourceOff
+	}
+
 	for _, path := range s.paths {
+		if slices.Contains(disabled, SkillSource(path+"/")) {
+			continue
+		}
 		if err := s.scan(path, list); err != nil {
 			slog.Warn("scan error",
 				slog.String("path", path),
@@ -178,6 +192,10 @@ func SkillSource(path string) string {
 		return "openai"
 	case strings.Contains(path, "/.codex/skills/"):
 		return "codex"
+	case strings.Contains(path, "/.copilot/skills/"):
+		return "copilot"
+	case strings.Contains(path, "/.agents/skills/"):
+		return "agents"
 	case strings.Contains(path, "/.skills/"):
 		return "local"
 	case strings.HasPrefix(path, "/mnt/skills/"):

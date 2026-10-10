@@ -31,12 +31,7 @@ const leftTab = {
   },
 };
 
-const leftTabSkip = ["Skills", "Schedule"];
-
 for (const name of Object.keys(feature)) {
-  if (leftTabSkip.includes(name)) {
-    continue;
-  }
   leftTab[name] = {
     icon: feature[name],
     href: getLink({ page: "features", tab: name }),

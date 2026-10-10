@@ -109,7 +109,7 @@ const (
 	slotReady          = 0
 	slotCached         = 1
 	slotSkipped        = 2
-	slotStubActivated  = 3
+	slotSchemaMarked   = 3
 	slotValidateFailed = 4
 	slotDispatched     = 5
 )
@@ -348,6 +348,22 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if idx := strings.Index(toolName, "<|"); idx != -1 {
 			toolName = toolName[:idx]
 		}
+		wrapped := toolName == "run_tool"
+		if wrapped {
+			name, args, err := unwrapRunTool(exec, toolArg)
+			if err != nil {
+				slots[i] = toolSlot{
+					idx:    i,
+					id:     toolID,
+					name:   toolName,
+					args:   toolArg,
+					state:  slotValidateFailed,
+					preMsg: fmt.Sprintf("tool=run_tool failed: %s", err.Error()),
+				}
+				continue
+			}
+			toolName, toolArg = name, args
+		}
 		hashArg := toolArg
 		var argMap map[string]any
 		if json.Unmarshal([]byte(toolArg), &argMap) == nil {
@@ -372,6 +388,27 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			Args: toolArg,
 		})
 
+		if !wrapped && !slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == toolName }) {
+			reason := ""
+			switch {
+			case exec.ExcludeTools[toolName]:
+				reason = fmt.Sprintf("tool=%s failed: %s is not available in this session", toolName, toolName)
+			case slices.ContainsFunc(exec.AllTools, func(t provider.Tool) bool { return t.Function.Name == toolName }):
+				reason = fmt.Sprintf("tool=%s failed: %s is not callable directly. Fetch its schema with find_tools, then call run_tool(name=%s, args=...).", toolName, toolName, toolName)
+			}
+			if reason != "" {
+				events <- agentTypes.Event{
+					Type:     agentTypes.EventToolCall,
+					ToolName: toolName,
+					ToolArgs: toolArg,
+					ToolID:   toolID,
+				}
+				slots[i].state = slotValidateFailed
+				slots[i].preMsg = reason
+				continue
+			}
+		}
+
 		if cached, ok := alreadyCall[hash]; ok && cached != "" {
 			cachedContent := strings.TrimSpace(cached)
 			if images, rest := splitImageResult(cached); len(images) > 0 {
@@ -383,22 +420,38 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
-		if exec.StubTools[toolName] || activatedInBatch[toolName] {
+		if exec.UnmarkedTools[toolName] || activatedInBatch[toolName] {
 			schema := ""
-			if exec.StubTools[toolName] {
+			if exec.UnmarkedTools[toolName] {
 				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
 				out, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs)
 				if err != nil {
-					slog.Warn("stub tool activation failed",
+					slog.Warn("tool schema marking failed",
 						slog.String("name", toolName),
 						slog.String("error", err.Error()))
 				}
 				schema = out
-				delete(exec.StubTools, toolName)
+				delete(exec.UnmarkedTools, toolName)
 			}
 			activatedInBatch[toolName] = true
-			slots[i].state = slotStubActivated
-			slots[i].preMsg = fmt.Sprintf("[%s] tool schema below. Re-invoke %s with the correct arguments — the previous call was made against a stub with empty params.\n%s", toolName, toolName, schema)
+			reinvoke := toolName
+			if wrapped {
+				reinvoke = "run_tool(name=" + toolName + ")"
+			}
+			slots[i].state = slotSchemaMarked
+			slots[i].preMsg = fmt.Sprintf("[%s] tool schema below. Re-invoke %s with the correct arguments — the previous call was made before its schema was fetched.\n%s", toolName, reinvoke, schema)
+			continue
+		}
+
+		if !toolRegister.Exists(toolName) {
+			events <- agentTypes.Event{
+				Type:     agentTypes.EventToolCall,
+				ToolName: toolName,
+				ToolArgs: toolArg,
+				ToolID:   toolID,
+			}
+			slots[i].state = slotValidateFailed
+			slots[i].preMsg = fmt.Sprintf("tool=%s failed: not exist: %s. Look up available tools with find_tools.", toolName, toolName)
 			continue
 		}
 
@@ -412,7 +465,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			verified := false
 			reason := ""
 			origin := originFor(ctx, sessionData.ID)
-			if runtime.HasListener(origin) {
+			if runtime.HasListener(ctx, origin) {
 				askCtx, cancelAsk := context.WithCancel(ctx)
 				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
 					askCtx, cancelAsk = context.WithTimeout(ctx, configs.CONFIRM_TIMEOUT)
@@ -607,7 +660,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				ToolCallID: s.id,
 			})
 			continue
-		case slotSkipped, slotStubActivated, slotValidateFailed:
+		case slotSkipped, slotSchemaMarked, slotValidateFailed:
 			msg := provider.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
@@ -770,6 +823,37 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
+}
+
+func unwrapRunTool(exec *toolTypes.Executor, args string) (string, string, error) {
+	var params struct {
+		Name string         `json:"name"`
+		Args map[string]any `json:"args"`
+	}
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
+		return "", "", fmt.Errorf("json Unmarshal: %w", err)
+	}
+
+	name := strings.TrimSpace(params.Name)
+	switch {
+	case name == "":
+		return "", "", fmt.Errorf("name is required")
+	case name == "run_tool":
+		return "", "", fmt.Errorf("run_tool cannot run itself")
+	case exec.ExcludeTools[name]:
+		return "", "", fmt.Errorf("%s is not available in this session", name)
+	case !slices.ContainsFunc(exec.AllTools, func(t provider.Tool) bool { return t.Function.Name == name }):
+		return "", "", fmt.Errorf("not exist: %s; look it up with find_tools", name)
+	}
+
+	if params.Args == nil {
+		params.Args = map[string]any{}
+	}
+	raw, err := json.Marshal(params.Args)
+	if err != nil {
+		return "", "", fmt.Errorf("json Marshal: %w", err)
+	}
+	return name, string(raw), nil
 }
 
 func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {

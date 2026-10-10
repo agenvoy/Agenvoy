@@ -26,7 +26,6 @@ func registSendToChatbot() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "send_to_chatbot",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  true,
 		Description: sendToChatbotDescription(),

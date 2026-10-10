@@ -17,12 +17,11 @@ func registStoreSecret() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "store_secret",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: `Asks the user for a secret with masked input and stores it in the keychain.
 Fires on an auth failure — missing key, 401, 403, expired token: take the key name from the error, call this, then re-invoke the tool that failed.
-Every API key, token and password already lives in the OS keychain under service ` + "`agenvoy`" + `, account = the key name (OPENAI_API_KEY, POLYGON_API_KEY, ...): macOS ` + "`security find-generic-password -s agenvoy -a <KEY> -w`" + `, Linux ` + "`secret-tool lookup service agenvoy account <KEY>`" + ` then ` + "`~/.config/agenvoy/.secrets`" + `, and only after all of those the environment variable of that name. Read from there when a call needs credentials; this tool is for the key that is not there yet.
+Every API key, token and password already lives in the OS keychain under service ` + "`agenvoy`" + `, account = the key name (OPENAI_API_KEY, POLYGON_API_KEY, ...): macOS ` + "`security find-generic-password -s agenvoy -a <KEY> -w`" + `, Linux ` + "`secret-tool lookup service agenvoy account <KEY>`" + ` then ` + "`~/.config/agenvoy/.secrets`" + `, and only after all of those the environment variable of that name. Nothing is exported into the process environment, so an empty ` + "`printenv`" + ` is no reason to ask the user or call the task blocked. Read from there when a call needs credentials; this tool is for the key that is not there yet.
 Credentials travel only through this tool's masked input; the value stays out of messages, tool arguments and files. At most two rounds per tool per turn.`,
 		Parameters: map[string]any{
 			"type": "object",
@@ -84,7 +83,7 @@ Credentials travel only through this tool's masked input; the value stays out of
 
 func SecretPrompt(ctx context.Context, sessionID, question string) (string, error) {
 	origin := originFor(ctx, sessionID)
-	if !runtime.HasListener(origin) {
+	if !runtime.HasListener(ctx, origin) {
 		return "", fmt.Errorf("store_secret requires an interactive channel (TUI / Telegram / Discord)")
 	}
 

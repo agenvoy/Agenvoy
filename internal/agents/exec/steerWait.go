@@ -57,13 +57,13 @@ func IsRunning(sessionID string) bool {
 	return v.(*runningEntry).count > 0
 }
 
-func AppendSteer(sessionID, text string) {
+func AppendSteer(sessionID, windowHash, text string) {
 	v, _ := steerMap.LoadOrStore(sessionID, &steerEntry{})
 	e := v.(*steerEntry)
 	e.mu.Lock()
 	e.list = append(e.list, text)
 	e.mu.Unlock()
-	sessionLog.Steer(sessionID, text)
+	sessionLog.Steer(sessionID, windowHash, text)
 }
 
 func getSteer(sessionID string) []string {

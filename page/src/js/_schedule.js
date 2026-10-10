@@ -135,6 +135,14 @@ function renderScheduleSessions(picked) {
     }
     dom.session.appendChild(option);
   }
+  if (dom.test) {
+    const label = () => {
+      const id = dom.session.value;
+      dom.test.textContent = id ? `test in ${id.slice(0, id.indexOf("-") + 9)}` : "test";
+    };
+    label();
+    dom.session.onchange = label;
+  }
 
   markScheduleReady();
 }
@@ -449,10 +457,6 @@ async function testSchedule() {
     return;
   }
 
-  if (!CHAT_ID.test(saved.session_id)) {
-    scheduleError(`running in ${saved.session_id} · that session is not viewable here`);
-    return;
-  }
   window.location.href = getLink({ page: "chat", chat: saved.session_id });
 }
 

@@ -22,6 +22,41 @@ async function startupConfig() {
   return false;
 }
 
+async function officialGuideConfig() {
+  try {
+    const response = await fetch(`${API}/v1/config/official_guide`);
+    if (response.ok) {
+      return ((await response.json()) || {}).enabled !== false;
+    }
+  } catch (err) {
+    console.error("officialGuideConfig", err);
+  }
+  return true;
+}
+
+async function saveSystemOfficialGuide() {
+  const select = $("#system-official-guide");
+  if (!select) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/v1/config/official_guide`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable: select.value === "enabled" }),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      alert(detail.error || `HTTP ${response.status}`);
+    }
+  } catch (err) {
+    console.error("saveSystemOfficialGuide", err);
+    alert(err.message || "failed");
+  }
+  renderSystem();
+}
+
 async function saveSystemStartup() {
   const select = $("#system-startup");
   if (!select) {
@@ -67,6 +102,11 @@ async function renderSystem() {
   const startup = $("#system-startup");
   if (startup) {
     startup.value = (await startupConfig()) ? "enabled" : "disabled";
+  }
+
+  const official = $("#system-official-guide");
+  if (official) {
+    official.value = (await officialGuideConfig()) ? "enabled" : "disabled";
   }
 
   const output = $("#system-output");

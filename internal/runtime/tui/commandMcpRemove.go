@@ -44,7 +44,11 @@ func (t TUI) runMcpRemove(server string) (TUI, tea.Cmd) {
 	if err := mcp.Save(cfg); err != nil {
 		return t, notice(msgError(fmt.Sprintf("mcp.Save: %v", err)) + "\n")
 	}
-	mcp.Manager().Disconnect(server)
+	if _, err := ipcClient.Load().MCP("disconnect", server); err != nil {
+		slog.Warn("mcp disconnect",
+			slog.String("server", server),
+			slog.String("error", err.Error()))
+	}
 
 	slog.Debug("mcp removed", slog.String("server", server))
 	if err := mcp.ClearOAuth(server); err != nil {

@@ -82,7 +82,7 @@ func (t TUI) runScheduleRemove(kind, skillName string) (TUI, tea.Cmd) {
 func scheduleLabels(fields, names []string) (labels []string) {
 	width := 0
 	for _, one := range fields {
-		width = max(width, len(one)+3)
+		width = max(width, len(one)+4)
 	}
 	labels = make([]string, len(fields))
 	for i, one := range fields {

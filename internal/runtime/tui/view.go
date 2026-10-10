@@ -11,6 +11,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
@@ -32,14 +33,22 @@ func (t TUI) viewIdle() string {
 
 	var fastMode string
 	if fast.IsEnabled() {
-		fastMode = systemStyle.Render(" fast")
+		fastMode = systemStyle.Render("[fast]")
 	}
+
+	var guideMode string
+	if guide.IsEnabled() {
+		if name := guide.Name(t.cwd); name != "" {
+			guideMode = warnStyle.Render("[" + name + "]")
+		}
+	}
+	cwd := hintStyle.Render(" " + t.shortCwd())
 
 	var confirmMode string
 	if t.allowAll {
-		confirmMode = errorStyle.Render(" auto") + hintStyle.Render(" "+t.shortCwd())
+		confirmMode = errorStyle.Render("[auto]") + guideMode + cwd
 	} else {
-		confirmMode = okayStyle.Render(" safe") + hintStyle.Render(" "+t.shortCwd())
+		confirmMode = okayStyle.Render("[safe]") + guideMode + cwd
 	}
 
 	var top string
@@ -67,7 +76,11 @@ func (t TUI) viewIdle() string {
 		}
 	}
 
-	status := fastMode + confirmMode
+	if t.connecting {
+		return top + box + "\n" + bottom + "\n " + t.spinner.View() + systemStyle.Render(" Connecting")
+	}
+
+	status := " " + fastMode + confirmMode
 	if t.quotaText != "" {
 		quota := hintStyle.Render(t.quotaModel+" ") + renderQuotaBadge(t.quotaText) + " "
 		if gap := boxWidth - lipgloss.Width(status) - lipgloss.Width(quota); gap >= 1 {
@@ -182,7 +195,7 @@ func (t TUI) viewPopup() string {
 	if header != "" {
 		header = popupStyle.Width(width).Render(header) + "\n" + divider
 	}
-	if p.searchable && (p.kind == popupConfirm || p.kind == popupSingleSelect) {
+	if p.searchable && (p.kind == popupConfirm || p.kind == popupSingleSelect || p.kind == popupMultiSelect) {
 		p.input.SetWidth(max(width-4, 20))
 		if header != "" {
 			header += "\n"
@@ -312,6 +325,9 @@ func (t TUI) viewPopup() string {
 		appendFooter(hint)
 
 	case popupMultiSelect:
+		if p.searchable && len(p.options) == 0 {
+			body = append(body, hintStyle.Render("  no matches"))
+		}
 		total := len(p.options)
 		visible := p.maxVisible
 		if visible <= 0 {
@@ -340,7 +356,11 @@ func (t TUI) viewPopup() string {
 			}
 			body = append(body, fmt.Sprintf("%s%s %s", cursor, check, line))
 		}
-		appendFooter("Space:toggle  Enter:confirm  Esc:cancel")
+		hint := "Space:toggle  Enter:confirm  Esc:cancel"
+		if p.searchable && p.input.Value() != "" {
+			hint = "Space:toggle  Enter:confirm  Esc:clear"
+		}
+		appendFooter(hint)
 
 	case popupText:
 		p.input.SetWidth(max(width-10, 20))

@@ -19,7 +19,6 @@ func registFileHistory() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "file_history",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Description: `Recorded versions of files the tools changed: when each changed, what the task was after, and what the content was.

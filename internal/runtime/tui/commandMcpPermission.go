@@ -1,13 +1,11 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -38,10 +36,11 @@ type McpPermissionPick struct {
 func (t TUI) openMcpPermission(name string) (TUI, tea.Cmd) {
 	back := t.popupOrigin
 	return t, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		tools, err := mcp.Manager().Tools(ctx, name)
-		return McpPermissionResult{server: name, tools: tools, err: err, back: back}
+		result, err := ipcClient.Load().MCP("tools", name)
+		if err != nil {
+			return McpPermissionResult{server: name, err: err, back: back}
+		}
+		return McpPermissionResult{server: name, tools: result.Tools, back: back}
 	}
 }
 

@@ -14,7 +14,6 @@ func registSchedules() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "schedules",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Scheduled runs bound to a scheduler skill: what is queued (list), moving one to a new time (patch), cancelling one (remove).

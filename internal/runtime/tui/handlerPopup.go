@@ -15,7 +15,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -56,11 +55,15 @@ type Popup struct {
 	searchable bool
 	allOptions []string
 	allValues  []string
+	allMulti   map[int]bool
+	indexes    []int
 
 	input          textarea.Model
 	multiline      bool
 	skipWithReason bool
 	restricted     []string
+	needPassword   bool
+	passwordPrompt bool
 
 	questions   []runtime.Question
 	questionIdx int
@@ -92,11 +95,11 @@ func (t TUI) closePopup() TUI {
 	for len(t.popupQueue) > 0 {
 		next := t.popupQueue[0]
 		t.popupQueue = t.popupQueue[1:]
-		if ps := newPopup(next.id, next.request); ps != nil {
+		if ps := newPopup(next); ps != nil {
 			t.popup = ps
 			return t
 		}
-		runtime.Resolve(next.id, runtime.Reply{
+		resolvePending(next.id, runtime.Reply{
 			Error: fmt.Errorf("invalid pending request"),
 		})
 	}
@@ -190,7 +193,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		p.cursor = (p.cursor + 1) % len(p.options)
 
 	case tea.KeyEsc:
-		runtime.Resolve(p.pendingId, runtime.Reply{
+		resolvePending(p.pendingId, runtime.Reply{
 			Approve: false,
 			Error:   runtime.ErrUserCanceled,
 		})
@@ -202,17 +205,17 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case chosen == "Yes":
 			if len(p.restricted) > 0 {
-				id := p.pendingId
-				t = t.closePopup()
-				if sudo.Cached(context.Background()) {
-					return t, func() tea.Msg { return RestrictedAuthDone{pendingID: id, cached: true} }
+				if !p.needPassword {
+					resolvePending(p.pendingId, runtime.Reply{Approve: true})
+					t = t.closePopup()
+					return t, nil
 				}
-				return t, tea.Sequence(
-					notice(msgWarn("restricted path: system password required")+"\n"),
-					tea.ExecProcess(exec.Command("sudo", "-v"), func(err error) tea.Msg {
-						return RestrictedAuthDone{pendingID: id, err: err}
-					}),
-				)
+				p.kind = popupSecret
+				p.passwordPrompt = true
+				p.title = "System password:"
+				p.subtitle = ""
+				p.input = newPopupInput("", false)
+				return t, nil
 			}
 			reply = runtime.Reply{Approve: true}
 		case strings.HasPrefix(chosen, "Yes  don't ask again"):
@@ -228,7 +231,7 @@ func (t TUI) updateConfirmPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case chosen == "Abort task":
 			reply = runtime.Reply{Approve: false, Error: runtime.ErrUserCanceled}
 		}
-		runtime.Resolve(p.pendingId, reply)
+		resolvePending(p.pendingId, reply)
 		t = t.closePopup()
 	}
 	return t, nil
@@ -284,7 +287,7 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.pendingId == "" {
 			return t.escapePopup()
 		}
-		runtime.Resolve(p.pendingId, runtime.Reply{
+		resolvePending(p.pendingId, runtime.Reply{
 			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
@@ -348,7 +351,7 @@ func (t TUI) updateSingleSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		resolved, reply := p.advanceOrResolve(chosen)
 		if resolved {
-			runtime.Resolve(p.pendingId, reply)
+			resolvePending(p.pendingId, reply)
 			t = t.closePopup()
 		}
 	}
@@ -435,16 +438,42 @@ func (p *Popup) swap(step int) {
 }
 
 func (p *Popup) filter() {
+	if p.kind == popupMultiSelect {
+		p.syncMulti()
+	}
 	query := strings.ToLower(strings.TrimSpace(p.input.Value()))
 	p.options = p.options[:0:0]
 	p.values = p.values[:0:0]
+	p.indexes = p.indexes[:0:0]
 	for i, one := range p.allOptions {
 		if strings.Contains(strings.ToLower(ansi.Strip(one)), query) {
 			p.options = append(p.options, one)
 			p.values = append(p.values, p.allValues[i])
+			p.indexes = append(p.indexes, i)
+		}
+	}
+	if p.kind == popupMultiSelect {
+		p.multi = make(map[int]bool, len(p.indexes))
+		for i, idx := range p.indexes {
+			if p.allMulti[idx] {
+				p.multi[i] = true
+			}
 		}
 	}
 	p.cursor = 0
+}
+
+func (p *Popup) syncMulti() {
+	if p.allMulti == nil {
+		p.allMulti = make(map[int]bool, len(p.allOptions))
+	}
+	for i := range p.options {
+		idx := i
+		if p.indexes != nil {
+			idx = p.indexes[i]
+		}
+		p.allMulti[idx] = p.multi[i]
+	}
 }
 
 func (p *Popup) scroll(step int) {
@@ -465,6 +494,29 @@ func (p *Popup) switchTab(step int) tea.Cmd {
 
 func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	p := t.popup
+	if p.searchable {
+		switch msg.Type {
+		case tea.KeyUp, tea.KeyDown, tea.KeySpace, tea.KeyEnter:
+		case tea.KeyLeft, tea.KeyRight:
+			if len(p.tabs) < 2 {
+				var cmd tea.Cmd
+				p.input, cmd = p.input.Update(msg)
+				p.filter()
+				return t, cmd
+			}
+		case tea.KeyEsc:
+			if p.input.Value() != "" {
+				p.input.Reset()
+				p.filter()
+				return t, nil
+			}
+		default:
+			var cmd tea.Cmd
+			p.input, cmd = p.input.Update(msg)
+			p.filter()
+			return t, cmd
+		}
+	}
 	if len(p.options) == 0 && (msg.Type == tea.KeyUp || msg.Type == tea.KeyDown || msg.Type == tea.KeySpace) {
 		return t, nil
 	}
@@ -491,18 +543,23 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.pendingId == "" {
 			return t.escapePopup()
 		}
-		runtime.Resolve(p.pendingId, runtime.Reply{
+		resolvePending(p.pendingId, runtime.Reply{
 			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
 
 	case tea.KeyEnter:
-		selected := make([]string, 0, len(p.multi))
-		for i := range p.options {
-			if p.multi[i] {
-				v := p.options[i]
-				if p.values != nil && i < len(p.values) {
-					v = p.values[i]
+		options, values, multi := p.options, p.values, p.multi
+		if p.searchable {
+			p.syncMulti()
+			options, values, multi = p.allOptions, p.allValues, p.allMulti
+		}
+		selected := make([]string, 0, len(multi))
+		for i := range options {
+			if multi[i] {
+				v := options[i]
+				if values != nil && i < len(values) {
+					v = values[i]
 				}
 				selected = append(selected, v)
 			}
@@ -519,7 +576,7 @@ func (t TUI) updateMultiSelectPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		resolved, reply := p.advanceOrResolve(selected)
 		if resolved {
-			runtime.Resolve(p.pendingId, reply)
+			resolvePending(p.pendingId, reply)
 			t = t.closePopup()
 		}
 	}
@@ -560,8 +617,13 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return t, popupNext(p, func() any { return cb(value) })
 		}
+		if p.passwordPrompt {
+			resolvePendingWithPassword(p.pendingId, runtime.Reply{Approve: true}, value)
+			t = t.closePopup()
+			return t, nil
+		}
 		if p.skipWithReason {
-			runtime.Resolve(p.pendingId, runtime.Reply{
+			resolvePending(p.pendingId, runtime.Reply{
 				Approve: false,
 				Skip:    true,
 				Reason:  strings.TrimSpace(value),
@@ -571,7 +633,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		resolved, reply := p.advanceOrResolve(value)
 		if resolved {
-			runtime.Resolve(p.pendingId, reply)
+			resolvePending(p.pendingId, reply)
 			t = t.closePopup()
 		}
 		return t, nil
@@ -582,7 +644,7 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if p.pendingId == "" {
 			return t.escapePopup()
 		}
-		runtime.Resolve(p.pendingId, runtime.Reply{
+		resolvePending(p.pendingId, runtime.Reply{
 			Error: runtime.ErrUserCanceled,
 		})
 		t = t.closePopup()
@@ -614,7 +676,8 @@ func (t TUI) updateTextInputPopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return t, cmd
 }
 
-func newPopup(id string, req runtime.Request) *Popup {
+func newPopup(pending Pending) *Popup {
+	id, req := pending.id, pending.request
 	switch req.Kind {
 	case runtime.KindToolConfirm:
 		display := utils.FormatToolEvent(req.ToolName, req.ToolArgs)
@@ -636,12 +699,13 @@ func newPopup(id string, req runtime.Request) *Popup {
 			}
 		}
 		p := &Popup{
-			pendingId:  id,
-			kind:       popupConfirm,
-			title:      fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
-			subtitle:   display,
-			options:    options,
-			restricted: req.Restricted,
+			pendingId:    id,
+			kind:         popupConfirm,
+			title:        fmt.Sprintf("Run %s?", utils.ToolName(req.ToolName)),
+			subtitle:     display,
+			options:      options,
+			restricted:   req.Restricted,
+			needPassword: pending.needPassword,
 		}
 		if len(req.Restricted) > 0 {
 			p.title = fmt.Sprintf("Run %s outside the allow list?", utils.ToolName(req.ToolName))
@@ -649,7 +713,7 @@ func newPopup(id string, req runtime.Request) *Popup {
 				p.styledLines = append(p.styledLines, warnStyle.Render("⚠ "+one))
 			}
 			p.styledLines = append(p.styledLines, "")
-			if sudo.Cached(context.Background()) {
+			if !pending.needPassword {
 				p.styledLines = append(p.styledLines, okayStyle.Render("sudo credentials still valid — no password needed"))
 			} else {
 				p.styledLines = append(p.styledLines, userStyle.Render("system password required — you will be prompted after Yes"))

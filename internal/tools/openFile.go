@@ -20,7 +20,6 @@ func registOpenFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "open_file",
 		SystemUse:   true,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Hands a file to the OS default application — plays a video, shows an image, opens a PDF viewer.

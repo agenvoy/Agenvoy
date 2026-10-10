@@ -14,7 +14,6 @@ func registEditSkill() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_skill",
 		SystemUse:   false,
-		AlwaysLoad:  false,
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `The files under the skills directory: create or rewrite one (write), replace an exact string inside one (patch), trash a whole skill (remove).

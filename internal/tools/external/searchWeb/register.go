@@ -39,7 +39,6 @@ func Register() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "search_web",
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: true,
 		Concurrent:  true,
 		Timeout:     90 * time.Second,

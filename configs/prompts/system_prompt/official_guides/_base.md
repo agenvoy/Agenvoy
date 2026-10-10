@@ -8,8 +8,6 @@
 ## Tools
 
 - Current or user-specific state — files, records, logs, config → tool, not recollection
-- Independent calls → one batch
 - Sequence only on real data dependencies
 - Never fill a parameter with a guess to complete a batch
-- Unopened file, function or symbol → read before describing it
 - State-changing call → report what changed, where, what you checked

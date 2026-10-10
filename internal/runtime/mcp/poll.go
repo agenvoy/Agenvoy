@@ -92,7 +92,7 @@ func (m *MCP) poll(ctx context.Context) {
 			continue
 		}
 
-		slog.Info("mcp tool list changed, re-registering",
+		slog.Debug("mcp tool list changed, re-registering",
 			slog.String("server", name),
 			slog.Int("tools", len(tools)))
 

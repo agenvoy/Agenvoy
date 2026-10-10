@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
+	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -121,45 +125,59 @@ type agentExecDone struct {
 
 const interruptWindow = 3 * time.Second
 
-func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask, historyContent string) {
-	ctx, cancel := context.WithCancelCause(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
-	send(agentExec{cancel: cancel})
+func runExec(f ipc.Frame) {
+	client := ipcClient.Load()
+	if client == nil {
+		send(agentExecDone{err: ipc.ErrOffline})
+		return
+	}
 
-	ch := make(chan agentTypes.Event, 16)
-	wrapped := wrapEventsPublish(ctx, sessionID, ch)
-	done := make(chan error, 1)
+	var mu sync.Mutex
+	taskHash := ""
+	var pendingCancel *bool
+	send(agentExec{cancel: func(cause error) {
+		mu.Lock()
+		defer mu.Unlock()
+		pause := cause == nil
+		if taskHash == "" {
+			pendingCancel = &pause
+			return
+		}
+		client.Cancel(taskHash, pause)
+	}})
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				close(wrapped)
-				done <- fmt.Errorf("exec.Start panic: %v", r)
+	f.UUID = go_pkg_utils.UUID()
+	f.Rayload.WindowHash = tuiHash.Get()
+	f.Rayload.Fast = fast.IsEnabled()
+	f.Rayload.Guide = guide.IsEnabled()
+	frames, err := client.Run(f)
+	if err != nil {
+		send(agentExecDone{err: err})
+		return
+	}
+
+	var result error
+	for f := range frames {
+		if f.Type == ipc.FrameDone {
+			switch {
+			case f.Canceled:
+				result = context.Canceled
+			case f.Error != "":
+				result = errors.New(f.Error)
 			}
-		}()
-		content := strings.TrimSpace(input)
-		data := exec.Prepare(exec.ExecuteMeta{
-			WorkDir:        workDir,
-			Content:        content,
-			Input:          content,
-			SessionID:      sessionID,
-			AllowAll:       allowAll,
-			TUI:            true,
-			PendingTask:    pendingTask,
-			HistoryContent: historyContent,
-		})
-		err := exec.Start(agentTypes.WithOrigin(ctx, "cli-"), data, wrapped)
-		close(wrapped)
-		done <- err
-	}()
-
-	terminated := false
-	for ev := range ch {
-		if ev.Type == agentTypes.EventTextDelta {
 			continue
 		}
-		switch ev.Type {
-		case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError:
-			terminated = true
+		ev := *f.Event
+		if f.Error != "" {
+			ev.Err = errors.New(f.Error)
+		}
+		if ev.TaskHash != "" {
+			mu.Lock()
+			if taskHash == "" && pendingCancel != nil {
+				client.Cancel(ev.TaskHash, *pendingCancel)
+			}
+			taskHash = ev.TaskHash
+			mu.Unlock()
 		}
 		send(agentEvent{event: ev})
 		switch ev.Type {
@@ -167,16 +185,7 @@ func runExec(parentCtx context.Context, input string, allowAll bool, workDir, se
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-
-	err := <-done
-	if err != nil && !terminated {
-		ev := agentTypes.Event{Type: agentTypes.EventError, Text: err.Error()}
-		if errors.Is(err, context.Canceled) {
-			ev.Type = agentTypes.EventCanceled
-		}
-		publishEventToDaemon(ctx, sessionID, ev)
-	}
-	send(agentExecDone{err: err})
+	send(agentExecDone{err: result})
 }
 
 func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {

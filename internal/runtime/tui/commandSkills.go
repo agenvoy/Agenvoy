@@ -20,6 +20,7 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
 var remoteSkills = []string{
@@ -36,6 +37,10 @@ type SkillsInstallPick struct {
 	names []string
 }
 
+type SkillSourcePick struct {
+	enabled []string
+}
+
 type SkillsInstallDone struct {
 	installed []string
 	removed   []string
@@ -50,15 +55,18 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 		}
 	}
 
+	sourceMulti := make(map[int]bool, len(runtime.SkillSources))
+	var disabled []string
+	if cfg, err := config.Load(); err == nil {
+		disabled = cfg.SkillSourceOff
+	}
+	for i, name := range runtime.SkillSources {
+		sourceMulti[i] = !slices.Contains(disabled, name)
+	}
+
 	popup := &Popup{
-		title: "/skill",
-		tabs:  []string{"permission", "system"},
-		onConfirm: func(chosen string) any {
-			if chosen == "" {
-				return SkillsInstallPick{}
-			}
-			return SkillsInstallPick{names: strings.Split(chosen, "\x1F")}
-		},
+		title:     "/skill",
+		tabs:      []string{"permission", "system", "source"},
 		openLabel: "folder",
 		onOpen: func(chosen string) string {
 			scanner := agents.Scanner()
@@ -80,8 +88,27 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 			return nil
 		},
 	}
+	popup.onConfirm = func(chosen string) any {
+		var names []string
+		if chosen != "" {
+			names = strings.Split(chosen, "\x1F")
+		}
+		if popup.tabIdx == 2 {
+			return SkillSourcePick{enabled: names}
+		}
+		return SkillsInstallPick{names: names}
+	}
 	popup.onTab = func(p *Popup) tea.Cmd {
 		p.cursor = 0
+		if p.tabIdx == 2 {
+			p.kind = popupMultiSelect
+			p.enterAction = ""
+			p.subtitle = "checked: read  unchecked: skip  ~/.<source>/skills (claude also <cwd>/.claude/skills)"
+			p.options = slices.Clone(runtime.SkillSources)
+			p.values = runtime.SkillSources
+			p.multi = sourceMulti
+			return nil
+		}
 		if p.tabIdx == 1 {
 			p.kind = popupMultiSelect
 			p.enterAction = ""
@@ -174,6 +201,27 @@ func syncSkills(selected []string) SkillsInstallDone {
 		scanner.Scan()
 	}
 	return done
+}
+
+func (t TUI) runSkillSourcePick(msg SkillSourcePick) (TUI, tea.Cmd) {
+	dic, err := config.Get()
+	if err != nil {
+		return t, notice(msgError(fmt.Sprintf("skill source: %v", err)) + "\n")
+	}
+	disabled := []string{}
+	for _, name := range runtime.SkillSources {
+		if !slices.Contains(msg.enabled, name) {
+			disabled = append(disabled, name)
+		}
+	}
+	dic["skill_source_disabled"] = disabled
+	if err := config.Write(dic); err != nil {
+		return t, notice(msgError(fmt.Sprintf("skill source: %v", err)) + "\n")
+	}
+	if scanner := agents.Scanner(); scanner != nil {
+		scanner.Scan()
+	}
+	return t, nil
 }
 
 func (t TUI) runSkillsInstallDone(msg SkillsInstallDone) (TUI, tea.Cmd) {

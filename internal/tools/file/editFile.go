@@ -15,7 +15,6 @@ func registEditFile() {
 	toolRegister.Regist(toolRegister.Def{
 		Name:        "edit_file",
 		SystemUse:   false,
-		AlwaysLoad:  true,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: `Every change to a file on disk: create or replace (write), edit regions (patch), move aside (remove), put a recorded version back (restore).

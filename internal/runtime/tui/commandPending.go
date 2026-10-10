@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -9,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -121,40 +119,11 @@ func (t TUI) runPendingDelete(msg PendingDeleteConfirm) (TUI, tea.Cmd) {
 }
 
 func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {
-	info, ok := interactive.LoadPendingInfo(msg.id, msg.taskHash)
-	if !ok {
+	if t.running || t.connecting {
+		return t, nil
+	}
+	if _, ok := interactive.LoadPendingInfo(msg.id, msg.taskHash); !ok {
 		return t, notice(msgLog("pending task already resolved in another session") + "\n")
 	}
-
-	if !info.HasQuestions {
-		allowAll := interactive.LoadPendingAllowAll(msg.id, msg.taskHash)
-		full, history, err := interactive.LoadResumeMessage(msg.id, msg.taskHash, nil)
-		if err != nil {
-			return t, notice(msgError(fmt.Sprintf("load resume: %v", err)) + "\n")
-		}
-		return t.startResume(ResumeExec{SessionID: msg.id, Content: full, PendingTask: msg.taskHash, HistoryContent: history, AllowAll: allowAll})
-	}
-
-	meta, err := interactive.LoadPendingQuestions(msg.id, msg.taskHash)
-	if err != nil {
-		return t, notice(msgError(fmt.Sprintf("load pending: %v", err)) + "\n")
-	}
-
-	sid := msg.id
-	taskHash := msg.taskHash
-	runtime.AskUser(runtime.Request{
-		Kind:      runtime.KindAskUser,
-		SessionID: sid,
-		ToolName:  "ask_user",
-		AskUser:   &runtime.UserPayload{Questions: meta},
-	}, func(reply runtime.Reply) {
-		if reply.Error != nil {
-			if errors.Is(reply.Error, runtime.ErrUserCanceled) {
-				interactive.CleanupPending(sid, taskHash)
-			}
-			return
-		}
-		runtime.TriggerResume(sid, taskHash, reply.Answers)
-	})
-	return t, nil
+	return t.startPending(msg.id, msg.taskHash)
 }

@@ -76,7 +76,7 @@ func Send() gin.HandlerFunc {
 		})
 
 		if exec.IsRunning(sessionID) {
-			exec.AppendSteer(sessionID, req.Content)
+			exec.AppendSteer(sessionID, "", req.Content)
 			c.JSON(http.StatusOK, gin.H{
 				"session_id": sessionID,
 				"steer":      true,

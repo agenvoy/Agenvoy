@@ -30,7 +30,6 @@ type Def struct {
 	Parameters  map[string]any
 	Handler     Handler
 	AlwaysAllow bool
-	AlwaysLoad  bool
 	Concurrent  bool
 	Background  bool
 	SystemUse   bool
@@ -44,7 +43,6 @@ var groupHandlerMap = map[string]GroupHandler{}
 var defList []provider.Tool
 var builtinNames []string
 var readOnlySet = map[string]bool{}
-var alwaysLoadSet = map[string]bool{}
 var concurrentSet = map[string]bool{}
 var backgroundSet = map[string]bool{}
 var systemUseSet = map[string]bool{}
@@ -80,9 +78,6 @@ func Regist(d Def) {
 	if d.AlwaysAllow {
 		readOnlySet[d.Name] = true
 	}
-	if d.AlwaysLoad {
-		alwaysLoadSet[d.Name] = true
-	}
 	if d.Concurrent {
 		concurrentSet[d.Name] = true
 	}
@@ -111,7 +106,6 @@ func RemoveByPrefix(prefix string) {
 		if strings.HasPrefix(name, prefix) {
 			delete(handlerMap, name)
 			delete(readOnlySet, name)
-			delete(alwaysLoadSet, name)
 			delete(concurrentSet, name)
 			delete(backgroundSet, name)
 			delete(systemUseSet, name)
@@ -129,10 +123,18 @@ func GetTimeout(name string) time.Duration {
 	return configs.DEFAULT_TOOL_TIMEOUT
 }
 
-func IsAlwaysLoad(name string) bool {
+func Exists(name string) bool {
 	mu.RLock()
 	defer mu.RUnlock()
-	return alwaysLoadSet[name]
+	if _, ok := handlerMap[name]; ok {
+		return true
+	}
+	for prefix := range groupHandlerMap {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func IsReadOnly(name string) bool {
