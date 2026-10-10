@@ -53,7 +53,6 @@ func Listen(ctx context.Context) (func(), error) {
 }
 
 type conn struct {
-	raw     net.Conn
 	writeMu sync.Mutex
 	enc     *json.Encoder
 	askMu   sync.Mutex
@@ -80,7 +79,6 @@ func notifyWorkDir(sessionID, dir string) {
 
 func serve(ctx context.Context, raw net.Conn) {
 	c := &conn{
-		raw:     raw,
 		enc:     json.NewEncoder(raw),
 		asks:    map[string]runtime.Request{},
 		windows: map[string]bool{},

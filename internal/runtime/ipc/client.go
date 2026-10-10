@@ -26,7 +26,6 @@ type Client struct {
 	conn net.Conn
 	enc  *json.Encoder
 	runs map[string]chan Frame
-	asks map[string]bool
 }
 
 func Connect(ctx context.Context, onAsk func(Frame), onVerify func(error), onWorkDir func(dir string), onState func(connected bool)) *Client {
@@ -35,7 +34,6 @@ func Connect(ctx context.Context, onAsk func(Frame), onVerify func(error), onWor
 		onVerify:  onVerify,
 		onWorkDir: onWorkDir,
 		runs:      map[string]chan Frame{},
-		asks:      map[string]bool{},
 	}
 	go c.loop(ctx, onState)
 	return c
@@ -109,9 +107,6 @@ func (c *Client) read(conn net.Conn) {
 			if f.Ask == nil {
 				continue
 			}
-			c.mu.Lock()
-			c.asks[f.Ask.ID] = true
-			c.mu.Unlock()
 			c.onAsk(f)
 		}
 	}
@@ -123,7 +118,6 @@ func (c *Client) detach(conn net.Conn) {
 	c.conn, c.enc = nil, nil
 	runs := c.runs
 	c.runs = map[string]chan Frame{}
-	clear(c.asks)
 	c.mu.Unlock()
 
 	for uuid, ch := range runs {
@@ -167,16 +161,9 @@ func (c *Client) Steer(sessionID, windowHash, text string) error {
 	return c.send(Frame{Type: FrameSteer, SessionID: sessionID, Rayload: &Payload{Input: text, WindowHash: windowHash}})
 }
 
-func (c *Client) OwnsAsk(id string) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.asks[id]
-}
-
 func (c *Client) Reply(id string, r runtime.Reply, password string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.asks, id)
 	return c.send(Frame{Type: FrameReply, Reply: &Reply{
 		ID:        id,
 		Approve:   r.Approve,

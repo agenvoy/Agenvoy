@@ -173,10 +173,6 @@ func Ask(ctx context.Context, req Request) (Reply, error) {
 	}
 }
 
-func PickNext(prefix string) (id string, req Request, ok bool) {
-	return PickNextMatch(prefix, nil)
-}
-
 func PickNextMatch(prefix string, accept func(Request) bool) (id string, req Request, ok bool) {
 	mu.Lock()
 	defer mu.Unlock()

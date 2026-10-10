@@ -40,14 +40,6 @@ func TriggerResume(sessionID, taskHash string, answers []any) bool {
 		}
 	}
 	if best == -1 {
-		for i, e := range resumeHandlers {
-			if e.prefix == "" {
-				best = i
-				break
-			}
-		}
-	}
-	if best == -1 {
 		return false
 	}
 	go resumeHandlers[best].handler(sessionID, taskHash, answers)

@@ -20,7 +20,6 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -29,12 +28,6 @@ import (
 )
 
 func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSession, error) {
-	// * step1: reload skill list
-	scanner := execData.SkillScanner
-	if scanner == nil {
-		scanner = agents.Scanner()
-	}
-
 	// * step2: assemble session history
 	sessionID := strings.TrimSpace(execData.SessionID)
 	if sessionID == "" {
