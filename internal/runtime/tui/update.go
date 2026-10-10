@@ -388,6 +388,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionReasoningSelect:
 		return t.runSessionReasoningSelect(msg.level)
 
+	case ModelOrderSave:
+		return t.runModelOrderSave(msg)
+
 	case ModelScopeSelect:
 		switch msg.scope {
 		case "add":
