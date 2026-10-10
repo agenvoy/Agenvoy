@@ -16,7 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-var SkillSources = []string{"claude", "codex", "copilot", "opencode", "openai", "agents"}
+var SkillSources = []string{"claude", "codex", "copilot", "opencode", "agents"}
 
 type SkillScanner struct {
 	paths  []string
@@ -46,7 +46,6 @@ func NewSkillScanner() *SkillScanner {
 		filepath.Join(home, ".claude", "skills"),
 		filepath.Join(home, ".codex", "skills"),
 		filepath.Join(home, ".opencode", "skills"),
-		filepath.Join(home, ".openai", "skills"),
 		filepath.Join(home, ".copilot", "skills"),
 		filepath.Join(home, ".agents", "skills"),
 	}
@@ -188,8 +187,6 @@ func SkillSource(path string) string {
 		return "claude"
 	case strings.Contains(path, "/.opencode/skills/"):
 		return "opencode"
-	case strings.Contains(path, "/.openai/skills/"):
-		return "openai"
 	case strings.Contains(path, "/.codex/skills/"):
 		return "codex"
 	case strings.Contains(path, "/.copilot/skills/"):

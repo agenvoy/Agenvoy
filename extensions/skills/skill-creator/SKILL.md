@@ -19,7 +19,7 @@ description: Create, edit, improve, or audit AgentSkills. Use when creating a ne
 >
 > **專案目錄的前提**：scanner 的 `<專案根>` 取自**行程啟動當下**的 `os.Getwd()`（`internal/runtime/skill.go:35`），之後不再更新。從專案目錄啟動的 TUI 讀得到；但 daemon 由 launchd／systemd 啟動時 cwd 是 `$HOME`，所以**排程、Web、Telegram、Discord 觸發的執行讀不到專案目錄的 Skill**。要被那些入口用到就別放專案目錄。
 >
-> （scanner 另外也掃 `~/.codex/skills`、`~/.opencode/skills`、`~/.openai/skills`，但那些是別的 harness 的位置，本 Skill 不往那裡寫。）
+> （scanner 另外也掃 `~/.codex/skills`、`~/.opencode/skills`、`~/.copilot/skills`、`~/.agents/skills`，但那些是別的 harness 的位置，本 Skill 不往那裡寫。）
 
 > **本 Skill 自己的腳本路徑**：`run_command` 的 CWD 是使用者的工作目錄，**不是本 Skill 目錄**，相對路徑 `scripts/...` 必定找不到（實測會讓 agent 反覆 glob 找檔案，白燒數輪）。本 Skill 只服務 Agenvoy、安裝位置固定，一律用絕對路徑 `~/.config/agenvoy/skills/.system/skill-creator/scripts/`。
 
