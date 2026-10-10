@@ -11,9 +11,9 @@ graph TB
     User[使用者] --> TUI[CLI／TUI]
     User --> Web[Web API／聊天頻道]
     Client[MCP Client] --> MCPServer[stdin MCP Server]
-    TUI --> Exec[Agent 執行器]
-    Web --> Daemon[本機 Daemon]
-    Daemon --> Exec
+    TUI -->|daemon.sock| Daemon[本機 Daemon]
+    Web --> Daemon
+    Daemon --> Exec[Agent 執行器]
     MCPServer --> ToolBox[script_／api_／ext_ 工具]
     Exec --> Router[模型路由器]
     Exec --> Skills[Skill 比對]
@@ -27,7 +27,7 @@ graph TB
 
 ## 模組：進入點與執行模式
 
-`cmd/app` 預設開啟 TUI；TUI 在本機直接執行 Agent，daemon 則提供 Web、Telegram 與 Discord 的執行服務。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。`agen --enable-claude-code` 啟用 `claude-code` provider（以本機 `claude` CLI 作為模型），daemon 執行中會被拒絕，需先 `agen stop`；由它啟動的 daemon 會帶著這個設定，之後不帶參數啟動的 TUI 沿用執行中 daemon 的狀態。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`（同時監聽 `[::1]:17989`）。
+`cmd/app` 預設開啟 TUI；所有 Agent 都在 daemon 執行，TUI 是它的用戶端：執行、steer、取消、確認與 `ask_user` 的回覆、`/pending` 接續，以及 `/mcp` 的狀態、重新連線與工具列表，都經 Unix socket `~/.config/agenvoy/daemon.sock`（權限 0600，newline-delimited JSON）送給 daemon，TUI 再渲染回傳的事件。TUI 發起的任務綁定該連線：關閉 TUI 即停止，可從 `/pending` 接續。連不上 daemon 時 TUI 仍可開啟，狀態列顯示 `Connecting` 並每 5 秒重連，需要 daemon 的輸入會暫停送出直到連上。`agen stop` 停止 daemon，`agen update` 執行官方更新器，stdin 非 TTY 時則改為 stdio JSON-RPC MCP server。`agen --enable-claude-code` 啟用 `claude-code` provider（以本機 `claude` CLI 作為模型），daemon 執行中會被拒絕，需先 `agen stop`；由它啟動的 daemon 會帶著這個設定，之後不帶參數啟動的 TUI 沿用執行中 daemon 的狀態。Web 儀表板由 daemon 提供於 `http://127.0.0.1:17989`（同時監聽 `[::1]:17989`）。
 
 所有使用 session 的入口（TUI、Web `/send`、pending 恢復、Telegram、Discord）都經過相同的兩步進入執行：`exec.Prepare` 重新掃描 Skill、在 TUI 以外排除 TUI 專用的工具與 Skill，並解析開頭的 `/<skill_name>`；接著 `exec.Start` 查找以名稱指定的 Skill、記錄輸入、選擇模型、建立 session 並執行 Agent。各入口只負責自己的傳輸、授權與呈現；Telegram 與 Discord 共用同一套回覆流程（狀態訊息、分段、footer、錯誤提示與附件）。TUI 與 daemon 都會監看 `config.json`，變更時重新載入模型註冊表（daemon 另會重新連線聊天 bot）；TUI 也會訂閱 daemon log，讓 Telegram 與 Discord 的驗證碼顯示在 TUI 的 notice 框；所有 log、警告與錯誤都集中在這個框（顯示最後 4 行、保留 32 行，`Tab` 往上捲，`Esc` 清除）。
 
@@ -116,7 +116,7 @@ graph TB
 
 ## 模組：Session、歷史與排程
 
-Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量（`claude` 與 `claude-code` 的 input 含 cache 寫入量，與其他 provider 回報「未命中 cache 的 input」一致）、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。TUI 發出的 `ask_user` 為 inline 提問，執行不中斷；其他來源則中止執行並寫入 pending（其中 tool args 截 1 KiB、result 截 4 KiB），由之後的回答續跑。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
+Session ID 前綴代表來源：`cli-`、`chat-`、`tg-`、`dc-` 與 `temp-`。Session 設定、token 用量（`claude` 與 `claude-code` 的 input 含 cache 寫入量，與其他 provider 回報「未命中 cache 的 input」一致）、action history 與檔案歷史存於 SQLite（`history.db`）；訊息、摘要、`action.log` 與 pending 工作依 session 目錄保存。執行中的工作會在 ToriiDB 寫入短效 `action:<session>:<task>` 標記並定期刷新，因此 pending 清單只會顯示可恢復的工作。工具確認與 `ask_user` 提問依 `Origin` 導向對應 listener，`DeliverTo` 決定哪個 session 視窗接收提問與結果；TUI 連線只接自己發起的任務的提問（以任務帶的 window hash 比對），多個 TUI 同時開著也不會收到彼此的提問；其他來源的任務（例如跑在 `cli-` session 的排程）沒有 listener，走逾時轉 pending 的路徑；subagent 在自己的 session 執行，但繼承父層的 `Origin`，並透過 `DeliverTo` 把提問送回父層 session。TUI 發出的 `ask_user` 為 inline 提問，執行不中斷；其他來源則中止執行並寫入 pending（其中 tool args 截 1 KiB、result 截 4 KiB），由之後的回答續跑。工作會先註冊再競爭每個 session 的併發名額，因此排隊中的工作仍可見、可取消。使用者取消（TUI 取消或 `ctrl+c`、**Abort task**、cancel API）會移除該任務的 pending；暫停與其他中斷只停止執行，pending 保留可恢復。排程器可執行週期或單次的 scheduler skill。
 
 ```mermaid
 graph TB
