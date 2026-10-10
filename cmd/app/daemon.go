@@ -20,6 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
+	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
@@ -177,6 +178,15 @@ func Daemon() {
 	app.ReloadTelegram(0)
 
 	handler.StartWebConfirm(context.Background())
+
+	stopIPC, err := ipc.Listen(context.Background())
+	if err != nil {
+		slog.Error("ipc.Listen",
+			slog.String("socket", filesystem.DaemonSocketPath),
+			slog.String("error", err.Error()))
+		return
+	}
+	defer stopIPC()
 
 	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
 		event := agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason}
