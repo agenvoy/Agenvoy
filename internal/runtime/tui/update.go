@@ -135,6 +135,10 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.selector = nil
 				return t, nil
 			}
+			if t.notice != "" {
+				t.notice, t.noticeOffset = "", 0
+				return t, nil
+			}
 			if t.running && t.cancelExec != nil {
 				if !t.emitted {
 					return t.update(CancelRunConfirm{yes: true})
@@ -154,10 +158,6 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)
 				t.inputHistoryIdx = -1
-				return t, nil
-			}
-			if t.notice != "" {
-				t.notice, t.noticeOffset = "", 0
 				return t, nil
 			}
 
@@ -263,6 +263,9 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			raw := t.textarea.Value()
 			content := strings.TrimSpace(raw)
 			if content == "" {
+				return t, nil
+			}
+			if t.connecting && !strings.HasPrefix(content, "/") {
 				return t, nil
 			}
 			t = t.recordInputHistory(raw)
