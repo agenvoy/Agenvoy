@@ -785,7 +785,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 
 func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Question) ([]any, error) {
 	origin := originFor(ctx, sessionID)
-	if !runtime.HasListener(origin) {
+	if !runtime.HasListener(ctx, origin) {
 		return nil, fmt.Errorf("ask_user requires an interactive channel (TUI / Telegram / Discord)")
 	}
 

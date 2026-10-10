@@ -14,6 +14,7 @@ const (
 	FramePending = "pending"
 	FrameCancel  = "cancel"
 	FrameSteer   = "steer"
+	FrameVerify  = "verify"
 )
 
 type Frame struct {
@@ -23,6 +24,7 @@ type Frame struct {
 	TaskHash  string            `json:"task_hash,omitempty"`
 	Error     string            `json:"error,omitempty"`
 	Canceled  bool              `json:"canceled,omitempty"`
+	Pause     bool              `json:"pause,omitempty"`
 	Rayload   *Payload          `json:"run,omitempty"`
 	Event     *agentTypes.Event `json:"event,omitempty"`
 	Ask       *Ask              `json:"ask,omitempty"`

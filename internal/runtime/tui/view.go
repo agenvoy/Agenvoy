@@ -76,6 +76,10 @@ func (t TUI) viewIdle() string {
 		}
 	}
 
+	if t.connecting {
+		return top + box + "\n" + bottom + "\n " + t.spinner.View() + systemStyle.Render(" Connecting")
+	}
+
 	status := " " + fastMode + confirmMode
 	if t.quotaText != "" {
 		quota := hintStyle.Render(t.quotaModel+" ") + renderQuotaBadge(t.quotaText) + " "

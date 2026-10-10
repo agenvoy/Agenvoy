@@ -3,6 +3,7 @@ package ipc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
@@ -30,11 +31,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 			return
 		}
 	}
-	if f.UUID != "" {
-		c.own(f.UUID, sessionID)
-	}
 
-	execCtx := agentTypes.WithOrigin(context.WithoutCancel(ctx), "cli-")
+	c.addWindow(f.Rayload.WindowHash)
+	execCtx := agentTypes.WithOrigin(ctx, "cli-")
 	execCtx = exec.WithBotPushPrefix(execCtx, go_pkg_utils.TruncateString(f.Rayload.Input, 32))
 	execCtx = agentTypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
 	execCtx = fast.With(execCtx, f.Rayload.Fast)
@@ -53,7 +52,12 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		HistoryContent: f.Rayload.HistoryContent,
 	})
 
-	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
+	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("exec.Start panic: %v", r)
+			}
+		}()
 		return exec.Start(execCtx, data, stream)
 	})
 	terminated := false

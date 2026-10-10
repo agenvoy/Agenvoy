@@ -8,12 +8,14 @@ import (
 )
 
 func (c *conn) askUser(ctx context.Context) {
-	notify, unregister := runtime.RegisterListener("cli-")
+	notify, unregister := runtime.RegisterListenerMatch("cli-", c.owns)
 	defer unregister()
 
 	for {
 		for {
-			id, req, ok := runtime.PickNextMatch("cli-", c.accepts)
+			id, req, ok := runtime.PickNextMatch("cli-", func(req runtime.Request) bool {
+				return c.owns(req.Ctx)
+			})
 			if !ok {
 				break
 			}

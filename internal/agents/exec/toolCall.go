@@ -465,7 +465,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			verified := false
 			reason := ""
 			origin := originFor(ctx, sessionData.ID)
-			if runtime.HasListener(origin) {
+			if runtime.HasListener(ctx, origin) {
 				askCtx, cancelAsk := context.WithCancel(ctx)
 				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
 					askCtx, cancelAsk = context.WithTimeout(ctx, configs.CONFIRM_TIMEOUT)

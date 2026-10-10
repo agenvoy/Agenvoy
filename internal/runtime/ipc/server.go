@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -50,36 +51,28 @@ func Listen(ctx context.Context) (func(), error) {
 
 type conn struct {
 	raw     net.Conn
-	uuids   map[string]struct{}
 	writeMu sync.Mutex
 	enc     *json.Encoder
 	askMu   sync.Mutex
 	asks    map[string]runtime.Request
+	windows map[string]bool
 }
 
-var (
-	ownerMu      sync.Mutex
-	conns        = map[*conn]struct{}{}
-	sessionOwner = map[string]string{}
-)
+var errDisconnected = errors.New("client disconnected")
 
 func serve(ctx context.Context, raw net.Conn) {
 	c := &conn{
-		raw:   raw,
-		enc:   json.NewEncoder(raw),
-		asks:  map[string]runtime.Request{},
-		uuids: map[string]struct{}{},
+		raw:     raw,
+		enc:     json.NewEncoder(raw),
+		asks:    map[string]runtime.Request{},
+		windows: map[string]bool{},
 	}
-	ownerMu.Lock()
-	conns[c] = struct{}{}
-	ownerMu.Unlock()
 
-	connCtx, cancel := context.WithCancel(ctx)
+	connCtx, cancel := context.WithCancelCause(ctx)
 	defer func() {
-		cancel()
+		cancel(errDisconnected)
 		raw.Close()
-		c.detach()
-		c.resolveAll(errors.New("client disconnected"))
+		c.resolveAll(errDisconnected)
 	}()
 	go c.askUser(connCtx)
 
@@ -91,15 +84,19 @@ func serve(ctx context.Context, raw net.Conn) {
 		}
 		switch f.Type {
 		case FrameRun:
-			go c.run(ctx, f)
+			go c.run(connCtx, f)
 		case FrameCancel:
-			exec.Cancel(f.TaskHash)
+			cause := runtime.ErrUserCanceled
+			if f.Pause {
+				cause = nil
+			}
+			exec.Cancel(f.TaskHash, cause)
 		case FrameSteer:
 			if f.Rayload != nil {
 				exec.AppendSteer(f.SessionID, f.Rayload.WindowHash, f.Rayload.Input)
 			}
 		case FramePending:
-			go c.pending(ctx, f)
+			go c.pending(connCtx, f)
 		case FrameReply:
 			if f.Reply != nil {
 				go c.reply(ctx, f.Reply)
@@ -114,42 +111,22 @@ func (c *conn) write(f Frame) {
 	c.enc.Encode(f)
 }
 
-func (c *conn) own(uuid, sessionID string) {
-	ownerMu.Lock()
-	defer ownerMu.Unlock()
-	c.uuids[uuid] = struct{}{}
-	sessionOwner[sessionID] = uuid
+func (c *conn) addWindow(windowHash string) {
+	if windowHash == "" {
+		return
+	}
+	c.askMu.Lock()
+	c.windows[windowHash] = true
+	c.askMu.Unlock()
 }
 
-func (c *conn) accepts(req runtime.Request) bool {
-	ownerMu.Lock()
-	defer ownerMu.Unlock()
-	owner, ok := sessionOwner[req.DeliverTo]
-	if !ok {
-		owner = sessionOwner[req.SessionID]
+func (c *conn) owns(ctx context.Context) bool {
+	if ctx == nil {
+		return false
 	}
-	if owner == "" {
-		return true
-	}
-	_, mine := c.uuids[owner]
-	return mine
-}
-
-func (c *conn) detach() {
-	ownerMu.Lock()
-	defer ownerMu.Unlock()
-	delete(conns, c)
-	alive := map[string]bool{}
-	for other := range conns {
-		for uuid := range other.uuids {
-			alive[uuid] = true
-		}
-	}
-	for sessionID, owner := range sessionOwner {
-		if _, mine := c.uuids[owner]; mine && !alive[owner] {
-			delete(sessionOwner, sessionID)
-		}
-	}
+	c.askMu.Lock()
+	defer c.askMu.Unlock()
+	return c.windows[agentTypes.WindowHash(ctx)]
 }
 
 func (c *conn) reply(ctx context.Context, r *Reply) {
@@ -173,10 +150,15 @@ func (c *conn) reply(ctx context.Context, r *Reply) {
 		reply.Error = runtime.ErrUserCanceled
 	}
 	if reply.Approve && len(req.Restricted) > 0 {
-		if err := sudo.Verify(ctx, r.Password); err != nil {
-			reply = runtime.Reply{Reason: "system password verification failed: " + err.Error()}
+		err := sudo.Verify(ctx, r.Password)
+		if err != nil {
+			reply = runtime.Reply{Reason: "system password verification failed"}
+			c.write(Frame{Type: FrameVerify, Error: err.Error()})
 		} else {
 			reply.Verified = true
+			if r.Password != "" {
+				c.write(Frame{Type: FrameVerify})
+			}
 		}
 	}
 	runtime.Resolve(r.ID, reply)

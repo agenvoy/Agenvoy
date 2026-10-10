@@ -3,21 +3,19 @@ package tui
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
 var (
-	program atomic.Pointer[tea.Program]
+	program   atomic.Pointer[tea.Program]
+	ipcClient atomic.Pointer[ipc.Client]
 
 	colSystem = lipgloss.AdaptiveColor{Light: "#005FAF", Dark: "#5FAFFF"} // sky blue
 	colWarn   = lipgloss.AdaptiveColor{Light: "#5F3DAF", Dark: "#875FD7"} // purple
@@ -42,16 +40,16 @@ var (
 	keyStyle    = lipgloss.NewStyle().Foreground(colThink)
 )
 
-type WorkDir struct {
-	dir string
+type daemonState struct {
+	connected bool
 }
 
-type ResumeExec struct {
-	SessionID      string
-	Content        string
-	PendingTask    string
-	HistoryContent string
-	AllowAll       bool
+type restrictedVerified struct {
+	err error
+}
+
+type WorkDir struct {
+	dir string
 }
 
 func Run(ctx context.Context) error {
@@ -69,28 +67,28 @@ func Run(ctx context.Context) error {
 	restoreSlog := installSlogTUI()
 	defer restoreSlog()
 
-	pubsub.SetForwarder(func(sessionID string, ev agentTypes.Event) {
-		publishEventToDaemon(ctx, sessionID, ev)
-	})
-	defer pubsub.SetForwarder(nil)
+	ipcClient.Store(ipc.Connect(ctx, func(f ipc.Frame) {
+		send(Pending{
+			id: f.Ask.ID,
+			request: runtime.Request{
+				ID:         f.Ask.ID,
+				Kind:       f.Ask.Kind,
+				SessionID:  f.SessionID,
+				DeliverTo:  f.SessionID,
+				ToolName:   f.Ask.ToolName,
+				ToolArgs:   f.Ask.ToolArgs,
+				Restricted: f.Ask.Restricted,
+				AskUser:    &runtime.UserPayload{Questions: f.Ask.Questions},
+				Inline:     true,
+			},
+			needPassword: f.Ask.NeedPassword,
+		})
+	}, func(err error) {
+		send(restrictedVerified{err: err})
+	}, func(connected bool) {
+		send(daemonState{connected: connected})
+	}))
 
-	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
-		publishEventToDaemon(ctx, sessionID, agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason})
-	})
-
-	runtime.RegisterResumeHandler("", func(sessionID, taskHash string, answers []any) {
-		allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
-		full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
-		if err != nil {
-			slog.Debug("ask_user resume: pending already consumed",
-				slog.String("session", sessionID),
-				slog.String("task_hash", taskHash))
-			return
-		}
-		send(ResumeExec{SessionID: sessionID, Content: full, PendingTask: taskHash, HistoryContent: history, AllowAll: allowAll})
-	})
-
-	go newPendingChannel(ctx)
 	go newDaemonLog(ctx)
 
 	if _, err := prog.Run(); err != nil {

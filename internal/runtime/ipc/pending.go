@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -31,26 +32,27 @@ func (c *conn) pending(ctx context.Context, f Frame) {
 		c.write(Frame{Type: FrameDone, UUID: f.UUID, SessionID: sessionID, Error: err.Error()})
 		return
 	}
-	if f.UUID != "" {
-		c.own(f.UUID, sessionID)
-	}
-	runtime.AskUser(runtime.Request{
+	c.addWindow(f.Rayload.WindowHash)
+	reply, err := runtime.Ask(agentTypes.WithWindowHash(ctx, f.Rayload.WindowHash), runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
 		TaskHash:  taskHash,
 		Origin:    "cli-",
 		ToolName:  "ask_user",
 		AskUser:   &runtime.UserPayload{Questions: questions},
-	}, func(reply runtime.Reply) {
-		if reply.Error != nil {
-			if errors.Is(reply.Error, runtime.ErrUserCanceled) {
-				interactive.CleanupPending(sessionID, taskHash)
-			}
-			c.write(Frame{Type: FrameDone, UUID: f.UUID, SessionID: sessionID, Error: reply.Error.Error()})
-			return
-		}
-		c.resume(ctx, f, reply.Answers)
+		Inline:    true,
 	})
+	if err == nil {
+		err = reply.Error
+	}
+	if err != nil {
+		if errors.Is(err, runtime.ErrUserCanceled) {
+			interactive.CleanupPending(sessionID, taskHash)
+		}
+		c.write(Frame{Type: FrameDone, UUID: f.UUID, SessionID: sessionID, Error: err.Error()})
+		return
+	}
+	c.resume(ctx, f, reply.Answers)
 }
 
 func (c *conn) resume(ctx context.Context, f Frame, answers []any) {

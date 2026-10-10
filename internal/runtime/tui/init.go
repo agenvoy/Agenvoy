@@ -36,13 +36,13 @@ type TUI struct {
 	textarea textarea.Model
 	spinner  spinner.Model
 
-	running       bool
-	emitted       bool
-	cancelExec    context.CancelCauseFunc
-	interruptAt   time.Time
-	runStartedAt  time.Time
-	pendingResume *ResumeExec
-	lastInput     string
+	running      bool
+	emitted      bool
+	cancelExec   context.CancelCauseFunc
+	interruptAt  time.Time
+	runStartedAt time.Time
+	lastInput    string
+	connecting   bool
 
 	popup         *Popup
 	popupQueue    []Pending
@@ -119,7 +119,7 @@ func (t TUI) Init() tea.Cmd {
 	} else {
 		seq = append(seq, func() tea.Msg { return StartupSelectSession{} })
 	}
-	return tea.Sequence(seq...)
+	return tea.Batch(tea.Sequence(seq...), t.spinner.Tick)
 }
 
 type CancelRunConfirm struct {
@@ -183,6 +183,7 @@ func newModel(ctx context.Context) TUI {
 		spinner:            sp,
 		cwd:                cwd,
 		daemonStatus:       getDaemonStatus(),
+		connecting:         true,
 		httpStatus:         getHttpStatus(),
 		discordStatus:      getDiscordStatus(),
 		telegramStatus:     getTelegramStatus(),

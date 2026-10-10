@@ -8,6 +8,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
@@ -21,7 +22,7 @@ func CancelSessionTask() gin.HandlerFunc {
 			return
 		}
 
-		if taskHash != "" && taskHash != "current" && exec.Cancel(taskHash) {
+		if taskHash != "" && taskHash != "current" && exec.Cancel(taskHash, runtime.ErrUserCanceled) {
 			c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": true})
 			return
 		}

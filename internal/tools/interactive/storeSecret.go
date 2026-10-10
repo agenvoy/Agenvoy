@@ -83,7 +83,7 @@ Credentials travel only through this tool's masked input; the value stays out of
 
 func SecretPrompt(ctx context.Context, sessionID, question string) (string, error) {
 	origin := originFor(ctx, sessionID)
-	if !runtime.HasListener(origin) {
+	if !runtime.HasListener(ctx, origin) {
 		return "", fmt.Errorf("store_secret requires an interactive channel (TUI / Telegram / Discord)")
 	}
 
