@@ -15,6 +15,7 @@ const (
 	FrameCancel  = "cancel"
 	FrameSteer   = "steer"
 	FrameVerify  = "verify"
+	FrameWorkDir = "workdir"
 )
 
 type Frame struct {

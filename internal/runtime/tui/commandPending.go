@@ -119,6 +119,9 @@ func (t TUI) runPendingDelete(msg PendingDeleteConfirm) (TUI, tea.Cmd) {
 }
 
 func (t TUI) resumePending(msg PendingSelect) (tea.Model, tea.Cmd) {
+	if t.running || t.connecting {
+		return t, nil
+	}
 	if _, ok := interactive.LoadPendingInfo(msg.id, msg.taskHash); !ok {
 		return t, notice(msgLog("pending task already resolved in another session") + "\n")
 	}

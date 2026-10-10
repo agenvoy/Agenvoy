@@ -33,6 +33,16 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	}
 
 	c.addWindow(f.Rayload.WindowHash)
+	runningMu.Lock()
+	runningConn[sessionID] = c
+	runningMu.Unlock()
+	defer func() {
+		runningMu.Lock()
+		if runningConn[sessionID] == c {
+			delete(runningConn, sessionID)
+		}
+		runningMu.Unlock()
+	}()
 	execCtx := agentTypes.WithOrigin(ctx, "cli-")
 	execCtx = exec.WithBotPushPrefix(execCtx, go_pkg_utils.TruncateString(f.Rayload.Input, 32))
 	execCtx = agentTypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
@@ -70,8 +80,16 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError:
 			terminated = true
 		}
-		if ev.TaskHash != "" {
+		if ev.TaskHash != "" && ev.TaskHash != taskHash {
 			taskHash = ev.TaskHash
+			c.askMu.Lock()
+			c.tasks[taskHash] = true
+			c.askMu.Unlock()
+			defer func(hash string) {
+				c.askMu.Lock()
+				delete(c.tasks, hash)
+				c.askMu.Unlock()
+			}(taskHash)
 		}
 		frame := Frame{Type: FrameEvent, UUID: f.UUID, SessionID: sessionID, Event: &ev}
 		if ev.Err != nil {

@@ -17,6 +17,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
+	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 func Listen(ctx context.Context) (func(), error) {
@@ -32,6 +33,8 @@ func Listen(ctx context.Context) (func(), error) {
 		listener.Close()
 		return nil, fmt.Errorf("os.Chmod: %w", err)
 	}
+
+	tools.WorkDirChangeHook = notifyWorkDir
 
 	go func() {
 		for {
@@ -56,9 +59,24 @@ type conn struct {
 	askMu   sync.Mutex
 	asks    map[string]runtime.Request
 	windows map[string]bool
+	tasks   map[string]bool
 }
 
 var errDisconnected = errors.New("client disconnected")
+
+var (
+	runningMu   sync.Mutex
+	runningConn = map[string]*conn{}
+)
+
+func notifyWorkDir(sessionID, dir string) {
+	runningMu.Lock()
+	c := runningConn[sessionID]
+	runningMu.Unlock()
+	if c != nil {
+		c.write(Frame{Type: FrameWorkDir, SessionID: sessionID, Rayload: &Payload{WorkDir: dir}})
+	}
+}
 
 func serve(ctx context.Context, raw net.Conn) {
 	c := &conn{
@@ -66,6 +84,7 @@ func serve(ctx context.Context, raw net.Conn) {
 		enc:     json.NewEncoder(raw),
 		asks:    map[string]runtime.Request{},
 		windows: map[string]bool{},
+		tasks:   map[string]bool{},
 	}
 
 	connCtx, cancel := context.WithCancelCause(ctx)
@@ -86,6 +105,12 @@ func serve(ctx context.Context, raw net.Conn) {
 		case FrameRun:
 			go c.run(connCtx, f)
 		case FrameCancel:
+			c.askMu.Lock()
+			own := c.tasks[f.TaskHash]
+			c.askMu.Unlock()
+			if !own {
+				continue
+			}
 			cause := runtime.ErrUserCanceled
 			if f.Pause {
 				cause = nil

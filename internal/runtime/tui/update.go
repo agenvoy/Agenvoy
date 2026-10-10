@@ -248,7 +248,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if t.running {
 				raw := t.textarea.Value()
-				if strings.TrimSpace(raw) == "" {
+				if trimmed := strings.TrimSpace(raw); trimmed == "" || strings.HasPrefix(trimmed, "/") {
 					return t, nil
 				}
 				if err := ipcClient.Load().Steer(t.currentSessionID, tuiHash.Get(), raw); err != nil {
@@ -265,7 +265,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if content == "" {
 				return t, nil
 			}
-			if t.connecting && !strings.HasPrefix(content, "/") {
+			if t.connecting && (!strings.HasPrefix(content, "/") || noMatches(content)) {
 				return t, nil
 			}
 			t = t.recordInputHistory(raw)

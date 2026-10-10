@@ -10,7 +10,6 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
-	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
 var (
@@ -57,13 +56,6 @@ func Run(ctx context.Context) error {
 	program.Store(prog)
 	defer program.Store(nil)
 
-	tools.WorkDirChangeHook = func(dir string) {
-		send(WorkDir{dir: dir})
-	}
-	defer func() {
-		tools.WorkDirChangeHook = nil
-	}()
-
 	restoreSlog := installSlogTUI()
 	defer restoreSlog()
 
@@ -85,6 +77,8 @@ func Run(ctx context.Context) error {
 		})
 	}, func(err error) {
 		send(restrictedVerified{err: err})
+	}, func(dir string) {
+		send(WorkDir{dir: dir})
 	}, func(connected bool) {
 		send(daemonState{connected: connected})
 	}))

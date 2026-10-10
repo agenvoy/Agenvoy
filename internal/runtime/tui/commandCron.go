@@ -26,6 +26,9 @@ func listCronEntries() []runtime.CronEntry {
 }
 
 func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
+	if t.connecting {
+		return t, nil
+	}
 	if content == "" {
 		return t, nil
 	}
