@@ -94,6 +94,10 @@ func serve(ctx context.Context, raw net.Conn) {
 			go c.run(ctx, f)
 		case FrameCancel:
 			exec.Cancel(f.TaskHash)
+		case FrameSteer:
+			if f.Rayload != nil {
+				exec.AppendSteer(f.SessionID, f.Rayload.WindowHash, f.Rayload.Input)
+			}
 		case FramePending:
 			go c.pending(ctx, f)
 		case FrameReply:

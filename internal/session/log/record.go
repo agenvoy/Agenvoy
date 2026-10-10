@@ -31,13 +31,13 @@ func Append(sessionID, windowHash, str string) {
 	appendAction(sessionID, withTimestamp(windowHash, "user", "", flatten(str)))
 }
 
-func Steer(sessionID, str string) {
+func Steer(sessionID, windowHash, str string) {
 	str = strings.TrimSpace(str)
 	if str == "" {
 		return
 	}
-	flushAssistant(sessionID, agentTypes.Event{})
-	appendAction(sessionID, withTimestamp("", "steer", "", flatten(str)))
+	flushAssistant(sessionID, agentTypes.Event{WindowHash: windowHash})
+	appendAction(sessionID, withTimestamp(windowHash, "steer", "", flatten(str)))
 }
 
 func Record(sessionID string, event agentTypes.Event) {

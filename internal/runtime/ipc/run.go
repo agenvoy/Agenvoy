@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
@@ -34,6 +35,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	}
 
 	execCtx := agentTypes.WithOrigin(context.WithoutCancel(ctx), "cli-")
+	execCtx = exec.WithBotPushPrefix(execCtx, go_pkg_utils.TruncateString(f.Rayload.Input, 32))
 	execCtx = agentTypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
 	execCtx = fast.With(execCtx, f.Rayload.Fast)
 	execCtx = guide.With(execCtx, f.Rayload.Guide)
@@ -54,9 +56,18 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
 		return exec.Start(execCtx, data, stream)
 	})
+	terminated := false
+	taskHash := ""
 	for ev := range events {
 		if ev.Type == agentTypes.EventTextDelta {
 			continue
+		}
+		switch ev.Type {
+		case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError:
+			terminated = true
+		}
+		if ev.TaskHash != "" {
+			taskHash = ev.TaskHash
 		}
 		frame := Frame{Type: FrameEvent, UUID: f.UUID, SessionID: sessionID, Event: &ev}
 		if ev.Err != nil {
@@ -69,6 +80,13 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	if err := wait(); err != nil {
 		result.Error = err.Error()
 		result.Canceled = errors.Is(err, context.Canceled) || errors.Is(err, runtime.ErrUserCanceled)
+		if !terminated {
+			ev := agentTypes.Event{Type: agentTypes.EventError, Text: err.Error(), TaskHash: taskHash, WindowHash: f.Rayload.WindowHash}
+			if result.Canceled {
+				ev.Type = agentTypes.EventCanceled
+			}
+			pubsub.Pub(sessionID, ev)
+		}
 	}
 	c.write(result)
 }

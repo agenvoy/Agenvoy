@@ -242,7 +242,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if strings.TrimSpace(raw) == "" {
 					return t, nil
 				}
-				exec.AppendSteer(t.currentSessionID, raw)
+				exec.AppendSteer(t.currentSessionID, "", raw)
 				t.pendingSteer = append(t.pendingSteer, raw)
 				t.textarea.Reset()
 				t.textarea.SetHeight(1)

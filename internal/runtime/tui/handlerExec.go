@@ -122,7 +122,7 @@ type agentExecDone struct {
 const interruptWindow = 3 * time.Second
 
 func runExec(parentCtx context.Context, input string, allowAll bool, workDir, sessionID, pendingTask, historyContent string) {
-	ctx, cancel := context.WithCancelCause(exec.WithDcPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
+	ctx, cancel := context.WithCancelCause(exec.WithBotPushPrefix(parentCtx, go_pkg_utils.TruncateString(input, 32)))
 	send(agentExec{cancel: cancel})
 
 	ch := make(chan agentTypes.Event, 16)

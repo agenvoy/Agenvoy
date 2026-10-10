@@ -13,6 +13,7 @@ const (
 	FrameReply   = "reply"
 	FramePending = "pending"
 	FrameCancel  = "cancel"
+	FrameSteer   = "steer"
 )
 
 type Frame struct {
