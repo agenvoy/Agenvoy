@@ -113,25 +113,25 @@ var (
 
 // * Prompts
 
-//go:embed prompts/skill_execution.md
+//go:embed prompts/system_prompt/component/skill_execution.md
 var SkillExecution string
 
-//go:embed prompts/summary_context.md
+//go:embed prompts/system_prompt/inject/summary_context.md
 var SummaryContext string
 
-//go:embed prompts/followup.md
+//go:embed prompts/system_prompt/followup.md
 var FollowupPrompt string
 
-//go:embed prompts/voice.md
+//go:embed prompts/system_prompt/voice.md
 var VoicePrompt string
 
-//go:embed prompts/assign_skill.md
+//go:embed prompts/system_prompt/inject/assign_skill.md
 var AssignSkill string
 
 //go:embed prompts/system_prompt/agent_selector.md
 var AgentSelector string
 
-//go:embed prompts/model_selection.md
+//go:embed prompts/system_prompt/component/model_selection.md
 var ModelSelection string
 
 //go:embed prompts/system_prompt/memory/compact_exec_prompt.md
@@ -155,16 +155,16 @@ var ChatCompletionsSystemPrompt string
 //go:embed prompts/system_prompt/default_rule.md
 var DefaultRule string
 
-//go:embed prompts/system_prompt/permission/always_allow.md
+//go:embed prompts/system_prompt/inject/permission/always_allow.md
 var PermissionAlwaysAllow string
 
-//go:embed prompts/system_prompt/permission/single_confirm.md
+//go:embed prompts/system_prompt/inject/permission/single_confirm.md
 var PermissionSingleConfirm string
 
 //go:embed prompts/system_prompt/subagent.md
 var SubagentPrompt string
 
-//go:embed prompts/system_prompt/wsl_host.md
+//go:embed prompts/system_prompt/component/wsl_host.md
 var WSLHost string
 
 // * Prompts > systemPrompt > Chatbot
@@ -185,6 +185,18 @@ var InjectToolSummary string
 
 //go:embed prompts/system_prompt/inject/schedule_run.md
 var InjectScheduleRun string
+
+//go:embed prompts/system_prompt/inject/turn_context/work_dir.md
+var InjectWorkDir string
+
+//go:embed prompts/system_prompt/inject/turn_context/tools.md
+var InjectTools string
+
+//go:embed prompts/system_prompt/inject/turn_context/skills.md
+var InjectSkills string
+
+//go:embed prompts/system_prompt/inject/turn_context/agent_guide.md
+var InjectAgentGuide string
 
 // * Prompts > Guide
 

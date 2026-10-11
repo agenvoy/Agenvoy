@@ -10,6 +10,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -19,16 +20,16 @@ func assignTurnContext(ctx context.Context, session *agentTypes.AgentSession, wo
 	var parts []string
 	if !session.Stateless {
 		parts = append(parts,
-			"Work directory: `"+workDir+"` is authoritative this turn; ignore earlier ones in history. `run_command` already starts there — `cd` only to reach another directory: `run_command argv=[\"cd\", \"<path>\"]`.",
+			strings.ReplaceAll(strings.TrimSpace(configs.InjectWorkDir), "{{.WorkDir}}", workDir),
 			buildPermissionModeSection(allowAll),
 		)
 	}
 	if len(toolNames) > 0 {
-		parts = append(parts, "Tools (call through run_tool): "+strings.Join(toolNames, ", "))
+		parts = append(parts, strings.ReplaceAll(strings.TrimSpace(configs.InjectTools), "{{.Tools}}", strings.Join(toolNames, ", ")))
 	}
 	if withSkills {
 		if list := skillListBlock(scanner, excludeSkills); list != "" {
-			parts = append(parts, "Available skills:\n\n"+list)
+			parts = append(parts, strings.ReplaceAll(strings.TrimSpace(configs.InjectSkills), "{{.Skills}}", list))
 		}
 	}
 	if !session.Stateless {
@@ -65,7 +66,10 @@ func agentGuideSection(ctx context.Context, workDir string) string {
 		if content = strings.TrimSpace(content); content == "" {
 			continue
 		}
-		return "## External Agent Guide\n\n`" + path + "`\n\n" + content
+		return strings.NewReplacer(
+			"{{.Path}}", path,
+			"{{.Content}}", content,
+		).Replace(strings.TrimSpace(configs.InjectAgentGuide))
 	}
 	return ""
 }
