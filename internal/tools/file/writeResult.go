@@ -3,10 +3,13 @@ package file
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -19,9 +22,8 @@ func registWriteResult() {
 		AlwaysAllow: true,
 		Concurrent:  false,
 		Description: `Saves one long-form deliverable as a .md or .html file and returns the write receipt with its path.
-Use for the research / analysis / comparison / report body the reply summarises instead of reprinting, and for a finished HTML page.
-Any other file, or a change to a file that already exists → edit_file.
-Reach for it past roughly 400 words, more than two sections, or a table plus commentary; the same message still carries every key finding, figure and decision.`,
+Use for 報告 / 整理 / 分析 / 比較 / 做成網頁 / html — the body the reply summarises instead of reprinting; format=html only after reasoning_guide(topics=[html_render]).
+Any other file, or a change to an existing file → edit_file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -57,6 +59,16 @@ Reach for it past roughly 400 words, more than two sections, or a table plus com
 
 			if err := rejectElided(params.Content, nil); err != nil {
 				return "", err
+			}
+
+			if params.Format == "html" {
+				if problems, quickUI := checkHTML(params.Content); len(problems) > 0 {
+					msg := "html check failed, nothing written; fix every item and call write_result again:\n- " + strings.Join(problems, "\n- ")
+					if !quickUI {
+						msg += "\n\nThe page was not built per html_render; rebuild it against these rules:\n\n## html_render\n\n" + strings.TrimSpace(configs.GuideHtmlRender)
+					}
+					return "", errors.New(msg)
+				}
 			}
 
 			return writeFileContent(ctx, e, resultPath(params.Format), params.Content, "write_result")

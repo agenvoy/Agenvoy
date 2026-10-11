@@ -30,7 +30,10 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 )
 
-require mvdan.cc/sh/v3 v3.13.1
+require (
+	github.com/tdewolff/parse/v2 v2.8.16
+	mvdan.cc/sh/v3 v3.13.1
+)
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
