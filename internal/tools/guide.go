@@ -12,12 +12,12 @@ import (
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-var topicNames = []string{"tool_generate", "tool_error", "rag_web", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"}
+var topicNames = []string{"tool_generate", "tool_error", "web_search", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"}
 
 var topicGuides = map[string]string{
 	"tool_generate":     configs.GuideToolGenerate,
 	"tool_error":        configs.GuideToolError,
-	"rag_web":           configs.GuideRAGWeb,
+	"web_search":        configs.GuideWebSearch,
 	"market_analysis":   configs.GuideMarketAnalysis,
 	"targeted_read":     configs.GuideTargetedRead,
 	"ask_user":          configs.GuideAskUser,
@@ -38,7 +38,7 @@ Full rule per topic — call before acting on any match, listing every topic tha
 
 - tool_error: read it after a tool call has come back failed, never before one has — recovery loop, script_*/api_* auto-repair via edit_tool(mode=patch), [RETRY_REQUIRED] handling. Read before retrying, before error_history, before edit_tool(mode=patch).
 - tool_generate: request needs live external data (weather, currency, stock, geocoding, translation, ...) and no api_*/script_*/ext_* covers it — find_tools(mode=search) found nothing, or an existing one fails. Carries the build contract (naming, description rules, tool.json/script.py format, execution flow), then edit_tool(mode=write) → test_tool (script only) → call it. Hard gate, decided by what the turn leaves behind: a capability that will be called again — fetching it directly via http_request or run_command curl/python3 is PROHIBITED even with a known endpoint, fetch_page is for docs, the data fetch lives in script.py. A finding that answers this turn and is then done leaves no tool: call the endpoint as many times as the check needs and report what came back. A missing tool is built, never reported as a limitation.
-- rag_web: non-smalltalk info query (people, orgs, facts, current events, prices, time-sensitive) — RAG and live web fire in parallel every time both are available; carries the source-citation rule and the fallback when one side is missing.
+- web_search: non-smalltalk info query (people, orgs, facts, current events, prices, time-sensitive) — search_web then fetch_page; carries the source-citation rule.
 - market_analysis: stock/ETF/market analysis — assess the macro, regional, industry and asset-specific layers, not one alone.
 - targeted_read: file question needs only specific symbols/sections/keywords — search first, narrow read_files over whole-file read.
 - ask_user: missing target, vague scope, unclear spec, ambiguous time, scheduling without content, non-unique tool choice — resolve intent first.

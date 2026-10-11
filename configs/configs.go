@@ -206,8 +206,8 @@ var GuideToolGenerate string
 //go:embed prompts/guide/tool_error.md
 var GuideToolError string
 
-//go:embed prompts/guide/rag_web.md
-var GuideRAGWeb string
+//go:embed prompts/guide/web_search.md
+var GuideWebSearch string
 
 //go:embed prompts/guide/market_analysis.md
 var GuideMarketAnalysis string

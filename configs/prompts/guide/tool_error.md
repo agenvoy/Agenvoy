@@ -1,26 +1,24 @@
-### Loop: adjust → retry → success
+### Retry loop
 
-1. Read the returned error message — it determines the adjustment direction, not a guess.
-2. Check injected hints first — resolved = apply directly; failed = avoid, try a different approach.
-3. No hints injected and this is the 2nd+ retry → `error_history(mode=search, keyword)` before retrying — resolved = apply; failed/abandoned = avoid.
-4. Never retry with identical arguments. Every retry must change something based on the error, hint, or history hit.
-5. Max 3 attempts total per error before treating it as failed/abandoned.
+- **Direction**: the returned error message decides the adjustment, not a guess.
+- **Injected hints first**: a `resolved` hint → apply it; a `failed` hint → take a different approach.
+- **History**: from the 2nd retry with no hint injected → `error_history(mode=search, keyword)` before retrying; apply a `resolved` hit, avoid a `failed`/`abandoned` one.
+- **Every retry changes something** the error, hint or history hit points to; identical arguments fail identically.
+- **Limit**: 3 attempts per error, then treat it as failed.
+- **`[RETRY_REQUIRED]`**: a result starting with it → retry at once with the arguments it specifies; its content is an instruction to you, not text for the user. Injected hints are binding.
 
-### script_* / api_* auto-repair
+### Self-authored tools (`script_*` / `api_*`)
 
-When the failing tool is self-authored (`script_*` or `api_*`), repair it in place instead of working around it — `ext_*` (installed extension) tools are not patchable, fall back to the adjust → retry loop above:
+Repair the tool in place; a workaround leaves it broken for the next call. `ext_*` tools are installed extensions and cannot be patched — they use the retry loop above.
 
-1. Diagnose the error: runtime exception → tag=`script`; parameter/schema mismatch → tag=`json`; API tool definition (url/auth/endpoint) → tag=`api`.
-2. `edit_tool(mode=patch, name, tag, old_string, new_string)` to fix it.
-3. Retry the same tool call (counts toward the 3-attempt max).
-4. Do not fall back to `http_request`, `run_command curl ...`, `run_command python3 -c "..."`, or any other shortcut — repair the tool, never bypass it.
+1. Classify the error: runtime exception → `tag=script`; parameter/schema mismatch → `tag=json`; URL, auth or endpoint in an API definition → `tag=api`.
+2. `edit_tool(mode=patch, name, tag, old_string, new_string)`.
+3. Retry the same call (counts toward the 3 attempts).
 
-### [RETRY_REQUIRED] responses
+`http_request`, `run_command curl ...` or `run_command python3 -c "..."` bypass the tool instead of repairing it.
 
-If a tool result starts with `[RETRY_REQUIRED]`, retry immediately with the fixed arguments it specifies — never output that content as text to the user. Injected hints are binding, not suggestions.
+### Recording
 
-### On success or exhaustion, record
-
-- Non-trivial fix confirmed working → call `error_history(mode=write)` with `outcome=resolved`. Only that outcome is stored; `failed` and `abandoned` are discarded, so a dead end is not worth writing up.
-- Skip `error_history(mode=write)` for trivial typos, 1st-retry fixes, or transient errors (network blip, timeout) that don't generalize.
-- Batch `error_history(mode=write)` with other tool calls in the same turn; only call it alone when no other call remains.
+- **Write** `error_history(mode=write, outcome=resolved)` once a non-trivial fix is confirmed. Only `resolved` is stored; `failed` and `abandoned` are discarded, so a dead end is not worth writing up.
+- **Skip** typos, fixes that worked on the 1st retry, and transient errors (network blip, timeout) that do not generalize.
+- **Batch** the write with the turn's other tool calls; call it alone only when nothing else remains.
