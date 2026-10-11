@@ -113,30 +113,6 @@ func ListAction(ctx context.Context, sessionID string) ([]ActionRecord, error) {
 	return list, nil
 }
 
-func ReadAction(ctx context.Context, sessionID, taskHash string) (ActionRecord, bool, error) {
-	if conn == nil || sessionID == "" || taskHash == "" {
-		return ActionRecord{}, false, nil
-	}
-
-	rows, err := conn.QueryContext(ctx, `
-	SELECT `+actionColumns+`
-	FROM action_history
-	WHERE session_id = ? AND task_hash = ?`, sessionID, taskHash)
-	if err != nil {
-		return ActionRecord{}, false, fmt.Errorf("sql.DB QueryContext [SELECT action_history]: %w", err)
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return ActionRecord{}, false, rows.Err()
-	}
-	one, err := scanAction(rows)
-	if err != nil {
-		return ActionRecord{}, false, err
-	}
-	return one, true, nil
-}
-
 func ClearAction(ctx context.Context, sessionID string) error {
 	if conn == nil || sessionID == "" {
 		return nil

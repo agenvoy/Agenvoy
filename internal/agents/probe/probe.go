@@ -122,10 +122,6 @@ func modelsCacheKey(name string) string {
 	return "provider:models:list:" + strings.TrimSuffix(name, "@")
 }
 
-func DropModelsCache(ctx context.Context, name string) {
-	torii.DropKeys(ctx, modelsCacheKey(name))
-}
-
 func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {

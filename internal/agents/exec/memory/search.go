@@ -39,32 +39,6 @@ func Search(ctx context.Context, tool, keyword string, limit int) string {
 	return format(records, limit)
 }
 
-func List(tool string, limit int) []Record {
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 200 {
-		limit = 200
-	}
-	pattern := "*"
-	if tool != "" {
-		pattern = tool + ":*"
-	}
-
-	db := torii.DB(torii.DBErrorMemory)
-	entries := db.Scan(context.Background(), pattern, torii.ScanOption{Limit: limit})
-
-	out := make([]Record, 0, len(entries))
-	for _, entry := range slices.Backward(entries) {
-		var rec Record
-		if err := json.Unmarshal([]byte(entry.Value()), &rec); err != nil {
-			continue
-		}
-		out = append(out, rec)
-	}
-	return out
-}
-
 func vectorSearch(ctx context.Context, db *torii.Session, pattern, keyword string, limit int) []Record {
 	keys, err := db.VSearch(ctx, keyword, pattern, limit)
 	if err != nil || len(keys) == 0 {

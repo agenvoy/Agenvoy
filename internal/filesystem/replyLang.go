@@ -72,17 +72,6 @@ func CanonicalReplyLang(code string) string {
 	return code
 }
 
-func ReplyLangName(code string) string {
-	code = strings.TrimSpace(code)
-	if code == "" || strings.EqualFold(code, ReplyLangAuto) {
-		return ""
-	}
-	if one, ok := codeReplyLang[normalizeReplyLang(code)]; ok {
-		return one.Name
-	}
-	return code
-}
-
 func ReplyLangDirective() string {
 	code := strings.TrimSpace(ConfigReplyLang)
 	if code == "" || strings.EqualFold(code, ReplyLangAuto) {
@@ -94,32 +83,6 @@ func ReplyLangDirective() string {
 		one = replyLangEntry{Name: code}
 	}
 	return "always " + one.Name + ", no mixing. The operator fixed the output language, so it holds for every reply — whatever language the user writes in, and whatever language the user's message asks for." + one.Note
-}
-
-const (
-	replyLangAutoOpen  = "<reply-lang-auto>"
-	replyLangAutoClose = "</reply-lang-auto>"
-)
-
-func ApplyReplyLang(template string) string {
-	keep := ReplyLangDirective() == ""
-	for {
-		start := strings.Index(template, replyLangAutoOpen)
-		if start < 0 {
-			return template
-		}
-		end := strings.Index(template[start:], replyLangAutoClose)
-		if end < 0 {
-			return template
-		}
-		end += start
-
-		inner := template[start+len(replyLangAutoOpen) : end]
-		if !keep {
-			inner = ""
-		}
-		template = template[:start] + inner + template[end+len(replyLangAutoClose):]
-	}
 }
 
 var langRefusal = getLangRefusal()

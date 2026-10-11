@@ -46,10 +46,6 @@ func modelsCacheKey(name string) string {
 	return "provider:models:image:" + name
 }
 
-func DropModelsCache(ctx context.Context, name string) {
-	torii.DropKeys(ctx, modelsCacheKey(name))
-}
-
 func Available(ctx context.Context) []string {
 	filter := provider.ModelFilter{ImageOnly: true}
 	found := make([][]string, len(Providers))

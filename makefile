@@ -4,7 +4,7 @@ help:
 	@echo "How to use:"
 	@echo "  make build              Build binary and install to /usr/local/bin/agen"
 	@echo "  make app                Attach TUI; spawn server daemon (HTTP + Discord + Telegram) if not running"
-	@echo "  make dev                Same as app, but serves page/ from disk so index.html/public edits need no rebuild"
+	@echo "  make dev                Same as app, with --enable-claude-code"
 	@echo "  make stop               Stop the running server daemon"
 	@echo "  make update             Update agen to the latest release (always overwrite)"
 	@echo "  make test               Run all unit tests"
@@ -27,7 +27,7 @@ app:
 dev:
 	@$(MAKE) stop
 	@$(MAKE) build
-	@AGENVOY_PAGE_DIR=$(CURDIR)/page agen --enable-claude-code
+	@agen --enable-claude-code
 
 stop:
 	go run ./cmd/app/ stop

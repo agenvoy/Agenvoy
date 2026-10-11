@@ -67,10 +67,6 @@ func modelsCacheKey(kind, name string) string {
 	return "provider:models:" + kind + ":" + name
 }
 
-func DropModelsCache(ctx context.Context, name string) {
-	torii.DropKeys(ctx, modelsCacheKey("stt", name), modelsCacheKey("tts", name))
-}
-
 func STTOptions(ctx context.Context) []string {
 	return options(ctx, "stt", llmrouter.ModelFilter{STTOnly: true})
 }

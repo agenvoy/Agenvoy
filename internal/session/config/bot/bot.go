@@ -169,28 +169,6 @@ func ReplaceDefault(sessionID, name string) {
 	}
 }
 
-func NeedTitle(sessionID string) bool {
-	if sessionID == "" {
-		return false
-	}
-	row, _ := read(sessionID)
-	return autoNamed(row)
-}
-
-func SetTitle(sessionID, title string) error {
-	title = strings.TrimSpace(title)
-	if title == "" || !NeedTitle(sessionID) {
-		return nil
-	}
-
-	row, _ := read(sessionID)
-	if row.SessionID == "" {
-		return fmt.Errorf("sessionID is required")
-	}
-	row.Name = title
-	return write(row)
-}
-
 func Save(sessionID, name, body string, force bool) error {
 	if sessionID == "" {
 		return fmt.Errorf("sessionID is required")

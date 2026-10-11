@@ -24,10 +24,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
-	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	"github.com/pardnchiu/agenvoy/internal/runtime/webapp"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
@@ -108,19 +106,6 @@ func Daemon() {
 			slog.String("error", err.Error()))
 	}
 
-	if err := webapp.SyncAsset(context.Background()); err != nil {
-		slog.Warn("webapp.SyncAsset",
-			slog.String("error", err.Error()))
-	}
-
-	if path, err := webapp.Install(context.Background()); err != nil {
-		slog.Warn("webapp.Install",
-			slog.String("error", err.Error()))
-	} else {
-		slog.Debug("webapp.Install",
-			slog.String("path", path))
-	}
-
 	if err := go_pkg_sandbox.CheckDependence(); err != nil {
 		slog.Error("sandbox.CheckDependence",
 			slog.String("error", err.Error()))
@@ -176,8 +161,6 @@ func Daemon() {
 
 	app.ReloadDiscord(0)
 	app.ReloadTelegram(0)
-
-	handler.StartWebConfirm(context.Background())
 
 	stopIPC, err := ipc.Listen(context.Background())
 	if err != nil {

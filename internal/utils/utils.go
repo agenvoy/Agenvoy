@@ -123,10 +123,6 @@ func FormatToolArgs(name, raw, cwd string) string {
 	return formatToolArgs(name, raw, cwd, false)
 }
 
-func FormatToolConfirmArgs(name, raw string) string {
-	return formatToolArgs(name, raw, "", true)
-}
-
 func formatToolArgs(name, raw, cwd string, fullPath bool) string {
 	if raw == "" {
 		return ""

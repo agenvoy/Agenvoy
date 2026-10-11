@@ -30,10 +30,3 @@ func CachedList(ctx context.Context, key string, ttl int64, fetch func() ([]stri
 	}
 	return list, nil
 }
-
-func DropKeys(ctx context.Context, keys ...string) {
-	if !Ready() {
-		return
-	}
-	DB(DBToolCache).Del(ctx, keys...)
-}

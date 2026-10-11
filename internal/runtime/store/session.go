@@ -134,31 +134,6 @@ func ReadSession(ctx context.Context, sessionID string) (SessionRow, bool, error
 	return one, true, nil
 }
 
-func ListSessionRows(ctx context.Context) (map[string]SessionRow, error) {
-	if conn == nil {
-		return nil, nil
-	}
-
-	rows, err := conn.QueryContext(ctx, `SELECT `+sessionSelectColumns+` FROM session`)
-	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT session]: %w", err)
-	}
-	defer rows.Close()
-
-	dic := map[string]SessionRow{}
-	for rows.Next() {
-		one, err := scanSession(rows)
-		if err != nil {
-			return nil, err
-		}
-		dic[one.SessionID] = one
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT session]: %w", err)
-	}
-	return dic, nil
-}
-
 func FindSessionByChat(ctx context.Context, chatID string) string {
 	return findSessionBy(ctx, "chat_id", chatID)
 }

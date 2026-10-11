@@ -44,19 +44,6 @@ func markRunning(sessionID string) func() {
 	}
 }
 
-func IsRunning(sessionID string) bool {
-	if sessionID == "" {
-		return false
-	}
-	v, ok := runningMap.Load(sessionID)
-	if !ok {
-		return false
-	}
-	runningMu.Lock()
-	defer runningMu.Unlock()
-	return v.(*runningEntry).count > 0
-}
-
 func AppendSteer(sessionID, windowHash, text string) {
 	v, _ := steerMap.LoadOrStore(sessionID, &steerEntry{})
 	e := v.(*steerEntry)

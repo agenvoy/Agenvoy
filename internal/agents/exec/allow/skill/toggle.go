@@ -46,22 +46,3 @@ func ToggleGlobal(name string) (bool, error) {
 	}
 	return added, write(filesystem.AllowSkillGlobalPath, set)
 }
-
-func ToggleProject(workDir, name string) (bool, error) {
-	if strings.TrimSpace(workDir) == "" {
-		return false, fmt.Errorf("empty workDir")
-	}
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return false, fmt.Errorf("empty skill name")
-	}
-	set := LoadProject(workDir)
-	added := false
-	if set[name] {
-		delete(set, name)
-	} else {
-		set[name] = true
-		added = true
-	}
-	return added, write(filesystem.AllowSkillProjectPath(workDir), set)
-}

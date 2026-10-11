@@ -38,11 +38,3 @@ func LoadProject(workDir string) map[string]bool {
 	}
 	return read(filesystem.AllowSkillProjectPath(workDir))
 }
-
-func LoadEffective(workDir string) map[string]bool {
-	out := LoadGlobal()
-	for name := range LoadProject(workDir) {
-		out[name] = true
-	}
-	return out
-}

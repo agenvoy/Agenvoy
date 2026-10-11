@@ -126,44 +126,6 @@ func (m *MCP) Instructions() map[string]string {
 	return out
 }
 
-func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
-	if m == nil {
-		return nil
-	}
-
-	m.mu.Lock()
-	for _, c := range m.clients {
-		_ = c.Close()
-	}
-	m.clients = map[string]Client{}
-	m.lastError = map[string]string{}
-	m.toolsSum = map[string]string{}
-	m.mu.Unlock()
-
-	toolRegister.RemoveByPrefix("mcp__")
-
-	cfg, err := Load()
-	if err != nil {
-		return err
-	}
-
-	m.mu.Lock()
-	for _, key := range slices.Sorted(maps.Keys(cfg.Servers)) {
-		client, err := newClient(ctx, key, cfg.Servers[key], m.refresher(key))
-		if err != nil {
-			slog.Warn("mcp reconnect newClient",
-				slog.String("server", key),
-				slog.String("error", err.Error()))
-			continue
-		}
-		m.clients[key] = client
-	}
-	m.mu.Unlock()
-
-	m.RegisterAll(ctx)
-	return nil
-}
-
 func (m *MCP) ReconnectServer(ctx context.Context, name string) error {
 	if m == nil {
 		return fmt.Errorf("no MCP manager")

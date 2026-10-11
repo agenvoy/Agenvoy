@@ -40,7 +40,7 @@ func newDaemonLog(ctx context.Context) {
 }
 
 func streamDaemonLog(ctx context.Context, client *http.Client) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, daemon.BaseURL()+"/v1/log?daemon=1&replay=0", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, daemon.BaseURL()+"/v1/log", nil)
 	if err != nil {
 		return fmt.Errorf("http.NewRequestWithContext: %w", err)
 	}

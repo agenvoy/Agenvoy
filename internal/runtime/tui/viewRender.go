@@ -366,7 +366,7 @@ func noticeBlock(body string, offset, width int) string {
 }
 
 func headerBlock(daemon, http, discord, telegram, sessionID string) string {
-	logo := whiteStyle.Bold(true).Render("Agenvoy ") + hintStyle.Render(runtime.CurrentVersion)
+	logo := whiteStyle.Bold(true).Render("Agenvoy-TUI ") + hintStyle.Render(runtime.CurrentVersion)
 
 	const markCol = 20
 	const gap = "   "

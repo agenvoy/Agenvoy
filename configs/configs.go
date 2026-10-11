@@ -52,14 +52,6 @@ const (
 	RUN_COMMAND_TIMEOUT    = 30 * time.Minute
 	MAX_WATCH_SCRIPT_DEPTH = 4
 
-	// * Followup
-	FOLLOWUP_TIMEOUT        = 30 * time.Second
-	FOLLOWUP_MAX_TURNS      = 4
-	FOLLOWUP_MAX_TURN_RUNES = 512
-	FOLLOWUP_MAX_TITLE      = 32
-	FOLLOWUP_MAX_SUGGEST    = 3
-	FOLLOWUP_SUGGEST_RUNES  = 32
-
 	// * Size
 	MAX_DOCUMENT_BYTES       = 1 << 20
 	MAX_PENDING_RESULT_BYTES = MAX_DOCUMENT_BYTES / 32
@@ -78,7 +70,6 @@ var (
 	MAX_HISTORY_MESSAGES     = 16
 	MAX_HISTORY_BYTES        = MAX_DOCUMENT_BYTES * 4
 	MAX_SUBAGENT_TIMEOUT_MIN = 30
-	MAX_RESUME_WAIT_MIN      = 60
 
 	// * Pattern
 	RETRY_INTERVALS = []time.Duration{
@@ -118,12 +109,6 @@ var SkillExecution string
 
 //go:embed prompts/summary_context.md
 var SummaryContext string
-
-//go:embed prompts/followup.md
-var FollowupPrompt string
-
-//go:embed prompts/voice.md
-var VoicePrompt string
 
 //go:embed prompts/assign_skill.md
 var AssignSkill string

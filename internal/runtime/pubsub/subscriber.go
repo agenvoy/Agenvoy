@@ -20,10 +20,6 @@ func (s *Subscriber) Events() <-chan agentTypes.Event {
 	return s.channel
 }
 
-func (s *Subscriber) TakeDropped() int64 {
-	return s.dropped.Swap(0)
-}
-
 func (s *Subscriber) Close() {
 	s.mu.Lock()
 	if s.closed {

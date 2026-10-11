@@ -1,27 +1,17 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"net/http"
 	"slices"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
-	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
 	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 type providerInfo struct {
@@ -72,15 +62,6 @@ var providerCatalog = []providerInfo{
 	{"compat", "Local/Custom", map[string]string{"custom": "Ollama, LM Studio, or custom URL"}},
 }
 
-func findProvider(id string) *providerInfo {
-	for i := range providerCatalog {
-		if providerCatalog[i].ID == id {
-			return &providerCatalog[i]
-		}
-	}
-	return nil
-}
-
 func providerLoggedIn(id string) bool {
 	switch id {
 	case "claude-code":
@@ -126,239 +107,5 @@ func ProviderConsole() gin.HandlerFunc {
 			return
 		}
 		c.Redirect(http.StatusFound, link)
-	}
-}
-
-func AddProviderKey() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		prov := c.Param("provider")
-
-		if prov == "compat" {
-			var body struct {
-				Name   string `json:"name"`
-				URL    string `json:"url"`
-				APIKey string `json:"api_key"`
-			}
-			if err := c.ShouldBindJSON(&body); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			name := strings.TrimSpace(body.Name)
-			url := strings.TrimSpace(body.URL)
-			if name == "" || url == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "name and url are required"})
-				return
-			}
-			envKey := "COMPAT_API_KEY"
-			if name != "" {
-				envKey = "COMPAT_" + strings.ToUpper(name) + "_API_KEY"
-			}
-			if key := strings.TrimSpace(body.APIKey); key != "" {
-				if err := keychain.Set(envKey, key); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				if err := config.SaveKey(envKey); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-			}
-			if err := config.UpsertCompat(name, url); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			DropQuotaCache(prov)
-			imageTool.DropModelsCache(c.Request.Context(), prov)
-			audioTool.DropModelsCache(c.Request.Context(), prov)
-			probe.DropModelsCache(c.Request.Context(), name)
-			c.JSON(http.StatusOK, gin.H{"ok": true})
-			return
-		}
-
-		p := findProvider(prov)
-		if p == nil || p.Methods["api_key"] == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support an API key"})
-			return
-		}
-
-		var body struct {
-			APIKey    string `json:"api_key"`
-			AccountID string `json:"account_id"`
-			GatewayID string `json:"gateway_id"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		key := strings.TrimSpace(body.APIKey)
-		if key == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "api_key is required"})
-			return
-		}
-
-		accountID := strings.TrimSpace(body.AccountID)
-		if prov == "cloudflare" && accountID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required for cloudflare"})
-			return
-		}
-
-		envKey := strings.ToUpper(prov) + "_API_KEY"
-		if err := keychain.Set(envKey, key); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if err := config.SaveKey(envKey); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
-		probe.DropModelsCache(c.Request.Context(), prov)
-
-		if prov == "cloudflare" {
-			if err := keychain.Set("CLOUDFLARE_ACCOUNT_ID", accountID); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			if gatewayID := strings.TrimSpace(body.GatewayID); gatewayID != "" {
-				if err := keychain.Set("CLOUDFLARE_GATEWAY_ID", gatewayID); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	}
-}
-
-func ProviderOAuth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		prov := c.Param("provider")
-		p := findProvider(prov)
-		if p == nil || p.Methods["oauth"] == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support oauth"})
-			return
-		}
-
-		h := c.Writer.Header()
-		h.Set("Content-Type", "text/event-stream")
-		h.Set("Cache-Control", "no-cache")
-		h.Set("Connection", "keep-alive")
-		h.Set("X-Accel-Buffering", "no")
-		c.Writer.WriteHeader(http.StatusOK)
-		c.Writer.Flush()
-
-		emit := func(v any) {
-			raw, err := json.Marshal(v)
-			if err != nil {
-				return
-			}
-			fmt.Fprintf(c.Writer, "data: %s\n\n", raw)
-			c.Writer.Flush()
-		}
-
-		ctx := c.Request.Context()
-		var err error
-		switch prov {
-		case "claude-code":
-			err = claudeCode.CheckBinary()
-		case "copilot":
-			_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
-				emit(gin.H{"url": code.VerificationURI, "user_code": code.UserCode})
-			})
-		case "codex":
-			_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
-				emit(gin.H{"url": url})
-			})
-		case "grok-oauth":
-			_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
-				emit(gin.H{"url": url})
-			})
-		}
-		if err != nil {
-			emit(gin.H{"done": true, "ok": false, "error": err.Error()})
-			return
-		}
-		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
-		probe.DropModelsCache(c.Request.Context(), prov)
-		emit(gin.H{"done": true, "ok": true})
-	}
-}
-
-func ClearProviderOAuth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		prov := c.Param("provider")
-		p := findProvider(prov)
-		if p == nil || p.Methods["oauth"] == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support oauth"})
-			return
-		}
-
-		var err error
-		switch prov {
-		case "codex":
-			err = oauthCodex.ClearToken()
-		case "copilot":
-			err = oauthCopilot.ClearToken()
-		case "grok-oauth":
-			err = oauthGrokOauth.ClearToken()
-		}
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
-		probe.DropModelsCache(c.Request.Context(), prov)
-		imageTool.Prune(c.Request.Context())
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	}
-}
-
-func modelWindows(c *gin.Context, prefix string, ids []string) map[string]gin.H {
-	dic := make(map[string]gin.H, len(ids))
-	for _, id := range ids {
-		in, out, ok := compact.Window(c.Request.Context(), prefix+"@"+id)
-		if !ok {
-			continue
-		}
-		dic[id] = gin.H{"in": in, "out": out}
-	}
-	return dic
-}
-
-func listModelsFor(c *gin.Context, credentialName string) {
-	if !probe.Supports(probe.Provider(credentialName)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider does not support model listing"})
-		return
-	}
-	ids, err := probe.Models(c.Request.Context(), credentialName)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"models": ids, "windows": modelWindows(c, credentialName, ids)})
-}
-
-func ListProviderModels() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		prov := c.Param("provider")
-		if _, ok := agentKeychain.CompatInstance(prov + "@"); ok {
-			ids, err := probe.Models(c.Request.Context(), prov+"@")
-			if err != nil {
-				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"models": ids, "windows": modelWindows(c, prov, ids)})
-			return
-		}
-		listModelsFor(c, prov)
 	}
 }

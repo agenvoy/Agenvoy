@@ -61,42 +61,6 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 	return fmt.Sprintf("Remember the Error: %s", record.ID), nil
 }
 
-func UpdateAction(ctx context.Context, id, action string) (*Record, error) {
-	id = strings.TrimSpace(id)
-	action = strings.TrimSpace(action)
-	if id == "" {
-		return nil, fmt.Errorf("id is required")
-	}
-	if action == "" {
-		return nil, fmt.Errorf("action is required")
-	}
-
-	db := torii.DB(torii.DBErrorMemory)
-	for _, entry := range db.Scan(ctx, "*", torii.ScanOption{Contains: id}) {
-		var record Record
-		if err := json.Unmarshal([]byte(entry.Value()), &record); err != nil {
-			continue
-		}
-		if record.ID != id {
-			continue
-		}
-		if record.Action == action {
-			return &record, nil
-		}
-
-		record.Action = action
-		raw, err := json.Marshal(record)
-		if err != nil {
-			return nil, fmt.Errorf("json.Marshal: %w", err)
-		}
-		if err := db.SetVector(ctx, entry.Key, string(raw), torii.TTL(configs.TTL_MEMORY_SEC)); err != nil {
-			return nil, fmt.Errorf("store.Set: %w", err)
-		}
-		return &record, nil
-	}
-	return nil, ErrRecordNotFound
-}
-
 func getKeywords(keywords []string) []string {
 	if len(keywords) == 0 {
 		return nil

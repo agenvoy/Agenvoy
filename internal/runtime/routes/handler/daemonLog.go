@@ -1,95 +1,58 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 )
 
-const (
-	daemonLogRetain = 28 * 24 * time.Hour
-	daemonStdLayout = "2006/01/02 15:04:05"
-	daemonArgLayout = "2006-01-02-15-04"
-)
+const logHeartbeat = 25 * time.Second
 
-func GetDaemonLog() gin.HandlerFunc {
+func StreamDaemonLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		from, to, err := daemonRange(c.Query("from"), c.Query("to"))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+		h := c.Writer.Header()
+		h.Set("Content-Type", "text/event-stream")
+		h.Set("Cache-Control", "no-cache")
+		h.Set("Connection", "keep-alive")
+		h.Set("X-Accel-Buffering", "no")
+		c.Writer.WriteHeader(http.StatusOK)
+		c.Writer.Flush()
 
-		path := filesystem.DaemonLogPath
-		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusOK, gin.H{"content": ""})
-			return
-		}
-		content, err := go_pkg_filesystem.ReadText(path)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		keyword := strings.ToLower(strings.TrimSpace(c.Query("keyword")))
-		c.JSON(http.StatusOK, gin.H{"content": recentDaemonLines(content, from, to, keyword)})
-	}
-}
+		sub := pubsub.Sub(configs.DAEMON_LOG_CHANNEL, 1024)
+		defer sub.Close()
 
-func daemonRange(fromArg, toArg string) (time.Time, time.Time, error) {
-	from := time.Now().Add(-daemonLogRetain)
-	var to time.Time
+		heartbeat := time.NewTicker(logHeartbeat)
+		defer heartbeat.Stop()
 
-	if arg := strings.TrimSpace(fromArg); arg != "" {
-		at, err := time.ParseInLocation(daemonArgLayout, arg, time.Local)
-		if err != nil {
-			return from, to, fmt.Errorf("from must be yyyy-MM-dd-HH-mm")
+		ctx := c.Request.Context()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-sub.Events():
+				if !ok {
+					return
+				}
+				raw, err := json.Marshal(ev)
+				if err != nil {
+					continue
+				}
+				if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", raw); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			case <-heartbeat.C:
+				if _, err := fmt.Fprint(c.Writer, ": ping\n\n"); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			}
 		}
-		from = at
 	}
-	if arg := strings.TrimSpace(toArg); arg != "" {
-		at, err := time.ParseInLocation(daemonArgLayout, arg, time.Local)
-		if err != nil {
-			return from, to, fmt.Errorf("to must be yyyy-MM-dd-HH-mm")
-		}
-		to = at
-	}
-	return from, to, nil
-}
-
-func recentDaemonLines(content string, from, to time.Time, keyword string) string {
-	var sb strings.Builder
-	keep := false
-	for line := range strings.SplitSeq(strings.TrimRight(content, "\n"), "\n") {
-		if at, ok := daemonLineTime(line); ok {
-			keep = !at.Before(from) &&
-				(to.IsZero() || at.Before(to)) &&
-				(keyword == "" || strings.Contains(strings.ToLower(line), keyword))
-		}
-		if !keep {
-			continue
-		}
-		sb.WriteString(line)
-		sb.WriteByte('\n')
-	}
-	return sb.String()
-}
-
-func daemonLineTime(line string) (time.Time, bool) {
-	if rest, ok := strings.CutPrefix(line, "time="); ok {
-		field, _, _ := strings.Cut(rest, " ")
-		at, err := time.Parse(time.RFC3339, field)
-		return at, err == nil
-	}
-	if len(line) < len(daemonStdLayout) {
-		return time.Time{}, false
-	}
-	at, err := time.ParseInLocation(daemonStdLayout, line[:len(daemonStdLayout)], time.Local)
-	return at, err == nil
 }

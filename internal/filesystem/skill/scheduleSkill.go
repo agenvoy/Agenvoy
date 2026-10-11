@@ -12,10 +12,6 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
-func HasSchedule(name string) bool {
-	return go_pkg_filesystem_reader.IsDir(filesystem.ScheduleSkillDir(name))
-}
-
 func ReadSchedule(name string) (string, error) {
 	path := filesystem.ScheduleSkillPath(name)
 	if !go_pkg_filesystem_reader.Exists(path) {
@@ -27,34 +23,6 @@ func ReadSchedule(name string) (string, error) {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadText [%s]: %w", path, err)
 	}
 	return result, nil
-}
-
-func WriteSchedule(name, body string) error {
-	if bodyRegex.MatchString(strings.TrimLeft(body, " \t\r\n")) {
-		return writeScheduleRaw(name, strings.TrimSpace(strings.TrimLeft(body, " \t\r\n"))+"\n")
-	}
-
-	var sb strings.Builder
-	sb.WriteString("---\nname: ")
-	sb.WriteString(name)
-	sb.WriteString("\n")
-	sb.WriteString("---\n\n")
-	sb.WriteString(strings.TrimSpace(body))
-	sb.WriteString("\n")
-	return writeScheduleRaw(name, sb.String())
-}
-
-func writeScheduleRaw(name, content string) error {
-	dir := filesystem.ScheduleSkillDir(name)
-	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
-	}
-
-	path := filesystem.ScheduleSkillPath(name)
-	if err := go_pkg_filesystem.WriteFile(path, content, 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteFile [%s]: %w", path, err)
-	}
-	return nil
 }
 
 func GetSchedule(name string) (string, error) {

@@ -169,30 +169,3 @@ func UpdateRole() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"name": strings.TrimSuffix(filepath.Base(target), ".md")})
 	}
 }
-
-func DeleteRole() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		name := c.Query("name")
-		if name == "" {
-			var body roleBody
-			if err := c.ShouldBindJSON(&body); err == nil {
-				name = body.Name
-			}
-		}
-
-		path, err := rolePath(name)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if !go_pkg_filesystem_reader.Exists(path) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "role not found"})
-			return
-		}
-		if err := go_pkg_filesystem.Remove(path); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	}
-}
