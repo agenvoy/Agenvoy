@@ -104,7 +104,7 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 	unmarkedTools := make(map[string]bool)
 	for _, tool := range tools {
 		name := tool.Function.Name
-		if name == "find_tools" || name == "run_tool" {
+		if name == "find_tools" || name == "run_tool" || name == "reasoning_guide" {
 			initial = append(initial, tool)
 			continue
 		}

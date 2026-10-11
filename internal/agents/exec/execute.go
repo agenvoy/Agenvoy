@@ -337,7 +337,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	var toolNames []string
 	if slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == "run_tool" }) {
 		for _, t := range exec.AllTools {
-			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && !exec.ExcludeTools[name] {
+			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && name != "reasoning_guide" && !exec.ExcludeTools[name] {
 				toolNames = append(toolNames, name)
 			}
 		}

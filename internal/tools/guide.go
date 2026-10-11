@@ -33,19 +33,17 @@ func registReasoningGuide() {
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `[system-default]
-Full rule per topic — call before acting on any match, listing every topic that matches in one call:
-
-- tool_error: read it after a tool call has come back failed, never before one has — recovery loop, script_*/api_* auto-repair via edit_tool(mode=patch), [RETRY_REQUIRED] handling. Read before retrying, before error_history, before edit_tool(mode=patch).
-- tool_generate: request needs live external data (weather, currency, stock, geocoding, translation, ...) and no api_*/script_*/ext_* covers it — find_tools(mode=search) found nothing, or an existing one fails. Carries the build contract (naming, description rules, tool.json/script.py format, execution flow), then edit_tool(mode=write) → test_tool (script only) → call it. Hard gate, decided by what the turn leaves behind: a capability that will be called again — fetching it directly via http_request or run_command curl/python3 is PROHIBITED even with a known endpoint, fetch_page is for docs, the data fetch lives in script.py. A finding that answers this turn and is then done leaves no tool: call the endpoint as many times as the check needs and report what came back. A missing tool is built, never reported as a limitation.
-- web_search: non-smalltalk info query (people, orgs, facts, current events, prices, time-sensitive) — search_web then fetch_page; carries the source-citation rule.
-- market_analysis: stock/ETF/market analysis — assess the macro, regional, industry and asset-specific layers, not one alone.
-- targeted_read: file question needs only specific symbols/sections/keywords — search first, narrow read_files over whole-file read.
-- ask_user: missing target, vague scope, unclear spec, ambiguous time, scheduling without content, non-unique tool choice — resolve intent first.
-- subagent_dispatch: the same lookup repeating across 3+ entities, a lookup spanning 2+ source classes, a set just discovered that now needs per-entity work, a named session ("call X"/"呼叫 X"), or a reusable single subtask — read before any subagents(mode=invoke).
-- write_todo: analysis/research task, or complex multi-step task (request names three or more steps) — decide checklist before write_todo. Active Skill → its checklist follows the Skill Execution Rules (3+ steps) instead.
-- html_render: producing an HTML deliverable (report, dashboard, chart, map, 3D view) — the gallery of worked examples to start from, the QuickUI rendering every page must go through, which libraries are allowed, breakpoints and visual direction, all before writing anything.
-- office: creating or modifying a .docx / .xlsx / .pptx — package and registration rules that keep Word/Excel/PowerPoint and Pages/Numbers/Keynote from rejecting the file, Markdown-free text, and the check to run before delivering. Read before writing the file.`,
+		Description: `[system-default] Full rules for the listed topics; call before acting on any match, every matching topic in one call:
+- tool_error: a tool call just failed — before retrying, error_history or edit_tool(mode=patch).
+- tool_generate: live external data (weather, FX, stock, geocoding, translation...) no api_*/script_*/ext_* covers, or the one found fails. A capability called again is built, never fetched via http_request / run_command curl; a one-off check calls the endpoint and reports.
+- web_search: non-smalltalk info query (people, orgs, facts, current events, prices).
+- market_analysis: stock / ETF / market analysis or an entry decision.
+- targeted_read: a file question needing only some symbols, sections or keywords.
+- ask_user: missing target, vague scope or spec, ambiguous time, scheduling without content, more than one fitting tool.
+- subagent_dispatch: one lookup across 3+ entities or 2+ source classes, a discovered set needing per-entity work, a named session ("call X" / "呼叫 X"), a reusable subtask — before subagents(mode=invoke).
+- write_todo: analysis / research / evaluation, or work needing more than one round of tool calls — before the first tool call; an active Skill follows the Skill Execution Rules.
+- html_render: an HTML deliverable, before writing any markup.
+- office: creating or modifying .docx / .xlsx / .pptx, before writing the file.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -53,7 +51,7 @@ Full rule per topic — call before acting on any match, listing every topic tha
 					"type":        "array",
 					"items":       map[string]any{"type": "string", "enum": topicNames},
 					"minItems":    1,
-					"description": "Every Reasoning Rules topic this turn needs, in one call — a second call costs a whole round trip.",
+					"description": "Every topic this turn needs, in one call.",
 				},
 			},
 			"required": []string{"topics"},

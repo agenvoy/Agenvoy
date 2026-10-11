@@ -26,15 +26,15 @@ func registWriteTodo() {
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `A task checklist the user watches update in real time.
-Call it the moment work turns multi-step (3+ steps), at the start or halfway through — N fanned-out searches or subagents count as N steps, and 分析 / 研究 / 調查 / 比較 / 彙整 / 週報 / 盤前 always get a plan.
-It records progress and never executes anything. Single-step work, smalltalk, or anything one tool call resolves → skip it.`,
+		Description: `A task checklist the user watches update in real time; it records progress and never executes anything.
+Call it before the first tool call whenever the answer takes more than one round of tool calls, or the moment a running task grows past that; 分析 / 研究 / 調查 / 比較 / 評估 / 彙整 / 週報 / 盤前 always get one, however short the plan looks. N fanned-out searches or subagents are N steps.
+Smalltalk, or a single lookup answered straight from one call's result → skip it.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"todos": map[string]any{
 					"type":        "array",
-					"description": "The whole ordered checklist every call — state is replaced, not merged. Exactly one item in_progress; when a step is genuinely done, flip it completed and set the next in_progress in the same call. While a plan runs the step set stays fixed: only status advances, never reword, reorder, split, merge, add or drop — a step that turns out wrong or missing is told to the user first. A fully completed plan followed by a new objective starts a fresh list, which is expected rather than a change.",
+					"description": "The whole ordered list every call (replaced, not merged), exactly one item in_progress. A finished step flips to completed and the next to in_progress in the same call. Changing the remaining steps mid-run is told to the user first; a new objective after a completed list starts a fresh one.",
 					"minItems":    1,
 					"items": map[string]any{
 						"type": "object",
@@ -50,7 +50,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 							},
 							"active_form": map[string]any{
 								"type":        "string",
-								"description": "Present-continuous label shown while this step runs (e.g. 'Adding lang toggle'). Optional; falls back to content.",
+								"description": "Optional label shown while the step runs (e.g. 'Adding lang toggle'); defaults to content.",
 							},
 						},
 						"required": []string{"content", "status"},
