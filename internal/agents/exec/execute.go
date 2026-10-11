@@ -860,7 +860,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	assembled := compact.AssembleMessages(session)
 	summaryMessages := append(assembled, provider.Message{
 		Role:    "user",
-		Content: "請根據以上工具查詢結果，整理並總結回答原始問題。",
+		Content: strings.TrimSpace(configs.InjectToolSummary),
 	})
 	summaryStart := time.Now()
 	resp, _, err := data.Agent.Send(execCtx, summaryMessages, nil, reasoning, fast.Mode(execCtx))

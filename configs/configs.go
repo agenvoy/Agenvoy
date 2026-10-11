@@ -175,6 +175,17 @@ var TelegramSystemPrompt string
 //go:embed prompts/system_prompt/chatbot/discord.md
 var DiscordSystemPrompt string
 
+// * Prompts > systemPrompt > Inject
+
+//go:embed prompts/system_prompt/inject/steer.md
+var InjectSteer string
+
+//go:embed prompts/system_prompt/inject/tool_summary.md
+var InjectToolSummary string
+
+//go:embed prompts/system_prompt/inject/schedule_run.md
+var InjectScheduleRun string
+
 // * Prompts > Guide
 
 //go:embed prompts/guide/tool_generate.md
