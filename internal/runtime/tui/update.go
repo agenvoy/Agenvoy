@@ -12,7 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execChatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -909,7 +909,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
-			if _, _, ok := exec.ParseAdminChannel(value); !ok {
+			if _, _, ok := execChatbot.ParseAdmin(value); !ok {
 				return t, notice(msgError("channel admin: format must be tg@<chatID> or dc@<channelID>") + "\n")
 			}
 		}

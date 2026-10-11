@@ -12,6 +12,7 @@ import (
 	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execChatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
@@ -135,7 +136,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		slog.Info("Discord Verification Code",
 			slog.String("name", channelName(in)),
 			slog.String("code", code))
-		exec.NotifyAdminCode(ctx, code, "Discord "+channelName(in))
+		execChatbot.NotifyAdmin(ctx, code, "Discord "+channelName(in))
 		prompt, err := b.client.SendInput(ctx, in.ChannelID, "", "Enter the 6-digit verification code printed in the daemon log.")
 		if err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.client.SendInput",

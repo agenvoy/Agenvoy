@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-telegram/bot/models"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execChatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
@@ -152,7 +153,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		slog.Info("Telegram Verification Code",
 			slog.String("name", chatName(in)),
 			slog.String("code", code))
-		exec.NotifyAdminCode(ctx, code, "Telegram "+chatName(in))
+		execChatbot.NotifyAdmin(ctx, code, "Telegram "+chatName(in))
 		prompt, err := b.client.SendInput(ctx, in.ChatID, 0, "Enter the 6-digit verification code printed in the daemon log.")
 		if err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/core/telegram Bot.client.SendInput",
