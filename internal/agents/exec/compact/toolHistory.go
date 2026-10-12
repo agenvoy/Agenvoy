@@ -15,8 +15,8 @@ import (
 
 func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, taskHash string) bool {
 	// * step1: check user input is exist or not
-	userInput := extractUserInput(session.UserInput)
-	if userInput == "" {
+	message := extractMessage(session.Message)
+	if message == "" {
 		return false
 	}
 
@@ -55,7 +55,7 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 
 	// * step7: prepare conpact system prompt
 	prompt := strings.NewReplacer(
-		"{{.UserQuestion}}", userInput,
+		"{{.Message}}", message,
 	).Replace(strings.TrimSpace(configs.CompactExecPrompt))
 
 	messages := []provider.Message{
@@ -69,8 +69,8 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 		return false
 	}
 
-	session.OldHistories = nil
-	session.SummaryMessage = provider.Message{}
+	session.ContextHistories = nil
+	session.Summary = provider.Message{}
 	head := []provider.Message{
 		{
 			Role:    "user",

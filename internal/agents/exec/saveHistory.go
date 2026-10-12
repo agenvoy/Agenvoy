@@ -16,16 +16,15 @@ import (
 )
 
 func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agentTypes.AgentSession) error {
-	session.Histories = append(session.Histories, choice.Message)
+	session.RawHistories = append(session.RawHistories, choice.Message)
 
 	if session.Stateless {
 		return nil
 	}
 
-	base := min(max(session.BaseLen, 0), len(session.Histories))
 	now := time.Now().UnixNano()
-	delta := make([]sessionHistory.Record, 0, len(session.Histories)-base)
-	for _, message := range session.Histories[base:] {
+	delta := make([]sessionHistory.Record, 0, len(session.RawHistories))
+	for _, message := range session.RawHistories {
 		if message.Role == "system" ||
 			message.Role == "tool" ||
 			(message.Role == "assistant" && len(message.ToolCalls) > 0) {
@@ -41,8 +40,8 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 		}
 		if message.Role == "user" {
 			record.Sender = session.Sender
-			if session.UserSendAt > 0 {
-				record.SendAt = session.UserSendAt
+			if session.SendAt > 0 {
+				record.SendAt = session.SendAt
 			}
 		}
 		delta = append(delta, record)

@@ -61,7 +61,7 @@ func WithBotPushPrefix(ctx context.Context, prefix string) context.Context {
 	return context.WithValue(ctx, pushPrefixKey{}, prefix)
 }
 
-func dcPushPrefix(ctx context.Context) string {
+func DCPushPrefix(ctx context.Context) string {
 	v, _ := ctx.Value(pushPrefixKey{}).(string)
 	return v
 }

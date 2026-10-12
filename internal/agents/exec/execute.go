@@ -46,7 +46,7 @@ type ExecuteMeta struct {
 	Skill             *skill.Skill
 	SkillName         string
 	SkillScanner      *runtime.SkillScanner
-	Content           string
+	Task              string
 	Input             string
 	SessionID         string
 	ImageInputs       []string
@@ -74,9 +74,9 @@ const (
 )
 
 type (
-	allowAllCtxKey   struct{}
-	parentEventsKey  struct{}
-	parentWorkDirKey struct{}
+	AllowAllCtxKey   struct{}
+	ParentEventsKey  struct{}
+	ParentWorkDirKey struct{}
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) (execErr error) {
@@ -89,14 +89,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 	}
 
-	execCtx = context.WithValue(execCtx, allowAllCtxKey{}, allowAll)
+	execCtx = context.WithValue(execCtx, AllowAllCtxKey{}, allowAll)
 
 	if events != nil {
-		execCtx = context.WithValue(execCtx, parentEventsKey{}, events)
+		execCtx = context.WithValue(execCtx, ParentEventsKey{}, events)
 	}
 
 	if strings.TrimSpace(data.WorkDir) != "" {
-		execCtx = context.WithValue(execCtx, parentWorkDirKey{}, data.WorkDir)
+		execCtx = context.WithValue(execCtx, ParentWorkDirKey{}, data.WorkDir)
 	}
 
 	pushCtx := execCtx
@@ -132,8 +132,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		pushHook, hasPush := lookupPushHook(sid)
 		isDcPush := hasPush && !isDcPushSuppressed(pushCtx)
 		scheduleName := ""
-		if isSchedule(pushCtx) {
-			scheduleName = scheduleLabel(dcPushPrefix(pushCtx))
+		if IsSchedule(pushCtx) {
+			scheduleName = ScheduleLabel(DCPushPrefix(pushCtx))
 		}
 		var pushTextBuf strings.Builder
 		var pushDoneEv agentTypes.Event
@@ -219,7 +219,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						Usage:         pushDoneEv.Usage,
 						Duration:      pushDoneEv.Duration,
 						OutputElapsed: pushDoneEv.OutputElapsed,
-						Prefix:        dcPushPrefix(pushCtx),
+						Prefix:        DCPushPrefix(pushCtx),
 					})
 				}
 			}
@@ -257,9 +257,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			exec.PendingTask = data.PendingTask
 			exec.SeedFiles(interactive.LoadPendingFiles(session.ID, data.PendingTask))
 		} else {
-			objective := data.Content
+			objective := data.Task
 			if objective == "" {
-				if s, ok := session.UserInput.Content.(string); ok {
+				if s, ok := session.Message.Content.(string); ok {
 					objective = s
 				}
 			}
@@ -366,7 +366,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	}
 
 	limit := configs.MAX_TOOL_ITERATIONS
-	reasoning := resolveReasoning(session.ID, data.Reasoning)
+	reasoning := ResolveReasoning(session.ID, data.Reasoning)
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
 
@@ -401,7 +401,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	compactHistory := func() {
 		compacted := false
 		if !oldHistoriesCompacted {
-			compacted = compact.ExtractOldHistories(execCtx, data.Agent, session, &usage, events)
+			compacted = compact.ExtractContextHistories(execCtx, data.Agent, session, &usage, events)
 			oldHistoriesCompacted = true
 		}
 		if !compacted {
@@ -568,7 +568,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			}
 
 			if compact.IsContextLengthError(err) {
-				if len(session.OldHistories) == 0 && len(session.ToolHistories) == 0 {
+				if len(session.ContextHistories) == 0 && len(session.ToolHistories) == 0 {
 					slog.Error("data.Agent.Send context length exceeded, nothing left to trim",
 						slog.String("session", session.ID),
 						slog.String("error", err.Error()),
@@ -595,7 +595,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						continue
 					}
 				}
-				compact.TrimFallback(&session.OldHistories, &session.ToolHistories)
+				compact.TrimFallback(&session.ContextHistories, &session.ToolHistories)
 				slog.Warn("data.Agent.Send context length exceeded, trimming oldest exchange",
 					slog.String("session", session.ID),
 					slog.Int("attempts", sendFailCount))
@@ -913,7 +913,7 @@ func responseToolCalls(resp *provider.Output) []provider.ToolCall {
 	return resp.Choices[0].Message.ToolCalls
 }
 
-func resolveReasoning(sessionID, name string) provider.Reasoning {
+func ResolveReasoning(sessionID, name string) provider.Reasoning {
 	if name == "" {
 		_, name = configBot.GetModel(sessionID)
 	}

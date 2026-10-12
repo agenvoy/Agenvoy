@@ -68,7 +68,7 @@ func Send() gin.HandlerFunc {
 			Model:             req.Model,
 			WorkDir:           workDir,
 			SkillName:         req.Skill,
-			Content:           trimContent,
+			Task:              trimContent,
 			Input:             trimContent,
 			SessionID:         sessionID,
 			ExcludeTools:      req.ExcludeTools,

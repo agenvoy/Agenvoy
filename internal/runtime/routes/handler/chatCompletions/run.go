@@ -48,7 +48,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
-		Content:        trimContent,
+		Task:           trimContent,
 		Reasoning:      cmp.Or(req.ReasoningEffort, reasoning, "medium"),
 		ExcludeTools:   excludeTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
@@ -83,12 +83,11 @@ func buildStatelessSession(req Request, userInput, workDir string, model string)
 	}
 
 	return &agentTypes.AgentSession{
-		SystemPrompts: systemPrompts,
-		OldHistories:  oldHistories,
-		Histories:     append([]provider.Message{}, oldHistories...),
-		ToolHistories: []provider.Message{},
-		Tools:         []provider.Message{},
-		UserInput:     provider.Message{Role: "user", Content: userInput},
-		Stateless:     true,
+		SystemPrompts:    systemPrompts,
+		ContextHistories: oldHistories,
+		ToolHistories:    []provider.Message{},
+		Tools:            []provider.Message{},
+		Message:          provider.Message{Role: "user", Content: userInput},
+		Stateless:        true,
 	}
 }

@@ -39,24 +39,22 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 		return nil, fmt.Errorf("session %q does not exist", sessionID)
 	}
 
-	oldHistory, maxHistory := sessionHistory.Get(sessionID)
+	_, maxHistory := sessionHistory.Get(sessionID)
 	session := agentTypes.AgentSession{
-		SystemPrompts: buildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, sessionID, execData.Agent.Name()),
-		Tools:         []provider.Message{},
-		Histories:     sessionHistory.Messages(oldHistory),
-		BaseLen:       len(oldHistory),
-		OldHistories:  sessionHistory.Messages(maxHistory),
-		ToolHistories: []provider.Message{},
+		SystemPrompts:    BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, sessionID, execData.Agent.Name()),
+		Tools:            []provider.Message{},
+		ContextHistories: sessionHistory.Messages(maxHistory),
+		ToolHistories:    []provider.Message{},
 	}
 	if summary := summary.GetPrompt(sessionID, GetOldestMessageTime(maxHistory)); summary != "" {
 		// * if summary not empty, add it
-		session.SummaryMessage = provider.Message{Role: "user", Content: summary}
+		session.Summary = provider.Message{Role: "user", Content: summary}
 	}
 
 	// * step3: assemble user input
 	userInput := strings.TrimSpace(execData.Input)
 	if userInput == "" {
-		userInput = strings.TrimSpace(execData.Content)
+		userInput = strings.TrimSpace(execData.Task)
 	}
 
 	historyInput := userInput
@@ -66,18 +64,18 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	}
 
 	session.Sender = execData.Sender
-	session.UserSendAt = time.Now().UnixNano()
+	session.SendAt = time.Now().UnixNano()
 	// * add timestamp prefix to user input, for send at tracking
 	prefix := sessionHistory.Record{
-		SendAt: session.UserSendAt,
+		SendAt: session.SendAt,
 		Sender: session.Sender,
 	}.Prefix()
 
-	session.Histories = append(session.Histories, provider.Message{
+	session.RawHistories = append(session.RawHistories, provider.Message{
 		Role:    "user",
 		Content: sessionHistory.WithPrefix(prefix, historyInput),
 	})
-	session.UserInput = provider.Message{
+	session.Message = provider.Message{
 		Role:    "user",
 		Content: sessionHistory.WithPrefix(prefix, buildInput(userInput, execData.ImageInputs, execData.FileInputs)),
 	}

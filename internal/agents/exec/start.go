@@ -29,10 +29,10 @@ func Prepare(data ExecuteMeta) ExecuteMeta {
 	if scanner != nil {
 		scanner.Scan()
 		if data.Skill == nil && data.SkillName == "" {
-			if matched, effective := runtime.MatchSkill(scanner, data.Content, data.ExcludeSkills...); matched != nil {
+			if matched, effective := runtime.MatchSkill(scanner, data.Task, data.ExcludeSkills...); matched != nil {
 				data.Skill = matched
-				data.Content = strings.TrimSpace(effective)
-				data.Input = data.Content
+				data.Task = strings.TrimSpace(effective)
+				data.Input = data.Task
 			}
 		}
 	}
@@ -85,7 +85,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
-	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Content, data.Skill != nil, SkillHint(data.Skill), sessionID)
+	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Task, data.Skill != nil, SkillHint(data.Skill), sessionID)
 	if err != nil {
 		return fmt.Errorf("ResolveAgent: %w", err)
 	}
@@ -96,7 +96,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	agentResult := agentTypes.Event{
 		Type:       agentTypes.EventAgentResult,
 		Text:       agentName,
-		Reasoning:  resolveReasoning(sessionID, data.Reasoning).String(),
+		Reasoning:  ResolveReasoning(sessionID, data.Reasoning).String(),
 		TaskHash:   taskHash,
 		WindowHash: windowHash,
 	}

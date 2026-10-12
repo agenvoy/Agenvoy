@@ -46,7 +46,7 @@ func loadGuardrailRules() string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []provider.Message {
+func BuildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []provider.Message {
 	var prompts []provider.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
 		prompts = append(prompts, provider.Message{Role: "system", Content: channel})

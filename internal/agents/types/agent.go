@@ -81,19 +81,18 @@ func (a *AgentEntry) UnmarshalJSON(raw []byte) error {
 }
 
 type AgentSession struct {
-	ID             string
-	SystemPrompts  []provider.Message
-	OldHistories   []provider.Message
-	SummaryMessage provider.Message
-	TurnContext    provider.Message
-	UserInput      provider.Message
-	ToolHistories  []provider.Message
-	Tools          []provider.Message
-	Histories      []provider.Message
-	BaseLen        int
-	Sender         string
-	UserSendAt     int64
-	Stateless      bool
+	ID               string
+	SystemPrompts    []provider.Message
+	ContextHistories []provider.Message
+	Summary          provider.Message
+	TurnContext      provider.Message
+	Message          provider.Message
+	ToolHistories    []provider.Message
+	Tools            []provider.Message
+	RawHistories     []provider.Message
+	Sender           string
+	SendAt           int64
+	Stateless        bool
 }
 
 var EnableClaudeCode bool

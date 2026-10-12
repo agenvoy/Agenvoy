@@ -12,21 +12,21 @@ import (
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
+func ExtractContextHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
 	// * step1: check user input is exist or not
-	userInput := extractUserInput(session.UserInput)
-	if userInput == "" {
+	message := extractMessage(session.Message)
+	if message == "" {
 		return false
 	}
 
 	// * step2: check old history is exist or not
-	if len(session.OldHistories) == 0 {
+	if len(session.ContextHistories) == 0 {
 		return false
 	}
 
 	// * step3: exract old history content
 	var sb strings.Builder
-	for _, msg := range session.OldHistories {
+	for _, msg := range session.ContextHistories {
 		content, _ := msg.Content.(string)
 		if content == "" {
 			continue
@@ -51,7 +51,7 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 
 	// * step6: prepare conpact system prompt
 	prompt := strings.NewReplacer(
-		"{{.UserQuestion}}", userInput,
+		"{{.Message}}", message,
 	).Replace(strings.TrimSpace(configs.OldHistoryExtractPrompt))
 
 	messages := []provider.Message{
@@ -65,7 +65,7 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 		return false
 	}
 
-	session.OldHistories = []provider.Message{
+	session.ContextHistories = []provider.Message{
 		{
 			Role:    "user",
 			Content: "Prior conversation summary (background only — not complete data for this question. Call tools for up-to-date information. The user has not been replied to yet):\n\n" + result,
@@ -74,8 +74,8 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 	return true
 }
 
-func extractUserInput(input provider.Message) string {
-	switch val := input.Content.(type) {
+func extractMessage(msg provider.Message) string {
+	switch val := msg.Content.(type) {
 	case string:
 		return val
 	case []provider.ContentPart:

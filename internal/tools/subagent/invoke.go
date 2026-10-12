@@ -14,7 +14,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execSubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -78,7 +78,7 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 		ignoreHistory = *params.New
 	}
 
-	output, err := exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning,
+	output, err := execSubagent.Exec(ctx, task, sessionID, model, reasoning,
 		strings.TrimSpace(params.SystemPrompt), excludeTools, ignoreHistory)
 	if err != nil {
 		return "", err

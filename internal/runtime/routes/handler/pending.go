@@ -151,7 +151,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 			trimContent := strings.TrimSpace(content)
 			data := exec.Prepare(exec.ExecuteMeta{
 				WorkDir:        workDir,
-				Content:        trimContent,
+				Task:           trimContent,
 				Input:          trimContent,
 				SessionID:      sid,
 				AllowAll:       interactive.LoadPendingAllowAll(sid, taskHash),

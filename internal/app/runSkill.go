@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execSubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -27,7 +28,7 @@ func RunSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 			slog.String("error", err.Error()))
 	}
 
-	output, err := exec.ExecWithSubagent(exec.WithSchedule(exec.WithBotPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, false)
+	output, err := execSubagent.Exec(exec.WithSchedule(exec.WithBotPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, false)
 	if err != nil {
 		return "", err
 	}

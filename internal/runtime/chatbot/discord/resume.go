@@ -37,7 +37,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	reply.Status("resuming...")
 
 	if err := reply.Run(ctx, exec.ExecuteMeta{
-		Content:        full,
+		Task:           full,
 		Input:          full,
 		Sender:         "user",
 		SessionID:      sessionID,

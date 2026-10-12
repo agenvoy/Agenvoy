@@ -29,8 +29,8 @@ func RawToolFallback(session *agentTypes.AgentSession, taskHash string) bool {
 		return false
 	}
 
-	session.OldHistories = nil
-	session.SummaryMessage = provider.Message{}
+	session.ContextHistories = nil
+	session.Summary = provider.Message{}
 	head := []provider.Message{
 		{
 			Role:    "user",
