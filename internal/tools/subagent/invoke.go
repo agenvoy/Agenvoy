@@ -119,14 +119,14 @@ func reportSlug(raw string) string {
 }
 
 func checkLegModel(model string) error {
-	registry := agents.Registry()
+	registry := agents.ModelSet()
 	tags := map[string]string{}
 	if cfg, err := config.Load(); err == nil {
 		tags = cfg.ModelTag
 	}
 
-	allowed := make([]string, 0, len(registry.Entries))
-	for _, e := range registry.Entries {
+	allowed := make([]string, 0, len(registry.Order))
+	for _, e := range registry.Order {
 		if tags[e.Name] != config.ModelTagPass {
 			allowed = append(allowed, e.Name)
 		}

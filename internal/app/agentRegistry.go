@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -86,11 +86,11 @@ func claudeCodeContext(ctx context.Context) context.Context {
 	return provider.WithCacheTTL(ctx, "1h")
 }
 
-func NewAgentRegistry() agentTypes.AgentRegistry {
-	agentEntries := exec.GetAgent()
-	registry := agentTypes.AgentRegistry{
+func NewAgentRegistry() agentTypes.ModelSet {
+	agentEntries := execModel.List()
+	registry := agentTypes.ModelSet{
 		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
-		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
+		Order:    make([]agentTypes.ModelEntry, 0, len(agentEntries)),
 	}
 	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
 	for _, e := range agentEntries {
@@ -105,7 +105,7 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 			continue
 		}
 		registry.Registry[e.Name] = a
-		registry.Entries = append(registry.Entries, e)
+		registry.Order = append(registry.Order, e)
 		if registry.Fallback == nil {
 			registry.Fallback = a
 		}
@@ -114,7 +114,7 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 	return registry
 }
 
-func SelectDispatcher(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectDispatcher(registry agentTypes.ModelSet) agentTypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.DispatcherModel != "" {
 		if a, ok := registry.Registry[cfg.DispatcherModel]; ok {
 			return a
@@ -123,7 +123,7 @@ func SelectDispatcher(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return registry.Fallback
 }
 
-func SelectSummary(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectSummary(registry agentTypes.ModelSet) agentTypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.SummaryModel != "" {
 		if a, ok := registry.Registry[cfg.SummaryModel]; ok {
 			return a
@@ -132,7 +132,7 @@ func SelectSummary(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return nil
 }
 
-func RefreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
+func RefreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.ModelSet) {
 	registry := NewAgentRegistry()
 	return SelectDispatcher(registry), SelectSummary(registry), registry
 }

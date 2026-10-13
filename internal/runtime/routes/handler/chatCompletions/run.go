@@ -9,7 +9,9 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -27,7 +29,11 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
 
-	agent, fallbacks, reasoning, err := exec.ResolveAgent(ctx, req.Model, trimContent, false, "", "")
+	model := configBot.DefaultModel
+	if trimModel := strings.TrimSpace(req.Model); trimModel != "" {
+		model = trimModel
+	}
+	agent, fallbacks, reasoning, err := execModel.Route(ctx, model, trimContent, "", "")
 	if err != nil {
 		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
 		return

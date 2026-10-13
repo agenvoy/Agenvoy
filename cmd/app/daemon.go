@@ -134,7 +134,7 @@ func Daemon() {
 		}
 	}()
 
-	agents.Set(nil, nil, agentTypes.AgentRegistry{}, runtime.NewSkillScanner())
+	agents.Set(nil, nil, agentTypes.ModelSet{}, runtime.NewSkillScanner())
 	agents.SetRefresher(app.RefreshHost)
 
 	go func() {

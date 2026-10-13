@@ -22,7 +22,7 @@ func Send(ctx context.Context, agent agentTypes.Agent, sessionID string, usage *
 	if bot := agents.SummaryBot(); bot != nil {
 		sender = bot
 	}
-	if picked := retryHandler.Check(sender, agents.Registry()); picked != nil {
+	if picked := retryHandler.Check(sender, agents.ModelSet()); picked != nil {
 		sender = picked
 	}
 

@@ -48,13 +48,13 @@ func IsCoolingDown(agentName string) bool {
 	return true
 }
 
-func Check(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.Agent {
-	if len(registry.Entries) <= 1 {
+func Check(bot agentTypes.Agent, registry agentTypes.ModelSet) agentTypes.Agent {
+	if len(registry.Order) <= 1 {
 		if bot != nil {
 			return bot
 		}
-		if len(registry.Entries) == 1 {
-			return registry.Registry[registry.Entries[0].Name]
+		if len(registry.Order) == 1 {
+			return registry.Registry[registry.Order[0].Name]
 		}
 		return nil
 	}
@@ -80,10 +80,10 @@ func Check(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.A
 	return bot
 }
 
-func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, respectCooldown bool) agentTypes.Agent {
+func bestCandidate(registry agentTypes.ModelSet, excludePrefix string, respectCooldown bool) agentTypes.Agent {
 	var best agentTypes.Agent
 	bestPri := len(providerPriority) + 1
-	for _, e := range registry.Entries {
+	for _, e := range registry.Order {
 		if excludePrefix != "" && strings.HasPrefix(e.Name, excludePrefix) {
 			continue
 		}

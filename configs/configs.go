@@ -131,6 +131,9 @@ var AssignSkill string
 //go:embed prompts/system_prompt/agent_selector.md
 var AgentSelector string
 
+//go:embed prompts/system_prompt/agent_selector_request.md
+var AgentSelectorRequest string
+
 //go:embed prompts/system_prompt/component/model_selection.md
 var ModelSelection string
 

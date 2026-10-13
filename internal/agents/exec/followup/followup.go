@@ -91,7 +91,7 @@ func pick() agentTypes.Agent {
 	if bot := agents.SummaryBot(); bot != nil {
 		return bot
 	}
-	return agents.Registry().Fallback
+	return agents.ModelSet().Fallback
 }
 
 func parse(content string) Result {

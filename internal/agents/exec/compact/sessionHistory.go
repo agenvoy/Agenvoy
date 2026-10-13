@@ -46,7 +46,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	agent := agents.Registry().Fallback
+	agent := agents.ModelSet().Fallback
 	if agent == nil {
 		return 0, fmt.Errorf("no agent available for compact")
 	}

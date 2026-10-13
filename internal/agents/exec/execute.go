@@ -18,6 +18,7 @@ import (
 	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
+	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
@@ -370,10 +371,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
 
-	allAgents := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
-	allAgents = append(allAgents, data.Agent)
-	allAgents = append(allAgents, data.FallbackAgents...)
-	fallbackRound := 0
+	pool := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
+	pool = append(pool, data.Agent)
+	pool = append(pool, data.FallbackAgents...)
+	retryState := execModel.RetryState{Agents: pool}
 
 	var usage provider.Usage
 	var sendElapsedTotal time.Duration
@@ -479,7 +480,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if checkAgentAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
+				if execModel.CheckAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
 					unresponsiveFailures = 0
 					watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 					continue
@@ -493,7 +494,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					watchdog.Reset(configs.HEALTH_CHECK_TIMEOUT)
 					continue
 				}
-				next, nextName := nextAgent(execCtx, session.ID, data.Agent.Name(), &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
+				next, nextName := execModel.Next(execCtx, session.ID, data.Agent.Name(), &retryState)
 				if next == nil {
 					watchdog.Stop()
 					stopSend()
@@ -644,7 +645,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				continue
 			}
 
-			next, nextName := nextAgent(execCtx, session.ID, modelName, &data.FallbackAgents, allAgents, &fallbackRound, lastInputTokens)
+			next, nextName := execModel.Next(execCtx, session.ID, modelName, &retryState)
 			if next != nil {
 				slog.Debug("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
@@ -705,7 +706,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
 		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur, responseToolCalls(resp))
-		if err := torii.DB(torii.DBToolCache).Set(ctx, betaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(betaLastModelTTL(data.Agent.Name()))); err != nil {
+		if err := torii.DB(torii.DBToolCache).Set(ctx, execModel.BetaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(execModel.BetaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()))

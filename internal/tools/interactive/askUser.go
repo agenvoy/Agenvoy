@@ -83,7 +83,7 @@ type pendingMeta struct {
 var pendingMu sync.Mutex
 
 func modelAvailable(name string) bool {
-	registry := agents.Registry()
+	registry := agents.ModelSet()
 	agent, ok := registry.Registry[name]
 	return ok && agent != nil
 }

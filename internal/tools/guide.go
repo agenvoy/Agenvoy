@@ -78,9 +78,9 @@ func registReasoningGuide() {
 				}
 				if strings.Contains(guide, "{{.ModelSelection}}") {
 					if selection == "" {
-						selection = config.SubagentModelSelection(&config.Config{})
+						selection = config.SelectionPrompt(&config.Config{}, true)
 						if cfg, err := config.Load(); err == nil {
-							selection = config.SubagentModelSelection(cfg)
+							selection = config.SelectionPrompt(cfg, true)
 						}
 					}
 					guide = strings.ReplaceAll(guide, "{{.ModelSelection}}", selection)

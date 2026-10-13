@@ -54,17 +54,17 @@ func DeliverToFrom(ctx context.Context) string {
 	return sid
 }
 
-type AgentRegistry struct {
+type ModelSet struct {
 	Registry map[string]Agent
-	Entries  []AgentEntry
+	Order    []ModelEntry
 	Fallback Agent
 }
 
-type AgentEntry struct {
+type ModelEntry struct {
 	Name string `json:"name"`
 }
 
-func (a *AgentEntry) UnmarshalJSON(raw []byte) error {
+func (a *ModelEntry) UnmarshalJSON(raw []byte) error {
 	var name string
 	if err := json.Unmarshal(raw, &name); err == nil {
 		a.Name = name

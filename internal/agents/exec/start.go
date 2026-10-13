@@ -10,8 +10,10 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
+	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -85,9 +87,17 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 
 	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
-	agent, fallbacks, reasoning, err := ResolveAgent(ctx, data.Model, data.Task, data.Skill != nil, SkillHint(data.Skill), sessionID)
+	model := configBot.DefaultModel
+	if trimModel := strings.TrimSpace(data.Model); trimModel != "" {
+		model = trimModel
+	}
+	skillDesc := ""
+	if data.Skill != nil {
+		skillDesc = data.Skill.Description
+	}
+	agent, fallbacks, reasoning, err := execModel.Route(ctx, model, data.Task, skillDesc, sessionID)
 	if err != nil {
-		return fmt.Errorf("ResolveAgent: %w", err)
+		return fmt.Errorf("execModel.Route: %w", err)
 	}
 	if data.Reasoning == "" || data.Reasoning == configs.REASONING_AUTO {
 		data.Reasoning = reasoning

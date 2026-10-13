@@ -7,13 +7,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-type RefreshFunc func() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry)
+type RefreshFunc func() (agentTypes.Agent, agentTypes.Agent, agentTypes.ModelSet)
 
 var (
 	mu         sync.RWMutex
 	dispatcher agentTypes.Agent
 	summary    agentTypes.Agent
-	registry   agentTypes.AgentRegistry
+	registry   agentTypes.ModelSet
 	scanner    *runtime.SkillScanner
 	refresher  RefreshFunc
 
@@ -21,7 +21,7 @@ var (
 	loaded bool
 )
 
-func Set(dispatcherBot agentTypes.Agent, summaryBot agentTypes.Agent, agentRegistry agentTypes.AgentRegistry, skillScanner *runtime.SkillScanner) {
+func Set(dispatcherBot agentTypes.Agent, summaryBot agentTypes.Agent, agentRegistry agentTypes.ModelSet, skillScanner *runtime.SkillScanner) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -104,7 +104,7 @@ func SummaryBot() agentTypes.Agent {
 	return summary
 }
 
-func Registry() agentTypes.AgentRegistry {
+func ModelSet() agentTypes.ModelSet {
 	ensureLoaded()
 
 	mu.RLock()

@@ -1,4 +1,4 @@
-package exec
+package model
 
 import (
 	"cmp"
@@ -22,7 +22,7 @@ const (
 	typesafeEndpoint = "https://api.typesafe.ai/v1/systemone"
 	betaNamedNone    = "none"
 	betaTopicSame    = "same"
-	betaLastModelKey = "lastModel:"
+	BetaLastModelKey = "lastModel:"
 )
 
 var betaWorkCriteria = map[string]any{
@@ -87,7 +87,7 @@ type betaAnswer struct {
 	} `json:"answers"`
 }
 
-func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, int, error) {
+func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]string, request, skillDesc, sessionID string) ([]string, string, int, error) {
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
 		return nil, "", 0, fmt.Errorf("missing key: %s", config.TypesafeKey)
@@ -107,7 +107,7 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 			"type": "choice",
 			"instructions": map[string]any{
 				"question": "What kind of work does `request` ask for?",
-				"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. A request starting with [Run Skill] runs a Skill: classify the work the Skill does, not its name.",
+				"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. When `skill` is present, `request` runs that Skill: classify the work `skill` describes, not its name.",
 			},
 			"criteria": betaWorkCriteria,
 		},
@@ -139,12 +139,16 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		}
 	}
 
+	state := map[string]any{
+		"context": turns,
+		"request": strings.TrimSpace(request),
+	}
+	if skillDesc != "" {
+		state["skill"] = skillDesc
+	}
 	body := map[string]any{
-		"model": config.TypesafeModel,
-		"state": map[string]any{
-			"context": turns,
-			"request": request,
-		},
+		"model":     config.TypesafeModel,
+		"state":     state,
 		"questions": questions,
 	}
 
@@ -186,7 +190,7 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 	return list, level, pinned, nil
 }
 
-func betaLastModelTTL(name string) int64 {
+func BetaLastModelTTL(name string) int64 {
 	prov, _, _ := strings.Cut(name, "@")
 	switch prov {
 	case "openai", "codex":
@@ -201,7 +205,7 @@ func betaPrevious(ctx context.Context, sessionID string, candidates []string) (m
 	if sessionID == "" {
 		return "", ""
 	}
-	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, betaLastModelKey+sessionID)
+	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, BetaLastModelKey+sessionID)
 	if !ok {
 		return "", ""
 	}

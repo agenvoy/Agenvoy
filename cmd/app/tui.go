@@ -79,7 +79,7 @@ func TUI() {
 	scanner := runtime.NewSkillScanner()
 
 	agents.Set(nil, app.SelectSummary(registry), registry, scanner)
-	agents.SetRefresher(func() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
+	agents.SetRefresher(func() (agentTypes.Agent, agentTypes.Agent, agentTypes.ModelSet) {
 		registry := app.NewAgentRegistry()
 		return nil, app.SelectSummary(registry), registry
 	})

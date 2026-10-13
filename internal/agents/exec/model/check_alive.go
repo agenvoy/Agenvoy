@@ -1,4 +1,4 @@
-package exec
+package model
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-func checkAgentAlive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
+func CheckAlive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
 	if agent == nil {
 		return false
 	}

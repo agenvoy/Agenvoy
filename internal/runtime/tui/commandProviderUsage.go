@@ -10,7 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
@@ -32,7 +32,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	hasDeepseek := false
 	hasOpenRouter := false
 	hasClaudeCode := false
-	for _, e := range exec.GetAgent() {
+	for _, e := range execModel.List() {
 		prov, _, _ := strings.Cut(e.Name, "@")
 		switch prov {
 		case "codex":

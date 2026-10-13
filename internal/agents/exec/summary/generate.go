@@ -28,7 +28,7 @@ var (
 
 func Generate(ctx context.Context, sessionID string, histories []sessionHistory.Record) error {
 	// * caller supplies no agent, Send layers the summary model preference on top
-	agent := agents.Registry().Fallback
+	agent := agents.ModelSet().Fallback
 	if agent == nil {
 		return fmt.Errorf("no agent available")
 	}

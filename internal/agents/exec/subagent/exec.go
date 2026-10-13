@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -28,9 +29,9 @@ import (
 
 var channLen = make(chan struct{}, min(configs.MAX_CONCURRENT_TOOLS, configs.MAX_CONCURRENT_SUBAGENTS))
 
-func Exec(ctx context.Context, task, sessionIDInput, model, reasoning, systemPrompt string, excludedTools []string, ignoreHistory bool) (string, error) {
+func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemPrompt string, excludedTools []string, ignoreHistory bool) (string, error) {
 	// * step 1: model exist
-	registry := agents.Registry()
+	registry := agents.ModelSet()
 	if len(registry.Registry) == 0 {
 		return "", fmt.Errorf("no model is registered; subagents are unavailable")
 	}
@@ -45,7 +46,7 @@ func Exec(ctx context.Context, task, sessionIDInput, model, reasoning, systemPro
 	}
 
 	// * step 3: session validation and history
-	sessID, err := ensureSession(sessionIDInput)
+	sessID, err := ensureSession(sessionID)
 	if err != nil {
 		return "", fmt.Errorf("subagent session: %w", err)
 	}
@@ -64,7 +65,7 @@ func Exec(ctx context.Context, task, sessionIDInput, model, reasoning, systemPro
 		sessModel, sessReasoning := configBot.GetModel(sessID)
 		// * only if not auto, then replace, or using input model / reasoning
 		if sessModel != configBot.DefaultModel {
-			model = sessModel
+			modelName = sessModel
 		}
 		if sessReasoning != configs.REASONING_AUTO {
 			reasoning = sessReasoning
@@ -74,13 +75,18 @@ func Exec(ctx context.Context, task, sessionIDInput, model, reasoning, systemPro
 	trimTask := strings.TrimSpace(task)
 	var agent agentTypes.Agent
 	// * if model is auto, then select model first
-	if model == configBot.DefaultModel {
-		agent = exec.SelectAgent(ctx, agents.DispatcherBot(), registry, trimTask, false, "", sessID)
+	if modelName == configBot.DefaultModel {
+		agent = model.Select(ctx, model.SelectMeta{
+			Agent:     agents.DispatcherBot(),
+			ModelSet:  registry,
+			Task:      trimTask,
+			SessionID: sessID,
+		})
 	} else {
-		agent = registry.Registry[model]
+		agent = registry.Registry[modelName]
 	}
 	if agent == nil {
-		return "", fmt.Errorf("model %q is not registered; use another model", model)
+		return "", fmt.Errorf("model %q is not registered; use another model", modelName)
 	}
 
 	// * step 5: working directory
