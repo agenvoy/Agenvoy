@@ -11,7 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
@@ -47,7 +47,7 @@ func selectWithLLM(ctx context.Context, meta SelectMeta, selectionPrompt string,
 	}
 
 	// * step 3: send request
-	dispatchCtx := agentTypes.WithSessionID(ctx, meta.SessionID)
+	dispatchCtx := agenttypes.WithSessionID(ctx, meta.SessionID)
 	for range len(meta.ModelSet.Order) {
 		if ctx.Err() != nil {
 			return nil, ""

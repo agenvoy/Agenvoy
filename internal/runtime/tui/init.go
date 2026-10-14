@@ -14,7 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
@@ -46,7 +46,7 @@ type TUI struct {
 
 	popup         *Popup
 	popupQueue    []Pending
-	eventQueue    []agentTypes.Event
+	eventQueue    []agenttypes.Event
 	popupOrigin   *Popup
 	botBodyDraft  string
 	roleBodyDraft string
@@ -92,7 +92,7 @@ type TUI struct {
 	subActive       int
 	subBuf          map[string]*subagentLive
 	subOrder        []string
-	todos           []agentTypes.TodoItem
+	todos           []agenttypes.TodoItem
 	pendingSteer    []string
 	inputHistory    []string
 	inputHistoryIdx int

@@ -11,12 +11,12 @@ import (
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-func CheckAlive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
+func CheckAlive(ctx context.Context, agent agenttypes.Agent, timeout time.Duration) bool {
 	if agent == nil {
 		return false
 	}

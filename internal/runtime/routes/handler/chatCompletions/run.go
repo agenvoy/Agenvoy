@@ -10,13 +10,13 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func run(ctx context.Context, req Request, userContent string, events chan<- agentTypes.Event) {
+func run(ctx context.Context, req Request, userContent string, events chan<- agenttypes.Event) {
 	scanner := agents.Scanner()
 	if scanner != nil {
 		scanner.Scan()
@@ -24,10 +24,10 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	trimContent := strings.TrimSpace(userContent)
 	if trimContent != "" {
-		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: trimContent}
+		events <- agenttypes.Event{Type: agenttypes.EventUserInput, Text: trimContent}
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
+	events <- agenttypes.Event{Type: agenttypes.EventAgentSelect}
 
 	model := configBot.DefaultModel
 	if trimModel := strings.TrimSpace(req.Model); trimModel != "" {
@@ -35,10 +35,10 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	}
 	agent, fallbacks, reasoning, err := execModel.Route(ctx, model, trimContent, "", "")
 	if err != nil {
-		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 		return
 	}
-	events <- agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(agent.Name())}
+	events <- agenttypes.Event{Type: agenttypes.EventAgentResult, Text: strings.TrimSpace(agent.Name())}
 
 	workDir := req.workDir
 	if workDir == "" {
@@ -65,11 +65,11 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	session := buildStatelessSession(req, trimContent, workDir, data.Agent.Name())
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
-		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 	}
 }
 
-func buildStatelessSession(req Request, userInput, workDir string, model string) *agentTypes.AgentSession {
+func buildStatelessSession(req Request, userInput, workDir string, model string) *agenttypes.Session {
 	var systemPrompts []provider.Message
 	if req.agentMode {
 		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, model)
@@ -88,12 +88,12 @@ func buildStatelessSession(req Request, userInput, workDir string, model string)
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
 
-	return &agentTypes.AgentSession{
+	return &agenttypes.Session{
 		SystemPrompts:    systemPrompts,
 		ContextHistories: oldHistories,
 		ToolHistories:    []provider.Message{},
-		Tools:            []provider.Message{},
-		Message:          provider.Message{Role: "user", Content: userInput},
+		ToolResults:      []provider.Message{},
+		UserMessage:      provider.Message{Role: "user", Content: userInput},
 		Stateless:        true,
 	}
 }

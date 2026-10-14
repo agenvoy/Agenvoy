@@ -14,7 +14,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -33,7 +33,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 		return fmt.Errorf("no agent available")
 	}
 
-	summaryCtx := agentTypes.WithSessionID(ctx, sessionID)
+	summaryCtx := agenttypes.WithSessionID(ctx, sessionID)
 	raw, dic := summary.Ensure(sessionID)
 	cursor := summary.GetCursor(sessionID)
 
@@ -112,7 +112,7 @@ func contentRunes(msg sessionHistory.Record) int {
 	return utf8.RuneCountInString(msg.Text())
 }
 
-func generateSmmary(ctx context.Context, agent agentTypes.Agent, oldSummary string, histories []sessionHistory.Record) map[string]any {
+func generateSmmary(ctx context.Context, agent agenttypes.Agent, oldSummary string, histories []sessionHistory.Record) map[string]any {
 	prompt := strings.NewReplacer(
 		"{{.Summary}}", oldSummary,
 	).Replace(strings.TrimSpace(configs.SummaryPrompt))
@@ -137,7 +137,7 @@ Merge it into the previous summary per the rules above and return exactly one <s
 		{Role: "user", Content: raw},
 	}
 
-	result := Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, messages, provider.ReasoningMedium, nil)
+	result := Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, messages, provider.ReasoningMedium, nil)
 	if result == "" {
 		return nil
 	}
@@ -160,7 +160,7 @@ Merge it into the previous summary per the rules above and return exactly one <s
 	}
 
 	slog.Debug("generateSmmary: unparseable",
-		slog.String("session", agentTypes.SessionIDFrom(ctx)),
+		slog.String("session", agenttypes.SessionIDFrom(ctx)),
 		slog.String("preview", go_pkg_utils.TruncateString(result, 256)))
 	return nil
 }

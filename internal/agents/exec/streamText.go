@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -17,12 +17,12 @@ var (
 
 func streamSend(
 	ctx context.Context,
-	agent agentTypes.Agent,
+	agent agenttypes.Agent,
 	messages []provider.Message,
 	tools []provider.Tool,
 	reasoning provider.Reasoning,
 	mode provider.Mode,
-	events chan<- agentTypes.Event,
+	events chan<- agenttypes.Event,
 	shownReasoning *[]string,
 ) (out *provider.Output, code int, textSent bool, reasonSent bool, err error) {
 	if streamer, ok := agent.(provider.StreamAgent); ok {
@@ -55,17 +55,17 @@ func streamErrorCode(err error) int {
 	return 0
 }
 
-func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agentTypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
+func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agenttypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
 	if resp == nil || len(resp.Choices) == 0 {
 		return false, false
 	}
 
 	message := resp.Choices[0].Message
-	reason := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
+	reason := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventReasoning, shown: shownReasoning}
 	reason.write(message.ReasoningContent)
 	reason.close()
 
-	text := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventText, emitDelta: true}
+	text := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventText, emitDelta: true}
 	if str, ok := message.Content.(string); ok {
 		text.write(str)
 	}
@@ -74,9 +74,9 @@ func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agen
 	return text.sent, reason.sent
 }
 
-func consumeStream(ctx context.Context, stream <-chan provider.StreamEvent, events chan<- agentTypes.Event, shownReasoning *[]string) (*provider.Output, bool, bool, error) {
-	text := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventText, emitDelta: true}
-	reason := lineEmitter{ctx: ctx, events: events, kind: agentTypes.EventReasoning, shown: shownReasoning}
+func consumeStream(ctx context.Context, stream <-chan provider.StreamEvent, events chan<- agenttypes.Event, shownReasoning *[]string) (*provider.Output, bool, bool, error) {
+	text := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventText, emitDelta: true}
+	reason := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventReasoning, shown: shownReasoning}
 
 	var content, reasoning strings.Builder
 	var usage provider.Usage
@@ -183,8 +183,8 @@ consume:
 
 type lineEmitter struct {
 	ctx         context.Context
-	events      chan<- agentTypes.Event
-	kind        agentTypes.EventType
+	events      chan<- agenttypes.Event
+	kind        agenttypes.EventType
 	emitDelta   bool
 	shown       *[]string
 	seen        strings.Builder
@@ -275,13 +275,13 @@ func (e *lineEmitter) releaseDelta() {
 	rest = rest[e.headerBytes:]
 	e.headerBytes = 0
 	if rest != "" {
-		e.push(agentTypes.Event{Type: agentTypes.EventTextDelta, Text: rest})
+		e.push(agenttypes.Event{Type: agenttypes.EventTextDelta, Text: rest})
 	}
 }
 
 // * a blocked consumer must not outlive cancellation: give up the event and go
 // * quiet so the caller's goroutine can return
-func (e *lineEmitter) push(ev agentTypes.Event) {
+func (e *lineEmitter) push(ev agenttypes.Event) {
 	if e.ctx == nil {
 		e.events <- ev
 		return
@@ -300,7 +300,7 @@ func (e *lineEmitter) feed(text string) {
 
 	if e.emitDelta {
 		if e.headerDone {
-			e.push(agentTypes.Event{Type: agentTypes.EventTextDelta, Text: text})
+			e.push(agenttypes.Event{Type: agenttypes.EventTextDelta, Text: text})
 		} else {
 			e.deltaHold.WriteString(text)
 		}
@@ -326,7 +326,7 @@ func (e *lineEmitter) emit(line string) {
 	if !ok || e.duplicate(line) {
 		return
 	}
-	e.push(agentTypes.Event{Type: e.kind, Text: line})
+	e.push(agenttypes.Event{Type: e.kind, Text: line})
 	e.sent = true
 }
 

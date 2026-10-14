@@ -12,7 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -146,7 +146,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 		}
 
 		ctx := context.WithoutCancel(c.Request.Context())
-		events, _ := exec.Stream(ctx, sid, 64, func(stream chan<- agentTypes.Event) error {
+		events, _ := exec.Stream(ctx, sid, 64, func(stream chan<- agenttypes.Event) error {
 			workDir, _ := os.UserHomeDir()
 			trimContent := strings.TrimSpace(content)
 			data := exec.Prepare(exec.ExecuteMeta{
@@ -158,8 +158,8 @@ func ResumeSessionPending() gin.HandlerFunc {
 				PendingTask:    taskHash,
 				HistoryContent: historyContent,
 			})
-			if err := exec.Start(agentTypes.WithOrigin(ctx, "chat-"), data, stream); err != nil {
-				stream <- agentTypes.ErrorEvent(err)
+			if err := exec.Start(agenttypes.WithOrigin(ctx, "chat-"), data, stream); err != nil {
+				stream <- agenttypes.ErrorEvent(err)
 			}
 			return nil
 		})
@@ -193,7 +193,7 @@ type resumeResult struct {
 	Canceled bool
 }
 
-func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
+func collectResult(_ string, events <-chan agenttypes.Event) resumeResult {
 	var text strings.Builder
 	var lastErr string
 	timeout := time.After(time.Duration(configs.MAX_RESUME_WAIT_MIN) * time.Minute)
@@ -205,13 +205,13 @@ func collectResult(_ string, events <-chan agentTypes.Event) resumeResult {
 				return resumeResult{Text: text.String(), Error: lastErr}
 			}
 			switch ev.Type {
-			case agentTypes.EventCanceled:
+			case agenttypes.EventCanceled:
 				return resumeResult{Text: text.String(), Canceled: true}
-			case agentTypes.EventText, agentTypes.EventTextDone:
+			case agenttypes.EventText, agenttypes.EventTextDone:
 				if ev.Text != "" {
 					text.WriteString(ev.Text)
 				}
-			case agentTypes.EventError, agentTypes.EventExecError:
+			case agenttypes.EventError, agenttypes.EventExecError:
 				lastErr = ev.Text
 				if ev.Err != nil {
 					lastErr = ev.Err.Error()

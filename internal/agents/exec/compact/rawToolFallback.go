@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/todo"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func RawToolFallback(session *agentTypes.AgentSession, taskHash string) bool {
+func RawToolFallback(session *agenttypes.Session, taskHash string) bool {
 	// * step1: check tool histories is exist or not
 	if len(session.ToolHistories) == 0 {
 		return false

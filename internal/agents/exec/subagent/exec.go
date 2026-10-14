@@ -16,7 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/model"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -73,7 +73,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	}
 
 	trimTask := strings.TrimSpace(task)
-	var agent agentTypes.Agent
+	var agent agenttypes.Agent
 	// * if model is auto, then select model first
 	if modelName == configBot.DefaultModel {
 		agent = model.Select(ctx, model.SelectMeta{
@@ -149,15 +149,15 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	// * step 9: prepare session
 	sendAt := time.Now().UnixNano()
 	prefixed := history.WithPrefix(history.Record{SendAt: sendAt}.Prefix(), trimTask)
-	session := &agentTypes.AgentSession{
+	session := &agenttypes.Session{
 		ID:               sessID,
 		SystemPrompts:    exec.BuildSystemPrompts(taskMeta.WorkDir, taskMeta.ExtraSystemPrompt, sessID, taskMeta.Agent.Name()),
 		ContextHistories: contextHistories,
 		ToolHistories:    []provider.Message{},
-		Tools:            []provider.Message{},
+		ToolResults:      []provider.Message{},
 		RawHistories:     []provider.Message{{Role: "user", Content: prefixed}},
 		SendAt:           sendAt,
-		Message:          provider.Message{Role: "user", Content: prefixed},
+		UserMessage:      provider.Message{Role: "user", Content: prefixed},
 	}
 	if !ignoreHistory {
 		if summary := summary.GetPrompt(sessID, exec.GetOldestMessageTime(maxRec)); summary != "" {
@@ -168,28 +168,28 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	// * step 10: execute
 	if exec.IsSchedule(ctx) {
 		// * if is schedule jsut record result, no task content
-		sessionLog.Append(sessID, agentTypes.WindowHash(ctx), "[Scheduled Task: "+exec.DCPushPrefix(ctx)+"]")
+		sessionLog.Append(sessID, agenttypes.WindowHash(ctx), "[Scheduled Task: "+exec.DCPushPrefix(ctx)+"]")
 	} else {
-		pubsub.Pub(sessID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: trimTask})
-		sessionLog.Append(sessID, agentTypes.WindowHash(ctx), trimTask)
+		pubsub.Pub(sessID, agenttypes.Event{Type: agenttypes.EventUserInput, Text: trimTask})
+		sessionLog.Append(sessID, agenttypes.WindowHash(ctx), trimTask)
 	}
 	exec.SaveUserInputHistory(ctx, sessID, trimTask)
 
 	// * step 11: execute with timeout
-	parentSessID := agentTypes.DeliverToFrom(ctx)
+	parentSessID := agenttypes.DeliverToFrom(ctx)
 	if parentSessID == "" {
-		parentSessID = agentTypes.SessionIDFrom(ctx)
+		parentSessID = agenttypes.SessionIDFrom(ctx)
 	}
-	subCtx, cancel := context.WithTimeout(agentTypes.WithDeliverTo(ctx, parentSessID), time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN)*time.Minute)
+	subCtx, cancel := context.WithTimeout(agenttypes.WithDeliverTo(ctx, parentSessID), time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN)*time.Minute)
 	defer cancel()
 
-	parentEvents, ok := ctx.Value(exec.ParentEventsKey{}).(chan<- agentTypes.Event)
+	parentEvents, ok := ctx.Value(exec.ParentEventsKey{}).(chan<- agenttypes.Event)
 	if !ok {
 		parentEvents = nil
 	}
 
 	// * step 12: agent selected event
-	agentSelectedEvent := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agent.Name(), Reasoning: exec.ResolveReasoning(sessID, reasoning).String()}
+	agentSelectedEvent := agenttypes.Event{Type: agenttypes.EventAgentResult, Text: agent.Name(), Reasoning: exec.ResolveReasoning(sessID, reasoning).String()}
 	if exec.IsSchedule(ctx) {
 		agentSelectedEvent.Text = exec.ScheduleLabel(exec.DCPushPrefix(ctx))
 	}
@@ -197,7 +197,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	sessionLog.Record(sessID, agentSelectedEvent)
 
 	// * step 13: execute in goroutine
-	events := make(chan agentTypes.Event, 64)
+	events := make(chan agenttypes.Event, 64)
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(events)
@@ -232,7 +232,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		sendEvent(parentEvents, displayName, ev)
 
 		switch ev.Type {
-		case agentTypes.EventText:
+		case agenttypes.EventText:
 			if ev.Text == "" {
 				continue
 			}
@@ -240,14 +240,14 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 				sb.WriteByte('\n')
 			}
 			sb.WriteString(ev.Text)
-		case agentTypes.EventDone:
+		case agenttypes.EventDone:
 			if ev.Usage != nil {
 				usage.Input += ev.Usage.Input
 				usage.Output += ev.Usage.Output
 				usage.CacheCreate += ev.Usage.CacheCreate
 				usage.CacheRead += ev.Usage.CacheRead
 			}
-		case agentTypes.EventError:
+		case agenttypes.EventError:
 			if ev.Err != nil {
 				slog.Debug("subagent event error",
 					slog.String("session", sessID),
@@ -256,8 +256,8 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		}
 	}
 
-	sendEvent(parentEvents, displayName, agentTypes.Event{
-		Type:     agentTypes.EventToolResult,
+	sendEvent(parentEvents, displayName, agenttypes.Event{
+		Type:     agenttypes.EventToolResult,
 		ToolName: "subagents",
 	})
 

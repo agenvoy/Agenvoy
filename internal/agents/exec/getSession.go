@@ -20,14 +20,14 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSession, error) {
+func GetSession(ctx context.Context, execData ExecuteMeta) (*agenttypes.Session, error) {
 	// * step2: assemble session history
 	sessionID := strings.TrimSpace(execData.SessionID)
 	if sessionID == "" {
@@ -40,9 +40,9 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 	}
 
 	_, maxHistory := sessionHistory.Get(sessionID)
-	session := agentTypes.AgentSession{
+	session := agenttypes.Session{
 		SystemPrompts:    BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, sessionID, execData.Agent.Name()),
-		Tools:            []provider.Message{},
+		ToolResults:      []provider.Message{},
 		ContextHistories: sessionHistory.Messages(maxHistory),
 		ToolHistories:    []provider.Message{},
 	}
@@ -75,7 +75,7 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agentTypes.AgentSes
 		Role:    "user",
 		Content: sessionHistory.WithPrefix(prefix, historyInput),
 	})
-	session.Message = provider.Message{
+	session.UserMessage = provider.Message{
 		Role:    "user",
 		Content: sessionHistory.WithPrefix(prefix, buildInput(userInput, execData.ImageInputs, execData.FileInputs)),
 	}

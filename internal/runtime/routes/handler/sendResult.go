@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
@@ -17,13 +17,13 @@ type Response struct {
 	SessionID string          `json:"session_id"`
 }
 
-func sendResult(c *gin.Context, sessionID string, input string, events <-chan agentTypes.Event) {
+func sendResult(c *gin.Context, sessionID string, input string, events <-chan agenttypes.Event) {
 	var sb strings.Builder
 	var resp Response
 	resp.SessionID = sessionID
 
-	utils.EventLog("[HTTP]", agentTypes.Event{
-		Type: agentTypes.EventText,
+	utils.EventLog("[HTTP]", agenttypes.Event{
+		Type: agenttypes.EventText,
 		Text: input,
 	}, sessionID, input)
 
@@ -37,20 +37,20 @@ func sendResult(c *gin.Context, sessionID string, input string, events <-chan ag
 		utils.EventLog("[HTTP]", event, sessionID, "")
 
 		switch event.Type {
-		case agentTypes.EventText:
+		case agenttypes.EventText:
 			if sb.Len() > 0 {
 				sb.WriteByte('\n')
 			}
 			sb.WriteString(event.Text)
-		case agentTypes.EventTextDone:
+		case agenttypes.EventTextDone:
 
-		case agentTypes.EventDone:
+		case agenttypes.EventDone:
 			resp.Model = event.Model
 			resp.Usage = event.Usage
-		case agentTypes.EventCanceled:
+		case agenttypes.EventCanceled:
 			c.JSON(http.StatusOK, gin.H{"session_id": sessionID, "canceled": true})
 			return
-		case agentTypes.EventError:
+		case agenttypes.EventError:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": event.Err.Error()})
 			return
 		}

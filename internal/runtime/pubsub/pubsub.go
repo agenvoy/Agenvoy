@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
@@ -19,7 +19,7 @@ func Sub(sessionID string, length int) *Subscriber {
 	}
 
 	sub := &Subscriber{
-		channel:   make(chan agentTypes.Event, length),
+		channel:   make(chan agenttypes.Event, length),
 		sessionID: sessionID,
 	}
 
@@ -29,7 +29,7 @@ func Sub(sessionID string, length int) *Subscriber {
 	return sub
 }
 
-func Pub(sessionID string, event agentTypes.Event) {
+func Pub(sessionID string, event agenttypes.Event) {
 	if sessionID == "" {
 		return
 	}
@@ -46,7 +46,7 @@ func Pub(sessionID string, event agentTypes.Event) {
 	}
 }
 
-func Wrap(ctx context.Context, sessionID string, channel chan agentTypes.Event, length int) chan agentTypes.Event {
+func Wrap(ctx context.Context, sessionID string, channel chan agenttypes.Event, length int) chan agenttypes.Event {
 	if sessionID == "" {
 		return channel
 	}
@@ -58,7 +58,7 @@ func Wrap(ctx context.Context, sessionID string, channel chan agentTypes.Event, 
 		}
 	}
 
-	src := make(chan agentTypes.Event, length)
+	src := make(chan agenttypes.Event, length)
 	go func() {
 		defer close(channel)
 		for event := range src {

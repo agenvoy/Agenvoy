@@ -6,16 +6,16 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type RetryState struct {
-	Agents []agentTypes.Agent
+	Agents []agenttypes.Agent
 	Round  int
 }
 
-func Next(ctx context.Context, sessionID, currentModel string, state *RetryState) (agentTypes.Agent, string) {
+func Next(ctx context.Context, sessionID, currentModel string, state *RetryState) (agenttypes.Agent, string) {
 	// * if assign, then skip fallback
 	if model, _ := configBot.GetModel(sessionID); model != configBot.DefaultModel {
 		return nil, ""
@@ -52,8 +52,8 @@ func Next(ctx context.Context, sessionID, currentModel string, state *RetryState
 	}
 }
 
-func filterOutSameProvider(poolAgents []agentTypes.Agent, provider string) (fallbackAgents []agentTypes.Agent) {
-	fallbackAgents = make([]agentTypes.Agent, 0, len(poolAgents))
+func filterOutSameProvider(poolAgents []agenttypes.Agent, provider string) (fallbackAgents []agenttypes.Agent) {
+	fallbackAgents = make([]agenttypes.Agent, 0, len(poolAgents))
 	for _, e := range poolAgents {
 		if e == nil || strings.HasPrefix(e.Name(), provider) {
 			continue
@@ -63,7 +63,7 @@ func filterOutSameProvider(poolAgents []agentTypes.Agent, provider string) (fall
 	return fallbackAgents
 }
 
-func getFallback(ctx context.Context, poolAgents []agentTypes.Agent) (agent agentTypes.Agent, modelName string) {
+func getFallback(ctx context.Context, poolAgents []agenttypes.Agent) (agent agenttypes.Agent, modelName string) {
 	for _, e := range poolAgents {
 		if e == nil {
 			continue

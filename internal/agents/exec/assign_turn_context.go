@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-func assignTurnContext(ctx context.Context, session *agentTypes.AgentSession, workDir string, allowAll bool, scanner *runtime.SkillScanner, excludeSkills []string, withSkills bool, toolNames []string) {
+func assignTurnContext(ctx context.Context, session *agenttypes.Session, workDir string, allowAll bool, scanner *runtime.SkillScanner, excludeSkills []string, withSkills bool, toolNames []string) {
 	var parts []string
 	if !session.Stateless {
 		parts = append(parts,
@@ -40,7 +40,7 @@ func assignTurnContext(ctx context.Context, session *agentTypes.AgentSession, wo
 	if len(parts) == 0 {
 		return
 	}
-	session.TurnContext = provider.Message{
+	session.TurnContext = go_llm_router.Message{
 		Role:    "user",
 		Content: strings.Join(parts, "\n\n"),
 	}

@@ -1,4 +1,4 @@
-package agentTypes
+package types
 
 import (
 	"context"
@@ -80,16 +80,16 @@ func (a *ModelEntry) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
-type AgentSession struct {
+type Session struct {
 	ID               string
 	SystemPrompts    []provider.Message
-	ContextHistories []provider.Message
 	Summary          provider.Message
 	TurnContext      provider.Message
-	Message          provider.Message
+	UserMessage      provider.Message
 	ToolHistories    []provider.Message
-	Tools            []provider.Message
+	ToolResults      []provider.Message
 	RawHistories     []provider.Message
+	ContextHistories []provider.Message
 	Sender           string
 	SendAt           int64
 	Stateless        bool

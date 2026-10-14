@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -44,7 +44,7 @@ func recordOutbound(sessionID, message string) {
 			slog.String("error", err.Error()))
 	}
 
-	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventText, Text: message})
-	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventTextDone})
-	sessionLog.Record(sessionID, agentTypes.Event{Type: agentTypes.EventDone, Model: outboundModel})
+	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventText, Text: message})
+	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventTextDone})
+	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventDone, Model: outboundModel})
 }

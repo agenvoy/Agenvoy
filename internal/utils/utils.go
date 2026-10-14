@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -27,7 +27,7 @@ func ShortenSessionID(sid string) string {
 	return sid
 }
 
-func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
+func CheckAgentEndpointAlive(ctx context.Context, agent agenttypes.Agent, timeout time.Duration) bool {
 	if agent == nil {
 		return false
 	}

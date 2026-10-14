@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -39,14 +39,14 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		origin = "tg-"
 	}
 	data = exec.Prepare(data)
-	execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
-	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agentTypes.Event) error {
+	execCtx := agenttypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
+	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agenttypes.Event) error {
 		return exec.Start(execCtx, data, stream)
 	})
 	return r.deliver(events, wait)
 }
 
-func (r Reply) deliver(events <-chan agentTypes.Event, wait func() error) error {
+func (r Reply) deliver(events <-chan agenttypes.Event, wait func() error) error {
 	tag := "[Discord]"
 	toolError := func(toolName, text string) string {
 		return fmt.Sprintf("`%s`: %s", toolName, text)

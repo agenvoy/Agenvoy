@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
@@ -84,7 +84,7 @@ func findProvider(id string) *providerInfo {
 func providerLoggedIn(id string) bool {
 	switch id {
 	case "claude-code":
-		return agentTypes.ClaudeCodeEnabled()
+		return agenttypes.ClaudeCodeEnabled()
 	case "codex":
 		return oauthCodex.HasToken()
 	case "copilot":
@@ -103,7 +103,7 @@ func ListProviders() gin.HandlerFunc {
 				providerInfo: provider,
 				LoggedIn:     providerLoggedIn(provider.ID),
 				Console:      slices.Sorted(maps.Keys(providerConsole[provider.ID])),
-				Hidden:       provider.ID == "claude-code" && !agentTypes.ClaudeCodeEnabled(),
+				Hidden:       provider.ID == "claude-code" && !agenttypes.ClaudeCodeEnabled(),
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"providers": list})

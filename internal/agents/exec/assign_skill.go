@@ -4,30 +4,31 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	"github.com/pardnchiu/agenvoy/configs"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 )
 
-func assignSkill(session *agentTypes.AgentSession, s *skill.Skill) {
+func assignSkill(session *agenttypes.Session, s *skill.Skill) {
 	uuid := go_pkg_utils.UUID()
 	raw, _ := json.Marshal(map[string]string{"skill": s.Name})
 
-	tool := provider.ToolCall{
+	tool := go_llm_router.ToolCall{
 		ID:       uuid,
 		Type:     "function",
-		Function: provider.ToolCallFunction{Name: "run_skill", Arguments: string(raw)},
+		Function: go_llm_router.ToolCallFunction{Name: "run_skill", Arguments: string(raw)},
 	}
 
 	// * pretend assistant called this tool to assign skill
 	session.ToolHistories = append(session.ToolHistories,
-		provider.Message{
+		go_llm_router.Message{
 			Role:      "assistant",
-			ToolCalls: []provider.ToolCall{tool},
+			ToolCalls: []go_llm_router.ToolCall{tool},
 		},
-		provider.Message{
+		go_llm_router.Message{
 			Role: "tool",
 			Content: strings.NewReplacer(
 				"{{.SkillName}}", s.Name,

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
@@ -45,7 +45,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 							},
 							"status": map[string]any{
 								"type":        "string",
-								"enum":        []string{agentTypes.TodoPending, agentTypes.TodoInProgress, agentTypes.TodoCompleted},
+								"enum":        []string{agenttypes.TodoPending, agenttypes.TodoInProgress, agenttypes.TodoCompleted},
 								"description": "pending = not started, in_progress = working now (only one allowed), completed = done.",
 							},
 							"active_form": map[string]any{
@@ -70,7 +70,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 				return "", fmt.Errorf("todos must contain at least one item")
 			}
 
-			todos := make([]agentTypes.TodoItem, 0, len(params.Todos))
+			todos := make([]agenttypes.TodoItem, 0, len(params.Todos))
 			var done, doing, pending int
 			for i, in := range params.Todos {
 				content := strings.TrimSpace(in.Content)
@@ -79,17 +79,17 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 				}
 				status := strings.TrimSpace(in.Status)
 				switch status {
-				case agentTypes.TodoCompleted:
+				case agenttypes.TodoCompleted:
 					done++
-				case agentTypes.TodoInProgress:
+				case agenttypes.TodoInProgress:
 					doing++
-				case agentTypes.TodoPending, "":
-					status = agentTypes.TodoPending
+				case agenttypes.TodoPending, "":
+					status = agenttypes.TodoPending
 					pending++
 				default:
 					return "", fmt.Errorf("todo #%d has invalid status %q (want pending / in_progress / completed)", i+1, in.Status)
 				}
-				todos = append(todos, agentTypes.TodoItem{
+				todos = append(todos, agenttypes.TodoItem{
 					Content:    content,
 					Status:     status,
 					ActiveForm: strings.TrimSpace(in.ActiveForm),
@@ -128,7 +128,7 @@ func reportWritten(e *toolTypes.Executor) bool {
 	return false
 }
 
-func WriteTodos(sessionID, taskHash string, todos []agentTypes.TodoItem) error {
+func WriteTodos(sessionID, taskHash string, todos []agenttypes.TodoItem) error {
 	if taskHash == "" {
 		return nil
 	}
@@ -146,7 +146,7 @@ func WriteTodos(sessionID, taskHash string, todos []agentTypes.TodoItem) error {
 	return nil
 }
 
-func LoadTodos(sessionID, taskHash string) []agentTypes.TodoItem {
+func LoadTodos(sessionID, taskHash string) []agenttypes.TodoItem {
 	if taskHash == "" {
 		return nil
 	}

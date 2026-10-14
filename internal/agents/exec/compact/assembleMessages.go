@@ -4,11 +4,11 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func AssembleMessages(session *agentTypes.AgentSession) []provider.Message {
+func AssembleMessages(session *agenttypes.Session) []provider.Message {
 	result := make([]provider.Message, 0, len(session.SystemPrompts)+len(session.ContextHistories)+3+len(session.ToolHistories))
 	result = append(result, session.SystemPrompts...)
 	for _, msg := range session.ContextHistories {
@@ -23,7 +23,7 @@ func AssembleMessages(session *agentTypes.AgentSession) []provider.Message {
 	if session.TurnContext.Role != "" {
 		result = append(result, session.TurnContext)
 	}
-	result = append(result, session.Message)
+	result = append(result, session.UserMessage)
 	result = append(result, session.ToolHistories...)
 
 	return result

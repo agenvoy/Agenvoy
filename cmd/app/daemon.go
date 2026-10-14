@@ -14,7 +14,7 @@ import (
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
@@ -134,7 +134,7 @@ func Daemon() {
 		}
 	}()
 
-	agents.Set(nil, nil, agentTypes.ModelSet{}, runtime.NewSkillScanner())
+	agents.Set(nil, nil, agenttypes.ModelSet{}, runtime.NewSkillScanner())
 	agents.SetRefresher(app.RefreshHost)
 
 	go func() {
@@ -189,7 +189,7 @@ func Daemon() {
 	defer stopIPC()
 
 	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
-		event := agentTypes.Event{Type: agentTypes.EventCanceled, Text: reason}
+		event := agenttypes.Event{Type: agenttypes.EventCanceled, Text: reason}
 		sessionLog.Record(sessionID, event)
 		pubsub.Pub(sessionID, event)
 	})

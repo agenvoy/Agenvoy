@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -58,7 +58,7 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 	}
 
 	hash := interactive.SaveAndEnqueueAskUser(sessionID, origin, deliverTo, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
-	event := agentTypes.Event{Type: agentTypes.EventPending, Text: hash, TaskHash: hash, PendingSession: sessionID}
+	event := agenttypes.Event{Type: agenttypes.EventPending, Text: hash, TaskHash: hash, PendingSession: sessionID}
 	sessionLog.Record(sessionID, event)
 	pubsub.Pub(sessionID, event)
 	if deliverTo != "" && deliverTo != sessionID {
@@ -67,14 +67,14 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 }
 
 func originFor(ctx context.Context, sessionID string) string {
-	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+	if origin := agenttypes.OriginFrom(ctx); origin != "" {
 		return origin
 	}
 	return runtime.OriginOf(sessionID)
 }
 
 func deliverFor(ctx context.Context, sessionID string) string {
-	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+	if id := agenttypes.DeliverToFrom(ctx); id != "" {
 		return id
 	}
 	return sessionID
@@ -82,7 +82,7 @@ func deliverFor(ctx context.Context, sessionID string) string {
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
-func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
+func toolResults(session *agenttypes.Session) []interactive.ToolResult {
 	nameByID := make(map[string]string)
 	argsByID := make(map[string]string)
 	for _, msg := range session.ToolHistories {
@@ -93,7 +93,7 @@ func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
 	}
 
 	var results []interactive.ToolResult
-	for _, msg := range session.Tools {
+	for _, msg := range session.ToolResults {
 		content, _ := msg.Content.(string)
 		results = append(results, interactive.ToolResult{
 			Name:   nameByID[msg.ToolCallID],
@@ -334,7 +334,7 @@ func isGet(argsJSON string) bool {
 	return p.Method == "" || strings.EqualFold(p.Method, "GET")
 }
 
-func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agentTypes.AgentSession, map[string]string, error) {
+func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.OutputChoices, sessionData *agenttypes.Session, events chan<- agenttypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agenttypes.Session, map[string]string, error) {
 	sessionData.ToolHistories = append(sessionData.ToolHistories, choice.Message)
 
 	calls := choice.Message.ToolCalls
@@ -397,8 +397,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				reason = fmt.Sprintf("tool=%s failed: %s is not callable directly. Fetch its schema with find_tools, then call run_tool(name=%s, args=...).", toolName, toolName, toolName)
 			}
 			if reason != "" {
-				events <- agentTypes.Event{
-					Type:     agentTypes.EventToolCall,
+				events <- agenttypes.Event{
+					Type:     agenttypes.EventToolCall,
 					ToolName: toolName,
 					ToolArgs: toolArg,
 					ToolID:   toolID,
@@ -444,8 +444,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		}
 
 		if !toolRegister.Exists(toolName) {
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventToolCall,
+			events <- agenttypes.Event{
+				Type:     agenttypes.EventToolCall,
 				ToolName: toolName,
 				ToolArgs: toolArg,
 				ToolID:   toolID,
@@ -467,7 +467,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			origin := originFor(ctx, sessionData.ID)
 			if runtime.HasListener(ctx, origin) {
 				askCtx, cancelAsk := context.WithCancel(ctx)
-				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
+				if agenttypes.OriginFrom(ctx) != foregroundOrigin {
 					askCtx, cancelAsk = context.WithTimeout(ctx, configs.CONFIRM_TIMEOUT)
 				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
@@ -481,8 +481,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				})
 				cancelAsk()
 				if errors.Is(err, context.DeadlineExceeded) {
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventToolSkipped,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventToolSkipped,
 						ToolName: toolName,
 						ToolArgs: toolArg,
 						ToolID:   toolID,
@@ -500,8 +500,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					return sessionData, alreadyCall, err
 				}
 				if err == nil && reply.Error != nil {
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventToolSkipped,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventToolSkipped,
 						ToolName: toolName,
 						ToolArgs: toolArg,
 						ToolID:   toolID,
@@ -544,8 +544,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				if reason != "" {
 					message = fmt.Sprintf("The user declined this call: %s. Retrying it, or reissuing it with different arguments, produces the same prompt and the same refusal. Continue without it, or use ask_user to agree on another approach.", reason)
 				}
-				events <- agentTypes.Event{
-					Type:     agentTypes.EventToolSkipped,
+				events <- agenttypes.Event{
+					Type:     agenttypes.EventToolSkipped,
 					ToolName: toolName,
 					ToolArgs: toolArg,
 					ToolID:   toolID,
@@ -561,8 +561,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		}
 
 		if earlyErr := validateToolArgs(exec, toolName, toolArg); earlyErr != "" {
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventToolCall,
+			events <- agenttypes.Event{
+				Type:     agenttypes.EventToolCall,
 				ToolName: toolName,
 				ToolArgs: toolArg,
 				ToolID:   toolID,
@@ -576,7 +576,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 
 	for i := range slots {
 		slot := &slots[i]
-		if slot.state == slotReady && slot.name == "ask_user" && agentTypes.OriginFrom(ctx) != foregroundOrigin {
+		if slot.state == slotReady && slot.name == "ask_user" && agenttypes.OriginFrom(ctx) != foregroundOrigin {
 			var imageURLs []string
 			for j := range slots {
 				cs := &slots[j]
@@ -594,7 +594,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					imageURLs = append(imageURLs, cs.imageURLs...)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				default:
-					sessionData.Tools = append(sessionData.Tools, msg)
+					sessionData.ToolResults = append(sessionData.ToolResults, msg)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				}
 			}
@@ -666,7 +666,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				Content:    s.preMsg,
 				ToolCallID: s.id,
 			}
-			sessionData.Tools = append(sessionData.Tools, msg)
+			sessionData.ToolResults = append(sessionData.ToolResults, msg)
 			sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 			continue
 		}
@@ -701,8 +701,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
 
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolResult,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolResult,
 			ToolName: s.name,
 			ToolArgs: s.args,
 			ToolID:   s.id,
@@ -719,7 +719,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			Content:    toolMsgContent,
 			ToolCallID: s.id,
 		}
-		sessionData.Tools = append(sessionData.Tools, toolMsg)
+		sessionData.ToolResults = append(sessionData.ToolResults, toolMsg)
 		if historyResult != "" {
 			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
 				Role:       "tool",
@@ -735,7 +735,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	return sessionData, alreadyCall, nil
 }
 
-func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event, err error) {
+func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agenttypes.Event, err error) {
 	s.execErr = err.Error()
 	s.execErrVal = err
 	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
@@ -744,14 +744,14 @@ func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTyp
 		Args:   s.args,
 		Result: "error: " + err.Error(),
 	}, exec.EditedFiles())
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallEnd,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
 }
 
-func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event) {
+func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, events chan<- agenttypes.Event) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -762,14 +762,14 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 			slog.Any("panic", r))
 		failToolEvent(exec, s, events, fmt.Errorf("tool %s panicked: %v", s.name, r))
 	}()
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCall,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCall,
 		ToolName: s.name,
 		ToolArgs: s.args,
 		ToolID:   s.id,
 	}
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallStart,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallStart,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
@@ -781,8 +781,8 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		if progressDone {
 			return
 		}
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolProgress,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolProgress,
 			ToolName: s.name,
 			ToolID:   s.id,
 			Text:     chunk,
@@ -798,8 +798,8 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}
 
 	if result != "" {
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolCallText,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolCallText,
 			ToolName: s.name,
 			ToolID:   s.id,
 			Text:     result,
@@ -814,14 +814,14 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}, exec.EditedFiles())
 	if s.name == "write_todo" {
 		if todos := interactive.LoadTodos(exec.SessionID, exec.PendingTask); len(todos) > 0 {
-			events <- agentTypes.Event{
-				Type:  agentTypes.EventTodoUpdate,
+			events <- agenttypes.Event{
+				Type:  agenttypes.EventTodoUpdate,
 				Todos: todos,
 			}
 		}
 	}
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallEnd,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
@@ -962,7 +962,7 @@ func imageLoadedMessage(toolName string, count int, rest string) string {
 	return msg
 }
 
-func appendImageMessage(session *agentTypes.AgentSession, dataURLs []string) {
+func appendImageMessage(session *agenttypes.Session, dataURLs []string) {
 	if len(dataURLs) == 0 {
 		return
 	}

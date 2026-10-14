@@ -14,7 +14,7 @@ import (
 	"github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
@@ -84,10 +84,10 @@ func Send() gin.HandlerFunc {
 			return
 		}
 
-		execCtx := agentTypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
-		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) error {
+		execCtx := agenttypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
+		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agenttypes.Event) error {
 			if err := exec.Start(execCtx, data, stream); err != nil {
-				stream <- agentTypes.ErrorEvent(err)
+				stream <- agenttypes.ErrorEvent(err)
 			}
 			return nil
 		})

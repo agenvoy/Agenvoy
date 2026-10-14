@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pardnchiu/go-pkg/utils"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
@@ -90,7 +90,7 @@ func ChatCompletions() gin.HandlerFunc {
 			return
 		}
 
-		events := make(chan agentTypes.Event, 64)
+		events := make(chan agenttypes.Event, 64)
 		ctx := c.Request.Context()
 
 		go func() {
@@ -188,25 +188,25 @@ func extractWorkDirFromZed(messages []provider.Message) string {
 	return ""
 }
 
-func collect(c *gin.Context, id string, created int64, model string, events <-chan agentTypes.Event) {
+func collect(c *gin.Context, id string, created int64, model string, events <-chan agenttypes.Event) {
 	var textBuf strings.Builder
 	var usage provider.Usage
 	var streamErr error
 	var clientCalls []provider.ToolCall
 	for ev := range events {
 		switch ev.Type {
-		case agentTypes.EventText:
+		case agenttypes.EventText:
 			textBuf.WriteString(ev.Text)
 
-		case agentTypes.EventClientToolCall:
+		case agenttypes.EventClientToolCall:
 			clientCalls = append(clientCalls, ev.ClientToolCalls...)
 
-		case agentTypes.EventDone:
+		case agenttypes.EventDone:
 			if ev.Usage != nil {
 				usage = *ev.Usage
 			}
 
-		case agentTypes.EventError:
+		case agenttypes.EventError:
 			streamErr = ev.Err
 		}
 	}

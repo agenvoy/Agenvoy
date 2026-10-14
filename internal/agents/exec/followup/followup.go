@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
@@ -42,7 +42,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 		return Result{}
 	}
 
-	sendCtx, cancel := context.WithTimeout(agentTypes.WithSessionID(ctx, sessionID), configs.FOLLOWUP_TIMEOUT)
+	sendCtx, cancel := context.WithTimeout(agenttypes.WithSessionID(ctx, sessionID), configs.FOLLOWUP_TIMEOUT)
 	defer cancel()
 
 	sendStart := time.Now()
@@ -84,7 +84,7 @@ func prompt(needTitle bool) string {
 	).Replace(filesystem.ApplyReplyLang(configs.FollowupPrompt)))
 }
 
-func pick() agentTypes.Agent {
+func pick() agenttypes.Agent {
 	if bot := agents.DispatcherBot(); bot != nil {
 		return bot
 	}

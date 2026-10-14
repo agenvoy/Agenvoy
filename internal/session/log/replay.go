@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
@@ -20,7 +20,7 @@ var (
 	metaWrapRegex = regexp.MustCompile(`(?s)^---\n.*?\n---\n`)
 )
 
-func RecentEvents(sessionID string, limit int) []agentTypes.Event {
+func RecentEvents(sessionID string, limit int) []agenttypes.Event {
 	text, err := go_pkg_filesystem.ReadText(filesystem.ActionLogPath(sessionID))
 	if err != nil || text == "" {
 		return nil
@@ -31,7 +31,7 @@ func RecentEvents(sessionID string, limit int) []agentTypes.Event {
 		lines = lines[len(lines)-limit:]
 	}
 
-	events := make([]agentTypes.Event, 0, len(lines))
+	events := make([]agenttypes.Event, 0, len(lines))
 	for _, line := range lines {
 		if ev, ok := ParseLine(line); ok {
 			events = append(events, ev)
@@ -40,10 +40,10 @@ func RecentEvents(sessionID string, limit int) []agentTypes.Event {
 	return events
 }
 
-func ParseLine(line string) (agentTypes.Event, bool) {
+func ParseLine(line string) (agenttypes.Event, bool) {
 	m := lineRegex.FindStringSubmatch(line)
 	if len(m) < 6 {
-		return agentTypes.Event{}, false
+		return agenttypes.Event{}, false
 	}
 	kind := m[3]
 	body := strings.ReplaceAll(m[5], ActionNewlineMarker, "\n")
@@ -52,57 +52,57 @@ func ParseLine(line string) (agentTypes.Event, bool) {
 	case "user", "steer":
 		body = metaWrapRegex.ReplaceAllString(body, "")
 		if strings.Contains(body, "[Resumed Task") || strings.HasPrefix(body, "[Scheduled Task") {
-			return agentTypes.Event{}, false
+			return agenttypes.Event{}, false
 		}
 		body = strings.TrimSpace(body)
 		if body == "" {
-			return agentTypes.Event{}, false
+			return agenttypes.Event{}, false
 		}
-		return agentTypes.Event{Type: agentTypes.EventUserInput, Text: body}, true
+		return agenttypes.Event{Type: agenttypes.EventUserInput, Text: body}, true
 	case "assistant":
-		return agentTypes.Event{Type: agentTypes.EventTextDone, Text: body}, true
+		return agenttypes.Event{Type: agenttypes.EventTextDone, Text: body}, true
 	case "thinking":
-		return agentTypes.Event{Type: agentTypes.EventReasoning, Text: body}, true
+		return agenttypes.Event{Type: agenttypes.EventReasoning, Text: body}, true
 	case "todo":
-		var todos []agentTypes.TodoItem
+		var todos []agenttypes.TodoItem
 		if err := json.Unmarshal([]byte(body), &todos); err != nil || len(todos) == 0 {
-			return agentTypes.Event{}, false
+			return agenttypes.Event{}, false
 		}
-		return agentTypes.Event{Type: agentTypes.EventTodoUpdate, Todos: todos}, true
+		return agenttypes.Event{Type: agenttypes.EventTodoUpdate, Todos: todos}, true
 	case "tool_call":
 		name, args, _ := strings.Cut(body, " ")
-		return agentTypes.Event{Type: agentTypes.EventToolCall, ToolName: name, ToolArgs: args}, true
+		return agenttypes.Event{Type: agenttypes.EventToolCall, ToolName: name, ToolArgs: args}, true
 	case "tool_result":
 		name, status, _ := strings.Cut(body, " ")
-		ev := agentTypes.Event{Type: agentTypes.EventToolResult, ToolName: name, Result: status}
+		ev := agenttypes.Event{Type: agenttypes.EventToolResult, ToolName: name, Result: status}
 		if strings.HasPrefix(status, "err") {
 			ev.Err = errors.New("tool error")
 		}
 		return ev, true
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
-		return agentTypes.Event{Type: agentTypes.EventToolSkipped, ToolName: name, ToolArgs: args}, true
+		return agenttypes.Event{Type: agenttypes.EventToolSkipped, ToolName: name, ToolArgs: args}, true
 	case "tool_confirm":
-		return agentTypes.Event{Type: agentTypes.EventToolConfirm, ToolName: body}, true
+		return agenttypes.Event{Type: agenttypes.EventToolConfirm, ToolName: body}, true
 	case "error":
 		name, msg, _ := strings.Cut(body, " ")
-		return agentTypes.Event{Type: agentTypes.EventExecError, ToolName: name, Text: msg, Err: errors.New(msg)}, true
+		return agenttypes.Event{Type: agenttypes.EventExecError, ToolName: name, Text: msg, Err: errors.New(msg)}, true
 	case "done":
 		return parseDone(body), true
 	case "canceled":
 		event := parseDone(body)
-		event.Type = agentTypes.EventCanceled
+		event.Type = agenttypes.EventCanceled
 		return event, true
 	case "skill_result":
-		return agentTypes.Event{Type: agentTypes.EventSkillResult, Text: body}, true
+		return agenttypes.Event{Type: agenttypes.EventSkillResult, Text: body}, true
 	case "agent_result":
-		return agentTypes.Event{Type: agentTypes.EventAgentResult, Text: body}, true
+		return agenttypes.Event{Type: agenttypes.EventAgentResult, Text: body}, true
 	}
-	return agentTypes.Event{}, false
+	return agenttypes.Event{}, false
 }
 
-func parseDone(body string) agentTypes.Event {
-	event := agentTypes.Event{Type: agentTypes.EventDone}
+func parseDone(body string) agenttypes.Event {
+	event := agenttypes.Event{Type: agenttypes.EventDone}
 	fields := strings.Fields(body)
 	if len(fields) == 0 {
 		return event

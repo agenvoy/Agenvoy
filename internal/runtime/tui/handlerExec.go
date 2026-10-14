@@ -14,7 +14,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
@@ -22,7 +22,7 @@ import (
 )
 
 type agentEvent struct {
-	event agentTypes.Event
+	event agenttypes.Event
 }
 
 func (t *TUI) collapseToolBuf() tea.Cmd {
@@ -97,7 +97,7 @@ func (t *TUI) trackSubagent(name, activity string) *subagentLive {
 	return block
 }
 
-func toolActivity(ev agentTypes.Event, cwd string) string {
+func toolActivity(ev agenttypes.Event, cwd string) string {
 	label := utils.ToolName(ev.ToolName)
 	if arg := utils.FormatToolArgs(ev.ToolName, ev.ToolArgs, cwd); arg != "" {
 		label += "(" + arg + ")"
@@ -181,23 +181,23 @@ func runExec(f ipc.Frame) {
 		}
 		send(agentEvent{event: ev})
 		switch ev.Type {
-		case agentTypes.EventDone, agentTypes.EventReasoning, agentTypes.EventText, agentTypes.EventToolCall, agentTypes.EventCompact:
+		case agenttypes.EventDone, agenttypes.EventReasoning, agenttypes.EventText, agenttypes.EventToolCall, agenttypes.EventCompact:
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
 	send(agentExecDone{err: result})
 }
 
-func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
+func (t TUI) handleAgentEvent(ev agenttypes.Event) (tea.Model, tea.Cmd) {
 	switch ev.Type {
-	case agentTypes.EventAgentSelect:
+	case agenttypes.EventAgentSelect:
 		if ev.Source != "" {
 			t.trackSubagent(ev.Source, "selecting agent...")
 			return t, nil
 		}
 		t.activity = "selecting agent..."
 
-	case agentTypes.EventAgentResult:
+	case agenttypes.EventAgentResult:
 		if ev.Source == "" {
 			str := strings.TrimSpace(ev.Text)
 			prev := t.currentModel
@@ -217,13 +217,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 
-	case agentTypes.EventTodoUpdate:
+	case agenttypes.EventTodoUpdate:
 		if ev.Source == "" {
 			t.todos = ev.Todos
 		}
 		return t, nil
 
-	case agentTypes.EventUserInjected:
+	case agenttypes.EventUserInjected:
 		if ev.Source == "" {
 			t.pendingSteer = nil
 		}
@@ -237,7 +237,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Println("\n" + line)
 
-	case agentTypes.EventToolCall:
+	case agenttypes.EventToolCall:
 		if utils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 			return t, nil
 		}
@@ -262,7 +262,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 
-	case agentTypes.EventToolProgress:
+	case agenttypes.EventToolProgress:
 		if ev.Source != "" {
 			t.trackSubagent(ev.Source, ev.ToolName+": "+oneLine(ev.Text))
 			return t, nil
@@ -275,13 +275,13 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case agentTypes.EventToolSkipped:
+	case agenttypes.EventToolSkipped:
 		if ev.Source != "" {
 			t.trackSubagent(ev.Source, "skipped: "+ev.ToolName)
 			return t, nil
 		}
 
-	case agentTypes.EventReasoning:
+	case agenttypes.EventReasoning:
 		if ev.Source != "" {
 			t.trackSubagent(ev.Source, "✻ "+oneLine(toPureText(ev.Text)))
 			return t, nil
@@ -297,7 +297,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Println("\n" + line)
 
-	case agentTypes.EventToolResult:
+	case agenttypes.EventToolResult:
 		if ev.Source != "" {
 			if ev.ToolName == "subagents" {
 				t.dropSubagent(ev.Source)
@@ -315,10 +315,10 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		t.toolLog = nil
 		return t, nil
 
-	case agentTypes.EventSummaryGenerate:
+	case agenttypes.EventSummaryGenerate:
 		t.activity = "summarizing..."
 
-	case agentTypes.EventCompact:
+	case agenttypes.EventCompact:
 		if ev.Source != "" {
 			t.trackSubagent(ev.Source, "compacting...")
 			return t, nil
@@ -334,7 +334,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case agentTypes.EventText:
+	case agenttypes.EventText:
 		if ev.Source == "" {
 			t.emitted = true
 			collapse := t.collapseToolBuf()
@@ -370,7 +370,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 			return t, t.printStreamLine(renderMarkdown(raw, t.width))
 		}
 
-	case agentTypes.EventTextDone:
+	case agenttypes.EventTextDone:
 		if ev.Source == "" {
 			var cmd tea.Cmd
 			if len(t.tableBuf) > 0 {
@@ -381,7 +381,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
-	case agentTypes.EventDone:
+	case agenttypes.EventDone:
 		if ev.Source != "" {
 			t.dropSubagent(ev.Source)
 			return t, nil
@@ -412,7 +412,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Batch(tea.Println(line), quota)
 
-	case agentTypes.EventCanceled:
+	case agenttypes.EventCanceled:
 		if ev.Source != "" {
 			t.dropSubagent(ev.Source)
 			return t, nil
@@ -431,7 +431,7 @@ func (t TUI) handleAgentEvent(ev agentTypes.Event) (tea.Model, tea.Cmd) {
 		}
 		return t, tea.Println(line)
 
-	case agentTypes.EventUsageUpdate:
+	case agenttypes.EventUsageUpdate:
 		if ev.Source == "" && ev.Usage != nil {
 			t.lastIn = ev.Usage.Input
 			t.lastOut = ev.Usage.Output

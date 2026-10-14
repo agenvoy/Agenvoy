@@ -1,25 +1,25 @@
 package subagent
 
 import (
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func sendEvent(parent chan<- agentTypes.Event, name string, ev agentTypes.Event) {
+func sendEvent(parent chan<- agenttypes.Event, name string, ev agenttypes.Event) {
 	if parent == nil {
 		return
 	}
 	switch ev.Type {
-	case agentTypes.EventDone,
-		agentTypes.EventText,
-		agentTypes.EventTextDone,
-		agentTypes.EventAgentSelect,
-		agentTypes.EventAgentResult,
-		agentTypes.EventSummaryGenerate,
-		agentTypes.EventToolCallStart,
-		agentTypes.EventToolCallEnd,
-		agentTypes.EventToolCallText,
-		agentTypes.EventSkillResult,
-		agentTypes.EventTodoUpdate:
+	case agenttypes.EventDone,
+		agenttypes.EventText,
+		agenttypes.EventTextDone,
+		agenttypes.EventAgentSelect,
+		agenttypes.EventAgentResult,
+		agenttypes.EventSummaryGenerate,
+		agenttypes.EventToolCallStart,
+		agenttypes.EventToolCallEnd,
+		agenttypes.EventToolCallText,
+		agenttypes.EventSkillResult,
+		agenttypes.EventTodoUpdate:
 		return
 	}
 

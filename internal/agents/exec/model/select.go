@@ -8,19 +8,19 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type ConfigMeta struct {
 	DefaultModel string                  `json:"default_model"`
-	Models       []agentTypes.ModelEntry `json:"models"`
+	Models       []agenttypes.ModelEntry `json:"models"`
 }
 
 type SelectMeta struct {
-	Agent            agentTypes.Agent
-	ModelSet         agentTypes.ModelSet
+	Agent            agenttypes.Agent
+	ModelSet         agenttypes.ModelSet
 	Task             string
 	SkillDescription string
 	SessionID        string
@@ -33,7 +33,7 @@ type selectConfigMeta struct {
 	JEVEnabled      bool
 }
 
-func Select(ctx context.Context, meta SelectMeta) agentTypes.Agent {
+func Select(ctx context.Context, meta SelectMeta) agenttypes.Agent {
 	models, deadMap, _ := selectModel(ctx, meta)
 	for _, e := range models {
 		if deadMap[e] {

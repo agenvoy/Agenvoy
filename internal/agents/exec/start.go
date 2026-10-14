@@ -11,7 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
@@ -41,13 +41,13 @@ func Prepare(data ExecuteMeta) ExecuteMeta {
 	return data
 }
 
-func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event) error {
+func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event) error {
 	sessionID := strings.TrimSpace(data.SessionID)
 	if sessionID == "" {
 		return fmt.Errorf("data.SessionID is required")
 	}
 
-	windowHash := agentTypes.WindowHash(ctx)
+	windowHash := agenttypes.WindowHash(ctx)
 	taskHash := data.PendingTask
 	if taskHash == "" {
 		taskHash = go_pkg_utils.UUID()
@@ -75,17 +75,17 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 	}
 
 	if data.Skill != nil {
-		skillResult := agentTypes.Event{Type: agentTypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
+		skillResult := agenttypes.Event{Type: agenttypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
 		events <- skillResult
 		sessionLog.Record(sessionID, skillResult)
 	}
 
 	if input := strings.TrimSpace(data.Input); input != "" {
-		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
+		events <- agenttypes.Event{Type: agenttypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
 		sessionLog.Append(sessionID, windowHash, input)
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
+	events <- agenttypes.Event{Type: agenttypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
 	model := configBot.DefaultModel
 	if trimModel := strings.TrimSpace(data.Model); trimModel != "" {
@@ -103,8 +103,8 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agentTypes.Event
 		data.Reasoning = reasoning
 	}
 	agentName := strings.TrimSpace(agent.Name())
-	agentResult := agentTypes.Event{
-		Type:       agentTypes.EventAgentResult,
+	agentResult := agenttypes.Event{
+		Type:       agenttypes.EventAgentResult,
 		Text:       agentName,
 		Reasoning:  ResolveReasoning(sessionID, data.Reasoning).String(),
 		TaskHash:   taskHash,

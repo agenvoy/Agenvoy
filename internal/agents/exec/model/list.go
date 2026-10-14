@@ -3,15 +3,15 @@ package model
 import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-func List() []agentTypes.ModelEntry {
+func List() []agenttypes.ModelEntry {
 	cfg, err := go_pkg_filesystem.ReadJSON[ConfigMeta](filesystem.ConfigPath)
 	if err != nil || len(cfg.Models) == 0 {
-		return []agentTypes.ModelEntry{}
+		return []agenttypes.ModelEntry{}
 	}
 	for i := range cfg.Models {
 		cfg.Models[i].Name = config.NormalizeModel(cfg.Models[i].Name)

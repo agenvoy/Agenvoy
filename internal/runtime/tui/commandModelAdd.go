@@ -21,7 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -172,7 +172,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 		details := make([]string, 0, len(methods))
 		values := make([]string, 0, len(methods))
 		for _, m := range methods {
-			if m.value == "claude-code" && !agentTypes.ClaudeCodeEnabled() {
+			if m.value == "claude-code" && !agenttypes.ClaudeCodeEnabled() {
 				continue
 			}
 			keys = append(keys, m.key)

@@ -9,13 +9,13 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/todo"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, taskHash string) bool {
+func ToolHistory(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *provider.Usage, taskHash string) bool {
 	// * step1: check user input is exist or not
-	message := extractMessage(session.Message)
+	message := extractMessage(session.UserMessage)
 	if message == "" {
 		return false
 	}

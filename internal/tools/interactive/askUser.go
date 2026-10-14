@@ -15,7 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
@@ -74,7 +74,7 @@ type pendingMeta struct {
 	Answer       []answeredQuestion    `json:"answer,omitempty"`
 	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
 	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
-	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
+	Todos        []agenttypes.TodoItem `json:"todos,omitempty"`
 	Files        []string              `json:"files,omitempty"`
 	Reply        string                `json:"reply,omitempty"`
 	AllowAll     bool                  `json:"allow_all,omitempty"`
@@ -564,9 +564,9 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		for _, td := range meta.Todos {
 			mark := "[ ]"
 			switch td.Status {
-			case agentTypes.TodoCompleted:
+			case agenttypes.TodoCompleted:
 				mark = "[x]"
-			case agentTypes.TodoInProgress:
+			case agenttypes.TodoInProgress:
 				mark = "[~]"
 			}
 			msg.WriteString(fmt.Sprintf("- %s %s\n", mark, td.Content))
@@ -672,8 +672,8 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 	}
 
 	runtime.DropTask(sessionID, taskHash)
-	endEvent := agentTypes.Event{
-		Type:           agentTypes.EventPendingEnd,
+	endEvent := agenttypes.Event{
+		Type:           agenttypes.EventPendingEnd,
 		Text:           taskHash,
 		TaskHash:       taskHash,
 		PendingSession: sessionID,
@@ -687,14 +687,14 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 }
 
 func deliverFor(ctx context.Context, sessionID string) string {
-	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+	if id := agenttypes.DeliverToFrom(ctx); id != "" {
 		return id
 	}
 	return sessionID
 }
 
 func originFor(ctx context.Context, sessionID string) string {
-	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+	if origin := agenttypes.OriginFrom(ctx); origin != "" {
 		return origin
 	}
 	return runtime.OriginOf(sessionID)
@@ -709,7 +709,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 	pendingMu.Lock()
 	var allResults []ToolResult
 	var messageID, model, reasoning string
-	var todos []agentTypes.TodoItem
+	var todos []agenttypes.TodoItem
 	var allowAll bool
 	allFiles := files
 	if existing, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {

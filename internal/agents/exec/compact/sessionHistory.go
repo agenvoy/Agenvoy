@@ -13,7 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -35,7 +35,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	}
 
 	compactCtx, cancel := context.WithTimeout(
-		agentTypes.WithSessionID(ctx, sessionID),
+		agenttypes.WithSessionID(ctx, sessionID),
 		2*time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second,
 	)
 	defer cancel()
@@ -149,7 +149,7 @@ func preFilter(messages []sessionHistory.Record, exchanges []compactExchange) ma
 	return removeSet
 }
 
-func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []sessionHistory.Record, exchanges []compactExchange, indices []int) (map[int]bool, error) {
+func identifyRemovable(ctx context.Context, agent agenttypes.Agent, messages []sessionHistory.Record, exchanges []compactExchange, indices []int) (map[int]bool, error) {
 	var sb strings.Builder
 	for _, i := range indices {
 		ex := exchanges[i]
@@ -160,7 +160,7 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []s
 		sb.WriteString("\n")
 	}
 
-	str := agentSummary.Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, []provider.Message{
+	str := agentSummary.Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, []provider.Message{
 		{Role: "system", Content: strings.TrimSpace(configs.CompactHistoryPrompt)},
 		{Role: "user", Content: sb.String()},
 	}, provider.ReasoningMedium, CheckThreshold)

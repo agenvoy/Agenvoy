@@ -7,7 +7,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -24,7 +24,7 @@ func (a *resolvedAgent) Name() string {
 	return a.name
 }
 
-func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
+func (a *resolvedAgent) build(ctx context.Context) (agenttypes.Agent, error) {
 	cfg, err := routerConfig(ctx, a.name)
 	if err != nil {
 		return nil, err
@@ -68,13 +68,13 @@ func routerConfig(ctx context.Context, name string) (router.Config, error) {
 		GatewayID: cfg.GatewayID,
 		BaseURL:   cfg.BaseURL,
 
-		EnableClaude: agentTypes.EnableClaudeCode,
+		EnableClaude: agenttypes.EnableClaudeCode,
 		StateDir:     filesystem.SessionsDir,
 	}, nil
 }
 
 func claudeCodeContext(ctx context.Context) context.Context {
-	sessionID := agentTypes.SessionIDFrom(ctx)
+	sessionID := agenttypes.SessionIDFrom(ctx)
 	if sessionID == "" {
 		return ctx
 	}
@@ -86,13 +86,13 @@ func claudeCodeContext(ctx context.Context) context.Context {
 	return provider.WithCacheTTL(ctx, "1h")
 }
 
-func NewAgentRegistry() agentTypes.ModelSet {
+func NewAgentRegistry() agenttypes.ModelSet {
 	agentEntries := execModel.List()
-	registry := agentTypes.ModelSet{
-		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
-		Order:    make([]agentTypes.ModelEntry, 0, len(agentEntries)),
+	registry := agenttypes.ModelSet{
+		Registry: make(map[string]agenttypes.Agent, len(agentEntries)),
+		Order:    make([]agenttypes.ModelEntry, 0, len(agentEntries)),
 	}
-	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
+	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, e := range agentEntries {
 		if skipClaudeCode && claudeCode.Is(e.Name) {
 			continue
@@ -114,7 +114,7 @@ func NewAgentRegistry() agentTypes.ModelSet {
 	return registry
 }
 
-func SelectDispatcher(registry agentTypes.ModelSet) agentTypes.Agent {
+func SelectDispatcher(registry agenttypes.ModelSet) agenttypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.DispatcherModel != "" {
 		if a, ok := registry.Registry[cfg.DispatcherModel]; ok {
 			return a
@@ -123,7 +123,7 @@ func SelectDispatcher(registry agentTypes.ModelSet) agentTypes.Agent {
 	return registry.Fallback
 }
 
-func SelectSummary(registry agentTypes.ModelSet) agentTypes.Agent {
+func SelectSummary(registry agenttypes.ModelSet) agenttypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.SummaryModel != "" {
 		if a, ok := registry.Registry[cfg.SummaryModel]; ok {
 			return a
@@ -132,7 +132,7 @@ func SelectSummary(registry agentTypes.ModelSet) agentTypes.Agent {
 	return nil
 }
 
-func RefreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.ModelSet) {
+func RefreshHost() (agenttypes.Agent, agenttypes.Agent, agenttypes.ModelSet) {
 	registry := NewAgentRegistry()
 	return SelectDispatcher(registry), SelectSummary(registry), registry
 }

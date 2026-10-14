@@ -20,7 +20,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
@@ -40,8 +40,8 @@ import (
 )
 
 type ExecuteMeta struct {
-	Agent             agentTypes.Agent
-	FallbackAgents    []agentTypes.Agent
+	Agent             agenttypes.Agent
+	FallbackAgents    []agenttypes.Agent
 	Model             string
 	WorkDir           string
 	Skill             *skill.Skill
@@ -80,8 +80,8 @@ type (
 	ParentWorkDirKey struct{}
 )
 
-func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool) (execErr error) {
-	execCtx := provider.WithSessionID(agentTypes.WithSessionID(ctx, session.ID), session.ID)
+func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session, events chan<- agenttypes.Event, allowAll bool) (execErr error) {
+	execCtx := provider.WithSessionID(agenttypes.WithSessionID(ctx, session.ID), session.ID)
 	execStart := time.Now()
 
 	if !allowAll {
@@ -105,7 +105,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	defer execCancel(nil)
 
 	var runTaskHash *atomic.Pointer[string]
-	windowHash := agentTypes.WindowHash(ctx)
+	windowHash := agenttypes.WindowHash(ctx)
 	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
 		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
@@ -121,13 +121,13 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if execErr == nil || stateless || terminalRecorded.Load() {
 				return
 			}
-			errEvent := agentTypes.ErrorEvent(execErr)
+			errEvent := agenttypes.ErrorEvent(execErr)
 			errEvent.WindowHash = windowHash
 			sessionLog.Record(session.ID, errEvent)
 		}()
 
 		original := events
-		fanoutEvents := make(chan agentTypes.Event, 64)
+		fanoutEvents := make(chan agenttypes.Event, 64)
 		done := make(chan struct{})
 		sid := session.ID
 		pushHook, hasPush := lookupPushHook(sid)
@@ -137,7 +137,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			scheduleName = ScheduleLabel(DCPushPrefix(pushCtx))
 		}
 		var pushTextBuf strings.Builder
-		var pushDoneEv agentTypes.Event
+		var pushDoneEv agenttypes.Event
 		runTaskHash = &atomic.Pointer[string]{}
 		taskHashRef := runTaskHash
 		go func() {
@@ -158,7 +158,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 						ev.TaskHash = *h
 					}
 				}
-				if ev.Type == agentTypes.EventDone && ev.Source == "" {
+				if ev.Type == agenttypes.EventDone && ev.Source == "" {
 					if r := reasoningRef.Load(); r != nil {
 						ev.Reasoning = *r
 					}
@@ -168,7 +168,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				if ev.Source == "" {
 					switch ev.Type {
-					case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError, agentTypes.EventExecError:
+					case agenttypes.EventDone, agenttypes.EventCanceled, agenttypes.EventError, agenttypes.EventExecError:
 						terminalRecorded.Store(true)
 					}
 				}
@@ -177,14 +177,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				}
 				if isDcPush {
 					switch ev.Type {
-					case agentTypes.EventText:
+					case agenttypes.EventText:
 						if ev.Source == "" && ev.Text != "" {
 							if pushTextBuf.Len() > 0 {
 								pushTextBuf.WriteByte('\n')
 							}
 							pushTextBuf.WriteString(ev.Text)
 						}
-					case agentTypes.EventDone:
+					case agenttypes.EventDone:
 						if ev.Source == "" {
 							pushDoneEv = ev
 						}
@@ -245,7 +245,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 	emitChangedFiles := func() {
 		if files := exec.EditedFiles(); len(files) > 0 {
-			events <- agentTypes.Event{Type: agentTypes.EventFileChanged, Files: files}
+			events <- agenttypes.Event{Type: agenttypes.EventFileChanged, Files: files}
 		}
 	}
 
@@ -260,7 +260,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		} else {
 			objective := data.Task
 			if objective == "" {
-				if s, ok := session.Message.Content.(string); ok {
+				if s, ok := session.UserMessage.Content.(string); ok {
 					objective = s
 				}
 			}
@@ -371,7 +371,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 	reasoningLabel := reasoning.String()
 	reasoningRef.Store(&reasoningLabel)
 
-	pool := make([]agentTypes.Agent, 0, 1+len(data.FallbackAgents))
+	pool := make([]agenttypes.Agent, 0, 1+len(data.FallbackAgents))
 	pool = append(pool, data.Agent)
 	pool = append(pool, data.FallbackAgents...)
 	retryState := execModel.RetryState{Agents: pool}
@@ -406,7 +406,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			oldHistoriesCompacted = true
 		}
 		if !compacted {
-			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+			events <- agenttypes.Event{Type: agenttypes.EventCompact, Text: "tool_call"}
 			compacted = compact.ToolHistory(execCtx, data.Agent, session, &usage, exec.PendingTask)
 		}
 		if compacted {
@@ -418,7 +418,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 	for range limit {
 		if execCtx.Err() != nil {
-			events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+			events <- agenttypes.Event{Type: agenttypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 			if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
 				interactive.DeletePending(session.ID, exec.PendingTask)
 			}
@@ -427,7 +427,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		if pending := getSteer(session.ID); len(pending) > 0 {
 			raw := strings.Join(pending, "\n")
 			session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
-			events <- agentTypes.Event{Type: agentTypes.EventUserInjected, Text: raw}
+			events <- agenttypes.Event{Type: agenttypes.EventUserInjected, Text: raw}
 		}
 		if firstAttempt {
 			firstAttempt = false
@@ -471,7 +471,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			case <-execCtx.Done():
 				watchdog.Stop()
 				stopSend()
-				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+				events <- agenttypes.Event{Type: agenttypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 				if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
 					interactive.DeletePending(session.ID, exec.PendingTask)
 				}
@@ -505,8 +505,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					msg := fmt.Sprintf("upstream %s is unresponsive and no healthy fallback model is available.", deadName)
 					sendText(events, msg)
 					emitChangedFiles()
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventDone,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventDone,
 						Model:    deadName,
 						Usage:    &usage,
 						Duration: time.Since(execStart),
@@ -520,8 +520,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("session", session.ID),
 					slog.String("from", data.Agent.Name()),
 					slog.String("to", nextName))
-				events <- agentTypes.Event{
-					Type:      agentTypes.EventAgentResult,
+				events <- agenttypes.Event{
+					Type:      agenttypes.EventAgentResult,
 					Text:      nextName,
 					Model:     nextName,
 					Reasoning: reasoningLabel,
@@ -534,7 +534,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		watchdog.Stop()
 		if switched {
 			stopSend()
-			events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+			events <- agenttypes.Event{Type: agenttypes.EventCompact, Text: "tool_call"}
 			if !compact.RawToolFallback(session, exec.PendingTask) {
 				session.ToolHistories = nil
 			}
@@ -552,7 +552,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		stopSend()
 		if err != nil {
 			if execCtx.Err() != nil {
-				events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+				events <- agenttypes.Event{Type: agenttypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 				if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
 					interactive.DeletePending(session.ID, exec.PendingTask)
 				}
@@ -577,8 +577,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					msg := fmt.Sprintf("upstream %s context exceeded and nothing left to trim. Start a new session or switch to a larger-context model.", modelName)
 					sendText(events, msg)
 					emitChangedFiles()
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventDone,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventDone,
 						Model:    modelName,
 						Usage:    &usage,
 						Duration: time.Since(execStart),
@@ -616,7 +616,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.Int("attempt", timeoutRetryCount+1))
 				select {
 				case <-execCtx.Done():
-					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+					events <- agenttypes.Event{Type: agenttypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 					if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
 						interactive.DeletePending(session.ID, exec.PendingTask)
 					}
@@ -635,7 +635,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.Duration("wait", retryWait))
 				select {
 				case <-execCtx.Done():
-					events <- agentTypes.Event{Type: agentTypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
+					events <- agenttypes.Event{Type: agenttypes.EventCanceled, Model: data.Agent.Name(), Duration: time.Since(execStart)}
 					if errors.Is(context.Cause(execCtx), runtime.ErrUserCanceled) {
 						interactive.DeletePending(session.ID, exec.PendingTask)
 					}
@@ -651,14 +651,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					slog.String("session", session.ID),
 					slog.String("from", modelName),
 					slog.String("to", nextName))
-				events <- agentTypes.Event{
-					Type:      agentTypes.EventAgentResult,
+				events <- agenttypes.Event{
+					Type:      agenttypes.EventAgentResult,
 					Text:      nextName,
 					Model:     nextName,
 					Reasoning: reasoningLabel,
 				}
 				data.Agent = next
-				events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "tool_call"}
+				events <- agenttypes.Event{Type: agenttypes.EventCompact, Text: "tool_call"}
 				if !compact.RawToolFallback(session, exec.PendingTask) {
 					session.ToolHistories = nil
 				}
@@ -682,8 +682,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				slog.String("error", err.Error()))
 			sendText(events, userMsg)
 			emitChangedFiles()
-			events <- agentTypes.Event{
-				Type:          agentTypes.EventDone,
+			events <- agenttypes.Event{
+				Type:          agenttypes.EventDone,
 				Model:         modelName,
 				Usage:         &usage,
 				Duration:      time.Since(execStart),
@@ -713,8 +713,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		usageSnapshot := usage
-		events <- agentTypes.Event{
-			Type:          agentTypes.EventUsageUpdate,
+		events <- agenttypes.Event{
+			Type:          agenttypes.EventUsageUpdate,
 			Usage:         &usageSnapshot,
 			ContextTokens: lastInputTokens,
 		}
@@ -748,7 +748,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 			if text, ok := choice.Message.Content.(string); ok {
 				if stripped := Response(text); stripped != "" && !strings.Contains(stripped, configs.BAN_TAG) {
 					if textEmitted {
-						events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+						events <- agenttypes.Event{Type: agenttypes.EventTextDone}
 					} else {
 						sendText(events, stripped)
 					}
@@ -762,10 +762,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 					}
 				}
 				if len(handoff) > 0 {
-					events <- agentTypes.Event{Type: agentTypes.EventClientToolCall, ClientToolCalls: handoff}
+					events <- agenttypes.Event{Type: agenttypes.EventClientToolCall, ClientToolCalls: handoff}
 					emitChangedFiles()
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventDone,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventDone,
 						Model:    data.Agent.Name(),
 						Usage:    &usage,
 						Duration: time.Since(execStart),
@@ -808,7 +808,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), stripped)
 				sendText(events, refusal)
 				emitChangedFiles()
-				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
+				events <- agenttypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
@@ -816,7 +816,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			responseText := stripped
 			if textEmitted {
-				events <- agentTypes.Event{Type: agentTypes.EventTextDone}
+				events <- agenttypes.Event{Type: agenttypes.EventTextDone}
 			} else {
 				sendText(events, responseText)
 			}
@@ -837,7 +837,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 
 			if pending := getSteer(session.ID); len(pending) > 0 {
 				session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
-				events <- agentTypes.Event{Type: agentTypes.EventUserInjected, Text: strings.Join(pending, "\n")}
+				events <- agenttypes.Event{Type: agenttypes.EventUserInjected, Text: strings.Join(pending, "\n")}
 				continue
 			}
 
@@ -852,7 +852,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 		}
 
 		emitChangedFiles()
-		events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
+		events <- agenttypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 
 		keepPending = false
 		return nil
@@ -886,14 +886,14 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agentTypes.AgentSes
 				refusal := guardrailRefusal(session.ID, data.Agent.Name(), summaryStripped)
 				sendText(events, refusal)
 				emitChangedFiles()
-				events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
+				events <- agenttypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 				interactive.FinalizePending(session.ID, exec.PendingTask, refusal)
 				keepPending = false
 				return nil
 			}
 			sendText(events, summaryStripped)
 			emitChangedFiles()
-			events <- agentTypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
+			events <- agenttypes.DoneEvent(data.Agent.Name(), &usage, time.Since(execStart), sendElapsedTotal)
 			interactive.FinalizePending(session.ID, exec.PendingTask, summaryStripped)
 			keepPending = false
 			return nil

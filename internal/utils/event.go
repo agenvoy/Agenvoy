@@ -10,7 +10,7 @@ import (
 	"time"
 
 	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	provider "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
@@ -341,7 +341,7 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning s
 		parts = append(parts, model)
 	}
 
-	if in := agentTypes.FormatInput(agentTypes.InputTotals(usage)); in != "" {
+	if in := agenttypes.FormatInput(agenttypes.InputTotals(usage)); in != "" {
 		parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(usage.Output)))
 	}
 	return strings.Join(parts, "  ")

@@ -6,12 +6,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID string) (agentTypes.Agent, []agentTypes.Agent, string, error) {
+func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID string) (agenttypes.Agent, []agenttypes.Agent, string, error) {
 	// * if assign exist, then use it
 	modelSet := agents.ModelSet()
 	req := SelectMeta{
@@ -34,12 +34,12 @@ func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID s
 			req.ModelNames = []string{assignModel}
 			_, reasoning, _ = runSelect(ctx, req, cfg, map[string]bool{})
 		}
-		return agent, []agentTypes.Agent{}, reasoning, nil
+		return agent, []agenttypes.Agent{}, reasoning, nil
 	}
 
 	// * if no assign, then get fit
 	models, deadMap, reasoning := selectModel(ctx, req)
-	var agent agentTypes.Agent
+	var agent agenttypes.Agent
 	for _, e := range models {
 		if deadMap[e] {
 			continue
@@ -52,7 +52,7 @@ func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID s
 
 	// * get fallback
 	cfg := loadConfig()
-	fallbackAgents := make([]agentTypes.Agent, 0, len(modelSet.Order))
+	fallbackAgents := make([]agenttypes.Agent, 0, len(modelSet.Order))
 	for _, e := range modelSet.Order {
 		if e.Name == assignModel || deadMap[e.Name] || cfg.TagMap[e.Name] == config.ModelTagPass {
 			continue

@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agentTypes.AgentSession) error {
+func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agenttypes.Session) error {
 	session.RawHistories = append(session.RawHistories, choice.Message)
 
 	if session.Stateless {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -33,7 +33,7 @@ func (c *conn) pending(ctx context.Context, f Frame) {
 		return
 	}
 	c.addWindow(f.Rayload.WindowHash)
-	reply, err := runtime.Ask(agentTypes.WithWindowHash(ctx, f.Rayload.WindowHash), runtime.Request{
+	reply, err := runtime.Ask(agenttypes.WithWindowHash(ctx, f.Rayload.WindowHash), runtime.Request{
 		Kind:      runtime.KindAskUser,
 		SessionID: sessionID,
 		TaskHash:  taskHash,

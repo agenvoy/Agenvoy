@@ -5,56 +5,56 @@ import (
 	"log/slog"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
 type AgentEventResult struct {
 	ReplyText  string
 	ExecErrors []string
-	Done       agentTypes.Event
+	Done       agenttypes.Event
 }
 
-func FormatChatbotEvent(events <-chan agentTypes.Event, tag, sessionID string, status func(text string), err func(toolName, text string) string) AgentEventResult {
+func FormatChatbotEvent(events <-chan agenttypes.Event, tag, sessionID string, status func(text string), err func(toolName, text string) string) AgentEventResult {
 	var r AgentEventResult
 	var toolCount int
 	for e := range events {
 		EventLog(tag, e, sessionID, "")
 		switch e.Type {
-		case agentTypes.EventReasoning:
+		case agenttypes.EventReasoning:
 			if t := strings.TrimSpace(e.Text); t != "" {
 				status("[think] " + go_pkg_utils.TruncateString(t, 256))
 			}
 
-		case agentTypes.EventToolCall:
+		case agenttypes.EventToolCall:
 			if e.ToolName != "" {
 				toolCount++
 				status(formatChatbotToolEvent(toolCount, e))
 			}
 
-		case agentTypes.EventToolSkipped:
+		case agenttypes.EventToolSkipped:
 			if e.ToolName != "" {
 				toolCount++
 				status(fmt.Sprintf("[skipped #%d] %s", toolCount, e.ToolName))
 			}
 
-		case agentTypes.EventText:
+		case agenttypes.EventText:
 			if r.ReplyText != "" {
 				r.ReplyText += "\n"
 			}
 			r.ReplyText += e.Text
 
-		case agentTypes.EventExecError:
+		case agenttypes.EventExecError:
 			r.ExecErrors = append(r.ExecErrors, err(e.ToolName, e.Text))
 
-		case agentTypes.EventDone:
+		case agenttypes.EventDone:
 			r.Done = e
 		}
 	}
 	return r
 }
 
-func formatChatbotToolEvent(count int, event agentTypes.Event) string {
+func formatChatbotToolEvent(count int, event agenttypes.Event) string {
 	name := ToolName(event.ToolName)
 	arg := FormatToolArgs(event.ToolName, event.ToolArgs, "")
 	if arg == "" || arg == event.ToolArgs {
@@ -67,8 +67,8 @@ func formatChatbotToolEvent(count int, event agentTypes.Event) string {
 	return fmt.Sprintf("[tool #%d] %s", count, body)
 }
 
-func EventLog(tag string, event agentTypes.Event, sessionID string, _ string) {
-	if event.Type != agentTypes.EventError && event.Type != agentTypes.EventExecError {
+func EventLog(tag string, event agenttypes.Event, sessionID string, _ string) {
+	if event.Type != agenttypes.EventError && event.Type != agenttypes.EventExecError {
 		return
 	}
 	errText := event.Text

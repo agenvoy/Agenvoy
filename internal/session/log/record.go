@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
@@ -36,18 +36,18 @@ func Steer(sessionID, windowHash, str string) {
 	if str == "" {
 		return
 	}
-	flushAssistant(sessionID, agentTypes.Event{WindowHash: windowHash})
+	flushAssistant(sessionID, agenttypes.Event{WindowHash: windowHash})
 	appendAction(sessionID, withTimestamp(windowHash, "steer", "", flatten(str)))
 }
 
-func Record(sessionID string, event agentTypes.Event) {
+func Record(sessionID string, event agenttypes.Event) {
 	switch event.Type {
-	case agentTypes.EventTextDelta:
+	case agenttypes.EventTextDelta:
 		return
-	case agentTypes.EventText:
+	case agenttypes.EventText:
 		appendAssistant(sessionID, event)
 		return
-	case agentTypes.EventTextDone:
+	case agenttypes.EventTextDone:
 		flushAssistant(sessionID, event)
 		return
 	}
@@ -61,7 +61,7 @@ func Record(sessionID string, event agentTypes.Event) {
 	appendAction(sessionID, line)
 }
 
-func appendAssistant(sessionID string, event agentTypes.Event) {
+func appendAssistant(sessionID string, event agenttypes.Event) {
 	if sessionID == "" {
 		return
 	}
@@ -79,7 +79,7 @@ func appendAssistant(sessionID string, event agentTypes.Event) {
 	sb.WriteByte('\n')
 }
 
-func flushAssistant(sessionID string, event agentTypes.Event) {
+func flushAssistant(sessionID string, event agenttypes.Event) {
 	if sessionID == "" {
 		return
 	}

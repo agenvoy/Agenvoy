@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func waitResume(ctx context.Context, sessionID string, parent chan<- agentTypes.Event, displayName string) (string, provider.Usage) {
+func waitResume(ctx context.Context, sessionID string, parent chan<- agenttypes.Event, displayName string) (string, provider.Usage) {
 	var usage provider.Usage
 	sub := pubsub.Sub(sessionID, 128)
 	defer sub.Close()
@@ -27,7 +27,7 @@ func waitResume(ctx context.Context, sessionID string, parent chan<- agentTypes.
 			sendEvent(parent, displayName, ev)
 
 			switch ev.Type {
-			case agentTypes.EventText:
+			case agenttypes.EventText:
 				if ev.Text == "" {
 					continue
 				}
@@ -36,7 +36,7 @@ func waitResume(ctx context.Context, sessionID string, parent chan<- agentTypes.
 				}
 				sb.WriteString(ev.Text)
 
-			case agentTypes.EventDone:
+			case agenttypes.EventDone:
 				if ev.Usage != nil {
 					usage.Input += ev.Usage.Input
 					usage.Output += ev.Usage.Output
@@ -45,7 +45,7 @@ func waitResume(ctx context.Context, sessionID string, parent chan<- agentTypes.
 				}
 				return strings.TrimSpace(sb.String()), usage
 
-			case agentTypes.EventCanceled, agentTypes.EventError:
+			case agenttypes.EventCanceled, agenttypes.EventError:
 				return strings.TrimSpace(sb.String()), usage
 			}
 		}

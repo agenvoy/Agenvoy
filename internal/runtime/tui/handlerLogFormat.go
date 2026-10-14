@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
 	provider "github.com/pardnchiu/go-llm-router/core"
@@ -79,20 +79,20 @@ func renderActionLine(p parsedAction, width int) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str}, width)
+		return renderEvent(agenttypes.Event{Type: agenttypes.EventText, Text: str}, width)
 
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventToolSkipped,
+		return renderEvent(agenttypes.Event{
+			Type:     agenttypes.EventToolSkipped,
 			ToolName: name,
 			ToolArgs: args,
 		}, width)
 
 	case "error":
 		name, msg, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventExecError,
+		return renderEvent(agenttypes.Event{
+			Type:     agenttypes.EventExecError,
 			ToolName: name,
 			Text:     msg,
 			Err:      errors.New(msg),
@@ -103,7 +103,7 @@ func renderActionLine(p parsedAction, width int) string {
 
 	case "canceled":
 		event := formatDone(body)
-		event.Type = agentTypes.EventCanceled
+		event.Type = agenttypes.EventCanceled
 		return renderEvent(event, width, formatLogTimestamp(p.timestamp))
 
 	case "skill_result":
@@ -111,7 +111,7 @@ func renderActionLine(p parsedAction, width int) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str}, width)
+		return renderEvent(agenttypes.Event{Type: agenttypes.EventSkillResult, Text: str}, width)
 	}
 	return ""
 }
@@ -142,7 +142,7 @@ func formatLog(raw string, width int) (kind, line string) {
 	return p.kind, renderActionLine(p, width)
 }
 
-func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
+func renderEvent(ev agenttypes.Event, width int, finishedAt ...string) string {
 	ts := ""
 	if len(finishedAt) > 0 {
 		ts = finishedAt[0]
@@ -154,8 +154,8 @@ func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
 	return line
 }
 
-func formatDone(body string) agentTypes.Event {
-	event := agentTypes.Event{Type: agentTypes.EventDone}
+func formatDone(body string) agenttypes.Event {
+	event := agenttypes.Event{Type: agenttypes.EventDone}
 	fields := strings.Fields(body)
 	if len(fields) == 0 {
 		return event

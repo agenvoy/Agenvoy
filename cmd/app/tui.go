@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
@@ -60,7 +60,7 @@ func TUI() {
 				slog.String("error", err.Error()))
 		}
 	} else if r, err := runtime.Read(); err == nil && r.EnableClaudeCode {
-		agentTypes.EnableClaudeCode = true
+		agenttypes.EnableClaudeCode = true
 	}
 
 	if err := torii.Init(filesystem.StoreDir); err != nil {
@@ -79,7 +79,7 @@ func TUI() {
 	scanner := runtime.NewSkillScanner()
 
 	agents.Set(nil, app.SelectSummary(registry), registry, scanner)
-	agents.SetRefresher(func() (agentTypes.Agent, agentTypes.Agent, agentTypes.ModelSet) {
+	agents.SetRefresher(func() (agenttypes.Agent, agenttypes.Agent, agenttypes.ModelSet) {
 		registry := app.NewAgentRegistry()
 		return nil, app.SelectSummary(registry), registry
 	})

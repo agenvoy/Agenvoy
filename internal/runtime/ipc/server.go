@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
@@ -151,7 +151,7 @@ func (c *conn) owns(ctx context.Context) bool {
 	}
 	c.askMu.Lock()
 	defer c.askMu.Unlock()
-	return c.windows[agentTypes.WindowHash(ctx)]
+	return c.windows[agenttypes.WindowHash(ctx)]
 }
 
 func (c *conn) reply(ctx context.Context, r *Reply) {

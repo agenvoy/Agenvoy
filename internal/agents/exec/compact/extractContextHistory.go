@@ -8,13 +8,13 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func ExtractContextHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
+func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *provider.Usage, events chan<- agenttypes.Event) bool {
 	// * step1: check user input is exist or not
-	message := extractMessage(session.Message)
+	message := extractMessage(session.UserMessage)
 	if message == "" {
 		return false
 	}
@@ -47,7 +47,7 @@ func ExtractContextHistories(ctx context.Context, agent agentTypes.Agent, sessio
 	}
 
 	// * step5: sent compact notify
-	events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "history"}
+	events <- agenttypes.Event{Type: agenttypes.EventCompact, Text: "history"}
 
 	// * step6: prepare conpact system prompt
 	prompt := strings.NewReplacer(

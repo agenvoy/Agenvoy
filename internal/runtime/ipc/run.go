@@ -11,7 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
@@ -43,9 +43,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		}
 		runningMu.Unlock()
 	}()
-	execCtx := agentTypes.WithOrigin(ctx, "cli-")
+	execCtx := agenttypes.WithOrigin(ctx, "cli-")
 	execCtx = exec.WithBotPushPrefix(execCtx, go_pkg_utils.TruncateString(f.Rayload.Input, 32))
-	execCtx = agentTypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
+	execCtx = agenttypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
 	execCtx = fast.With(execCtx, f.Rayload.Fast)
 	execCtx = guide.With(execCtx, f.Rayload.Guide)
 	content := strings.TrimSpace(f.Rayload.Input)
@@ -62,7 +62,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		HistoryContent: f.Rayload.HistoryContent,
 	})
 
-	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentTypes.Event) (err error) {
+	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agenttypes.Event) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("exec.Start panic: %v", r)
@@ -73,11 +73,11 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	terminated := false
 	taskHash := ""
 	for ev := range events {
-		if ev.Type == agentTypes.EventTextDelta {
+		if ev.Type == agenttypes.EventTextDelta {
 			continue
 		}
 		switch ev.Type {
-		case agentTypes.EventDone, agentTypes.EventCanceled, agentTypes.EventError:
+		case agenttypes.EventDone, agenttypes.EventCanceled, agenttypes.EventError:
 			terminated = true
 		}
 		if ev.TaskHash != "" && ev.TaskHash != taskHash {
@@ -103,9 +103,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		result.Error = err.Error()
 		result.Canceled = errors.Is(err, context.Canceled) || errors.Is(err, runtime.ErrUserCanceled)
 		if !terminated {
-			ev := agentTypes.Event{Type: agentTypes.EventError, Text: err.Error(), TaskHash: taskHash, WindowHash: f.Rayload.WindowHash}
+			ev := agenttypes.Event{Type: agenttypes.EventError, Text: err.Error(), TaskHash: taskHash, WindowHash: f.Rayload.WindowHash}
 			if result.Canceled {
-				ev.Type = agentTypes.EventCanceled
+				ev.Type = agenttypes.EventCanceled
 			}
 			pubsub.Pub(sessionID, ev)
 		}
