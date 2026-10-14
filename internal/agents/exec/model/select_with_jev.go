@@ -73,35 +73,23 @@ var betaWorkCriteria = map[string]any{
 	},
 }
 
-func betaWorkWhat(key string) string {
-	i := slices.IndexFunc(config.WorkKinds, func(k config.WorkKind) bool { return k.Key == key })
-	if i < 0 {
-		return ""
-	}
-	return config.WorkKinds[i].What
-}
-
-type betaAnswer struct {
-	Answers map[string]struct {
-		Choice string `json:"choice"`
-	} `json:"answers"`
-}
-
-func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]string, request, skillDesc, sessionID string) ([]string, string, int, error) {
+func selectWithJEV(ctx context.Context, meta SelectMeta, tagMap map[string]string) ([]string, string, int, error) {
+	// * step 1: get key
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
-		return nil, "", 0, fmt.Errorf("missing key: %s", config.TypesafeKey)
-	}
-	if len(candidates) == 0 {
-		return candidates, "", 0, nil
+		return nil, "", 0, fmt.Errorf("[Denied] %s: missing in keychain", config.TypesafeKey)
 	}
 
-	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
-	for _, name := range candidates {
+	if len(meta.ModelNames) == 0 {
+		return meta.ModelNames, "", 0, nil
+	}
+
+	named := map[string]any{betaNamedNone: "The user does not mention any model."}
+	for _, name := range meta.ModelNames {
 		named[name] = "The request asks to use " + name + " (fuzzy match on provider, family or version)."
 	}
 
-	turns := betaContext(sessionID)
+	turns := betaContext(meta.SessionID)
 	questions := map[string]any{
 		"work": map[string]any{
 			"type": "choice",
@@ -123,7 +111,7 @@ func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]st
 
 	var previous, previousReasoning string
 	if len(turns) > 0 {
-		previous, previousReasoning = betaPrevious(ctx, sessionID, candidates)
+		previous, previousReasoning = betaPrevious(ctx, meta.SessionID, meta.ModelNames)
 	}
 	if previous != "" {
 		questions["topic"] = map[string]any{
@@ -141,10 +129,10 @@ func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]st
 
 	state := map[string]any{
 		"context": turns,
-		"request": strings.TrimSpace(request),
+		"request": strings.TrimSpace(meta.Task),
 	}
-	if skillDesc != "" {
-		state["skill"] = skillDesc
+	if meta.SkillDescription != "" {
+		state["skill"] = meta.SkillDescription
 	}
 	body := map[string]any{
 		"model":     config.TypesafeModel,
@@ -164,10 +152,10 @@ func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]st
 	work := result.Answers["work"].Choice
 	order, ok := config.WorkTiers(work)
 	if !ok {
-		return nil, "", 0, fmt.Errorf("invalid work choice: %q", work)
+		return nil, "", 0, fmt.Errorf("[Upstream] work: invalid choice %q", work)
 	}
 
-	list := make([]string, 0, len(candidates)+1)
+	list := make([]string, 0, len(meta.ModelNames)+1)
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
@@ -182,12 +170,26 @@ func selectWithJEV(ctx context.Context, candidates []string, tiers map[string]st
 	}
 	pinned := len(list)
 
-	for _, name := range rankCandidates(work, order, tiers, candidates) {
+	for _, name := range rankCandidates(work, order, tagMap, meta.ModelNames) {
 		if !slices.Contains(list, name) {
 			list = append(list, name)
 		}
 	}
 	return list, level, pinned, nil
+}
+
+func betaWorkWhat(key string) string {
+	i := slices.IndexFunc(config.WorkKinds, func(k config.WorkKind) bool { return k.Key == key })
+	if i < 0 {
+		return ""
+	}
+	return config.WorkKinds[i].What
+}
+
+type betaAnswer struct {
+	Answers map[string]struct {
+		Choice string `json:"choice"`
+	} `json:"answers"`
 }
 
 func BetaLastModelTTL(name string) int64 {

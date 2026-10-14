@@ -31,7 +31,8 @@ func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID s
 		_, reasoning := configBot.GetModel(sessionID)
 		if reasoning == configs.REASONING_AUTO {
 			cfg := loadConfig()
-			_, reasoning, _ = runSelect(ctx, req, cfg, []string{assignModel}, map[string]bool{})
+			req.ModelNames = []string{assignModel}
+			_, reasoning, _ = runSelect(ctx, req, cfg, map[string]bool{})
 		}
 		return agent, []agentTypes.Agent{}, reasoning, nil
 	}

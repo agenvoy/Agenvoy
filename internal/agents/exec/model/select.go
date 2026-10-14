@@ -24,6 +24,7 @@ type SelectMeta struct {
 	Task             string
 	SkillDescription string
 	SessionID        string
+	ModelNames       []string
 }
 
 type selectConfigMeta struct {
@@ -58,7 +59,8 @@ func selectModel(ctx context.Context, meta SelectMeta) ([]string, map[string]boo
 	if sessModel != configBot.DefaultModel {
 		if _, ok := meta.ModelSet.Registry[sessModel]; ok {
 			if isAutoReasoning {
-				_, sessReasoning, _ = runSelect(ctx, meta, cfg, []string{sessModel}, deadMap)
+				meta.ModelNames = []string{sessModel}
+				_, sessReasoning, _ = runSelect(ctx, meta, cfg, deadMap)
 			}
 			return []string{sessModel}, deadMap, sessReasoning
 		}
@@ -79,13 +81,15 @@ func selectModel(ctx context.Context, meta SelectMeta) ([]string, map[string]boo
 	}
 	if len(avaiableModels) <= 1 {
 		if isAutoReasoning {
-			_, sessReasoning, _ = runSelect(ctx, meta, cfg, avaiableModels, deadMap)
+			meta.ModelNames = avaiableModels
+			_, sessReasoning, _ = runSelect(ctx, meta, cfg, deadMap)
 		}
 		return avaiableModels, deadMap, sessReasoning
 	}
 
 	// * step 3: run select
-	modelSelected, reasoningSelected, pinned := runSelect(ctx, meta, cfg, avaiableModels, deadMap)
+	meta.ModelNames = avaiableModels
+	modelSelected, reasoningSelected, pinned := runSelect(ctx, meta, cfg, deadMap)
 	if isAutoReasoning {
 		sessReasoning = reasoningSelected
 	}
@@ -124,16 +128,16 @@ func selectModel(ctx context.Context, meta SelectMeta) ([]string, map[string]boo
 	return append(modelNames[:head:head], config.OrderByRank(modelNames[head:])...), deadMap, sessReasoning
 }
 
-func runSelect(ctx context.Context, meta SelectMeta, cfgMeta selectConfigMeta, modelNames []string, deadMap map[string]bool) ([]string, string, int) {
+func runSelect(ctx context.Context, meta SelectMeta, cfgMeta selectConfigMeta, deadMap map[string]bool) ([]string, string, int) {
 	if cfgMeta.JEVEnabled {
 		jevCtx, cancel := context.WithTimeout(ctx, configs.TIMEOUT_JEV_CALL)
-		newModelNames, reasoning, pinned, err := selectWithJEV(jevCtx, modelNames, cfgMeta.TagMap, meta.Task, meta.SkillDescription, meta.SessionID)
+		newModelNames, reasoning, pinned, err := selectWithJEV(jevCtx, meta, cfgMeta.TagMap)
 		cancel()
 		if err == nil {
 			return newModelNames, reasoning, pinned
 		}
 		if ctx.Err() == nil {
-			slog.Debug("JEV dispatcher failed",
+			slog.Debug("[Unavailable] jev: dispatch failed, falling back to LLM",
 				slog.String("error", err.Error()))
 		}
 	}

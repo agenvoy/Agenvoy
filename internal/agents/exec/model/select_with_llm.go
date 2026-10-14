@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
-func selectWithLLM(ctx context.Context, meta SelectMeta, selectionPrompt string, dead map[string]bool) ([]string, string) {
+func selectWithLLM(ctx context.Context, meta SelectMeta, selectionPrompt string, deadMap map[string]bool) ([]string, string) {
 	// * step 1: check cooling down
 	agent := retryHandler.Check(meta.Agent, meta.ModelSet)
 	if agent == nil {
@@ -69,7 +69,7 @@ func selectWithLLM(ctx context.Context, meta SelectMeta, selectionPrompt string,
 			return parseDispatchReply(reply)
 		}
 
-		dead[agent.Name()] = true
+		deadMap[agent.Name()] = true
 		rateLimited := code == 429
 		if rateLimited {
 			// * if rate limit then mark as cooling down
@@ -79,13 +79,13 @@ func selectWithLLM(ctx context.Context, meta SelectMeta, selectionPrompt string,
 		// * use fallback in the list, item by item
 		next := retryHandler.Check(nil, meta.ModelSet)
 		if ctx.Err() == nil && !rateLimited {
-			slog.Debug("dispatcher routing failed",
+			slog.Debug("[Unavailable] dispatcher: routing failed, switching to next",
 				slog.String("name", agent.Name()),
 				slog.String("error", err.Error()))
 		}
 
 		// * if is the last and dead then return empty
-		if next == nil || dead[next.Name()] {
+		if next == nil || deadMap[next.Name()] {
 			return nil, ""
 		}
 		agent = next
