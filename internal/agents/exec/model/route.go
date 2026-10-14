@@ -8,7 +8,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID string) (agenttypes.Agent, []agenttypes.Agent, string, error) {
@@ -21,14 +21,14 @@ func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID s
 		SkillDescription: skillDesc,
 		SessionID:        sessionID,
 	}
-	if assignModel != configBot.DefaultModel {
+	if assignModel != configbot.DefaultModel {
 		agent, ok := modelSet.Registry[assignModel]
 		if !ok || agent == nil {
 			return nil, nil, "", fmt.Errorf("[Not found] model: %q", assignModel)
 		}
 
 		// * check reasoning, if auto, then get fit
-		_, reasoning := configBot.GetModel(sessionID)
+		_, reasoning := configbot.GetModel(sessionID)
 		if reasoning == configs.REASONING_AUTO {
 			cfg := loadConfig()
 			req.ModelNames = []string{assignModel}

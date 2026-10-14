@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func registEditTool() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "edit_tool",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -56,7 +56,7 @@ The build flow is write → test_tool → call it. Finding an existing tool → 
 			},
 			"required": []string{"name"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode       string `json:"mode"`
 				Name       string `json:"name"`

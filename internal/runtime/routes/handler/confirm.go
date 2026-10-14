@@ -12,7 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const webSessionPrefix = "chat-"
@@ -145,7 +145,7 @@ func ResolveToolConfirm() gin.HandlerFunc {
 		verified := false
 
 		if approve && len(restricted) > 0 {
-			if !internalUtils.IsLoopback(c.Request.RemoteAddr) {
+			if !internalutils.IsLoopback(c.Request.RemoteAddr) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "restricted approvals must come from this machine"})
 				return
 			}

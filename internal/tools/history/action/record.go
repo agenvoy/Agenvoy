@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const displayLayout = "2006-01-02 15:04"
@@ -29,10 +29,10 @@ type result struct {
 type entry struct {
 	taskID string
 	at     time.Time
-	row    historyStore.ActionRecord
+	row    historystore.ActionRecord
 }
 
-func entries(e *toolTypes.Executor) ([]entry, error) {
+func entries(e *tooltypes.Executor) ([]entry, error) {
 	if e == nil || e.SessionID == "" {
 		return nil, fmt.Errorf("no session: task history is recorded per session")
 	}
@@ -65,7 +65,7 @@ func Objective(sessionID, taskID string) string {
 }
 
 func entriesOf(sessionID string) ([]entry, error) {
-	rows, err := historyStore.ListAction(context.Background(), sessionID)
+	rows, err := historystore.ListAction(context.Background(), sessionID)
 	if err != nil {
 		return nil, err
 	}

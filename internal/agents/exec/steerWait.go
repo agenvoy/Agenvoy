@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 var (
@@ -63,7 +63,7 @@ func AppendSteer(sessionID, windowHash, text string) {
 	e.mu.Lock()
 	e.list = append(e.list, text)
 	e.mu.Unlock()
-	sessionLog.Steer(sessionID, windowHash, text)
+	sessionlog.Steer(sessionID, windowHash, text)
 }
 
 func getSteer(sessionID string) []string {

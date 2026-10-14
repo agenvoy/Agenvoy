@@ -10,7 +10,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func toolTarget(name, tag string, mustExist bool) (string, error) {
@@ -39,7 +39,7 @@ func toolTarget(name, tag string, mustExist bool) (string, error) {
 	return "", fmt.Errorf("tag must be 'json', 'script', or 'api', got %q", tag)
 }
 
-func writeToolFile(ctx context.Context, e *toolTypes.Executor, name, tag, content string) (string, error) {
+func writeToolFile(ctx context.Context, e *tooltypes.Executor, name, tag, content string) (string, error) {
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("content is required when mode=write")
 	}

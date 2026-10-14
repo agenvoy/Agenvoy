@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type todoInput struct {
@@ -21,7 +22,7 @@ type todoInput struct {
 }
 
 func registWriteTodo() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "write_todo",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -59,7 +60,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 			},
 			"required": []string{"todos"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Todos []todoInput `json:"todos"`
 			}
@@ -118,7 +119,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 	})
 }
 
-func reportWritten(e *toolTypes.Executor) bool {
+func reportWritten(e *tooltypes.Executor) bool {
 	for _, path := range e.EditedFiles() {
 		name := filepath.Base(path)
 		if strings.HasPrefix(name, "report-") && (strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".html")) {

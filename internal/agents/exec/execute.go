@@ -11,32 +11,32 @@ import (
 	"sync/atomic"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	allowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
-	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	sessionmanager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	provider "github.com/pardnchiu/go-llm-router/core"
-	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
 type ExecuteMeta struct {
@@ -54,7 +54,7 @@ type ExecuteMeta struct {
 	FileInputs        []string
 	ExcludeTools      []string
 	ExcludeSkills     []string
-	ClientTools       []provider.Tool
+	ClientTools       []go_llm_router.Tool
 	ExtraSystemPrompt string
 	Reasoning         string
 	AllowAll          bool
@@ -81,11 +81,11 @@ type (
 )
 
 func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session, events chan<- agenttypes.Event, allowAll bool) (execErr error) {
-	execCtx := provider.WithSessionID(agenttypes.WithSessionID(ctx, session.ID), session.ID)
+	execCtx := go_llm_router.WithSessionID(agenttypes.WithSessionID(ctx, session.ID), session.ID)
 	execStart := time.Now()
 
 	if !allowAll {
-		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowSkill.Match(data.WorkDir, data.Skill.Name) {
+		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowskill.Match(data.WorkDir, data.Skill.Name) {
 			allowAll = true
 		}
 	}
@@ -108,10 +108,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	windowHash := agenttypes.WindowHash(ctx)
 	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
-		if err := sessionManager.AddConcurrent(execCtx, session.ID); err != nil {
+		if err := sessionmanager.AddConcurrent(execCtx, session.ID); err != nil {
 			return fmt.Errorf("EnterConcurrent: %w", err)
 		}
-		defer sessionManager.RemoveConcurrent(session.ID)
+		defer sessionmanager.RemoveConcurrent(session.ID)
 		defer markRunning(session.ID)()
 		defer ClearSteer(session.ID)
 
@@ -123,7 +123,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 			}
 			errEvent := agenttypes.ErrorEvent(execErr)
 			errEvent.WindowHash = windowHash
-			sessionLog.Record(session.ID, errEvent)
+			sessionlog.Record(session.ID, errEvent)
 		}()
 
 		original := events
@@ -173,7 +173,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 					}
 				}
 				if !stateless && ev.Source == "" {
-					sessionLog.Record(sid, ev)
+					sessionlog.Record(sid, ev)
 				}
 				if isDcPush {
 					switch ev.Type {
@@ -272,7 +272,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 			}
 			interactive.CleanupPending(session.ID, exec.PendingTask)
 		}()
-		defer historyStore.ClearTaskOrigin(exec.PendingTask)
+		defer historystore.ClearTaskOrigin(exec.PendingTask)
 		defer interactive.KeepOnline(session.ID, exec.PendingTask)()
 		registerCancel(exec.PendingTask, execCancel)
 		defer unregisterCancel(exec.PendingTask)
@@ -283,10 +283,10 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	}
 
 	cfg, _ := config.Load()
-	if !imageTool.Enabled() {
+	if !imagetool.Enabled() {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_image")
 	}
-	if !audioTool.TTSEnabled() {
+	if !audiotool.TTSEnabled() {
 		data.ExcludeTools = append(data.ExcludeTools, "generate_audio")
 	}
 	if (cfg == nil || !cfg.TelegramEnabled || go_pkg_keychain.Get("TELEGRAM_TOKEN") == "") &&
@@ -296,7 +296,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	}
 
 	if claudeCode.Is(data.Agent.Name()) {
-		exec.Tools = slices.DeleteFunc(slices.Clone(exec.AllTools), func(t provider.Tool) bool {
+		exec.Tools = slices.DeleteFunc(slices.Clone(exec.AllTools), func(t go_llm_router.Tool) bool {
 			return t.Function.Name == "run_tool"
 		})
 	}
@@ -336,7 +336,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	}
 
 	var toolNames []string
-	if slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == "run_tool" }) {
+	if slices.ContainsFunc(exec.Tools, func(t go_llm_router.Tool) bool { return t.Function.Name == "run_tool" }) {
 		for _, t := range exec.AllTools {
 			if name := t.Function.Name; name != "find_tools" && name != "run_tool" && name != "reasoning_guide" && !exec.ExcludeTools[name] {
 				toolNames = append(toolNames, name)
@@ -374,9 +374,9 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	pool := make([]agenttypes.Agent, 0, 1+len(data.FallbackAgents))
 	pool = append(pool, data.Agent)
 	pool = append(pool, data.FallbackAgents...)
-	retryState := execModel.RetryState{Agents: pool}
+	retryState := execmodel.RetryState{Agents: pool}
 
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var sendElapsedTotal time.Duration
 	alreadyCall := make(map[string]string)
 	turnAllowAll := false
@@ -385,7 +385,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	lastInputTokens := 0
 	var shownReasoning []string
 	type sendOutcome struct {
-		resp        *provider.Output
+		resp        *go_llm_router.Output
 		code        int
 		err         error
 		textEmitted bool
@@ -426,7 +426,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 		}
 		if pending := getSteer(session.ID); len(pending) > 0 {
 			raw := strings.Join(pending, "\n")
-			session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
+			session.ToolHistories = append(session.ToolHistories, go_llm_router.Message{Role: "user", Content: formatSteerInjection(pending)})
 			events <- agenttypes.Event{Type: agenttypes.EventUserInjected, Text: raw}
 		}
 		if firstAttempt {
@@ -459,7 +459,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 
 		watchdog := time.NewTimer(configs.UNRESPONSIVE_PROBE_INTERVAL)
 		unresponsiveFailures := 0
-		var resp *provider.Output
+		var resp *go_llm_router.Output
 		var sendCode int
 		var err error
 		var textEmitted bool
@@ -480,7 +480,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 				resp, sendCode, err, textEmitted, reasoned = out.resp, out.code, out.err, out.textEmitted, out.reasoned
 				break waitSend
 			case <-watchdog.C:
-				if execModel.CheckAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
+				if execmodel.CheckAlive(execCtx, data.Agent, configs.HEALTH_CHECK_TIMEOUT) {
 					unresponsiveFailures = 0
 					watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
 					continue
@@ -494,7 +494,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 					watchdog.Reset(configs.HEALTH_CHECK_TIMEOUT)
 					continue
 				}
-				next, nextName := execModel.Next(execCtx, session.ID, data.Agent.Name(), &retryState)
+				next, nextName := execmodel.Next(execCtx, session.ID, data.Agent.Name(), &retryState)
 				if next == nil {
 					watchdog.Stop()
 					stopSend()
@@ -645,7 +645,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 				continue
 			}
 
-			next, nextName := execModel.Next(execCtx, session.ID, modelName, &retryState)
+			next, nextName := execmodel.Next(execCtx, session.ID, modelName, &retryState)
 			if next != nil {
 				slog.Debug("data.Agent.Send failed, switching model",
 					slog.String("session", session.ID),
@@ -706,7 +706,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 
 		prov, model, _ := strings.Cut(data.Agent.Name(), "@")
 		usagelog.Append(session.ID, prov, model, resp.Usage, sendDur, responseToolCalls(resp))
-		if err := torii.DB(torii.DBToolCache).Set(ctx, execModel.BetaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(execModel.BetaLastModelTTL(data.Agent.Name()))); err != nil {
+		if err := torii.DB(torii.DBToolCache).Set(ctx, execmodel.BetaLastModelKey+session.ID, data.Agent.Name()+"/"+reasoningLabel, torii.TTL(execmodel.BetaLastModelTTL(data.Agent.Name()))); err != nil {
 			slog.Debug("torii.Set",
 				slog.String("session", session.ID),
 				slog.String("error", err.Error()))
@@ -755,7 +755,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 				}
 			}
 			if len(clientTools) > 0 {
-				var handoff []provider.ToolCall
+				var handoff []go_llm_router.ToolCall
 				for _, call := range choice.Message.ToolCalls {
 					if clientTools[strings.TrimSpace(call.Function.Name)] {
 						handoff = append(handoff, call)
@@ -821,8 +821,8 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 				sendText(events, responseText)
 			}
 
-			choice.Message.Content = sessionHistory.WithPrefix(
-				sessionHistory.Record{SendAt: time.Now().UnixNano()}.Prefix(),
+			choice.Message.Content = sessionhistory.WithPrefix(
+				sessionhistory.Record{SendAt: time.Now().UnixNano()}.Prefix(),
 				stripped,
 			)
 			session.ToolHistories = append(session.ToolHistories, choice.Message)
@@ -836,7 +836,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 			interactive.FinalizePending(session.ID, exec.PendingTask, responseText)
 
 			if pending := getSteer(session.ID); len(pending) > 0 {
-				session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: formatSteerInjection(pending)})
+				session.ToolHistories = append(session.ToolHistories, go_llm_router.Message{Role: "user", Content: formatSteerInjection(pending)})
 				events <- agenttypes.Event{Type: agenttypes.EventUserInjected, Text: strings.Join(pending, "\n")}
 				continue
 			}
@@ -859,7 +859,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	}
 
 	assembled := compact.AssembleMessages(session)
-	summaryMessages := append(assembled, provider.Message{
+	summaryMessages := append(assembled, go_llm_router.Message{
 		Role:    "user",
 		Content: strings.TrimSpace(configs.InjectToolSummary),
 	})
@@ -907,17 +907,17 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	return nil
 }
 
-func responseToolCalls(resp *provider.Output) []provider.ToolCall {
+func responseToolCalls(resp *go_llm_router.Output) []go_llm_router.ToolCall {
 	if resp == nil || len(resp.Choices) == 0 {
 		return nil
 	}
 	return resp.Choices[0].Message.ToolCalls
 }
 
-func ResolveReasoning(sessionID, name string) provider.Reasoning {
+func ResolveReasoning(sessionID, name string) go_llm_router.Reasoning {
 	if name == "" {
-		_, name = configBot.GetModel(sessionID)
+		_, name = configbot.GetModel(sessionID)
 	}
-	reasoning, _ := provider.ParseReasoning(name)
+	reasoning, _ := go_llm_router.ParseReasoning(name)
 	return reasoning
 }

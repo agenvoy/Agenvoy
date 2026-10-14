@@ -8,8 +8,8 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var topicNames = []string{"tool_generate", "tool_error", "web_search", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"}
@@ -28,7 +28,7 @@ var topicGuides = map[string]string{
 }
 
 func registReasoningGuide() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "reasoning_guide",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -56,7 +56,7 @@ func registReasoningGuide() {
 			},
 			"required": []string{"topics"},
 		},
-		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Topics []string `json:"topics"`
 			}

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/todo"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func RawToolFallback(session *agenttypes.Session, taskHash string) bool {
@@ -17,7 +18,7 @@ func RawToolFallback(session *agenttypes.Session, taskHash string) bool {
 
 	// * step2: extract todo result and get clean tool histories
 	histories := session.ToolHistories
-	var planPair []provider.Message
+	var planPair []go_llm_router.Message
 	if taskHash != "" {
 		planPair = todo.LastPair(histories)
 		histories = todo.Strip(histories)
@@ -30,8 +31,8 @@ func RawToolFallback(session *agenttypes.Session, taskHash string) bool {
 	}
 
 	session.ContextHistories = nil
-	session.Summary = provider.Message{}
-	head := []provider.Message{
+	session.Summary = go_llm_router.Message{}
+	head := []go_llm_router.Message{
 		{
 			Role:    "user",
 			Content: "Earlier tool results (summarization failed — kept raw). Required to answer the original question. User has not been replied to yet:\n\n" + raw,
@@ -42,7 +43,7 @@ func RawToolFallback(session *agenttypes.Session, taskHash string) bool {
 	return true
 }
 
-func convertToString(histories []provider.Message) string {
+func convertToString(histories []go_llm_router.Message) string {
 	nameByID := make(map[string]string)
 	for _, e := range histories {
 		for _, tc := range e.ToolCalls {

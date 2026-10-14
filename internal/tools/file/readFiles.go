@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const (
@@ -20,7 +19,7 @@ const (
 )
 
 func registReadFiles() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "read_files",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -74,7 +73,7 @@ What went wrong in a background, scheduled or chatbot run is in ~/.config/agenvo
 				"files",
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Files []struct {
 					Path    string `json:"path"`
@@ -121,7 +120,7 @@ What went wrong in a background, scheduled or chatbot run is in ~/.config/agenvo
 	})
 }
 
-func readOne(ctx context.Context, e *toolTypes.Executor, baseDir, path string, offset, limit int, around []int, contextLines int) (string, error) {
+func readOne(ctx context.Context, e *tooltypes.Executor, baseDir, path string, offset, limit int, around []int, contextLines int) (string, error) {
 	absPath, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
 		return "", fmt.Errorf("boundary.Resolve: %w", err)

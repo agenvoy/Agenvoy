@@ -12,12 +12,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, targets []patchTarget) (string, error) {
+func patchFileTargets(ctx context.Context, e *tooltypes.Executor, path0 string, targets []patchTarget) (string, error) {
 	if len(targets) == 0 {
 		return "", fmt.Errorf("targets is required when mode=patch")
 	}
@@ -51,7 +51,7 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	if err != nil {
 		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
 	}
-	change := historyStore.CaptureContent(absPath, content)
+	change := historystore.CaptureContent(absPath, content)
 
 	if conflict := insertedAnchor(targets); conflict != "" {
 		return "", fmt.Errorf("%s", conflict)
@@ -80,8 +80,8 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	e.RecordFile(absPath)
 
 	var unrecorded string
-	if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
-		slog.Debug("historyStore.Record",
+	if err := historystore.Record(ctx, change, historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
@@ -100,8 +100,8 @@ func rejectElided(content string, targets []patchTarget) error {
 	for _, one := range targets {
 		values = append(values, one.OldString, one.NewString)
 	}
-	if slices.ContainsFunc(values, toolTypes.IsElided) {
-		return fmt.Errorf("%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", toolTypes.Elided)
+	if slices.ContainsFunc(values, tooltypes.IsElided) {
+		return fmt.Errorf("%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", tooltypes.Elided)
 	}
 	return nil
 }

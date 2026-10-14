@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 func registFileHistory() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "file_history",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -63,7 +63,7 @@ Putting a version back → edit_file(mode=restore); what a whole run did → cha
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode   string   `json:"mode"`
 				Path   string   `json:"path"`

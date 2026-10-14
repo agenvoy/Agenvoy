@@ -12,8 +12,8 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type htmlTemplate struct {
@@ -24,7 +24,7 @@ type htmlTemplate struct {
 }
 
 func registHTMLTemplate() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "html_template",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -48,7 +48,7 @@ Fetching any other web page → fetch_page.`,
 			"required": []string{"mode"},
 		},
 		Timeout: 30 * time.Second,
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode string `json:"mode"`
 				Name string `json:"name"`

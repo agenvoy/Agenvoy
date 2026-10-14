@@ -7,13 +7,14 @@ import (
 	"slices"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 func run(ctx context.Context, req Request, userContent string, events chan<- agenttypes.Event) {
@@ -29,11 +30,11 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	events <- agenttypes.Event{Type: agenttypes.EventAgentSelect}
 
-	model := configBot.DefaultModel
+	model := configbot.DefaultModel
 	if trimModel := strings.TrimSpace(req.Model); trimModel != "" {
 		model = trimModel
 	}
-	agent, fallbacks, reasoning, err := execModel.Route(ctx, model, trimContent, "", "")
+	agent, fallbacks, reasoning, err := execmodel.Route(ctx, model, trimContent, "", "")
 	if err != nil {
 		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 		return
@@ -70,7 +71,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 }
 
 func buildStatelessSession(req Request, userInput, workDir string, model string) *agenttypes.Session {
-	var systemPrompts []provider.Message
+	var systemPrompts []go_llm_router.Message
 	if req.agentMode {
 		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, model)
 	}
@@ -83,7 +84,7 @@ func buildStatelessSession(req Request, userInput, workDir string, model string)
 			break
 		}
 	}
-	var oldHistories []provider.Message
+	var oldHistories []go_llm_router.Message
 	if lastUserIdx > 0 {
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
@@ -91,9 +92,9 @@ func buildStatelessSession(req Request, userInput, workDir string, model string)
 	return &agenttypes.Session{
 		SystemPrompts:    systemPrompts,
 		ContextHistories: oldHistories,
-		ToolHistories:    []provider.Message{},
-		ToolResults:      []provider.Message{},
-		UserMessage:      provider.Message{Role: "user", Content: userInput},
+		ToolHistories:    []go_llm_router.Message{},
+		ToolResults:      []go_llm_router.Message{},
+		UserMessage:      go_llm_router.Message{Role: "user", Content: userInput},
 		Stateless:        true,
 	}
 }

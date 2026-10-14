@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
+
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func WatchSession(ctx context.Context) func() {
@@ -51,7 +52,7 @@ func WatchSession(ctx context.Context) func() {
 				if !go_pkg_filesystem_reader.IsDir(ev.Name) {
 					continue
 				}
-				name, _ := configBot.Get(sessionID)
+				name, _ := configbot.Get(sessionID)
 				slog.Debug("session created",
 					slog.String("session", sessionID),
 					slog.String("name", name))

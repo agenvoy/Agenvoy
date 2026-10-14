@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
-	completionsHandler "github.com/pardnchiu/agenvoy/internal/runtime/routes/handler/chatCompletions"
+	completionshandler "github.com/pardnchiu/agenvoy/internal/runtime/routes/handler/chatCompletions"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -22,7 +22,7 @@ func New() *gin.Engine {
 	pageIndex := registPage(r)
 
 	// * OpenAI compatible API
-	r.POST("/v1/chat/completions", completionsHandler.ChatCompletions())
+	r.POST("/v1/chat/completions", completionshandler.ChatCompletions())
 	r.GET("/v1/models", handler.ListModels())
 	r.GET("/v1/models/*id", handler.GetModel())
 
@@ -168,7 +168,7 @@ func cors() gin.HandlerFunc {
 		if origin := c.GetHeader("Origin"); origin != "" && allowOrigin(origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, "+completionsHandler.AgentHeader)
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, "+completionshandler.AgentHeader)
 			c.Header("Access-Control-Allow-Private-Network", "true")
 		}
 		c.Header("Vary", "Origin")

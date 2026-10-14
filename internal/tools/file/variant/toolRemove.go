@@ -9,10 +9,10 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func removeToolDir(ctx context.Context, e *toolTypes.Executor, name string) (string, error) {
+func removeToolDir(ctx context.Context, e *tooltypes.Executor, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 		return "", fmt.Errorf("invalid tool name: %q", name)

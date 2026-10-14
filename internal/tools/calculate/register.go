@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "calculate",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -32,7 +31,7 @@ It computes, it does not look anything up: a rate, a price or any live figure co
 			},
 			"required": []string{"expressions"},
 		},
-		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Expressions []string `json:"expressions"`
 			}

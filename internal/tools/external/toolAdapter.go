@@ -6,14 +6,14 @@ import (
 	"fmt"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
 	searchWeb.Register()
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "http_request",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -63,7 +63,7 @@ HTML meant to be read → fetch_page; a binary file → download_file; an endpoi
 			},
 			"required": []string{"url"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				URL         string            `json:"url"`
 				Method      string            `json:"method"`

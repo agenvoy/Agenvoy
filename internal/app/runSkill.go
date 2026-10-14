@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	execSubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
+	execsubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func RunSkill(ctx context.Context, sessionID, skillName string) (string, error) {
@@ -22,13 +23,13 @@ func RunSkill(ctx context.Context, sessionID, skillName string) (string, error) 
 	if err := go_pkg_filesystem.CheckDir(sessionDir, true); err != nil {
 		return "", err
 	}
-	if err := configBot.Save(sessionID, "", "", false); err != nil {
+	if err := configbot.Save(sessionID, "", "", false); err != nil {
 		slog.Debug("sessionBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
 
-	output, err := execSubagent.Exec(exec.WithSchedule(exec.WithBotPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, false)
+	output, err := execsubagent.Exec(exec.WithSchedule(exec.WithBotPushPrefix(ctx, skillName)), body, sessionID, "", "", "", nil, false)
 	if err != nil {
 		return "", err
 	}

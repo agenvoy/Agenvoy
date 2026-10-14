@@ -19,12 +19,12 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func registRunCommand() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "run_command",
 		Timeout:     configs.RUN_COMMAND_TIMEOUT,
 		SystemUse:   false,
@@ -56,7 +56,7 @@ Inspection only (git status / log / diff, du, which, docker ps, git config --lis
 			},
 			"required": []string{"argv"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Argv       []string `json:"argv"`
 				Network    bool     `json:"network"`
@@ -82,7 +82,7 @@ func systemPackageRoute() string {
 	return "installing or removing a system package → pkg_manage"
 }
 
-func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string, network bool) (string, error) {
+func runCommand(ctx context.Context, e *tooltypes.Executor, argv, writePaths []string, network bool) (string, error) {
 	if len(argv) == 0 {
 		return "", fmt.Errorf("run_command requires a non-empty 'argv' array, e.g. [\"git\", \"status\"]")
 	}
@@ -146,7 +146,7 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		return "", fmt.Errorf("sandbox.Wrap: %w", err)
 	}
 
-	sink := &progressWriter{send: toolTypes.Progress(ctx)}
+	sink := &progressWriter{send: tooltypes.Progress(ctx)}
 	cmd.Stdout = sink
 	cmd.Stderr = sink
 

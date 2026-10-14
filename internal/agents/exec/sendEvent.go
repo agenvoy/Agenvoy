@@ -5,15 +5,16 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 const emptyDataReply = "no usable data, retry later, or using other tools."
 
-func emptyRetryExhausted(emptyCount *int, events chan<- agenttypes.Event, sessionID, taskHash, model, reason string, usage *provider.Usage, start time.Time, outputElapsed time.Duration) bool {
+func emptyRetryExhausted(emptyCount *int, events chan<- agenttypes.Event, sessionID, taskHash, model, reason string, usage *go_llm_router.Usage, start time.Time, outputElapsed time.Duration) bool {
 	*emptyCount++
 	if *emptyCount > configs.MAX_RETRY_TIMES {
 		slog.Error("model returned empty response, retries exhausted",
@@ -27,7 +28,7 @@ func emptyRetryExhausted(emptyCount *int, events chan<- agenttypes.Event, sessio
 	return false
 }
 
-func sendEmptyData(events chan<- agenttypes.Event, sessionID, taskHash, model string, usage *provider.Usage, start time.Time, outputElapsed time.Duration) {
+func sendEmptyData(events chan<- agenttypes.Event, sessionID, taskHash, model string, usage *go_llm_router.Usage, start time.Time, outputElapsed time.Duration) {
 	sendText(events, emptyDataReply)
 	events <- agenttypes.DoneEvent(model, usage, time.Since(start), outputElapsed)
 	interactive.FinalizePending(sessionID, taskHash, emptyDataReply)

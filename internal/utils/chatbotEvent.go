@@ -5,8 +5,9 @@ import (
 	"log/slog"
 	"strings"
 
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
 type AgentEventResult struct {

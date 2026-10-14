@@ -8,20 +8,19 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	actionhistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to string, limit int) (string, error) {
+func list(ctx context.Context, e *tooltypes.Executor, rawPath, taskID, from, to string, limit int) (string, error) {
 	path, err := absPath(e, rawPath)
 	if err != nil {
 		return "", err
 	}
 
-	filter := historyStore.Filter{Path: path, TaskID: strings.TrimSpace(taskID)}
+	filter := historystore.Filter{Path: path, TaskID: strings.TrimSpace(taskID)}
 	if filter.TaskID == "current" {
 		filter.TaskID = e.PendingTask
 	}
@@ -37,7 +36,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 		filter.Limit = defaultRows
 	}
 
-	list, err := historyStore.List(ctx, filter)
+	list, err := historystore.List(ctx, filter)
 	if err != nil {
 		return "", fmt.Errorf("internal/runtime/store: List: %w", err)
 	}
@@ -55,7 +54,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 			"tool":       row.Tool,
 			"session_id": row.SessionID,
 			"task_id":    row.TaskID,
-			"objective":  actionHistory.Objective(row.SessionID, row.TaskID),
+			"objective":  actionhistory.Objective(row.SessionID, row.TaskID),
 			"changed_at": time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT),
 		}
 		if reason := row.RestoreBlock(); reason != "" {

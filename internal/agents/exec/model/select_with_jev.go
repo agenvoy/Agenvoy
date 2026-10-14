@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
@@ -14,8 +15,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
-
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 const (
@@ -161,7 +160,7 @@ func selectWithJEV(ctx context.Context, meta SelectMeta, tagMap map[string]strin
 	}
 	level := config.WorkReasoning(work)
 	if previous != "" && result.Answers["topic"].Choice == betaTopicSame && (len(list) == 0 || list[0] == previous) {
-		if _, ok := provider.ParseReasoning(previousReasoning); ok {
+		if _, ok := go_llm_router.ParseReasoning(previousReasoning); ok {
 			level = previousReasoning
 		}
 		if len(list) == 0 {

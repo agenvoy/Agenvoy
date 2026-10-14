@@ -9,7 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 )
 
 type ScheduleTestPick struct {
@@ -71,7 +71,7 @@ func (t TUI) runScheduleRemove(kind, skillName string) (TUI, tea.Cmd) {
 	if removed == 0 {
 		return t, notice(msgLog(fmt.Sprintf("no %s found for %s", kind, skillName)) + "\n")
 	}
-	if err := skill.TrashSchedule(context.Background(), skillName, historyStore.Meta{SessionID: t.currentSessionID}); err != nil {
+	if err := skill.TrashSchedule(context.Background(), skillName, historystore.Meta{SessionID: t.currentSessionID}); err != nil {
 		return t, notice(msgError(fmt.Sprintf("TrashSchedule: %v", err)) + "\n")
 	}
 

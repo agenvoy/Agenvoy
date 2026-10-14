@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 )
 
 var (
@@ -112,7 +113,7 @@ func parseDone(body string) agenttypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

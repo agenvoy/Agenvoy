@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const (
@@ -22,7 +22,7 @@ func init() {
 }
 
 func registErrorHistory() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "error_history",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -83,7 +83,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode     string   `json:"mode"`
 				Keyword  string   `json:"keyword"`

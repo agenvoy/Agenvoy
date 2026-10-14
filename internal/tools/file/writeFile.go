@@ -12,12 +12,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content0, tool string) (string, error) {
+func writeFileContent(ctx context.Context, e *tooltypes.Executor, path0, content0, tool string) (string, error) {
 	baseDir := e.WorkDir
 	if baseDir == "" {
 		baseDir = filesystem.DownloadDir
@@ -51,9 +51,9 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 		}
 	}
 
-	change, err := historyStore.Capture(absPath)
+	change, err := historystore.Capture(absPath)
 	if err != nil {
-		slog.Debug("historyStore.Capture",
+		slog.Debug("historystore.Capture",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 	}
@@ -66,8 +66,8 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	markWritten(e, absPath)
 	e.RecordFile(absPath)
 
-	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
-		slog.Debug("historyStore.Record",
+	if err := historystore.Record(ctx, change.WithCreated(content), historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)

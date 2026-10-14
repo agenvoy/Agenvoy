@@ -9,7 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessiondiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -29,7 +29,7 @@ func newPendingListener(bot *Bot) *runtime.Listener[string, string] {
 }
 
 func (t *discordTransport) LookupChatID(sessionID string) (string, error) {
-	channelID, err := sessionDiscord.GetChannel(sessionID)
+	channelID, err := sessiondiscord.GetChannel(sessionID)
 	if err != nil {
 		return "", fmt.Errorf("GetChannelID: %w", err)
 	}

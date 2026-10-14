@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func (t Tool) getDef(server string, m *MCP) (toolRegister.Def, bool) {
+func (t Tool) getDef(server string, m *MCP) (toolregister.Def, bool) {
 	params := map[string]any{
 		"type":       "object",
 		"properties": map[string]any{},
@@ -30,16 +30,16 @@ func (t Tool) getDef(server string, m *MCP) (toolRegister.Def, bool) {
 
 	toolName := strings.TrimSpace(t.Name)
 	if toolName == "" {
-		return toolRegister.Def{}, false
+		return toolregister.Def{}, false
 	}
-	return toolRegister.Def{
+	return toolregister.Def{
 		Name:        "mcp__" + server + "__" + toolName,
 		SystemUse:   false,
 		AlwaysAllow: false,
 		Concurrent:  false,
 		Description: description,
 		Parameters:  params,
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var argMap map[string]any
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &argMap); err != nil {

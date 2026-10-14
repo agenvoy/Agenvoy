@@ -6,11 +6,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func removeSchedule(ctx context.Context, e *toolTypes.Executor, target, skillName string) (string, error) {
+func removeSchedule(ctx context.Context, e *tooltypes.Executor, target, skillName string) (string, error) {
 	var removed int
 	var err error
 
@@ -28,7 +28,7 @@ func removeSchedule(ctx context.Context, e *toolTypes.Executor, target, skillNam
 	if removed == 0 {
 		return fmt.Sprintf("no %s found for skill %q", target, skillName), nil
 	}
-	if err := skill.TrashSchedule(ctx, skillName, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask}); err != nil {
+	if err := skill.TrashSchedule(ctx, skillName, historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask}); err != nil {
 		return "", fmt.Errorf("TrashScheduleSkill: %w", err)
 	}
 	return fmt.Sprintf("removed %d %s(s) for skill %q and moved skill to .Trash", removed, target, skillName), nil

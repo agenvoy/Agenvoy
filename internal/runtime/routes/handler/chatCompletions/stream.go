@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 var (
@@ -57,9 +58,9 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 	}
 
 	ctx := c.Request.Context()
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var streamErr error
-	var clientCalls []provider.ToolCall
+	var clientCalls []go_llm_router.ToolCall
 
 	emitContent := func(str string) bool {
 		if str == "" {
@@ -83,7 +84,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		return emitReasoningLine(line)
 	}
 	formatToolLine := func(name, args string) string {
-		return go_pkg_utils.TruncateString(internalUtils.FormatToolEvent(name, args), 128)
+		return go_pkg_utils.TruncateString(internalutils.FormatToolEvent(name, args), 128)
 	}
 
 	for ev := range events {
@@ -102,7 +103,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 				return
 			}
 		case agenttypes.EventToolCall:
-			if internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
+			if internalutils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 				break
 			}
 			line := formatToolLine(ev.ToolName, ev.ToolArgs)

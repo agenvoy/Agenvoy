@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/utils"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -20,14 +21,14 @@ var (
 )
 
 type Request struct {
-	Model           string             `json:"model"`
-	Messages        []provider.Message `json:"messages"`
-	Stream          bool               `json:"stream"`
-	ReasoningEffort string             `json:"reasoning_effort"`
-	Tools           []provider.Tool    `json:"tools"`
-	workDir         string             `json:"-"`
-	systemPrompts   []provider.Message `json:"-"`
-	agentMode       bool               `json:"-"`
+	Model           string                  `json:"model"`
+	Messages        []go_llm_router.Message `json:"messages"`
+	Stream          bool                    `json:"stream"`
+	ReasoningEffort string                  `json:"reasoning_effort"`
+	Tools           []go_llm_router.Tool    `json:"tools"`
+	workDir         string                  `json:"-"`
+	systemPrompts   []go_llm_router.Message `json:"-"`
+	agentMode       bool                    `json:"-"`
 }
 
 const AgentHeader = "X-Agenvoy-Agent"
@@ -50,7 +51,7 @@ func ChatCompletions() gin.HandlerFunc {
 
 		normalizeContent(req.Messages)
 
-		if _, ok := provider.ParseReasoning(req.ReasoningEffort); !ok {
+		if _, ok := go_llm_router.ParseReasoning(req.ReasoningEffort); !ok {
 			req.ReasoningEffort = ""
 		}
 
@@ -59,8 +60,8 @@ func ChatCompletions() gin.HandlerFunc {
 			req.workDir = workDir
 		}
 
-		systemPrompts := make([]provider.Message, 0)
-		messages := make([]provider.Message, 0, len(req.Messages))
+		systemPrompts := make([]go_llm_router.Message, 0)
+		messages := make([]go_llm_router.Message, 0, len(req.Messages))
 		for _, msg := range req.Messages {
 			if msg.Role == "system" {
 				systemPrompts = append(systemPrompts, msg)
@@ -108,13 +109,13 @@ func ChatCompletions() gin.HandlerFunc {
 	}
 }
 
-func normalizeContent(messages []provider.Message) {
+func normalizeContent(messages []go_llm_router.Message) {
 	for i := range messages {
 		raw, ok := messages[i].Content.([]any)
 		if !ok {
 			continue
 		}
-		parts := make([]provider.ContentPart, 0, len(raw))
+		parts := make([]go_llm_router.ContentPart, 0, len(raw))
 		allText := true
 		var textBuf strings.Builder
 		for _, item := range raw {
@@ -130,19 +131,19 @@ func normalizeContent(messages []provider.Message) {
 					textBuf.WriteByte('\n')
 				}
 				textBuf.WriteString(text)
-				parts = append(parts, provider.ContentPart{Type: "text", Text: text})
+				parts = append(parts, go_llm_router.ContentPart{Type: "text", Text: text})
 			case "image_url":
 				url, detail := extractImageURL(m["image_url"])
-				parts = append(parts, provider.ContentPart{
+				parts = append(parts, go_llm_router.ContentPart{
 					Type:     "image_url",
-					ImageURL: &provider.ImageURL{URL: url, Detail: detail},
+					ImageURL: &go_llm_router.ImageURL{URL: url, Detail: detail},
 				})
 				allText = false
 			case "input_image":
 				url, _ := m["image_url"].(string)
-				parts = append(parts, provider.ContentPart{
+				parts = append(parts, go_llm_router.ContentPart{
 					Type:     "image_url",
-					ImageURL: &provider.ImageURL{URL: url, Detail: "auto"},
+					ImageURL: &go_llm_router.ImageURL{URL: url, Detail: "auto"},
 				})
 				allText = false
 			}
@@ -171,7 +172,7 @@ func extractImageURL(v any) (url, detail string) {
 	return
 }
 
-func extractWorkDirFromZed(messages []provider.Message) string {
+func extractWorkDirFromZed(messages []go_llm_router.Message) string {
 	for _, msg := range messages {
 		if msg.Role != "system" {
 			continue
@@ -190,9 +191,9 @@ func extractWorkDirFromZed(messages []provider.Message) string {
 
 func collect(c *gin.Context, id string, created int64, model string, events <-chan agenttypes.Event) {
 	var textBuf strings.Builder
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var streamErr error
-	var clientCalls []provider.ToolCall
+	var clientCalls []go_llm_router.ToolCall
 	for ev := range events {
 		switch ev.Type {
 		case agenttypes.EventText:
@@ -246,7 +247,7 @@ func collect(c *gin.Context, id string, created int64, model string, events <-ch
 	})
 }
 
-func toolCallPayload(calls []provider.ToolCall) []gin.H {
+func toolCallPayload(calls []go_llm_router.ToolCall) []gin.H {
 	out := make([]gin.H, 0, len(calls))
 	for i, call := range calls {
 		id := call.ID

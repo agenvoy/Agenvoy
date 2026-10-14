@@ -9,7 +9,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var timeLayouts = []string{
@@ -20,7 +20,7 @@ var timeLayouts = []string{
 	"2006-01-02",
 }
 
-func absPath(e *toolTypes.Executor, path string) (string, error) {
+func absPath(e *tooltypes.Executor, path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", nil

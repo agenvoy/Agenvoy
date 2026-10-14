@@ -8,9 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const (
@@ -72,7 +73,7 @@ func countMatches(lines []go_pkg_filesystem_reader.Line) int {
 	return n
 }
 
-func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery, output string, offset, limit, contextLines int, multiline bool) (string, error) {
+func searchBatch(ctx context.Context, e *tooltypes.Executor, queries []findQuery, output string, offset, limit, contextLines int, multiline bool) (string, error) {
 	switch output {
 	case "files":
 		contextLines = 0
@@ -237,7 +238,7 @@ func searchContentPage(merged []go_pkg_filesystem_reader.File, offset, limit, co
 	return string(raw) + page.notice("lines"), nil
 }
 
-func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string, contextLines int, multiline bool) ([]go_pkg_filesystem_reader.File, error) {
+func searchOne(ctx context.Context, e *tooltypes.Executor, dir, pattern, filePattern string, contextLines int, multiline bool) ([]go_pkg_filesystem_reader.File, error) {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
 		return nil, fmt.Errorf("pattern is required")

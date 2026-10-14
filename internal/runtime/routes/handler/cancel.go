@@ -10,7 +10,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 func CancelSessionTask() gin.HandlerFunc {
@@ -28,7 +28,7 @@ func CancelSessionTask() gin.HandlerFunc {
 		}
 
 		event := agenttypes.Event{Type: agenttypes.EventCanceled, TaskHash: taskHash}
-		sessionLog.Record(sessionID, event)
+		sessionlog.Record(sessionID, event)
 		pubsub.Pub(sessionID, event)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": false, "stale": true})
 	}

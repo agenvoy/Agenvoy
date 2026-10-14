@@ -5,16 +5,18 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Response struct {
-	Text      string          `json:"text"`
-	Model     string          `json:"model,omitempty"`
-	Usage     *provider.Usage `json:"usage,omitempty"`
-	SessionID string          `json:"session_id"`
+	Text      string               `json:"text"`
+	Model     string               `json:"model,omitempty"`
+	Usage     *go_llm_router.Usage `json:"usage,omitempty"`
+	SessionID string               `json:"session_id"`
 }
 
 func sendResult(c *gin.Context, sessionID string, input string, events <-chan agenttypes.Event) {

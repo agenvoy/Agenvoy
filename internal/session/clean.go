@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
@@ -69,14 +69,14 @@ func latestModTime(dir string) time.Time {
 
 func clearSessionRows(sessionID string) bool {
 	ctx := context.Background()
-	if err := historyStore.Clear(sessionID); err != nil {
-		slog.Warn("historyStore.Clear",
+	if err := historystore.Clear(sessionID); err != nil {
+		slog.Warn("historystore.Clear",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return false
 	}
-	if err := historyStore.DeleteSession(ctx, sessionID); err != nil {
-		slog.Warn("historyStore.DeleteSession",
+	if err := historystore.DeleteSession(ctx, sessionID); err != nil {
+		slog.Warn("historystore.DeleteSession",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return false

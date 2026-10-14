@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
@@ -17,8 +17,8 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 const (
@@ -46,14 +46,14 @@ func loadGuardrailRules() string {
 	return strings.Join(lines, "\n")
 }
 
-func BuildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []provider.Message {
-	var prompts []provider.Message
+func BuildSystemPrompts(workDir, extraSystemPrompt string, sessionID string, model string) []go_llm_router.Message {
+	var prompts []go_llm_router.Message
 	if channel := channelSystemPrompt(sessionID); channel != "" {
-		prompts = append(prompts, provider.Message{Role: "system", Content: channel})
+		prompts = append(prompts, go_llm_router.Message{Role: "system", Content: channel})
 	}
-	prompts = append(prompts, provider.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, model)})
+	prompts = append(prompts, go_llm_router.Message{Role: "system", Content: getSystemPrompt(workDir, extraSystemPrompt, sessionID, model)})
 	if section := mcpInstructionsSection(); section != "" {
-		prompts = append(prompts, provider.Message{Role: "system", Content: section})
+		prompts = append(prompts, go_llm_router.Message{Role: "system", Content: section})
 	}
 	return prompts
 }
@@ -95,13 +95,13 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string,
 
 	personaSection := ""
 	if sessionID != "" {
-		if err := configBot.Save(sessionID, "", "", false); err != nil {
+		if err := configbot.Save(sessionID, "", "", false); err != nil {
 			slog.Debug("sessionBot Save",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}
 	}
-	if selfID, _, body := configBot.GetPersona(sessionID); body != "" {
+	if selfID, _, body := configbot.GetPersona(sessionID); body != "" {
 		var sb strings.Builder
 		sb.WriteString("## Bot Persona\n\n")
 		if selfID != "" {
@@ -246,10 +246,10 @@ func getChatCompletionsSystemPrompt(workDir string, model string) string {
 	).Replace(configs.ChatCompletionsSystemPrompt)
 }
 
-func BuildChatCompletionsSystemPrompts(workDir string, model string) []provider.Message {
-	prompts := []provider.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, model)}}
+func BuildChatCompletionsSystemPrompts(workDir string, model string) []go_llm_router.Message {
+	prompts := []go_llm_router.Message{{Role: "system", Content: getChatCompletionsSystemPrompt(workDir, model)}}
 	if section := mcpInstructionsSection(); section != "" {
-		prompts = append(prompts, provider.Message{Role: "system", Content: section})
+		prompts = append(prompts, go_llm_router.Message{Role: "system", Content: section})
 	}
 	return prompts
 }
@@ -292,7 +292,7 @@ func renderActivation(s *skill.Skill) string {
 		b.WriteString(ext)
 		b.WriteString("\n\n---\n\n")
 	}
-	if names := toolRegister.BuiltinNames(); len(names) > 0 {
+	if names := toolregister.BuiltinNames(); len(names) > 0 {
 		b.WriteString("### Built-in Tools\n\n")
 		for _, name := range names {
 			b.WriteString("- `")

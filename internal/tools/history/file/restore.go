@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 string, paths []string) (string, error) {
+func Restore(ctx context.Context, e *tooltypes.Executor, version int64, taskID0 string, paths []string) (string, error) {
 	taskID := strings.TrimSpace(taskID0)
 	if taskID == "current" {
 		taskID = e.PendingTask
 	}
 
-	meta := historyStore.Meta{
+	meta := historystore.Meta{
 		SessionID: e.SessionID,
 		TaskID:    e.PendingTask,
 		Tool:      "edit_file",
@@ -23,7 +23,7 @@ func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 
 
 	switch {
 	case version > 0:
-		out, err := historyStore.RestoreTo(ctx, version, meta)
+		out, err := historystore.RestoreTo(ctx, version, meta)
 		if err != nil {
 			return "", fmt.Errorf("internal/runtime/store: RestoreTo [%d]: %w", version, err)
 		}
@@ -32,7 +32,7 @@ func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 
 		return "", fmt.Errorf("version or task_id is required")
 	}
 
-	filters := []historyStore.Filter{{TaskID: taskID}}
+	filters := []historystore.Filter{{TaskID: taskID}}
 	if len(paths) > 0 {
 		filters = filters[:0]
 		for _, raw := range paths {
@@ -40,13 +40,13 @@ func Restore(ctx context.Context, e *toolTypes.Executor, version int64, taskID0 
 			if err != nil {
 				return "", err
 			}
-			filters = append(filters, historyStore.Filter{TaskID: taskID, Path: path})
+			filters = append(filters, historystore.Filter{TaskID: taskID, Path: path})
 		}
 	}
 
 	var report []string
 	for _, filter := range filters {
-		lines, err := historyStore.Undo(ctx, filter, meta)
+		lines, err := historystore.Undo(ctx, filter, meta)
 		if err != nil {
 			return "", fmt.Errorf("internal/runtime/store: Undo: %w", err)
 		}

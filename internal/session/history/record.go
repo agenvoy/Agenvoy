@@ -4,9 +4,10 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 )
 
 type Record struct {
@@ -27,15 +28,15 @@ func (r Record) Prefix() string {
 	return strings.Join(parts, ", ")
 }
 
-func (r Record) Message() provider.Message {
-	return provider.Message{
+func (r Record) Message() go_llm_router.Message {
+	return go_llm_router.Message{
 		Role:    r.Role,
 		Content: WithPrefix(r.Prefix(), r.Content),
 	}
 }
 
 func (r Record) Text() string {
-	return historyStore.ExtractContent(r.Content)
+	return historystore.ExtractContent(r.Content)
 }
 
 func WithPrefix(prefix string, content any) any {
@@ -47,16 +48,16 @@ func WithPrefix(prefix string, content any) any {
 	case string:
 		return prefix + "\n" + value
 
-	case []provider.ContentPart:
+	case []go_llm_router.ContentPart:
 		for i, part := range value {
 			if part.Type != "text" {
 				continue
 			}
-			out := append([]provider.ContentPart(nil), value...)
+			out := append([]go_llm_router.ContentPart(nil), value...)
 			out[i].Text = prefix + "\n" + part.Text
 			return out
 		}
-		return append([]provider.ContentPart{{Type: "text", Text: prefix}}, value...)
+		return append([]go_llm_router.ContentPart{{Type: "text", Text: prefix}}, value...)
 
 	case nil:
 		return prefix
@@ -66,11 +67,11 @@ func WithPrefix(prefix string, content any) any {
 	}
 }
 
-func Messages(list []Record) []provider.Message {
+func Messages(list []Record) []go_llm_router.Message {
 	if len(list) == 0 {
 		return nil
 	}
-	out := make([]provider.Message, 0, len(list))
+	out := make([]go_llm_router.Message, 0, len(list))
 	for _, r := range list {
 		out = append(out, r.Message())
 	}
@@ -88,14 +89,14 @@ func normalize(list []Record) []Record {
 	return list
 }
 
-func rows(list []Record) []historyStore.Message {
-	out := make([]historyStore.Message, 0, len(list))
+func rows(list []Record) []historystore.Message {
+	out := make([]historystore.Message, 0, len(list))
 	for _, r := range list {
 		content := r.Text()
 		if strings.TrimSpace(content) == "" {
 			continue
 		}
-		out = append(out, historyStore.Message{
+		out = append(out, historystore.Message{
 			SendAt:  r.SendAt,
 			Role:    r.Role,
 			Content: content,

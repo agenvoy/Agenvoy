@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -17,17 +17,17 @@ func New(chatID int64) (string, error) {
 	sum := sha256.Sum256([]byte(key))
 	sessionID := "tg-" + hex.EncodeToString(sum[:])
 
-	botName := configBot.FormatName(utils.LookupChatName(filesystem.TelegramAuthPath, strconv.FormatInt(chatID, 10)))
-	if err := configBot.Save(sessionID, botName, "", false); err != nil {
+	botName := configbot.FormatName(utils.LookupChatName(filesystem.TelegramAuthPath, strconv.FormatInt(chatID, 10)))
+	if err := configbot.Save(sessionID, botName, "", false); err != nil {
 		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
 	if botName != "" {
-		configBot.ReplaceDefault(sessionID, botName)
+		configbot.ReplaceDefault(sessionID, botName)
 	}
-	if err := configBot.SetChannel(sessionID, strconv.FormatInt(chatID, 10), "", "", ""); err != nil {
-		return "", fmt.Errorf("configBot.SetChannel: %w", err)
+	if err := configbot.SetChannel(sessionID, strconv.FormatInt(chatID, 10), "", "", ""); err != nil {
+		return "", fmt.Errorf("configbot.SetChannel: %w", err)
 	}
 	return sessionID, nil
 }
@@ -37,6 +37,6 @@ func GetChat(sessionID string) (string, error) {
 		return "", fmt.Errorf("sessionID is required")
 	}
 
-	chatID, _, _, _ := configBot.GetChannel(sessionID)
+	chatID, _, _, _ := configbot.GetChannel(sessionID)
 	return chatID, nil
 }

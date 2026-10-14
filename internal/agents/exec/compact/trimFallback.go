@@ -3,10 +3,10 @@ package compact
 import (
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
-func TrimFallback(oldHistory *[]provider.Message, toolCall *[]provider.Message) {
+func TrimFallback(oldHistory *[]go_llm_router.Message, toolCall *[]go_llm_router.Message) {
 	if len(*oldHistory) > 0 {
 		n := 2
 		if len(*oldHistory) < 2 {
@@ -38,7 +38,7 @@ func TrimFallback(oldHistory *[]provider.Message, toolCall *[]provider.Message) 
 		ids[tool.ID] = true
 	}
 
-	kept := make([]provider.Message, 0, len(*toolCall))
+	kept := make([]go_llm_router.Message, 0, len(*toolCall))
 	for i, m := range *toolCall {
 		if i == firstToolCall {
 			continue

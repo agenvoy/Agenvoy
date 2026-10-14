@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
@@ -17,7 +17,7 @@ func Register() {
 }
 
 func registSubagents() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "subagents",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -79,7 +79,7 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params invokeParams
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {

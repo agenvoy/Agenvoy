@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/followup"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 func GetSessionFollowup() gin.HandlerFunc {
@@ -18,16 +18,16 @@ func GetSessionFollowup() gin.HandlerFunc {
 			return
 		}
 
-		_, histories := sessionHistory.Get(sessionID)
+		_, histories := sessionhistory.Get(sessionID)
 		if len(histories) == 0 {
 			c.JSON(http.StatusOK, gin.H{"title": "", "suggests": []string{}})
 			return
 		}
 
-		result := followup.Generate(c.Request.Context(), sessionID, histories, configBot.NeedTitle(sessionID))
+		result := followup.Generate(c.Request.Context(), sessionID, histories, configbot.NeedTitle(sessionID))
 		if result.Title != "" {
-			if err := configBot.SetTitle(sessionID, result.Title); err != nil {
-				slog.Debug("configBot.SetTitle",
+			if err := configbot.SetTitle(sessionID, result.Title); err != nil {
+				slog.Debug("configbot.SetTitle",
 					slog.String("session", sessionID),
 					slog.String("error", err.Error()))
 			}

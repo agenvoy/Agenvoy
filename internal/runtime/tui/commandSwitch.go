@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionmanager "github.com/pardnchiu/agenvoy/internal/session"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -34,7 +35,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 	}
 	if len(parts) >= 2 {
 		selfID := strings.Join(parts[1:], " ")
-		id := sessionManager.GetSessionIDBySelfID(selfID)
+		id := sessionmanager.GetSessionIDBySelfID(selfID)
 		if id == "" {
 			return t, notice(msgError(fmt.Sprintf("no session with self id %q", selfID)) + "\n"), true
 		}
@@ -56,7 +57,7 @@ func (t TUI) commandSessions(parts []string) (TUI, tea.Cmd, bool) {
 		if sid == "" {
 			return nil
 		}
-		selfID, name, _ := configBot.GetPersona(sid)
+		selfID, name, _ := configbot.GetPersona(sid)
 		withValue := func(desc, value string) string {
 			if value == "" {
 				return hintStyle.Render(desc)
@@ -96,7 +97,7 @@ func (t TUI) runCommandSwitch(id string) (TUI, tea.Cmd) {
 	}
 	previous := t.currentSessionID
 	t.currentSessionID = id
-	t.currentSessionName, _ = configBot.Get(id)
+	t.currentSessionName, _ = configbot.Get(id)
 	t.inputHistory = loadInputHistory(id)
 	t.inputHistoryIdx = -1
 	t = t.restartTailer()
@@ -131,7 +132,7 @@ func listSessions() []Session {
 			continue
 		}
 		refreshBotName(sid)
-		name, _ := configBot.Get(sid)
+		name, _ := configbot.Get(sid)
 		results = append(results, Session{
 			id:   sid,
 			name: name,

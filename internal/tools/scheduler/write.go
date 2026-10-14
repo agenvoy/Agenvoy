@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func writeSchedule(e *toolTypes.Executor, target, when, skill string) (string, error) {
+func writeSchedule(e *tooltypes.Executor, target, when, skill string) (string, error) {
 	if !go_pkg_filesystem_reader.Exists(filesystem.ScheduleSkillPath(skill)) {
 		return "", fmt.Errorf("skill %q not found under %s. mode=write is an internal binding called by the scheduler-skill-creator skill flow. Run scheduler-skill-creator skill which generates a hashed skill name and binds time in one flow. Do not call mode=write with a hand-made name", skill, filesystem.ScheduleSkillPath(skill))
 	}

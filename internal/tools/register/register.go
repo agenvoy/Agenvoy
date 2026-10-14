@@ -11,14 +11,15 @@ import (
 	"sync"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-type Handler func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error)
+type Handler func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error)
 
-type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error)
+type GroupHandler func(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error)
 
 const (
 	NoToolTimeout = time.Duration(-1)
@@ -40,7 +41,7 @@ var mu sync.RWMutex
 
 var handlerMap = map[string]Handler{}
 var groupHandlerMap = map[string]GroupHandler{}
-var defList []provider.Tool
+var defList []go_llm_router.Tool
 var builtinNames []string
 var readOnlySet = map[string]bool{}
 var concurrentSet = map[string]bool{}
@@ -64,9 +65,9 @@ func Regist(d Def) {
 	}
 
 	raw, _ := json.Marshal(d.Parameters)
-	tool := provider.Tool{
+	tool := go_llm_router.Tool{
 		Type: "function",
-		Function: provider.ToolFunction{
+		Function: go_llm_router.ToolFunction{
 			Name:        d.Name,
 			Description: d.Description,
 			Parameters:  raw,
@@ -96,7 +97,7 @@ func RemoveByPrefix(prefix string) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	defList = slices.DeleteFunc(defList, func(t provider.Tool) bool {
+	defList = slices.DeleteFunc(defList, func(t go_llm_router.Tool) bool {
 		return strings.HasPrefix(t.Function.Name, prefix)
 	})
 	builtinNames = slices.DeleteFunc(builtinNames, func(n string) bool {
@@ -191,7 +192,7 @@ func IsSystemUse(name string) bool {
 	return systemUseSet[name]
 }
 
-func GetTool(name string) *provider.Tool {
+func GetTool(name string) *go_llm_router.Tool {
 	mu.RLock()
 	defer mu.RUnlock()
 	for i := range defList {
@@ -221,7 +222,7 @@ func JSON() []byte {
 	return raw
 }
 
-func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+func Dispatch(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 	timeout := GetTimeout(name)
 	tctx, cancel := ctx, func() {}
 	if timeout > 0 {

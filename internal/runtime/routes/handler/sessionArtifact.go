@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -26,7 +27,7 @@ func sessionChatLog(sid string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return sessionLog.TrimSettledTools(content), nil
+	return sessionlog.TrimSettledTools(content), nil
 }
 
 func sessionUsage(sid string) (map[string]map[string]usagelog.ModelUsage, error) {
@@ -66,7 +67,7 @@ func ListTaskHistory() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 			return
 		}
-		rows, err := historyStore.ListAction(c.Request.Context(), sid)
+		rows, err := historystore.ListAction(c.Request.Context(), sid)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -90,7 +91,7 @@ func ListTaskHistory() gin.HandlerFunc {
 	}
 }
 
-func actionMatch(row historyStore.ActionRecord, keyword string) bool {
+func actionMatch(row historystore.ActionRecord, keyword string) bool {
 	if keyword == "" {
 		return true
 	}
@@ -111,7 +112,7 @@ func GetTaskHistory() gin.HandlerFunc {
 			return
 		}
 
-		row, ok, err := historyStore.ReadAction(c.Request.Context(), sid, hash)
+		row, ok, err := historystore.ReadAction(c.Request.Context(), sid, hash)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

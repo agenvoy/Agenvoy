@@ -12,7 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessiondiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -23,7 +23,7 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 		return
 	}
 
-	channelID, err := sessionDiscord.GetChannel(id)
+	channelID, err := sessiondiscord.GetChannel(id)
 	if err != nil {
 		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChannelID",
 			slog.String("session", id),

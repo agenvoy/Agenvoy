@@ -13,11 +13,12 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	allowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -80,7 +81,7 @@ func (t TUI) commandSkills() (TUI, tea.Cmd, bool) {
 			return filepath.Dir(one.AbsPath)
 		},
 		onEnter: func(p *Popup, chosen string) tea.Cmd {
-			if _, err := allowSkill.ToggleGlobal(chosen); err != nil {
+			if _, err := allowskill.ToggleGlobal(chosen); err != nil {
 				p.subtitle = errorStyle.Render(fmt.Sprintf("allow %s: %v", chosen, err))
 				return nil
 			}
@@ -135,7 +136,7 @@ func fillAllowSkills(p *Popup) {
 		names = scanner.List()
 		sort.Strings(names)
 	}
-	allowed := allowSkill.LoadGlobal()
+	allowed := allowskill.LoadGlobal()
 	labels := make([]string, len(names))
 	settings := make([]string, len(names))
 	for i, name := range names {

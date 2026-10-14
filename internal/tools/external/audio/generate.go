@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	llmrouter "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -26,7 +26,7 @@ func Generate(ctx context.Context, req Request) (string, error) {
 		return "", fmt.Errorf("text is required")
 	}
 
-	result, agentName, err := Speak(ctx, text, llmrouter.TTSOptions{Voice: strings.TrimSpace(req.Voice), Format: speechFormat})
+	result, agentName, err := Speak(ctx, text, go_llm_router.TTSOptions{Voice: strings.TrimSpace(req.Voice), Format: speechFormat})
 	if err != nil {
 		return "", err
 	}

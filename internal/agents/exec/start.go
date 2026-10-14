@@ -10,11 +10,11 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
 
@@ -77,17 +77,17 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 	if data.Skill != nil {
 		skillResult := agenttypes.Event{Type: agenttypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
 		events <- skillResult
-		sessionLog.Record(sessionID, skillResult)
+		sessionlog.Record(sessionID, skillResult)
 	}
 
 	if input := strings.TrimSpace(data.Input); input != "" {
 		events <- agenttypes.Event{Type: agenttypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
-		sessionLog.Append(sessionID, windowHash, input)
+		sessionlog.Append(sessionID, windowHash, input)
 	}
 
 	events <- agenttypes.Event{Type: agenttypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
-	model := configBot.DefaultModel
+	model := configbot.DefaultModel
 	if trimModel := strings.TrimSpace(data.Model); trimModel != "" {
 		model = trimModel
 	}
@@ -95,9 +95,9 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 	if data.Skill != nil {
 		skillDesc = data.Skill.Description
 	}
-	agent, fallbacks, reasoning, err := execModel.Route(ctx, model, data.Task, skillDesc, sessionID)
+	agent, fallbacks, reasoning, err := execmodel.Route(ctx, model, data.Task, skillDesc, sessionID)
 	if err != nil {
-		return fmt.Errorf("execModel.Route: %w", err)
+		return fmt.Errorf("execmodel.Route: %w", err)
 	}
 	if data.Reasoning == "" || data.Reasoning == configs.REASONING_AUTO {
 		data.Reasoning = reasoning
@@ -111,11 +111,11 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 		WindowHash: windowHash,
 	}
 	events <- agentResult
-	sessionLog.Record(sessionID, agentResult)
+	sessionlog.Record(sessionID, agentResult)
 
 	data.Agent = agent
 	data.FallbackAgents = fallbacks
-	session, err := GetSession(ctx, data)
+	session, err := getSession(ctx, data)
 	if err != nil {
 		return fmt.Errorf("GetSession: %w", err)
 	}

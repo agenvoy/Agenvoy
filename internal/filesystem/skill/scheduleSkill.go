@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 )
 
 func HasSchedule(name string) bool {
@@ -65,7 +66,7 @@ func GetSchedule(name string) (string, error) {
 	return strings.TrimSpace(bodyRegex.ReplaceAllString(result, "")), nil
 }
 
-func TrashSchedule(ctx context.Context, name string, meta historyStore.Meta) error {
+func TrashSchedule(ctx context.Context, name string, meta historystore.Meta) error {
 	dir := filesystem.ScheduleSkillDir(name)
 	if !go_pkg_filesystem_reader.IsDir(dir) {
 		return nil
@@ -77,8 +78,8 @@ func TrashSchedule(ctx context.Context, name string, meta historyStore.Meta) err
 	}
 
 	meta.Tool = "schedules"
-	if err := historyStore.RecordDelete(ctx, dir, trashPath, meta); err != nil {
-		slog.Debug("historyStore.RecordDelete",
+	if err := historystore.RecordDelete(ctx, dir, trashPath, meta); err != nil {
+		slog.Debug("historystore.RecordDelete",
 			slog.String("path", dir),
 			slog.String("error", err.Error()))
 	}

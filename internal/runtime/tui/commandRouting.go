@@ -7,12 +7,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
-
-	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
 const (
@@ -72,12 +72,12 @@ func routingTabLoad(p *Popup, kind string) tea.Cmd {
 		}
 		switch kind {
 		case "image":
-			imageTool.Prune(ctx)
-			return RoutingTabLoaded{kind: kind, current: cfg.ImageGenerator, available: imageTool.Available(ctx), target: target}
+			imagetool.Prune(ctx)
+			return RoutingTabLoaded{kind: kind, current: cfg.ImageGenerator, available: imagetool.Available(ctx), target: target}
 		case "stt":
-			return RoutingTabLoaded{kind: kind, current: cfg.STTModel, available: audioTool.STTOptions(ctx), target: target}
+			return RoutingTabLoaded{kind: kind, current: cfg.STTModel, available: audiotool.STTOptions(ctx), target: target}
 		}
-		return RoutingTabLoaded{kind: kind, current: cfg.TTSModel, available: audioTool.TTSOptions(ctx), target: target}
+		return RoutingTabLoaded{kind: kind, current: cfg.TTSModel, available: audiotool.TTSOptions(ctx), target: target}
 	}
 }
 

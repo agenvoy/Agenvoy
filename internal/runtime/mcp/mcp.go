@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 type MCP struct {
@@ -140,7 +140,7 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 	m.toolsSum = map[string]string{}
 	m.mu.Unlock()
 
-	toolRegister.RemoveByPrefix("mcp__")
+	toolregister.RemoveByPrefix("mcp__")
 
 	cfg, err := Load()
 	if err != nil {
@@ -209,7 +209,7 @@ func (m *MCP) Disconnect(name string) {
 	delete(m.instructions, name)
 	m.mu.Unlock()
 
-	toolRegister.RemoveByPrefix("mcp__" + name + "__")
+	toolregister.RemoveByPrefix("mcp__" + name + "__")
 }
 
 func (m *MCP) Tools(ctx context.Context, name string) ([]Tool, error) {
@@ -320,14 +320,14 @@ func (m *MCP) refresh(ctx context.Context, name string) {
 	}
 	delete(m.lastError, name)
 
-	toolRegister.RemoveByPrefix("mcp__" + name + "__")
+	toolregister.RemoveByPrefix("mcp__" + name + "__")
 	registered := 0
 	for _, tool := range tools {
 		def, ok := tool.getDef(name, m)
 		if !ok {
 			continue
 		}
-		toolRegister.Regist(def)
+		toolregister.Regist(def)
 		registered++
 	}
 	m.toolsSum[name] = toolsSignature(tools)
@@ -364,7 +364,7 @@ func (m *MCP) RegisterAll(ctx context.Context) {
 					slog.String("tool", tool.Name))
 				continue
 			}
-			toolRegister.Regist(def)
+			toolregister.Regist(def)
 		}
 		m.toolsSum[name] = toolsSignature(tools)
 	}

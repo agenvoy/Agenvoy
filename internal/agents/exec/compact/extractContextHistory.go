@@ -6,13 +6,14 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
+	agentsummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *provider.Usage, events chan<- agenttypes.Event) bool {
+func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *go_llm_router.Usage, events chan<- agenttypes.Event) bool {
 	// * step1: check user input is exist or not
 	message := extractMessage(session.UserMessage)
 	if message == "" {
@@ -54,18 +55,18 @@ func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, sessio
 		"{{.Message}}", message,
 	).Replace(strings.TrimSpace(configs.OldHistoryExtractPrompt))
 
-	messages := []provider.Message{
+	messages := []go_llm_router.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: raw},
 	}
 
 	// * step7: start to compact old history
-	result := agentSummary.Send(ctx, agent, session.ID, usage, messages, provider.ReasoningNone, CheckThreshold)
+	result := agentsummary.Send(ctx, agent, session.ID, usage, messages, go_llm_router.ReasoningNone, CheckThreshold)
 	if result == "" {
 		return false
 	}
 
-	session.ContextHistories = []provider.Message{
+	session.ContextHistories = []go_llm_router.Message{
 		{
 			Role:    "user",
 			Content: "Prior conversation summary (background only — not complete data for this question. Call tools for up-to-date information. The user has not been replied to yet):\n\n" + result,
@@ -74,11 +75,11 @@ func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, sessio
 	return true
 }
 
-func extractMessage(msg provider.Message) string {
+func extractMessage(msg go_llm_router.Message) string {
 	switch val := msg.Content.(type) {
 	case string:
 		return val
-	case []provider.ContentPart:
+	case []go_llm_router.ContentPart:
 		for _, part := range val {
 			if part.Type == "text" {
 				return part.Text

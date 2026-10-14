@@ -9,10 +9,9 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	"github.com/pardnchiu/agenvoy/internal/tools/file"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-
 	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/tools/file"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var (
@@ -34,7 +33,7 @@ func init() {
 
 var WorkDirChangeHook func(sessionID, path string)
 
-func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
+func changeWorkDir(e *tooltypes.Executor, args []string) (string, error) {
 	var positional []string
 	for _, a := range args {
 		if !strings.HasPrefix(a, "-") {
@@ -62,6 +61,6 @@ func changeWorkDir(e *toolTypes.Executor, args []string) (string, error) {
 	return fmt.Sprintf("Changed working directory to: %s", abs), nil
 }
 
-func moveToTrash(ctx context.Context, e *toolTypes.Executor, args []string) (string, error) {
+func moveToTrash(ctx context.Context, e *tooltypes.Executor, args []string) (string, error) {
 	return file.RemoveToTrash(ctx, e, args, "rm")
 }

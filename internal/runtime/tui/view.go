@@ -8,11 +8,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
+
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func (t TUI) View() string {
@@ -427,9 +428,9 @@ func (t TUI) modelTag() string {
 		return ""
 	}
 
-	model, reasoning := configBot.GetModel(sid)
+	model, reasoning := configbot.GetModel(sid)
 	modelPart := hintStyle.Render(model)
-	if model != configBot.DefaultModel {
+	if model != configbot.DefaultModel {
 		modelPart = warnStyle.Render(model)
 	}
 

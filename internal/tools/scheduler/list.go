@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func listSchedule(e *toolTypes.Executor, target string) (string, error) {
+func listSchedule(e *tooltypes.Executor, target string) (string, error) {
 	sid := ""
 	if e != nil {
 		sid = strings.TrimSpace(e.SessionID)

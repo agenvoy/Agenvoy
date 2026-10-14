@@ -9,10 +9,10 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func writeSkillFile(ctx context.Context, e *toolTypes.Executor, path, content string) (string, error) {
+func writeSkillFile(ctx context.Context, e *tooltypes.Executor, path, content string) (string, error) {
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("content is required when mode=write")
 	}

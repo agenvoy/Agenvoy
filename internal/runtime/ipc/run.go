@@ -14,7 +14,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func (c *conn) run(ctx context.Context, f Frame) {
@@ -26,7 +26,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	sessionID := strings.TrimSpace(f.SessionID)
 	if sessionID == "" {
 		sessionID = "temp-" + go_pkg_utils.UUID()
-		if err := configBot.Save(sessionID, "", "", false); err != nil {
+		if err := configbot.Save(sessionID, "", "", false); err != nil {
 			c.write(Frame{Type: FrameDone, UUID: f.UUID, Error: err.Error()})
 			return
 		}

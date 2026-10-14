@@ -3,11 +3,11 @@ package types
 import (
 	"fmt"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 )
 
-func InputTotals(usage *provider.Usage) (total, hitPct int) {
+func InputTotals(usage *go_llm_router.Usage) (total, hitPct int) {
 	if usage == nil {
 		return 0, 0
 	}

@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	goCron "github.com/pardnchiu/go-scheduler"
+
+	gocron "github.com/pardnchiu/go-scheduler"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
 )
 
@@ -51,9 +52,9 @@ var (
 func NewScheduler() error {
 	var initErr error
 	once.Do(func() {
-		c, err := goCron.New(goCron.Config{})
+		c, err := gocron.New(gocron.Config{})
 		if err != nil {
-			initErr = fmt.Errorf("goCron.New: %w", err)
+			initErr = fmt.Errorf("gocron.New: %w", err)
 			return
 		}
 		c.Start()
@@ -99,8 +100,8 @@ func addDefaultCrons() {
 	}
 
 	pruneFileHistory := func() {
-		if err := historyStore.PruneFile(context.Background()); err != nil {
-			slog.Warn("historyStore.PruneFile",
+		if err := historystore.PruneFile(context.Background()); err != nil {
+			slog.Warn("historystore.PruneFile",
 				slog.String("error", err.Error()))
 		}
 	}
@@ -116,15 +117,15 @@ func addDefaultCrons() {
 			slog.String("error", err.Error()))
 	}
 
-	sessionHistory.PruneVectorless()
-	if _, err := st.cron.Add("0 4 * * *", sessionHistory.PruneVectorless); err != nil {
+	sessionhistory.PruneVectorless()
+	if _, err := st.cron.Add("0 4 * * *", sessionhistory.PruneVectorless); err != nil {
 		slog.Warn("cron pruneVectorless",
 			slog.String("error", err.Error()))
 	}
 
 	pruneActionHistory := func() {
-		if err := historyStore.PruneAction(context.Background()); err != nil {
-			slog.Warn("historyStore.PruneAction",
+		if err := historystore.PruneAction(context.Background()); err != nil {
+			slog.Warn("historystore.PruneAction",
 				slog.String("error", err.Error()))
 		}
 	}
@@ -242,7 +243,7 @@ func reload() error {
 			if hasMore {
 				return
 			}
-			if err := skill.TrashSchedule(context.Background(), entryCopy.Skill, historyStore.Meta{SessionID: entryCopy.SessionID}); err != nil {
+			if err := skill.TrashSchedule(context.Background(), entryCopy.Skill, historystore.Meta{SessionID: entryCopy.SessionID}); err != nil {
 				slog.Warn("filesystem.TrashScheduleSkill",
 					slog.String("session", entryCopy.SessionID),
 					slog.String("error", err.Error()))

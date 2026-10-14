@@ -2,12 +2,13 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 const sessionReasoningPrefix = "reasoning:"
 
-var reasoningLevels = configBot.ReasoningLevels()
+var reasoningLevels = configbot.ReasoningLevels()
 
 type SessionReasoningSelect struct {
 	level string
@@ -17,7 +18,7 @@ func currentReasoning(sid string) string {
 	if sid == "" {
 		return ""
 	}
-	_, current := configBot.GetModel(sid)
+	_, current := configbot.GetModel(sid)
 	return current
 }
 
@@ -42,7 +43,7 @@ func (t TUI) runSessionReasoningSelect(level string) (TUI, tea.Cmd) {
 	if sid == "" {
 		return t, notice(msgLog("no active session") + "\n")
 	}
-	configBot.SetModel(sid, "", level)
+	configbot.SetModel(sid, "", level)
 	return t, nil
 }
 
@@ -52,7 +53,7 @@ func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 		return t, nil
 	}
 
-	_, current := configBot.GetModel(sid)
+	_, current := configbot.GetModel(sid)
 
 	idx := 0
 	for i, lvl := range reasoningLevels {
@@ -68,6 +69,6 @@ func (t TUI) cycleReasoning(forward bool) (TUI, tea.Cmd) {
 		idx = (idx - 1 + n) % n
 	}
 	level := reasoningLevels[idx]
-	configBot.SetModel(sid, "", level)
+	configbot.SetModel(sid, "", level)
 	return t, nil
 }

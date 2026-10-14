@@ -4,13 +4,14 @@ import (
 	"context"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func waitResume(ctx context.Context, sessionID string, parent chan<- agenttypes.Event, displayName string) (string, provider.Usage) {
-	var usage provider.Usage
+func waitResume(ctx context.Context, sessionID string, parent chan<- agenttypes.Event, displayName string) (string, go_llm_router.Usage) {
+	var usage go_llm_router.Usage
 	sub := pubsub.Sub(sessionID, 128)
 	defer sub.Close()
 

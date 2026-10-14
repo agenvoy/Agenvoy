@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func read(e *toolTypes.Executor, taskIDs []string, full bool) (string, error) {
+func read(e *tooltypes.Executor, taskIDs []string, full bool) (string, error) {
 	list, err := entries(e)
 	if err != nil {
 		return "", err

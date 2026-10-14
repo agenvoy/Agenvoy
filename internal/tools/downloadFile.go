@@ -11,15 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 func registDownloadFile() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "download_file",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -51,7 +50,7 @@ JSON or an API response → http_request; a web page → fetch_page(save=true).`
 	})
 }
 
-func handleDownloadFile(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+func handleDownloadFile(ctx context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 	var p struct {
 		URL        string `json:"url"`
 		OutputFile string `json:"output_file"`

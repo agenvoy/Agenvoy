@@ -10,8 +10,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
+
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const path = "https://news.google.com/rss/search"

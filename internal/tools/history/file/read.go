@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"github.com/aymanbagabas/go-udiff"
-	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/configs"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, error) {
+func read(ctx context.Context, e *tooltypes.Executor, paths []string) (string, error) {
 	blocks := make([]string, 0, len(paths))
 	for _, raw := range paths {
 		path, err := absPath(e, raw)
@@ -26,7 +27,7 @@ func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, e
 			continue
 		}
 
-		list, err := historyStore.Newest(ctx, historyStore.Filter{Path: path, Limit: 1})
+		list, err := historystore.Newest(ctx, historystore.Filter{Path: path, Limit: 1})
 		if err != nil {
 			return "", fmt.Errorf("internal/runtime/store: Newest: %w", err)
 		}
@@ -39,7 +40,7 @@ func read(ctx context.Context, e *toolTypes.Executor, paths []string) (string, e
 	return strings.Join(blocks, "\n\n"), nil
 }
 
-func describe(ctx context.Context, row historyStore.Row) string {
+func describe(ctx context.Context, row historystore.Row) string {
 	path := filepath.Join(row.Dir, row.Name)
 	header := fmt.Sprintf("%s — %s by %s at %s",
 		path, row.Action, row.Tool, time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT))
@@ -48,11 +49,11 @@ func describe(ctx context.Context, row historyStore.Row) string {
 		return fmt.Sprintf("%s\ncannot be shown or restored: %s", header, reason)
 	}
 
-	_, content, err := historyStore.Get(ctx, row.ID)
+	_, content, err := historystore.Get(ctx, row.ID)
 	if err != nil {
 		return fmt.Sprintf("%s\nunreadable: %v", header, err)
 	}
-	if row.Action == historyStore.ActionDelete {
+	if row.Action == historystore.ActionDelete {
 		text, err := go_pkg_filesystem.ReadText(row.TrashPath)
 		if err != nil {
 			return fmt.Sprintf("%s\nunreadable from %s: %v", header, row.TrashPath, err)
@@ -60,11 +61,11 @@ func describe(ctx context.Context, row historyStore.Row) string {
 		content = []byte(text)
 		header += fmt.Sprintf("\nthe file now sits in %s", row.TrashPath)
 	}
-	if len(content) == 0 && row.Action == historyStore.ActionModify && row.TrashPath != "" {
+	if len(content) == 0 && row.Action == historystore.ActionModify && row.TrashPath != "" {
 		return fmt.Sprintf("%s\n%d bytes, kept as a copy at %s — too large to hold in the history, still restorable from there",
 			header, row.Size, row.TrashPath)
 	}
-	if row.Action == historyStore.ActionCreate {
+	if row.Action == historystore.ActionCreate {
 		header += "\nthis is the version the file was created with; restoring to before it deletes the file"
 	}
 

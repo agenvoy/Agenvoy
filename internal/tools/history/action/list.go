@@ -3,12 +3,11 @@ package actionHistory
 import (
 	"fmt"
 
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func list(e *toolTypes.Executor, limit int) (string, error) {
+func list(e *tooltypes.Executor, limit int) (string, error) {
 	if limit <= 0 {
 		limit = defaultListLimit
 	}

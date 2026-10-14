@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 )
 
 func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID, channelName, replyTo string, paths []string) {

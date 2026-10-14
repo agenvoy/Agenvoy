@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
 func Reset(sessionID string) (int, error) {
@@ -19,8 +19,8 @@ func Reset(sessionID string) (int, error) {
 		return 0, fmt.Errorf("os.Remove [%s]: %w", filesystem.HistoryPath(sessionID), err)
 	}
 
-	if err := historyStore.ClearAction(context.Background(), sessionID); err != nil {
-		return 0, fmt.Errorf("historyStore.ClearAction: %w", err)
+	if err := historystore.ClearAction(context.Background(), sessionID); err != nil {
+		return 0, fmt.Errorf("historystore.ClearAction: %w", err)
 	}
 
 	os.RemoveAll(filesystem.PendingDir(sessionID))
@@ -29,8 +29,8 @@ func Reset(sessionID string) (int, error) {
 		return 0, fmt.Errorf("os.Remove [%s]: %w", filesystem.ActionLogPath(sessionID), err)
 	}
 
-	historyStore.Clear(sessionID)
-	sessionHistory.ClearMutex(sessionID)
+	historystore.Clear(sessionID)
+	sessionhistory.ClearMutex(sessionID)
 
 	db := torii.DB(torii.DBSessionHist)
 	keys := db.Keys(context.Background(), sessionID+":*")

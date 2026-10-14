@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
+	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -34,8 +34,8 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	reply := b.newReply(ctx, chatID, "resume", sessionID, interactive.LoadPendingMessageID(sessionID, taskHash))
 	reply.Status("resuming...")
 
-	if _, err := sessionTelegram.New(chatID); err != nil {
-		slog.Error("ask_user resume: sessionTelegram.New",
+	if _, err := sessiontelegram.New(chatID); err != nil {
+		slog.Error("ask_user resume: sessiontelegram.New",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return
@@ -57,7 +57,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 }
 
 func lookupChatID(sessionID string) (int64, error) {
-	chatStr, err := sessionTelegram.GetChat(sessionID)
+	chatStr, err := sessiontelegram.GetChat(sessionID)
 	if err != nil {
 		return 0, err
 	}

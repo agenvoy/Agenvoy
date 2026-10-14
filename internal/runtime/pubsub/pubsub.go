@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
 var (
@@ -34,7 +34,7 @@ func Pub(sessionID string, event agenttypes.Event) {
 		return
 	}
 	if event.WindowHash == "" {
-		event.WindowHash = tuiHash.Get()
+		event.WindowHash = sessiontui.Get()
 	}
 
 	mu.RLock()

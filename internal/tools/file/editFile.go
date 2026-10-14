@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	fileHistory "github.com/pardnchiu/agenvoy/internal/tools/history/file"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	filehistory "github.com/pardnchiu/agenvoy/internal/tools/history/file"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func registEditFile() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "edit_file",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -71,7 +71,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode    string        `json:"mode"`
 				Path    string        `json:"path"`
@@ -116,7 +116,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				if path := strings.TrimSpace(params.Path); path != "" {
 					narrow = []string{path}
 				}
-				return fileHistory.Restore(ctx, e, params.Version, params.TaskID, narrow)
+				return filehistory.Restore(ctx, e, params.Version, params.TaskID, narrow)
 			}
 			return "", fmt.Errorf("unknown mode %q; available: write, patch, remove, restore", mode)
 		},

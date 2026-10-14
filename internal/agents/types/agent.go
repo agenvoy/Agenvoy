@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
-type Agent = provider.Agent
+type Agent = go_llm_router.Agent
 
 type sessionIDCtxKey struct{}
 
@@ -82,14 +82,14 @@ func (a *ModelEntry) UnmarshalJSON(raw []byte) error {
 
 type Session struct {
 	ID               string
-	SystemPrompts    []provider.Message
-	Summary          provider.Message
-	TurnContext      provider.Message
-	UserMessage      provider.Message
-	ToolHistories    []provider.Message
-	ToolResults      []provider.Message
-	RawHistories     []provider.Message
-	ContextHistories []provider.Message
+	SystemPrompts    []go_llm_router.Message
+	Summary          go_llm_router.Message
+	TurnContext      go_llm_router.Message
+	UserMessage      go_llm_router.Message
+	ToolHistories    []go_llm_router.Message
+	ToolResults      []go_llm_router.Message
+	RawHistories     []go_llm_router.Message
+	ContextHistories []go_llm_router.Message
 	Sender           string
 	SendAt           int64
 	Stateless        bool

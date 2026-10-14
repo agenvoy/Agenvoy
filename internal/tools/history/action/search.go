@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type historyHit struct {
@@ -33,7 +33,7 @@ const (
 	maxSearchLimit      = 32
 )
 
-func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, timeRange string, limit int) (string, error) {
+func searchMessages(ctx context.Context, e *tooltypes.Executor, keyword, match, timeRange string, limit int) (string, error) {
 	if e.SessionID == "" {
 		return "", fmt.Errorf("session not exist")
 	}
@@ -69,7 +69,7 @@ func searchMessages(ctx context.Context, e *toolTypes.Executor, keyword, match, 
 func keywordHandler(ctx context.Context, sessionID, keyword, timeRange string, limit int) (string, error) {
 	var sb strings.Builder
 
-	reults, err := historyStore.Search(sessionID, keyword, timeRange, limit)
+	reults, err := historystore.Search(sessionID, keyword, timeRange, limit)
 	if err == nil && len(reults) > 0 {
 		sb.WriteString("[archive]\n")
 		for _, r := range reults {
@@ -123,7 +123,7 @@ func semanticHandler(ctx context.Context, sessionID, keyword, timeRange string, 
 		keyIdx[one] = i
 	}
 
-	_, maxHistory := sessionHistory.Get(sessionID)
+	_, maxHistory := sessionhistory.Get(sessionID)
 	skip := min(len(maxHistory)+1, len(allKeys))
 	excludeKeys := make(map[string]struct{}, skip)
 	if skip > 0 {

@@ -10,14 +10,15 @@ import (
 	"time"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var jsonRegex = regexp.MustCompile(`(?s)\{.*\}`)
@@ -31,7 +32,7 @@ func (r Result) Empty() bool {
 	return r.Title == "" && len(r.Suggests) == 0
 }
 
-func Generate(ctx context.Context, sessionID string, histories []sessionHistory.Record, needTitle bool) Result {
+func Generate(ctx context.Context, sessionID string, histories []sessionhistory.Record, needTitle bool) Result {
 	transcript := transcript(histories)
 	if transcript == "" {
 		return Result{}
@@ -46,10 +47,10 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	defer cancel()
 
 	sendStart := time.Now()
-	resp, _, err := agent.Send(sendCtx, []provider.Message{
+	resp, _, err := agent.Send(sendCtx, []go_llm_router.Message{
 		{Role: "system", Content: prompt(needTitle)},
 		{Role: "user", Content: "<conversation>\n" + transcript + "\n</conversation>"},
-	}, nil, provider.ReasoningNone, fast.Mode(ctx))
+	}, nil, go_llm_router.ReasoningNone, fast.Mode(ctx))
 	sendElapsed := time.Since(sendStart)
 	if err != nil {
 		slog.Debug("followup.Generate",
@@ -129,7 +130,7 @@ func clamp(str string, limit int) string {
 	return string([]rune(str)[:limit])
 }
 
-func transcript(histories []sessionHistory.Record) string {
+func transcript(histories []sessionhistory.Record) string {
 	if len(histories) > configs.FOLLOWUP_MAX_TURNS {
 		histories = histories[len(histories)-configs.FOLLOWUP_MAX_TURNS:]
 	}

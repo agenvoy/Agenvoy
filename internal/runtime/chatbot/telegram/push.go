@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
+	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -32,7 +32,7 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 		return
 	}
 
-	chatIDStr, err := sessionTelegram.GetChat(id)
+	chatIDStr, err := sessiontelegram.GetChat(id)
 	if err != nil {
 		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChatID",
 			slog.String("session", id),

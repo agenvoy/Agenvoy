@@ -7,16 +7,17 @@ import (
 	"time"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func Send(ctx context.Context, agent agenttypes.Agent, sessionID string, usage *provider.Usage, messages []provider.Message, reasoning provider.Reasoning, threshold func(string) int) string {
+func Send(ctx context.Context, agent agenttypes.Agent, sessionID string, usage *go_llm_router.Usage, messages []go_llm_router.Message, reasoning go_llm_router.Reasoning, threshold func(string) int) string {
 	// * step1: prefer the summary model, then steer off a cooling one
 	sender := agent
 	if bot := agents.SummaryBot(); bot != nil {
@@ -68,7 +69,7 @@ func Send(ctx context.Context, agent agenttypes.Agent, sessionID string, usage *
 	return strings.TrimSpace(result)
 }
 
-func send(ctx context.Context, agent agenttypes.Agent, messages []provider.Message, reasoning provider.Reasoning) (*provider.Output, time.Duration, error) {
+func send(ctx context.Context, agent agenttypes.Agent, messages []go_llm_router.Message, reasoning go_llm_router.Reasoning) (*go_llm_router.Output, time.Duration, error) {
 	sendCtx, cancel := context.WithTimeout(ctx, time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second)
 	defer cancel()
 
@@ -77,7 +78,7 @@ func send(ctx context.Context, agent agenttypes.Agent, messages []provider.Messa
 	return resp, time.Since(sendStart), err
 }
 
-func payloadRunes(messages []provider.Message) int {
+func payloadRunes(messages []go_llm_router.Message) int {
 	total := 0
 	for _, msg := range messages {
 		if content, ok := msg.Content.(string); ok {

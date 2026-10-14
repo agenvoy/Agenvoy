@@ -7,17 +7,16 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/tools/calculate"
 	"github.com/pardnchiu/agenvoy/internal/tools/external"
-	"github.com/pardnchiu/agenvoy/internal/tools/file"
-	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolScheduler "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
-	toolSearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-
 	"github.com/pardnchiu/agenvoy/internal/tools/fetchPage"
+	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/error"
 	_ "github.com/pardnchiu/agenvoy/internal/tools/history/file"
+	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolscheduler "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
+	toolsearcher "github.com/pardnchiu/agenvoy/internal/tools/searcher"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func init() {
@@ -26,8 +25,8 @@ func init() {
 	external.Register()
 	fetchPage.Register()
 	file.Register()
-	toolScheduler.Register()
-	toolSearcher.Register()
+	toolscheduler.Register()
+	toolsearcher.Register()
 	interactive.Register()
 
 	registRunCommand()
@@ -35,7 +34,7 @@ func init() {
 	registOpenFile()
 	registHTMLTemplate()
 
-	toolRegister.RegistGroup("api_", func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+	toolregister.RegistGroup("api_", func(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 		if e.APIToolbox == nil || !e.APIToolbox.IsExist(name) {
 			return "", fmt.Errorf("not exist: %s", name)
 		}
@@ -47,14 +46,14 @@ func init() {
 		return e.APIToolbox.Execute(ctx, name, params)
 	})
 
-	toolRegister.RegistGroup("script_", func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+	toolregister.RegistGroup("script_", func(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 		if e.ScriptToolbox == nil || !e.ScriptToolbox.IsExist(name) {
 			return "", fmt.Errorf("not exist: %s", name)
 		}
 		return e.ScriptToolbox.Execute(ctx, name, args, e.WorkDir)
 	})
 
-	toolRegister.RegistGroup("ext_", func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+	toolregister.RegistGroup("ext_", func(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 		if e.ExtAPIToolbox != nil && e.ExtAPIToolbox.IsExist(name) {
 			var params map[string]any
 			if err := json.Unmarshal(args, &params); err != nil {

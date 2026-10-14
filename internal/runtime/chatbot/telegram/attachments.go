@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 )
 
 const attachmentSendTimeout = 10 * time.Minute

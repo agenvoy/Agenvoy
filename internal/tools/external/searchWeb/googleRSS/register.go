@@ -3,7 +3,6 @@ package googleRSS
 import (
 	"context"
 	"fmt"
-
 	"slices"
 	"strings"
 )

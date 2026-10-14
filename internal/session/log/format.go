@@ -7,7 +7,7 @@ import (
 	"time"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -132,7 +132,7 @@ func formatActionEvent(event agenttypes.Event) string {
 
 func withTimestamp(hash, kind, taskHash, body string) string {
 	if hash == "" {
-		hash = tuiHash.Get()
+		hash = sessiontui.Get()
 	}
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	return fmt.Sprintf("[%s][%s][%s][%s] %s", ts, hash, kind, taskHash, body)

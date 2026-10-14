@@ -4,10 +4,10 @@ import (
 	"slices"
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
-func Strip(messages []provider.Message) []provider.Message {
+func Strip(messages []go_llm_router.Message) []go_llm_router.Message {
 	todoIDs := make(map[string]bool)
 	for _, msg := range messages {
 		for _, tc := range msg.ToolCalls {
@@ -20,13 +20,13 @@ func Strip(messages []provider.Message) []provider.Message {
 		return messages
 	}
 
-	kept := make([]provider.Message, 0, len(messages))
+	kept := make([]go_llm_router.Message, 0, len(messages))
 	for _, msg := range messages {
 		if msg.ToolCallID != "" && todoIDs[msg.ToolCallID] {
 			continue
 		}
 		if len(msg.ToolCalls) > 0 {
-			filtered := make([]provider.ToolCall, 0, len(msg.ToolCalls))
+			filtered := make([]go_llm_router.ToolCall, 0, len(msg.ToolCalls))
 			for _, tc := range msg.ToolCalls {
 				if !todoIDs[tc.ID] {
 					filtered = append(filtered, tc)
@@ -46,7 +46,7 @@ func Strip(messages []provider.Message) []provider.Message {
 	return kept
 }
 
-func LastPair(messages []provider.Message) []provider.Message {
+func LastPair(messages []go_llm_router.Message) []go_llm_router.Message {
 	for i, msg := range slices.Backward(messages) {
 		id := ""
 		for _, tc := range msg.ToolCalls {
@@ -64,13 +64,13 @@ func LastPair(messages []provider.Message) []provider.Message {
 			}
 			call := msg
 			call.Content = nil
-			call.ToolCalls = []provider.ToolCall{}
+			call.ToolCalls = []go_llm_router.ToolCall{}
 			for _, tc := range msg.ToolCalls {
 				if tc.ID == id {
 					call.ToolCalls = append(call.ToolCalls, tc)
 				}
 			}
-			return []provider.Message{call, m}
+			return []go_llm_router.Message{call, m}
 		}
 		return nil
 	}

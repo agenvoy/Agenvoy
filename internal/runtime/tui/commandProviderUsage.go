@@ -10,15 +10,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	execModel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
+
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 )
 
 type ProviderUsageResult struct {
@@ -32,7 +33,7 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	hasDeepseek := false
 	hasOpenRouter := false
 	hasClaudeCode := false
-	for _, e := range execModel.List() {
+	for _, e := range execmodel.List() {
 		prov, _, _ := strings.Cut(e.Name, "@")
 		switch prov {
 		case "codex":
@@ -103,10 +104,10 @@ func (t TUI) commandProviderUsage() (TUI, tea.Cmd, bool) {
 	return t, nil, true
 }
 
-func fetchProviderUsage(ctx context.Context, label, prov string, fn func(context.Context, provider.Config) (provider.UsageRemaining, error)) string {
-	cfg, err := agentKeychain.Config(ctx, prov)
+func fetchProviderUsage(ctx context.Context, label, prov string, fn func(context.Context, go_llm_router.Config) (go_llm_router.UsageRemaining, error)) string {
+	cfg, err := agentkeychain.Config(ctx, prov)
 	if err == nil {
-		var remaining provider.UsageRemaining
+		var remaining go_llm_router.UsageRemaining
 		remaining, err = fn(ctx, cfg)
 		if err == nil {
 			return textStyle.Render(label+": ") + renderRemaining(remaining)
@@ -115,7 +116,7 @@ func fetchProviderUsage(ctx context.Context, label, prov string, fn func(context
 	return textStyle.Render(label+": ") + errorStyle.Render("failed")
 }
 
-func renderRemaining(remaining provider.UsageRemaining) string {
+func renderRemaining(remaining go_llm_router.UsageRemaining) string {
 	if remaining.Balance != nil {
 		style := okayStyle
 		if *remaining.Balance <= 0 {

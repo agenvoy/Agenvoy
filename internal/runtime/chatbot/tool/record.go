@@ -7,9 +7,9 @@ import (
 	"time"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 const outboundModel = "forwarded"
@@ -17,9 +17,9 @@ const outboundModel = "forwarded"
 func resolveChatbotSession(prefix, field, id string) string {
 	ctx := context.Background()
 	if field == "chat_id" {
-		return matchPrefix(historyStore.FindSessionByChat(ctx, id), prefix)
+		return matchPrefix(historystore.FindSessionByChat(ctx, id), prefix)
 	}
-	return matchPrefix(historyStore.FindSessionByChannel(ctx, id), prefix)
+	return matchPrefix(historystore.FindSessionByChannel(ctx, id), prefix)
 }
 
 func matchPrefix(sessionID, prefix string) string {
@@ -34,17 +34,17 @@ func recordOutbound(sessionID, message string) {
 		return
 	}
 
-	if err := sessionHistory.Append(sessionID, []sessionHistory.Record{{
+	if err := sessionhistory.Append(sessionID, []sessionhistory.Record{{
 		Role:    "assistant",
 		Content: message,
 		SendAt:  time.Now().UnixNano(),
 	}}); err != nil {
-		slog.Debug("sessionHistory.Append (push)",
+		slog.Debug("sessionhistory.Append (push)",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
 
-	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventText, Text: message})
-	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventTextDone})
-	sessionLog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventDone, Model: outboundModel})
+	sessionlog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventText, Text: message})
+	sessionlog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventTextDone})
+	sessionlog.Record(sessionID, agenttypes.Event{Type: agenttypes.EventDone, Model: outboundModel})
 }

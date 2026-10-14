@@ -6,10 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 func (t TUI) commandSchedule(parts []string) (TUI, tea.Cmd, bool) {

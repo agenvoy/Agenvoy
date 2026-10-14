@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	"github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type Request struct {
@@ -57,7 +58,7 @@ func Send() gin.HandlerFunc {
 			sessionID = prefix + utils.UUID()
 		}
 
-		if err := configBot.Save(sessionID, "", "", false); err != nil {
+		if err := configbot.Save(sessionID, "", "", false); err != nil {
 			slog.Debug("sessionBot Save",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))

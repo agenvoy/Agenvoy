@@ -14,9 +14,9 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
+	configstatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const (
@@ -43,7 +43,7 @@ func skipEvent(ev agenttypes.Event) bool {
 	case agenttypes.EventToolCall, agenttypes.EventToolResult, agenttypes.EventToolSkipped,
 		agenttypes.EventToolCallStart, agenttypes.EventToolCallText, agenttypes.EventToolCallEnd,
 		agenttypes.EventToolConfirm:
-		return internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs)
+		return internalutils.HideToolEvent(ev.ToolName, ev.ToolArgs)
 	}
 	return false
 }
@@ -52,9 +52,9 @@ func toWire(ev agenttypes.Event) wireEvent {
 	display := ""
 	switch ev.Type {
 	case agenttypes.EventToolCall:
-		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
+		display = internalutils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
 	case agenttypes.EventToolConfirm:
-		display = internalUtils.FormatToolConfirmArgs(ev.ToolName, ev.ToolArgs)
+		display = internalutils.FormatToolConfirmArgs(ev.ToolName, ev.ToolArgs)
 	}
 	return wireEvent{Event: ev, Display: display}
 }
@@ -74,7 +74,7 @@ type connectedFrame struct {
 }
 
 func newConnectedFrame(sessionID string) connectedFrame {
-	status := configStatus.Get(sessionID)
+	status := configstatus.Get(sessionID)
 	return connectedFrame{
 		Session: sessionID,
 		Event:   agenttypes.Event{Type: agenttypes.EventConnected, Text: sessionID},
@@ -92,7 +92,7 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 		}
 
-		withDaemon := internalUtils.IsLoopback(c.Request.RemoteAddr) && c.DefaultQuery("daemon", "1") != "0"
+		withDaemon := internalutils.IsLoopback(c.Request.RemoteAddr) && c.DefaultQuery("daemon", "1") != "0"
 		if len(sids) == 0 && !withDaemon {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "sessions is required when daemon=0 or the caller is remote"})
 			return
@@ -119,7 +119,7 @@ func StreamMultiLog() gin.HandlerFunc {
 				continue
 			}
 
-			for _, ev := range sessionLog.RecentEvents(sid, 512) {
+			for _, ev := range sessionlog.RecentEvents(sid, 512) {
 				if skipEvent(ev) {
 					continue
 				}

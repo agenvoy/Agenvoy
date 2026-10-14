@@ -9,12 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	goRuntime "runtime"
+	goruntime "runtime"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -103,11 +104,11 @@ func SystemUpdate() gin.HandlerFunc {
 		defer cancel()
 
 		switch {
-		case goRuntime.GOOS == "darwin":
+		case goruntime.GOOS == "darwin":
 			err = openMacTerminal(ctx, exe)
-		case goRuntime.GOOS == "linux" && utils.IsWSL():
+		case goruntime.GOOS == "linux" && utils.IsWSL():
 			err = openWSLTerminal(ctx, exe)
-		case goRuntime.GOOS == "linux":
+		case goruntime.GOOS == "linux":
 			err = openLinuxTerminal(ctx, exe)
 		default:
 			err = errNoTerminal

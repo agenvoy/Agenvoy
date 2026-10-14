@@ -5,12 +5,11 @@ import (
 	"slices"
 	"strings"
 
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func toolList(e *toolTypes.Executor, limit int) (string, error) {
+func toolList(e *tooltypes.Executor, limit int) (string, error) {
 	if limit <= 0 {
 		limit = defaultToolsLimit
 	}
@@ -58,7 +57,7 @@ func toolList(e *toolTypes.Executor, limit int) (string, error) {
 	return string(raw), nil
 }
 
-func toolContent(e *toolTypes.Executor, taskIDs []string, name, args string) (string, error) {
+func toolContent(e *tooltypes.Executor, taskIDs []string, name, args string) (string, error) {
 	if len(taskIDs) == 0 {
 		return "", fmt.Errorf("task_id is required when mode=tool")
 	}

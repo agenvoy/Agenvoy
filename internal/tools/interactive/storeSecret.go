@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func registStoreSecret() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "store_secret",
 		SystemUse:   true,
 		AlwaysAllow: false,
@@ -37,7 +38,7 @@ Credentials travel only through this tool's masked input; the value stays out of
 			},
 			"required": []string{"key"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Key      string `json:"key"`
 				Question string `json:"question"`

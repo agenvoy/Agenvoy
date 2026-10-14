@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func RemoveToTrash(ctx context.Context, e *toolTypes.Executor, paths []string, tool string) (string, error) {
+func RemoveToTrash(ctx context.Context, e *tooltypes.Executor, paths []string, tool string) (string, error) {
 	var moved, failed, unrecorded []string
 	for _, one := range paths {
 		if err := ctx.Err(); err != nil {
@@ -36,8 +36,8 @@ func RemoveToTrash(ctx context.Context, e *toolTypes.Executor, paths []string, t
 
 		moved = append(moved, src)
 		e.RecordFile(src)
-		if err := historyStore.RecordDelete(ctx, src, dst, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
-			slog.Debug("historyStore.RecordDelete",
+		if err := historystore.RecordDelete(ctx, src, dst, historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
+			slog.Debug("historystore.RecordDelete",
 				slog.String("path", src),
 				slog.String("error", err.Error()))
 			unrecorded = append(unrecorded, fmt.Sprintf("%s now at %s (%v)", src, dst, err))

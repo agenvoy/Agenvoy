@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
@@ -19,9 +19,9 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
@@ -62,9 +62,9 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	// * step 4: model/reasoning validation
 	// * if session is not temp, then use default configured model and reasoning
 	if !strings.HasPrefix(sessID, "temp-") {
-		sessModel, sessReasoning := configBot.GetModel(sessID)
+		sessModel, sessReasoning := configbot.GetModel(sessID)
 		// * only if not auto, then replace, or using input model / reasoning
-		if sessModel != configBot.DefaultModel {
+		if sessModel != configbot.DefaultModel {
 			modelName = sessModel
 		}
 		if sessReasoning != configs.REASONING_AUTO {
@@ -75,7 +75,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	trimTask := strings.TrimSpace(task)
 	var agent agenttypes.Agent
 	// * if model is auto, then select model first
-	if modelName == configBot.DefaultModel {
+	if modelName == configbot.DefaultModel {
 		agent = model.Select(ctx, model.SelectMeta{
 			Agent:     agents.DispatcherBot(),
 			ModelSet:  registry,
@@ -153,25 +153,25 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		ID:               sessID,
 		SystemPrompts:    exec.BuildSystemPrompts(taskMeta.WorkDir, taskMeta.ExtraSystemPrompt, sessID, taskMeta.Agent.Name()),
 		ContextHistories: contextHistories,
-		ToolHistories:    []provider.Message{},
-		ToolResults:      []provider.Message{},
-		RawHistories:     []provider.Message{{Role: "user", Content: prefixed}},
+		ToolHistories:    []go_llm_router.Message{},
+		ToolResults:      []go_llm_router.Message{},
+		RawHistories:     []go_llm_router.Message{{Role: "user", Content: prefixed}},
 		SendAt:           sendAt,
-		UserMessage:      provider.Message{Role: "user", Content: prefixed},
+		UserMessage:      go_llm_router.Message{Role: "user", Content: prefixed},
 	}
 	if !ignoreHistory {
 		if summary := summary.GetPrompt(sessID, exec.GetOldestMessageTime(maxRec)); summary != "" {
-			session.Summary = provider.Message{Role: "user", Content: summary}
+			session.Summary = go_llm_router.Message{Role: "user", Content: summary}
 		}
 	}
 
 	// * step 10: execute
 	if exec.IsSchedule(ctx) {
 		// * if is schedule jsut record result, no task content
-		sessionLog.Append(sessID, agenttypes.WindowHash(ctx), "[Scheduled Task: "+exec.DCPushPrefix(ctx)+"]")
+		sessionlog.Append(sessID, agenttypes.WindowHash(ctx), "[Scheduled Task: "+exec.DCPushPrefix(ctx)+"]")
 	} else {
 		pubsub.Pub(sessID, agenttypes.Event{Type: agenttypes.EventUserInput, Text: trimTask})
-		sessionLog.Append(sessID, agenttypes.WindowHash(ctx), trimTask)
+		sessionlog.Append(sessID, agenttypes.WindowHash(ctx), trimTask)
 	}
 	exec.SaveUserInputHistory(ctx, sessID, trimTask)
 
@@ -194,7 +194,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		agentSelectedEvent.Text = exec.ScheduleLabel(exec.DCPushPrefix(ctx))
 	}
 	pubsub.Pub(sessID, agentSelectedEvent)
-	sessionLog.Record(sessID, agentSelectedEvent)
+	sessionlog.Record(sessID, agentSelectedEvent)
 
 	// * step 13: execute in goroutine
 	events := make(chan agenttypes.Event, 64)
@@ -213,7 +213,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	}()
 
 	// * step 14: collect events
-	displayName, _ := configBot.Get(sessID)
+	displayName, _ := configbot.Get(sessID)
 	if displayName == "" || displayName == sessID {
 		for _, prefix := range []string{"temp-", "cli-", "dc-", "tg-"} {
 			if rest, ok := strings.CutPrefix(sessID, prefix); ok {
@@ -225,7 +225,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 
 	var (
 		sb    strings.Builder
-		usage provider.Usage
+		usage go_llm_router.Usage
 	)
 	for ev := range events {
 		pubsub.Pub(sessID, ev)
@@ -261,7 +261,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		ToolName: "subagents",
 	})
 
-	formatUsage := func(usage provider.Usage) string {
+	formatUsage := func(usage go_llm_router.Usage) string {
 		return fmt.Sprintf("usage: in=%d out=%d cached=%d write=%d", usage.Input+usage.CacheRead+usage.CacheCreate, usage.Output, usage.CacheRead, usage.CacheCreate)
 	}
 	usageText := formatUsage(usage)

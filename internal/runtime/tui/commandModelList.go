@@ -7,12 +7,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-
-	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 const sessionModelPrefix = "model:"
@@ -29,18 +29,18 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 
 	current := ""
 	if sid != "" {
-		current, _ = configBot.GetModel(sid)
+		current, _ = configbot.GetModel(sid)
 	}
 
 	options = make([]string, 0, len(cfg.Models)+1)
 	values = make([]string, 0, len(cfg.Models)+1)
 
-	auto := configBot.DefaultModel
-	if current == configBot.DefaultModel {
+	auto := configbot.DefaultModel
+	if current == configbot.DefaultModel {
 		auto += "  " + systemStyle.Render("[current]")
 	}
 	options = append(options, auto)
-	values = append(values, sessionModelPrefix+configBot.DefaultModel)
+	values = append(values, sessionModelPrefix+configbot.DefaultModel)
 
 	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
@@ -76,7 +76,7 @@ func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
 	if sid == "" {
 		return t, notice(msgLog("no active session") + "\n")
 	}
-	configBot.SetModel(sid, name, "")
+	configbot.SetModel(sid, name, "")
 	return t, nil
 }
 

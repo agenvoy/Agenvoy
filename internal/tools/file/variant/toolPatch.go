@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func patchToolFile(ctx context.Context, e *toolTypes.Executor, name, tag, oldString, newString string, replaceAll bool) (string, error) {
+func patchToolFile(ctx context.Context, e *tooltypes.Executor, name, tag, oldString, newString string, replaceAll bool) (string, error) {
 	if oldString == "" {
 		return "", fmt.Errorf("old_string is required when mode=patch")
 	}

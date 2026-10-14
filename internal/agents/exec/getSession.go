@@ -17,19 +17,19 @@ import (
 
 	_ "golang.org/x/image/webp"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func GetSession(ctx context.Context, execData ExecuteMeta) (*agenttypes.Session, error) {
-	// * step2: assemble session history
-	sessionID := strings.TrimSpace(execData.SessionID)
+func getSession(ctx context.Context, meta ExecuteMeta) (*agenttypes.Session, error) {
+	// * step1: assemble session history
+	sessionID := strings.TrimSpace(meta.SessionID)
 	if sessionID == "" {
 		return nil, fmt.Errorf("SessionID is required")
 	}
@@ -39,45 +39,45 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agenttypes.Session,
 		return nil, fmt.Errorf("session %q does not exist", sessionID)
 	}
 
-	_, maxHistory := sessionHistory.Get(sessionID)
+	_, maxHistory := sessionhistory.Get(sessionID)
 	session := agenttypes.Session{
-		SystemPrompts:    BuildSystemPrompts(execData.WorkDir, execData.ExtraSystemPrompt, sessionID, execData.Agent.Name()),
-		ToolResults:      []provider.Message{},
-		ContextHistories: sessionHistory.Messages(maxHistory),
-		ToolHistories:    []provider.Message{},
+		SystemPrompts:    BuildSystemPrompts(meta.WorkDir, meta.ExtraSystemPrompt, sessionID, meta.Agent.Name()),
+		ToolResults:      []go_llm_router.Message{},
+		ContextHistories: sessionhistory.Messages(maxHistory),
+		ToolHistories:    []go_llm_router.Message{},
 	}
 	if summary := summary.GetPrompt(sessionID, GetOldestMessageTime(maxHistory)); summary != "" {
 		// * if summary not empty, add it
-		session.Summary = provider.Message{Role: "user", Content: summary}
+		session.Summary = go_llm_router.Message{Role: "user", Content: summary}
 	}
 
-	// * step3: assemble user input
-	userInput := strings.TrimSpace(execData.Input)
+	// * step2: assemble user input
+	userInput := strings.TrimSpace(meta.Input)
 	if userInput == "" {
-		userInput = strings.TrimSpace(execData.Task)
+		userInput = strings.TrimSpace(meta.Task)
 	}
 
 	historyInput := userInput
-	if content := strings.TrimSpace(execData.HistoryContent); content != "" {
+	if content := strings.TrimSpace(meta.HistoryContent); content != "" {
 		// * not save full resume input in history
 		historyInput = content
 	}
 
-	session.Sender = execData.Sender
+	session.Sender = meta.Sender
 	session.SendAt = time.Now().UnixNano()
 	// * add timestamp prefix to user input, for send at tracking
-	prefix := sessionHistory.Record{
+	prefix := sessionhistory.Record{
 		SendAt: session.SendAt,
 		Sender: session.Sender,
 	}.Prefix()
 
-	session.RawHistories = append(session.RawHistories, provider.Message{
+	session.RawHistories = append(session.RawHistories, go_llm_router.Message{
 		Role:    "user",
-		Content: sessionHistory.WithPrefix(prefix, historyInput),
+		Content: sessionhistory.WithPrefix(prefix, historyInput),
 	})
-	session.UserMessage = provider.Message{
+	session.UserMessage = go_llm_router.Message{
 		Role:    "user",
-		Content: sessionHistory.WithPrefix(prefix, buildInput(userInput, execData.ImageInputs, execData.FileInputs)),
+		Content: sessionhistory.WithPrefix(prefix, buildInput(userInput, meta.ImageInputs, meta.FileInputs)),
 	}
 	SaveUserInputHistory(ctx, sessionID, historyInput)
 
@@ -85,7 +85,7 @@ func GetSession(ctx context.Context, execData ExecuteMeta) (*agenttypes.Session,
 	return &session, nil
 }
 
-func GetOldestMessageTime(histories []sessionHistory.Record) time.Time {
+func GetOldestMessageTime(histories []sessionhistory.Record) time.Time {
 	for _, record := range histories {
 		if record.SendAt > 0 {
 			return time.Unix(0, record.SendAt)
@@ -100,7 +100,7 @@ func buildInput(userInput string, imageInputs []string, fileInputs []string) any
 		return userInput
 	}
 
-	parts := []provider.ContentPart{
+	parts := []go_llm_router.ContentPart{
 		{Type: "text", Text: userInput},
 	}
 
@@ -110,7 +110,7 @@ func buildInput(userInput string, imageInputs []string, fileInputs []string) any
 		if err != nil {
 			continue
 		}
-		parts = append(parts, provider.ContentPart{
+		parts = append(parts, go_llm_router.ContentPart{
 			Type: "text",
 			Text: fmt.Sprintf("---\npath: %s\n---\n%s", filepath.Base(path), content),
 		})
@@ -123,9 +123,9 @@ func buildInput(userInput string, imageInputs []string, fileInputs []string) any
 			continue
 		}
 		data := "data:image/jpeg;base64," + b64
-		parts = append(parts, provider.ContentPart{
+		parts = append(parts, go_llm_router.ContentPart{
 			Type:     "image_url",
-			ImageURL: &provider.ImageURL{URL: data, Detail: "auto"},
+			ImageURL: &go_llm_router.ImageURL{URL: data, Detail: "auto"},
 		})
 	}
 	return parts

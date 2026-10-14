@@ -8,23 +8,24 @@ import (
 	"os/signal"
 	"syscall"
 
+	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
+
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/app"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/tui"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
-	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
 func TUI() {
 	// lipgloss.SetHasDarkBackground(true)
 
-	tuiHash.New()
+	sessiontui.New()
 
 	if err := filesystem.Init(); err != nil {
 		slog.Error("filesystem.Init",
@@ -42,11 +43,11 @@ func TUI() {
 	}
 	defer filesystem.CloseDB()
 
-	if err := historyStore.New(); err != nil {
-		slog.Warn("historyStore.New",
+	if err := historystore.New(); err != nil {
+		slog.Warn("historystore.New",
 			slog.String("error", err.Error()))
 	}
-	defer historyStore.Close()
+	defer historystore.Close()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",

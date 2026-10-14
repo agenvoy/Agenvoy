@@ -9,12 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	goRuntime "runtime"
+	goruntime "runtime"
 	"slices"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var packageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9+._-]*$`)
@@ -93,7 +93,7 @@ var pkgCommands = map[string]map[string][]string{
 }
 
 func RestrictedPkgManage(toolName, toolArgs string) []string {
-	if toolName != "pkg_manage" || goRuntime.GOOS == "darwin" {
+	if toolName != "pkg_manage" || goruntime.GOOS == "darwin" {
 		return nil
 	}
 	var p struct {
@@ -120,11 +120,11 @@ func RestrictedPkgManage(toolName, toolArgs string) []string {
 }
 
 func registPkgManage() {
-	if goRuntime.GOOS != "linux" && goRuntime.GOOS != "darwin" {
+	if goruntime.GOOS != "linux" && goruntime.GOOS != "darwin" {
 		return
 	}
 
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "pkg_manage",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -148,7 +148,7 @@ run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (n
 			},
 			"required": []string{"action"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Action  string `json:"action"`
 				Package string `json:"package"`
@@ -264,7 +264,7 @@ func jsonString(dic map[string]any) (string, error) {
 }
 
 func buildCommand(action, name string, spec pkgAction) (string, []string, string, bool, error) {
-	if goRuntime.GOOS == "darwin" {
+	if goruntime.GOOS == "darwin" {
 		if _, err := exec.LookPath("brew"); err != nil {
 			return "", nil, "", false, fmt.Errorf("brew not found on this macOS system")
 		}
@@ -274,8 +274,8 @@ func buildCommand(action, name string, spec pkgAction) (string, []string, string
 		}
 		return "brew", argv, "brew", false, nil
 	}
-	if goRuntime.GOOS != "linux" {
-		return "", nil, "", false, fmt.Errorf("unsupported OS: %s (pkg_manage serves Linux package managers and macOS Homebrew)", goRuntime.GOOS)
+	if goruntime.GOOS != "linux" {
+		return "", nil, "", false, fmt.Errorf("unsupported OS: %s (pkg_manage serves Linux package managers and macOS Homebrew)", goruntime.GOOS)
 	}
 
 	isRoot := os.Geteuid() == 0

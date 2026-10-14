@@ -9,12 +9,12 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func registRunSkill() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "run_skill",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -32,7 +32,7 @@ What comes back is reference, not a script to execute line by line: take the par
 			},
 			"required": []string{"skill"},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			if e.SkillScanner == nil {
 				return "", fmt.Errorf("skill scanner unavailable in this execution")
 			}

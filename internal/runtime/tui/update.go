@@ -11,16 +11,17 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	execChatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
+	execchatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
 type popupScreenReady struct{}
@@ -251,7 +252,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if trimmed := strings.TrimSpace(raw); trimmed == "" || strings.HasPrefix(trimmed, "/") {
 					return t, nil
 				}
-				if err := ipcClient.Load().Steer(t.currentSessionID, tuiHash.Get(), raw); err != nil {
+				if err := ipcClient.Load().Steer(t.currentSessionID, sessiontui.Get(), raw); err != nil {
 					return t, notice(msgError(fmt.Sprintf("steer: %v", err)) + "\n")
 				}
 				t.pendingSteer = append(t.pendingSteer, raw)
@@ -333,7 +334,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if t.currentSessionID != "" {
-			t.currentSessionName, _ = configBot.Get(t.currentSessionID)
+			t.currentSessionName, _ = configbot.Get(t.currentSessionID)
 		}
 		var doneCmds []tea.Cmd
 		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
@@ -909,7 +910,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AdminChannelSubmit:
 		value := strings.TrimSpace(msg.value)
 		if value != "" {
-			if _, _, ok := execChatbot.ParseAdmin(value); !ok {
+			if _, _, ok := execchatbot.ParseAdmin(value); !ok {
 				return t, notice(msgError("channel admin: format must be tg@<chatID> or dc@<channelID>") + "\n")
 			}
 		}
@@ -1023,7 +1024,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StartupSessionSelect:
 		t.currentSessionID = msg.id
-		t.currentSessionName, _ = configBot.Get(msg.id)
+		t.currentSessionName, _ = configbot.Get(msg.id)
 		t.inputHistory = loadInputHistory(msg.id)
 		t.inputHistoryIdx = -1
 		t = t.restartTailer()

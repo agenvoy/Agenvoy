@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
 type Message struct {
@@ -60,7 +60,7 @@ func ExtractContent(content any) string {
 	case string:
 		return val
 
-	case []provider.ContentPart:
+	case []go_llm_router.ContentPart:
 		var parts []string
 		for _, part := range val {
 			if part.Type == "text" && part.Text != "" {

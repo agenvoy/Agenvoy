@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 )
 
-func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session *agenttypes.Session) error {
+func saveNewHistory(ctx context.Context, choice go_llm_router.OutputChoices, session *agenttypes.Session) error {
 	session.RawHistories = append(session.RawHistories, choice.Message)
 
 	if session.Stateless {
@@ -23,7 +24,7 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 	}
 
 	now := time.Now().UnixNano()
-	delta := make([]sessionHistory.Record, 0, len(session.RawHistories))
+	delta := make([]sessionhistory.Record, 0, len(session.RawHistories))
 	for _, message := range session.RawHistories {
 		if message.Role == "system" ||
 			message.Role == "tool" ||
@@ -34,7 +35,7 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 			continue
 		}
 
-		record := sessionHistory.Record{Role: message.Role, Content: message.Content, SendAt: now}
+		record := sessionhistory.Record{Role: message.Role, Content: message.Content, SendAt: now}
 		if content, ok := message.Content.(string); ok {
 			record.Content = configs.MESSAGE_PREFIX_REGEX.ReplaceAllString(content, "")
 		}
@@ -47,8 +48,8 @@ func saveNewHistory(ctx context.Context, choice provider.OutputChoices, session 
 		delta = append(delta, record)
 	}
 
-	if err := sessionHistory.Append(session.ID, delta); err != nil {
-		return fmt.Errorf("sessionHistory.Append: %w", err)
+	if err := sessionhistory.Append(session.ID, delta); err != nil {
+		return fmt.Errorf("sessionhistory.Append: %w", err)
 	}
 
 	writeSessionHistEntry(ctx, session.ID, choice.Message)
@@ -59,13 +60,13 @@ func SaveUserInputHistory(ctx context.Context, sessionID, userText string) {
 	if sessionID == "" || strings.TrimSpace(userText) == "" {
 		return
 	}
-	writeSessionHistEntry(ctx, sessionID, provider.Message{
+	writeSessionHistEntry(ctx, sessionID, go_llm_router.Message{
 		Role:    "user",
 		Content: userText,
 	})
 }
 
-func writeSessionHistEntry(ctx context.Context, sessionID string, msg provider.Message) {
+func writeSessionHistEntry(ctx context.Context, sessionID string, msg go_llm_router.Message) {
 	if !torii.HasEmbedder() {
 		return
 	}

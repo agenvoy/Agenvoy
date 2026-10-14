@@ -7,7 +7,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type RetryState struct {
@@ -17,7 +17,7 @@ type RetryState struct {
 
 func Next(ctx context.Context, sessionID, currentModel string, state *RetryState) (agenttypes.Agent, string) {
 	// * if assign, then skip fallback
-	if model, _ := configBot.GetModel(sessionID); model != configBot.DefaultModel {
+	if model, _ := configbot.GetModel(sessionID); model != configbot.DefaultModel {
 		return nil, ""
 	}
 

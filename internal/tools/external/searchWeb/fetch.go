@@ -16,9 +16,9 @@ import (
 	"time"
 
 	go_browser "github.com/pardnchiu/go-browser/core"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
 const (

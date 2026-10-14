@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
 type parsedAction struct {
@@ -47,7 +48,7 @@ func parseActionLine(raw string) (parsedAction, bool) {
 			rest = tail
 		}
 	} else {
-		hash = sessionTUI.Default
+		hash = sessiontui.Default
 		kind = mid
 	}
 
@@ -60,7 +61,7 @@ func parseActionLine(raw string) (parsedAction, bool) {
 }
 
 func renderActionLine(p parsedAction, width int) string {
-	body := strings.ReplaceAll(p.body, sessionLog.ActionNewlineMarker, "\n")
+	body := strings.ReplaceAll(p.body, sessionlog.ActionNewlineMarker, "\n")
 
 	switch p.kind {
 	case "user", "steer":
@@ -165,7 +166,7 @@ func formatDone(body string) agenttypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

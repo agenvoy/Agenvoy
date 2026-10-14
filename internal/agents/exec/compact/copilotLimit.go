@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
+	oauthcopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 )
 
@@ -78,14 +78,14 @@ func fetchCopilotLimit() (map[string]int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), copilotAPITimeout)
 	defer cancel()
 
-	token, err := oauthCopilot.Load()
+	token, err := oauthcopilot.Load()
 	if err != nil {
 		return nil, err
 	}
 	if token == nil {
 		return nil, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
 	}
-	session, err := oauthCopilot.EnsureFreshSession(ctx, token, nil)
+	session, err := oauthcopilot.EnsureFreshSession(ctx, token, nil)
 	if err != nil {
 		return nil, err
 	}

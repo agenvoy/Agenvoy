@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type ModelScopeSelect struct {
@@ -41,14 +41,14 @@ func (t TUI) commandModel(parts []string) (TUI, tea.Cmd, bool) {
 func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 	onDelete := func(chosen string) any {
 		name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
-		if !ok || name == configBot.DefaultModel {
+		if !ok || name == configbot.DefaultModel {
 			return nil
 		}
 		return ModelRemovePick{name: name}
 	}
 	onTag := func(chosen string) any {
 		name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
-		if !ok || name == configBot.DefaultModel {
+		if !ok || name == configbot.DefaultModel {
 			return nil
 		}
 		return ModelTagPick{name: name}
@@ -76,7 +76,7 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 	onMove := func(chosen, neighbor string) error {
 		name, ok := strings.CutPrefix(chosen, sessionModelPrefix)
 		other, otherOK := strings.CutPrefix(neighbor, sessionModelPrefix)
-		if !ok || !otherOK || name == configBot.DefaultModel || other == configBot.DefaultModel {
+		if !ok || !otherOK || name == configbot.DefaultModel || other == configbot.DefaultModel {
 			return errors.New("fallback order only moves between models")
 		}
 		i, j := slices.Index(popup.values, chosen), slices.Index(popup.values, neighbor)
@@ -115,7 +115,7 @@ func (t TUI) modelPopup(tab int) (TUI, tea.Cmd, bool) {
 		}
 		var names []string
 		for _, v := range popup.values {
-			if name, ok := strings.CutPrefix(v, sessionModelPrefix); ok && name != configBot.DefaultModel {
+			if name, ok := strings.CutPrefix(v, sessionModelPrefix); ok && name != configbot.DefaultModel {
 				names = append(names, name)
 			}
 		}

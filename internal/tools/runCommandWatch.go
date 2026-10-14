@@ -7,9 +7,10 @@ import (
 	"slices"
 	"strings"
 
+	"mvdan.cc/sh/v3/syntax"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/pardnchiu/agenvoy/configs"
 )

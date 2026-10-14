@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
@@ -43,7 +43,7 @@ func Generate(ctx context.Context, req Request) (string, error) {
 		return "", err
 	}
 
-	opts := provider.ImageOptions{
+	opts := go_llm_router.ImageOptions{
 		AspectRatio: strings.TrimSpace(req.AspectRatio),
 		Size:        strings.TrimSpace(req.Size),
 		Quality:     strings.TrimSpace(req.Quality),

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
@@ -17,7 +18,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -147,7 +148,7 @@ func runExec(f ipc.Frame) {
 	}})
 
 	f.UUID = go_pkg_utils.UUID()
-	f.Rayload.WindowHash = tuiHash.Get()
+	f.Rayload.WindowHash = sessiontui.Get()
 	f.Rayload.Fast = fast.IsEnabled()
 	f.Rayload.Guide = guide.IsEnabled()
 	frames, err := client.Run(f)

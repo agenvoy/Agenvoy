@@ -9,7 +9,7 @@ import (
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/agents/probe"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
@@ -48,7 +48,7 @@ func CheckAlive(ctx context.Context, agent agenttypes.Agent, timeout time.Durati
 }
 
 func getCompatEndpoint(name string) (string, string) {
-	instance, ok := agentKeychain.CompatInstance(name)
+	instance, ok := agentkeychain.CompatInstance(name)
 	if !ok || instance == "" {
 		return "", ""
 	}

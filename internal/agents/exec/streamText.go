@@ -6,9 +6,10 @@ import (
 	"log/slog"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -18,20 +19,20 @@ var (
 func streamSend(
 	ctx context.Context,
 	agent agenttypes.Agent,
-	messages []provider.Message,
-	tools []provider.Tool,
-	reasoning provider.Reasoning,
-	mode provider.Mode,
+	messages []go_llm_router.Message,
+	tools []go_llm_router.Tool,
+	reasoning go_llm_router.Reasoning,
+	mode go_llm_router.Mode,
 	events chan<- agenttypes.Event,
 	shownReasoning *[]string,
-) (out *provider.Output, code int, textSent bool, reasonSent bool, err error) {
-	if streamer, ok := agent.(provider.StreamAgent); ok {
+) (out *go_llm_router.Output, code int, textSent bool, reasonSent bool, err error) {
+	if streamer, ok := agent.(go_llm_router.StreamAgent); ok {
 		stream, streamErr := streamer.SendStream(ctx, messages, tools, reasoning, mode)
 		switch {
 		case streamErr == nil:
 			out, textSent, reasonSent, err = consumeStream(ctx, stream, events, shownReasoning)
 			return out, streamErrorCode(err), textSent, reasonSent, err
-		case !errors.Is(streamErr, provider.ErrStreamUnsupported):
+		case !errors.Is(streamErr, go_llm_router.ErrStreamUnsupported):
 			return nil, streamErrorCode(streamErr), false, false, streamErr
 		}
 		slog.Debug("stream unsupported, falling back to Send",
@@ -48,14 +49,14 @@ func streamSend(
 }
 
 func streamErrorCode(err error) int {
-	var streamError *provider.StreamError
+	var streamError *go_llm_router.StreamError
 	if errors.As(err, &streamError) {
 		return streamError.Code
 	}
 	return 0
 }
 
-func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agenttypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
+func replayOutput(ctx context.Context, resp *go_llm_router.Output, events chan<- agenttypes.Event, shownReasoning *[]string) (textSent bool, reasonSent bool) {
 	if resp == nil || len(resp.Choices) == 0 {
 		return false, false
 	}
@@ -74,21 +75,21 @@ func replayOutput(ctx context.Context, resp *provider.Output, events chan<- agen
 	return text.sent, reason.sent
 }
 
-func consumeStream(ctx context.Context, stream <-chan provider.StreamEvent, events chan<- agenttypes.Event, shownReasoning *[]string) (*provider.Output, bool, bool, error) {
+func consumeStream(ctx context.Context, stream <-chan go_llm_router.StreamEvent, events chan<- agenttypes.Event, shownReasoning *[]string) (*go_llm_router.Output, bool, bool, error) {
 	text := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventText, emitDelta: true}
 	reason := lineEmitter{ctx: ctx, events: events, kind: agenttypes.EventReasoning, shown: shownReasoning}
 
 	var content, reasoning strings.Builder
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var finishReason string
 	var streamErr error
 	toolIndex := map[int]int{}
-	var toolCalls []provider.ToolCall
+	var toolCalls []go_llm_router.ToolCall
 	frames := 0
 
 consume:
 	for {
-		var ev provider.StreamEvent
+		var ev go_llm_router.StreamEvent
 		select {
 		case <-ctx.Done():
 			streamErr = ctx.Err()
@@ -102,16 +103,16 @@ consume:
 
 		frames++
 		switch ev.Type {
-		case provider.StreamEventText:
+		case go_llm_router.StreamEventText:
 			reason.close()
 			text.write(ev.TextDelta)
 			content.WriteString(ev.TextDelta)
 
-		case provider.StreamEventReasoning:
+		case go_llm_router.StreamEventReasoning:
 			reason.write(ev.ReasoningDelta)
 			reasoning.WriteString(ev.ReasoningDelta)
 
-		case provider.StreamEventToolCall:
+		case go_llm_router.StreamEventToolCall:
 			if ev.ToolCall == nil {
 				break
 			}
@@ -119,7 +120,7 @@ consume:
 			if !ok {
 				pos = len(toolCalls)
 				toolIndex[ev.ToolCall.Index] = pos
-				toolCalls = append(toolCalls, provider.ToolCall{Type: "function"})
+				toolCalls = append(toolCalls, go_llm_router.ToolCall{Type: "function"})
 			}
 			call := &toolCalls[pos]
 			if ev.ToolCall.ID != "" {
@@ -133,17 +134,17 @@ consume:
 			}
 			call.Function.Arguments += ev.ToolCall.Arguments
 
-		case provider.StreamEventUsage:
+		case go_llm_router.StreamEventUsage:
 			if ev.Usage != nil {
 				usage = *ev.Usage
 			}
 
-		case provider.StreamEventDone:
+		case go_llm_router.StreamEventDone:
 			if ev.FinishReason != "" {
 				finishReason = ev.FinishReason
 			}
 
-		case provider.StreamEventError:
+		case go_llm_router.StreamEventError:
 			if ev.Err != nil {
 				streamErr = ev.Err
 			}
@@ -166,9 +167,9 @@ consume:
 			finishReason = "tool_calls"
 		}
 	}
-	out := &provider.Output{
-		Choices: []provider.OutputChoices{{
-			Message: provider.Message{
+	out := &go_llm_router.Output{
+		Choices: []go_llm_router.OutputChoices{{
+			Message: go_llm_router.Message{
 				Role:             "assistant",
 				Content:          content.String(),
 				ReasoningContent: reasoning.String(),

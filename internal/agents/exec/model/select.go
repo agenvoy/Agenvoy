@@ -10,7 +10,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/retryHandler"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type ConfigMeta struct {
@@ -50,13 +50,13 @@ func selectModel(ctx context.Context, meta SelectMeta) ([]string, map[string]boo
 	// * step 1: load model selection config
 	cfg := loadConfig()
 	deadMap := map[string]bool{}
-	sessModel, sessReasoning := configBot.DefaultModel, configs.REASONING_AUTO
+	sessModel, sessReasoning := configbot.DefaultModel, configs.REASONING_AUTO
 	if meta.SessionID != "" {
-		sessModel, sessReasoning = configBot.GetModel(meta.SessionID)
+		sessModel, sessReasoning = configbot.GetModel(meta.SessionID)
 	}
 	isAutoReasoning := sessReasoning == configs.REASONING_AUTO
 
-	if sessModel != configBot.DefaultModel {
+	if sessModel != configbot.DefaultModel {
 		if _, ok := meta.ModelSet.Registry[sessModel]; ok {
 			if isAutoReasoning {
 				meta.ModelNames = []string{sessModel}

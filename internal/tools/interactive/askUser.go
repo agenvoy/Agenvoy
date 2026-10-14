@@ -13,19 +13,20 @@ import (
 	"sync"
 	"time"
 
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 type askQuestion struct {
@@ -89,9 +90,9 @@ func modelAvailable(name string) bool {
 }
 
 func registAskUser() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "ask_user",
-		Timeout:     toolRegister.NoToolTimeout,
+		Timeout:     toolregister.NoToolTimeout,
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  false,
@@ -157,7 +158,7 @@ A credential is never asked for here → store_secret.`,
 			},
 			"required": []string{"questions", "state"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Questions []askQuestion `json:"questions"`
 				State     askState      `json:"state"`
@@ -328,7 +329,7 @@ func CleanupPending(sessionID, taskHash string) {
 		return
 	}
 
-	var row historyStore.ActionRecord
+	var row historystore.ActionRecord
 	if err := json.Unmarshal([]byte(raw), &row); err != nil {
 		slog.Warn("CleanupPending Unmarshal",
 			slog.String("file", src),
@@ -338,8 +339,8 @@ func CleanupPending(sessionID, taskHash string) {
 	row.TaskHash = taskHash
 	row.EndAt = time.Now()
 
-	if err := historyStore.WriteAction(context.Background(), sessionID, row); err != nil {
-		slog.Warn("historyStore.WriteAction",
+	if err := historystore.WriteAction(context.Background(), sessionID, row); err != nil {
+		slog.Warn("historystore.WriteAction",
 			slog.String("session", sessionID),
 			slog.String("task", taskHash),
 			slog.String("error", err.Error()))
@@ -358,7 +359,7 @@ func CreateExecPending(sessionID, taskHash, objective, messageID, model, reasoni
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	sessionModel, sessionReasoning := configBot.GetModel(sessionID)
+	sessionModel, sessionReasoning := configbot.GetModel(sessionID)
 	if strings.TrimSpace(model) == "" {
 		model = sessionModel
 	}
@@ -537,13 +538,13 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 
 	if meta.Model != "" {
 		model := meta.Model
-		if model != configBot.DefaultModel && !modelAvailable(model) {
+		if model != configbot.DefaultModel && !modelAvailable(model) {
 			slog.Info("resume: recorded model is gone, falling back to auto",
 				slog.String("session", sessionID),
 				slog.String("model", meta.Model))
-			model = configBot.DefaultModel
+			model = configbot.DefaultModel
 		}
-		configBot.SetModel(sessionID, model, meta.Reasoning)
+		configbot.SetModel(sessionID, model, meta.Reasoning)
 	}
 
 	var msg strings.Builder
@@ -733,7 +734,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 		}
 	} else {
 		allResults = toolResults
-		model, reasoning = configBot.GetModel(sessionID)
+		model, reasoning = configbot.GetModel(sessionID)
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
 		MessageID:   messageID,

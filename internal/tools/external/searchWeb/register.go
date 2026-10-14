@@ -8,12 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb/googleRSS"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 var timeRanges = []string{"1h", "6h", "24h", "7d", "30d", "1y"}
@@ -36,7 +35,7 @@ type searchResult struct {
 }
 
 func Register() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "search_web",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -83,7 +82,7 @@ Several URLs from one domain on one topic → the most relevant, plus any that c
 			},
 			"required": []string{"query"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Query     string `json:"query"`
 				Source    string `json:"source"`

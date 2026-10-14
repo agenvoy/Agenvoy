@@ -10,12 +10,13 @@ import (
 	"slices"
 	"syscall"
 
+	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
-	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
 func main() {

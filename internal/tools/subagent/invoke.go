@@ -8,23 +8,23 @@ import (
 	"strings"
 	"unicode"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	execSubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
+	execsubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 var reasoningLevels = func() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+1)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+	out := make([]string, 0, int(go_llm_router.ReasoningMax)+1)
+	for r := go_llm_router.ReasoningNone; r <= go_llm_router.ReasoningMax; r++ {
 		out = append(out, r.String())
 	}
 	return out
@@ -42,7 +42,7 @@ type invokeParams struct {
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 }
 
-func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokeParams) (string, error) {
+func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokeParams) (string, error) {
 	task := strings.TrimSpace(params.Task)
 	if task == "" {
 		return "", fmt.Errorf("task is required when mode=invoke")
@@ -57,15 +57,15 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 	if model == "" {
 		return "", fmt.Errorf("model is required when mode=invoke")
 	}
-	if model != configBot.DefaultModel {
+	if model != configbot.DefaultModel {
 		if err := checkLegModel(model); err != nil {
 			return "", err
 		}
 	}
 
 	reasoning := strings.TrimSpace(params.Reasoning)
-	if _, ok := provider.ParseReasoning(reasoning); !ok {
-		reasoning = provider.ReasoningLow.String()
+	if _, ok := go_llm_router.ParseReasoning(reasoning); !ok {
+		reasoning = go_llm_router.ReasoningLow.String()
 	}
 
 	excludeTools := params.ExcludeTools
@@ -78,7 +78,7 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 		ignoreHistory = *params.New
 	}
 
-	output, err := execSubagent.Exec(ctx, task, sessionID, model, reasoning,
+	output, err := execsubagent.Exec(ctx, task, sessionID, model, reasoning,
 		strings.TrimSpace(params.SystemPrompt), excludeTools, ignoreHistory)
 	if err != nil {
 		return "", err

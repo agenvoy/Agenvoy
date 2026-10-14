@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func memoryCtx() (context.Context, context.CancelFunc) {
@@ -38,7 +39,7 @@ func sessionParam(c *gin.Context) (string, bool) {
 }
 
 func reasoningLevels() []string {
-	return configBot.ReasoningLevels()
+	return configbot.ReasoningLevels()
 }
 
 func SessionMemory() gin.HandlerFunc {

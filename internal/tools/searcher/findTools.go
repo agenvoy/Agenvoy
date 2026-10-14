@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 const systemDefaultMarker = "[system-default]"
@@ -20,7 +20,7 @@ type Tool struct {
 }
 
 func registFindTools() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "find_tools",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -53,7 +53,7 @@ A capability that seems missing comes from here before anything is built. Buildi
 				},
 			},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode   string `json:"mode"`
 				Query  string `json:"query"`

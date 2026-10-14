@@ -10,8 +10,8 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
 func Register() {
@@ -20,37 +20,37 @@ func Register() {
 	registTestTool()
 }
 
-func capture(path string) historyStore.Change {
-	change, err := historyStore.Capture(path)
+func capture(path string) historystore.Change {
+	change, err := historystore.Capture(path)
 	if err != nil {
-		slog.Debug("historyStore.Capture",
+		slog.Debug("historystore.Capture",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}
 	return change
 }
 
-func record(ctx context.Context, e *toolTypes.Executor, change historyStore.Change, created, tool string) {
-	if err := historyStore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
-		slog.Debug("historyStore.Record",
+func record(ctx context.Context, e *tooltypes.Executor, change historystore.Change, created, tool string) {
+	if err := historystore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("tool", tool),
 			slog.String("error", err.Error()))
 	}
 }
 
-func recordRemoval(ctx context.Context, e *toolTypes.Executor, path, trashPath, tool string) {
-	if err := historyStore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
-		slog.Debug("historyStore.RecordDelete",
+func recordRemoval(ctx context.Context, e *tooltypes.Executor, path, trashPath, tool string) {
+	if err := historystore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
+		slog.Debug("historystore.RecordDelete",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}
 }
 
-func metaOf(e *toolTypes.Executor, tool string) historyStore.Meta {
+func metaOf(e *tooltypes.Executor, tool string) historystore.Meta {
 	if e == nil {
-		return historyStore.Meta{Tool: tool}
+		return historystore.Meta{Tool: tool}
 	}
-	return historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}
+	return historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}
 }
 
 func patch(path, old, new string, replaceAll bool) error {

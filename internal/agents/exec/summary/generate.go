@@ -10,14 +10,14 @@ import (
 	"time"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 	summaryBracketRegex = regexp.MustCompile(`(?s)\[summary\]\s*([\s\S]*?)\s*\[/summary\]`)
 )
 
-func Generate(ctx context.Context, sessionID string, histories []sessionHistory.Record) error {
+func Generate(ctx context.Context, sessionID string, histories []sessionhistory.Record) error {
 	// * caller supplies no agent, Send layers the summary model preference on top
 	agent := agents.ModelSet().Fallback
 	if agent == nil {
@@ -73,9 +73,9 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	return nil
 }
 
-func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessionHistory.Record {
+func chunkHistories(histories []sessionhistory.Record, cursor string) [][]sessionhistory.Record {
 	if cursor != "" {
-		latest := make([]sessionHistory.Record, 0, len(histories))
+		latest := make([]sessionhistory.Record, 0, len(histories))
 		for _, message := range histories {
 			t := extractTime(message)
 			if t == "" || t > cursor {
@@ -88,7 +88,7 @@ func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessio
 		return nil
 	}
 
-	var list [][]sessionHistory.Record
+	var list [][]sessionhistory.Record
 	for i := 0; i < len(histories); {
 		end, total := i, 0
 		for end < len(histories) {
@@ -108,11 +108,11 @@ func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessio
 	return list
 }
 
-func contentRunes(msg sessionHistory.Record) int {
+func contentRunes(msg sessionhistory.Record) int {
 	return utf8.RuneCountInString(msg.Text())
 }
 
-func generateSmmary(ctx context.Context, agent agenttypes.Agent, oldSummary string, histories []sessionHistory.Record) map[string]any {
+func generateSmmary(ctx context.Context, agent agenttypes.Agent, oldSummary string, histories []sessionhistory.Record) map[string]any {
 	prompt := strings.NewReplacer(
 		"{{.Summary}}", oldSummary,
 	).Replace(strings.TrimSpace(configs.SummaryPrompt))
@@ -132,12 +132,12 @@ func generateSmmary(ctx context.Context, agent agenttypes.Agent, oldSummary stri
 
 The block above is the new conversation data since the previous summary.
 Merge it into the previous summary per the rules above and return exactly one <summary> block.`, strings.TrimSpace(sb.String()))
-	messages := []provider.Message{
+	messages := []go_llm_router.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: raw},
 	}
 
-	result := Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, messages, provider.ReasoningMedium, nil)
+	result := Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, messages, go_llm_router.ReasoningMedium, nil)
 	if result == "" {
 		return nil
 	}
@@ -165,7 +165,7 @@ Merge it into the previous summary per the rules above and return exactly one <s
 	return nil
 }
 
-func latestTime(messages []sessionHistory.Record) string {
+func latestTime(messages []sessionhistory.Record) string {
 	var str string
 	for _, message := range messages {
 		t := extractTime(message)
@@ -176,7 +176,7 @@ func latestTime(messages []sessionHistory.Record) string {
 	return str
 }
 
-func extractTime(msg sessionHistory.Record) string {
+func extractTime(msg sessionhistory.Record) string {
 	if msg.SendAt <= 0 {
 		return ""
 	}

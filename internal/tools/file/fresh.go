@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 )
 
-func requireFresh(e *toolTypes.Executor, absPath string, modTime time.Time) error {
+func requireFresh(e *tooltypes.Executor, absPath string, modTime time.Time) error {
 	readAt, ok := e.ReadModTime(absPath)
 	if !ok {
 		return fmt.Errorf("%s has not been read in this turn; read_files it first and build the edit from its current bytes. Nothing was written", absPath)
@@ -20,7 +20,7 @@ func requireFresh(e *toolTypes.Executor, absPath string, modTime time.Time) erro
 	return nil
 }
 
-func markWritten(e *toolTypes.Executor, absPath string) {
+func markWritten(e *tooltypes.Executor, absPath string) {
 	if info, err := os.Stat(absPath); err == nil {
 		e.MarkRead(absPath, info.ModTime())
 	}

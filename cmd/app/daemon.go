@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
@@ -19,23 +19,23 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	chatbotTool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
+	chatbottool "github.com/pardnchiu/agenvoy/internal/runtime/chatbot/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes"
 	"github.com/pardnchiu/agenvoy/internal/runtime/routes/handler"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/runtime/webapp"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/tools/subagent"
-	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 )
 
 func Daemon() {
@@ -47,7 +47,7 @@ func Daemon() {
 	}
 
 	app.InstallDaemonLog()
-	tuiHash.New()
+	sessiontui.New()
 
 	if err := filesystem.Init(); err != nil {
 		slog.Error("filesystem.Init",
@@ -81,11 +81,11 @@ func Daemon() {
 	}
 	defer filesystem.CloseDB()
 
-	if err := historyStore.New(); err != nil {
-		slog.Warn("historyStore.New",
+	if err := historystore.New(); err != nil {
+		slog.Warn("historystore.New",
 			slog.String("error", err.Error()))
 	}
-	defer historyStore.Close()
+	defer historystore.Close()
 
 	if err := usagelog.New(); err != nil {
 		slog.Warn("usagelog.New",
@@ -95,9 +95,9 @@ func Daemon() {
 
 	bootPhase("storage")
 
-	imageTool.Register()
-	audioTool.Register()
-	chatbotTool.Register()
+	imagetool.Register()
+	audiotool.Register()
+	chatbottool.Register()
 
 	if _, err := runtime.Init(); err != nil {
 		if errors.Is(err, runtime.ErrAlreadyRunning) {
@@ -190,7 +190,7 @@ func Daemon() {
 
 	runtime.RegisterCancelNotifier(func(sessionID, taskHash, reason string) {
 		event := agenttypes.Event{Type: agenttypes.EventCanceled, Text: reason}
-		sessionLog.Record(sessionID, event)
+		sessionlog.Record(sessionID, event)
 		pubsub.Pub(sessionID, event)
 	})
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 type toolHistory struct {
@@ -63,7 +63,7 @@ func keyPrefix(sessionID, toolName string) string {
 }
 
 func schemaDefault(toolName string) map[string]any {
-	tool := toolRegister.GetTool(toolName)
+	tool := toolregister.GetTool(toolName)
 	if tool == nil {
 		return nil
 	}

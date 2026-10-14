@@ -10,17 +10,18 @@ import (
 	"strings"
 	"time"
 
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-
 	"github.com/go-telegram/bot/models"
+
+	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	execChatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
+	execchatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
 )
 
 func chatName(in go_bot_telegram.Input) string {
@@ -55,9 +56,9 @@ func recordChatter(in go_bot_telegram.Input, content string) {
 		return
 	}
 
-	sessionID, err := sessionTelegram.New(in.ChatID)
+	sessionID, err := sessiontelegram.New(in.ChatID)
 	if err != nil {
-		slog.Debug("sessionTelegram.New (chatter)",
+		slog.Debug("sessiontelegram.New (chatter)",
 			slog.Int64("chat", in.ChatID),
 			slog.String("error", err.Error()))
 		return
@@ -67,13 +68,13 @@ func recordChatter(in go_bot_telegram.Input, content string) {
 	if username == "" {
 		username = "unknown"
 	}
-	if err := sessionHistory.Append(sessionID, []sessionHistory.Record{{
+	if err := sessionhistory.Append(sessionID, []sessionhistory.Record{{
 		Role:    "user",
 		Content: content,
 		SendAt:  time.Now().UnixNano(),
 		Sender:  username,
 	}}); err != nil {
-		slog.Debug("sessionHistory.Append (chatter)",
+		slog.Debug("sessionhistory.Append (chatter)",
 			slog.Int64("chat", in.ChatID),
 			slog.String("error", err.Error()))
 	}
@@ -153,7 +154,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		slog.Info("Telegram Verification Code",
 			slog.String("name", chatName(in)),
 			slog.String("code", code))
-		execChatbot.NotifyAdmin(ctx, code, "Telegram "+chatName(in))
+		execchatbot.NotifyAdmin(ctx, code, "Telegram "+chatName(in))
 		prompt, err := b.client.SendInput(ctx, in.ChatID, 0, "Enter the 6-digit verification code printed in the daemon log.")
 		if err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/core/telegram Bot.client.SendInput",
@@ -174,7 +175,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 	}
 
 	if hasAttachment {
-		if slices.ContainsFunc(attachInputs, inputHasVoice) && !audioTool.STTEnabled() {
+		if slices.ContainsFunc(attachInputs, inputHasVoice) && !audiotool.STTEnabled() {
 			_, _ = b.client.Send(ctx, in.ChatID, in.MessageID, "No speech-to-text model selected · pick one with <code>/model stt</code> first.", go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 			return nil
 		}
@@ -210,7 +211,7 @@ func run(ctx context.Context, b *Bot, in go_bot_telegram.Input, attachInputs []g
 		return nil
 	}
 
-	chatSessionID, err := sessionTelegram.New(in.ChatID)
+	chatSessionID, err := sessiontelegram.New(in.ChatID)
 	if err != nil {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetTelegramSession: %w", err)
 	}

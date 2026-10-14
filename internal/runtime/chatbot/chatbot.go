@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 type Channel int
@@ -95,7 +96,7 @@ func wrapBlock(ch Channel, text string) string {
 	}
 }
 
-func BuildPushFooter(ch Channel, duration, outputElapsed time.Duration, model, reasoning string, usage *provider.Usage) string {
+func BuildPushFooter(ch Channel, duration, outputElapsed time.Duration, model, reasoning string, usage *go_llm_router.Usage) string {
 	footer := utils.FormatEventFooter(duration, outputElapsed, model, reasoning, usage)
 	if footer == "" {
 		return ""
