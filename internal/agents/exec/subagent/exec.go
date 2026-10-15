@@ -15,10 +15,10 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -29,7 +29,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	// * step 1: model exist
 	registry := agents.ModelSet()
 	if len(registry.Registry) == 0 {
-		return "", fmt.Errorf("no model is registered; subagents are unavailable")
+		return "", fmt.Errorf("[Unavailable] subagent model: none registered")
 	}
 
 	// * step 2: concurrent limit
@@ -38,7 +38,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	case channLen <- struct{}{}:
 		defer func() { <-channLen }()
 	case <-ctx.Done():
-		return "", fmt.Errorf("subagent slots are full; call a new subagent to retry this task: %w", ctx.Err())
+		return "", fmt.Errorf("[Limit] subagent slots: full; call a new subagent to retry this task: %w", ctx.Err())
 	}
 
 	// * step 3: session validation and history
@@ -61,7 +61,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		} else if home, err := os.UserHomeDir(); err == nil {
 			workDir = home
 		} else {
-			return "", fmt.Errorf("no work directory: cwd and home are both unreadable")
+			return "", fmt.Errorf("[Internal] work directory: cwd and home are both unreadable")
 		}
 	}
 
@@ -113,36 +113,36 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	}
 
 	// * step 8: execute with timeout
-	parentSessID := agenttypes.DeliverToFrom(ctx)
+	parentSessID := agentstypes.DeliverToFrom(ctx)
 	if parentSessID == "" {
-		parentSessID = agenttypes.SessionIDFrom(ctx)
+		parentSessID = agentstypes.SessionIDFrom(ctx)
 	}
-	subCtx, cancel := context.WithTimeout(agenttypes.WithDeliverTo(ctx, parentSessID), time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN)*time.Minute)
+	subCtx, cancel := context.WithTimeout(agentstypes.WithDeliverTo(ctx, parentSessID), time.Duration(configs.MAX_SUBAGENT_TIMEOUT_MIN)*time.Minute)
 	defer cancel()
 
-	parentEvents, ok := ctx.Value(exec.ParentEventsKey{}).(chan<- agenttypes.Event)
+	parentEvents, ok := ctx.Value(exec.ParentEventsKey{}).(chan<- agentstypes.Event)
 	if !ok {
 		parentEvents = nil
 	}
 
 	// * step 9: execute in goroutine
-	events := make(chan agenttypes.Event, 64)
+	events := make(chan agentstypes.Event, 64)
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(events)
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("subagent Start panic recovered",
+				slog.Error("[Internal] subagent: panic recovered",
 					slog.String("session", sessID),
 					slog.Any("panic", r))
-				errCh <- fmt.Errorf("subagent crashed: %v", r)
+				errCh <- fmt.Errorf("[Internal] subagent: panic: %v", r)
 			}
 		}()
-		errCh <- exec.Start(subCtx, taskMeta, events, true)
+		errCh <- exec.Run(subCtx, taskMeta, events, true)
 	}()
 
 	// * step 10: collect events
-	displayName, _ := configbot.Get(sessID)
+	displayName, _ := sessionconfigbot.Get(sessID)
 	if displayName == "" || displayName == sessID {
 		for _, prefix := range []string{"temp-", "cli-", "dc-", "tg-"} {
 			if rest, ok := strings.CutPrefix(sessID, prefix); ok {
@@ -162,11 +162,11 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		sendEvent(parentEvents, displayName, ev)
 
 		switch ev.Type {
-		case agenttypes.EventAgentResult:
+		case agentstypes.EventAgentResult:
 			if ev.Model != "" {
 				agentName = ev.Model
 			}
-		case agenttypes.EventText:
+		case agentstypes.EventText:
 			if ev.Text == "" {
 				continue
 			}
@@ -174,14 +174,14 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 				sb.WriteByte('\n')
 			}
 			sb.WriteString(ev.Text)
-		case agenttypes.EventDone:
+		case agentstypes.EventDone:
 			if ev.Usage != nil {
 				usage.Input += ev.Usage.Input
 				usage.Output += ev.Usage.Output
 				usage.CacheCreate += ev.Usage.CacheCreate
 				usage.CacheRead += ev.Usage.CacheRead
 			}
-		case agenttypes.EventError:
+		case agentstypes.EventError:
 			if ev.Err != nil {
 				slog.Debug("subagent event error",
 					slog.String("session", sessID),
@@ -190,8 +190,8 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		}
 	}
 
-	sendEvent(parentEvents, displayName, agenttypes.Event{
-		Type:     agenttypes.EventToolResult,
+	sendEvent(parentEvents, displayName, agentstypes.Event{
+		Type:     agentstypes.EventToolResult,
 		ToolName: "subagents",
 	})
 
@@ -240,5 +240,5 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		}
 		return "", fmt.Errorf("subagent %s failed: %w.%s%s", agentName, execErr, retryMessage, partialHint)
 	}
-	return "", fmt.Errorf("subagent %s returned no text (%s).%s%s", agentName, usageText, retryMessage, partialHint)
+	return "", fmt.Errorf("[Upstream] subagent %s: returned no text (%s).%s%s", agentName, usageText, retryMessage, partialHint)
 }

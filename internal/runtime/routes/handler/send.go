@@ -15,8 +15,8 @@ import (
 	"github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type Request struct {
@@ -39,7 +39,7 @@ func Send() gin.HandlerFunc {
 			return
 		}
 		if strings.TrimSpace(req.Content) == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "content is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] content: required"})
 			return
 		}
 
@@ -58,7 +58,7 @@ func Send() gin.HandlerFunc {
 			sessionID = prefix + utils.UUID()
 		}
 
-		if err := configbot.Save(sessionID, "", "", false); err != nil {
+		if err := sessionconfigbot.Save(sessionID, "", "", false); err != nil {
 			slog.Debug("sessionBot Save",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
@@ -85,10 +85,10 @@ func Send() gin.HandlerFunc {
 			return
 		}
 
-		execCtx := agenttypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
-		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agenttypes.Event) error {
-			if err := exec.Start(execCtx, data, stream, false); err != nil {
-				stream <- agenttypes.ErrorEvent(err)
+		execCtx := agentstypes.WithOrigin(context.WithoutCancel(c.Request.Context()), "chat-")
+		events, _ := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentstypes.Event) error {
+			if err := exec.Run(execCtx, data, stream, false); err != nil {
+				stream <- agentstypes.ErrorEvent(err)
 			}
 			return nil
 		})
@@ -111,13 +111,13 @@ func resolveWorkDir(input string) (string, error) {
 
 	resolved, err := go_pkg_filesystem.AbsPath(home, dir, go_pkg_filesystem.AbsPathOption{})
 	if err != nil {
-		return "", fmt.Errorf("work_dir %q cannot be resolved: %w", dir, err)
+		return "", fmt.Errorf("[Invalid] work_dir %q: cannot be resolved: %w", dir, err)
 	}
 	if !go_pkg_filesystem_reader.Exists(resolved) {
-		return "", fmt.Errorf("work_dir %q does not exist", dir)
+		return "", fmt.Errorf("[Not found] work_dir: %q", dir)
 	}
 	if !go_pkg_filesystem_reader.IsDir(resolved) {
-		return "", fmt.Errorf("work_dir %q is not a directory", dir)
+		return "", fmt.Errorf("[Invalid] work_dir %q: not a directory", dir)
 	}
 	return resolved, nil
 }

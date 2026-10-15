@@ -15,7 +15,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
 )
@@ -30,10 +30,10 @@ func Generate(ctx context.Context, sessionID string, histories []sessionhistory.
 	// * caller supplies no agent, Send layers the summary model preference on top
 	agent := agents.ModelSet().Fallback
 	if agent == nil {
-		return fmt.Errorf("no agent available")
+		return fmt.Errorf("[Unavailable] summary model: none registered")
 	}
 
-	summaryCtx := agenttypes.WithSessionID(ctx, sessionID)
+	summaryCtx := agentstypes.WithSessionID(ctx, sessionID)
 	raw, dic := summary.Ensure(sessionID)
 	cursor := summary.GetCursor(sessionID)
 
@@ -57,7 +57,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionhistory.
 	for i, chunk := range chunks {
 		newDic := generateSmmary(summaryCtx, agent, oldSummary, chunk)
 		if newDic == nil {
-			return fmt.Errorf("generateSmmary: returned nil at chunk %d/%d", i+1, len(chunks))
+			return fmt.Errorf("[Upstream] summary chunk %d/%d: empty or unparseable reply", i+1, len(chunks))
 		}
 
 		if raw, err := json.Marshal(newDic); err == nil {
@@ -112,7 +112,7 @@ func contentRunes(msg sessionhistory.Record) int {
 	return utf8.RuneCountInString(msg.Text())
 }
 
-func generateSmmary(ctx context.Context, agent agenttypes.Agent, oldSummary string, histories []sessionhistory.Record) map[string]any {
+func generateSmmary(ctx context.Context, agent agentstypes.Agent, oldSummary string, histories []sessionhistory.Record) map[string]any {
 	prompt := strings.NewReplacer(
 		"{{.Summary}}", oldSummary,
 	).Replace(strings.TrimSpace(configs.SummaryPrompt))
@@ -137,7 +137,7 @@ Merge it into the previous summary per the rules above and return exactly one <s
 		{Role: "user", Content: raw},
 	}
 
-	result := Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, messages, go_llm_router.ReasoningMedium, nil)
+	result := Send(ctx, agent, agentstypes.SessionIDFrom(ctx), nil, messages, go_llm_router.ReasoningMedium, nil)
 	if result == "" {
 		return nil
 	}
@@ -159,8 +159,8 @@ Merge it into the previous summary per the rules above and return exactly one <s
 		}
 	}
 
-	slog.Debug("generateSmmary: unparseable",
-		slog.String("session", agenttypes.SessionIDFrom(ctx)),
+	slog.Debug("[Upstream] summary reply: unparseable",
+		slog.String("session", agentstypes.SessionIDFrom(ctx)),
 		slog.String("preview", go_pkg_utils.TruncateString(result, 256)))
 	return nil
 }

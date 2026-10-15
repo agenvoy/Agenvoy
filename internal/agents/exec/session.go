@@ -21,29 +21,29 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionsummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )
 
-func getSession(ctx context.Context, meta ExecuteMeta) (*agenttypes.Session, error) {
+func session(ctx context.Context, meta ExecuteMeta) (*agentstypes.Session, error) {
 	// * step1: assemble session history
 	sessionID := strings.TrimSpace(meta.SessionID)
 	if sessionID == "" {
-		return nil, fmt.Errorf("SessionID is required")
+		return nil, fmt.Errorf("[Invalid] session id: required")
 	}
 
 	sessionDir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.IsDir(sessionDir) {
-		return nil, fmt.Errorf("session %q does not exist", sessionID)
+		return nil, fmt.Errorf("[Not found] session: %q", sessionID)
 	}
 
 	var maxHistory []sessionhistory.Record
 	if !meta.IgnoreHistory {
 		_, maxHistory = sessionhistory.Get(sessionID)
 	}
-	session := agenttypes.Session{
+	session := agentstypes.Session{
 		SystemPrompts:    BuildSystemPrompts(meta.WorkDir, meta.ExtraSystemPrompt, sessionID, meta.Agent.Name()),
 		ToolResults:      []go_llm_router.Message{},
 		ContextHistories: sessionhistory.Messages(maxHistory),
@@ -139,19 +139,19 @@ func buildInput(userInput string, imageInputs []string, fileInputs []string) any
 func convertToBase64(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("os.Open: %w", err)
+		return "", fmt.Errorf("[Not found] image %s: %w", path, err)
 	}
 	defer file.Close()
 
 	img, _, err := image.Decode(file)
 	if err != nil {
-		return "", fmt.Errorf("image.Decode: %w", err)
+		return "", fmt.Errorf("[Invalid] image %s: decode: %w", path, err)
 	}
 
 	// * need to be use jpeg before send in claude/gemini model
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
-		return "", fmt.Errorf("jpeg.Encode: %w", err)
+		return "", fmt.Errorf("[Internal] image %s: jpeg encode: %w", path, err)
 	}
 	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }

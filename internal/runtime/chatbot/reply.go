@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -29,7 +29,7 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			r.Finish()
-			return fmt.Errorf("os.UserHomeDir: %w", err)
+			return fmt.Errorf("[Internal] home directory: %w", err)
 		}
 		data.WorkDir = home
 	}
@@ -39,14 +39,14 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		origin = "tg-"
 	}
 	data = exec.Prepare(data)
-	execCtx := agenttypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
-	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agenttypes.Event) error {
-		return exec.Start(execCtx, data, stream, false)
+	execCtx := agentstypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
+	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agentstypes.Event) error {
+		return exec.Run(execCtx, data, stream, false)
 	})
 	return r.deliver(events, wait)
 }
 
-func (r Reply) deliver(events <-chan agenttypes.Event, wait func() error) error {
+func (r Reply) deliver(events <-chan agentstypes.Event, wait func() error) error {
 	tag := "[Discord]"
 	toolError := func(toolName, text string) string {
 		return fmt.Sprintf("`%s`: %s", toolName, text)
@@ -80,7 +80,7 @@ func (r Reply) deliver(events <-chan agenttypes.Event, wait func() error) error 
 	text = strings.TrimSpace(text)
 	if text == "" {
 		if execErr == nil {
-			return fmt.Errorf("no reply")
+			return fmt.Errorf("[Upstream] reply: empty")
 		}
 		if _, err := r.Send(r.ReplyTo, notice("⚠️ "+execErr.Error())); err != nil {
 			slog.Warn(tag+" send exec error",

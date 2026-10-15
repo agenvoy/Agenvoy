@@ -65,7 +65,7 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 		return t, tea.Batch(
 			t.spinner.Tick,
 			func() tea.Msg {
-				keys, err := exec.ResetSessionAll(sid)
+				keys, err := exec.Reset(context.Background(), sid, false)
 				return ResetSessionDone{id: sid, mode: mode, keys: keys, err: err}
 			},
 		)
@@ -77,7 +77,7 @@ func (t TUI) runResetSession(sid, mode string) (TUI, tea.Cmd) {
 		t.spinner.Tick,
 		func() tea.Msg {
 			ctx := context.Background()
-			keys, err := exec.ResetSessionWithSummary(ctx, sid)
+			keys, err := exec.Reset(ctx, sid, true)
 			return ResetSessionDone{id: sid, mode: mode, keys: keys, err: err}
 		},
 	)

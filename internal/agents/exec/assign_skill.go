@@ -8,14 +8,13 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	filesystemskill "github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 )
 
-func assignSkill(session *agenttypes.Session, skill *filesystemskill.Skill) {
+func assignSkill(session *agentstypes.Session, skill *filesystemskill.Skill) {
 	uuid := go_pkg_utils.UUID()
 	raw, _ := json.Marshal(map[string]string{"skill": skill.Name})
-
 	tool := go_llm_router.ToolCall{
 		ID:       uuid,
 		Type:     "function",

@@ -11,10 +11,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/guide"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func (c *conn) run(ctx context.Context, f Frame) {
@@ -26,7 +26,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	sessionID := strings.TrimSpace(f.SessionID)
 	if sessionID == "" {
 		sessionID = "temp-" + go_pkg_utils.UUID()
-		if err := configbot.Save(sessionID, "", "", false); err != nil {
+		if err := sessionconfigbot.Save(sessionID, "", "", false); err != nil {
 			c.write(Frame{Type: FrameDone, UUID: f.UUID, Error: err.Error()})
 			return
 		}
@@ -43,9 +43,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		}
 		runningMu.Unlock()
 	}()
-	execCtx := agenttypes.WithOrigin(ctx, "cli-")
+	execCtx := agentstypes.WithOrigin(ctx, "cli-")
 	execCtx = exec.WithBotPushPrefix(execCtx, go_pkg_utils.TruncateString(f.Rayload.Input, 32))
-	execCtx = agenttypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
+	execCtx = agentstypes.WithWindowHash(execCtx, f.Rayload.WindowHash)
 	execCtx = fast.With(execCtx, f.Rayload.Fast)
 	execCtx = guide.With(execCtx, f.Rayload.Guide)
 	content := strings.TrimSpace(f.Rayload.Input)
@@ -62,22 +62,22 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		HistoryContent: f.Rayload.HistoryContent,
 	})
 
-	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agenttypes.Event) (err error) {
+	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentstypes.Event) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("exec.Start panic: %v", r)
+				err = fmt.Errorf("[Internal] exec.Run: panic: %v", r)
 			}
 		}()
-		return exec.Start(execCtx, data, stream, false)
+		return exec.Run(execCtx, data, stream, false)
 	})
 	terminated := false
 	taskHash := ""
 	for ev := range events {
-		if ev.Type == agenttypes.EventTextDelta {
+		if ev.Type == agentstypes.EventTextDelta {
 			continue
 		}
 		switch ev.Type {
-		case agenttypes.EventDone, agenttypes.EventCanceled, agenttypes.EventError:
+		case agentstypes.EventDone, agentstypes.EventCanceled, agentstypes.EventError:
 			terminated = true
 		}
 		if ev.TaskHash != "" && ev.TaskHash != taskHash {
@@ -103,9 +103,9 @@ func (c *conn) run(ctx context.Context, f Frame) {
 		result.Error = err.Error()
 		result.Canceled = errors.Is(err, context.Canceled) || errors.Is(err, runtime.ErrUserCanceled)
 		if !terminated {
-			ev := agenttypes.Event{Type: agenttypes.EventError, Text: err.Error(), TaskHash: taskHash, WindowHash: f.Rayload.WindowHash}
+			ev := agentstypes.Event{Type: agentstypes.EventError, Text: err.Error(), TaskHash: taskHash, WindowHash: f.Rayload.WindowHash}
 			if result.Canceled {
-				ev.Type = agenttypes.EventCanceled
+				ev.Type = agentstypes.EventCanceled
 			}
 			pubsub.Pub(sessionID, ev)
 		}

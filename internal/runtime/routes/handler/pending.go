@@ -12,7 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -26,7 +26,7 @@ func ListSessionPending() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		if sid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] session_id: required"})
 			return
 		}
 
@@ -52,12 +52,12 @@ func DeleteSessionPending() gin.HandlerFunc {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		taskHash := strings.TrimSpace(c.Param("task_hash"))
 		if sid == "" || taskHash == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] session_id, task_hash: required"})
 			return
 		}
 
 		if _, ok := interactive.LoadPendingInfo(sid, taskHash); !ok {
-			c.JSON(http.StatusNotFound, gin.H{"error": "pending task not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "[Not found] pending task: " + taskHash})
 			return
 		}
 
@@ -79,13 +79,13 @@ func GetSessionPendingQuestions() gin.HandlerFunc {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		taskHash := strings.TrimSpace(c.Param("task_hash"))
 		if sid == "" || taskHash == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] session_id, task_hash: required"})
 			return
 		}
 
 		questions, err := interactive.LoadPendingQuestions(sid, taskHash)
 		if err != nil {
-			c.JSON(http.StatusGone, gin.H{"error": "pending task already resolved in another session"})
+			c.JSON(http.StatusGone, gin.H{"error": "[Conflict] pending task: already resolved in another session"})
 			return
 		}
 
@@ -108,7 +108,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 		sid := strings.TrimSpace(c.Param("session_id"))
 		taskHash := strings.TrimSpace(c.Param("task_hash"))
 		if sid == "" || taskHash == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and task_hash are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] session_id, task_hash: required"})
 			return
 		}
 
@@ -122,7 +122,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 
 		info, ok := interactive.LoadPendingInfo(sid, taskHash)
 		if !ok {
-			c.JSON(http.StatusGone, gin.H{"error": "pending task already resolved in another session"})
+			c.JSON(http.StatusGone, gin.H{"error": "[Conflict] pending task: already resolved in another session"})
 			return
 		}
 
@@ -146,7 +146,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 		}
 
 		ctx := context.WithoutCancel(c.Request.Context())
-		events, _ := exec.Stream(ctx, sid, 64, func(stream chan<- agenttypes.Event) error {
+		events, _ := exec.Stream(ctx, sid, 64, func(stream chan<- agentstypes.Event) error {
 			workDir, _ := os.UserHomeDir()
 			trimContent := strings.TrimSpace(content)
 			data := exec.Prepare(exec.ExecuteMeta{
@@ -158,8 +158,8 @@ func ResumeSessionPending() gin.HandlerFunc {
 				PendingTask:    taskHash,
 				HistoryContent: historyContent,
 			})
-			if err := exec.Start(agenttypes.WithOrigin(ctx, "chat-"), data, stream, false); err != nil {
-				stream <- agenttypes.ErrorEvent(err)
+			if err := exec.Run(agentstypes.WithOrigin(ctx, "chat-"), data, stream, false); err != nil {
+				stream <- agentstypes.ErrorEvent(err)
 			}
 			return nil
 		})
@@ -193,7 +193,7 @@ type resumeResult struct {
 	Canceled bool
 }
 
-func collectResult(_ string, events <-chan agenttypes.Event) resumeResult {
+func collectResult(_ string, events <-chan agentstypes.Event) resumeResult {
 	var text strings.Builder
 	var lastErr string
 	timeout := time.After(time.Duration(configs.MAX_RESUME_WAIT_MIN) * time.Minute)
@@ -205,13 +205,13 @@ func collectResult(_ string, events <-chan agenttypes.Event) resumeResult {
 				return resumeResult{Text: text.String(), Error: lastErr}
 			}
 			switch ev.Type {
-			case agenttypes.EventCanceled:
+			case agentstypes.EventCanceled:
 				return resumeResult{Text: text.String(), Canceled: true}
-			case agenttypes.EventText, agenttypes.EventTextDone:
+			case agentstypes.EventText, agentstypes.EventTextDone:
 				if ev.Text != "" {
 					text.WriteString(ev.Text)
 				}
-			case agenttypes.EventError, agenttypes.EventExecError:
+			case agentstypes.EventError, agentstypes.EventExecError:
 				lastErr = ev.Text
 				if ev.Err != nil {
 					lastErr = ev.Err.Error()

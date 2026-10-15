@@ -10,10 +10,10 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
-	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentsexecmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 )
@@ -41,13 +41,13 @@ func Prepare(data ExecuteMeta) ExecuteMeta {
 	return data
 }
 
-func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event, isSub bool) error {
+func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event, isSub bool) error {
 	sessionID := strings.TrimSpace(data.SessionID)
 	if sessionID == "" {
-		return fmt.Errorf("data.SessionID is required")
+		return fmt.Errorf("[Invalid] session id: required")
 	}
 
-	windowHash := agenttypes.WindowHash(ctx)
+	windowHash := agentstypes.WindowHash(ctx)
 	taskHash := data.PendingTask
 	if taskHash == "" {
 		if data.TaskHash == "" {
@@ -62,7 +62,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 
 	if name := data.SkillName; name != "" && data.Skill == nil {
 		if slices.Contains(data.ExcludeSkills, name) {
-			return fmt.Errorf("skill %q is not available here", name)
+			return fmt.Errorf("[Denied] skill %q: not available in this session", name)
 		}
 		scanner := data.SkillScanner
 		if scanner == nil {
@@ -72,12 +72,12 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 			data.Skill = scanner.Lookup(name)
 		}
 		if data.Skill == nil {
-			return fmt.Errorf("skill %q not found", name)
+			return fmt.Errorf("[Not found] skill: %q", name)
 		}
 	}
 
 	if data.Skill != nil {
-		skillResult := agenttypes.Event{Type: agenttypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
+		skillResult := agentstypes.Event{Type: agentstypes.EventSkillResult, Text: strings.TrimSpace(data.Skill.Name), TaskHash: taskHash, WindowHash: windowHash}
 		events <- skillResult
 		sessionlog.Record(sessionID, skillResult)
 	}
@@ -86,39 +86,39 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 		if IsSchedule(ctx) {
 			sessionlog.Append(sessionID, windowHash, "[Scheduled Task: "+DCPushPrefix(ctx)+"]")
 		} else {
-			events <- agenttypes.Event{Type: agenttypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
+			events <- agentstypes.Event{Type: agentstypes.EventUserInput, Text: input, TaskHash: taskHash, WindowHash: windowHash}
 			sessionlog.Append(sessionID, windowHash, input)
 		}
 	}
 
 	var (
-		agent     agenttypes.Agent
-		fallbacks []agenttypes.Agent
+		agent     agentstypes.Agent
+		fallbacks []agentstypes.Agent
 	)
 	if isSub {
 		if data.Model == "" {
-			data.Model = configbot.DefaultModel
+			data.Model = sessionconfigbot.DefaultModel
 		}
 		if !strings.HasPrefix(sessionID, "temp-") {
-			sessModel, sessReasoning := configbot.GetModel(sessionID)
-			if data.Model == configbot.DefaultModel {
+			sessModel, sessReasoning := sessionconfigbot.GetModel(sessionID)
+			if data.Model == sessionconfigbot.DefaultModel {
 				data.Model = sessModel
 			}
 			if data.Reasoning == "" || data.Reasoning == configs.REASONING_AUTO {
 				data.Reasoning = sessReasoning
 			}
 		}
-		if data.Model != configbot.DefaultModel && data.Reasoning != "" && data.Reasoning != configs.REASONING_AUTO {
+		if data.Model != sessionconfigbot.DefaultModel && data.Reasoning != "" && data.Reasoning != configs.REASONING_AUTO {
 			agent = agents.ModelSet().Registry[data.Model]
 			if agent == nil {
-				return fmt.Errorf("model %q is not registered; use another model", data.Model)
+				return fmt.Errorf("[Not found] model %q: not registered; use another model", data.Model)
 			}
 		}
 	}
 	if agent == nil {
-		events <- agenttypes.Event{Type: agenttypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
+		events <- agentstypes.Event{Type: agentstypes.EventAgentSelect, TaskHash: taskHash, WindowHash: windowHash}
 
-		model := configbot.DefaultModel
+		model := sessionconfigbot.DefaultModel
 		if trimModel := strings.TrimSpace(data.Model); trimModel != "" {
 			model = trimModel
 		}
@@ -126,9 +126,9 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 		if data.Skill != nil {
 			skillDesc = data.Skill.Description
 		}
-		routed, routedFallbacks, reasoning, err := execmodel.Route(ctx, model, data.Reasoning, data.Task, skillDesc, sessionID)
+		routed, routedFallbacks, reasoning, err := agentsexecmodel.Route(ctx, model, data.Reasoning, data.Task, skillDesc, sessionID)
 		if err != nil {
-			return fmt.Errorf("execmodel.Route: %w", err)
+			return fmt.Errorf("agentsexecmodel.Route: %w", err)
 		}
 		agent, fallbacks = routed, routedFallbacks
 		if data.Reasoning == "" || data.Reasoning == configs.REASONING_AUTO {
@@ -139,8 +139,8 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 	if IsSchedule(ctx) {
 		agentName = ScheduleLabel(DCPushPrefix(ctx))
 	}
-	agentResult := agenttypes.Event{
-		Type:       agenttypes.EventAgentResult,
+	agentResult := agentstypes.Event{
+		Type:       agentstypes.EventAgentResult,
 		Text:       agentName,
 		Model:      agent.Name(),
 		Reasoning:  ResolveReasoning(sessionID, data.Reasoning).String(),
@@ -152,7 +152,7 @@ func Start(ctx context.Context, data ExecuteMeta, events chan<- agenttypes.Event
 
 	data.Agent = agent
 	data.FallbackAgents = fallbacks
-	session, err := getSession(ctx, data)
+	session, err := session(ctx, data)
 	if err != nil {
 		return fmt.Errorf("GetSession: %w", err)
 	}
