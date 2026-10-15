@@ -13,6 +13,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	execsubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -23,7 +24,8 @@ import (
 )
 
 var reasoningLevels = func() []string {
-	out := make([]string, 0, int(go_llm_router.ReasoningMax)+1)
+	out := make([]string, 0, int(go_llm_router.ReasoningMax)+2)
+	out = append(out, configs.REASONING_AUTO)
 	for r := go_llm_router.ReasoningNone; r <= go_llm_router.ReasoningMax; r++ {
 		out = append(out, r.String())
 	}
@@ -64,8 +66,13 @@ func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokePar
 	}
 
 	reasoning := strings.TrimSpace(params.Reasoning)
-	if _, ok := go_llm_router.ParseReasoning(reasoning); !ok {
-		reasoning = go_llm_router.ReasoningLow.String()
+	if reasoning == "" {
+		reasoning = configs.REASONING_AUTO
+	}
+	if reasoning != configs.REASONING_AUTO {
+		if _, ok := go_llm_router.ParseReasoning(reasoning); !ok {
+			return "", fmt.Errorf("[Invalid] reasoning: %q; use one of %s", reasoning, strings.Join(reasoningLevels, ", "))
+		}
 	}
 
 	excludeTools := params.ExcludeTools

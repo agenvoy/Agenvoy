@@ -141,6 +141,9 @@ func toolNeedsConfirmation(exec *tooltypes.Executor, toolName, toolArgs string, 
 	if isDestructiveMode(toolArgs) {
 		return true
 	}
+	if toolName == "open_file" && isOpenFileURL(toolArgs) {
+		return true
+	}
 	if toolregister.IsReadOnly(toolName) {
 		return false
 	}
@@ -175,6 +178,16 @@ func isDestructiveMode(toolArgs string) bool {
 		return false
 	}
 	return destructiveModes[strings.TrimSpace(p.Mode)]
+}
+
+func isOpenFileURL(toolArgs string) bool {
+	var p struct {
+		Path string `json:"path"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return tools.IsOpenURL(p.Path)
 }
 
 func isReadOnlyMode(toolArgs string) bool {
@@ -398,12 +411,6 @@ func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_route
 				reason = fmt.Sprintf("tool=%s failed: %s is not callable directly. Fetch its schema with find_tools, then call run_tool(name=%s, args=...).", toolName, toolName, toolName)
 			}
 			if reason != "" {
-				events <- agenttypes.Event{
-					Type:     agenttypes.EventToolCall,
-					ToolName: toolName,
-					ToolArgs: toolArg,
-					ToolID:   toolID,
-				}
 				slots[i].state = slotValidateFailed
 				slots[i].preMsg = reason
 				continue
@@ -453,6 +460,19 @@ func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_route
 			}
 			slots[i].state = slotValidateFailed
 			slots[i].preMsg = fmt.Sprintf("tool=%s failed: not exist: %s. Look up available tools with find_tools.", toolName, toolName)
+			continue
+		}
+
+		if earlyErr := validateToolArgs(exec, toolName, toolArg); earlyErr != "" {
+			events <- agenttypes.Event{
+				Type:     agenttypes.EventToolCall,
+				ToolName: toolName,
+				ToolArgs: toolArg,
+				ToolID:   toolID,
+			}
+			content := fmt.Sprintf("tool=%s failed: %s", toolName, earlyErr)
+			slots[i].state = slotValidateFailed
+			slots[i].preMsg = content
 			continue
 		}
 
@@ -561,18 +581,6 @@ func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_route
 			}
 		}
 
-		if earlyErr := validateToolArgs(exec, toolName, toolArg); earlyErr != "" {
-			events <- agenttypes.Event{
-				Type:     agenttypes.EventToolCall,
-				ToolName: toolName,
-				ToolArgs: toolArg,
-				ToolID:   toolID,
-			}
-			content := fmt.Sprintf("tool=%s failed: %s", toolName, earlyErr)
-			slots[i].state = slotValidateFailed
-			slots[i].preMsg = content
-			continue
-		}
 	}
 
 	for i := range slots {

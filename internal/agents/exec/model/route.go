@@ -11,7 +11,7 @@ import (
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
-func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID string) (agenttypes.Agent, []agenttypes.Agent, string, error) {
+func Route(ctx context.Context, assignModel, requestReasoning, requestTask, skillDesc, sessionID string) (agenttypes.Agent, []agenttypes.Agent, string, error) {
 	// * if assign exist, then use it
 	modelSet := agents.ModelSet()
 	req := SelectMeta{
@@ -25,6 +25,10 @@ func Route(ctx context.Context, assignModel, requestTask, skillDesc, sessionID s
 		agent, ok := modelSet.Registry[assignModel]
 		if !ok || agent == nil {
 			return nil, nil, "", fmt.Errorf("[Not found] model: %q", assignModel)
+		}
+
+		if requestReasoning != "" && requestReasoning != configs.REASONING_AUTO {
+			return agent, []agenttypes.Agent{}, requestReasoning, nil
 		}
 
 		// * check reasoning, if auto, then get fit

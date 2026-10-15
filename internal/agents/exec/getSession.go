@@ -24,7 +24,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	"github.com/pardnchiu/agenvoy/internal/session/summary"
+	sessionsummary "github.com/pardnchiu/agenvoy/internal/session/summary"
 )
 
 func getSession(ctx context.Context, meta ExecuteMeta) (*agenttypes.Session, error) {
@@ -39,16 +39,21 @@ func getSession(ctx context.Context, meta ExecuteMeta) (*agenttypes.Session, err
 		return nil, fmt.Errorf("session %q does not exist", sessionID)
 	}
 
-	_, maxHistory := sessionhistory.Get(sessionID)
+	var maxHistory []sessionhistory.Record
+	if !meta.IgnoreHistory {
+		_, maxHistory = sessionhistory.Get(sessionID)
+	}
 	session := agenttypes.Session{
 		SystemPrompts:    BuildSystemPrompts(meta.WorkDir, meta.ExtraSystemPrompt, sessionID, meta.Agent.Name()),
 		ToolResults:      []go_llm_router.Message{},
 		ContextHistories: sessionhistory.Messages(maxHistory),
 		ToolHistories:    []go_llm_router.Message{},
 	}
-	if summary := summary.GetPrompt(sessionID, GetOldestMessageTime(maxHistory)); summary != "" {
-		// * if summary not empty, add it
-		session.Summary = go_llm_router.Message{Role: "user", Content: summary}
+	if !meta.IgnoreHistory {
+		if summary := sessionsummary.GetPrompt(sessionID, GetOldestMessageTime(maxHistory)); summary != "" {
+			// * if summary not empty, add it
+			session.Summary = go_llm_router.Message{Role: "user", Content: summary}
+		}
 	}
 
 	// * step2: assemble user input

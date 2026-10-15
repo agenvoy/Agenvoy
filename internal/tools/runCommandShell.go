@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -52,6 +53,10 @@ func validateShellScript(script string, denied []string) error {
 		}
 		if base == "sudo" {
 			bad = sudoCommandErr()
+			return false
+		}
+		if base == "open" && runtime.GOOS == "darwin" {
+			bad = openCommandErr()
 			return false
 		}
 		if shellAllow[base] {

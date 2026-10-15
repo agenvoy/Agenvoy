@@ -19,6 +19,7 @@ func sendEvent(parent chan<- agenttypes.Event, name string, ev agenttypes.Event)
 		agenttypes.EventToolCallEnd,
 		agenttypes.EventToolCallText,
 		agenttypes.EventSkillResult,
+		agenttypes.EventUserInput,
 		agenttypes.EventTodoUpdate:
 		return
 	}

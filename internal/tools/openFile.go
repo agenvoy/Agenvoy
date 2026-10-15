@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -22,15 +23,15 @@ func registOpenFile() {
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  false,
-		Description: `Hands a file to the OS default application — plays a video, shows an image, opens a PDF viewer.
-Use for 打開 / 播放 / 看一下這個檔案, and for open / xdg-open / start.
+		Description: `Hands a file or URL to the OS default handler — plays a video, shows an image, opens a PDF viewer, opens a system settings pane or a link.
+Use for 打開 / 播放 / 看一下這個檔案 / 打開設定, and for open / xdg-open / start.
 run_command cannot do this: its sandbox has no route to the app-launch service. Reading the contents instead → read_files.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"path": map[string]any{
 					"type":        "string",
-					"description": "File to open (e.g. '/abs/path/video.mp4', '~/Downloads/report.pdf', 'relative/file.png').",
+					"description": "File path or URL to open (e.g. '/abs/path/video.mp4', '~/Downloads/report.pdf', 'relative/file.png', 'x-apple.systempreferences:com.apple.Desktop-Settings.extension', 'https://example.com'). A URL always asks the user to confirm.",
 				},
 			},
 			"required": []string{"path"},
@@ -48,18 +49,30 @@ run_command cannot do this: its sandbox has no route to the app-launch service. 
 	})
 }
 
-func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, error) {
-	baseDir := workDir
-	if baseDir == "" {
-		baseDir = filesystem.DownloadDir
-	}
+var urlSchemeRegex = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]+:`)
 
-	absPath, err := boundary.Resolve(sessionID, baseDir, path)
-	if err != nil {
-		return "", fmt.Errorf("boundary.Resolve: %w", err)
-	}
-	if absPath == "" {
-		return "", fmt.Errorf("path is required")
+func IsOpenURL(path string) bool {
+	return urlSchemeRegex.MatchString(strings.TrimSpace(path))
+}
+
+func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, error) {
+	var absPath string
+	if IsOpenURL(path) {
+		absPath = strings.TrimSpace(path)
+	} else {
+		baseDir := workDir
+		if baseDir == "" {
+			baseDir = filesystem.DownloadDir
+		}
+
+		resolved, err := boundary.Resolve(sessionID, baseDir, path)
+		if err != nil {
+			return "", fmt.Errorf("boundary.Resolve: %w", err)
+		}
+		if resolved == "" {
+			return "", fmt.Errorf("path is required")
+		}
+		absPath = resolved
 	}
 
 	var cmd *exec.Cmd

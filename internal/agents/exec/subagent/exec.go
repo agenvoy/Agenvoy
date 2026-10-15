@@ -15,14 +15,10 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/model"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	"github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
-	"github.com/pardnchiu/agenvoy/internal/session/summary"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
@@ -50,46 +46,14 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	if err != nil {
 		return "", fmt.Errorf("subagent session: %w", err)
 	}
-	var maxRec []history.Record
 	// * if subagent call with temp-, call it as a new session
 	if strings.HasPrefix(sessID, "temp-") {
 		ignoreHistory = true
-	} else if !ignoreHistory {
-		_, maxRec = history.Get(sessID)
-	}
-	contextHistories := history.Messages(maxRec)
-
-	// * step 4: model/reasoning validation
-	// * if session is not temp, then use default configured model and reasoning
-	if !strings.HasPrefix(sessID, "temp-") {
-		sessModel, sessReasoning := configbot.GetModel(sessID)
-		// * only if not auto, then replace, or using input model / reasoning
-		if sessModel != configbot.DefaultModel {
-			modelName = sessModel
-		}
-		if sessReasoning != configs.REASONING_AUTO {
-			reasoning = sessReasoning
-		}
 	}
 
 	trimTask := strings.TrimSpace(task)
-	var agent agenttypes.Agent
-	// * if model is auto, then select model first
-	if modelName == configbot.DefaultModel {
-		agent = model.Select(ctx, model.SelectMeta{
-			Agent:     agents.DispatcherBot(),
-			ModelSet:  registry,
-			Task:      trimTask,
-			SessionID: sessID,
-		})
-	} else {
-		agent = registry.Registry[modelName]
-	}
-	if agent == nil {
-		return "", fmt.Errorf("model %q is not registered; use another model", modelName)
-	}
 
-	// * step 5: working directory
+	// * step 4: working directory
 	workDir, ok := ctx.Value(exec.ParentWorkDirKey{}).(string)
 	if !ok || workDir == "" {
 		if cwd, err := os.Getwd(); err == nil {
@@ -101,13 +65,13 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		}
 	}
 
-	// * step 6: allowAll flag
+	// * step 5: allowAll flag
 	allowAll, ok := ctx.Value(exec.AllowAllCtxKey{}).(bool)
 	if !ok {
 		allowAll = true
 	}
 
-	// * step 7: excluded tools
+	// * step 6: excluded tools
 	// * collection-only, no nesting, no writes, no deliverable renderers
 	toolExclude := append(append([]string{
 		"subagents",
@@ -124,21 +88,23 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		"pkg_manage",
 	}, tools.TUIOnlyTools...), excludedTools...)
 
-	// * step 8: create task
+	// * step 7: create task
 	trimSystemPrompt := strings.TrimSpace(systemPrompt)
 	if trimSystemPrompt != "" {
 		trimSystemPrompt = "---\n\n" + trimSystemPrompt
 	}
 	charter := strings.TrimSpace(strings.ReplaceAll(configs.SubagentPrompt, "{{.SystemPrompt}}", trimSystemPrompt))
-	hash := interactive.CreateExecPending(sessID, "", trimTask, "", agent.Name(), reasoning, allowAll)
+	hash := go_pkg_utils.UUID()
 	hashPath := filesystem.PendingMetaPath(sessID, hash)
 	taskMeta := exec.ExecuteMeta{
-		Agent:             agent,
+		Model:             modelName,
 		WorkDir:           workDir,
-		PendingTask:       hash,
+		SessionID:         sessID,
+		TaskHash:          hash,
 		KeepPending:       true,
 		IgnoreHistory:     ignoreHistory,
 		Task:              trimTask,
+		Input:             trimTask,
 		ExcludeTools:      toolExclude,
 		ExcludeSkills:     tools.TUIOnlySkills,
 		ExtraSystemPrompt: charter,
@@ -146,36 +112,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		AllowAll:          allowAll,
 	}
 
-	// * step 9: prepare session
-	sendAt := time.Now().UnixNano()
-	prefixed := history.WithPrefix(history.Record{SendAt: sendAt}.Prefix(), trimTask)
-	session := &agenttypes.Session{
-		ID:               sessID,
-		SystemPrompts:    exec.BuildSystemPrompts(taskMeta.WorkDir, taskMeta.ExtraSystemPrompt, sessID, taskMeta.Agent.Name()),
-		ContextHistories: contextHistories,
-		ToolHistories:    []go_llm_router.Message{},
-		ToolResults:      []go_llm_router.Message{},
-		RawHistories:     []go_llm_router.Message{{Role: "user", Content: prefixed}},
-		SendAt:           sendAt,
-		UserMessage:      go_llm_router.Message{Role: "user", Content: prefixed},
-	}
-	if !ignoreHistory {
-		if summary := summary.GetPrompt(sessID, exec.GetOldestMessageTime(maxRec)); summary != "" {
-			session.Summary = go_llm_router.Message{Role: "user", Content: summary}
-		}
-	}
-
-	// * step 10: execute
-	if exec.IsSchedule(ctx) {
-		// * if is schedule jsut record result, no task content
-		sessionlog.Append(sessID, agenttypes.WindowHash(ctx), "[Scheduled Task: "+exec.DCPushPrefix(ctx)+"]")
-	} else {
-		pubsub.Pub(sessID, agenttypes.Event{Type: agenttypes.EventUserInput, Text: trimTask})
-		sessionlog.Append(sessID, agenttypes.WindowHash(ctx), trimTask)
-	}
-	exec.SaveUserInputHistory(ctx, sessID, trimTask)
-
-	// * step 11: execute with timeout
+	// * step 8: execute with timeout
 	parentSessID := agenttypes.DeliverToFrom(ctx)
 	if parentSessID == "" {
 		parentSessID = agenttypes.SessionIDFrom(ctx)
@@ -188,31 +125,23 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		parentEvents = nil
 	}
 
-	// * step 12: agent selected event
-	agentSelectedEvent := agenttypes.Event{Type: agenttypes.EventAgentResult, Text: agent.Name(), Reasoning: exec.ResolveReasoning(sessID, reasoning).String()}
-	if exec.IsSchedule(ctx) {
-		agentSelectedEvent.Text = exec.ScheduleLabel(exec.DCPushPrefix(ctx))
-	}
-	pubsub.Pub(sessID, agentSelectedEvent)
-	sessionlog.Record(sessID, agentSelectedEvent)
-
-	// * step 13: execute in goroutine
+	// * step 9: execute in goroutine
 	events := make(chan agenttypes.Event, 64)
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(events)
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("subagent Execute panic recovered",
+				slog.Error("subagent Start panic recovered",
 					slog.String("session", sessID),
 					slog.Any("panic", r))
 				errCh <- fmt.Errorf("subagent crashed: %v", r)
 			}
 		}()
-		errCh <- exec.Execute(subCtx, taskMeta, session, events, allowAll)
+		errCh <- exec.Start(subCtx, taskMeta, events, true)
 	}()
 
-	// * step 14: collect events
+	// * step 10: collect events
 	displayName, _ := configbot.Get(sessID)
 	if displayName == "" || displayName == sessID {
 		for _, prefix := range []string{"temp-", "cli-", "dc-", "tg-"} {
@@ -224,14 +153,19 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	}
 
 	var (
-		sb    strings.Builder
-		usage go_llm_router.Usage
+		sb        strings.Builder
+		usage     go_llm_router.Usage
+		agentName = modelName
 	)
 	for ev := range events {
 		pubsub.Pub(sessID, ev)
 		sendEvent(parentEvents, displayName, ev)
 
 		switch ev.Type {
+		case agenttypes.EventAgentResult:
+			if ev.Model != "" {
+				agentName = ev.Model
+			}
 		case agenttypes.EventText:
 			if ev.Text == "" {
 				continue
@@ -267,7 +201,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	usageText := formatUsage(usage)
 	retryMessage := ""
 	if ctx.Err() == nil {
-		retryMessage = fmt.Sprintf(" Call a new subagent to retry only this task, with a model other than %s.", agent.Name())
+		retryMessage = fmt.Sprintf(" Call a new subagent to retry only this task, with a model other than %s.", agentName)
 	}
 
 	execErr := <-errCh
@@ -288,7 +222,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 
 	if execErr == nil && result != "" {
 		interactive.CleanupPending(sessID, hash)
-		return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agent.Name(), sessID, usageText, result), nil
+		return fmt.Sprintf("[subagent · %s · session=%s · %s]\n%s", agentName, sessID, usageText, result), nil
 	}
 
 	interactive.CompactPending(sessID, hash)
@@ -301,10 +235,10 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		if result != "" {
 			slog.Debug("subagent partial output discarded",
 				slog.String("session", sessID),
-				slog.String("model", agent.Name()),
+				slog.String("model", agentName),
 				slog.String("output", go_pkg_utils.TruncateString(result, 2048)))
 		}
-		return "", fmt.Errorf("subagent %s failed: %w.%s%s", agent.Name(), execErr, retryMessage, partialHint)
+		return "", fmt.Errorf("subagent %s failed: %w.%s%s", agentName, execErr, retryMessage, partialHint)
 	}
-	return "", fmt.Errorf("subagent %s returned no text (%s).%s%s", agent.Name(), usageText, retryMessage, partialHint)
+	return "", fmt.Errorf("subagent %s returned no text (%s).%s%s", agentName, usageText, retryMessage, partialHint)
 }

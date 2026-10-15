@@ -41,7 +41,7 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 	data = exec.Prepare(data)
 	execCtx := agenttypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
 	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agenttypes.Event) error {
-		return exec.Start(execCtx, data, stream)
+		return exec.Start(execCtx, data, stream, false)
 	})
 	return r.deliver(events, wait)
 }

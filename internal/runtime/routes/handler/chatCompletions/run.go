@@ -34,7 +34,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	if trimModel := strings.TrimSpace(req.Model); trimModel != "" {
 		model = trimModel
 	}
-	agent, fallbacks, reasoning, err := execmodel.Route(ctx, model, trimContent, "", "")
+	agent, fallbacks, reasoning, err := execmodel.Route(ctx, model, "", trimContent, "", "")
 	if err != nil {
 		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 		return

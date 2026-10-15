@@ -158,7 +158,7 @@ func ResumeSessionPending() gin.HandlerFunc {
 				PendingTask:    taskHash,
 				HistoryContent: historyContent,
 			})
-			if err := exec.Start(agenttypes.WithOrigin(ctx, "chat-"), data, stream); err != nil {
+			if err := exec.Start(agenttypes.WithOrigin(ctx, "chat-"), data, stream, false); err != nil {
 				stream <- agenttypes.ErrorEvent(err)
 			}
 			return nil

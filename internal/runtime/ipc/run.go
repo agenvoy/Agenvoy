@@ -68,7 +68,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 				err = fmt.Errorf("exec.Start panic: %v", r)
 			}
 		}()
-		return exec.Start(execCtx, data, stream)
+		return exec.Start(execCtx, data, stream, false)
 	})
 	terminated := false
 	taskHash := ""
