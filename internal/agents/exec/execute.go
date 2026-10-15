@@ -17,7 +17,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	agentsexecallowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
 	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
@@ -85,7 +85,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	execStart := time.Now()
 
 	if !allowAll {
-		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && allowskill.Match(data.WorkDir, data.Skill.Name) {
+		if data.Skill != nil && strings.TrimSpace(data.Skill.Content) != "" && agentsexecallowskill.Match(data.WorkDir, data.Skill.Name) {
 			allowAll = true
 		}
 	}

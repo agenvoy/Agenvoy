@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	agentsexecallowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
 	allowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
@@ -30,13 +30,13 @@ func allowSkillBlock(c *gin.Context) (gin.H, bool) {
 	var allowed map[string]bool
 	switch scope {
 	case "global":
-		allowed = allowskill.LoadGlobal()
+		allowed = agentsexecallowskill.Load()
 	case "project":
 		if workDir == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "work_dir required for scope=project"})
 			return nil, false
 		}
-		allowed = allowskill.LoadEffective(workDir)
+		allowed = agentsexecallowskill.Load(workDir)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown scope: " + scope})
 		return nil, false
@@ -136,14 +136,14 @@ func SetAllowlist() gin.HandlerFunc {
 			var err error
 			switch body.Skill.Scope {
 			case "global", "":
-				added, err = allowskill.ToggleGlobal(name)
+				added, err = agentsexecallowskill.Toggle(name)
 			case "project":
 				workDir := strings.TrimSpace(body.Skill.WorkDir)
 				if workDir == "" {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "skill.work_dir required for scope=project"})
 					return
 				}
-				added, err = allowskill.ToggleProject(workDir, name)
+				added, err = agentsexecallowskill.Toggle(name, workDir)
 			default:
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown scope: " + body.Skill.Scope})
 				return
