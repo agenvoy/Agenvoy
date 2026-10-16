@@ -10,7 +10,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agentsexecallowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
-	allowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	agentsexecallowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
@@ -55,7 +55,7 @@ func allowToolBlock(c *gin.Context) gin.H {
 	prefix := strings.TrimSpace(c.Query("prefix"))
 
 	entries := make([]string, 0, 16)
-	for entry := range allowtool.LoadGlobal() {
+	for entry := range agentsexecallowtool.Load() {
 		if prefix == "" || strings.HasPrefix(entry, prefix) {
 			entries = append(entries, entry)
 		}
@@ -119,7 +119,7 @@ func SetAllowlist() gin.HandlerFunc {
 			if slices.Contains(entries, prefix+"*") {
 				entries = []string{prefix + "*"}
 			}
-			if err := allowtool.ReplaceGlobalPrefix(prefix, entries); err != nil {
+			if err := agentsexecallowtool.ToggleMCP(prefix, entries); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}

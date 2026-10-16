@@ -15,7 +15,7 @@ import (
 	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	allowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	agentsexecallowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
@@ -156,7 +156,7 @@ func toolNeedsConfirmation(exec *tooltypes.Executor, toolName, toolArgs string, 
 	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {
 		return false
 	}
-	return !allowtool.Match(allowtool.List(exec.WorkDir), toolName, toolArgs)
+	return !agentsexecallowtool.Match(exec.WorkDir, toolName, toolArgs)
 }
 
 var readOnlyModes = map[string]bool{
@@ -544,7 +544,7 @@ func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_route
 					verified = reply.Verified
 					reason = reply.Reason
 					if reply.Approve && reply.Remember {
-						if err = allowtool.Append(exec.WorkDir, toolName, toolArg); err != nil {
+						if _, err = agentsexecallowtool.Toggle(toolName, toolArg, exec.WorkDir); err != nil {
 							slog.Warn("appendAllowListRule",
 								slog.String("session", sessionData.ID),
 								slog.String("error", err.Error()))
