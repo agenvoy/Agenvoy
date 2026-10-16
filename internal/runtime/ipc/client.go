@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var ErrOffline = errors.New("daemon offline")
@@ -132,7 +132,7 @@ func (c *Client) send(f Frame) error {
 	}
 	if err := c.enc.Encode(f); err != nil {
 		c.conn.Close()
-		return fmt.Errorf("Encode: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Unavailable, "Encode", "", err)
 	}
 	return nil
 }

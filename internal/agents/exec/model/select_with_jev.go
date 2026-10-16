@@ -1,12 +1,12 @@
-package exec
+package model
 
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
@@ -14,15 +14,14 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
-
-	provider "github.com/pardnchiu/go-llm-router/core"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
 	typesafeEndpoint = "https://api.typesafe.ai/v1/systemone"
 	betaNamedNone    = "none"
 	betaTopicSame    = "same"
-	betaLastModelKey = "lastModel:"
+	BetaLastModelKey = "lastModel:"
 )
 
 var betaWorkCriteria = map[string]any{
@@ -73,41 +72,29 @@ var betaWorkCriteria = map[string]any{
 	},
 }
 
-func betaWorkWhat(key string) string {
-	i := slices.IndexFunc(config.WorkKinds, func(k config.WorkKind) bool { return k.Key == key })
-	if i < 0 {
-		return ""
-	}
-	return config.WorkKinds[i].What
-}
-
-type betaAnswer struct {
-	Answers map[string]struct {
-		Choice string `json:"choice"`
-	} `json:"answers"`
-}
-
-func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]string, request, sessionID string) ([]string, string, int, error) {
+func selectWithJEV(ctx context.Context, meta SelectMeta, tagMap map[string]string) ([]string, string, int, error) {
+	// * step 1: get key
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
-		return nil, "", 0, fmt.Errorf("missing key: %s", config.TypesafeKey)
-	}
-	if len(candidates) == 0 {
-		return candidates, "", 0, nil
+		return nil, "", 0, utilsmsg.New(utilsmsg.Denied, config.TypesafeKey, "missing in keychain")
 	}
 
-	named := map[string]any{betaNamedNone: "The request does not ask to use a specific model."}
-	for _, name := range candidates {
+	if len(meta.ModelNames) == 0 {
+		return meta.ModelNames, "", 0, nil
+	}
+
+	named := map[string]any{betaNamedNone: "The user does not mention any model."}
+	for _, name := range meta.ModelNames {
 		named[name] = "The request asks to use " + name + " (fuzzy match on provider, family or version)."
 	}
 
-	turns := betaContext(sessionID)
+	turns := betaContext(meta.SessionID)
 	questions := map[string]any{
 		"work": map[string]any{
 			"type": "choice",
 			"instructions": map[string]any{
 				"question": "What kind of work does `request` ask for?",
-				"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. A request starting with [Run Skill] runs a Skill: classify the work the Skill does, not its name.",
+				"focus":    "Classify `request`; use `context` only to resolve references such as 'this' or 'continue'. When `skill` is present, `request` runs that Skill: classify the work `skill` describes, not its name.",
 			},
 			"criteria": betaWorkCriteria,
 		},
@@ -123,7 +110,7 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 
 	var previous, previousReasoning string
 	if len(turns) > 0 {
-		previous, previousReasoning = betaPrevious(ctx, sessionID, candidates)
+		previous, previousReasoning = betaPrevious(ctx, meta.SessionID, meta.ModelNames)
 	}
 	if previous != "" {
 		questions["topic"] = map[string]any{
@@ -139,12 +126,16 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		}
 	}
 
+	state := map[string]any{
+		"context": turns,
+		"request": strings.TrimSpace(meta.Task),
+	}
+	if meta.SkillDescription != "" {
+		state["skill"] = meta.SkillDescription
+	}
 	body := map[string]any{
-		"model": config.TypesafeModel,
-		"state": map[string]any{
-			"context": turns,
-			"request": request,
-		},
+		"model":     config.TypesafeModel,
+		"state":     state,
 		"questions": questions,
 	}
 
@@ -154,22 +145,22 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 		"Authorization": "Bearer " + key,
 	}, body, "json")
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("go_pkg_http.POST: %w", err)
+		return nil, "", 0, utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.POST", "", err)
 	}
 
 	work := result.Answers["work"].Choice
 	order, ok := config.WorkTiers(work)
 	if !ok {
-		return nil, "", 0, fmt.Errorf("invalid work choice: %q", work)
+		return nil, "", 0, utilsmsg.New(utilsmsg.Upstream, "work", "invalid choice %q", work)
 	}
 
-	list := make([]string, 0, len(candidates)+1)
+	list := make([]string, 0, len(meta.ModelNames)+1)
 	if choice := result.Answers["named"].Choice; choice != betaNamedNone && named[choice] != nil {
 		list = append(list, choice)
 	}
 	level := config.WorkReasoning(work)
 	if previous != "" && result.Answers["topic"].Choice == betaTopicSame && (len(list) == 0 || list[0] == previous) {
-		if _, ok := provider.ParseReasoning(previousReasoning); ok {
+		if _, ok := go_llm_router.ParseReasoning(previousReasoning); ok {
 			level = previousReasoning
 		}
 		if len(list) == 0 {
@@ -178,7 +169,7 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 	}
 	pinned := len(list)
 
-	for _, name := range rankCandidates(work, order, tiers, candidates) {
+	for _, name := range rankCandidates(work, order, tagMap, meta.ModelNames) {
 		if !slices.Contains(list, name) {
 			list = append(list, name)
 		}
@@ -186,7 +177,21 @@ func selectAgentBeta(ctx context.Context, candidates []string, tiers map[string]
 	return list, level, pinned, nil
 }
 
-func betaLastModelTTL(name string) int64 {
+func betaWorkWhat(key string) string {
+	i := slices.IndexFunc(config.WorkKinds, func(k config.WorkKind) bool { return k.Key == key })
+	if i < 0 {
+		return ""
+	}
+	return config.WorkKinds[i].What
+}
+
+type betaAnswer struct {
+	Answers map[string]struct {
+		Choice string `json:"choice"`
+	} `json:"answers"`
+}
+
+func BetaLastModelTTL(name string) int64 {
 	prov, _, _ := strings.Cut(name, "@")
 	switch prov {
 	case "openai", "codex":
@@ -201,7 +206,7 @@ func betaPrevious(ctx context.Context, sessionID string, candidates []string) (m
 	if sessionID == "" {
 		return "", ""
 	}
-	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, betaLastModelKey+sessionID)
+	entry, ok := torii.DB(torii.DBToolCache).Get(ctx, BetaLastModelKey+sessionID)
 	if !ok {
 		return "", ""
 	}

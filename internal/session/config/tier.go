@@ -160,20 +160,49 @@ func ProviderOrder(name string) int {
 	return 3
 }
 
+func OrderByRank(models []string) []string {
+	indexes := make(map[string][]int, len(models))
+	for i, n := range models {
+		key := baseModel(n)
+		indexes[key] = append(indexes[key], i)
+	}
+
+	newModels := slices.Clone(models)
+	for _, idx := range indexes {
+		if len(idx) < 2 {
+			continue
+		}
+		group := make([]string, len(idx))
+		for i, at := range idx {
+			group[i] = models[at]
+		}
+		slices.SortStableFunc(group, func(a, b string) int { return ProviderOrder(a) - ProviderOrder(b) })
+		for i, at := range idx {
+			newModels[at] = group[i]
+		}
+	}
+	return newModels
+}
+
+func baseModel(name string) string {
+	prov, model, ok := strings.Cut(name, "@")
+	if !ok {
+		return name
+	}
+	if prov == "openrouter" {
+		if _, rest, found := strings.Cut(model, "/"); found {
+			model = rest
+		}
+	}
+	return strings.ToLower(model)
+}
+
 func ProviderPreference(name string) int {
 	prov, _, _ := strings.Cut(name, "@")
 	if i := slices.Index(preferredProviders, prov); i >= 0 {
 		return i
 	}
 	return len(preferredProviders)
-}
-
-func ModelSelection(cfg *Config) string {
-	return modelSelection(cfg, false)
-}
-
-func SubagentModelSelection(cfg *Config) string {
-	return modelSelection(cfg, true)
 }
 
 var lowerTier = map[string]string{"S": "A", "A": "B", "B": "C", "C": "C"}
@@ -193,7 +222,7 @@ func SubagentTiers(order []string) []string {
 	return list
 }
 
-func modelSelection(cfg *Config, subagent bool) string {
+func SelectionPrompt(cfg *Config, isSubagent bool) string {
 	groups := make(map[string][]string, len(ModelTags))
 	for _, m := range cfg.Models {
 		tier := ModelTier(cfg.ModelTag, m.Name)
@@ -221,7 +250,7 @@ func modelSelection(cfg *Config, subagent bool) string {
 	workLines := make([]string, 0, len(WorkKinds))
 	for _, k := range WorkKinds {
 		order := k.Tiers
-		if subagent {
+		if isSubagent {
 			order = SubagentTiers(order)
 		}
 		workLines = append(workLines, fmt.Sprintf("- %s (%s): %s", k.Key, strings.Join(order, " > "), k.What))

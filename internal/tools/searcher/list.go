@@ -2,12 +2,12 @@ package toolSearcher
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func isMCPExposed(name string) bool {
@@ -17,17 +17,17 @@ func isMCPExposed(name string) bool {
 		strings.HasPrefix(name, "ext_"):
 		return true
 	}
-	return slices.Contains(toolRegister.BuiltinNames(), name)
+	return slices.Contains(toolregister.BuiltinNames(), name)
 }
 
-func listTools(e *toolTypes.Executor, mcpOnly, system bool) (string, error) {
+func listTools(e *tooltypes.Executor, mcpOnly, system bool) (string, error) {
 	list := make([]Tool, 0, len(e.AllTools))
 	for _, tool := range e.AllTools {
 		name := tool.Function.Name
 		if mcpOnly && !isMCPExposed(name) {
 			continue
 		}
-		if !system && toolRegister.IsSystemUse(name) {
+		if !system && toolregister.IsSystemUse(name) {
 			continue
 		}
 		list = append(list, Tool{
@@ -39,7 +39,7 @@ func listTools(e *toolTypes.Executor, mcpOnly, system bool) (string, error) {
 
 	raw, err := json.Marshal(list)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

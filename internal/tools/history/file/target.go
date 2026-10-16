@@ -1,7 +1,6 @@
 package fileHistory
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -9,7 +8,8 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var timeLayouts = []string{
@@ -20,7 +20,7 @@ var timeLayouts = []string{
 	"2006-01-02",
 }
 
-func absPath(e *toolTypes.Executor, path string) (string, error) {
+func absPath(e *tooltypes.Executor, path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", nil
@@ -33,7 +33,7 @@ func absPath(e *toolTypes.Executor, path string) (string, error) {
 
 	abs, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("boundary.Resolve: %w", err)
+		return "", utilsmsg.Trace("boundary.Resolve", "", err)
 	}
 	return filepath.Clean(abs), nil
 }
@@ -49,5 +49,5 @@ func parseTime(value string) (int64, error) {
 			return t.UnixNano(), nil
 		}
 	}
-	return 0, fmt.Errorf("cannot read %q as a time: use '2026-08-13', '2026-08-13 15:04', '2026-08-13 15:04:05'", value)
+	return 0, utilsmsg.New(utilsmsg.Invalid, "time", "cannot read %q as a time: use '2026-08-13', '2026-08-13 15:04', '2026-08-13 15:04:05'", value)
 }

@@ -10,14 +10,16 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	provider "github.com/pardnchiu/go-llm-router/core"
-	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+	agentsummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type compactExchange struct {
@@ -31,24 +33,24 @@ var (
 
 func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
-		return 0, fmt.Errorf("session id is required")
+		return 0, utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	compactCtx, cancel := context.WithTimeout(
-		agentTypes.WithSessionID(ctx, sessionID),
+		agenttypes.WithSessionID(ctx, sessionID),
 		2*time.Duration(configs.AGENT_SEND_TIMEOUT_SEC)*time.Second,
 	)
 	defer cancel()
 
-	old, _ := sessionHistory.Get(sessionID)
+	old, _ := sessionhistory.Get(sessionID)
 	if len(old) < 4 {
 		syncActionLog(sessionID, old)
 		return 0, nil
 	}
 
-	agent := agents.Registry().Fallback
+	agent := agents.ModelSet().Fallback
 	if agent == nil {
-		return 0, fmt.Errorf("no agent available for compact")
+		return 0, utilsmsg.New(utilsmsg.Unavailable, "compact agent", "none available")
 	}
 
 	exchanges := groupExchanges(old)
@@ -84,7 +86,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	kept := make([]sessionHistory.Record, 0, len(old))
+	kept := make([]sessionhistory.Record, 0, len(old))
 	removed := 0
 	for i, ex := range exchanges {
 		if removeSet[i] {
@@ -98,25 +100,25 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 		return 0, nil
 	}
 
-	if err := sessionHistory.Replace(sessionID, kept); err != nil {
-		return 0, fmt.Errorf("history replace: %w", err)
+	if err := sessionhistory.Replace(sessionID, kept); err != nil {
+		return 0, utilsmsg.Trace("sessionhistory.Replace", "", err)
 	}
 
 	syncActionLog(sessionID, kept)
 	return removed, nil
 }
 
-func syncActionLog(sessionID string, messages []sessionHistory.Record) {
+func syncActionLog(sessionID string, messages []sessionhistory.Record) {
 	var keptContents []string
 	for _, msg := range messages {
 		if msg.Role == "user" {
 			keptContents = append(keptContents, msg.Text())
 		}
 	}
-	sessionLog.RetainExchanges(sessionID, keptContents)
+	sessionlog.RetainExchanges(sessionID, keptContents)
 }
 
-func groupExchanges(messages []sessionHistory.Record) []compactExchange {
+func groupExchanges(messages []sessionhistory.Record) []compactExchange {
 	var list []compactExchange
 	current := -1
 	for i, msg := range messages {
@@ -133,7 +135,7 @@ func groupExchanges(messages []sessionHistory.Record) []compactExchange {
 	return list
 }
 
-func preFilter(messages []sessionHistory.Record, exchanges []compactExchange) map[int]bool {
+func preFilter(messages []sessionhistory.Record, exchanges []compactExchange) map[int]bool {
 	removeSet := make(map[int]bool)
 	seen := make(map[string]bool)
 
@@ -149,7 +151,7 @@ func preFilter(messages []sessionHistory.Record, exchanges []compactExchange) ma
 	return removeSet
 }
 
-func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []sessionHistory.Record, exchanges []compactExchange, indices []int) (map[int]bool, error) {
+func identifyRemovable(ctx context.Context, agent agenttypes.Agent, messages []sessionhistory.Record, exchanges []compactExchange, indices []int) (map[int]bool, error) {
 	var sb strings.Builder
 	for _, i := range indices {
 		ex := exchanges[i]
@@ -160,12 +162,12 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []s
 		sb.WriteString("\n")
 	}
 
-	str := agentSummary.Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, []provider.Message{
+	str := agentsummary.Send(ctx, agent, agenttypes.SessionIDFrom(ctx), nil, []go_llm_router.Message{
 		{Role: "system", Content: strings.TrimSpace(configs.CompactHistoryPrompt)},
 		{Role: "user", Content: sb.String()},
-	}, provider.ReasoningMedium, CheckThreshold)
+	}, go_llm_router.ReasoningMedium, CheckThreshold)
 	if str == "" {
-		return nil, fmt.Errorf("no usable response")
+		return nil, utilsmsg.New(utilsmsg.Upstream, "compact response", "no usable response")
 	}
 
 	return parseRemoveIndices(str, len(exchanges))
@@ -174,14 +176,14 @@ func identifyRemovable(ctx context.Context, agent agentTypes.Agent, messages []s
 func parseRemoveIndices(raw string, exchangeCount int) (map[int]bool, error) {
 	match := compactJSONRegex.FindString(raw)
 	if match == "" {
-		return nil, fmt.Errorf("no JSON found in response")
+		return nil, utilsmsg.New(utilsmsg.Upstream, "compact response", "no JSON found")
 	}
 
 	var result struct {
 		Remove []int `json:"remove"`
 	}
 	if err := json.Unmarshal([]byte(match), &result); err != nil {
-		return nil, fmt.Errorf("json unmarshal: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "json.Unmarshal", "compact response", err)
 	}
 
 	dic := make(map[int]bool, len(result.Remove))

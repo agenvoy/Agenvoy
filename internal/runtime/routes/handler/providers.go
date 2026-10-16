@@ -10,18 +10,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/agents/probe"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
-	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
-	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
+	oauthcodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	oauthcopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
+	oauthgrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/probe"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
 type providerInfo struct {
@@ -84,13 +85,13 @@ func findProvider(id string) *providerInfo {
 func providerLoggedIn(id string) bool {
 	switch id {
 	case "claude-code":
-		return agentTypes.ClaudeCodeEnabled()
+		return agenttypes.ClaudeCodeEnabled()
 	case "codex":
-		return oauthCodex.HasToken()
+		return oauthcodex.HasToken()
 	case "copilot":
-		return oauthCopilot.HasToken()
+		return oauthcopilot.HasToken()
 	case "grok-oauth":
-		return oauthGrokOauth.HasToken()
+		return oauthgrok.HasToken()
 	}
 	return false
 }
@@ -103,7 +104,7 @@ func ListProviders() gin.HandlerFunc {
 				providerInfo: provider,
 				LoggedIn:     providerLoggedIn(provider.ID),
 				Console:      slices.Sorted(maps.Keys(providerConsole[provider.ID])),
-				Hidden:       provider.ID == "claude-code" && !agentTypes.ClaudeCodeEnabled(),
+				Hidden:       provider.ID == "claude-code" && !agenttypes.ClaudeCodeEnabled(),
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"providers": list})
@@ -168,8 +169,8 @@ func AddProviderKey() gin.HandlerFunc {
 				return
 			}
 			DropQuotaCache(prov)
-			imageTool.DropModelsCache(c.Request.Context(), prov)
-			audioTool.DropModelsCache(c.Request.Context(), prov)
+			imagetool.DropModelsCache(c.Request.Context(), prov)
+			audiotool.DropModelsCache(c.Request.Context(), prov)
 			probe.DropModelsCache(c.Request.Context(), name)
 			c.JSON(http.StatusOK, gin.H{"ok": true})
 			return
@@ -213,8 +214,8 @@ func AddProviderKey() gin.HandlerFunc {
 		}
 
 		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
+		imagetool.DropModelsCache(c.Request.Context(), prov)
+		audiotool.DropModelsCache(c.Request.Context(), prov)
 		probe.DropModelsCache(c.Request.Context(), prov)
 
 		if prov == "cloudflare" {
@@ -266,15 +267,15 @@ func ProviderOAuth() gin.HandlerFunc {
 		case "claude-code":
 			err = claudeCode.CheckBinary()
 		case "copilot":
-			_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
+			_, err = oauthcopilot.LoginWithCallback(ctx, func(code *oauthcopilot.DeviceCode) {
 				emit(gin.H{"url": code.VerificationURI, "user_code": code.UserCode})
 			})
 		case "codex":
-			_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
+			_, err = oauthcodex.LoginWithCallback(ctx, func(url string) {
 				emit(gin.H{"url": url})
 			})
 		case "grok-oauth":
-			_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
+			_, err = oauthgrok.LoginWithCallback(ctx, func(url string) {
 				emit(gin.H{"url": url})
 			})
 		}
@@ -283,8 +284,8 @@ func ProviderOAuth() gin.HandlerFunc {
 			return
 		}
 		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
+		imagetool.DropModelsCache(c.Request.Context(), prov)
+		audiotool.DropModelsCache(c.Request.Context(), prov)
 		probe.DropModelsCache(c.Request.Context(), prov)
 		emit(gin.H{"done": true, "ok": true})
 	}
@@ -302,11 +303,11 @@ func ClearProviderOAuth() gin.HandlerFunc {
 		var err error
 		switch prov {
 		case "codex":
-			err = oauthCodex.ClearToken()
+			err = oauthcodex.ClearToken()
 		case "copilot":
-			err = oauthCopilot.ClearToken()
+			err = oauthcopilot.ClearToken()
 		case "grok-oauth":
-			err = oauthGrokOauth.ClearToken()
+			err = oauthgrok.ClearToken()
 		}
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -314,10 +315,10 @@ func ClearProviderOAuth() gin.HandlerFunc {
 		}
 
 		DropQuotaCache(prov)
-		imageTool.DropModelsCache(c.Request.Context(), prov)
-		audioTool.DropModelsCache(c.Request.Context(), prov)
+		imagetool.DropModelsCache(c.Request.Context(), prov)
+		audiotool.DropModelsCache(c.Request.Context(), prov)
 		probe.DropModelsCache(c.Request.Context(), prov)
-		imageTool.Prune(c.Request.Context())
+		imagetool.Prune(c.Request.Context())
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}
 }
@@ -350,7 +351,7 @@ func listModelsFor(c *gin.Context, credentialName string) {
 func ListProviderModels() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		prov := c.Param("provider")
-		if _, ok := agentKeychain.CompatInstance(prov + "@"); ok {
+		if _, ok := agentkeychain.CompatInstance(prov + "@"); ok {
 			ids, err := probe.Models(c.Request.Context(), prov+"@")
 			if err != nil {
 				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})

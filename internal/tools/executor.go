@@ -3,28 +3,29 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"sort"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
-	scriptAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	apiadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
+	scriptadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*toolTypes.Executor, error) {
-	var tools []provider.Tool
-	if err := json.Unmarshal(toolRegister.JSON(), &tools); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*tooltypes.Executor, error) {
+	var tools []go_llm_router.Tool
+	if err := json.Unmarshal(toolregister.JSON(), &tools); err != nil {
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "", err)
 	}
 
-	apiToolbox := apiAdapter.New("api_")
+	apiToolbox := apiadapter.New("api_")
 	apiToolbox.Builtin(extensions.APIs, "apis")
 
 	for _, dir := range []string{
@@ -34,33 +35,33 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		apiToolbox.Load(dir)
 	}
 
-	extAPIToolbox := apiAdapter.New("ext_")
+	extAPIToolbox := apiadapter.New("ext_")
 	extAPIToolbox.Load(filesystem.ExtensionAPIToolsDir)
 
-	for _, tb := range []*apiAdapter.Adapter{apiToolbox, extAPIToolbox} {
+	for _, tb := range []*apiadapter.Adapter{apiToolbox, extAPIToolbox} {
 		for _, tool := range tb.GetTools() {
 			raw, err := json.Marshal(tool)
 			if err != nil {
 				continue
 			}
-			var t provider.Tool
+			var t go_llm_router.Tool
 			if err := json.Unmarshal(raw, &t); err != nil {
 				continue
 			}
 			tools = append(tools, t)
 		}
 		for _, name := range tb.AlwaysAllowNames() {
-			toolRegister.MarkAlwaysAllow(name)
+			toolregister.MarkAlwaysAllow(name)
 		}
 		for _, name := range tb.ConcurrentNames() {
-			toolRegister.MarkConcurrent(name)
+			toolregister.MarkConcurrent(name)
 		}
 		for name, timeoutSec := range tb.Timeouts() {
-			toolRegister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
+			toolregister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
 		}
 	}
 
-	scriptToolbox := scriptAdapter.New("script_")
+	scriptToolbox := scriptadapter.New("script_")
 	for _, dir := range []string{
 		filesystem.SystemToolsDir,
 		filesystem.ScriptToolsDir,
@@ -69,29 +70,29 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		scriptToolbox.Scan(dir)
 	}
 
-	extScriptToolbox := scriptAdapter.New("ext_")
+	extScriptToolbox := scriptadapter.New("ext_")
 	extScriptToolbox.Scan(filesystem.ExtensionScriptToolsDir)
 
-	for _, tb := range []*scriptAdapter.Translator{scriptToolbox, extScriptToolbox} {
+	for _, tb := range []*scriptadapter.Translator{scriptToolbox, extScriptToolbox} {
 		for _, tool := range tb.GetTools() {
 			raw, err := json.Marshal(tool)
 			if err != nil {
 				continue
 			}
-			var t provider.Tool
+			var t go_llm_router.Tool
 			if err := json.Unmarshal(raw, &t); err != nil {
 				continue
 			}
 			tools = append(tools, t)
 		}
 		for _, name := range tb.AlwaysAllowNames() {
-			toolRegister.MarkAlwaysAllow(name)
+			toolregister.MarkAlwaysAllow(name)
 		}
 		for _, name := range tb.ConcurrentNames() {
-			toolRegister.MarkConcurrent(name)
+			toolregister.MarkConcurrent(name)
 		}
 		for name, timeoutSec := range tb.Timeouts() {
-			toolRegister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
+			toolregister.MarkTimeout(name, time.Duration(timeoutSec)*time.Second)
 		}
 	}
 
@@ -100,18 +101,18 @@ func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*to
 		return tools[i].Function.Name < tools[j].Function.Name
 	})
 
-	initial := make([]provider.Tool, 0, len(tools))
+	initial := make([]go_llm_router.Tool, 0, len(tools))
 	unmarkedTools := make(map[string]bool)
 	for _, tool := range tools {
 		name := tool.Function.Name
-		if name == "find_tools" || name == "run_tool" {
+		if name == "find_tools" || name == "run_tool" || name == "reasoning_guide" {
 			initial = append(initial, tool)
 			continue
 		}
 		unmarkedTools[name] = true
 	}
 
-	return &toolTypes.Executor{
+	return &tooltypes.Executor{
 		WorkDir:          workPath,
 		SessionID:        sessionID,
 		Tools:            initial,
@@ -144,12 +145,12 @@ func normalizeArgs(args json.RawMessage) json.RawMessage {
 	return args
 }
 
-func Execute(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+func Execute(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 	args = normalizeArgs(args)
 
 	if e.UnmarkedTools[name] {
 		activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + name})
-		if _, err := toolRegister.Dispatch(ctx, e, "find_tools", activateArgs); err != nil {
+		if _, err := toolregister.Dispatch(ctx, e, "find_tools", activateArgs); err != nil {
 			slog.Warn("tool schema marking failed",
 				slog.String("name", name),
 				slog.String("error", err.Error()))
@@ -157,5 +158,5 @@ func Execute(ctx context.Context, e *toolTypes.Executor, name string, args json.
 		delete(e.UnmarkedTools, name)
 	}
 
-	return toolRegister.Dispatch(ctx, e, name, args)
+	return toolregister.Dispatch(ctx, e, name, args)
 }

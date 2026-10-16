@@ -3,7 +3,7 @@ package exec
 import (
 	"context"
 	"os/exec"
-	goRuntime "runtime"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"time"
@@ -32,12 +32,12 @@ const (
 
 func getSystemInfo() systemInfo {
 	systemInfoOnce.Do(func() {
-		systemInfoMeta.os = goRuntime.GOOS
+		systemInfoMeta.os = goruntime.GOOS
 		tag := utils.WSLTag()
 		if tag == "" {
 			return
 		}
-		systemInfoMeta.os = goRuntime.GOOS + " (" + tag + ")"
+		systemInfoMeta.os = goruntime.GOOS + " (" + tag + ")"
 		systemInfoMeta.wsl = true
 		systemInfoMeta.home = windowsHome()
 	})

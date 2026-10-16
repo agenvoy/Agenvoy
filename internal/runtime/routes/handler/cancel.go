@@ -7,10 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 func CancelSessionTask() gin.HandlerFunc {
@@ -27,8 +27,8 @@ func CancelSessionTask() gin.HandlerFunc {
 			return
 		}
 
-		event := agentTypes.Event{Type: agentTypes.EventCanceled, TaskHash: taskHash}
-		sessionLog.Record(sessionID, event)
+		event := agenttypes.Event{Type: agenttypes.EventCanceled, TaskHash: taskHash}
+		sessionlog.Record(sessionID, event)
 		pubsub.Pub(sessionID, event)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "cancelled": false, "stale": true})
 	}

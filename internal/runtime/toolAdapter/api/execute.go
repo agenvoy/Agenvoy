@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,13 +15,14 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (a *Adapter) Execute(ctx context.Context, name string, params map[string]any) (string, error) {
 	key := strings.TrimPrefix(name, a.prefix)
 	doc, ok := a.apis[key]
 	if !ok {
-		return "", fmt.Errorf("api tool not found: %s", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "api tool", "%s", name)
 	}
 
 	if err := a.checkParams(doc, params); err != nil {
@@ -29,7 +31,7 @@ func (a *Adapter) Execute(ctx context.Context, name string, params map[string]an
 
 	result, err := a.send(ctx, key, doc, params)
 	if err != nil {
-		return "", fmt.Errorf("t.send: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "t.send", "", err)
 	}
 
 	return result, nil
@@ -39,7 +41,7 @@ func (a *Adapter) checkParams(doc *Document, params map[string]any) error {
 	for name, schema := range doc.Parameters {
 		if _, exists := params[name]; !exists {
 			if schema.Required {
-				return fmt.Errorf("%q is required", name)
+				return utilsmsg.New(utilsmsg.Invalid, strconv.Quote(name), "required")
 			}
 			if schema.Default != nil {
 				params[name] = schema.Default
@@ -101,7 +103,7 @@ func (a *Adapter) send(ctx context.Context, key string, doc *Document, params ma
 		case "DELETE":
 			body, _, err = go_pkg_http.DELETE[string](reqCtx, a.client, apiPath, header, params, doc.Endpoint.ContentType)
 		default:
-			err = fmt.Errorf("unsupported method: %s", doc.Endpoint.Method)
+			err = utilsmsg.New(utilsmsg.Invalid, "endpoint[method]", "unsupported method: %s", doc.Endpoint.Method)
 		}
 		resultCh <- struct {
 			body string
@@ -166,13 +168,13 @@ func replaceParams(doc *Document, params map[string]any) string {
 
 func appendAuth(header map[string]string, auth *DocumentAuth) error {
 	if auth.Env == "" {
-		return fmt.Errorf("env key is required")
+		return utilsmsg.New(utilsmsg.Invalid, "env key", "required")
 	}
 
 	// * keychain already contain keychain and env check
 	value := keychain.Get(auth.Env)
 	if value == "" {
-		return fmt.Errorf("%q not set", auth.Env)
+		return utilsmsg.New(utilsmsg.Denied, strconv.Quote(auth.Env), "not set")
 	}
 
 	switch auth.Type {
@@ -190,7 +192,7 @@ func appendAuth(header map[string]string, auth *DocumentAuth) error {
 		header["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(value))
 
 	default:
-		return fmt.Errorf("unsupported auth: %s", auth.Type)
+		return utilsmsg.New(utilsmsg.Invalid, "auth", "unsupported: %s", auth.Type)
 	}
 	return nil
 }

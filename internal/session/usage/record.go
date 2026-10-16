@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
-func Append(sessionID, providerName, model string, u provider.Usage, elapsed time.Duration, toolCalls []provider.ToolCall) {
+func Append(sessionID, providerName, model string, u go_llm_router.Usage, elapsed time.Duration, toolCalls []go_llm_router.ToolCall) {
 	if sessionID == "" || conn == nil {
 		return
 	}
@@ -31,7 +31,7 @@ func Append(sessionID, providerName, model string, u provider.Usage, elapsed tim
 	}
 }
 
-func joinToolCallIDs(list []provider.ToolCall) string {
+func joinToolCallIDs(list []go_llm_router.ToolCall) string {
 	ids := make([]string, 0, len(list))
 	for _, one := range list {
 		if id := strings.TrimSpace(one.ID); id != "" {

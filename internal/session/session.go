@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -10,8 +9,9 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type NamedSession struct {
@@ -24,11 +24,11 @@ type NamedSession struct {
 func New(prefix string) (string, error) {
 	uuid := go_pkg_utils.UUID()
 	if uuid == "" {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/utils UUID: no UUID generated")
+		return "", utilsmsg.New(utilsmsg.Internal, "go_pkg_utils.UUID", "no UUID generated")
 	}
 
 	sessionID := prefix + uuid
-	if err := configBot.Save(sessionID, "", "", false); err != nil {
+	if err := configbot.Save(sessionID, "", "", false); err != nil {
 		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
@@ -64,7 +64,7 @@ func ListSessions() []NamedSession {
 		if strings.HasPrefix(sid, "temp-") {
 			continue
 		}
-		selfID, name, body := configBot.GetPersona(sid)
+		selfID, name, body := configbot.GetPersona(sid)
 		if selfID == "" {
 			continue
 		}
@@ -82,7 +82,7 @@ func GetSessionIDBySelfID(selfID string) string {
 	if selfID == "" {
 		return ""
 	}
-	sid := historyStore.FindSessionBySelfID(context.Background(), selfID)
+	sid := historystore.FindSessionBySelfID(context.Background(), selfID)
 	if strings.HasPrefix(sid, "temp-") {
 		return ""
 	}

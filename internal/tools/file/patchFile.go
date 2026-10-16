@@ -12,14 +12,15 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, targets []patchTarget) (string, error) {
+func patchFileTargets(ctx context.Context, e *tooltypes.Executor, path0 string, targets []patchTarget) (string, error) {
 	if len(targets) == 0 {
-		return "", fmt.Errorf("targets is required when mode=patch")
+		return "", utilsmsg.New(utilsmsg.Invalid, "targets", "required when mode=patch")
 	}
 
 	baseDir := e.WorkDir
@@ -30,18 +31,18 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 	path := strings.TrimSpace(path0)
 	absPath, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("boundary.Resolve: %w", err)
+		return "", utilsmsg.Trace("boundary.Resolve", "", err)
 	}
 	if absPath == "" {
-		return "", fmt.Errorf("path or name is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "path", "path or name is required")
 	}
 
 	info, err := os.Stat(absPath)
 	if err != nil {
-		return "", fmt.Errorf("os.Stat: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", "", err)
 	}
 	if info.Size() > configs.MAX_DOCUMENT_BYTES {
-		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
+		return "", utilsmsg.New(utilsmsg.Limit, "file", "too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 	if err := requireFresh(e, absPath, info.ModTime()); err != nil {
 		return "", err
@@ -49,12 +50,12 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 
 	content, err := go_pkg_filesystem.ReadText(absPath)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", "", err)
 	}
-	change := historyStore.CaptureContent(absPath, content)
+	change := historystore.CaptureContent(absPath, content)
 
 	if conflict := insertedAnchor(targets); conflict != "" {
-		return "", fmt.Errorf("%s", conflict)
+		return "", utilsmsg.New(utilsmsg.Invalid, "targets", "%s", conflict)
 	}
 
 	before := content
@@ -69,19 +70,19 @@ func patchFileTargets(ctx context.Context, e *toolTypes.Executor, path0 string, 
 		return fmt.Sprintf("no write: every target in %s already matches its new_string, so the file is unchanged", absPath), nil
 	}
 	if strings.TrimSpace(content) == "" && strings.TrimSpace(before) != "" {
-		return "", fmt.Errorf("every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call edit_file with mode=write if emptying it is the intent", absPath, len(before))
+		return "", utilsmsg.New(utilsmsg.Invalid, "targets", "every target applied but %s would be left empty (it holds %d bytes); nothing written — re-read the file and narrow the anchors, or call edit_file with mode=write if emptying it is the intent", absPath, len(before))
 	}
 
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", "", err)
 	}
 
 	markWritten(e, absPath)
 	e.RecordFile(absPath)
 
 	var unrecorded string
-	if err := historyStore.Record(ctx, change, historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
-		slog.Debug("historyStore.Record",
+	if err := historystore.Record(ctx, change, historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: "edit_file"}); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)
@@ -100,8 +101,8 @@ func rejectElided(content string, targets []patchTarget) error {
 	for _, one := range targets {
 		values = append(values, one.OldString, one.NewString)
 	}
-	if slices.ContainsFunc(values, toolTypes.IsElided) {
-		return fmt.Errorf("%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", toolTypes.Elided)
+	if slices.ContainsFunc(values, tooltypes.IsElided) {
+		return utilsmsg.New(utilsmsg.Invalid, "content", "%s is a history placeholder, not file content — the earlier write already landed on disk; read_files the file and copy the real text", tooltypes.Elided)
 	}
 	return nil
 }
@@ -142,7 +143,7 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 	for i, one := range targets {
 		old := one.OldString
 		if old == "" {
-			return nil, nil, fmt.Errorf("targets[%d]: old_string is required", i)
+			return nil, nil, utilsmsg.New(utilsmsg.Invalid, fmt.Sprintf("targets[%d]", i), "old_string is required")
 		}
 		if old == one.NewString {
 			skipped = append(skipped, i)
@@ -152,7 +153,7 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 		if !strings.Contains(content, old) {
 			actual, ok := findCurlyAnchor(content, old)
 			if !ok {
-				return nil, nil, fmt.Errorf("targets[%d]: %w", i, anchorNotFound(content, old, absPath))
+				return nil, nil, utilsmsg.Trace(fmt.Sprintf("targets[%d]", i), "", anchorNotFound(content, old, absPath))
 			}
 			text = curlQuotes(actual, text)
 			old = actual
@@ -165,7 +166,7 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 
 		at := offsetsOf(content, search)
 		if len(at) > 1 && !one.ReplaceAll {
-			return nil, nil, fmt.Errorf("targets[%d]: %q occurs on rows %v of %s; extend old_string until it matches once, or set replace_all", i, old, rowsAt(content, at), absPath)
+			return nil, nil, utilsmsg.New(utilsmsg.Invalid, fmt.Sprintf("targets[%d]", i), "%q occurs on rows %v of %s; extend old_string until it matches once, or set replace_all", old, rowsAt(content, at), absPath)
 		}
 		if !one.ReplaceAll {
 			at = at[:1]
@@ -178,7 +179,7 @@ func planTargets(content string, targets []patchTarget, absPath string) ([]patch
 	slices.SortFunc(spans, func(a, b patchSpan) int { return a.start - b.start })
 	for k := 1; k < len(spans); k++ {
 		if spans[k].start < spans[k-1].end {
-			return nil, nil, fmt.Errorf("targets[%d] and targets[%d] both cover row %d of %s, so applying one would destroy the other's anchor. Nothing was written — merge them into one target, or send them in separate calls", spans[k-1].target, spans[k].target, rowAt(content, spans[k].start), absPath)
+			return nil, nil, utilsmsg.New(utilsmsg.Invalid, "targets", "targets[%d] and targets[%d] both cover row %d of %s, so applying one would destroy the other's anchor. Nothing was written — merge them into one target, or send them in separate calls", spans[k-1].target, spans[k].target, rowAt(content, spans[k].start), absPath)
 		}
 	}
 	return spans, skipped, nil
@@ -232,7 +233,7 @@ func anchorNotFound(content, old, absPath string) error {
 	}
 
 	if len(near) == 0 {
-		return fmt.Errorf("%q is not found in %s and nothing there resembles it; the file holds %d lines — re-read it and build the anchor from its current bytes", old, absPath, len(lines))
+		return utilsmsg.New(utilsmsg.NotFound, "old_string", "%q is not found in %s and nothing there resembles it; the file holds %d lines — re-read it and build the anchor from its current bytes", old, absPath, len(lines))
 	}
-	return fmt.Errorf("%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
+	return utilsmsg.New(utilsmsg.NotFound, "old_string", "%q is not found in %s, but %s — copy the anchor from those exact bytes, whitespace included", old, absPath, strings.Join(near, "; "))
 }

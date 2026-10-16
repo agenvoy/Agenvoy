@@ -7,11 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agentTypes.Event) {
+func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agenttypes.Event) {
 	writer := c.Writer
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-cache")
@@ -31,15 +31,15 @@ func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agent
 	if err != nil {
 		return
 	}
-	utils.EventLog("[HTTP]", agentTypes.Event{
-		Type: agentTypes.EventText,
+	utils.EventLog("[HTTP]", agenttypes.Event{
+		Type: agenttypes.EventText,
 		Text: input,
 	}, sessionID, input)
 	fmt.Fprintf(writer, "data: %s\n\n", sessionEvent)
 	flusher.Flush()
 
 	for event := range events {
-		if event.Type == agentTypes.EventText {
+		if event.Type == agenttypes.EventText {
 			continue
 		}
 
@@ -53,7 +53,7 @@ func sendSSE(c *gin.Context, sessionID string, input string, events <-chan agent
 		fmt.Fprintf(writer, "data: %s\n\n", raw)
 		flusher.Flush()
 
-		if event.Type == agentTypes.EventDone || event.Type == agentTypes.EventError || event.Type == agentTypes.EventCanceled {
+		if event.Type == agenttypes.EventDone || event.Type == agenttypes.EventError || event.Type == agenttypes.EventCanceled {
 			break
 		}
 	}

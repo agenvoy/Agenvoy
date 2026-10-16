@@ -9,8 +9,9 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessiondiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type discordTransport struct {
@@ -29,13 +30,13 @@ func newPendingListener(bot *Bot) *runtime.Listener[string, string] {
 }
 
 func (t *discordTransport) LookupChatID(sessionID string) (string, error) {
-	channelID, err := sessionDiscord.GetChannel(sessionID)
+	channelID, err := sessiondiscord.GetChannel(sessionID)
 	if err != nil {
-		return "", fmt.Errorf("GetChannelID: %w", err)
+		return "", utilsmsg.Trace("GetChannelID", "", err)
 	}
 	channelID = strings.TrimSpace(channelID)
 	if channelID == "" {
-		return "", fmt.Errorf("empty channelID for session %s", sessionID)
+		return "", utilsmsg.New(utilsmsg.NotFound, "channelID", "empty for session %s", sessionID)
 	}
 	return channelID, nil
 }

@@ -3,11 +3,11 @@ package actionHistory
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const displayLayout = "2006-01-02 15:04"
@@ -29,12 +29,12 @@ type result struct {
 type entry struct {
 	taskID string
 	at     time.Time
-	row    historyStore.ActionRecord
+	row    historystore.ActionRecord
 }
 
-func entries(e *toolTypes.Executor) ([]entry, error) {
+func entries(e *tooltypes.Executor) ([]entry, error) {
 	if e == nil || e.SessionID == "" {
-		return nil, fmt.Errorf("no session: task history is recorded per session")
+		return nil, utilsmsg.New(utilsmsg.NotFound, "session", "task history is recorded per session")
 	}
 	if e.IgnoreHistory {
 		return nil, nil
@@ -65,7 +65,7 @@ func Objective(sessionID, taskID string) string {
 }
 
 func entriesOf(sessionID string) ([]entry, error) {
-	rows, err := historyStore.ListAction(context.Background(), sessionID)
+	rows, err := historystore.ListAction(context.Background(), sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +80,12 @@ func entriesOf(sessionID string) ([]entry, error) {
 func load(item entry) (record, error) {
 	raw, err := json.Marshal(item.row)
 	if err != nil {
-		return record{}, fmt.Errorf("encoding/json Marshal: %w", err)
+		return record{}, utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 
 	var r record
 	if err := json.Unmarshal(raw, &r); err != nil {
-		return record{}, fmt.Errorf("encoding/json Unmarshal: %w", err)
+		return record{}, utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "", err)
 	}
 	return r, nil
 }

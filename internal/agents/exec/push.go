@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
 type PushPayload struct {
@@ -14,7 +14,7 @@ type PushPayload struct {
 	Text          string
 	Model         string
 	Reasoning     string
-	Usage         *provider.Usage
+	Usage         *go_llm_router.Usage
 	Duration      time.Duration
 	OutputElapsed time.Duration
 	Prefix        string
@@ -61,7 +61,7 @@ func WithBotPushPrefix(ctx context.Context, prefix string) context.Context {
 	return context.WithValue(ctx, pushPrefixKey{}, prefix)
 }
 
-func dcPushPrefix(ctx context.Context) string {
+func DCPushPrefix(ctx context.Context) string {
 	v, _ := ctx.Value(pushPrefixKey{}).(string)
 	return v
 }

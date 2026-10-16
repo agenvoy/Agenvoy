@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Message struct {
@@ -21,7 +23,7 @@ func Write(sessionID string, list []Message) error {
 
 	tx, err := conn.Write.Begin()
 	if err != nil {
-		return fmt.Errorf("sql.Tx Begin: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.Tx Begin", "", err)
 	}
 	defer tx.Rollback()
 
@@ -29,7 +31,7 @@ func Write(sessionID string, list []Message) error {
 	INSERT INTO messages (session_id, send_at, role, content, sender)
 	VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
-		return fmt.Errorf("sql.Tx Prepare [INSERT messages]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.Tx Prepare", "[INSERT messages]", err)
 	}
 	defer stmt.Close()
 
@@ -48,7 +50,7 @@ func Write(sessionID string, list []Message) error {
 		}
 
 		if _, err := stmt.Exec(sessionID, ts, row.Role, row.Content, row.Sender); err != nil {
-			return fmt.Errorf("sql.Stmt Exec: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "sql.Stmt Exec", "", err)
 		}
 	}
 
@@ -60,7 +62,7 @@ func ExtractContent(content any) string {
 	case string:
 		return val
 
-	case []provider.ContentPart:
+	case []go_llm_router.ContentPart:
 		var parts []string
 		for _, part := range val {
 			if part.Type == "text" && part.Text != "" {
@@ -101,14 +103,14 @@ func Clear(sessionID string) error {
 	DELETE FROM messages
 	WHERE session_id = ?
 	`, sessionID); err != nil {
-		return fmt.Errorf("sql.DB Exec [DELETE messages]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[DELETE messages]", err)
 	}
 
 	if _, err := conn.Exec(`
 	DELETE FROM message_meta
 	WHERE session_id = ?
 	`, sessionID); err != nil {
-		return fmt.Errorf("sql.DB Exec [DELETE message_meta]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[DELETE message_meta]", err)
 	}
 	return nil
 }

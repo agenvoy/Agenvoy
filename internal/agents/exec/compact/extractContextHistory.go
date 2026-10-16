@@ -6,27 +6,28 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	agentsummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, events chan<- agentTypes.Event) bool {
+func ExtractContextHistories(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *go_llm_router.Usage, events chan<- agenttypes.Event) bool {
 	// * step1: check user input is exist or not
-	userInput := extractUserInput(session.UserInput)
-	if userInput == "" {
+	message := extractMessage(session.UserMessage)
+	if message == "" {
 		return false
 	}
 
 	// * step2: check old history is exist or not
-	if len(session.OldHistories) == 0 {
+	if len(session.ContextHistories) == 0 {
 		return false
 	}
 
 	// * step3: exract old history content
 	var sb strings.Builder
-	for _, msg := range session.OldHistories {
+	for _, msg := range session.ContextHistories {
 		content, _ := msg.Content.(string)
 		if content == "" {
 			continue
@@ -47,25 +48,25 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 	}
 
 	// * step5: sent compact notify
-	events <- agentTypes.Event{Type: agentTypes.EventCompact, Text: "history"}
+	events <- agenttypes.Event{Type: agenttypes.EventCompact, Text: "history"}
 
 	// * step6: prepare conpact system prompt
 	prompt := strings.NewReplacer(
-		"{{.UserQuestion}}", userInput,
+		"{{.Message}}", message,
 	).Replace(strings.TrimSpace(configs.OldHistoryExtractPrompt))
 
-	messages := []provider.Message{
+	messages := []go_llm_router.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: raw},
 	}
 
 	// * step7: start to compact old history
-	result := agentSummary.Send(ctx, agent, session.ID, usage, messages, provider.ReasoningNone, CheckThreshold)
+	result := agentsummary.Send(ctx, agent, session.ID, usage, messages, go_llm_router.ReasoningNone, CheckThreshold)
 	if result == "" {
 		return false
 	}
 
-	session.OldHistories = []provider.Message{
+	session.ContextHistories = []go_llm_router.Message{
 		{
 			Role:    "user",
 			Content: "Prior conversation summary (background only — not complete data for this question. Call tools for up-to-date information. The user has not been replied to yet):\n\n" + result,
@@ -74,11 +75,11 @@ func ExtractOldHistories(ctx context.Context, agent agentTypes.Agent, session *a
 	return true
 }
 
-func extractUserInput(input provider.Message) string {
-	switch val := input.Content.(type) {
+func extractMessage(msg go_llm_router.Message) string {
+	switch val := msg.Content.(type) {
 	case string:
 		return val
-	case []provider.ContentPart:
+	case []go_llm_router.ContentPart:
 		for _, part := range val {
 			if part.Type == "text" {
 				return part.Text

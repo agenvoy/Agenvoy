@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
 var (
@@ -48,13 +48,13 @@ func IsCoolingDown(agentName string) bool {
 	return true
 }
 
-func Check(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.Agent {
-	if len(registry.Entries) <= 1 {
+func Check(bot agenttypes.Agent, registry agenttypes.ModelSet) agenttypes.Agent {
+	if len(registry.Order) <= 1 {
 		if bot != nil {
 			return bot
 		}
-		if len(registry.Entries) == 1 {
-			return registry.Registry[registry.Entries[0].Name]
+		if len(registry.Order) == 1 {
+			return registry.Registry[registry.Order[0].Name]
 		}
 		return nil
 	}
@@ -80,10 +80,10 @@ func Check(bot agentTypes.Agent, registry agentTypes.AgentRegistry) agentTypes.A
 	return bot
 }
 
-func bestCandidate(registry agentTypes.AgentRegistry, excludePrefix string, respectCooldown bool) agentTypes.Agent {
-	var best agentTypes.Agent
+func bestCandidate(registry agenttypes.ModelSet, excludePrefix string, respectCooldown bool) agenttypes.Agent {
+	var best agenttypes.Agent
 	bestPri := len(providerPriority) + 1
-	for _, e := range registry.Entries {
+	for _, e := range registry.Order {
 		if excludePrefix != "" && strings.HasPrefix(e.Name, excludePrefix) {
 			continue
 		}

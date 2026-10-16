@@ -13,7 +13,7 @@ Completeness on the relevant facts, not brevity: keep every fact/figure/quote th
 
 ## User's Question
 
-{{.UserQuestion}}
+{{.Message}}
 
 ## Output
 

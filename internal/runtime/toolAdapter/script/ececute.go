@@ -13,18 +13,19 @@ import (
 	go_pkg_sandbox "github.com/pardnchiu/go-pkg/sandbox"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (t *Translator) Execute(ctx context.Context, name string, args json.RawMessage, workDir string) (string, error) {
 	key := strings.TrimPrefix(name, t.prefix)
 	data, ok := t.scripts[key]
 	if !ok {
-		return "", fmt.Errorf("script tool not found: %s", key)
+		return "", utilsmsg.New(utilsmsg.NotFound, "script tool", "%s", key)
 	}
 
 	runtime := runtimeMap[data.language]
 	if runtime == "" {
-		return "", fmt.Errorf("runtime unsupported: %s", data.language)
+		return "", utilsmsg.New(utilsmsg.Invalid, "runtime", "unsupported: %s", data.language)
 	}
 
 	input := string(args)
@@ -42,7 +43,7 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 
 	cmd, err := go_pkg_sandbox.Wrap(execCtx, runtime, []string{data.scriptPath}, workDir, nil)
 	if err != nil {
-		return "", fmt.Errorf("sandbox.Wrap: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Denied, "sandbox.Wrap", "", err)
 	}
 
 	cmd.Stdin = strings.NewReader(input)
@@ -52,7 +53,7 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("cmd.Start: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "cmd.Start", "", err)
 	}
 
 	start := time.Now()
@@ -68,12 +69,12 @@ func (t *Translator) Execute(ctx context.Context, name string, args json.RawMess
 			if err != nil {
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) || stderr.Len() > 0 {
-					return "", fmt.Errorf("script error: %s", strings.TrimSpace(stderr.String()))
+					return "", utilsmsg.New(utilsmsg.Upstream, "script", "error: %s", strings.TrimSpace(stderr.String()))
 				}
 				if execCtx.Err() == context.DeadlineExceeded {
-					return "", fmt.Errorf("execution timeout: %s", timeout)
+					return "", utilsmsg.New(utilsmsg.Timeout, "script execution", "timeout: %s", timeout)
 				}
-				return "", fmt.Errorf("exec: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "exec", "", err)
 			}
 			return strings.TrimSpace(stdout.String()), nil
 

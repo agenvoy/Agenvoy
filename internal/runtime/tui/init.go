@@ -14,17 +14,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 const (
@@ -46,7 +47,7 @@ type TUI struct {
 
 	popup         *Popup
 	popupQueue    []Pending
-	eventQueue    []agentTypes.Event
+	eventQueue    []agenttypes.Event
 	popupOrigin   *Popup
 	botBodyDraft  string
 	roleBodyDraft string
@@ -92,7 +93,7 @@ type TUI struct {
 	subActive       int
 	subBuf          map[string]*subagentLive
 	subOrder        []string
-	todos           []agentTypes.TodoItem
+	todos           []agenttypes.TodoItem
 	pendingSteer    []string
 	inputHistory    []string
 	inputHistoryIdx int
@@ -174,7 +175,7 @@ func newModel(ctx context.Context) TUI {
 		currentSID = sessions[0].id
 	}
 	if currentSID != "" {
-		currentName, _ = configBot.Get(currentSID)
+		currentName, _ = configbot.Get(currentSID)
 	}
 
 	return TUI{
@@ -246,7 +247,7 @@ func refreshBotNames() {
 }
 
 func refreshBotName(sid string) {
-	chatID, _, channelID, _ := configBot.GetChannel(sid)
+	chatID, _, channelID, _ := configbot.GetChannel(sid)
 
 	var authPath, id string
 	switch {
@@ -261,8 +262,8 @@ func refreshBotName(sid string) {
 		return
 	}
 
-	if n := configBot.FormatName(utils.LookupChatName(authPath, id)); n != "" {
-		configBot.ReplaceDefault(sid, n)
+	if n := configbot.FormatName(utils.LookupChatName(authPath, id)); n != "" {
+		configbot.ReplaceDefault(sid, n)
 	}
 }
 

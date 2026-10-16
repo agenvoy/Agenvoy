@@ -14,6 +14,8 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Adapter struct {
@@ -33,7 +35,7 @@ func New(prefix string) *Adapter {
 func (a *Adapter) Builtin(fsys fs.FS, dir string) error {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		return fmt.Errorf("fs: ReadDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "fs: ReadDir", "", err)
 	}
 
 	for _, entry := range entries {
@@ -72,7 +74,7 @@ func (a *Adapter) Load(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("os: ReadDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os: ReadDir", "", err)
 	}
 
 	for _, entry := range entries {
@@ -104,7 +106,7 @@ func (a *Adapter) load(path string) (*Document, error) {
 
 	doc, err := go_pkg_filesystem.ReadJSON[Document](path)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadJSON: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem.ReadJSON", "", err)
 	}
 
 	if err := a.check(&doc); err != nil {
@@ -115,26 +117,26 @@ func (a *Adapter) load(path string) (*Document, error) {
 
 func (a *Adapter) check(doc *Document) error {
 	if doc.Name == "" {
-		return fmt.Errorf("name is required")
+		return utilsmsg.New(utilsmsg.Invalid, "name", "required")
 	}
 
 	if doc.Description == "" {
-		return fmt.Errorf("description is required")
+		return utilsmsg.New(utilsmsg.Invalid, "description", "required")
 	}
 
 	if doc.Endpoint.URL == "" {
-		return fmt.Errorf("endpoint[url] is required")
+		return utilsmsg.New(utilsmsg.Invalid, "endpoint[url]", "required")
 	}
 
 	if doc.Endpoint.Method == "" {
-		return fmt.Errorf("endpoint[method] is required")
+		return utilsmsg.New(utilsmsg.Invalid, "endpoint[method]", "required")
 	}
 
 	doc.Endpoint.Method = strings.ToUpper(doc.Endpoint.Method)
 	switch doc.Endpoint.Method {
 	case "GET", "POST", "PUT", "DELETE", "PATCH":
 	default:
-		return fmt.Errorf("unsupported method")
+		return utilsmsg.New(utilsmsg.Invalid, "endpoint[method]", "unsupported method")
 	}
 
 	if doc.Endpoint.ContentType == "" {

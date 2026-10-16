@@ -10,14 +10,15 @@ import (
 	"time"
 	"unicode/utf8"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -26,14 +27,14 @@ var (
 	summaryBracketRegex = regexp.MustCompile(`(?s)\[summary\]\s*([\s\S]*?)\s*\[/summary\]`)
 )
 
-func Generate(ctx context.Context, sessionID string, histories []sessionHistory.Record) error {
+func Generate(ctx context.Context, sessionID string, histories []sessionhistory.Record) error {
 	// * caller supplies no agent, Send layers the summary model preference on top
-	agent := agents.Registry().Fallback
+	agent := agents.ModelSet().Fallback
 	if agent == nil {
-		return fmt.Errorf("no agent available")
+		return utilsmsg.New(utilsmsg.Unavailable, "summary model", "none registered")
 	}
 
-	summaryCtx := agentTypes.WithSessionID(ctx, sessionID)
+	summaryCtx := agentstypes.WithSessionID(ctx, sessionID)
 	raw, dic := summary.Ensure(sessionID)
 	cursor := summary.GetCursor(sessionID)
 
@@ -57,7 +58,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	for i, chunk := range chunks {
 		newDic := generateSmmary(summaryCtx, agent, oldSummary, chunk)
 		if newDic == nil {
-			return fmt.Errorf("generateSmmary: returned nil at chunk %d/%d", i+1, len(chunks))
+			return utilsmsg.New(utilsmsg.Upstream, "summary chunk", "%d/%d: empty or unparseable reply", i+1, len(chunks))
 		}
 
 		if raw, err := json.Marshal(newDic); err == nil {
@@ -73,9 +74,9 @@ func Generate(ctx context.Context, sessionID string, histories []sessionHistory.
 	return nil
 }
 
-func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessionHistory.Record {
+func chunkHistories(histories []sessionhistory.Record, cursor string) [][]sessionhistory.Record {
 	if cursor != "" {
-		latest := make([]sessionHistory.Record, 0, len(histories))
+		latest := make([]sessionhistory.Record, 0, len(histories))
 		for _, message := range histories {
 			t := extractTime(message)
 			if t == "" || t > cursor {
@@ -88,7 +89,7 @@ func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessio
 		return nil
 	}
 
-	var list [][]sessionHistory.Record
+	var list [][]sessionhistory.Record
 	for i := 0; i < len(histories); {
 		end, total := i, 0
 		for end < len(histories) {
@@ -108,11 +109,11 @@ func chunkHistories(histories []sessionHistory.Record, cursor string) [][]sessio
 	return list
 }
 
-func contentRunes(msg sessionHistory.Record) int {
+func contentRunes(msg sessionhistory.Record) int {
 	return utf8.RuneCountInString(msg.Text())
 }
 
-func generateSmmary(ctx context.Context, agent agentTypes.Agent, oldSummary string, histories []sessionHistory.Record) map[string]any {
+func generateSmmary(ctx context.Context, agent agentstypes.Agent, oldSummary string, histories []sessionhistory.Record) map[string]any {
 	prompt := strings.NewReplacer(
 		"{{.Summary}}", oldSummary,
 	).Replace(strings.TrimSpace(configs.SummaryPrompt))
@@ -132,12 +133,12 @@ func generateSmmary(ctx context.Context, agent agentTypes.Agent, oldSummary stri
 
 The block above is the new conversation data since the previous summary.
 Merge it into the previous summary per the rules above and return exactly one <summary> block.`, strings.TrimSpace(sb.String()))
-	messages := []provider.Message{
+	messages := []go_llm_router.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: raw},
 	}
 
-	result := Send(ctx, agent, agentTypes.SessionIDFrom(ctx), nil, messages, provider.ReasoningMedium, nil)
+	result := Send(ctx, agent, agentstypes.SessionIDFrom(ctx), nil, messages, go_llm_router.ReasoningMedium, nil)
 	if result == "" {
 		return nil
 	}
@@ -159,13 +160,13 @@ Merge it into the previous summary per the rules above and return exactly one <s
 		}
 	}
 
-	slog.Debug("generateSmmary: unparseable",
-		slog.String("session", agentTypes.SessionIDFrom(ctx)),
+	slog.Debug("[Upstream] summary reply: unparseable",
+		slog.String("session", agentstypes.SessionIDFrom(ctx)),
 		slog.String("preview", go_pkg_utils.TruncateString(result, 256)))
 	return nil
 }
 
-func latestTime(messages []sessionHistory.Record) string {
+func latestTime(messages []sessionhistory.Record) string {
 	var str string
 	for _, message := range messages {
 		t := extractTime(message)
@@ -176,7 +177,7 @@ func latestTime(messages []sessionHistory.Record) string {
 	return str
 }
 
-func extractTime(msg sessionHistory.Record) string {
+func extractTime(msg sessionhistory.Record) string {
 	if msg.SendAt <= 0 {
 		return ""
 	}

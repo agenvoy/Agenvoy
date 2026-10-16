@@ -3,16 +3,16 @@ package file
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
-	fileHistory "github.com/pardnchiu/agenvoy/internal/tools/history/file"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	filehistory "github.com/pardnchiu/agenvoy/internal/tools/history/file"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registEditFile() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "edit_file",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -71,7 +71,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode    string        `json:"mode"`
 				Path    string        `json:"path"`
@@ -81,7 +81,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				TaskID  string        `json:"task_id"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			if err := rejectElided(params.Content, params.Targets); err != nil {
@@ -96,7 +96,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				case params.Content != "":
 					mode = "write"
 				default:
-					return "", fmt.Errorf("mode is required; available: write, patch, remove, restore")
+					return "", utilsmsg.New(utilsmsg.Invalid, "mode", "required; available: write, patch, remove, restore")
 				}
 			}
 
@@ -108,7 +108,7 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 			case "remove":
 				path := strings.TrimSpace(params.Path)
 				if path == "" {
-					return "", fmt.Errorf("path is required when mode=remove")
+					return "", utilsmsg.New(utilsmsg.Invalid, "path", "required when mode=remove")
 				}
 				return RemoveToTrash(ctx, e, []string{path}, "edit_file")
 			case "restore":
@@ -116,9 +116,9 @@ Runs on explicit request or a Skill step, never to park a short answer, a tool r
 				if path := strings.TrimSpace(params.Path); path != "" {
 					narrow = []string{path}
 				}
-				return fileHistory.Restore(ctx, e, params.Version, params.TaskID, narrow)
+				return filehistory.Restore(ctx, e, params.Version, params.TaskID, narrow)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: write, patch, remove, restore", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: write, patch, remove, restore", mode)
 		},
 	})
 }

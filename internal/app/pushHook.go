@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execchatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
@@ -12,10 +13,10 @@ import (
 func init() {
 	exec.RegisterPushHook("dc-", discord.PushDiscordResult)
 	exec.RegisterPushHook("tg-", telegram.PushTelegramResult)
-	exec.RegisterAdminSender("tg", func(ctx context.Context, id, str string) error {
+	execchatbot.RegisterAdmin("tg", func(ctx context.Context, id, str string) error {
 		return chatbot.SendAdminCode(ctx, chatbot.Telegram, id, str)
 	})
-	exec.RegisterAdminSender("dc", func(ctx context.Context, id, str string) error {
+	execchatbot.RegisterAdmin("dc", func(ctx context.Context, id, str string) error {
 		return chatbot.SendAdminCode(ctx, chatbot.Discord, id, str)
 	})
 }

@@ -2,7 +2,6 @@ package filesystem
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type SensitiveConfig struct {
@@ -45,14 +45,14 @@ type RuntimeLimits struct {
 
 func LoadRuntime() error {
 	if ConfigPath == "" {
-		return fmt.Errorf("filesystem.LoadRuntime: ConfigPath not initialized (call Init first)")
+		return utilsmsg.New(utilsmsg.Internal, "filesystem.LoadRuntime", "ConfigPath not initialized (call Init first)")
 	}
 
 	raw := map[string]json.RawMessage{}
 	if go_pkg_filesystem_reader.Exists(ConfigPath) {
 		loaded, err := go_pkg_filesystem.ReadJSON[map[string]json.RawMessage](ConfigPath)
 		if err != nil {
-			return fmt.Errorf("go_pkg_filesystem.ReadJSON: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem.ReadJSON", ConfigPath, err)
 		}
 		raw = loaded
 	}
@@ -60,7 +60,7 @@ func LoadRuntime() error {
 	var limits RuntimeLimits
 	if data, ok := raw["limits"]; ok && len(data) > 0 {
 		if err := json.Unmarshal(data, &limits); err != nil {
-			return fmt.Errorf("json.Unmarshal limits: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "limits", err)
 		}
 	}
 
@@ -75,7 +75,7 @@ func LoadRuntime() error {
 	if data, ok := raw["reply_lang"]; ok && len(data) > 0 {
 		var user string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal reply_lang: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "reply_lang", err)
 		}
 		if user = strings.TrimSpace(user); user != "" {
 			ConfigReplyLang = user
@@ -83,7 +83,7 @@ func LoadRuntime() error {
 	}
 	langRaw, err := json.Marshal(ConfigReplyLang)
 	if err != nil {
-		return fmt.Errorf("json.Marshal reply_lang: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "reply_lang", err)
 	}
 	if string(raw["reply_lang"]) != string(langRaw) {
 		raw["reply_lang"] = langRaw
@@ -94,7 +94,7 @@ func LoadRuntime() error {
 	if data, ok := raw["output_dir"]; ok && len(data) > 0 {
 		var user string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal output_dir: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "output_dir", err)
 		}
 		ConfigOutputDir = strings.TrimSpace(user)
 	} else {
@@ -108,12 +108,12 @@ func LoadRuntime() error {
 	}
 
 	if err := json.Unmarshal(configs.SensitivePath, &SensitivePath); err != nil {
-		return fmt.Errorf("embedded sensitive_path: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "embedded sensitive_path", err)
 	}
 	if data, ok := raw["sensitive_path"]; ok && len(data) > 0 {
 		var user SensitiveConfig
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal sensitive_path: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "sensitive_path", err)
 		}
 		SensitivePath.Dirs = merge(SensitivePath.Dirs, user.Dirs)
 		SensitivePath.Files = merge(SensitivePath.Files, user.Files)
@@ -123,7 +123,7 @@ func LoadRuntime() error {
 	if data, ok := raw["denied_command"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal denied_command: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "denied_command", err)
 		}
 		DeniedCommand = merge(nil, user)
 	}
@@ -131,7 +131,7 @@ func LoadRuntime() error {
 	if data, ok := raw["denied_path"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal denied_path: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "denied_path", err)
 		}
 		DeniedPath = normalizeDeniedPath(user)
 	}
@@ -139,18 +139,18 @@ func LoadRuntime() error {
 	if data, ok := raw["net_white_list"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal net_white_list: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "net_white_list", err)
 		}
 		NetWhiteList = merge(nil, user)
 	}
 
 	if err := json.Unmarshal(configs.ReadOnlyCommand, &ReadOnlyCommand); err != nil {
-		return fmt.Errorf("embedded read_only_command: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "embedded read_only_command", err)
 	}
 	if data, ok := raw["read_only_command"]; ok && len(data) > 0 {
 		var user []string
 		if err := json.Unmarshal(data, &user); err != nil {
-			return fmt.Errorf("json.Unmarshal read_only_command: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "read_only_command", err)
 		}
 		ReadOnlyCommand = merge(ReadOnlyCommand, user)
 	}
@@ -172,14 +172,14 @@ func LoadRuntime() error {
 
 	limitsRaw, err := json.Marshal(limits)
 	if err != nil {
-		return fmt.Errorf("json.Marshal limits: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "limits", err)
 	}
 	raw["limits"] = limitsRaw
 	if err := go_pkg_filesystem.CheckDir(AgenvoyDir, true); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", AgenvoyDir, err)
 	}
 	if err := go_pkg_filesystem.WriteJSON(ConfigPath, raw, false); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", ConfigPath, err)
 	}
 	return nil
 }
@@ -241,7 +241,7 @@ func applySandboxDenied() error {
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("json.Marshal denied_path: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "denied_path", err)
 	}
 	go_pkg_sandbox.New(raw)
 	return nil

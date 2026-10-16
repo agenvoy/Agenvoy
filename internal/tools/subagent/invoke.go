@@ -8,23 +8,26 @@ import (
 	"strings"
 	"unicode"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execsubagent "github.com/pardnchiu/agenvoy/internal/agents/exec/subagent"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var reasoningLevels = func() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+1)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+	out := make([]string, 0, int(go_llm_router.ReasoningMax)+2)
+	out = append(out, configs.REASONING_AUTO)
+	for r := go_llm_router.ReasoningNone; r <= go_llm_router.ReasoningMax; r++ {
 		out = append(out, r.String())
 	}
 	return out
@@ -42,10 +45,10 @@ type invokeParams struct {
 	ExcludeTools []string `json:"exclude_tools,omitempty"`
 }
 
-func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokeParams) (string, error) {
+func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokeParams) (string, error) {
 	task := strings.TrimSpace(params.Task)
 	if task == "" {
-		return "", fmt.Errorf("task is required when mode=invoke")
+		return "", utilsmsg.New(utilsmsg.Invalid, "task", "required when mode=invoke")
 	}
 
 	sessionID := ""
@@ -55,17 +58,22 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 
 	model := strings.TrimSpace(params.Model)
 	if model == "" {
-		return "", fmt.Errorf("model is required when mode=invoke")
+		return "", utilsmsg.New(utilsmsg.Invalid, "model", "required when mode=invoke")
 	}
-	if model != configBot.DefaultModel {
+	if model != configbot.DefaultModel {
 		if err := checkLegModel(model); err != nil {
 			return "", err
 		}
 	}
 
 	reasoning := strings.TrimSpace(params.Reasoning)
-	if _, ok := provider.ParseReasoning(reasoning); !ok {
-		reasoning = provider.ReasoningLow.String()
+	if reasoning == "" {
+		reasoning = configs.REASONING_AUTO
+	}
+	if reasoning != configs.REASONING_AUTO {
+		if _, ok := go_llm_router.ParseReasoning(reasoning); !ok {
+			return "", utilsmsg.New(utilsmsg.Invalid, "reasoning", "%q; use one of %s", reasoning, strings.Join(reasoningLevels, ", "))
+		}
 	}
 
 	excludeTools := params.ExcludeTools
@@ -78,7 +86,7 @@ func invokeSubagent(ctx context.Context, e *toolTypes.Executor, params invokePar
 		ignoreHistory = *params.New
 	}
 
-	output, err := exec.ExecWithSubagent(ctx, task, sessionID, model, reasoning,
+	output, err := execsubagent.Exec(ctx, task, sessionID, model, reasoning,
 		strings.TrimSpace(params.SystemPrompt), excludeTools, ignoreHistory)
 	if err != nil {
 		return "", err
@@ -99,7 +107,7 @@ func saveReport(output, reportName string) (string, error) {
 	}
 
 	if err := go_pkg_filesystem.WriteFile(path, body+"\n", 0644); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.WriteFile %s: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return fmt.Sprintf("%s\nreport: %s\nThe leg's full report is in that file — read_files it before relaying or synthesizing.", header, path), nil
 }
@@ -119,14 +127,14 @@ func reportSlug(raw string) string {
 }
 
 func checkLegModel(model string) error {
-	registry := agents.Registry()
+	registry := agents.ModelSet()
 	tags := map[string]string{}
 	if cfg, err := config.Load(); err == nil {
 		tags = cfg.ModelTag
 	}
 
-	allowed := make([]string, 0, len(registry.Entries))
-	for _, e := range registry.Entries {
+	allowed := make([]string, 0, len(registry.Order))
+	for _, e := range registry.Order {
 		if tags[e.Name] != config.ModelTagPass {
 			allowed = append(allowed, e.Name)
 		}
@@ -139,5 +147,5 @@ func checkLegModel(model string) error {
 	if _, ok := registry.Registry[model]; ok {
 		reason = "is pass tier and cannot run a subagent leg"
 	}
-	return fmt.Errorf("model %q %s; available: %s", model, reason, strings.Join(allowed, ", "))
+	return utilsmsg.New(utilsmsg.Invalid, "model", "%q %s; available: %s", model, reason, strings.Join(allowed, ", "))
 }

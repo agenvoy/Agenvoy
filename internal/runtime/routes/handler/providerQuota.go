@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	provider "github.com/pardnchiu/go-llm-router/core"
 
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -23,26 +24,26 @@ const (
 	quotaKeyPrefix       = "provider:quota:"
 )
 
-func readQuotaCache(id string) (provider.UsageRemaining, bool) {
+func readQuotaCache(id string) (go_llm_router.UsageRemaining, bool) {
 	if !torii.Ready() {
-		return provider.UsageRemaining{}, false
+		return go_llm_router.UsageRemaining{}, false
 	}
 	db := torii.DB(torii.DBToolCache)
 	if db == nil {
-		return provider.UsageRemaining{}, false
+		return go_llm_router.UsageRemaining{}, false
 	}
 	record, ok := db.Get(context.Background(), quotaKeyPrefix+id)
 	if !ok {
-		return provider.UsageRemaining{}, false
+		return go_llm_router.UsageRemaining{}, false
 	}
-	var entry provider.UsageRemaining
+	var entry go_llm_router.UsageRemaining
 	if err := json.Unmarshal([]byte(record.Value()), &entry); err != nil {
-		return provider.UsageRemaining{}, false
+		return go_llm_router.UsageRemaining{}, false
 	}
 	return entry, true
 }
 
-func writeQuotaCache(id string, entry provider.UsageRemaining) {
+func writeQuotaCache(id string, entry go_llm_router.UsageRemaining) {
 	if !torii.Ready() {
 		return
 	}
@@ -98,9 +99,9 @@ func ListProviderQuota() gin.HandlerFunc {
 				defer wg.Done()
 
 				entry := gin.H{}
-				cfg, err := agentKeychain.Config(ctx, source.ID)
+				cfg, err := agentkeychain.Config(ctx, source.ID)
 				if err == nil {
-					var remaining provider.UsageRemaining
+					var remaining go_llm_router.UsageRemaining
 					if remaining, err = source.Fn(ctx, cfg); err == nil {
 						entry["remaining"] = remaining
 						writeQuotaCache(source.ID, remaining)

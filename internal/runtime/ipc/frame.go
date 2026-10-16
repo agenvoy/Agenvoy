@@ -1,7 +1,7 @@
 package ipc
 
 import (
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
@@ -29,7 +29,7 @@ type Frame struct {
 	Canceled  bool              `json:"canceled,omitempty"`
 	Pause     bool              `json:"pause,omitempty"`
 	Rayload   *Payload          `json:"run,omitempty"`
-	Event     *agentTypes.Event `json:"event,omitempty"`
+	Event     *agenttypes.Event `json:"event,omitempty"`
 	Ask       *Ask              `json:"ask,omitempty"`
 	Reply     *Reply            `json:"reply,omitempty"`
 	MCP       *MCP              `json:"mcp,omitempty"`

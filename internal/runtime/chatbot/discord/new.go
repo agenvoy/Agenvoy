@@ -2,20 +2,20 @@ package discord
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
 	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
+	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const Key = "DISCORD_TOKEN"
@@ -40,7 +40,7 @@ func New() (*Bot, error) {
 
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/discord New: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.New", "", err)
 	}
 
 	bot := &Bot{client: client}
@@ -57,7 +57,7 @@ func New() (*Bot, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/discord Start: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.Start", "", err)
 	}
 	bot.cancel = cancel
 	bot.listener = newPendingListener(bot)
@@ -68,7 +68,7 @@ func New() (*Bot, error) {
 	if cfg, err := config.Load(); err == nil && cfg != nil && cfg.DiscordUsername != username {
 		cfg.DiscordUsername = username
 		if err := config.Save(cfg); err != nil {
-			slog.Debug("github.com/pardnchiu/agenvoy/internal/session Save",
+			slog.Debug("session.Save",
 				slog.String("error", err.Error()))
 		}
 	}
@@ -96,14 +96,14 @@ var pending = utils.NewPendingRegistry[string, string]()
 func authorizeChannel(in go_bot_discord.Input) error {
 	path := filesystem.DiscordAuthPath
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", "", err)
 	}
 	line := in.ChannelID
 	if name := strings.TrimSpace(strings.NewReplacer("\n", " ", "\r", " ", "\t", " ").Replace(channelName(in))); name != "" {
 		line = in.ChannelID + "-" + name
 	}
 	if err := go_pkg_filesystem.AppendText(path, line+"\n"); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem AppendText: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.AppendText", "", err)
 	}
 	return nil
 }

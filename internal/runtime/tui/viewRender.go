@@ -10,7 +10,7 @@ import (
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/reflow/wrap"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
@@ -472,7 +472,7 @@ func renderQuotaBadge(quota string) string {
 	return hintStyle.Render("[") + strings.Join(parts, hintStyle.Render("/")) + hintStyle.Render("]")
 }
 
-func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
+func renderAgentEvent(ev agenttypes.Event, sessionLabel, cwd string, width int, finishedAt string) (string, bool) {
 	src := strings.TrimSpace(ev.Source)
 	srcPrefix := ""
 	if src != "" {
@@ -480,16 +480,16 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 	}
 
 	switch ev.Type {
-	case agentTypes.EventAgentSelect:
+	case agenttypes.EventAgentSelect:
 		if ev.Source == "" {
 			return "", false
 		}
 		return hintStyle.Render("  ⎿ " + srcPrefix + "selecting agent..."), true
 
-	case agentTypes.EventAgentResult:
+	case agenttypes.EventAgentResult:
 		return "", false
 
-	case agentTypes.EventToolCall:
+	case agenttypes.EventToolCall:
 		if utils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 			return "", false
 		}
@@ -499,14 +499,14 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		}
 		return buildToolLine(bullet, ev.Source, ev.ToolName, ev.ToolArgs, cwd, width), true
 
-	case agentTypes.EventToolSkipped:
+	case agenttypes.EventToolSkipped:
 		line := "  ⎿ " + srcPrefix + "skipped: " + ev.ToolName
 		if arg := utils.FormatToolArgs(ev.ToolName, ev.ToolArgs, cwd); arg != "" {
 			line += "(" + arg + ")"
 		}
 		return hintStyle.Render(line), true
 
-	case agentTypes.EventText:
+	case agenttypes.EventText:
 		if ev.Source != "" {
 			str := toPureText(utils.StripFileMarkers(ev.Text))
 			if str == "" {
@@ -520,7 +520,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		}
 		return messageRow(wrapProse(str, width-2), sessionLabel), true
 
-	case agentTypes.EventReasoning:
+	case agenttypes.EventReasoning:
 		if src != "" {
 			str := oneLine(toPureText(ev.Text))
 			if str == "" {
@@ -540,33 +540,33 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		}
 		return thinkingBlock(wrapText(strings.Join(kept, "\n"), width-2)), true
 
-	case agentTypes.EventUserInjected:
+	case agenttypes.EventUserInjected:
 		text := strings.TrimSpace(ev.Text)
 		if text == "" {
 			return "", false
 		}
 		return hintStyle.Render("❯ ") + okayStyle.Render(text), true
 
-	case agentTypes.EventExecError:
+	case agenttypes.EventExecError:
 		return errorStyle.Render("  ⎿ " + srcPrefix + "error: " + ev.ToolName + " — " + ev.Text), true
 
-	case agentTypes.EventError:
+	case agenttypes.EventError:
 		if ev.Err == nil {
 			return "", false
 		}
 		return errorStyle.Render("  ⎿ " + srcPrefix + fmt.Sprintf("error: %v", ev.Err)), true
 
-	case agentTypes.EventSummaryGenerate:
+	case agenttypes.EventSummaryGenerate:
 		return hintStyle.Render("⏵ " + srcPrefix + "summarizing..."), true
 
-	case agentTypes.EventCompact:
+	case agenttypes.EventCompact:
 		target := "tool history"
 		if ev.Text == "history" {
 			target = "conversation history"
 		}
 		return hintStyle.Render("⏵ " + srcPrefix + "Compact(" + target + ")"), true
 
-	case agentTypes.EventDone:
+	case agenttypes.EventDone:
 		stats := utils.FormatEventFooter(ev.Duration, ev.OutputElapsed, "", "", ev.Usage)
 		if finishedAt != "" {
 			if stats != "" {
@@ -596,7 +596,7 @@ func renderAgentEvent(ev agentTypes.Event, sessionLabel, cwd string, width int, 
 		}
 		return hintStyle.Render("  ⎿ "+footer) + "\n", true
 
-	case agentTypes.EventCanceled:
+	case agenttypes.EventCanceled:
 		footer := "canceled"
 		if finishedAt != "" {
 			footer += "  " + finishedAt

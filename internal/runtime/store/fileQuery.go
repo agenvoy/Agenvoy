@@ -11,6 +11,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var errNotFound = errors.New("no such change")
@@ -105,7 +106,7 @@ func List(ctx context.Context, f Filter) ([]Row, error) {
 
 	rows, err := conn.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT file_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT file_history]", err)
 	}
 	defer rows.Close()
 
@@ -118,7 +119,7 @@ func List(ctx context.Context, f Filter) ([]Row, error) {
 		list = append(list, r)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT file_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[SELECT file_history]", err)
 	}
 	return list, nil
 }
@@ -152,7 +153,7 @@ func perPath(ctx context.Context, f Filter, order string) ([]Row, error) {
 
 	rows, err := conn.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT file_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT file_history]", err)
 	}
 	defer rows.Close()
 
@@ -165,7 +166,7 @@ func perPath(ctx context.Context, f Filter, order string) ([]Row, error) {
 		list = append(list, r)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT file_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[SELECT file_history]", err)
 	}
 	return list, nil
 }
@@ -193,7 +194,7 @@ func Get(ctx context.Context, id int64) (Row, []byte, error) {
 	case errors.Is(err, sql.ErrNoRows):
 		return Row{}, nil, errNotFound
 	case err != nil:
-		return Row{}, nil, fmt.Errorf("sql.Row Scan [SELECT file_history]: %w", err)
+		return Row{}, nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Row Scan", "[SELECT file_history]", err)
 	}
 
 	r.Truncated = truncated == 1
@@ -211,7 +212,7 @@ func scan(rows *sql.Rows) (Row, error) {
 		&r.ID, &r.Dir, &r.Name, &r.Action, &r.Hash, &r.Size, &truncated, &trashPath,
 		&r.SessionID, &r.TaskID, &r.Tool, &r.ChangedAt,
 	); err != nil {
-		return Row{}, fmt.Errorf("sql.Rows Scan [SELECT file_history]: %w", err)
+		return Row{}, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Scan", "[SELECT file_history]", err)
 	}
 
 	r.Truncated = truncated == 1

@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem_parser "github.com/pardnchiu/go-pkg/filesystem/parser"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const MediaMaxBytes = 10 << 20
@@ -33,43 +34,43 @@ func ReadFile(ctx context.Context, path string, offset, limit int) (string, erro
 	case ".pdf":
 		_, chunks, err := go_pkg_filesystem_parser.PDF(ctx, path)
 		if err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/parser PDF [%s]: %w", path, err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem_parser.PDF", path, err)
 		}
 		return sliceChunks(chunks, path, offset, limit, "page"), nil
 
 	case ".pptx":
 		_, chunks, err := go_pkg_filesystem_parser.PPTX(ctx, path)
 		if err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/parser PPTX [%s]: %w", path, err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem_parser.PPTX", path, err)
 		}
 		return sliceChunks(chunks, path, offset, limit, "slide"), nil
 
 	case ".docx":
 		result, _, err := go_pkg_filesystem_parser.Docx(ctx, path)
 		if err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/parser Docx [%s]: %w", path, err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem_parser.Docx", path, err)
 		}
 		return sliceLines(result, path, offset, limit), nil
 
 	case ".csv", ".tsv":
 		result, err := go_pkg_filesystem_parser.CSV(ctx, path, offset, limit)
 		if err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/parser CSV [%s]: %w", path, err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem_parser.CSV", path, err)
 		}
 		return result, nil
 	}
 	if imageExts[ext] {
 		info, err := os.Stat(path)
 		if err != nil {
-			return "", fmt.Errorf("os.Stat: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", path, err)
 		}
 		if info.Size() > MediaMaxBytes {
-			return "", fmt.Errorf("image too large (max %d MiB): %d MiB", MediaMaxBytes>>20, info.Size()>>20)
+			return "", utilsmsg.New(utilsmsg.Limit, "image", "too large (max %d MiB): %d MiB", MediaMaxBytes>>20, info.Size()>>20)
 		}
 
 		result, err := go_pkg_filesystem_parser.Image(ctx, path)
 		if err != nil {
-			return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/parser Image [%s]: %w", path, err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem_parser.Image", path, err)
 		}
 		return result, nil
 	}
@@ -85,7 +86,7 @@ func ReadAround(path string, rows []int, contextLines int) (string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch {
 	case IsMedia(path), imageExts[ext], ext == ".pdf", ext == ".pptx", ext == ".docx", ext == ".csv", ext == ".tsv":
-		return "", fmt.Errorf("around applies to plain-text files; %s is %s, use offset/limit instead", path, ext)
+		return "", utilsmsg.New(utilsmsg.Invalid, "around", "applies to plain-text files; %s is %s, use offset/limit instead", path, ext)
 	}
 
 	result, err := readPlainText(path)
@@ -98,19 +99,19 @@ func ReadAround(path string, rows []int, contextLines int) (string, error) {
 func readPlainText(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", fmt.Errorf("os.Stat: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", path, err)
 	}
 	if info.Size() > configs.MAX_DOCUMENT_BYTES {
-		return "", fmt.Errorf("file too large (max %d MiB): %d MiB", configs.MAX_DOCUMENT_BYTES>>20, info.Size()>>20)
+		return "", utilsmsg.New(utilsmsg.Limit, "file", "too large (max %d MiB): %d MiB", configs.MAX_DOCUMENT_BYTES>>20, info.Size()>>20)
 	}
 
 	result, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadText [%s]: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 	// * binary guard: NUL in first 512B (UTF-16 false-positive)
 	if strings.IndexByte(result[:min(len(result), 512)], 0) >= 0 {
-		return "", fmt.Errorf("%s is binary file", path)
+		return "", utilsmsg.New(utilsmsg.Invalid, path, "is binary file")
 	}
 	return result, nil
 }

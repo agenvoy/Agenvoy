@@ -8,6 +8,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type CronEntry struct {
@@ -29,7 +30,7 @@ func LoadCrons() ([]CronEntry, error) {
 
 func SaveCrons(crons []CronEntry) error {
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(filesystem.CronsPath), true); err != nil {
-		return fmt.Errorf("CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "CheckDir", "", err)
 	}
 	if crons == nil {
 		crons = []CronEntry{}
@@ -42,7 +43,7 @@ func AppendCron(c CronEntry) error {
 	key := CronKey(c)
 	for _, e := range existing {
 		if CronKey(e) == key {
-			return fmt.Errorf("duplicate cron: %s already scheduled with the same expression", c.Skill)
+			return utilsmsg.New(utilsmsg.Conflict, "cron", "duplicate: %s already scheduled with the same expression", c.Skill)
 		}
 	}
 	existing = append(existing, c)

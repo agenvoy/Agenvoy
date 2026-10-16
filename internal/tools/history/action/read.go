@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func read(e *toolTypes.Executor, taskIDs []string, full bool) (string, error) {
+func read(e *tooltypes.Executor, taskIDs []string, full bool) (string, error) {
 	list, err := entries(e)
 	if err != nil {
 		return "", err
@@ -34,7 +35,7 @@ func read(e *toolTypes.Executor, taskIDs []string, full bool) (string, error) {
 	}
 
 	if len(blocks) == 0 {
-		return "", fmt.Errorf("no finished task with id %s in this session", strings.Join(missing, ", "))
+		return "", utilsmsg.New(utilsmsg.NotFound, "task", "no finished task with id %s in this session", strings.Join(missing, ", "))
 	}
 	out := strings.Join(blocks, "\n\n---\n\n")
 	if len(missing) > 0 {

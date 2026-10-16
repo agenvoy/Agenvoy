@@ -8,34 +8,34 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const webSessionPrefix = "chat-"
 
 var (
 	outstandingMu sync.Mutex
-	outstanding   = map[string]map[string]agentTypes.Event{}
+	outstanding   = map[string]map[string]agenttypes.Event{}
 )
 
-func trackConfirm(sessionID, requestID string, event agentTypes.Event) {
+func trackConfirm(sessionID, requestID string, event agenttypes.Event) {
 	outstandingMu.Lock()
 	defer outstandingMu.Unlock()
 	if outstanding[sessionID] == nil {
-		outstanding[sessionID] = map[string]agentTypes.Event{}
+		outstanding[sessionID] = map[string]agenttypes.Event{}
 	}
 	outstanding[sessionID][requestID] = event
 }
 
-func OutstandingConfirms(sessionID string) []agentTypes.Event {
+func OutstandingConfirms(sessionID string) []agenttypes.Event {
 	outstandingMu.Lock()
 	defer outstandingMu.Unlock()
 
-	out := make([]agentTypes.Event, 0, len(outstanding[sessionID]))
+	out := make([]agenttypes.Event, 0, len(outstanding[sessionID]))
 	for id, event := range outstanding[sessionID] {
 		if !runtime.EntryExists(id) {
 			delete(outstanding[sessionID], id)
@@ -99,8 +99,8 @@ func emitWebConfirms() {
 			runtime.Resolve(id, runtime.Reply{Error: req.Ctx.Err()})
 			continue
 		}
-		event := agentTypes.Event{
-			Type:        agentTypes.EventToolConfirm,
+		event := agenttypes.Event{
+			Type:        agenttypes.EventToolConfirm,
 			ToolName:    req.ToolName,
 			ToolArgs:    req.ToolArgs,
 			ConfirmHash: id,
@@ -145,7 +145,7 @@ func ResolveToolConfirm() gin.HandlerFunc {
 		verified := false
 
 		if approve && len(restricted) > 0 {
-			if !internalUtils.IsLoopback(c.Request.RemoteAddr) {
+			if !internalutils.IsLoopback(c.Request.RemoteAddr) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "restricted approvals must come from this machine"})
 				return
 			}

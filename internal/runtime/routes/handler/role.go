@@ -1,17 +1,18 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func rolePath(name string) (string, error) {
@@ -20,13 +21,13 @@ func rolePath(name string) (string, error) {
 
 	switch {
 	case name == "":
-		return "", fmt.Errorf("name is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "is required")
 	case strings.ContainsAny(name, `/\`):
-		return "", fmt.Errorf("name cannot contain a path separator")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "cannot contain a path separator")
 	case name == "." || name == "..":
-		return "", fmt.Errorf("name cannot be a path segment")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "cannot be a path segment")
 	case strings.HasPrefix(name, "."):
-		return "", fmt.Errorf("name cannot start with a dot")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "cannot start with a dot")
 	}
 	return filepath.Join(filesystem.PromptsDir, name+".md"), nil
 }

@@ -1,1 +1,2 @@
-Question needs only specific symbols/sections/keywords → `find_files(mode=search)` first (`output=files` to see which files, `output=content` for line numbers), then `read_files` narrow `offset`/`limit`. Full-file read only when genuinely required (summarizing/documenting the file, file already short, every line matters).
+- **Narrow reads**: a question about specific symbols, sections or keywords → `find_files(mode=search)` first (`output=files` for which files, `output=content` for line numbers), then `read_files` with a narrow `offset`/`limit`.
+- **Whole-file reads** only when every line matters: summarizing or documenting the file, or the file is already short.

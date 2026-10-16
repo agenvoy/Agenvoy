@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,8 +11,9 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type htmlTemplate struct {
@@ -24,7 +24,7 @@ type htmlTemplate struct {
 }
 
 func registHTMLTemplate() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "html_template",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -48,13 +48,13 @@ Fetching any other web page → fetch_page.`,
 			"required": []string{"mode"},
 		},
 		Timeout: 30 * time.Second,
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode string `json:"mode"`
 				Name string `json:"name"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			switch strings.TrimSpace(params.Mode) {
@@ -63,11 +63,11 @@ Fetching any other web page → fetch_page.`,
 			case "read":
 				name := strings.TrimSpace(params.Name)
 				if name == "" {
-					return "", fmt.Errorf("name is required for mode=read")
+					return "", utilsmsg.New(utilsmsg.Invalid, "name", "required for mode=read")
 				}
 				return readHTMLTemplate(ctx, name)
 			default:
-				return "", fmt.Errorf("unknown mode %q; available: list, read", params.Mode)
+				return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown mode %q; available: list, read", params.Mode)
 			}
 		},
 	})
@@ -78,15 +78,15 @@ func listHTMLTemplate(ctx context.Context) (string, error) {
 		Templates []htmlTemplate `json:"templates"`
 	}](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/list", nil)
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_http.GET: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.GET", "", err)
 	}
 	if len(body.Templates) == 0 {
-		return "", fmt.Errorf("html_template list: empty")
+		return "", utilsmsg.New(utilsmsg.Upstream, "html_template", "list is empty")
 	}
 
 	raw, err := json.Marshal(body.Templates)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
@@ -94,7 +94,7 @@ func listHTMLTemplate(ctx context.Context) (string, error) {
 func readHTMLTemplate(ctx context.Context, name string) (string, error) {
 	body, _, err := go_pkg_http.GET[string](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/view/"+url.PathEscape(name), nil)
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_http.GET %s: %w; call mode=list for valid names", name, err)
+		return "", utilsmsg.New(utilsmsg.Upstream, "go_pkg_http.GET", "%s: %w; call mode=list for valid names", name, err)
 	}
 	return body, nil
 }

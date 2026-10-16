@@ -11,19 +11,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
-	provider "github.com/pardnchiu/go-llm-router/core"
-
-	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
+	sessionmanager "github.com/pardnchiu/agenvoy/internal/session"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configstatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -51,9 +51,9 @@ func ListSessions() gin.HandlerFunc {
 			activeAt time.Time
 		}
 
-		rows, err := historyStore.ListSessionRows(c.Request.Context())
+		rows, err := historystore.ListSessionRows(c.Request.Context())
 		if err != nil {
-			slog.Warn("historyStore.ListSessionRows",
+			slog.Warn("historystore.ListSessionRows",
 				slog.String("error", err.Error()))
 		}
 		counts := interactive.ActiveCounts()
@@ -65,11 +65,11 @@ func ListSessions() gin.HandlerFunc {
 				continue
 			}
 
-			status := configStatus.FromCount(counts[sid])
+			status := configstatus.FromCount(counts[sid])
 
 			switch filter {
 			case "active":
-				if status.State != configStatus.StatusOnline {
+				if status.State != configstatus.StatusOnline {
 					continue
 				}
 			case "permanent":
@@ -85,7 +85,7 @@ func ListSessions() gin.HandlerFunc {
 			row := rows[sid]
 			model := row.Model
 			if model == "" {
-				model = configBot.DefaultModel
+				model = configbot.DefaultModel
 			}
 
 			entries = append(entries, entry{
@@ -135,7 +135,7 @@ func CreateSession() gin.HandlerFunc {
 			prefix = "cli-"
 		}
 
-		sid, err := sessionManager.New(prefix)
+		sid, err := sessionmanager.New(prefix)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -145,13 +145,13 @@ func CreateSession() gin.HandlerFunc {
 }
 
 func sessionDetail(sid string) gin.H {
-	selfID, name, role := configBot.GetPersona(sid)
-	model, reasoning := configBot.GetModel(sid)
+	selfID, name, role := configbot.GetPersona(sid)
+	model, reasoning := configbot.GetModel(sid)
 	levels := reasoningLevels()
 	if !slices.Contains(levels, reasoning) {
-		reasoning = provider.ReasoningDefault.String()
+		reasoning = go_llm_router.ReasoningDefault.String()
 	}
-	status := configStatus.Get(sid)
+	status := configstatus.Get(sid)
 	return gin.H{
 		"id":        sid,
 		"self_id":   selfID,
@@ -221,9 +221,9 @@ func UpdateSession() gin.HandlerFunc {
 		if body.Model != nil {
 			model = strings.TrimSpace(*body.Model)
 			if model == "" {
-				model = configBot.DefaultModel
+				model = configbot.DefaultModel
 			}
-			if model != configBot.DefaultModel && !registeredModel(model) {
+			if model != configbot.DefaultModel && !registeredModel(model) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown model: " + model})
 				return
 			}
@@ -240,7 +240,7 @@ func UpdateSession() gin.HandlerFunc {
 		}
 
 		if body.SelfID != nil || body.Name != nil || body.Role != nil || body.Rule != nil {
-			selfID, name, role := configBot.GetPersona(sid)
+			selfID, name, role := configbot.GetPersona(sid)
 			if body.SelfID != nil {
 				selfID = strings.TrimSpace(*body.SelfID)
 			}
@@ -256,13 +256,13 @@ func UpdateSession() gin.HandlerFunc {
 				role = *body.Rule
 			}
 
-			if err := historyStore.ValidSelfID(selfID); err != nil {
+			if err := historystore.ValidSelfID(selfID); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := configBot.SavePersona(sid, selfID, name, role); err != nil {
+			if err := configbot.SavePersona(sid, selfID, name, role); err != nil {
 				status := http.StatusInternalServerError
-				if errors.Is(err, historyStore.ErrDuplicateSelfID) {
+				if errors.Is(err, historystore.ErrDuplicateSelfID) {
 					status = http.StatusConflict
 				}
 				c.JSON(status, gin.H{"error": err.Error()})
@@ -271,7 +271,7 @@ func UpdateSession() gin.HandlerFunc {
 		}
 
 		if model != "" || reasoning != "" {
-			configBot.SetModel(sid, model, reasoning)
+			configbot.SetModel(sid, model, reasoning)
 		}
 
 		c.JSON(http.StatusOK, sessionDetail(sid))
@@ -298,15 +298,15 @@ func DeleteSession() gin.HandlerFunc {
 				db.Del(c.Request.Context(), keys...)
 			}
 		}
-		if err := historyStore.Clear(sid); err != nil {
+		if err := historystore.Clear(sid); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if err := historyStore.DeleteSession(c.Request.Context(), sid); err != nil {
+		if err := historystore.DeleteSession(c.Request.Context(), sid); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		sessionHistory.ClearMutex(sid)
+		sessionhistory.ClearMutex(sid)
 		exec.ClearSteer(sid)
 		if err := os.RemoveAll(filesystem.SessionDir(sid)); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

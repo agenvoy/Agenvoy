@@ -23,7 +23,7 @@
 | compare | line up two or more handed-in results and report where they agree and differ | work |
 | review | check a draft, result or another leg's output against sources or criteria | work |
 | transform | translate, reformat or convert a fixed input | chat |
-| code | write or fix code, or any leg whose task demands high precision | code |
+| code | write or fix code returned as text for the planner to apply, or any leg whose task demands high precision | code |
 
   A leg that mixes jobs was split too coarsely: gathering and judging what was gathered are two legs (collect legs first, then an analyze or compare leg fed their output). `research` is never a leg's work kind — it is collect plus analyze, split. Merging every leg into one answer stays with the planner at synthesis.
 - **Open a `write_todo` plan** with dispatch / gather / synthesize as phases, so the user can follow progress.

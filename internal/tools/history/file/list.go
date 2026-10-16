@@ -2,26 +2,25 @@ package fileHistory
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	actionhistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	actionHistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to string, limit int) (string, error) {
+func list(ctx context.Context, e *tooltypes.Executor, rawPath, taskID, from, to string, limit int) (string, error) {
 	path, err := absPath(e, rawPath)
 	if err != nil {
 		return "", err
 	}
 
-	filter := historyStore.Filter{Path: path, TaskID: strings.TrimSpace(taskID)}
+	filter := historystore.Filter{Path: path, TaskID: strings.TrimSpace(taskID)}
 	if filter.TaskID == "current" {
 		filter.TaskID = e.PendingTask
 	}
@@ -37,9 +36,9 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 		filter.Limit = defaultRows
 	}
 
-	list, err := historyStore.List(ctx, filter)
+	list, err := historystore.List(ctx, filter)
 	if err != nil {
-		return "", fmt.Errorf("internal/runtime/store: List: %w", err)
+		return "", utilsmsg.Trace("historystore.List", "", err)
 	}
 	if len(list) == 0 {
 		return "no recorded changes", nil
@@ -55,7 +54,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 			"tool":       row.Tool,
 			"session_id": row.SessionID,
 			"task_id":    row.TaskID,
-			"objective":  actionHistory.Objective(row.SessionID, row.TaskID),
+			"objective":  actionhistory.Objective(row.SessionID, row.TaskID),
 			"changed_at": time.Unix(0, row.ChangedAt).Format(configs.TIME_LAYOUT),
 		}
 		if reason := row.RestoreBlock(); reason != "" {
@@ -67,7 +66,7 @@ func list(ctx context.Context, e *toolTypes.Executor, rawPath, taskID, from, to 
 
 	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

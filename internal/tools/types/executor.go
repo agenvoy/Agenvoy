@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	apiadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
 )
 
 type ScriptToolExecutor interface {
@@ -23,13 +24,13 @@ type Executor struct {
 	ToolsMu          sync.Mutex
 	WorkDir          string
 	SessionID        string
-	Tools            []provider.Tool
-	AllTools         []provider.Tool
+	Tools            []go_llm_router.Tool
+	AllTools         []go_llm_router.Tool
 	UnmarkedTools    map[string]bool
 	ExcludeTools     map[string]bool
-	APIToolbox       *apiAdapter.Adapter
+	APIToolbox       *apiadapter.Adapter
 	ScriptToolbox    ScriptToolExecutor
-	ExtAPIToolbox    *apiAdapter.Adapter
+	ExtAPIToolbox    *apiadapter.Adapter
 	ExtScriptToolbox ScriptToolExecutor
 
 	SkillScanner    *runtime.SkillScanner

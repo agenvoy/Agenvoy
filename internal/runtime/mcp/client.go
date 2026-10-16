@@ -3,10 +3,12 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"strings"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Client interface {
@@ -41,7 +43,7 @@ type sdkClient struct {
 func newClient(ctx context.Context, name string, cfg ServerConfig, onToolsChanged func()) (Client, error) {
 	transport, err := cfg.Expand().toTransport(name)
 	if err != nil {
-		return nil, fmt.Errorf("server %q: %w", name, err)
+		return nil, utilsmsg.Trace("server", strconv.Quote(name), err)
 	}
 
 	var opts *mcpsdk.ClientOptions
@@ -56,7 +58,7 @@ func newClient(ctx context.Context, name string, cfg ServerConfig, onToolsChange
 	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "agenvoy", Version: "1.0.0"}, opts)
 	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
-		return nil, fmt.Errorf("connect %q: %w", name, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Unavailable, "connect", strconv.Quote(name), err)
 	}
 	return &sdkClient{session: session}, nil
 }
@@ -64,7 +66,7 @@ func newClient(ctx context.Context, name string, cfg ServerConfig, onToolsChange
 func (c *sdkClient) List(ctx context.Context) ([]Tool, error) {
 	res, err := c.session.ListTools(ctx, nil)
 	if err != nil {
-		return nil, &SessionError{Err: fmt.Errorf("tools/list: %w", err)}
+		return nil, &SessionError{Err: utilsmsg.Wrap(utilsmsg.Upstream, "tools/list", "", err)}
 	}
 
 	list := make([]Tool, 0, len(res.Tools))
@@ -89,7 +91,7 @@ func (c *sdkClient) Call(ctx context.Context, name string, args map[string]any) 
 
 	res, err := c.session.CallTool(ctx, &mcpsdk.CallToolParams{Name: name, Arguments: args})
 	if err != nil {
-		return "", &SessionError{Err: fmt.Errorf("tools/call %q: %w", name, err)}
+		return "", &SessionError{Err: utilsmsg.Wrap(utilsmsg.Upstream, "tools/call", strconv.Quote(name), err)}
 	}
 
 	var sb strings.Builder
@@ -106,9 +108,9 @@ func (c *sdkClient) Call(ctx context.Context, name string, args map[string]any) 
 
 	if res.IsError {
 		if sb.Len() == 0 {
-			return "", fmt.Errorf("tool error")
+			return "", utilsmsg.New(utilsmsg.Upstream, "tools/call", "tool error")
 		}
-		return "", fmt.Errorf("tool error: %s", sb.String())
+		return "", utilsmsg.New(utilsmsg.Upstream, "tools/call", "tool error: %s", sb.String())
 	}
 	if sb.Len() > 0 {
 		return sb.String(), nil
@@ -116,7 +118,7 @@ func (c *sdkClient) Call(ctx context.Context, name string, args map[string]any) 
 
 	raw, err := json.Marshal(res)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

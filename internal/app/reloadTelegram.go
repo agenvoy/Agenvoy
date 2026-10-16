@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 var (

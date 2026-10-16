@@ -8,7 +8,7 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 )
 
@@ -47,7 +47,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 	remaining := messages[idx:]
 	startAt := getStartAt(remaining)
 	if startAt > 0 {
-		if err := historyStore.SetStartAt(sessionID, startAt); err != nil {
+		if err := historystore.SetStartAt(sessionID, startAt); err != nil {
 			slog.Warn("historyStore SetStart",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
@@ -63,7 +63,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 		return
 	}
 	if err := go_pkg_filesystem.WriteFile(historyPath, string(raw), 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+		slog.Warn("go_pkg_filesystem.WriteFile",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return

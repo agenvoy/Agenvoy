@@ -7,12 +7,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+
+	"github.com/pardnchiu/agenvoy/internal/agents"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const sessionModelPrefix = "model:"
@@ -29,20 +30,20 @@ func registeredModelOptions(sid string) (options, values []string, cursor int) {
 
 	current := ""
 	if sid != "" {
-		current, _ = configBot.GetModel(sid)
+		current, _ = configbot.GetModel(sid)
 	}
 
 	options = make([]string, 0, len(cfg.Models)+1)
 	values = make([]string, 0, len(cfg.Models)+1)
 
-	auto := configBot.DefaultModel
-	if current == configBot.DefaultModel {
+	auto := configbot.DefaultModel
+	if current == configbot.DefaultModel {
 		auto += "  " + systemStyle.Render("[current]")
 	}
 	options = append(options, auto)
-	values = append(values, sessionModelPrefix+configBot.DefaultModel)
+	values = append(values, sessionModelPrefix+configbot.DefaultModel)
 
-	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
+	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
@@ -76,7 +77,7 @@ func (t TUI) runSessionModelSelect(name string) (TUI, tea.Cmd) {
 	if sid == "" {
 		return t, notice(msgLog("no active session") + "\n")
 	}
-	configBot.SetModel(sid, name, "")
+	configbot.SetModel(sid, name, "")
 	return t, nil
 }
 
@@ -88,7 +89,7 @@ type ModelOrderSave struct {
 func saveModelOrder(names []string) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("config.Load: %w", err)
+		return utilsmsg.Trace("config.Load", "", err)
 	}
 	var slots []int
 	for i, m := range cfg.Models {
@@ -97,13 +98,13 @@ func saveModelOrder(names []string) error {
 		}
 	}
 	if len(slots) != len(names) {
-		return fmt.Errorf("model list changed, reorder again")
+		return utilsmsg.New(utilsmsg.Conflict, "model list", "changed, reorder again")
 	}
 	for k, i := range slots {
 		cfg.Models[i] = config.ModelEntry{Name: names[k]}
 	}
 	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("config.Save: %w", err)
+		return utilsmsg.Trace("config.Save", "", err)
 	}
 	agents.Reload()
 	return nil

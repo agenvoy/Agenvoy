@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type httpResponse struct {
@@ -34,7 +34,7 @@ var httpMethods = []string{
 
 func sendHTTPRequest(ctx context.Context, api, method string, headers map[string]string, body map[string]any, contentType string, timeout int) (string, error) {
 	if api == "" {
-		return "", fmt.Errorf("url is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "url", "required")
 	}
 	if err := checkSSRF(api); err != nil {
 		return "", err
@@ -49,7 +49,7 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 	method = strings.ToUpper(method)
 
 	if !slices.Contains(httpMethods, method) {
-		return "", fmt.Errorf("invalid method: %s", method)
+		return "", utilsmsg.New(utilsmsg.Invalid, "method", "unsupported %s", method)
 	}
 
 	if contentType == "" {
@@ -72,7 +72,7 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 	case "GET", "DELETE":
 		req, err = http.NewRequestWithContext(reqCtx, method, api, nil)
 		if err != nil {
-			return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Invalid, "http.NewRequestWithContext", "", err)
 		}
 
 	case "POST", "PUT", "PATCH":
@@ -85,30 +85,30 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 
 			req, err = http.NewRequestWithContext(reqCtx, method, api, strings.NewReader(requestBody.Encode()))
 			if err != nil {
-				return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "http.NewRequestWithContext", "", err)
 			}
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 		case "multipart":
 			buf, ct, err := buildMultipart(body)
 			if err != nil {
-				return "", fmt.Errorf("buildMultipart: %w", err)
+				return "", utilsmsg.Trace("buildMultipart", "", err)
 			}
 			req, err = http.NewRequestWithContext(reqCtx, method, api, buf)
 			if err != nil {
-				return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "http.NewRequestWithContext", "", err)
 			}
 			req.Header.Set("Content-Type", ct)
 
 		default:
 			requestBody, err := json.Marshal(body)
 			if err != nil {
-				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Marshal", "body", err)
 			}
 
 			req, err = http.NewRequestWithContext(reqCtx, method, api, strings.NewReader(string(requestBody)))
 			if err != nil {
-				return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "http.NewRequestWithContext", "", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
 		}
@@ -125,13 +125,13 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("client.Do: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "client.Do", api, err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
-		return "", fmt.Errorf("io.ReadAll: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "io.ReadAll", api, err)
 	}
 
 	respHeaders := make(map[string]string)
@@ -149,7 +149,7 @@ func sendHTTPRequest(ctx context.Context, api, method string, headers map[string
 
 	output, err := utils.MarshalPlain(result)
 	if err != nil {
-		return "", fmt.Errorf("utils.MarshalPlain: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "utils.MarshalPlain", "", err)
 	}
 
 	return string(output), nil
@@ -162,7 +162,7 @@ func buildMultipart(body map[string]any) (*bytes.Buffer, string, error) {
 	if fields, ok := body["fields"].(map[string]any); ok {
 		for k, v := range fields {
 			if err := w.WriteField(k, fmt.Sprint(v)); err != nil {
-				return nil, "", fmt.Errorf("WriteField %q: %w", k, err)
+				return nil, "", utilsmsg.Wrap(utilsmsg.Internal, "multipart.WriteField", k, err)
 			}
 		}
 	}
@@ -171,12 +171,12 @@ func buildMultipart(body map[string]any) (*bytes.Buffer, string, error) {
 		for i, f := range files {
 			fmap, ok := f.(map[string]any)
 			if !ok {
-				return nil, "", fmt.Errorf("files[%d] is not an object", i)
+				return nil, "", utilsmsg.New(utilsmsg.Invalid, "files", "[%d] is not an object", i)
 			}
 			name, _ := fmap["name"].(string)
 			path, _ := fmap["path"].(string)
 			if name == "" || path == "" {
-				return nil, "", fmt.Errorf("files[%d] requires name and path", i)
+				return nil, "", utilsmsg.New(utilsmsg.Invalid, "files", "[%d] requires name and path", i)
 			}
 			ct, _ := fmap["content_type"].(string)
 			if ct == "" {
@@ -185,7 +185,7 @@ func buildMultipart(body map[string]any) (*bytes.Buffer, string, error) {
 
 			file, err := os.Open(path)
 			if err != nil {
-				return nil, "", fmt.Errorf("open %q: %w", path, err)
+				return nil, "", utilsmsg.Wrap(utilsmsg.Internal, "os.Open", path, err)
 			}
 
 			h := make(textproto.MIMEHeader)
@@ -195,18 +195,18 @@ func buildMultipart(body map[string]any) (*bytes.Buffer, string, error) {
 			part, err := w.CreatePart(h)
 			if err != nil {
 				file.Close()
-				return nil, "", fmt.Errorf("CreatePart %q: %w", name, err)
+				return nil, "", utilsmsg.Wrap(utilsmsg.Internal, "multipart.CreatePart", name, err)
 			}
 			if _, err := io.Copy(part, file); err != nil {
 				file.Close()
-				return nil, "", fmt.Errorf("copy %q: %w", path, err)
+				return nil, "", utilsmsg.Wrap(utilsmsg.Internal, "io.Copy", path, err)
 			}
 			file.Close()
 		}
 	}
 
 	if err := w.Close(); err != nil {
-		return nil, "", fmt.Errorf("Writer.Close: %w", err)
+		return nil, "", utilsmsg.Wrap(utilsmsg.Internal, "multipart.Writer.Close", "", err)
 	}
 
 	return &buf, w.FormDataContentType(), nil
@@ -226,14 +226,14 @@ var privateNets = []net.IPNet{
 func checkSSRF(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("invalid url: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "url.Parse", "", err)
 	}
 	host := u.Hostname()
 	if host == "" {
-		return fmt.Errorf("url has no host")
+		return utilsmsg.New(utilsmsg.Invalid, "url", "no host")
 	}
 	if strings.EqualFold(u.Scheme, "file") || strings.EqualFold(u.Scheme, "ftp") {
-		return fmt.Errorf("scheme %q not allowed", u.Scheme)
+		return utilsmsg.New(utilsmsg.Denied, "scheme", "%q not allowed", u.Scheme)
 	}
 	if slices.Contains(filesystem.NetWhiteList, strings.ToLower(host)) {
 		return nil
@@ -241,15 +241,15 @@ func checkSSRF(rawURL string) error {
 
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return fmt.Errorf("dns lookup %q: %w", host, err)
+		return utilsmsg.Wrap(utilsmsg.Unavailable, "net.LookupIP", host, err)
 	}
 	for _, ip := range ips {
 		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-			return fmt.Errorf("host %q resolves to non-routable address %s", host, ip)
+			return utilsmsg.New(utilsmsg.Denied, "host", "%q resolves to non-routable address %s", host, ip)
 		}
 		for _, pn := range privateNets {
 			if pn.Contains(ip) {
-				return fmt.Errorf("host %q resolves to private address %s", host, ip)
+				return utilsmsg.New(utilsmsg.Denied, "host", "%q resolves to private address %s", host, ip)
 			}
 		}
 	}

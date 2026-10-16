@@ -2,17 +2,18 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
 	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type DiscordAction struct {
@@ -56,23 +57,23 @@ func (t TUI) openDiscordTokenPrompt() (TUI, tea.Cmd) {
 func enableDiscord(token string) tea.Cmd {
 	return func() tea.Msg {
 		if token == "" {
-			return DiscordDone{action: "enable", err: fmt.Errorf("token is required")}
+			return DiscordDone{action: "enable", err: utilsmsg.New(utilsmsg.Invalid, "token", "is required")}
 		}
 		username, err := verifyDiscord(token)
 		if err != nil {
 			return DiscordDone{action: "enable", err: err}
 		}
 		if err := keychain.Set(discord.Key, token); err != nil {
-			return DiscordDone{action: "enable", err: fmt.Errorf("keychain.Set: %w", err)}
+			return DiscordDone{action: "enable", err: utilsmsg.Wrap(utilsmsg.Internal, "keychain.Set", "", err)}
 		}
 		cfg, err := config.Load()
 		if err != nil {
-			return DiscordDone{action: "enable", err: fmt.Errorf("session.Load: %w", err)}
+			return DiscordDone{action: "enable", err: utilsmsg.Trace("session.Load", "", err)}
 		}
 		cfg.DiscordEnabled = true
 		cfg.DiscordUsername = username
 		if err := config.Save(cfg); err != nil {
-			return DiscordDone{action: "enable", err: fmt.Errorf("session.Save: %w", err)}
+			return DiscordDone{action: "enable", err: utilsmsg.Trace("session.Save", "", err)}
 		}
 		return DiscordDone{action: "enable"}
 	}
@@ -82,7 +83,7 @@ func disableDiscord() tea.Cmd {
 	return func() tea.Msg {
 		cfg, err := config.Load()
 		if err != nil {
-			return DiscordDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
+			return DiscordDone{action: "disable", err: utilsmsg.Trace("session.Load", "", err)}
 		}
 		if !cfg.DiscordEnabled && cfg.DiscordUsername == "" && keychain.Get(discord.Key) == "" {
 			return DiscordDone{action: "disable"}
@@ -94,7 +95,7 @@ func disableDiscord() tea.Cmd {
 		cfg.DiscordEnabled = false
 		cfg.DiscordUsername = ""
 		if err := config.Save(cfg); err != nil {
-			return DiscordDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
+			return DiscordDone{action: "disable", err: utilsmsg.Trace("session.Save", "", err)}
 		}
 		return DiscordDone{action: "disable"}
 	}
@@ -103,13 +104,13 @@ func disableDiscord() tea.Cmd {
 func verifyDiscord(token string) (string, error) {
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/discord New: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.New", "", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Start(ctx); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/discord Start: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.Start", "", err)
 	}
 	username := client.Status().Username
 	_ = client.Close()

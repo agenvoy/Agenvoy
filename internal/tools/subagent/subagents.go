@@ -3,13 +3,13 @@ package subagent
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -17,7 +17,7 @@ func Register() {
 }
 
 func registSubagents() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "subagents",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -53,14 +53,14 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				},
 				"model": map[string]any{
 					"type":        "string",
-					"description": "mode=invoke: required. Worker model for the leg: map the leg's one job to its work kind and take the first model the tier list in reasoning_guide(topic=subagent_dispatch) gives for it. When `self_id` resolves to a session pinned to its own model, that model runs and this is ignored; a session left on auto runs this one. `auto` hands the choice to the dispatcher, which picks from the task as for a normal request. Any other unregistered or `pass`-tier name is rejected.",
+					"description": "mode=invoke: required. Worker model for the leg: map the leg's one job to its work kind and take the first model the tier list in reasoning_guide(topic=subagent_dispatch) gives for it; it overrides the model a `self_id` session is pinned to. `auto` defers to that session's pinned model, else the dispatcher picks from the task as for a normal request. Any other unregistered or `pass`-tier name is rejected.",
 					"default":     "",
 				},
 				"reasoning": map[string]any{
 					"type":        "string",
 					"enum":        reasoningLevels,
-					"default":     "low",
-					"description": "mode=invoke: thinking depth, used only when the run lands in a temp session; a resolved `self_id` uses that session's own setting. Keep `low` — gathering needs none and depth multiplies across the fan-out. Raise it only for a leg whose own written output must reason rather than gather.",
+					"default":     configs.REASONING_AUTO,
+					"description": "mode=invoke: thinking depth; overrides a `self_id` session's own setting. Pass `low` for gathering — depth multiplies across the fan-out; raise it only for a leg whose own written output must reason rather than gather. `auto` defers to that session's setting, else the dispatcher picks it, costing one extra dispatcher call per leg.",
 				},
 				"new": map[string]any{
 					"type":        "boolean",
@@ -79,11 +79,11 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params invokeParams
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("json.Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -100,11 +100,11 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				return invokeSubagent(ctx, e, params)
 			case "list":
 				if strings.TrimSpace(params.SelfID) == "" {
-					return "", fmt.Errorf("self_id is required when mode=list")
+					return "", utilsmsg.New(utilsmsg.Invalid, "self_id", "required when mode=list")
 				}
 				return listSessions(params.SelfID), nil
 			}
-			return "", fmt.Errorf("unknown mode %q; available: invoke, list", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown mode %q; available: invoke, list", mode)
 		},
 	})
 }

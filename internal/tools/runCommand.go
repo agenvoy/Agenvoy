@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,12 +20,13 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registRunCommand() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "run_command",
 		Timeout:     configs.RUN_COMMAND_TIMEOUT,
 		SystemUse:   false,
@@ -56,14 +58,14 @@ Inspection only (git status / log / diff, du, which, docker ps, git config --lis
 			},
 			"required": []string{"argv"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Argv       []string `json:"argv"`
 				Network    bool     `json:"network"`
 				WritePaths []string `json:"write_paths"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			return runCommand(ctx, e, params.Argv, params.WritePaths, params.Network)
 		},
@@ -71,27 +73,31 @@ Inspection only (git status / log / diff, du, which, docker ps, git config --lis
 }
 
 func deniedCommandErr(binary string) error {
-	return fmt.Errorf("%s is on denied_command and can never run; it cannot be approved and retrying changes nothing", binary)
+	return utilsmsg.New(utilsmsg.Denied, "run_command", "%s is on denied_command and can never run; it cannot be approved and retrying changes nothing", binary)
 }
 
 func sudoCommandErr() error {
-	return fmt.Errorf("sudo cannot elevate inside run_command: the sandbox blocks it. Re-run the command without sudo and declare write_paths with the absolute paths outside $HOME it writes to; that raises the sudo confirm, where the user approves them with the system password. For %s", systemPackageRoute())
+	return utilsmsg.New(utilsmsg.Denied, "sudo", "cannot elevate inside run_command: the sandbox blocks it. Re-run the command without sudo and declare write_paths with the absolute paths outside $HOME it writes to; that raises the sudo confirm, where the user approves them with the system password. For %s", systemPackageRoute())
+}
+
+func openCommandErr() error {
+	return utilsmsg.New(utilsmsg.Denied, "open", "the sandbox has no route to the app-launch service (error -54); call open_file with the file path or URL instead")
 }
 
 func systemPackageRoute() string {
 	return "installing or removing a system package → pkg_manage"
 }
 
-func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []string, network bool) (string, error) {
+func runCommand(ctx context.Context, e *tooltypes.Executor, argv, writePaths []string, network bool) (string, error) {
 	if len(argv) == 0 {
-		return "", fmt.Errorf("run_command requires a non-empty 'argv' array, e.g. [\"git\", \"status\"]")
+		return "", utilsmsg.New(utilsmsg.Invalid, "argv", "requires a non-empty array, e.g. [\"git\", \"status\"]")
 	}
 
 	binary := filepath.Base(argv[0])
 	denied := filesystem.DeniedCommand
 
 	if binary != argv[0] {
-		return "", fmt.Errorf("failed to run command: %q must be a bare command name (%q), not a path", argv[0], binary)
+		return "", utilsmsg.New(utilsmsg.Invalid, "run_command", "%q must be a bare command name (%q), not a path", argv[0], binary)
 	}
 
 	if (binary == "sh" || binary == "bash") && len(argv) >= 3 && argv[1] == "-c" {
@@ -99,7 +105,7 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 			return "", deniedCommandErr(binary)
 		}
 		if strings.TrimSpace(argv[2]) == "" {
-			return "", fmt.Errorf("%s -c requires a non-empty command string", binary)
+			return "", utilsmsg.New(utilsmsg.Invalid, binary+" -c", "requires a non-empty command string")
 		}
 		if err := validateShellScript(argv[2], denied); err != nil {
 			return "", err
@@ -113,6 +119,9 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 		}
 		if binary == "sudo" {
 			return "", sudoCommandErr()
+		}
+		if binary == "open" && runtime.GOOS == "darwin" {
+			return "", openCommandErr()
 		}
 		if binary == "rm" {
 			return moveToTrash(ctx, e, argv[1:])
@@ -143,10 +152,10 @@ func runCommand(ctx context.Context, e *toolTypes.Executor, argv, writePaths []s
 
 	cmd, err := go_pkg_sandbox.Wrap(ctx, argv[0], argv[1:], e.WorkDir, sandboxOpt)
 	if err != nil {
-		return "", fmt.Errorf("sandbox.Wrap: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_sandbox.Wrap", "", err)
 	}
 
-	sink := &progressWriter{send: toolTypes.Progress(ctx)}
+	sink := &progressWriter{send: tooltypes.Progress(ctx)}
 	cmd.Stdout = sink
 	cmd.Stderr = sink
 

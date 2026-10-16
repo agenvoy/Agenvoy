@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Reply struct {
@@ -29,7 +30,7 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			r.Finish()
-			return fmt.Errorf("os.UserHomeDir: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 		}
 		data.WorkDir = home
 	}
@@ -39,14 +40,14 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		origin = "tg-"
 	}
 	data = exec.Prepare(data)
-	execCtx := agentTypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
-	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agentTypes.Event) error {
-		return exec.Start(execCtx, data, stream)
+	execCtx := agentstypes.WithOrigin(exec.SuppressDcPush(ctx), origin)
+	events, wait := exec.Stream(execCtx, data.SessionID, 128, func(stream chan<- agentstypes.Event) error {
+		return exec.Run(execCtx, data, stream, false)
 	})
 	return r.deliver(events, wait)
 }
 
-func (r Reply) deliver(events <-chan agentTypes.Event, wait func() error) error {
+func (r Reply) deliver(events <-chan agentstypes.Event, wait func() error) error {
 	tag := "[Discord]"
 	toolError := func(toolName, text string) string {
 		return fmt.Sprintf("`%s`: %s", toolName, text)
@@ -80,14 +81,14 @@ func (r Reply) deliver(events <-chan agentTypes.Event, wait func() error) error 
 	text = strings.TrimSpace(text)
 	if text == "" {
 		if execErr == nil {
-			return fmt.Errorf("no reply")
+			return utilsmsg.New(utilsmsg.Upstream, "reply", "empty")
 		}
 		if _, err := r.Send(r.ReplyTo, notice("⚠️ "+execErr.Error())); err != nil {
 			slog.Warn(tag+" send exec error",
 				slog.String("session", r.SessionID),
 				slog.String("error", err.Error()))
 		}
-		return fmt.Errorf("exec: %w", execErr)
+		return utilsmsg.Trace("exec", "", execErr)
 	}
 
 	text, paths := utils.ExtractFileMarkers(text)

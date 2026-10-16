@@ -1,0 +1,3 @@
+Available skills:
+
+{{.Skills}}

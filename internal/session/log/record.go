@@ -6,11 +6,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/configs"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
 )
 
 const (
@@ -36,18 +37,18 @@ func Steer(sessionID, windowHash, str string) {
 	if str == "" {
 		return
 	}
-	flushAssistant(sessionID, agentTypes.Event{WindowHash: windowHash})
+	flushAssistant(sessionID, agenttypes.Event{WindowHash: windowHash})
 	appendAction(sessionID, withTimestamp(windowHash, "steer", "", flatten(str)))
 }
 
-func Record(sessionID string, event agentTypes.Event) {
+func Record(sessionID string, event agenttypes.Event) {
 	switch event.Type {
-	case agentTypes.EventTextDelta:
+	case agenttypes.EventTextDelta:
 		return
-	case agentTypes.EventText:
+	case agenttypes.EventText:
 		appendAssistant(sessionID, event)
 		return
-	case agentTypes.EventTextDone:
+	case agenttypes.EventTextDone:
 		flushAssistant(sessionID, event)
 		return
 	}
@@ -61,7 +62,7 @@ func Record(sessionID string, event agentTypes.Event) {
 	appendAction(sessionID, line)
 }
 
-func appendAssistant(sessionID string, event agentTypes.Event) {
+func appendAssistant(sessionID string, event agenttypes.Event) {
 	if sessionID == "" {
 		return
 	}
@@ -79,7 +80,7 @@ func appendAssistant(sessionID string, event agentTypes.Event) {
 	sb.WriteByte('\n')
 }
 
-func flushAssistant(sessionID string, event agentTypes.Event) {
+func flushAssistant(sessionID string, event agenttypes.Event) {
 	if sessionID == "" {
 		return
 	}
@@ -132,7 +133,7 @@ func appendAction(sessionID, line string) {
 func trim(path string) {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+		slog.Warn("go_pkg_filesystem.ReadText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
@@ -152,14 +153,14 @@ func trim(path string) {
 	}
 	if cut >= len(data) {
 		if err := go_pkg_filesystem.WriteFile(path, "", 0644); err != nil {
-			slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+			slog.Warn("go_pkg_filesystem.WriteFile",
 				slog.String("file", path),
 				slog.String("error", err.Error()))
 		}
 		return
 	}
 	if err := go_pkg_filesystem.WriteFile(path, string(data[cut:]), 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+		slog.Warn("go_pkg_filesystem.WriteFile",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 	}

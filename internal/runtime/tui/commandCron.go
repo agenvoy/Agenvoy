@@ -32,7 +32,7 @@ func (t TUI) dispatchAgent(content string) (TUI, tea.Cmd) {
 	if content == "" {
 		return t, nil
 	}
-	if len(agents.Registry().Entries) == 0 {
+	if len(agents.ModelSet().Order) == 0 {
 		return t, notice(msgWarn("no model configured  /model global add") + "\n")
 	}
 	t = t.recordInputHistory(content)

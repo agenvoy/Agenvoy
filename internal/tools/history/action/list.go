@@ -3,12 +3,12 @@ package actionHistory
 import (
 	"fmt"
 
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func list(e *toolTypes.Executor, limit int) (string, error) {
+func list(e *tooltypes.Executor, limit int) (string, error) {
 	if limit <= 0 {
 		limit = defaultListLimit
 	}
@@ -41,7 +41,7 @@ func list(e *toolTypes.Executor, limit int) (string, error) {
 
 	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

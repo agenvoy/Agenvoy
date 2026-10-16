@@ -3,17 +3,17 @@ package audio
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
 	InstallTranscriber()
 
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "generate_audio",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -43,14 +43,14 @@ Returns the saved path, not the audio data.`,
 			},
 			"required": []string{"text"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Text       string `json:"text"`
 				Voice      string `json:"voice"`
 				OutputFile string `json:"output_file"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			return Generate(ctx, Request{
 				Text:       params.Text,

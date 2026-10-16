@@ -2,8 +2,9 @@ package usage
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type ModelUsage struct {
@@ -48,7 +49,7 @@ func Total(days int, now time.Time) (map[string]ModelUsage, error) {
 
 func window(days int, now time.Time) (int64, error) {
 	if days < 1 {
-		return 0, fmt.Errorf("days must be positive")
+		return 0, utilsmsg.New(utilsmsg.Invalid, "days", "must be positive")
 	}
 	return now.Add(-time.Duration(days) * 24 * time.Hour).UnixNano(), nil
 }
@@ -61,7 +62,7 @@ func aggregate(query string, args ...any) (map[string]ModelUsage, error) {
 
 	rows, err := conn.QueryContext(context.Background(), query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT usage]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT usage]", err)
 	}
 	defer rows.Close()
 
@@ -69,7 +70,7 @@ func aggregate(query string, args ...any) (map[string]ModelUsage, error) {
 		var model string
 		var input, output, write, hit, elapsedMS, timedOutput int64
 		if err := rows.Scan(&model, &input, &output, &write, &hit, &elapsedMS, &timedOutput); err != nil {
-			return nil, fmt.Errorf("sql.Rows Scan [SELECT usage]: %w", err)
+			return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Scan", "[SELECT usage]", err)
 		}
 		tps := 0.0
 		if elapsedMS > 0 && timedOutput > 0 {
@@ -85,7 +86,7 @@ func aggregate(query string, args ...any) (map[string]ModelUsage, error) {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT usage]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[SELECT usage]", err)
 	}
 	return result, nil
 }

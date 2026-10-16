@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 	"github.com/pardnchiu/agenvoy/page"
 )
 
@@ -93,7 +94,7 @@ self.addEventListener("fetch", function (event) {
 func swWorker() (string, error) {
 	raw, err := page.FS.ReadFile("index.html")
 	if err != nil {
-		return "", fmt.Errorf("page.FS.ReadFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "page.FS.ReadFile", "", err)
 	}
 	stamp := map[string]string{"/": swSum(raw)}
 
@@ -113,20 +114,20 @@ func swWorker() (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("fs.WalkDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "fs.WalkDir", "", err)
 	}
 	precache := slices.Sorted(maps.Keys(stamp))
 
 	manifest, err := page.FS.ReadFile("vendor.json")
 	if err != nil {
-		return "", fmt.Errorf("page.FS.ReadFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "page.FS.ReadFile", "", err)
 	}
 	var list []struct {
 		Path string `json:"path"`
 		URL  string `json:"url"`
 	}
 	if err := json.Unmarshal(manifest, &list); err != nil {
-		return "", fmt.Errorf("json.Unmarshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "", err)
 	}
 
 	vendor := make([]string, 0, len(list))

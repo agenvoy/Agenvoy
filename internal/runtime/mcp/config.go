@@ -18,6 +18,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type ServerConfig struct {
@@ -40,7 +41,7 @@ func Load() (Config, error) {
 	}
 	cfg, err := go_pkg_filesystem.ReadJSON[Config](filesystem.McpPath)
 	if err != nil {
-		return Config{}, fmt.Errorf("go_pkg_filesystem.ReadJSON: %w", err)
+		return Config{}, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadJSON", "", err)
 	}
 	if cfg.Servers == nil {
 		cfg.Servers = map[string]ServerConfig{}
@@ -53,10 +54,10 @@ func Save(cfg Config) error {
 		cfg.Servers = map[string]ServerConfig{}
 	}
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(filesystem.McpPath), true); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", "", err)
 	}
 	if err := go_pkg_filesystem.WriteJSON(filesystem.McpPath, cfg, false); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", "", err)
 	}
 	return nil
 }
@@ -132,7 +133,7 @@ func (c ServerConfig) toTransport(name string) (mcpsdk.Transport, error) {
 		cmd.Stderr = os.Stderr
 		return &mcpsdk.CommandTransport{Command: cmd}, nil
 	default:
-		return nil, fmt.Errorf("neither command nor url")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "server config", "neither command nor url")
 	}
 }
 
@@ -179,7 +180,7 @@ func (r *jsonrpcStatusRoundTripper) RoundTrip(req *http.Request) (*http.Response
 	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, configs.MAX_DOCUMENT_BYTES*8))
 	resp.Body.Close()
 	if readErr != nil {
-		return nil, fmt.Errorf("read forbidden body: %w", readErr)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "read", "forbidden body", readErr)
 	}
 	resp.Body = io.NopCloser(bytes.NewReader(raw))
 	resp.ContentLength = int64(len(raw))

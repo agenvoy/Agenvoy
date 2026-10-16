@@ -13,6 +13,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 func unitPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("os.UserHomeDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 	}
 	return filepath.Join(home, ".config", "systemd", "user", unitName), nil
 }
@@ -36,21 +37,21 @@ func Enabled() bool {
 func Enable() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return "", fmt.Errorf("os.Executable: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Executable", "", err)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("os.UserHomeDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 	}
 	path, err := unitPath()
 	if err != nil {
 		return "", err
 	}
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(path), err)
 	}
 	if err := go_pkg_filesystem.WriteFile(path, unit(exe, home), 0644); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	if _, err := run("systemctl", "--user", "daemon-reload"); err != nil {
 		return "", err
@@ -75,7 +76,7 @@ func Disable() (string, error) {
 		return "", err
 	}
 	if err := os.Remove(path); err != nil {
-		return "", fmt.Errorf("os.Remove: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", path, err)
 	}
 	if _, err := run("systemctl", "--user", "daemon-reload"); err != nil {
 		return "", err
@@ -110,7 +111,7 @@ func run(name string, args ...string) (string, error) {
 	raw, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	out := strings.TrimSpace(string(raw))
 	if err != nil {
-		return out, fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, out)
+		return out, utilsmsg.New(utilsmsg.Internal, name+" "+strings.Join(args, " "), "%w: %s", err, out)
 	}
 	return out, nil
 }

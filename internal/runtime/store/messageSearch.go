@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Result struct {
@@ -57,7 +58,7 @@ func Search(sessionID, keyword, timeRange string, limit int) ([]Result, error) {
 	LIMIT ?
 	`, sessionID, term, after, before, limit)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB Query [SELECT messages]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Query", "[SELECT messages]", err)
 	}
 	defer rows.Close()
 

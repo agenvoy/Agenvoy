@@ -3,16 +3,15 @@ package calculate
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "calculate",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -32,15 +31,15 @@ It computes, it does not look anything up: a rate, a price or any live figure co
 			},
 			"required": []string{"expressions"},
 		},
-		Handler: func(_ context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Expressions []string `json:"expressions"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Expressions) == 0 {
-				return "", fmt.Errorf("expressions is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "expressions", "required")
 			}
 
 			out := make(map[string]string, len(params.Expressions))
@@ -54,7 +53,7 @@ It computes, it does not look anything up: a rate, a price or any live figure co
 
 			raw, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "utils.MarshalPlain", "", err)
 			}
 			return string(raw), nil
 		},

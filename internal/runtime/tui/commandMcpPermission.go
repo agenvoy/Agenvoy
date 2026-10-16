@@ -9,7 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	agentsexecallowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
 )
 
@@ -64,7 +64,7 @@ func (t TUI) runMcpPermissionResult(msg McpPermissionResult) (TUI, tea.Cmd) {
 		summaries[i] = nameSummary[name]
 	}
 
-	granted := allowTool.LoadGlobal()
+	granted := agentsexecallowtool.Load()
 	all := allowAllEntry(msg.server)
 
 	options := make([]string, 0, len(names)+1)
@@ -148,7 +148,7 @@ func (t TUI) runMcpPermissionPick(msg McpPermissionPick) (TUI, tea.Cmd) {
 		entries = []string{allowAllEntry(msg.server)}
 	}
 
-	if err := allowTool.ReplaceGlobalPrefix(mcpToolPrefix(msg.server), entries); err != nil {
+	if err := agentsexecallowtool.ToggleMCP(mcpToolPrefix(msg.server), entries); err != nil {
 		return t, notice(msgError(fmt.Sprintf("%s permission: %v", msg.server, err)) + "\n")
 	}
 

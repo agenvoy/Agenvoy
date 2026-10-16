@@ -9,18 +9,19 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func removeSkillDir(ctx context.Context, e *toolTypes.Executor, name string) (string, error) {
+func removeSkillDir(ctx context.Context, e *tooltypes.Executor, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
-		return "", fmt.Errorf("invalid skill name: %q", name)
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "invalid skill name: %q", name)
 	}
 
 	dir := filepath.Join(filesystem.SkillsDir, name)
 	if !go_pkg_filesystem_reader.IsDir(dir) {
-		return "", fmt.Errorf("skill %q does not exist", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "skill", "%q does not exist", name)
 	}
 
 	trashPath, err := filesystem.TrashDir(dir, filesystem.SkillTrashDir, name)

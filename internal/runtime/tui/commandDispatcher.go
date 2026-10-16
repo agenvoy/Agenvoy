@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
+
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 const dispatcherPrefix = "dispatch:"
@@ -25,7 +25,7 @@ func dispatcherOptions() (options, values []string, cursor int) {
 		return nil, nil, 0
 	}
 
-	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
+	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
@@ -61,8 +61,8 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 	}
 
 	candidates := make([]string, 0, len(cfg.Models)+1)
-	candidates = append(candidates, configBot.DefaultModel)
-	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
+	candidates = append(candidates, configbot.DefaultModel)
+	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, m := range cfg.Models {
 		if skipClaudeCode && claudeCode.Is(m.Name) {
 			continue
@@ -70,7 +70,7 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 		candidates = append(candidates, m.Name)
 	}
 
-	currentModel, _ := configBot.GetModel(sid)
+	currentModel, _ := configbot.GetModel(sid)
 	current := 0
 	for i, c := range candidates {
 		if c == currentModel {
@@ -88,7 +88,7 @@ func (t TUI) cycleDispatcher(forward bool) (TUI, tea.Cmd) {
 	}
 
 	picked := candidates[next]
-	configBot.SetModel(sid, picked, "")
+	configbot.SetModel(sid, picked, "")
 	return t, nil
 }
 

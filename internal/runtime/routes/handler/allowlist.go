@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	allowSkill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
-	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	agentsexecallowskill "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/skill"
+	agentsexecallowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
@@ -30,13 +30,13 @@ func allowSkillBlock(c *gin.Context) (gin.H, bool) {
 	var allowed map[string]bool
 	switch scope {
 	case "global":
-		allowed = allowSkill.LoadGlobal()
+		allowed = agentsexecallowskill.Load()
 	case "project":
 		if workDir == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "work_dir required for scope=project"})
 			return nil, false
 		}
-		allowed = allowSkill.LoadEffective(workDir)
+		allowed = agentsexecallowskill.Load(workDir)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown scope: " + scope})
 		return nil, false
@@ -55,7 +55,7 @@ func allowToolBlock(c *gin.Context) gin.H {
 	prefix := strings.TrimSpace(c.Query("prefix"))
 
 	entries := make([]string, 0, 16)
-	for entry := range allowTool.LoadGlobal() {
+	for entry := range agentsexecallowtool.Load() {
 		if prefix == "" || strings.HasPrefix(entry, prefix) {
 			entries = append(entries, entry)
 		}
@@ -119,7 +119,7 @@ func SetAllowlist() gin.HandlerFunc {
 			if slices.Contains(entries, prefix+"*") {
 				entries = []string{prefix + "*"}
 			}
-			if err := allowTool.ReplaceGlobalPrefix(prefix, entries); err != nil {
+			if err := agentsexecallowtool.ToggleMCP(prefix, entries); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
@@ -136,14 +136,14 @@ func SetAllowlist() gin.HandlerFunc {
 			var err error
 			switch body.Skill.Scope {
 			case "global", "":
-				added, err = allowSkill.ToggleGlobal(name)
+				added, err = agentsexecallowskill.Toggle(name)
 			case "project":
 				workDir := strings.TrimSpace(body.Skill.WorkDir)
 				if workDir == "" {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "skill.work_dir required for scope=project"})
 					return
 				}
-				added, err = allowSkill.ToggleProject(workDir, name)
+				added, err = agentsexecallowskill.Toggle(name, workDir)
 			default:
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown scope: " + body.Skill.Scope})
 				return

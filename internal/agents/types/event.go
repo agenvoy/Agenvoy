@@ -1,4 +1,4 @@
-package agentTypes
+package types
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
 type EventType int
@@ -169,31 +169,31 @@ func (e EventType) String() string {
 }
 
 type Event struct {
-	Type            EventType           `json:"type"`
-	WindowHash      string              `json:"window_hash,omitempty"`
-	TaskHash        string              `json:"task_hash,omitempty"`
-	PendingSession  string              `json:"pending_session,omitempty"`
-	Source          string              `json:"source,omitempty"`
-	Text            string              `json:"text,omitempty"`
-	ToolName        string              `json:"tool_name,omitempty"`
-	ToolArgs        string              `json:"tool_args,omitempty"`
-	ToolID          string              `json:"tool_id,omitempty"`
-	ConfirmHash     string              `json:"confirm_hash,omitempty"`
-	Result          string              `json:"result,omitempty"`
-	Model           string              `json:"model,omitempty"`
-	Reasoning       string              `json:"reasoning,omitempty"`
-	Usage           *provider.Usage     `json:"usage,omitempty"`
-	UsageInput      string              `json:"usage_input,omitempty"`
-	ContextTokens   int                 `json:"context_tokens,omitempty"`
-	Duration        time.Duration       `json:"duration,omitempty"`
-	OutputElapsed   time.Duration       `json:"output_elapsed,omitempty"`
-	Todos           []TodoItem          `json:"todos,omitempty"`
-	Suggests        []string            `json:"suggests,omitempty"`
-	Files           []string            `json:"files,omitempty"`
-	Restricted      []string            `json:"restricted,omitempty"`
-	PasswordCached  bool                `json:"password_cached,omitempty"`
-	ClientToolCalls []provider.ToolCall `json:"client_tool_calls,omitempty"`
-	Err             error               `json:"-"`
+	Type            EventType                `json:"type"`
+	WindowHash      string                   `json:"window_hash,omitempty"`
+	TaskHash        string                   `json:"task_hash,omitempty"`
+	PendingSession  string                   `json:"pending_session,omitempty"`
+	Source          string                   `json:"source,omitempty"`
+	Text            string                   `json:"text,omitempty"`
+	ToolName        string                   `json:"tool_name,omitempty"`
+	ToolArgs        string                   `json:"tool_args,omitempty"`
+	ToolID          string                   `json:"tool_id,omitempty"`
+	ConfirmHash     string                   `json:"confirm_hash,omitempty"`
+	Result          string                   `json:"result,omitempty"`
+	Model           string                   `json:"model,omitempty"`
+	Reasoning       string                   `json:"reasoning,omitempty"`
+	Usage           *go_llm_router.Usage     `json:"usage,omitempty"`
+	UsageInput      string                   `json:"usage_input,omitempty"`
+	ContextTokens   int                      `json:"context_tokens,omitempty"`
+	Duration        time.Duration            `json:"duration,omitempty"`
+	OutputElapsed   time.Duration            `json:"output_elapsed,omitempty"`
+	Todos           []TodoItem               `json:"todos,omitempty"`
+	Suggests        []string                 `json:"suggests,omitempty"`
+	Files           []string                 `json:"files,omitempty"`
+	Restricted      []string                 `json:"restricted,omitempty"`
+	PasswordCached  bool                     `json:"password_cached,omitempty"`
+	ClientToolCalls []go_llm_router.ToolCall `json:"client_tool_calls,omitempty"`
+	Err             error                    `json:"-"`
 }
 
 func ErrorEvent(err error) Event {
@@ -215,7 +215,7 @@ const (
 	TodoCompleted  = "completed"
 )
 
-func DoneEvent(model string, usage *provider.Usage, duration, outputElapsed time.Duration) Event {
+func DoneEvent(model string, usage *go_llm_router.Usage, duration, outputElapsed time.Duration) Event {
 	return Event{
 		Type:          EventDone,
 		Model:         model,

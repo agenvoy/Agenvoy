@@ -1,11 +1,11 @@
 package exec
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	"github.com/pardnchiu/agenvoy/configs"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 )
 
 var (
@@ -63,7 +63,7 @@ func AppendSteer(sessionID, windowHash, text string) {
 	e.mu.Lock()
 	e.list = append(e.list, text)
 	e.mu.Unlock()
-	sessionLog.Steer(sessionID, windowHash, text)
+	sessionlog.Steer(sessionID, windowHash, text)
 }
 
 func getSteer(sessionID string) []string {
@@ -87,5 +87,5 @@ func ClearSteer(sessionID string) {
 }
 
 func formatSteerInjection(pending []string) string {
-	return fmt.Sprintf("[使用者在任務進行中插話，任務尚未結束。請評估這則插話是否改變當前計畫的方向、範疇或優先序，並據此決定繼續原計畫、調整計畫，或依插話內容行動]\n%s", strings.Join(pending, "\n"))
+	return strings.ReplaceAll(strings.TrimSpace(configs.InjectSteer), "{{.Messages}}", strings.Join(pending, "\n"))
 }

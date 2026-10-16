@@ -1,12 +1,14 @@
 package tools
 
 import (
-	"fmt"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var shellAllow = map[string]bool{
@@ -25,7 +27,7 @@ var shellAllow = map[string]bool{
 func validateShellScript(script string, denied []string) error {
 	file, err := syntax.NewParser().Parse(strings.NewReader(script), "")
 	if err != nil {
-		return fmt.Errorf("sh -c parse: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "syntax.Parse", "sh -c", err)
 	}
 	var bad error
 	syntax.Walk(file, func(node syntax.Node) bool {
@@ -38,20 +40,24 @@ func validateShellScript(script string, denied []string) error {
 		}
 		bin, ok := staticWord(call.Args[0])
 		if !ok {
-			bad = fmt.Errorf("sh -c: dynamic command (variable or substitution) not allowed")
+			bad = utilsmsg.New(utilsmsg.Denied, "sh -c", "dynamic command (variable or substitution) not allowed")
 			return false
 		}
 		base := filepath.Base(bin)
 		if bin != base {
-			bad = fmt.Errorf("sh -c: %q must be a bare command name (%q), not a path", bin, base)
+			bad = utilsmsg.New(utilsmsg.Invalid, "sh -c", "%q must be a bare command name (%q), not a path", bin, base)
 			return false
 		}
 		if base == "rm" {
-			bad = fmt.Errorf("rm is not allowed inside sh -c")
+			bad = utilsmsg.New(utilsmsg.Denied, "sh -c", "rm is not allowed inside sh -c")
 			return false
 		}
 		if base == "sudo" {
 			bad = sudoCommandErr()
+			return false
+		}
+		if base == "open" && runtime.GOOS == "darwin" {
+			bad = openCommandErr()
 			return false
 		}
 		if shellAllow[base] {
@@ -68,7 +74,7 @@ func validateShellScript(script string, denied []string) error {
 			}
 			inner, ok := staticWord(call.Args[2])
 			if !ok {
-				bad = fmt.Errorf("sh -c: nested %s -c with dynamic script not allowed", base)
+				bad = utilsmsg.New(utilsmsg.Denied, "sh -c", "nested %s -c with dynamic script not allowed", base)
 				return false
 			}
 			if err := validateShellScript(inner, denied); err != nil {

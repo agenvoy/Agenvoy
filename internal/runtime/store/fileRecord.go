@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -48,7 +48,7 @@ func Capture(path string) (Change, error) {
 	case os.IsNotExist(err):
 		return Change{dir: filepath.Dir(path), name: filepath.Base(path), action: ActionCreate}, nil
 	case err != nil:
-		return Change{}, fmt.Errorf("os.Stat [%s]: %w", path, err)
+		return Change{}, utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", path, err)
 	case info.IsDir():
 		return Change{}, nil
 	case info.Size() > configs.MAX_DOCUMENT_BYTES:
@@ -57,7 +57,7 @@ func Capture(path string) (Change, error) {
 
 	content, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return Change{}, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadText [%s]: %w", path, err)
+		return Change{}, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 	return CaptureContent(path, content), nil
 }

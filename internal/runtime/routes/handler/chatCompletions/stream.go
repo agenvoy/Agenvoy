@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 var (
@@ -21,7 +22,7 @@ var (
 	multiNewlineRegex = regexp.MustCompile(`\n{3,}`)
 )
 
-func stream(c *gin.Context, id string, created int64, model string, events <-chan agentTypes.Event) {
+func stream(c *gin.Context, id string, created int64, model string, events <-chan agenttypes.Event) {
 	w := c.Writer
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -57,9 +58,9 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 	}
 
 	ctx := c.Request.Context()
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var streamErr error
-	var clientCalls []provider.ToolCall
+	var clientCalls []go_llm_router.ToolCall
 
 	emitContent := func(str string) bool {
 		if str == "" {
@@ -83,7 +84,7 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		return emitReasoningLine(line)
 	}
 	formatToolLine := func(name, args string) string {
-		return go_pkg_utils.TruncateString(internalUtils.FormatToolEvent(name, args), 128)
+		return go_pkg_utils.TruncateString(internalutils.FormatToolEvent(name, args), 128)
 	}
 
 	for ev := range events {
@@ -93,16 +94,16 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 		default:
 		}
 		switch ev.Type {
-		case agentTypes.EventAgentResult:
+		case agenttypes.EventAgentResult:
 			if t := strings.TrimSpace(ev.Text); t != "" && !emitDedup("▸ "+t) {
 				return
 			}
-		case agentTypes.EventSkillResult:
+		case agenttypes.EventSkillResult:
 			if t := strings.TrimSpace(ev.Text); t != "" && !emitDedup("▸ skill: "+t) {
 				return
 			}
-		case agentTypes.EventToolCall:
-			if internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
+		case agenttypes.EventToolCall:
+			if internalutils.HideToolEvent(ev.ToolName, ev.ToolArgs) {
 				break
 			}
 			line := formatToolLine(ev.ToolName, ev.ToolArgs)
@@ -112,29 +113,29 @@ func stream(c *gin.Context, id string, created int64, model string, events <-cha
 			if !emitDedup("▸ " + line) {
 				return
 			}
-		case agentTypes.EventToolSkipped:
+		case agenttypes.EventToolSkipped:
 			if ev.ToolName != "" && !emitDedup("▸ skipped: "+ev.ToolName) {
 				return
 			}
-		case agentTypes.EventExecError:
+		case agenttypes.EventExecError:
 			if t := strings.TrimSpace(ev.Text); t != "" && !emitReasoningLine("⚠ "+t) {
 				return
 			}
-		case agentTypes.EventReasoning:
+		case agenttypes.EventReasoning:
 			if t := strings.TrimSpace(ev.Text); t != "" && !emitReasoningLine(t) {
 				return
 			}
-		case agentTypes.EventTextDelta:
+		case agenttypes.EventTextDelta:
 			if !emitContent(ev.Text) {
 				return
 			}
-		case agentTypes.EventClientToolCall:
+		case agenttypes.EventClientToolCall:
 			clientCalls = append(clientCalls, ev.ClientToolCalls...)
-		case agentTypes.EventDone:
+		case agenttypes.EventDone:
 			if ev.Usage != nil {
 				usage = *ev.Usage
 			}
-		case agentTypes.EventError:
+		case agenttypes.EventError:
 			if ev.Err != nil {
 				streamErr = ev.Err
 			}

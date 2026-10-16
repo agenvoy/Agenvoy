@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/utils"
 	go_bot_discord "github.com/pardnchiu/go-bot/core/discord"
 	go_bot_telegram "github.com/pardnchiu/go-bot/core/telegram"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Channel int
@@ -41,7 +43,7 @@ func TranscribeSavedAttachments(ctx context.Context, attachments []SavedAttachme
 		}
 		text, err := filesystem.TranscribeMedia(ctx, attachment.Path)
 		if err != nil {
-			return nil, nil, fmt.Errorf("transcribe %s: %w", attachment.Path, err)
+			return nil, nil, utilsmsg.Trace("transcribe", attachment.Path, err)
 		}
 		if text = strings.TrimSpace(text); text != "" {
 			transcripts = append(transcripts, text)
@@ -55,33 +57,33 @@ func SendAdminCode(ctx context.Context, ch Channel, targetID, text string) error
 	case Telegram:
 		token := strings.TrimSpace(keychain.Get("TELEGRAM_TOKEN"))
 		if token == "" {
-			return fmt.Errorf("telegram token missing")
+			return utilsmsg.New(utilsmsg.Denied, "telegram token", "missing")
 		}
 		id, err := strconv.ParseInt(strings.TrimSpace(targetID), 10, 64)
 		if err != nil {
-			return fmt.Errorf("parse chatID %q: %w", targetID, err)
+			return utilsmsg.New(utilsmsg.Invalid, "chatID", "parse %q: %w", targetID, err)
 		}
 		client, err := go_bot_telegram.New(token)
 		if err != nil {
-			return fmt.Errorf("go-bot/telegram New: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.New", "", err)
 		}
 		if _, err := client.Send(ctx, id, 0, html.EscapeString(text), go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
-			return fmt.Errorf("go-bot/telegram Send: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.Send", "", err)
 		}
 	case Discord:
 		token := strings.TrimSpace(keychain.Get("DISCORD_TOKEN"))
 		if token == "" {
-			return fmt.Errorf("discord token missing")
+			return utilsmsg.New(utilsmsg.Denied, "discord token", "missing")
 		}
 		client, err := go_bot_discord.New(token)
 		if err != nil {
-			return fmt.Errorf("go-bot/discord New: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.New", "", err)
 		}
 		if _, err := client.Send(ctx, strings.TrimSpace(targetID), "", text); err != nil {
-			return fmt.Errorf("go-bot/discord Send: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.Send", "", err)
 		}
 	default:
-		return fmt.Errorf("unknown channel %d", ch)
+		return utilsmsg.New(utilsmsg.Internal, "channel", "unknown %d", ch)
 	}
 	return nil
 }
@@ -95,7 +97,7 @@ func wrapBlock(ch Channel, text string) string {
 	}
 }
 
-func BuildPushFooter(ch Channel, duration, outputElapsed time.Duration, model, reasoning string, usage *provider.Usage) string {
+func BuildPushFooter(ch Channel, duration, outputElapsed time.Duration, model, reasoning string, usage *go_llm_router.Usage) string {
 	footer := utils.FormatEventFooter(duration, outputElapsed, model, reasoning, usage)
 	if footer == "" {
 		return ""

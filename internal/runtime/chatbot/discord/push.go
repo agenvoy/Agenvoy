@@ -12,7 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessiondiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -23,9 +23,9 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 		return
 	}
 
-	channelID, err := sessionDiscord.GetChannel(id)
+	channelID, err := sessiondiscord.GetChannel(id)
 	if err != nil {
-		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChannelID",
+		slog.Debug("session.GetChannelID",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -36,14 +36,14 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 
 	token := strings.TrimSpace(keychain.Get(Key))
 	if token == "" {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem/keychain Get",
+		slog.Warn("go_pkg_filesystem_keychain.Get",
 			slog.String("session", id),
 			slog.String("key", Key))
 		return
 	}
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/core/discord New",
+		slog.Warn("go_bot_discord.New",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -60,7 +60,7 @@ func PushDiscordResult(ctx context.Context, payload exec.PushPayload) {
 		}
 		for _, part := range chatbot.Chunk(chatbot.Discord, message) {
 			if _, err := client.Send(ctx, channelID, "", part); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.Send",
+				slog.Warn("go_bot_discord.Bot.Send",
 					slog.String("session", id),
 					slog.String("channel", chanName),
 					slog.String("error", err.Error()))

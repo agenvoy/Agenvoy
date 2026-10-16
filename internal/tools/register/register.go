@@ -4,21 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-type Handler func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error)
+type Handler func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error)
 
-type GroupHandler func(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error)
+type GroupHandler func(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error)
 
 const (
 	NoToolTimeout = time.Duration(-1)
@@ -40,7 +41,7 @@ var mu sync.RWMutex
 
 var handlerMap = map[string]Handler{}
 var groupHandlerMap = map[string]GroupHandler{}
-var defList []provider.Tool
+var defList []go_llm_router.Tool
 var builtinNames []string
 var readOnlySet = map[string]bool{}
 var concurrentSet = map[string]bool{}
@@ -64,9 +65,9 @@ func Regist(d Def) {
 	}
 
 	raw, _ := json.Marshal(d.Parameters)
-	tool := provider.Tool{
+	tool := go_llm_router.Tool{
 		Type: "function",
-		Function: provider.ToolFunction{
+		Function: go_llm_router.ToolFunction{
 			Name:        d.Name,
 			Description: d.Description,
 			Parameters:  raw,
@@ -96,7 +97,7 @@ func RemoveByPrefix(prefix string) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	defList = slices.DeleteFunc(defList, func(t provider.Tool) bool {
+	defList = slices.DeleteFunc(defList, func(t go_llm_router.Tool) bool {
 		return strings.HasPrefix(t.Function.Name, prefix)
 	})
 	builtinNames = slices.DeleteFunc(builtinNames, func(n string) bool {
@@ -191,7 +192,7 @@ func IsSystemUse(name string) bool {
 	return systemUseSet[name]
 }
 
-func GetTool(name string) *provider.Tool {
+func GetTool(name string) *go_llm_router.Tool {
 	mu.RLock()
 	defer mu.RUnlock()
 	for i := range defList {
@@ -221,7 +222,7 @@ func JSON() []byte {
 	return raw
 }
 
-func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json.RawMessage) (string, error) {
+func Dispatch(ctx context.Context, e *tooltypes.Executor, name string, args json.RawMessage) (string, error) {
 	timeout := GetTimeout(name)
 	tctx, cancel := ctx, func() {}
 	if timeout > 0 {
@@ -244,7 +245,7 @@ func Dispatch(ctx context.Context, e *toolTypes.Executor, name string, args json
 	}
 	mu.RUnlock()
 	if run == nil {
-		return "", fmt.Errorf("not exist: %s", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "tool", "not exist: %s", name)
 	}
 
 	return runWithDeadline(tctx, run, name, timeout)
@@ -263,7 +264,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 				slog.Error("tool handler panicked",
 					slog.String("name", name),
 					slog.Any("panic", r))
-				done <- dispatchResult{err: fmt.Errorf("tool %q panicked: %v", name, r)}
+				done <- dispatchResult{err: utilsmsg.New(utilsmsg.Internal, name, "panicked: %v", r)}
 			}
 		}()
 		result, err := run()
@@ -273,7 +274,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 	select {
 	case out := <-done:
 		if tctx.Err() == context.DeadlineExceeded {
-			return out.result, fmt.Errorf("tool %q timed out after %s", name, timeout)
+			return out.result, utilsmsg.New(utilsmsg.Timeout, name, "timed out after %s", timeout)
 		}
 		return out.result, out.err
 	case <-tctx.Done():
@@ -281,7 +282,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 			slog.Warn("tool handler abandoned after timeout",
 				slog.String("name", name),
 				slog.String("timeout", timeout.String()))
-			return "", fmt.Errorf("tool %q timed out after %s and did not honor cancellation", name, timeout)
+			return "", utilsmsg.New(utilsmsg.Timeout, name, "timed out after %s and did not honor cancellation", timeout)
 		}
 		return "", tctx.Err()
 	}

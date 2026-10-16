@@ -2,10 +2,10 @@ package googleRSS
 
 import (
 	"context"
-	"fmt"
-
 	"slices"
 	"strings"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var timeRanges = []string{
@@ -15,7 +15,7 @@ var timeRanges = []string{
 func Search(ctx context.Context, keyword, timeRange, ceid string) (string, error) {
 	keyword = strings.TrimSpace(keyword)
 	if keyword == "" {
-		return "", fmt.Errorf("keyword is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "keyword", "required")
 	}
 
 	timeRange = strings.TrimSpace(timeRange)

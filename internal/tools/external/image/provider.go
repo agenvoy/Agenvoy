@@ -2,24 +2,24 @@ package image
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 	"sync"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/gemini"
 	"github.com/pardnchiu/go-llm-router/core/grok"
-	grokOauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
+	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	"github.com/pardnchiu/go-llm-router/core/router"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var Providers = []string{"openai", "codex", "grok", "grok-oauth", "gemini", "openrouter"}
@@ -51,13 +51,13 @@ func DropModelsCache(ctx context.Context, name string) {
 }
 
 func Available(ctx context.Context) []string {
-	filter := provider.ModelFilter{ImageOnly: true}
+	filter := go_llm_router.ModelFilter{ImageOnly: true}
 	found := make([][]string, len(Providers))
 
 	var wg sync.WaitGroup
 	for i, name := range Providers {
 		wg.Go(func() {
-			cfg, err := agentKeychain.Config(ctx, name+"@")
+			cfg, err := agentkeychain.Config(ctx, name+"@")
 			if err != nil {
 				return
 			}
@@ -66,7 +66,7 @@ func Available(ctx context.Context) []string {
 				return
 			}
 
-			base := provider.Config{APIKey: cfg.APIKey, AccountID: cfg.AccountID}
+			base := go_llm_router.Config{APIKey: cfg.APIKey, AccountID: cfg.AccountID}
 			models, err := torii.CachedList(ctx, modelsCacheKey(name), configs.TTL_MODELS_CACHE_SEC, func() ([]string, error) {
 				switch name {
 				case "openai":
@@ -74,7 +74,7 @@ func Available(ctx context.Context) []string {
 				case "grok":
 					return grok.Models(ctx, base, filter)
 				case "grok-oauth":
-					return grokOauth.Models(ctx, base, filter)
+					return grokoauth.Models(ctx, base, filter)
 				case "gemini":
 					return gemini.Models(ctx, base, filter)
 				case "openrouter":
@@ -108,7 +108,7 @@ func Prune(ctx context.Context) {
 		return
 	}
 	if !strings.Contains(name, "@") {
-		if _, err := agentKeychain.Config(ctx, name+"@"); err == nil {
+		if _, err := agentkeychain.Config(ctx, name+"@"); err == nil {
 			return
 		}
 	} else if slices.Contains(Available(ctx), name) {
@@ -127,18 +127,18 @@ func Prune(ctx context.Context) {
 	}
 }
 
-func agent(ctx context.Context) (provider.ImageAgent, string, error) {
+func agent(ctx context.Context) (go_llm_router.ImageAgent, string, error) {
 	name := Selected()
 	if name == Off {
-		return nil, "", fmt.Errorf("image generation is off; set it in Config → Model → Setting Models")
+		return nil, "", utilsmsg.New(utilsmsg.Unavailable, "image generation", "off; set it in Config → Model → Setting Models")
 	}
 	full := name
 	if !strings.Contains(full, "@") {
 		full += "@"
 	}
-	cfg, err := agentKeychain.Config(ctx, full)
+	cfg, err := agentkeychain.Config(ctx, full)
 	if err != nil {
-		return nil, "", fmt.Errorf("%s is not configured: %w", name, err)
+		return nil, "", utilsmsg.Trace(name, "not configured", err)
 	}
 	built, err := router.New(router.Config{
 		Name:      full,
@@ -149,11 +149,11 @@ func agent(ctx context.Context) (provider.ImageAgent, string, error) {
 		GatewayID: cfg.GatewayID,
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("router.New [%s]: %w", full, err)
+		return nil, "", utilsmsg.Wrap(utilsmsg.Invalid, "router.New", full, err)
 	}
-	img, ok := built.(provider.ImageAgent)
+	img, ok := built.(go_llm_router.ImageAgent)
 	if !ok {
-		return nil, "", fmt.Errorf("%s cannot generate images", name)
+		return nil, "", utilsmsg.New(utilsmsg.Invalid, name, "cannot generate images")
 	}
 	return img, full, nil
 }

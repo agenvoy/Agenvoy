@@ -7,14 +7,17 @@ import (
 	"slices"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
-	provider "github.com/pardnchiu/go-llm-router/core"
 )
 
-func run(ctx context.Context, req Request, userContent string, events chan<- agentTypes.Event) {
+func run(ctx context.Context, req Request, userContent string, events chan<- agenttypes.Event) {
 	scanner := agents.Scanner()
 	if scanner != nil {
 		scanner.Scan()
@@ -22,17 +25,21 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 
 	trimContent := strings.TrimSpace(userContent)
 	if trimContent != "" {
-		events <- agentTypes.Event{Type: agentTypes.EventUserInput, Text: trimContent}
+		events <- agenttypes.Event{Type: agenttypes.EventUserInput, Text: trimContent}
 	}
 
-	events <- agentTypes.Event{Type: agentTypes.EventAgentSelect}
+	events <- agenttypes.Event{Type: agenttypes.EventAgentSelect}
 
-	agent, fallbacks, reasoning, err := exec.ResolveAgent(ctx, req.Model, trimContent, false, "", "")
+	model := configbot.DefaultModel
+	if trimModel := strings.TrimSpace(req.Model); trimModel != "" {
+		model = trimModel
+	}
+	agent, fallbacks, reasoning, err := execmodel.Route(ctx, model, "", trimContent, "", "")
 	if err != nil {
-		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 		return
 	}
-	events <- agentTypes.Event{Type: agentTypes.EventAgentResult, Text: strings.TrimSpace(agent.Name())}
+	events <- agenttypes.Event{Type: agenttypes.EventAgentResult, Text: strings.TrimSpace(agent.Name())}
 
 	workDir := req.workDir
 	if workDir == "" {
@@ -48,7 +55,7 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 		Agent:          agent,
 		FallbackAgents: fallbacks,
 		WorkDir:        workDir,
-		Content:        trimContent,
+		Task:           trimContent,
 		Reasoning:      cmp.Or(req.ReasoningEffort, reasoning, "medium"),
 		ExcludeTools:   excludeTools,
 		ExcludeSkills:  tools.TUIOnlySkills,
@@ -59,12 +66,12 @@ func run(ctx context.Context, req Request, userContent string, events chan<- age
 	session := buildStatelessSession(req, trimContent, workDir, data.Agent.Name())
 
 	if err := exec.Execute(ctx, data, session, events, true); err != nil {
-		events <- agentTypes.Event{Type: agentTypes.EventError, Err: err}
+		events <- agenttypes.Event{Type: agenttypes.EventError, Err: err}
 	}
 }
 
-func buildStatelessSession(req Request, userInput, workDir string, model string) *agentTypes.AgentSession {
-	var systemPrompts []provider.Message
+func buildStatelessSession(req Request, userInput, workDir string, model string) *agenttypes.Session {
+	var systemPrompts []go_llm_router.Message
 	if req.agentMode {
 		systemPrompts = exec.BuildChatCompletionsSystemPrompts(workDir, model)
 	}
@@ -77,18 +84,17 @@ func buildStatelessSession(req Request, userInput, workDir string, model string)
 			break
 		}
 	}
-	var oldHistories []provider.Message
+	var oldHistories []go_llm_router.Message
 	if lastUserIdx > 0 {
 		oldHistories = append(oldHistories, req.Messages[:lastUserIdx]...)
 	}
 
-	return &agentTypes.AgentSession{
-		SystemPrompts: systemPrompts,
-		OldHistories:  oldHistories,
-		Histories:     append([]provider.Message{}, oldHistories...),
-		ToolHistories: []provider.Message{},
-		Tools:         []provider.Message{},
-		UserInput:     provider.Message{Role: "user", Content: userInput},
-		Stateless:     true,
+	return &agenttypes.Session{
+		SystemPrompts:    systemPrompts,
+		ContextHistories: oldHistories,
+		ToolHistories:    []go_llm_router.Message{},
+		ToolResults:      []go_llm_router.Message{},
+		UserMessage:      go_llm_router.Message{Role: "user", Content: userInput},
+		Stateless:        true,
 	}
 }

@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
 type KeySelect struct {
@@ -91,7 +92,7 @@ func (t TUI) runKeyDelete(key string) (TUI, tea.Cmd) {
 	if err := config.DeleteKey(key); err != nil {
 		return t, notice(msgError(fmt.Sprintf("config.DeleteKey %s: %v", key, err)) + "\n")
 	}
-	imageTool.Prune(context.Background())
+	imagetool.Prune(context.Background())
 
 	next, cmd, _ := t.commandKey(nil)
 	slog.Debug("key deleted", slog.String("key", key))

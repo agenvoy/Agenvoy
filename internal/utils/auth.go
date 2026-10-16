@@ -10,6 +10,8 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const pendingTTL = 5 * time.Minute
@@ -58,7 +60,7 @@ func (r *PendingRegistry[ChatID, MsgID]) Clear(id ChatID) {
 func GenerateAuthCode() (string, error) {
 	num, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
-		return "", fmt.Errorf("rand.Reader: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "rand.Int", "", err)
 	}
 	return fmt.Sprintf("%06d", num.Int64()), nil
 }

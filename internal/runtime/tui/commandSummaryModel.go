@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
