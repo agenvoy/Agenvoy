@@ -17,6 +17,7 @@ import (
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func channelName(in go_bot_discord.Input) string {
@@ -99,7 +100,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 				return
 			}
 			if err := b.client.Delete(ctx, in.ChannelID, msgID); err != nil {
-				slog.Debug("github.com/pardnchiu/go-bot/core/discord Bot.client.Delete",
+				slog.Debug("go_bot_discord.Bot.client.Delete",
 					slog.String("label", label),
 					slog.String("channel", channelName(in)),
 					slog.String("msg", msgID),
@@ -111,7 +112,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		if p, ok := pending.Get(in.ChannelID); ok {
 			if content == p.Code {
 				if err := authorizeChannel(in); err != nil {
-					return fmt.Errorf("authorizeChannel: %w", err)
+					return utilsmsg.Trace("authorizeChannel", "", err)
 				}
 				pending.Clear(in.ChannelID)
 				deleteMsg(p.PromptMsgID, "prompt")
@@ -130,7 +131,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 		code, err := utils.GenerateAuthCode()
 		if err != nil {
-			return fmt.Errorf("utils.GenerateAuthCode: %w", err)
+			return utilsmsg.Trace("utils.GenerateAuthCode", "", err)
 		}
 		slog.Info("Discord Verification Code",
 			slog.String("name", channelName(in)),
@@ -138,7 +139,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 		execchatbot.NotifyAdmin(ctx, code, "Discord "+channelName(in))
 		prompt, err := b.client.SendInput(ctx, in.ChannelID, "", "Enter the 6-digit verification code printed in the daemon log.")
 		if err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.client.SendInput",
+			slog.Warn("go_bot_discord.Bot.client.SendInput",
 				slog.String("channel", channelName(in)),
 				slog.String("error", err.Error()))
 			return nil
@@ -187,7 +188,7 @@ func run(ctx context.Context, b *Bot, in go_bot_discord.Input) error {
 
 	discordSessionID, err := sessiondiscord.New(in.GuildID, in.ChannelID, in.UserID)
 	if err != nil {
-		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetDiscordSession: %w", err)
+		return utilsmsg.Trace("session.GetDiscordSession", "", err)
 	}
 
 	reply := b.newReply(ctx, in.ChannelID, channelName(in), discordSessionID, in.MessageID)

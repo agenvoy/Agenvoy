@@ -3,11 +3,11 @@ package toolSearcher
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const systemDefaultMarker = "[system-default]"
@@ -62,7 +62,7 @@ A capability that seems missing comes from here before anything is built. Buildi
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("json Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -78,13 +78,13 @@ A capability that seems missing comes from here before anything is built. Buildi
 			switch params.Mode {
 			case "search":
 				if params.Query == "" {
-					return "", fmt.Errorf("query is required when mode=search")
+					return "", utilsmsg.New(utilsmsg.Invalid, "query", "required when mode=search")
 				}
 				return searchTools(e, params.Query)
 			case "list":
 				return listTools(e, params.MCP, params.System)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: search, list", params.Mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown mode %q; available: search, list", params.Mode)
 		},
 	})
 }

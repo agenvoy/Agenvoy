@@ -2,7 +2,6 @@ package exec
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -16,6 +15,7 @@ import (
 	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Prepare(data ExecuteMeta) ExecuteMeta {
@@ -44,7 +44,7 @@ func Prepare(data ExecuteMeta) ExecuteMeta {
 func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event, isSub bool) error {
 	sessionID := strings.TrimSpace(data.SessionID)
 	if sessionID == "" {
-		return fmt.Errorf("[Invalid] session id: required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	windowHash := agentstypes.WindowHash(ctx)
@@ -62,7 +62,7 @@ func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event,
 
 	if name := data.SkillName; name != "" && data.Skill == nil {
 		if slices.Contains(data.ExcludeSkills, name) {
-			return fmt.Errorf("[Denied] skill %q: not available in this session", name)
+			return utilsmsg.New(utilsmsg.Denied, "skill", "%q not available in this session", name)
 		}
 		scanner := data.SkillScanner
 		if scanner == nil {
@@ -72,7 +72,7 @@ func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event,
 			data.Skill = scanner.Lookup(name)
 		}
 		if data.Skill == nil {
-			return fmt.Errorf("[Not found] skill: %q", name)
+			return utilsmsg.New(utilsmsg.NotFound, "skill", "%q", name)
 		}
 	}
 
@@ -111,7 +111,7 @@ func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event,
 		if data.Model != sessionconfigbot.DefaultModel && data.Reasoning != "" && data.Reasoning != configs.REASONING_AUTO {
 			agent = agents.ModelSet().Registry[data.Model]
 			if agent == nil {
-				return fmt.Errorf("[Not found] model %q: not registered; use another model", data.Model)
+				return utilsmsg.New(utilsmsg.NotFound, "model", "%q not registered; use another model", data.Model)
 			}
 		}
 	}
@@ -128,7 +128,7 @@ func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event,
 		}
 		routed, routedFallbacks, reasoning, err := agentsexecmodel.Route(ctx, model, data.Reasoning, data.Task, skillDesc, sessionID)
 		if err != nil {
-			return fmt.Errorf("agentsexecmodel.Route: %w", err)
+			return utilsmsg.Trace("agentsexecmodel.Route", "", err)
 		}
 		agent, fallbacks = routed, routedFallbacks
 		if data.Reasoning == "" || data.Reasoning == configs.REASONING_AUTO {
@@ -154,7 +154,7 @@ func Run(ctx context.Context, data ExecuteMeta, events chan<- agentstypes.Event,
 	data.FallbackAgents = fallbacks
 	session, err := session(ctx, data)
 	if err != nil {
-		return fmt.Errorf("GetSession: %w", err)
+		return utilsmsg.Trace("GetSession", "", err)
 	}
 	return Execute(ctx, data, session, events, data.AllowAll)
 }

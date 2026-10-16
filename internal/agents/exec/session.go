@@ -25,18 +25,19 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionsummary "github.com/pardnchiu/agenvoy/internal/session/summary"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func session(ctx context.Context, meta ExecuteMeta) (*agentstypes.Session, error) {
 	// * step1: assemble session history
 	sessionID := strings.TrimSpace(meta.SessionID)
 	if sessionID == "" {
-		return nil, fmt.Errorf("[Invalid] session id: required")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	sessionDir := filesystem.SessionDir(sessionID)
 	if !go_pkg_filesystem_reader.IsDir(sessionDir) {
-		return nil, fmt.Errorf("[Not found] session: %q", sessionID)
+		return nil, utilsmsg.New(utilsmsg.NotFound, "session", "%q", sessionID)
 	}
 
 	var maxHistory []sessionhistory.Record
@@ -139,19 +140,19 @@ func buildInput(userInput string, imageInputs []string, fileInputs []string) any
 func convertToBase64(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("[Not found] image %s: %w", path, err)
+		return "", utilsmsg.New(utilsmsg.NotFound, "image", "%s: %w", path, err)
 	}
 	defer file.Close()
 
 	img, _, err := image.Decode(file)
 	if err != nil {
-		return "", fmt.Errorf("[Invalid] image %s: decode: %w", path, err)
+		return "", utilsmsg.New(utilsmsg.Invalid, "image", "%s: decode: %w", path, err)
 	}
 
 	// * need to be use jpeg before send in claude/gemini model
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
-		return "", fmt.Errorf("[Internal] image %s: jpeg encode: %w", path, err)
+		return "", utilsmsg.New(utilsmsg.Internal, "image", "%s: jpeg encode: %w", path, err)
 	}
 	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }

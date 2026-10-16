@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"path/filepath"
 	"sync"
@@ -19,6 +18,7 @@ import (
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	usagelog "github.com/pardnchiu/agenvoy/internal/session/usage"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Runner func(ctx context.Context, sessionID, skillName string) (string, error)
@@ -54,7 +54,7 @@ func NewScheduler() error {
 	once.Do(func() {
 		c, err := gocron.New(gocron.Config{})
 		if err != nil {
-			initErr = fmt.Errorf("gocron.New: %w", err)
+			initErr = utilsmsg.Wrap(utilsmsg.Internal, "gocron.New", "", err)
 			return
 		}
 		c.Start()
@@ -139,13 +139,13 @@ func addDefaultCrons() {
 func AddSystemCron(spec string, fn func()) error {
 	st := get()
 	if st == nil {
-		return fmt.Errorf("scheduler not initialized")
+		return utilsmsg.New(utilsmsg.Unavailable, "scheduler", "not initialized")
 	}
 	fn()
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if _, err := st.cron.Add(spec, fn); err != nil {
-		return fmt.Errorf("cron.Add: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "cron.Add", "", err)
 	}
 	return nil
 }
@@ -179,16 +179,16 @@ func get() *state {
 func reload() error {
 	st := get()
 	if st == nil {
-		return fmt.Errorf("scheduler not initialized")
+		return utilsmsg.New(utilsmsg.Unavailable, "scheduler", "not initialized")
 	}
 
 	tasks, err := LoadTasks()
 	if err != nil {
-		return fmt.Errorf("LoadTasks: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "LoadTasks", "", err)
 	}
 	crons, err := LoadCrons()
 	if err != nil {
-		return fmt.Errorf("LoadCrons: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "LoadCrons", "", err)
 	}
 
 	diskTaskKeys := make(map[string]TaskEntry, len(tasks))
@@ -275,7 +275,7 @@ func reload() error {
 func Fire(sessionID, skillName string) (string, error) {
 	fn := runnerFn.Load()
 	if fn == nil || *fn == nil {
-		return "", fmt.Errorf("scheduler runner not initialized")
+		return "", utilsmsg.New(utilsmsg.Unavailable, "scheduler runner", "not initialized")
 	}
 	return (*fn)(context.Background(), sessionID, skillName)
 }

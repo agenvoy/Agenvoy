@@ -10,11 +10,12 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func writeSchedule(e *tooltypes.Executor, target, when, skill string) (string, error) {
 	if !go_pkg_filesystem_reader.Exists(filesystem.ScheduleSkillPath(skill)) {
-		return "", fmt.Errorf("skill %q not found under %s. mode=write is an internal binding called by the scheduler-skill-creator skill flow. Run scheduler-skill-creator skill which generates a hashed skill name and binds time in one flow. Do not call mode=write with a hand-made name", skill, filesystem.ScheduleSkillPath(skill))
+		return "", utilsmsg.New(utilsmsg.NotFound, "skill", "%q not found under %s. mode=write is an internal binding called by the scheduler-skill-creator skill flow. Run scheduler-skill-creator skill which generates a hashed skill name and binds time in one flow. Do not call mode=write with a hand-made name", skill, filesystem.ScheduleSkillPath(skill))
 	}
 
 	switch target {
@@ -24,7 +25,7 @@ func writeSchedule(e *tooltypes.Executor, target, when, skill string) (string, e
 			return "", err
 		}
 		if !at.After(time.Now()) {
-			return "", fmt.Errorf("already gone: %s", at.Local().Format("2006-01-02 15:04:05"))
+			return "", utilsmsg.New(utilsmsg.Invalid, "time", "already gone: %s", at.Local().Format("2006-01-02 15:04:05"))
 		}
 		entry := runtime.TaskEntry{
 			At:        at.UTC(),
@@ -52,5 +53,5 @@ func writeSchedule(e *tooltypes.Executor, target, when, skill string) (string, e
 		}
 		return fmt.Sprintf("cron scheduled: %s for %s", expression, skill), nil
 	}
-	return "", fmt.Errorf("target must be 'task' or 'cron' (got %q)", target)
+	return "", utilsmsg.New(utilsmsg.Invalid, "target", "must be 'task' or 'cron' (got %q)", target)
 }

@@ -3,13 +3,13 @@ package tool
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registListChatbot() {
@@ -31,7 +31,7 @@ func registListChatbot() {
 				Platform string `json:"platform"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			platform, err := parsePlatform(strings.TrimSpace(params.Platform))
 			if err != nil {
@@ -52,7 +52,7 @@ func registListChatbot() {
 			}
 			raw, err := json.Marshal(entries)
 			if err != nil {
-				return "", fmt.Errorf("json.Marshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 			}
 			return string(raw), nil
 		},

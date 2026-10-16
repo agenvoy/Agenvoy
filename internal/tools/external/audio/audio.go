@@ -2,7 +2,6 @@ package audio
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var Providers = []string{"openai", "gemini", "openrouter"}
@@ -119,7 +119,7 @@ func options(ctx context.Context, kind string, filter go_llm_router.ModelFilter)
 func Transcribe(ctx context.Context, audio []byte, opts go_llm_router.STTOptions) (string, error) {
 	name := SelectedSTT()
 	if name == Off {
-		return "", fmt.Errorf("no speech-to-text model selected; set it in Config → Model → Setting Models")
+		return "", utilsmsg.New(utilsmsg.Unavailable, "speech-to-text model", "none selected; set it in Config → Model → Setting Models")
 	}
 	built, err := agent(ctx, name)
 	if err != nil {
@@ -127,11 +127,11 @@ func Transcribe(ctx context.Context, audio []byte, opts go_llm_router.STTOptions
 	}
 	ear, ok := built.(go_llm_router.STTAgent)
 	if !ok {
-		return "", fmt.Errorf("%s cannot transcribe audio", name)
+		return "", utilsmsg.New(utilsmsg.Invalid, name, "cannot transcribe audio")
 	}
 	out, err := ear.Transcribe(ctx, audio, opts)
 	if err != nil {
-		return "", fmt.Errorf("%s Transcribe: %w", name, err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "Transcribe", name, err)
 	}
 	return out.Text, nil
 }
@@ -139,7 +139,7 @@ func Transcribe(ctx context.Context, audio []byte, opts go_llm_router.STTOptions
 func Speak(ctx context.Context, text string, opts go_llm_router.TTSOptions) (*go_llm_router.TTSResult, string, error) {
 	name := SelectedTTS()
 	if name == Off {
-		return nil, "", fmt.Errorf("no text-to-speech model selected; set it in Config → Model → Setting Model")
+		return nil, "", utilsmsg.New(utilsmsg.Unavailable, "text-to-speech model", "none selected; set it in Config → Model → Setting Model")
 	}
 	built, err := agent(ctx, name)
 	if err != nil {
@@ -147,11 +147,11 @@ func Speak(ctx context.Context, text string, opts go_llm_router.TTSOptions) (*go
 	}
 	mouth, ok := built.(go_llm_router.TTSAgent)
 	if !ok {
-		return nil, name, fmt.Errorf("%s cannot synthesize speech", name)
+		return nil, name, utilsmsg.New(utilsmsg.Invalid, name, "cannot synthesize speech")
 	}
 	out, err := mouth.Speak(ctx, text, opts)
 	if err != nil {
-		return nil, name, fmt.Errorf("%s Speak: %w", name, err)
+		return nil, name, utilsmsg.Wrap(utilsmsg.Upstream, "Speak", name, err)
 	}
 	return out, name, nil
 }
@@ -159,7 +159,7 @@ func Speak(ctx context.Context, text string, opts go_llm_router.TTSOptions) (*go
 func agent(ctx context.Context, name string) (any, error) {
 	cfg, err := agentkeychain.Config(ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("%s is not configured: %w", name, err)
+		return nil, utilsmsg.Trace(name, "not configured", err)
 	}
 	built, err := router.New(router.Config{
 		Name:      name,
@@ -170,7 +170,7 @@ func agent(ctx context.Context, name string) (any, error) {
 		GatewayID: cfg.GatewayID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("router.New [%s]: %w", name, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Invalid, "router.New", name, err)
 	}
 	return built, nil
 }

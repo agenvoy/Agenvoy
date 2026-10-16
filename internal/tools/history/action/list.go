@@ -5,6 +5,7 @@ import (
 
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func list(e *tooltypes.Executor, limit int) (string, error) {
@@ -40,7 +41,7 @@ func list(e *tooltypes.Executor, limit int) (string, error) {
 
 	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

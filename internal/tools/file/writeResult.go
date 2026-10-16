@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registWriteResult() {
@@ -46,7 +46,7 @@ Any other file, or a change to an existing file → edit_file.`,
 				Content string `json:"content"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			switch params.Format {
@@ -54,7 +54,7 @@ Any other file, or a change to an existing file → edit_file.`,
 				params.Format = "md"
 			case "md", "html":
 			default:
-				return "", fmt.Errorf("unknown format %q; available: md, html", params.Format)
+				return "", utilsmsg.New(utilsmsg.Invalid, "format", "unknown %q; available: md, html", params.Format)
 			}
 
 			if err := rejectElided(params.Content, nil); err != nil {

@@ -3,7 +3,6 @@ package variant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registTestTool() {
@@ -45,7 +45,7 @@ It fails → edit_tool(mode=patch), then test again.`,
 				Input string `json:"input"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			return testToolScript(ctx, params.Name, params.Input)
 		},
@@ -55,7 +55,7 @@ It fails → edit_tool(mode=patch), then test again.`,
 func testToolScript(ctx context.Context, name, input string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "", fmt.Errorf("name is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "required")
 	}
 
 	input = strings.TrimSpace(input)
@@ -68,7 +68,7 @@ func testToolScript(ctx context.Context, name, input string) (string, error) {
 		return "", err
 	}
 	if !go_pkg_filesystem_reader.Exists(scriptPath) {
-		return "", fmt.Errorf("script not found: %s", scriptPath)
+		return "", utilsmsg.New(utilsmsg.NotFound, "script", "%s", scriptPath)
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
@@ -76,7 +76,7 @@ func testToolScript(ctx context.Context, name, input string) (string, error) {
 
 	cmd, err := go_pkg_sandbox.Wrap(execCtx, "python3", []string{scriptPath}, filesystem.ScriptToolsDir, nil)
 	if err != nil {
-		return "", fmt.Errorf("sandbox.Wrap: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_sandbox.Wrap", "", err)
 	}
 
 	cmd.Stdin = strings.NewReader(input)
@@ -87,9 +87,9 @@ func testToolScript(ctx context.Context, name, input string) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		if stderr.Len() > 0 {
-			return "", fmt.Errorf("script error: %s", strings.TrimSpace(stderr.String()))
+			return "", utilsmsg.New(utilsmsg.Internal, "test_tool", "script error: %s", strings.TrimSpace(stderr.String()))
 		}
-		return "", fmt.Errorf("exec: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "exec", "", err)
 	}
 
 	return strings.TrimSpace(stdout.String()), nil

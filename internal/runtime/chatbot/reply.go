@@ -11,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Reply struct {
@@ -29,7 +30,7 @@ func (r Reply) Run(ctx context.Context, data exec.ExecuteMeta) error {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			r.Finish()
-			return fmt.Errorf("[Internal] home directory: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 		}
 		data.WorkDir = home
 	}
@@ -80,14 +81,14 @@ func (r Reply) deliver(events <-chan agentstypes.Event, wait func() error) error
 	text = strings.TrimSpace(text)
 	if text == "" {
 		if execErr == nil {
-			return fmt.Errorf("[Upstream] reply: empty")
+			return utilsmsg.New(utilsmsg.Upstream, "reply", "empty")
 		}
 		if _, err := r.Send(r.ReplyTo, notice("⚠️ "+execErr.Error())); err != nil {
 			slog.Warn(tag+" send exec error",
 				slog.String("session", r.SessionID),
 				slog.String("error", err.Error()))
 		}
-		return fmt.Errorf("exec: %w", execErr)
+		return utilsmsg.Trace("exec", "", execErr)
 	}
 
 	text, paths := utils.ExtractFileMarkers(text)

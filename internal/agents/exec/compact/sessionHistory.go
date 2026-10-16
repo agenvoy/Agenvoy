@@ -19,6 +19,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type compactExchange struct {
@@ -32,7 +33,7 @@ var (
 
 func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	if sessionID == "" {
-		return 0, fmt.Errorf("session id is required")
+		return 0, utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	compactCtx, cancel := context.WithTimeout(
@@ -49,7 +50,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 
 	agent := agents.ModelSet().Fallback
 	if agent == nil {
-		return 0, fmt.Errorf("no agent available for compact")
+		return 0, utilsmsg.New(utilsmsg.Unavailable, "compact agent", "none available")
 	}
 
 	exchanges := groupExchanges(old)
@@ -100,7 +101,7 @@ func SessionHistory(ctx context.Context, sessionID string) (int, error) {
 	}
 
 	if err := sessionhistory.Replace(sessionID, kept); err != nil {
-		return 0, fmt.Errorf("history replace: %w", err)
+		return 0, utilsmsg.Trace("sessionhistory.Replace", "", err)
 	}
 
 	syncActionLog(sessionID, kept)
@@ -166,7 +167,7 @@ func identifyRemovable(ctx context.Context, agent agenttypes.Agent, messages []s
 		{Role: "user", Content: sb.String()},
 	}, go_llm_router.ReasoningMedium, CheckThreshold)
 	if str == "" {
-		return nil, fmt.Errorf("no usable response")
+		return nil, utilsmsg.New(utilsmsg.Upstream, "compact response", "no usable response")
 	}
 
 	return parseRemoveIndices(str, len(exchanges))
@@ -175,14 +176,14 @@ func identifyRemovable(ctx context.Context, agent agenttypes.Agent, messages []s
 func parseRemoveIndices(raw string, exchangeCount int) (map[int]bool, error) {
 	match := compactJSONRegex.FindString(raw)
 	if match == "" {
-		return nil, fmt.Errorf("no JSON found in response")
+		return nil, utilsmsg.New(utilsmsg.Upstream, "compact response", "no JSON found")
 	}
 
 	var result struct {
 		Remove []int `json:"remove"`
 	}
 	if err := json.Unmarshal([]byte(match), &result); err != nil {
-		return nil, fmt.Errorf("json unmarshal: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "json.Unmarshal", "compact response", err)
 	}
 
 	dic := make(map[int]bool, len(result.Remove))

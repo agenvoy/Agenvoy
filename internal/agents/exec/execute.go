@@ -37,6 +37,7 @@ import (
 	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type ExecuteMeta struct {
@@ -109,7 +110,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 	reasoningRef := &atomic.Pointer[string]{}
 	if session.ID != "" {
 		if err := sessionmanager.AddConcurrent(execCtx, session.ID); err != nil {
-			return fmt.Errorf("EnterConcurrent: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Canceled, "EnterConcurrent", "", err)
 		}
 		defer sessionmanager.RemoveConcurrent(session.ID)
 		defer markRunning(session.ID)()
@@ -240,7 +241,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 
 	exec, err := tools.NewExecutor(data.WorkDir, session.ID, scanner)
 	if err != nil {
-		return fmt.Errorf("tools.NewExecutor: %w", err)
+		return utilsmsg.Trace("tools.NewExecutor", "", err)
 	}
 
 	emitChangedFiles := func() {
@@ -512,7 +513,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
-					return fmt.Errorf("agent %s unresponsive, no healthy fallback", deadName)
+					return utilsmsg.New(utilsmsg.Unavailable, "agent "+deadName, "unresponsive, no healthy fallback")
 				}
 				unresponsiveFailures = 0
 				watchdog.Reset(configs.UNRESPONSIVE_PROBE_INTERVAL)
@@ -584,7 +585,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 						Duration: time.Since(execStart),
 					}
 					interactive.FinalizePending(session.ID, exec.PendingTask, msg)
-					return fmt.Errorf("data.Agent.Send context exceeded, nothing left to trim: %w", err)
+					return utilsmsg.New(utilsmsg.Limit, "data.Agent.Send", "context exceeded, nothing left to trim: %w", err)
 				}
 				sendFailCount++
 				if !compactFailed {
@@ -690,7 +691,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 				OutputElapsed: sendElapsedTotal,
 			}
 			interactive.FinalizePending(session.ID, exec.PendingTask, userMsg)
-			return fmt.Errorf("data.Agent.Send failed: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "data.Agent.Send", "", err)
 		}
 		retryHandler.Clear(data.Agent.Name())
 		sendFailCount = 0
@@ -848,7 +849,7 @@ func Execute(ctx context.Context, data ExecuteMeta, session *agenttypes.Session,
 			continue
 
 		default:
-			return fmt.Errorf("unexpected content type: %T", choice.Message.Content)
+			return utilsmsg.New(utilsmsg.Upstream, "content type", "unexpected %T", choice.Message.Content)
 		}
 
 		emitChangedFiles()

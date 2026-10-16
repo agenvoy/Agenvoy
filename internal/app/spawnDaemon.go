@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 	"time"
@@ -9,23 +8,24 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func SpawnDaemon() error {
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("os.Executable: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.Executable", "", err)
 	}
 
 	logFile, err := os.OpenFile(filesystem.DaemonLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("open daemon.log: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.OpenFile", filesystem.DaemonLogPath, err)
 	}
 	defer logFile.Close()
 
 	devNull, err := os.OpenFile(os.DevNull, os.O_RDONLY, 0)
 	if err != nil {
-		return fmt.Errorf("open /dev/null: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.OpenFile", os.DevNull, err)
 	}
 	defer devNull.Close()
 
@@ -38,10 +38,10 @@ func SpawnDaemon() error {
 		Sys:   &syscall.SysProcAttr{Setsid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("os.StartProcess: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.StartProcess", exe, err)
 	}
 	if err := proc.Release(); err != nil {
-		return fmt.Errorf("proc.Release: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "proc.Release", "", err)
 	}
 
 	deadline := time.Now().Add(10 * time.Second)
@@ -51,5 +51,5 @@ func SpawnDaemon() error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return fmt.Errorf("daemon did not become ready within 10s; check %s", filesystem.DaemonLogPath)
+	return utilsmsg.New(utilsmsg.Timeout, "daemon", "did not become ready within 10s; check %s", filesystem.DaemonLogPath)
 }

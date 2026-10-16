@@ -14,6 +14,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func saveNewHistory(ctx context.Context, choice go_llm_router.OutputChoices, session *agenttypes.Session) error {
@@ -49,7 +50,7 @@ func saveNewHistory(ctx context.Context, choice go_llm_router.OutputChoices, ses
 	}
 
 	if err := sessionhistory.Append(session.ID, delta); err != nil {
-		return fmt.Errorf("sessionhistory.Append: %w", err)
+		return utilsmsg.Trace("sessionhistory.Append", "", err)
 	}
 
 	writeSessionHistEntry(ctx, session.ID, choice.Message)

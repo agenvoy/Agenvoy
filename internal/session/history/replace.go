@@ -3,18 +3,18 @@ package history
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Replace(sessionID string, messages []Record) error {
 	if sessionID == "" {
-		return fmt.Errorf("session id is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	mu, _ := muMap.LoadOrStore(sessionID, &sync.Mutex{})
@@ -26,10 +26,10 @@ func Replace(sessionID string, messages []Record) error {
 
 	raw, err := json.Marshal(messages)
 	if err != nil {
-		return fmt.Errorf("json: Marshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	if err := go_pkg_filesystem.WriteFile(historyPath, string(raw), 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", historyPath, err)
 	}
 
 	db := torii.DB(torii.DBSessionHist)

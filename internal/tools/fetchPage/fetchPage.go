@@ -21,6 +21,7 @@ import (
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -71,7 +72,7 @@ func parseOutputType(s string) (int, error) {
 	case "json":
 		return go_browser.TypeJSON, nil
 	default:
-		return 0, fmt.Errorf("invalid type %q: want markdown|html|json", s)
+		return 0, utilsmsg.New(utilsmsg.Invalid, "type", "%q: want markdown|html|json", s)
 	}
 }
 
@@ -145,7 +146,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				Force       bool   `json:"force"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			if !params.Save && !params.Force {
@@ -156,7 +157,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 
 			link := strings.TrimSpace(params.Link)
 			if link == "" {
-				return "", fmt.Errorf("link is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "link", "required")
 			}
 			outType, err := parseOutputType(params.Type)
 			if err != nil {
@@ -179,7 +180,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 				} else {
 					abs, absErr := boundary.Resolve(e.SessionID, filesystem.OutputDir(), p)
 					if absErr != nil {
-						return "", fmt.Errorf("boundary.Resolve: %w", absErr)
+						return "", utilsmsg.Trace("boundary.Resolve", "", absErr)
 					}
 					p = abs
 				}
@@ -193,7 +194,7 @@ No URL yet → search_web; a binary file → download_file; an API endpoint → 
 func handler(ctx context.Context, link string, keepLinks, sameSession, headless bool, outType int, saveTo *string, force bool) (string, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {
-		return "", fmt.Errorf("url.Parse: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Invalid, "url.Parse", "", err)
 	}
 	if err := validateURL(link); err != nil {
 		return "", err
@@ -208,7 +209,7 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 	link = parsed.String()
 
 	if hit, _, _ := isSkipped(link); hit && !force {
-		return "", fmt.Errorf("%s blocked", link)
+		return "", utilsmsg.New(utilsmsg.Unavailable, link, "blocked")
 	}
 
 	opt := &go_browser.Option{
@@ -238,12 +239,12 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 			title = result.Title
 		}
 		addToSkippedMap(link, status, title)
-		return "", fmt.Errorf("%s fetch failed [%d]", link, status)
+		return "", utilsmsg.New(utilsmsg.Upstream, link, "fetch failed [%d]", status)
 	}
 
 	if isPage4xx(result.Title, result.FinalURL) {
 		addToSkippedMap(link, 404, result.Title)
-		return "", fmt.Errorf("%s fetch failed [404]", link)
+		return "", utilsmsg.New(utilsmsg.NotFound, link, "fetch failed [404]")
 	}
 
 	var full string
@@ -251,33 +252,33 @@ func handler(ctx context.Context, link string, keepLinks, sameSession, headless 
 	case go_browser.TypeMarkdown:
 		if strings.TrimSpace(result.Content) == "" {
 			addToSkippedMap(link, 0, result.Title)
-			return "", fmt.Errorf("%s empty content", link)
+			return "", utilsmsg.New(utilsmsg.Upstream, link, "empty content")
 		}
 		full = buildFrontmatter(result)
 	case go_browser.TypeJSON:
 		if len(result.Tree) == 0 {
 			addToSkippedMap(link, 0, result.Title)
-			return "", fmt.Errorf("%s empty content", link)
+			return "", utilsmsg.New(utilsmsg.Upstream, link, "empty content")
 		}
 		raw, err := json.Marshal(result.Tree)
 		if err != nil {
-			return "", fmt.Errorf("json.Marshal tree: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "tree", err)
 		}
 		full = string(raw)
 	default:
 		if strings.TrimSpace(result.Content) == "" {
 			addToSkippedMap(link, 0, result.Title)
-			return "", fmt.Errorf("%s empty content", link)
+			return "", utilsmsg.New(utilsmsg.Upstream, link, "empty content")
 		}
 		full = result.Content
 	}
 
 	if saveTo != nil {
 		if err := go_pkg_filesystem.CheckDir(filepath.Dir(*saveTo), true); err != nil {
-			return "", fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(*saveTo), err)
 		}
 		if err := go_pkg_filesystem.WriteFile(*saveTo, full, 0644); err != nil {
-			return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", *saveTo, err)
 		}
 		return fmt.Sprintf("Downloaded %d chars to %s", len(full), *saveTo), nil
 	}
@@ -302,20 +303,20 @@ func defaultDownloadPath(href string) string {
 
 func validateURL(href string) error {
 	if len(href) > 2048 {
-		return fmt.Errorf("url too long: max 2048 chars")
+		return utilsmsg.New(utilsmsg.Invalid, "url", "too long: max 2048 chars")
 	}
 
 	parsed, err := url.Parse(href)
 	if err != nil {
-		return fmt.Errorf("url.Parse: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "url.Parse", "", err)
 	}
 
 	if parsed.User != nil {
-		return fmt.Errorf("url must not contain credentials")
+		return utilsmsg.New(utilsmsg.Invalid, "url", "must not contain credentials")
 	}
 
 	if !strings.Contains(parsed.Hostname(), ".") {
-		return fmt.Errorf("url must have a valid hostname")
+		return utilsmsg.New(utilsmsg.Invalid, "url", "must have a valid hostname")
 	}
 	return nil
 }

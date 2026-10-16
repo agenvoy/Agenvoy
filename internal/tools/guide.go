@@ -3,13 +3,13 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var topicNames = []string{"tool_generate", "tool_error", "web_search", "market_analysis", "targeted_read", "ask_user", "subagent_dispatch", "write_todo", "html_render", "office"}
@@ -61,7 +61,7 @@ func registReasoningGuide() {
 				Topics []string `json:"topics"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			selection := ""
@@ -74,7 +74,7 @@ func registReasoningGuide() {
 				}
 				guide, ok := topicGuides[topic]
 				if !ok {
-					return "", fmt.Errorf("unknown topic %q; available: %s", topic, strings.Join(topicNames, ", "))
+					return "", utilsmsg.New(utilsmsg.Invalid, "topics", "unknown topic %q; available: %s", topic, strings.Join(topicNames, ", "))
 				}
 				if strings.Contains(guide, "{{.ModelSelection}}") {
 					if selection == "" {
@@ -89,7 +89,7 @@ func registReasoningGuide() {
 				guides = append(guides, "## "+topic+"\n\n"+strings.TrimSpace(guide))
 			}
 			if len(guides) == 0 {
-				return "", fmt.Errorf("topics is required; available: %s", strings.Join(topicNames, ", "))
+				return "", utilsmsg.New(utilsmsg.Invalid, "topics", "required; available: %s", strings.Join(topicNames, ", "))
 			}
 			return strings.Join(guides, "\n\n"), nil
 		},

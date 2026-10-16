@@ -2,11 +2,12 @@ package filesystem
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Transcriber func(ctx context.Context, raw []byte, mime string) (string, error)
@@ -48,20 +49,20 @@ func IsMedia(path string) bool {
 func TranscribeMedia(ctx context.Context, path string) (string, error) {
 	mime, ok := mediaMimeByExt[strings.ToLower(filepath.Ext(path))]
 	if !ok {
-		return "", fmt.Errorf("unsupported file extension: %s", filepath.Ext(path))
+		return "", utilsmsg.New(utilsmsg.Invalid, "path", "unsupported file extension: %s", filepath.Ext(path))
 	}
 
 	transcriberMu.RLock()
 	fn := transcriber
 	transcriberMu.RUnlock()
 	if fn == nil {
-		return "", fmt.Errorf("no transcriber installed")
+		return "", utilsmsg.New(utilsmsg.Unavailable, "transcriber", "not installed")
 	}
 
 	// * os.ReadFile retained: go-pkg/filesystem only exposes ReadText (string); audio/video need raw bytes.
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("os.ReadFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.ReadFile", "", err)
 	}
 	return fn(ctx, raw, mime)
 }

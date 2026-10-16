@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -13,6 +12,7 @@ import (
 	apiadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
 	scriptadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type builtinHandler func(ctx context.Context, args json.RawMessage) (string, error)
@@ -102,7 +102,7 @@ func (b *toolbox) dispatch(ctx context.Context, name string, args json.RawMessag
 		}
 		return b.extAPI.Execute(ctx, name, dic)
 	default:
-		return "", fmt.Errorf("tool not found: %s", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "tool", "%s", name)
 	}
 }
 

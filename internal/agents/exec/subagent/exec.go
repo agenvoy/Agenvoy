@@ -21,6 +21,7 @@ import (
 	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var channLen = make(chan struct{}, min(configs.MAX_CONCURRENT_TOOLS, configs.MAX_CONCURRENT_SUBAGENTS))
@@ -29,7 +30,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	// * step 1: model exist
 	registry := agents.ModelSet()
 	if len(registry.Registry) == 0 {
-		return "", fmt.Errorf("[Unavailable] subagent model: none registered")
+		return "", utilsmsg.New(utilsmsg.Unavailable, "subagent model", "none registered")
 	}
 
 	// * step 2: concurrent limit
@@ -38,13 +39,13 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 	case channLen <- struct{}{}:
 		defer func() { <-channLen }()
 	case <-ctx.Done():
-		return "", fmt.Errorf("[Limit] subagent slots: full; call a new subagent to retry this task: %w", ctx.Err())
+		return "", utilsmsg.New(utilsmsg.Limit, "subagent slots", "full; call a new subagent to retry this task: %w", ctx.Err())
 	}
 
 	// * step 3: session validation and history
 	sessID, err := ensureSession(sessionID)
 	if err != nil {
-		return "", fmt.Errorf("subagent session: %w", err)
+		return "", utilsmsg.Trace("subagent session", "", err)
 	}
 	// * if subagent call with temp-, call it as a new session
 	if strings.HasPrefix(sessID, "temp-") {
@@ -61,7 +62,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 		} else if home, err := os.UserHomeDir(); err == nil {
 			workDir = home
 		} else {
-			return "", fmt.Errorf("[Internal] work directory: cwd and home are both unreadable")
+			return "", utilsmsg.New(utilsmsg.Internal, "work directory", "cwd and home are both unreadable")
 		}
 	}
 
@@ -135,7 +136,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 				slog.Error("[Internal] subagent: panic recovered",
 					slog.String("session", sessID),
 					slog.Any("panic", r))
-				errCh <- fmt.Errorf("[Internal] subagent: panic: %v", r)
+				errCh <- utilsmsg.New(utilsmsg.Internal, "subagent", "panic: %v", r)
 			}
 		}()
 		errCh <- exec.Run(subCtx, taskMeta, events, true)
@@ -238,7 +239,7 @@ func Exec(ctx context.Context, task, sessionID, modelName, reasoning, systemProm
 				slog.String("model", agentName),
 				slog.String("output", go_pkg_utils.TruncateString(result, 2048)))
 		}
-		return "", fmt.Errorf("subagent %s failed: %w.%s%s", agentName, execErr, retryMessage, partialHint)
+		return "", utilsmsg.New(utilsmsg.Upstream, "subagent "+agentName, "failed: %w.%s%s", execErr, retryMessage, partialHint)
 	}
-	return "", fmt.Errorf("[Upstream] subagent %s: returned no text (%s).%s%s", agentName, usageText, retryMessage, partialHint)
+	return "", utilsmsg.New(utilsmsg.Upstream, "subagent "+agentName, "returned no text (%s).%s%s", usageText, retryMessage, partialHint)
 }

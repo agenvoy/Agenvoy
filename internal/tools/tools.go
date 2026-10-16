@@ -12,6 +12,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/tools/file"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -41,7 +42,7 @@ func changeWorkDir(e *tooltypes.Executor, args []string) (string, error) {
 		}
 	}
 	if len(positional) > 1 {
-		return "", fmt.Errorf("cd accepts at most one positional argument, got %d", len(positional))
+		return "", utilsmsg.New(utilsmsg.Invalid, "cd", "accepts at most one positional argument, got %d", len(positional))
 	}
 
 	target := "~"
@@ -51,7 +52,7 @@ func changeWorkDir(e *tooltypes.Executor, args []string) (string, error) {
 	abs := go_pkg_utils.AbsPath(e.WorkDir, target)
 
 	if !go_pkg_filesystem_reader.IsDir(abs) {
-		return "", fmt.Errorf("not a directory or does not exist: %s", abs)
+		return "", utilsmsg.New(utilsmsg.NotFound, "cd", "not a directory or does not exist: %s", abs)
 	}
 
 	e.WorkDir = abs

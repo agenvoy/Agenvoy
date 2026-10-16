@@ -3,7 +3,6 @@ package usage
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 //go:embed migrate.sql
@@ -23,22 +23,22 @@ const retainDays = 28
 func New() error {
 	c := filesystem.DB()
 	if c == nil {
-		return fmt.Errorf("internal/filesystem: OpenDB has not run")
+		return utilsmsg.New(utilsmsg.Internal, "filesystem.DB", "OpenDB has not run")
 	}
 	if _, err := c.Exec(migrateSQL); err != nil {
-		return fmt.Errorf("sql.DB Exec [migrate usage]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[migrate usage]", err)
 	}
 
 	if _, err := c.Exec(
 		`ALTER TABLE usage ADD COLUMN elapsed_ms INTEGER NOT NULL DEFAULT 0`); err != nil &&
 		!strings.Contains(err.Error(), "duplicate column name") {
-		return fmt.Errorf("sql.DB Exec [usage add elapsed_ms]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[usage add elapsed_ms]", err)
 	}
 
 	if _, err := c.Exec(
 		`ALTER TABLE usage ADD COLUMN tool_calls TEXT NOT NULL DEFAULT ''`); err != nil &&
 		!strings.Contains(err.Error(), "duplicate column name") {
-		return fmt.Errorf("sql.DB Exec [usage add tool_calls]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[usage add tool_calls]", err)
 	}
 
 	conn = c

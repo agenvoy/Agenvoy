@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Handler func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error)
@@ -245,7 +245,7 @@ func Dispatch(ctx context.Context, e *tooltypes.Executor, name string, args json
 	}
 	mu.RUnlock()
 	if run == nil {
-		return "", fmt.Errorf("not exist: %s", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "tool", "not exist: %s", name)
 	}
 
 	return runWithDeadline(tctx, run, name, timeout)
@@ -264,7 +264,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 				slog.Error("tool handler panicked",
 					slog.String("name", name),
 					slog.Any("panic", r))
-				done <- dispatchResult{err: fmt.Errorf("tool %q panicked: %v", name, r)}
+				done <- dispatchResult{err: utilsmsg.New(utilsmsg.Internal, name, "panicked: %v", r)}
 			}
 		}()
 		result, err := run()
@@ -274,7 +274,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 	select {
 	case out := <-done:
 		if tctx.Err() == context.DeadlineExceeded {
-			return out.result, fmt.Errorf("tool %q timed out after %s", name, timeout)
+			return out.result, utilsmsg.New(utilsmsg.Timeout, name, "timed out after %s", timeout)
 		}
 		return out.result, out.err
 	case <-tctx.Done():
@@ -282,7 +282,7 @@ func runWithDeadline(tctx context.Context, run func() (string, error), name stri
 			slog.Warn("tool handler abandoned after timeout",
 				slog.String("name", name),
 				slog.String("timeout", timeout.String()))
-			return "", fmt.Errorf("tool %q timed out after %s and did not honor cancellation", name, timeout)
+			return "", utilsmsg.New(utilsmsg.Timeout, name, "timed out after %s and did not honor cancellation", timeout)
 		}
 		return "", tctx.Err()
 	}

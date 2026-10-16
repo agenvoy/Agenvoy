@@ -133,7 +133,7 @@ func appendAction(sessionID, line string) {
 func trim(path string) {
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+		slog.Warn("go_pkg_filesystem.ReadText",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 		return
@@ -153,14 +153,14 @@ func trim(path string) {
 	}
 	if cut >= len(data) {
 		if err := go_pkg_filesystem.WriteFile(path, "", 0644); err != nil {
-			slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+			slog.Warn("go_pkg_filesystem.WriteFile",
 				slog.String("file", path),
 				slog.String("error", err.Error()))
 		}
 		return
 	}
 	if err := go_pkg_filesystem.WriteFile(path, string(data[cut:]), 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+		slog.Warn("go_pkg_filesystem.WriteFile",
 			slog.String("file", path),
 			slog.String("error", err.Error()))
 	}

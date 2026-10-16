@@ -2,11 +2,11 @@ package scheduler
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func listSchedule(e *tooltypes.Executor, target string) (string, error) {
@@ -24,7 +24,7 @@ func listSchedule(e *tooltypes.Executor, target string) (string, error) {
 	if target == "task" || target == "all" {
 		tasks, err := runtime.LoadTasks()
 		if err != nil {
-			return "", fmt.Errorf("LoadTasks: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "runtime.LoadTasks", "", err)
 		}
 		for _, t := range tasks {
 			if strings.TrimSpace(t.SessionID) == sid {
@@ -36,7 +36,7 @@ func listSchedule(e *tooltypes.Executor, target string) (string, error) {
 	if target == "cron" || target == "all" {
 		crons, err := runtime.LoadCrons()
 		if err != nil {
-			return "", fmt.Errorf("LoadCrons: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "runtime.LoadCrons", "", err)
 		}
 		for _, c := range crons {
 			if strings.TrimSpace(c.SessionID) == sid {
@@ -51,7 +51,7 @@ func listSchedule(e *tooltypes.Executor, target string) (string, error) {
 
 	raw, err := json.Marshal(r)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

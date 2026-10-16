@@ -2,13 +2,13 @@ package model
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents"
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Route(ctx context.Context, assignModel, requestReasoning, requestTask, skillDesc, sessionID string) (agenttypes.Agent, []agenttypes.Agent, string, error) {
@@ -24,7 +24,7 @@ func Route(ctx context.Context, assignModel, requestReasoning, requestTask, skil
 	if assignModel != configbot.DefaultModel {
 		agent, ok := modelSet.Registry[assignModel]
 		if !ok || agent == nil {
-			return nil, nil, "", fmt.Errorf("[Not found] model: %q", assignModel)
+			return nil, nil, "", utilsmsg.New(utilsmsg.NotFound, "model", "%q", assignModel)
 		}
 
 		if requestReasoning != "" && requestReasoning != configs.REASONING_AUTO {
@@ -68,7 +68,7 @@ func Route(ctx context.Context, assignModel, requestReasoning, requestTask, skil
 
 	if agent == nil {
 		if len(fallbackAgents) == 0 {
-			return nil, nil, "", fmt.Errorf("[Unavailable] model: none available (dead: %d)", len(deadMap))
+			return nil, nil, "", utilsmsg.New(utilsmsg.Unavailable, "model", "none available (dead: %d)", len(deadMap))
 		}
 		agent, fallbackAgents = fallbackAgents[0], fallbackAgents[1:]
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var reasoningLevels = func() []string {
@@ -47,7 +48,7 @@ type invokeParams struct {
 func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokeParams) (string, error) {
 	task := strings.TrimSpace(params.Task)
 	if task == "" {
-		return "", fmt.Errorf("task is required when mode=invoke")
+		return "", utilsmsg.New(utilsmsg.Invalid, "task", "required when mode=invoke")
 	}
 
 	sessionID := ""
@@ -57,7 +58,7 @@ func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokePar
 
 	model := strings.TrimSpace(params.Model)
 	if model == "" {
-		return "", fmt.Errorf("model is required when mode=invoke")
+		return "", utilsmsg.New(utilsmsg.Invalid, "model", "required when mode=invoke")
 	}
 	if model != configbot.DefaultModel {
 		if err := checkLegModel(model); err != nil {
@@ -71,7 +72,7 @@ func invokeSubagent(ctx context.Context, e *tooltypes.Executor, params invokePar
 	}
 	if reasoning != configs.REASONING_AUTO {
 		if _, ok := go_llm_router.ParseReasoning(reasoning); !ok {
-			return "", fmt.Errorf("[Invalid] reasoning: %q; use one of %s", reasoning, strings.Join(reasoningLevels, ", "))
+			return "", utilsmsg.New(utilsmsg.Invalid, "reasoning", "%q; use one of %s", reasoning, strings.Join(reasoningLevels, ", "))
 		}
 	}
 
@@ -106,7 +107,7 @@ func saveReport(output, reportName string) (string, error) {
 	}
 
 	if err := go_pkg_filesystem.WriteFile(path, body+"\n", 0644); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.WriteFile %s: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return fmt.Sprintf("%s\nreport: %s\nThe leg's full report is in that file — read_files it before relaying or synthesizing.", header, path), nil
 }
@@ -146,5 +147,5 @@ func checkLegModel(model string) error {
 	if _, ok := registry.Registry[model]; ok {
 		reason = "is pass tier and cannot run a subagent leg"
 	}
-	return fmt.Errorf("model %q %s; available: %s", model, reason, strings.Join(allowed, ", "))
+	return utilsmsg.New(utilsmsg.Invalid, "model", "%q %s; available: %s", model, reason, strings.Join(allowed, ", "))
 }

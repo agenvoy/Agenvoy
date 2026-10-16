@@ -15,6 +15,7 @@ import (
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var packageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9+._-]*$`)
@@ -154,7 +155,7 @@ run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (n
 				Package string `json:"package"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			action := strings.TrimSpace(params.Action)
@@ -163,17 +164,17 @@ run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (n
 			}
 			spec, ok := pkgActions[action]
 			if !ok {
-				return "", fmt.Errorf("unknown action %q; available: %s", action, strings.Join(slices.Sorted(maps.Keys(pkgActions)), ", "))
+				return "", utilsmsg.New(utilsmsg.Invalid, "action", "unknown %q; available: %s", action, strings.Join(slices.Sorted(maps.Keys(pkgActions)), ", "))
 			}
 
 			pkg := strings.TrimSpace(params.Package)
 			switch {
 			case spec.needsPackage && pkg == "":
-				return "", fmt.Errorf("package is required when action=%s", action)
+				return "", utilsmsg.New(utilsmsg.Invalid, "package", "required when action=%s", action)
 			case !spec.needsPackage && pkg != "":
-				return "", fmt.Errorf("action=%s takes no package, got %q", action, pkg)
+				return "", utilsmsg.New(utilsmsg.Invalid, "package", "action=%s takes no package, got %q", action, pkg)
 			case pkg != "" && !packageName.MatchString(pkg):
-				return "", fmt.Errorf("package %q must match %s — a bare package name, no flags and no version pin", pkg, packageName)
+				return "", utilsmsg.New(utilsmsg.Invalid, "package", "%q must match %s — a bare package name, no flags and no version pin", pkg, packageName)
 			}
 
 			if action == "install" {
@@ -258,7 +259,7 @@ run_command cannot do this: sudo is powerless inside bwrap. Language runtimes (n
 func jsonString(dic map[string]any) (string, error) {
 	raw, err := json.Marshal(dic)
 	if err != nil {
-		return "", fmt.Errorf("json Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
@@ -266,7 +267,7 @@ func jsonString(dic map[string]any) (string, error) {
 func buildCommand(action, name string, spec pkgAction) (string, []string, string, bool, error) {
 	if goruntime.GOOS == "darwin" {
 		if _, err := exec.LookPath("brew"); err != nil {
-			return "", nil, "", false, fmt.Errorf("brew not found on this macOS system")
+			return "", nil, "", false, utilsmsg.New(utilsmsg.NotFound, "brew", "not found on this macOS system")
 		}
 		argv := pkgCommands["brew"][action]
 		if spec.needsPackage {
@@ -275,7 +276,7 @@ func buildCommand(action, name string, spec pkgAction) (string, []string, string
 		return "brew", argv, "brew", false, nil
 	}
 	if goruntime.GOOS != "linux" {
-		return "", nil, "", false, fmt.Errorf("unsupported OS: %s (pkg_manage serves Linux package managers and macOS Homebrew)", goruntime.GOOS)
+		return "", nil, "", false, utilsmsg.New(utilsmsg.Unavailable, "OS", "unsupported %s (pkg_manage serves Linux package managers and macOS Homebrew)", goruntime.GOOS)
 	}
 
 	isRoot := os.Geteuid() == 0
@@ -285,7 +286,7 @@ func buildCommand(action, name string, spec pkgAction) (string, []string, string
 		}
 		verb := pkgCommands[binary][action]
 		if len(verb) == 0 {
-			return "", nil, "", false, fmt.Errorf("%s has no %s subcommand on this system; use run_command for that lookup", binary, action)
+			return "", nil, "", false, utilsmsg.New(utilsmsg.Invalid, binary, "no %s subcommand on this system; use run_command for that lookup", action)
 		}
 
 		argv := append([]string{binary}, verb...)
@@ -296,11 +297,11 @@ func buildCommand(action, name string, spec pkgAction) (string, []string, string
 			return argv[0], argv[1:], binary, false, nil
 		}
 		if _, err := exec.LookPath("sudo"); err != nil {
-			return "", nil, "", false, fmt.Errorf("sudo not found and current user is not root; cannot elevate %s for %s", action, binary)
+			return "", nil, "", false, utilsmsg.New(utilsmsg.Denied, "sudo", "not found and current user is not root; cannot elevate %s for %s", action, binary)
 		}
 		return "sudo", argv, binary, true, nil
 	}
-	return "", nil, "", false, fmt.Errorf("no supported package manager (apt/apt-get/dnf/yum/pacman/apk) found on this Linux system")
+	return "", nil, "", false, utilsmsg.New(utilsmsg.NotFound, "package manager", "no supported one (apt/apt-get/dnf/yum/pacman/apk) found on this Linux system")
 }
 func trimOutput(s string) string {
 	s = strings.TrimSpace(s)

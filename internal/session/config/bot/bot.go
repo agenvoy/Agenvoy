@@ -2,7 +2,6 @@ package configBot
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"unicode"
@@ -15,6 +14,7 @@ import (
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -49,7 +49,7 @@ func read(sessionID string) (historystore.SessionRow, bool) {
 
 func write(row historystore.SessionRow) error {
 	if err := historystore.WriteSession(context.Background(), row); err != nil {
-		return fmt.Errorf("historystore.WriteSession: %w", err)
+		return utilsmsg.Trace("historystore.WriteSession", "", err)
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func GetPersona(sessionID string) (selfID, name, body string) {
 
 func SavePersona(sessionID, selfID, name, body string) error {
 	if sessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	if err := historystore.ValidSelfID(selfID); err != nil {
 		return err
@@ -117,7 +117,7 @@ func SetModel(sessionID, model, reasoning string) {
 func SetChannel(sessionID string, chatID, guildID, channelID, userID string) error {
 	row, _ := read(sessionID)
 	if row.SessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	row.ChatID = chatID
 	row.GuildID = guildID
@@ -185,7 +185,7 @@ func SetTitle(sessionID, title string) error {
 
 	row, _ := read(sessionID)
 	if row.SessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	row.Name = title
 	return write(row)
@@ -193,7 +193,7 @@ func SetTitle(sessionID, title string) error {
 
 func Save(sessionID, name, body string, force bool) error {
 	if sessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	if body == "" {
 		body = configs.DefaultRule
@@ -213,7 +213,7 @@ func Save(sessionID, name, body string, force bool) error {
 
 	dir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 	return nil
 }

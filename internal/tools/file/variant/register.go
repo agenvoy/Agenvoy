@@ -2,7 +2,6 @@ package variant
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -56,19 +56,19 @@ func metaOf(e *tooltypes.Executor, tool string) historystore.Meta {
 func patch(path, old, new string, replaceAll bool) error {
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("os.Stat [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", path, err)
 	}
 	if info.Size() > configs.MAX_DOCUMENT_BYTES {
-		return fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
+		return utilsmsg.New(utilsmsg.Limit, "file", "too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 
 	content, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 
 	if !strings.Contains(content, old) {
-		return fmt.Errorf("%s is not found in %s", old, path)
+		return utilsmsg.New(utilsmsg.NotFound, "old_string", "%s is not found in %s", old, path)
 	}
 
 	search := old
@@ -83,7 +83,7 @@ func patch(path, old, new string, replaceAll bool) error {
 	}
 
 	if err := go_pkg_filesystem.WriteFile(path, updated, 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return nil
 }

@@ -2,7 +2,6 @@ package toolSearcher
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"slices"
 	"sort"
@@ -11,6 +10,7 @@ import (
 	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type ToolMatch struct {
@@ -45,7 +45,7 @@ func searchTools(e *tooltypes.Executor, query string) (string, error) {
 		TotalTools: len(e.AllTools),
 	})
 	if err != nil {
-		return "", fmt.Errorf("json Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

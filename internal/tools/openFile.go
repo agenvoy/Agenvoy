@@ -15,6 +15,7 @@ import (
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registOpenFile() {
@@ -42,7 +43,7 @@ run_command cannot do this: its sandbox has no route to the app-launch service. 
 				Path string `json:"path"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			return OpenFile(ctx, e.WorkDir, e.SessionID, params.Path)
 		},
@@ -67,10 +68,10 @@ func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, err
 
 		resolved, err := boundary.Resolve(sessionID, baseDir, path)
 		if err != nil {
-			return "", fmt.Errorf("boundary.Resolve: %w", err)
+			return "", utilsmsg.Trace("boundary.Resolve", "", err)
 		}
 		if resolved == "" {
-			return "", fmt.Errorf("path is required")
+			return "", utilsmsg.New(utilsmsg.Invalid, "path", "required")
 		}
 		absPath = resolved
 	}
@@ -82,13 +83,13 @@ func OpenFile(ctx context.Context, workDir, sessionID, path string) (string, err
 	case "linux":
 		bin, args, cmdErr := linuxOpenCmd(ctx, absPath)
 		if cmdErr != nil {
-			return "", fmt.Errorf("open_file: %w", cmdErr)
+			return "", utilsmsg.Trace("open_file", "", cmdErr)
 		}
 		cmd = exec.CommandContext(ctx, bin, args...)
 	case "windows":
 		cmd = exec.CommandContext(ctx, "explorer", absPath)
 	default:
-		return "", fmt.Errorf("open_file: unsupported platform %s", runtime.GOOS)
+		return "", utilsmsg.New(utilsmsg.Unavailable, "open_file", "unsupported platform %s", runtime.GOOS)
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -113,7 +114,7 @@ func linuxOpenCmd(ctx context.Context, target string) (string, []string, error) 
 	if bin, err := exec.LookPath("xdg-open"); err == nil {
 		return bin, []string{target}, nil
 	}
-	return "", nil, fmt.Errorf("no opener available (cmd.exe/wslview/xdg-open not found)")
+	return "", nil, utilsmsg.New(utilsmsg.Unavailable, "opener", "no opener available (cmd.exe/wslview/xdg-open not found)")
 }
 
 func wslToWindowsPath(ctx context.Context, path string) (string, error) {

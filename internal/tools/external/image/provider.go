@@ -2,7 +2,6 @@ package image
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var Providers = []string{"openai", "codex", "grok", "grok-oauth", "gemini", "openrouter"}
@@ -130,7 +130,7 @@ func Prune(ctx context.Context) {
 func agent(ctx context.Context) (go_llm_router.ImageAgent, string, error) {
 	name := Selected()
 	if name == Off {
-		return nil, "", fmt.Errorf("image generation is off; set it in Config → Model → Setting Models")
+		return nil, "", utilsmsg.New(utilsmsg.Unavailable, "image generation", "off; set it in Config → Model → Setting Models")
 	}
 	full := name
 	if !strings.Contains(full, "@") {
@@ -138,7 +138,7 @@ func agent(ctx context.Context) (go_llm_router.ImageAgent, string, error) {
 	}
 	cfg, err := agentkeychain.Config(ctx, full)
 	if err != nil {
-		return nil, "", fmt.Errorf("%s is not configured: %w", name, err)
+		return nil, "", utilsmsg.Trace(name, "not configured", err)
 	}
 	built, err := router.New(router.Config{
 		Name:      full,
@@ -149,11 +149,11 @@ func agent(ctx context.Context) (go_llm_router.ImageAgent, string, error) {
 		GatewayID: cfg.GatewayID,
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("router.New [%s]: %w", full, err)
+		return nil, "", utilsmsg.Wrap(utilsmsg.Invalid, "router.New", full, err)
 	}
 	img, ok := built.(go_llm_router.ImageAgent)
 	if !ok {
-		return nil, "", fmt.Errorf("%s cannot generate images", name)
+		return nil, "", utilsmsg.New(utilsmsg.Invalid, name, "cannot generate images")
 	}
 	return img, full, nil
 }

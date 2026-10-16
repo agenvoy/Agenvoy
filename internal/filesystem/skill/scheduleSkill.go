@@ -2,7 +2,6 @@ package skill
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func HasSchedule(name string) bool {
@@ -20,12 +20,12 @@ func HasSchedule(name string) bool {
 func ReadSchedule(name string) (string, error) {
 	path := filesystem.ScheduleSkillPath(name)
 	if !go_pkg_filesystem_reader.Exists(path) {
-		return "", fmt.Errorf("schedule skill [%s] not found", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "schedule skill", "%s", name)
 	}
 
 	result, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadText [%s]: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 	return result, nil
 }
@@ -48,12 +48,12 @@ func WriteSchedule(name, body string) error {
 func writeScheduleRaw(name, content string) error {
 	dir := filesystem.ScheduleSkillDir(name)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 
 	path := filesystem.ScheduleSkillPath(name)
 	if err := go_pkg_filesystem.WriteFile(path, content, 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteFile [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return nil
 }

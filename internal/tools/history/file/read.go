@@ -16,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func read(ctx context.Context, e *tooltypes.Executor, paths []string) (string, error) {
@@ -29,7 +30,7 @@ func read(ctx context.Context, e *tooltypes.Executor, paths []string) (string, e
 
 		list, err := historystore.Newest(ctx, historystore.Filter{Path: path, Limit: 1})
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/store: Newest: %w", err)
+			return "", utilsmsg.Trace("historystore.Newest", "", err)
 		}
 		if len(list) == 0 {
 			blocks = append(blocks, fmt.Sprintf("%s\nno recorded changes", path))

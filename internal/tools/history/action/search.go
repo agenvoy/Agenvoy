@@ -15,6 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type historyHit struct {
@@ -35,12 +36,12 @@ const (
 
 func searchMessages(ctx context.Context, e *tooltypes.Executor, keyword, match, timeRange string, limit int) (string, error) {
 	if e.SessionID == "" {
-		return "", fmt.Errorf("session not exist")
+		return "", utilsmsg.New(utilsmsg.NotFound, "session", "not exist")
 	}
 
 	keyword = strings.TrimSpace(keyword)
 	if keyword == "" {
-		return "", fmt.Errorf("keyword is required when mode=search")
+		return "", utilsmsg.New(utilsmsg.Invalid, "keyword", "required when mode=search")
 	}
 
 	if match = strings.TrimSpace(match); match != "keyword" {

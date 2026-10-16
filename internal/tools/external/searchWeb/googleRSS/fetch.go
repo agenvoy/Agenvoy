@@ -13,6 +13,7 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const path = "https://news.google.com/rss/search"
@@ -58,7 +59,7 @@ func fetch(ctx context.Context, reqPath string) (string, error) {
 		return "", err
 	}
 	if status != http.StatusOK {
-		return "", fmt.Errorf("status %d", status)
+		return "", utilsmsg.New(utilsmsg.Upstream, "google news rss", "status %d", status)
 	}
 	if len(data.Channel.Items) == 0 {
 		return "[]", nil
@@ -76,7 +77,7 @@ func fetch(ctx context.Context, reqPath string) (string, error) {
 
 	raw, err := json.Marshal(items)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

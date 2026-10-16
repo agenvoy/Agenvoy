@@ -3,10 +3,10 @@ package toolSearcher
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registRunTool() {
@@ -32,7 +32,7 @@ Before the first call to a name, fetch its schema with find_tools(query="select:
 			"required": []string{"name"},
 		},
 		Handler: func(_ context.Context, _ *tooltypes.Executor, _ json.RawMessage) (string, error) {
-			return "", fmt.Errorf("run_tool is resolved by the exec loop and cannot be dispatched directly")
+			return "", utilsmsg.New(utilsmsg.Internal, "run_tool", "resolved by the exec loop and cannot be dispatched directly")
 		},
 	})
 }

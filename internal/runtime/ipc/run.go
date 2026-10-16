@@ -3,7 +3,6 @@ package ipc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
@@ -15,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (c *conn) run(ctx context.Context, f Frame) {
@@ -65,7 +65,7 @@ func (c *conn) run(ctx context.Context, f Frame) {
 	events, wait := exec.Stream(execCtx, sessionID, 64, func(stream chan<- agentstypes.Event) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("[Internal] exec.Run: panic: %v", r)
+				err = utilsmsg.New(utilsmsg.Internal, "exec.Run", "panic: %v", r)
 			}
 		}()
 		return exec.Run(execCtx, data, stream, false)

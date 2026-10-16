@@ -22,6 +22,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type popupScreenReady struct{}
@@ -358,7 +359,7 @@ func (t TUI) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case Pending:
 		popup := newPopup(msg)
 		if popup == nil {
-			resolvePending(msg.id, runtime.Reply{Error: fmt.Errorf("invalid pending request")})
+			resolvePending(msg.id, runtime.Reply{Error: utilsmsg.New(utilsmsg.Invalid, "pending request", "no popup for this request")})
 			return t, nil
 		}
 

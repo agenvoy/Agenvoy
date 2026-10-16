@@ -1,7 +1,6 @@
 package skill
 
 import (
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -9,18 +8,19 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Toggle(skillName string, workDir ...string) (bool, error) {
 	skillName = strings.TrimSpace(skillName)
 	if skillName == "" {
-		return false, fmt.Errorf("[Invalid] skill name: empty")
+		return false, utilsmsg.New(utilsmsg.Invalid, "skill name", "empty")
 	}
 
 	path := filesystem.AllowSkillGlobalPath
 	if len(workDir) > 0 {
 		if strings.TrimSpace(workDir[0]) == "" {
-			return false, fmt.Errorf("[Invalid] work dir: empty")
+			return false, utilsmsg.New(utilsmsg.Invalid, "work dir", "empty")
 		}
 		path = filesystem.AllowSkillProjectPath(workDir[0])
 	}
@@ -38,7 +38,7 @@ func Toggle(skillName string, workDir ...string) (bool, error) {
 
 func write(path string, allowMap map[string]bool) error {
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(path), err)
 	}
 
 	lines := make([]string, 0, len(allowMap))
@@ -53,7 +53,7 @@ func write(path string, allowMap map[string]bool) error {
 		sb.WriteByte('\n')
 	}
 	if err := go_pkg_filesystem.WriteFile(path, sb.String(), 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ func GetCursor(sessionID string) string {
 
 	text, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem ReadText",
+		slog.Warn("go_pkg_filesystem.ReadText",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 		return ""
@@ -30,7 +30,7 @@ func GetCursor(sessionID string) string {
 
 func SaveCursor(sessionID, cursor string) {
 	if err := go_pkg_filesystem.WriteText(filesystem.SummaryCursorPath(sessionID), cursor); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteText",
+		slog.Warn("go_pkg_filesystem.WriteText",
 			slog.String("path", filesystem.SummaryCursorPath(sessionID)),
 			slog.String("error", err.Error()))
 	}
@@ -57,7 +57,7 @@ func Get(sessionID string) ([]byte, map[string]any) {
 
 func Save(sessionID string, data any) {
 	if err := go_pkg_filesystem.WriteJSON(filesystem.SummaryPath(sessionID), data, false); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteJSON",
+		slog.Warn("go_pkg_filesystem.WriteJSON",
 			slog.String("path", filesystem.SummaryPath(sessionID)),
 			slog.String("error", err.Error()))
 	}

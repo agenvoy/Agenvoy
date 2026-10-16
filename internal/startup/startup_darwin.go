@@ -12,6 +12,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const label = "com.pardnchiu.agenvoy"
@@ -19,7 +20,7 @@ const label = "com.pardnchiu.agenvoy"
 func unitPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("os.UserHomeDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 	}
 	return filepath.Join(home, "Library", "LaunchAgents", label+".plist"), nil
 }
@@ -35,21 +36,21 @@ func Enabled() bool {
 func Enable() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return "", fmt.Errorf("os.Executable: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Executable", "", err)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("os.UserHomeDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 	}
 	path, err := unitPath()
 	if err != nil {
 		return "", err
 	}
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(path), err)
 	}
 	if err := go_pkg_filesystem.WriteFile(path, plist(exe, home), 0644); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	record(true)
 	return path + " · takes effect at next login", nil
@@ -65,7 +66,7 @@ func Disable() (string, error) {
 		return "already off", nil
 	}
 	if err := os.Remove(path); err != nil {
-		return "", fmt.Errorf("os.Remove: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", path, err)
 	}
 	record(false)
 	return path + " removed · running daemon untouched", nil

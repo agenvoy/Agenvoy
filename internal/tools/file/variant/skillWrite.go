@@ -10,11 +10,12 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func writeSkillFile(ctx context.Context, e *tooltypes.Executor, path, content string) (string, error) {
 	if strings.TrimSpace(content) == "" {
-		return "", fmt.Errorf("content is required when mode=write")
+		return "", utilsmsg.New(utilsmsg.Invalid, "content", "required when mode=write")
 	}
 
 	absPath, err := skillPath(path)
@@ -24,7 +25,7 @@ func writeSkillFile(ctx context.Context, e *tooltypes.Executor, path, content st
 
 	change := capture(absPath)
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/agenvoy/internal/filesystem: WriteFile [%s]: %w", absPath, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", absPath, err)
 	}
 	record(ctx, e, change, content, "edit_skill")
 
@@ -34,11 +35,11 @@ func writeSkillFile(ctx context.Context, e *tooltypes.Executor, path, content st
 func skillPath(path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return "", fmt.Errorf("path is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "path", "required")
 	}
 	absPath := filepath.Clean(filepath.Join(filesystem.SkillsDir, path))
 	if !strings.HasPrefix(absPath, filesystem.SkillsDir+string(filepath.Separator)) {
-		return "", fmt.Errorf("path must stay within skills dir")
+		return "", utilsmsg.New(utilsmsg.Denied, "path", "must stay within skills dir")
 	}
 	return absPath, nil
 }

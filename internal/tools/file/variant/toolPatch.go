@@ -5,14 +5,15 @@ import (
 	"fmt"
 
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func patchToolFile(ctx context.Context, e *tooltypes.Executor, name, tag, oldString, newString string, replaceAll bool) (string, error) {
 	if oldString == "" {
-		return "", fmt.Errorf("old_string is required when mode=patch")
+		return "", utilsmsg.New(utilsmsg.Invalid, "old_string", "required when mode=patch")
 	}
 	if oldString == newString {
-		return "", fmt.Errorf("no edit needed")
+		return "", utilsmsg.New(utilsmsg.Invalid, "new_string", "no edit needed")
 	}
 
 	target, err := toolTarget(name, tag, true)

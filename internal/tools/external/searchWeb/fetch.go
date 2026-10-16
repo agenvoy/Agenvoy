@@ -3,7 +3,6 @@ package searchWeb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -157,7 +157,7 @@ func fetch(ctx context.Context, query, timeRange string, cdp bool) (string, erro
 		return fetchCDP(ctx, query, timeRange)
 	}
 	if status != http.StatusOK {
-		return "", fmt.Errorf("status %d", status)
+		return "", utilsmsg.New(utilsmsg.Upstream, "duckduckgo", "status %d", status)
 	}
 
 	items := parse(html)
@@ -172,7 +172,7 @@ func fetch(ctx context.Context, query, timeRange string, cdp bool) (string, erro
 
 	raw, err := json.Marshal(items)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
@@ -191,7 +191,7 @@ func fetchCDP(ctx context.Context, query, timeRange string) (string, error) {
 		Type:      go_browser.TypeHTML,
 	})
 	if err != nil {
-		return "", fmt.Errorf("go_browser.Fetch: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_browser.Fetch", link, err)
 	}
 
 	items := parse(result.Content)
@@ -206,7 +206,7 @@ func fetchCDP(ctx context.Context, query, timeRange string) (string, error) {
 
 	raw, err := json.Marshal(items)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

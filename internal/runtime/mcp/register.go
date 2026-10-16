@@ -9,6 +9,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (t Tool) getDef(server string, m *MCP) (toolregister.Def, bool) {
@@ -43,7 +44,7 @@ func (t Tool) getDef(server string, m *MCP) (toolregister.Def, bool) {
 			var argMap map[string]any
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &argMap); err != nil {
-					return "", fmt.Errorf("json.Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 

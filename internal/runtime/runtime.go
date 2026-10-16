@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -14,6 +13,7 @@ import (
 
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -44,7 +44,7 @@ func Read() (*Runtime, error) {
 
 func write(r *Runtime) error {
 	if err := go_pkg_filesystem.WriteJSON(path(), r, false); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.WriteJSON: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", "", err)
 	}
 	return nil
 }
@@ -84,10 +84,10 @@ func Init() (*Runtime, error) {
 func Stop(pid int) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
-		return fmt.Errorf("os.FindProcess: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.FindProcess", "", err)
 	}
 	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("proc.SIGTERM: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "proc.SIGTERM", "", err)
 	}
 	deadline := time.Now().Add(stopGraceWindow)
 	for time.Now().Before(deadline) {
@@ -97,7 +97,7 @@ func Stop(pid int) error {
 		time.Sleep(stopPollGap)
 	}
 	if err := proc.Signal(syscall.SIGKILL); err != nil {
-		return fmt.Errorf("proc.SIGKILL: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "proc.SIGKILL", "", err)
 	}
 	return nil
 }
@@ -108,7 +108,7 @@ func Clear() error {
 		return nil
 	}
 	if err := os.Remove(p); err != nil {
-		return fmt.Errorf("os.Remove: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", "", err)
 	}
 	return nil
 }

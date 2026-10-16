@@ -13,6 +13,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var watchBinaries = map[string]bool{
@@ -24,7 +25,7 @@ var packageRunners = map[string]bool{
 }
 
 func watchCommandErr(command string) error {
-	return fmt.Errorf("%q starts a file watcher that never exits; run_command waits for the process to end, so it would hang until the %s timeout. Run a one-shot build instead (e.g. the same tool without --watch, or the package script that builds once) and do not retry this command", command, configs.RUN_COMMAND_TIMEOUT)
+	return utilsmsg.New(utilsmsg.Denied, "run_command", "%q starts a file watcher that never exits; run_command waits for the process to end, so it would hang until the %s timeout. Run a one-shot build instead (e.g. the same tool without --watch, or the package script that builds once) and do not retry this command", command, configs.RUN_COMMAND_TIMEOUT)
 }
 
 func isWatchFlag(arg string) bool {
@@ -61,7 +62,7 @@ func checkWatchArgs(args []string, dir string, depth int, seen map[string]bool) 
 	}
 	seen[key] = true
 	if err := checkWatchScript(script, pkgDir, depth+1, seen); err != nil {
-		return fmt.Errorf("%q runs package script %q (%s): %w", strings.Join(args, " "), name, script, err)
+		return utilsmsg.Trace(fmt.Sprintf("%q runs package script %q (%s)", strings.Join(args, " "), name, script), "", err)
 	}
 	return nil
 }

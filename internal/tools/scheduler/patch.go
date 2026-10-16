@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func patchSchedule(target, when, skill string) (string, error) {
@@ -16,7 +17,7 @@ func patchSchedule(target, when, skill string) (string, error) {
 			return "", err
 		}
 		if !at.After(time.Now()) {
-			return "", fmt.Errorf("already gone: %s", at.Local().Format("2006-01-02 15:04:05"))
+			return "", utilsmsg.New(utilsmsg.Invalid, "time", "already gone: %s", at.Local().Format("2006-01-02 15:04:05"))
 		}
 		patched, err := runtime.PatchTask(skill, at.UTC())
 		if err != nil {
@@ -43,5 +44,5 @@ func patchSchedule(target, when, skill string) (string, error) {
 		return fmt.Sprintf("patched %d cron(s) for skill %q; new expression: %s",
 			patched, skill, expression), nil
 	}
-	return "", fmt.Errorf("target must be 'task' or 'cron' (got %q)", target)
+	return "", utilsmsg.New(utilsmsg.Invalid, "target", "must be 'task' or 'cron' (got %q)", target)
 }

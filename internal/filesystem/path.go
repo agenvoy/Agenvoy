@@ -12,6 +12,8 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -65,12 +67,12 @@ const (
 func Init() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("os.UserHomeDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 	}
 
 	workDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("os.Getwd: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.Getwd", "", err)
 	}
 
 	filesystemOnce.Do(func() {
@@ -127,7 +129,7 @@ func Init() error {
 		ExtensionScriptToolsDir,
 	} {
 		if err = go_pkg_filesystem.CheckDir(dir, true); err != nil {
-			return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 		}
 	}
 
@@ -190,7 +192,7 @@ func CopyToStoreTemp(src string) (string, error) {
 		return "", err
 	}
 	if err := CopyPath(src, dst); err != nil {
-		return "", fmt.Errorf("CopyPath [%s → %s]: %w", src, dst, err)
+		return "", utilsmsg.Trace("CopyPath", src+" → "+dst, err)
 	}
 	return dst, nil
 }
@@ -201,14 +203,14 @@ func MoveToStoreTemp(src string) (string, error) {
 		return "", err
 	}
 	if err := go_pkg_filesystem.Move(src, dst); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem Move [%s → %s]: %w", src, dst, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.Move", src+" → "+dst, err)
 	}
 	return dst, nil
 }
 
 func storeTempPath(src string) (string, error) {
 	if StoreTempDir == "" {
-		return "", fmt.Errorf("filesystem.Init has not run: no trash directory to move %s into", src)
+		return "", utilsmsg.New(utilsmsg.Internal, "filesystem.Init", "has not run: no trash directory to move %s into", src)
 	}
 
 	mirrored := filepath.Join(StoreTempDir, strings.TrimPrefix(src, string(filepath.Separator)))
@@ -235,13 +237,13 @@ func CopyPath(src, dst string) error {
 
 		rel, err := filepath.Rel(src, path)
 		if err != nil {
-			return fmt.Errorf("filepath.Rel: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "filepath.Rel", path, err)
 		}
 		target := filepath.Join(dst, rel)
 
 		if entry.IsDir() {
 			if err := go_pkg_filesystem.CheckDir(target, true); err != nil {
-				return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", target, err)
+				return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", target, err)
 			}
 			return nil
 		}
@@ -249,7 +251,7 @@ func CopyPath(src, dst string) error {
 			return nil
 		}
 		if err := go_pkg_filesystem.Copy(path, target); err != nil {
-			return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem Copy [%s → %s]: %w", path, target, err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.Copy", path+" → "+target, err)
 		}
 		return nil
 	})
@@ -257,14 +259,14 @@ func CopyPath(src, dst string) error {
 
 func TrashDir(src, trashBase, name string) (string, error) {
 	if err := go_pkg_filesystem.CheckDir(trashBase, true); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.CheckDir [%s]: %w", trashBase, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", trashBase, err)
 	}
 	dst := filepath.Join(trashBase, name)
 	if go_pkg_filesystem_reader.Exists(dst) {
 		dst = filepath.Join(trashBase, fmt.Sprintf("%s-%d", name, time.Now().Unix()))
 	}
 	if err := os.Rename(src, dst); err != nil {
-		return "", fmt.Errorf("os.Rename [%s → %s]: %w", src, dst, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Rename", src+" → "+dst, err)
 	}
 	return dst, nil
 }
@@ -297,13 +299,13 @@ func ResolveOutputDir(raw string) (string, error) {
 	if rest, ok := strings.CutPrefix(dir, "~"); ok {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("os.UserHomeDir: %w", err)
+			return "", utilsmsg.Wrap(utilsmsg.Internal, "os.UserHomeDir", "", err)
 		}
 		dir = filepath.Join(home, rest)
 	}
 	dir = filepath.Clean(dir)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.CheckDir [%s]: %w", dir, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 	return dir, nil
 }

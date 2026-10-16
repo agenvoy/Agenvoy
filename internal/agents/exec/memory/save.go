@@ -13,6 +13,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var ErrRecordNotFound = errors.New("record not found")
@@ -46,7 +47,7 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 
 	raw, err := json.Marshal(record)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 
 	key := fmt.Sprintf("%s:%d", record.ToolName, now.UnixNano())
@@ -55,7 +56,7 @@ func Save(ctx context.Context, sessionID string, record Record) (string, error) 
 	expireAt := torii.TTL(configs.TTL_MEMORY_SEC)
 
 	if err := db.SetVector(ctx, key, value, expireAt); err != nil {
-		return "", fmt.Errorf("store.Set: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "store.Set", "", err)
 	}
 
 	return fmt.Sprintf("Remember the Error: %s", record.ID), nil
@@ -65,10 +66,10 @@ func UpdateAction(ctx context.Context, id, action string) (*Record, error) {
 	id = strings.TrimSpace(id)
 	action = strings.TrimSpace(action)
 	if id == "" {
-		return nil, fmt.Errorf("id is required")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "id", "required")
 	}
 	if action == "" {
-		return nil, fmt.Errorf("action is required")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "action", "required")
 	}
 
 	db := torii.DB(torii.DBErrorMemory)
@@ -87,10 +88,10 @@ func UpdateAction(ctx context.Context, id, action string) (*Record, error) {
 		record.Action = action
 		raw, err := json.Marshal(record)
 		if err != nil {
-			return nil, fmt.Errorf("json.Marshal: %w", err)
+			return nil, utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 		}
 		if err := db.SetVector(ctx, entry.Key, string(raw), torii.TTL(configs.TTL_MEMORY_SEC)); err != nil {
-			return nil, fmt.Errorf("store.Set: %w", err)
+			return nil, utilsmsg.Wrap(utilsmsg.Internal, "store.Set", "", err)
 		}
 		return &record, nil
 	}

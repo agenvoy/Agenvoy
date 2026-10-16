@@ -1,9 +1,10 @@
 package tool
 
 import (
-	"fmt"
 	"slices"
 	"strings"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -25,5 +26,5 @@ func parsePlatform(s string) (string, error) {
 	if slices.Contains(platformEnum, s) {
 		return s, nil
 	}
-	return "", fmt.Errorf("unsupported platform %q; available: %s", s, strings.Join(platformEnum, ", "))
+	return "", utilsmsg.New(utilsmsg.Invalid, "platform", "unsupported %q; available: %s", s, strings.Join(platformEnum, ", "))
 }

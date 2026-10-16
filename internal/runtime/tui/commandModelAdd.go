@@ -44,6 +44,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type modelAddItem struct {
@@ -310,7 +311,7 @@ func runOAuthFlow(ctx context.Context, prov string) {
 			send(OAuthInfo{url: url})
 		})
 	default:
-		err = fmt.Errorf("unsupported oauth provider: %s", prov)
+		err = utilsmsg.New(utilsmsg.Invalid, "oauth provider", "unsupported %s", prov)
 	}
 	if err != nil {
 		send(OAuthFailed{err: err})

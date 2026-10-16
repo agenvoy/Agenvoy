@@ -2,31 +2,31 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	runtimestore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Reset(sessionID string, withSummary bool) (int, error) {
 	if sessionID == "" {
-		return 0, fmt.Errorf("[Invalid] session id: required")
+		return 0, utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	if err := os.Remove(filesystem.HistoryPath(sessionID)); err != nil && !os.IsNotExist(err) {
-		return 0, fmt.Errorf("[Internal] os.Remove %s: %w", filesystem.HistoryPath(sessionID), err)
+		return 0, utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", filesystem.HistoryPath(sessionID), err)
 	}
 
 	if err := runtimestore.ClearAction(context.Background(), sessionID); err != nil {
-		return 0, fmt.Errorf("runtimestore.ClearAction: %w", err)
+		return 0, utilsmsg.Trace("runtimestore.ClearAction", "", err)
 	}
 
 	os.RemoveAll(filesystem.PendingDir(sessionID))
 
 	if err := os.Remove(filesystem.ActionLogPath(sessionID)); err != nil && !os.IsNotExist(err) {
-		return 0, fmt.Errorf("[Internal] os.Remove %s: %w", filesystem.ActionLogPath(sessionID), err)
+		return 0, utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", filesystem.ActionLogPath(sessionID), err)
 	}
 
 	runtimestore.Clear(sessionID)
@@ -34,10 +34,10 @@ func Reset(sessionID string, withSummary bool) (int, error) {
 
 	if !withSummary {
 		if err := os.Remove(filesystem.SummaryPath(sessionID)); err != nil && !os.IsNotExist(err) {
-			return 0, fmt.Errorf("[Internal] os.Remove %s: %w", filesystem.SummaryPath(sessionID), err)
+			return 0, utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", filesystem.SummaryPath(sessionID), err)
 		}
 		if err := os.Remove(filesystem.SummaryCursorPath(sessionID)); err != nil && !os.IsNotExist(err) {
-			return 0, fmt.Errorf("[Internal] os.Remove %s: %w", filesystem.SummaryCursorPath(sessionID), err)
+			return 0, utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", filesystem.SummaryCursorPath(sessionID), err)
 		}
 	}
 

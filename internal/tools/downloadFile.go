@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registDownloadFile() {
@@ -57,22 +57,22 @@ func handleDownloadFile(ctx context.Context, _ *tooltypes.Executor, args json.Ra
 		Timeout    int    `json:"timeout"`
 	}
 	if err := json.Unmarshal(args, &p); err != nil {
-		return "", fmt.Errorf("json.Unmarshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 	}
 
 	url := strings.TrimSpace(p.URL)
 	out := strings.TrimSpace(p.OutputFile)
 	if url == "" {
-		return "", fmt.Errorf("url is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "url", "required")
 	}
 	if out == "" {
-		return "", fmt.Errorf("output_file is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "output_file", "required")
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(filesystem.OutputDir(), out)
 	}
 	if err := os.MkdirAll(filepath.Dir(out), 0755); err != nil {
-		return "", fmt.Errorf("MkdirAll: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.MkdirAll", filepath.Dir(out), err)
 	}
 
 	timeout := p.Timeout
@@ -87,24 +87,24 @@ func handleDownloadFile(ctx context.Context, _ *tooltypes.Executor, args json.Ra
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", fmt.Errorf("http.NewRequest: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Invalid, "http.NewRequest", "", err)
 	}
 
 	client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("client.Do: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "client.Do", "", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return "", fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+		return "", utilsmsg.New(utilsmsg.Upstream, "http", "%d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
 	}
 
 	f, err := os.Create(out)
 	if err != nil {
-		return "", fmt.Errorf("os.Create: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Create", out, err)
 	}
 	size, copyErr := io.Copy(f, resp.Body)
 	if closeErr := f.Close(); closeErr != nil && copyErr == nil {
@@ -112,7 +112,7 @@ func handleDownloadFile(ctx context.Context, _ *tooltypes.Executor, args json.Ra
 	}
 	if copyErr != nil {
 		os.Remove(out)
-		return "", fmt.Errorf("io.Copy: %w", copyErr)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "io.Copy", out, copyErr)
 	}
 
 	result := map[string]any{
@@ -128,7 +128,7 @@ func handleDownloadFile(ctx context.Context, _ *tooltypes.Executor, args json.Ra
 
 	raw, err := utils.MarshalPlain(result)
 	if err != nil {
-		return "", fmt.Errorf("utils.MarshalPlain: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "utils.MarshalPlain", "", err)
 	}
 	return string(raw), nil
 }

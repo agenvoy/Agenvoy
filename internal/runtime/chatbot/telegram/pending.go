@@ -14,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type telegramTransport struct {
@@ -34,11 +35,11 @@ func newPendingListener(bot *Bot) *runtime.Listener[int64, int] {
 func (t *telegramTransport) LookupChatID(sessionID string) (int64, error) {
 	chatStr, err := sessiontelegram.GetChat(sessionID)
 	if err != nil {
-		return 0, fmt.Errorf("GetChatID: %w", err)
+		return 0, utilsmsg.Trace("GetChatID", "", err)
 	}
 	chatID, err := strconv.ParseInt(strings.TrimSpace(chatStr), 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parse chatID %q: %w", chatStr, err)
+		return 0, utilsmsg.New(utilsmsg.Invalid, "chatID", "parse %q: %w", chatStr, err)
 	}
 	return chatID, nil
 }

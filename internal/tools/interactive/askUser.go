@@ -27,6 +27,7 @@ import (
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type askQuestion struct {
@@ -164,23 +165,23 @@ A credential is never asked for here → store_secret.`,
 				State     askState      `json:"state"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Questions) == 0 {
-				return "", fmt.Errorf("ask_user requires at least one question in 'questions'")
+				return "", utilsmsg.New(utilsmsg.Invalid, "questions", "ask_user requires at least one question in 'questions'")
 			}
 			if strings.TrimSpace(params.State.Objective) == "" {
-				return "", fmt.Errorf("state.objective is required for task resumption")
+				return "", utilsmsg.New(utilsmsg.Invalid, "state.objective", "required for task resumption")
 			}
 			if len(params.State.NextSteps) == 0 {
-				return "", fmt.Errorf("state.next_steps is required for task resumption")
+				return "", utilsmsg.New(utilsmsg.Invalid, "state.next_steps", "required for task resumption")
 			}
 
 			questions := make([]runtime.Question, 0, len(params.Questions))
 			for i, q := range params.Questions {
 				q.Question = strings.TrimSpace(q.Question)
 				if q.Question == "" {
-					return "", fmt.Errorf("question #%d is empty", i+1)
+					return "", utilsmsg.New(utilsmsg.Invalid, "questions", "#%d is empty", i+1)
 				}
 				questions = append(questions, runtime.Question{
 					Question:    q.Question,
@@ -198,7 +199,7 @@ A credential is never asked for here → store_secret.`,
 
 			raw, err := json.Marshal(map[string]any{"answers": answers})
 			if err != nil {
-				return "", fmt.Errorf("json Marshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 			}
 			return string(raw), nil
 		},
@@ -220,11 +221,11 @@ func clampPendingText(text string, limit int) string {
 func readPending(path string) (pendingMeta, error) {
 	raw, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return pendingMeta{}, fmt.Errorf("ReadText: %w", err)
+		return pendingMeta{}, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 	var meta pendingMeta
 	if err := json.NewDecoder(strings.NewReader(raw)).Decode(&meta); err != nil {
-		return pendingMeta{}, fmt.Errorf("json Decode: %w", err)
+		return pendingMeta{}, utilsmsg.Wrap(utilsmsg.Internal, "json.Decode", path, err)
 	}
 	return meta, nil
 }
@@ -232,7 +233,7 @@ func readPending(path string) (pendingMeta, error) {
 func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	dir := filesystem.PendingDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 
 	meta.TaskHash = taskHash
@@ -243,7 +244,7 @@ func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	}
 
 	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, false); err != nil {
-		return fmt.Errorf("WriteFile json: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", "", err)
 	}
 	return nil
 }
@@ -533,7 +534,7 @@ func buildResumeAnswer(answer any) string {
 func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, history string, err error) {
 	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
-		return "", "", fmt.Errorf("ReadJSON: %w", err)
+		return "", "", utilsmsg.Trace("readPending", "", err)
 	}
 
 	if meta.Model != "" {
@@ -787,7 +788,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Question) ([]any, error) {
 	origin := originFor(ctx, sessionID)
 	if !runtime.HasListener(ctx, origin) {
-		return nil, fmt.Errorf("ask_user requires an interactive channel (TUI / Telegram / Discord)")
+		return nil, utilsmsg.New(utilsmsg.Unavailable, "ask_user", "requires an interactive channel (TUI / Telegram / Discord)")
 	}
 
 	reply, err := runtime.Ask(ctx, runtime.Request{
@@ -800,10 +801,10 @@ func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Questi
 		Inline:    true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("runtime Ask: %w", err)
+		return nil, utilsmsg.Trace("runtime.Ask", "", err)
 	}
 	if reply.Error != nil {
-		return nil, fmt.Errorf("runtime Ask: %w", reply.Error)
+		return nil, utilsmsg.Trace("runtime.Ask", "", reply.Error)
 	}
 	return reply.Answers, nil
 }

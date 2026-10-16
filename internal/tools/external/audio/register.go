@@ -3,11 +3,11 @@ package audio
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -50,7 +50,7 @@ Returns the saved path, not the audio data.`,
 				OutputFile string `json:"output_file"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			return Generate(ctx, Request{
 				Text:       params.Text,

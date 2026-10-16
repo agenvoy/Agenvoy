@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const Key = "TELEGRAM_TOKEN"
@@ -46,7 +46,7 @@ func New() (*Bot, error) {
 		go_bot_telegram.WithHTTPClient(&http.Client{Timeout: 5 * time.Minute}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram New: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.New", "", err)
 	}
 
 	bot := &Bot{client: client, fileGroup: newFileGroupBuffer()}
@@ -67,7 +67,7 @@ func New() (*Bot, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := client.Start(ctx); err != nil {
 		cancel()
-		return nil, fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram Start: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.Start", "", err)
 	}
 	bot.cancel = cancel
 	bot.listener = newPendingListener(bot)
@@ -78,7 +78,7 @@ func New() (*Bot, error) {
 	if cfg, err := config.Load(); err == nil && cfg != nil && cfg.TelegramUsername != username {
 		cfg.TelegramUsername = username
 		if err := config.Save(cfg); err != nil {
-			slog.Debug("github.com/pardnchiu/agenvoy/internal/session Save",
+			slog.Debug("session.Save",
 				slog.String("error", err.Error()))
 		}
 	}
@@ -106,14 +106,14 @@ var pending = utils.NewPendingRegistry[int64, int]()
 func authorizeChat(in go_bot_telegram.Input) error {
 	path := filesystem.TelegramAuthPath
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", "", err)
 	}
 	line := strconv.FormatInt(in.ChatID, 10)
 	if name := strings.TrimSpace(strings.NewReplacer("\n", " ", "\r", " ", "\t", " ").Replace(chatName(in))); name != "" {
 		line = line + "-" + name
 	}
 	if err := go_pkg_filesystem.AppendText(path, line+"\n"); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem AppendText: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.AppendText", "", err)
 	}
 	return nil
 }

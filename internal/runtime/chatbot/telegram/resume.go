@@ -9,6 +9,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
@@ -63,7 +64,7 @@ func lookupChatID(sessionID string) (int64, error) {
 	}
 	var chatID int64
 	if _, err := fmt.Sscanf(strings.TrimSpace(chatStr), "%d", &chatID); err != nil {
-		return 0, fmt.Errorf("parse chatID %q: %w", chatStr, err)
+		return 0, utilsmsg.New(utilsmsg.Invalid, "chatID", "parse %q: %w", chatStr, err)
 	}
 	return chatID, nil
 }

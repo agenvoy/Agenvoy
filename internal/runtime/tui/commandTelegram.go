@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type TelegramAction struct {
@@ -57,23 +57,23 @@ func (t TUI) openTelegramTokenPrompt() (TUI, tea.Cmd) {
 func enableTelegram(token string) tea.Cmd {
 	return func() tea.Msg {
 		if token == "" {
-			return TelegramDone{action: "enable", err: fmt.Errorf("token is required")}
+			return TelegramDone{action: "enable", err: utilsmsg.New(utilsmsg.Invalid, "token", "is required")}
 		}
 		username, err := verifyTelegram(token)
 		if err != nil {
 			return TelegramDone{action: "enable", err: err}
 		}
 		if err := keychain.Set(telegram.Key, token); err != nil {
-			return TelegramDone{action: "enable", err: fmt.Errorf("keychain.Set: %w", err)}
+			return TelegramDone{action: "enable", err: utilsmsg.Wrap(utilsmsg.Internal, "keychain.Set", "", err)}
 		}
 		cfg, err := config.Load()
 		if err != nil {
-			return TelegramDone{action: "enable", err: fmt.Errorf("session.Load: %w", err)}
+			return TelegramDone{action: "enable", err: utilsmsg.Trace("session.Load", "", err)}
 		}
 		cfg.TelegramEnabled = true
 		cfg.TelegramUsername = username
 		if err := config.Save(cfg); err != nil {
-			return TelegramDone{action: "enable", err: fmt.Errorf("session.Save: %w", err)}
+			return TelegramDone{action: "enable", err: utilsmsg.Trace("session.Save", "", err)}
 		}
 		return TelegramDone{action: "enable"}
 	}
@@ -83,7 +83,7 @@ func disableTelegram() tea.Cmd {
 	return func() tea.Msg {
 		cfg, err := config.Load()
 		if err != nil {
-			return TelegramDone{action: "disable", err: fmt.Errorf("session.Load: %w", err)}
+			return TelegramDone{action: "disable", err: utilsmsg.Trace("session.Load", "", err)}
 		}
 		if !cfg.TelegramEnabled && cfg.TelegramUsername == "" && keychain.Get(telegram.Key) == "" {
 			return TelegramDone{action: "disable"}
@@ -95,7 +95,7 @@ func disableTelegram() tea.Cmd {
 		cfg.TelegramEnabled = false
 		cfg.TelegramUsername = ""
 		if err := config.Save(cfg); err != nil {
-			return TelegramDone{action: "disable", err: fmt.Errorf("session.Save: %w", err)}
+			return TelegramDone{action: "disable", err: utilsmsg.Trace("session.Save", "", err)}
 		}
 		return TelegramDone{action: "disable"}
 	}
@@ -104,13 +104,13 @@ func disableTelegram() tea.Cmd {
 func verifyTelegram(token string) (string, error) {
 	client, err := go_bot_telegram.New(token)
 	if err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram New: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.New", "", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Start(ctx); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-bot/core/telegram Start: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.Start", "", err)
 	}
 	username := client.Status().Username
 	_ = client.Close()

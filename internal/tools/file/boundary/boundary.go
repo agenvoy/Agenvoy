@@ -2,7 +2,6 @@ package boundary
 
 import (
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type pathSet struct {
@@ -60,13 +60,13 @@ func isGranted(sessionID, absPath string) bool {
 func resolveRaw(baseDir, path string) (string, error) {
 	abs := go_pkg_utils.AbsPath(baseDir, path)
 	if abs == "" {
-		return "", fmt.Errorf("empty path with no base directory")
+		return "", utilsmsg.New(utilsmsg.Invalid, "path", "empty with no base directory")
 	}
 	return go_pkg_filesystem.RealPath(abs)
 }
 
 func deniedErr(absPath string) error {
-	return fmt.Errorf("%s is on denied_path and is permanently off limits for both reads and writes; it cannot be approved and retrying the same path fails the same way", absPath)
+	return utilsmsg.New(utilsmsg.Denied, "path", "%s is on denied_path and is permanently off limits for both reads and writes; it cannot be approved and retrying the same path fails the same way", absPath)
 }
 
 func Resolve(sessionID, baseDir, path string) (string, error) {
@@ -92,9 +92,9 @@ func Resolve(sessionID, baseDir, path string) (string, error) {
 		return restricted, nil
 	}
 	if homeErr != nil {
-		return "", fmt.Errorf("%w; the user was not asked or did not approve this path, so retrying the same path fails the same way", homeErr)
+		return "", utilsmsg.New(utilsmsg.Denied, "path", "%w; the user was not asked or did not approve this path, so retrying the same path fails the same way", homeErr)
 	}
-	return "", fmt.Errorf("%s holds credentials or key material; the user was not asked or did not approve this path, so retrying the same path fails the same way", restricted)
+	return "", utilsmsg.New(utilsmsg.Denied, "path", "%s holds credentials or key material; the user was not asked or did not approve this path, so retrying the same path fails the same way", restricted)
 }
 
 func Restricted(sessionID, workDir, toolName, toolArgs string) []string {
@@ -137,7 +137,7 @@ func WriteBinds(sessionID, baseDir string, list []string) ([]string, error) {
 			continue
 		}
 		if !filepath.IsAbs(one) && !strings.HasPrefix(one, "~") {
-			return nil, fmt.Errorf("write_paths needs absolute paths, got %q", one)
+			return nil, utilsmsg.New(utilsmsg.Invalid, "write_paths", "needs absolute paths, got %q", one)
 		}
 		if home, err := go_pkg_filesystem.AbsPath(baseDir, one, go_pkg_filesystem.AbsPathOption{HomeOnly: true}); err == nil {
 			if IsDeniedPath(home) {
@@ -148,13 +148,13 @@ func WriteBinds(sessionID, baseDir string, list []string) ([]string, error) {
 
 		abs, err := resolveRaw(baseDir, one)
 		if err != nil {
-			return nil, fmt.Errorf("write_paths %q: %w", one, err)
+			return nil, utilsmsg.New(utilsmsg.Invalid, "write_paths", "%q: %w", one, err)
 		}
 		if IsDeniedPath(abs) {
 			return nil, deniedErr(abs)
 		}
 		if !isGranted(sessionID, abs) {
-			return nil, fmt.Errorf("write path %s was not approved — it has to be approved in this call's prompt; retrying without that changes nothing", abs)
+			return nil, utilsmsg.New(utilsmsg.Denied, "write_paths", "write path %s was not approved — it has to be approved in this call's prompt; retrying without that changes nothing", abs)
 		}
 		if seen[abs] {
 			continue

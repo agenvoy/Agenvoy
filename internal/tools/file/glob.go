@@ -3,7 +3,6 @@ package file
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func globBatch(ctx context.Context, e *tooltypes.Executor, queries []findQuery) (string, error) {
@@ -48,7 +48,7 @@ func globBatch(ctx context.Context, e *tooltypes.Executor, queries []findQuery) 
 	merged = budget.take(merged)
 	raw, err := json.Marshal(merged)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw) + budget.notice(), nil
 }
@@ -65,21 +65,21 @@ func isCatchAllPattern(pattern string) bool {
 func globOne(ctx context.Context, e *tooltypes.Executor, dir, pattern string) ([]go_pkg_filesystem_reader.File, error) {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
-		return nil, fmt.Errorf("pattern is required")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "pattern", "required")
 	}
 	if isCatchAllPattern(pattern) {
-		return nil, fmt.Errorf("pattern %q matches every file and narrows nothing; use mode=list to see what a directory holds, or mode=search to find files by their content", pattern)
+		return nil, utilsmsg.New(utilsmsg.Invalid, "pattern", "%q matches every file and narrows nothing; use mode=list to see what a directory holds, or mode=search to find files by their content", pattern)
 	}
 
 	dir = strings.TrimSpace(dir)
 	absPath, err := boundary.Resolve(e.SessionID, e.WorkDir, dir)
 	if err != nil {
-		return nil, fmt.Errorf("boundary.Resolve: %w", err)
+		return nil, utilsmsg.Trace("boundary.Resolve", "", err)
 	}
 
 	matches, err := go_pkg_filesystem_reader.GlobFiles(absPath, pattern)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/reader: GlobFiles: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem_reader.GlobFiles", "", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

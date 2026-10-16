@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	sessionmanager "github.com/pardnchiu/agenvoy/internal/session"
 	toolscheduler "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var scheduleName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -127,7 +127,7 @@ func scheduleTimes(list []string) ([]time.Time, error) {
 			return nil, err
 		}
 		if !at.After(time.Now()) {
-			return nil, fmt.Errorf("already gone: %s", one)
+			return nil, utilsmsg.New(utilsmsg.Invalid, "schedule time", "already gone: %s", one)
 		}
 		out = append(out, at)
 	}

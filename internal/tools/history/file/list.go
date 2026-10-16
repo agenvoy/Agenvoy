@@ -2,7 +2,6 @@ package fileHistory
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	actionhistory "github.com/pardnchiu/agenvoy/internal/tools/history/action"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func list(ctx context.Context, e *tooltypes.Executor, rawPath, taskID, from, to string, limit int) (string, error) {
@@ -38,7 +38,7 @@ func list(ctx context.Context, e *tooltypes.Executor, rawPath, taskID, from, to 
 
 	list, err := historystore.List(ctx, filter)
 	if err != nil {
-		return "", fmt.Errorf("internal/runtime/store: List: %w", err)
+		return "", utilsmsg.Trace("historystore.List", "", err)
 	}
 	if len(list) == 0 {
 		return "no recorded changes", nil
@@ -66,7 +66,7 @@ func list(ctx context.Context, e *tooltypes.Executor, rawPath, taskID, from, to 
 
 	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

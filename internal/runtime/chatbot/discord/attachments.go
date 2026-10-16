@@ -25,7 +25,7 @@ func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID,
 		}
 		str = fmt.Sprintf("%s\n-# ⎿ `%s`", str, errMsg)
 		if _, err := client.Send(ctx, channelID, replyTo, str); err != nil {
-			slog.Error("github.com/pardnchiu/go-bot/core/discord Bot.Send (notify)",
+			slog.Error("go_bot_discord.Bot.Send (notify)",
 				slog.String("label", label),
 				slog.String("error", err.Error()))
 		}
@@ -35,7 +35,7 @@ func sendAttachments(ctx context.Context, client *go_bot_discord.Bot, channelID,
 		end := min(start+10, len(paths))
 		batch := paths[start:end]
 		if _, err := client.SendFiles(ctx, channelID, replyTo, batch); err != nil {
-			slog.Error("github.com/pardnchiu/go-bot/core/discord Bot.SendFiles",
+			slog.Error("go_bot_discord.Bot.SendFiles",
 				slog.String("channel", channelName),
 				slog.Int("count", len(batch)),
 				slog.String("paths", strings.Join(batch, ", ")),
@@ -58,7 +58,7 @@ func saveAttachments(ctx context.Context, b *Bot, in go_bot_discord.Input) []cha
 		}
 		path, err := b.client.Save(ctx, att, dir)
 		if err != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/core/discord Bot.Save",
+			slog.Warn("go_bot_discord.Bot.Save",
 				slog.String("channel", channelName(in)),
 				slog.String("filename", att.Filename),
 				slog.String("error", err.Error()))

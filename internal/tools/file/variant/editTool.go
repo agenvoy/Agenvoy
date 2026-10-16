@@ -3,11 +3,11 @@ package variant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registEditTool() {
@@ -67,7 +67,7 @@ The build flow is write → test_tool → call it. Finding an existing tool → 
 				ReplaceAll bool   `json:"replace_all"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))
@@ -78,7 +78,7 @@ The build flow is write → test_tool → call it. Finding an existing tool → 
 				case params.OldString != "":
 					mode = "patch"
 				default:
-					return "", fmt.Errorf("mode is required; available: write, patch, remove")
+					return "", utilsmsg.New(utilsmsg.Invalid, "mode", "required; available: write, patch, remove")
 				}
 			}
 
@@ -90,7 +90,7 @@ The build flow is write → test_tool → call it. Finding an existing tool → 
 			case "remove":
 				return removeToolDir(ctx, e, params.Name)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: write, patch, remove", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: write, patch, remove", mode)
 		},
 	})
 }

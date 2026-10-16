@@ -10,13 +10,14 @@ import (
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func RemoveToTrash(ctx context.Context, e *tooltypes.Executor, paths []string, tool string) (string, error) {
 	var moved, failed, unrecorded []string
 	for _, one := range paths {
 		if err := ctx.Err(); err != nil {
-			return "", fmt.Errorf("remove cancelled: %w", err)
+			return "", utilsmsg.New(utilsmsg.Canceled, "remove", "cancelled: %w", err)
 		}
 		if strings.HasPrefix(one, "-") {
 			continue
@@ -46,9 +47,9 @@ func RemoveToTrash(ctx context.Context, e *tooltypes.Executor, paths []string, t
 
 	switch {
 	case len(moved) == 0 && len(failed) == 0:
-		return "", fmt.Errorf("paths is required when mode=remove")
+		return "", utilsmsg.New(utilsmsg.Invalid, "paths", "required when mode=remove")
 	case len(moved) == 0:
-		return "", fmt.Errorf("removed nothing: %s", strings.Join(failed, "; "))
+		return "", utilsmsg.New(utilsmsg.Internal, "remove", "removed nothing: %s", strings.Join(failed, "; "))
 	}
 
 	report := fmt.Sprintf("moved to %s: %s", filesystem.StoreTempDir, strings.Join(moved, ", "))

@@ -14,6 +14,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var mimeExt = map[string]string{
@@ -35,7 +36,7 @@ type Request struct {
 func Generate(ctx context.Context, req Request) (string, error) {
 	prompt := strings.TrimSpace(req.Prompt)
 	if prompt == "" {
-		return "", fmt.Errorf("prompt is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "prompt", "required")
 	}
 
 	img, agentName, err := agent(ctx)
@@ -58,23 +59,23 @@ func Generate(ctx context.Context, req Request) (string, error) {
 
 	result, err := img.GenerateImage(ctx, prompt, opts)
 	if err != nil {
-		return "", fmt.Errorf("%s GenerateImage: %w", agentName, err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "GenerateImage", agentName, err)
 	}
 	if result == nil || result.B64 == "" {
-		return "", fmt.Errorf("%s returned no image data", agentName)
+		return "", utilsmsg.New(utilsmsg.Upstream, agentName, "returned no image data")
 	}
 
 	raw, err := base64.StdEncoding.DecodeString(result.B64)
 	if err != nil {
-		return "", fmt.Errorf("base64.Decode: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "base64.Decode", agentName, err)
 	}
 
 	path := outputPath(req, result.MimeType)
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return "", fmt.Errorf("CheckDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(path), err)
 	}
 	if err := os.WriteFile(path, raw, 0644); err != nil {
-		return "", fmt.Errorf("os.WriteFile [%s]: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.WriteFile", path, err)
 	}
 
 	out := fmt.Sprintf("saved: %s\nmodel: %s\nbytes: %d", path, agentName, len(raw))
@@ -108,14 +109,14 @@ func outputPath(req Request, mime string) string {
 
 func readReference(path string) (string, string, error) {
 	if !filepath.IsAbs(path) {
-		return "", "", fmt.Errorf("reference must be an absolute path")
+		return "", "", utilsmsg.New(utilsmsg.Invalid, "reference", "must be an absolute path")
 	}
 	if !go_pkg_filesystem_reader.Exists(path) {
-		return "", "", fmt.Errorf("reference not found: %s", path)
+		return "", "", utilsmsg.New(utilsmsg.NotFound, "reference", "%s", path)
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return "", "", fmt.Errorf("os.ReadFile [%s]: %w", path, err)
+		return "", "", utilsmsg.Wrap(utilsmsg.Internal, "os.ReadFile", path, err)
 	}
 
 	mime := "image/png"

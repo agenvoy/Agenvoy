@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type NamedSession struct {
@@ -24,7 +24,7 @@ type NamedSession struct {
 func New(prefix string) (string, error) {
 	uuid := go_pkg_utils.UUID()
 	if uuid == "" {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/utils UUID: no UUID generated")
+		return "", utilsmsg.New(utilsmsg.Internal, "go_pkg_utils.UUID", "no UUID generated")
 	}
 
 	sessionID := prefix + uuid

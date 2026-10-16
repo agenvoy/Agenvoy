@@ -2,8 +2,9 @@ package historyStore
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const keepPerPath = 32
@@ -31,7 +32,7 @@ func insert(ctx context.Context, c Change, meta Meta) error {
 		c.dir, c.name, c.action, content, c.hash, c.size, truncated, trashPath,
 		meta.SessionID, meta.TaskID, meta.Tool, time.Now().Truncate(time.Second).UnixNano(),
 	); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [INSERT file_history]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[INSERT file_history]", err)
 	}
 
 	return nil
@@ -52,7 +53,7 @@ func PruneFile(ctx context.Context) error {
 		)
 		WHERE seq > ?
 	)`, keepPerPath); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [DELETE file_history]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[DELETE file_history]", err)
 	}
 	return nil
 }

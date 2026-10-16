@@ -3,7 +3,6 @@ package model
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/session/history"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -76,7 +76,7 @@ func selectWithJEV(ctx context.Context, meta SelectMeta, tagMap map[string]strin
 	// * step 1: get key
 	key := strings.TrimSpace(keychain.Get(config.TypesafeKey))
 	if key == "" {
-		return nil, "", 0, fmt.Errorf("[Denied] %s: missing in keychain", config.TypesafeKey)
+		return nil, "", 0, utilsmsg.New(utilsmsg.Denied, config.TypesafeKey, "missing in keychain")
 	}
 
 	if len(meta.ModelNames) == 0 {
@@ -145,13 +145,13 @@ func selectWithJEV(ctx context.Context, meta SelectMeta, tagMap map[string]strin
 		"Authorization": "Bearer " + key,
 	}, body, "json")
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("go_pkg_http.POST: %w", err)
+		return nil, "", 0, utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.POST", "", err)
 	}
 
 	work := result.Answers["work"].Choice
 	order, ok := config.WorkTiers(work)
 	if !ok {
-		return nil, "", 0, fmt.Errorf("[Upstream] work: invalid choice %q", work)
+		return nil, "", 0, utilsmsg.New(utilsmsg.Upstream, "work", "invalid choice %q", work)
 	}
 
 	list := make([]string, 0, len(meta.ModelNames)+1)

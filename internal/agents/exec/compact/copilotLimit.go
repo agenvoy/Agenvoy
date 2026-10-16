@@ -2,7 +2,6 @@ package compact
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,6 +10,8 @@ import (
 
 	oauthcopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
 	go_pkg_http "github.com/pardnchiu/go-pkg/http"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -83,7 +84,7 @@ func fetchCopilotLimit() (map[string]int, error) {
 		return nil, err
 	}
 	if token == nil {
-		return nil, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
+		return nil, utilsmsg.New(utilsmsg.Denied, "copilot token", "missing; run `agen model add` to authenticate")
 	}
 	session, err := oauthcopilot.EnsureFreshSession(ctx, token, nil)
 	if err != nil {
@@ -98,7 +99,7 @@ func fetchCopilotLimit() (map[string]int, error) {
 		return nil, err
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("http %d", status)
+		return nil, utilsmsg.New(utilsmsg.Upstream, "copilot models", "http %d", status)
 	}
 
 	dic := make(map[string]int, len(data.Data))
@@ -111,7 +112,7 @@ func fetchCopilotLimit() (map[string]int, error) {
 		dic[id] = limits.MaxContextWindowTokens
 	}
 	if len(dic) == 0 {
-		return nil, fmt.Errorf("no chat model reported max_context_window_tokens")
+		return nil, utilsmsg.New(utilsmsg.Upstream, "copilot models", "no chat model reported max_context_window_tokens")
 	}
 	return dic, nil
 }

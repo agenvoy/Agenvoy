@@ -2,7 +2,6 @@ package probe
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type listFn func(context.Context, go_llm_router.Config) ([]string, error)
@@ -102,7 +102,7 @@ func Models(ctx context.Context, name string) ([]string, error) {
 	fn := lookup(prov)
 	if fn == nil {
 		if _, ok := agentkeychain.CompatInstance(name); !ok {
-			return nil, fmt.Errorf("provider %q does not support model listing", prov)
+			return nil, utilsmsg.New(utilsmsg.Invalid, "provider", "%q does not support model listing", prov)
 		}
 		fn = func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return CompatModels(ctx, cfg.BaseURL, cfg.APIKey)
@@ -128,7 +128,7 @@ func DropModelsCache(ctx context.Context, name string) {
 func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {
-		return nil, fmt.Errorf("compat base url is not configured")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "compat base url", "not configured")
 	}
 
 	var headers map[string]string
@@ -139,10 +139,10 @@ func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error)
 	client := &http.Client{Timeout: 10 * time.Second}
 	data, status, err := go_pkg_http.GET[compatModelList](ctx, client, baseURL+"/models", headers)
 	if err != nil {
-		return nil, fmt.Errorf("go_pkg_http.GET %s/models: %w", baseURL, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.GET", baseURL+"/models", err)
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("%s/models: http %d", baseURL, status)
+		return nil, utilsmsg.New(utilsmsg.Upstream, baseURL+"/models", "http %d", status)
 	}
 
 	ids := make([]string, 0, len(data.Data))

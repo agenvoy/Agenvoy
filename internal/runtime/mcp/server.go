@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const protocolVersion = "2024-11-05"
@@ -92,7 +94,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("stdin scanner: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "stdin scanner", "", err)
 	}
 	return nil
 }

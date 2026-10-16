@@ -3,7 +3,6 @@ package webapp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 	"github.com/pardnchiu/agenvoy/page"
 )
 
@@ -36,21 +36,21 @@ func SyncAsset(ctx context.Context) error {
 
 	var list []asset
 	if err := json.Unmarshal(raw, &list); err != nil {
-		return fmt.Errorf("json.Unmarshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "", err)
 	}
 
 	if err := go_pkg_filesystem.CheckDir(filesystem.VendorDir, true); err != nil {
-		return fmt.Errorf("go_pkg_filesystem.CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", "", err)
 	}
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	for _, item := range list {
 		body, _, err := go_pkg_http.GET[string](ctx, client, item.URL, nil)
 		if err != nil {
-			return fmt.Errorf("download %s: %w", item.Path, err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "download", item.Path, err)
 		}
 		if err := go_pkg_filesystem.WriteFile(filepath.Join(filesystem.VendorDir, item.Path), body, 0644); err != nil {
-			return fmt.Errorf("write %s: %w", item.Path, err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "write", item.Path, err)
 		}
 		slog.Debug("webapp asset downloaded",
 			slog.String("path", item.Path),
@@ -64,14 +64,14 @@ func manifest() ([]byte, error) {
 	if dir := os.Getenv("AGENVOY_PAGE_DIR"); dir != "" {
 		content, err := go_pkg_filesystem.ReadText(filepath.Join(dir, "vendor.json"))
 		if err != nil {
-			return nil, fmt.Errorf("go_pkg_filesystem.ReadText: %w", err)
+			return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", "", err)
 		}
 		return []byte(content), nil
 	}
 
 	raw, err := page.FS.ReadFile("vendor.json")
 	if err != nil {
-		return nil, fmt.Errorf("page.FS.ReadFile: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "page.FS.ReadFile", "", err)
 	}
 	return raw, nil
 }

@@ -28,6 +28,7 @@ import (
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const foregroundOrigin = "cli-"
@@ -512,7 +513,7 @@ func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_route
 					if exec.CancelExecution != nil {
 						exec.CancelExecution()
 					}
-					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", configs.CONFIRM_TIMEOUT)
+					return sessionData, alreadyCall, utilsmsg.New(utilsmsg.Timeout, "tool confirmation", "timed out after %s; resume from pending to continue", configs.CONFIRM_TIMEOUT)
 				}
 				if errors.Is(err, context.Canceled) {
 					if errors.Is(context.Cause(ctx), runtime.ErrUserCanceled) {
@@ -769,7 +770,7 @@ func runToolExec(ctx context.Context, exec *tooltypes.Executor, s *toolSlot, eve
 		slog.Error("runToolExec panic recovered",
 			slog.String("tool", s.name),
 			slog.Any("panic", r))
-		failToolEvent(exec, s, events, fmt.Errorf("tool %s panicked: %v", s.name, r))
+		failToolEvent(exec, s, events, utilsmsg.New(utilsmsg.Internal, "tool "+s.name, "panicked: %v", r))
 	}()
 	events <- agenttypes.Event{
 		Type:     agenttypes.EventToolCall,
@@ -842,19 +843,19 @@ func unwrapRunTool(exec *tooltypes.Executor, args string) (string, string, error
 		Args map[string]any `json:"args"`
 	}
 	if err := json.Unmarshal([]byte(args), &params); err != nil {
-		return "", "", fmt.Errorf("json Unmarshal: %w", err)
+		return "", "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "run_tool args", err)
 	}
 
 	name := strings.TrimSpace(params.Name)
 	switch {
 	case name == "":
-		return "", "", fmt.Errorf("name is required")
+		return "", "", utilsmsg.New(utilsmsg.Invalid, "run_tool name", "required")
 	case name == "run_tool":
-		return "", "", fmt.Errorf("run_tool cannot run itself")
+		return "", "", utilsmsg.New(utilsmsg.Invalid, "run_tool name", "run_tool cannot run itself")
 	case exec.ExcludeTools[name]:
-		return "", "", fmt.Errorf("%s is not available in this session", name)
+		return "", "", utilsmsg.New(utilsmsg.Denied, "tool", "%s is not available in this session", name)
 	case !slices.ContainsFunc(exec.AllTools, func(t go_llm_router.Tool) bool { return t.Function.Name == name }):
-		return "", "", fmt.Errorf("not exist: %s; look it up with find_tools", name)
+		return "", "", utilsmsg.New(utilsmsg.NotFound, "tool", "not exist: %s; look it up with find_tools", name)
 	}
 
 	if params.Args == nil {
@@ -862,7 +863,7 @@ func unwrapRunTool(exec *tooltypes.Executor, args string) (string, string, error
 	}
 	raw, err := json.Marshal(params.Args)
 	if err != nil {
-		return "", "", fmt.Errorf("json Marshal: %w", err)
+		return "", "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "run_tool args", err)
 	}
 	return name, string(raw), nil
 }

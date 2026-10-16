@@ -2,10 +2,10 @@ package ipc
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func (c *conn) mcp(ctx context.Context, f Frame) {
@@ -31,7 +31,7 @@ func (c *conn) mcp(ctx context.Context, f Frame) {
 	case "disconnect":
 		m.Disconnect(f.MCP.Server)
 	default:
-		err = fmt.Errorf("unknown mcp action %q", f.MCP.Action)
+		err = utilsmsg.New(utilsmsg.Invalid, "mcp action", "unknown %q", f.MCP.Action)
 	}
 	if err != nil {
 		result.Error = err.Error()

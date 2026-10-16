@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type MCP struct {
@@ -166,7 +166,7 @@ func (m *MCP) Reconnect(ctx context.Context, sessionID string) error {
 
 func (m *MCP) ReconnectServer(ctx context.Context, name string) error {
 	if m == nil {
-		return fmt.Errorf("no MCP manager")
+		return utilsmsg.New(utilsmsg.Internal, "MCP manager", "not initialized")
 	}
 	cfg, err := Load()
 	if err != nil {
@@ -174,7 +174,7 @@ func (m *MCP) ReconnectServer(ctx context.Context, name string) error {
 	}
 	server, ok := cfg.Servers[name]
 	if !ok {
-		return fmt.Errorf("server %q not found", name)
+		return utilsmsg.New(utilsmsg.NotFound, "server", "%q", name)
 	}
 
 	m.Disconnect(name)
@@ -214,27 +214,27 @@ func (m *MCP) Disconnect(name string) {
 
 func (m *MCP) Tools(ctx context.Context, name string) ([]Tool, error) {
 	if m == nil {
-		return nil, fmt.Errorf("no MCP manager")
+		return nil, utilsmsg.New(utilsmsg.Internal, "MCP manager", "not initialized")
 	}
 	m.mu.Lock()
 	client, ok := m.clients[name]
 	m.mu.Unlock()
 	if !ok {
-		return nil, fmt.Errorf("server %q is not connected", name)
+		return nil, utilsmsg.New(utilsmsg.Unavailable, "server", "%q is not connected", name)
 	}
 	return client.List(ctx)
 }
 
 func (m *MCP) Call(ctx context.Context, server, tool string, args map[string]any) (string, error) {
 	if m == nil {
-		return "", fmt.Errorf("no MCP manager")
+		return "", utilsmsg.New(utilsmsg.Internal, "MCP manager", "not initialized")
 	}
 
 	m.mu.Lock()
 	client, ok := m.clients[server]
 	m.mu.Unlock()
 	if !ok {
-		return "", fmt.Errorf("server %q is not connected", server)
+		return "", utilsmsg.New(utilsmsg.Unavailable, "server", "%q is not connected", server)
 	}
 
 	out, err := client.Call(ctx, tool, args)
@@ -253,7 +253,7 @@ func (m *MCP) Call(ctx context.Context, server, tool string, args map[string]any
 
 	client, reconnectErr := m.renewClient(ctx, server, client)
 	if reconnectErr != nil {
-		return "", fmt.Errorf("%w (reconnect %q: %v)", err, server, reconnectErr)
+		return "", utilsmsg.New(utilsmsg.Unavailable, "reconnect", "%w (reconnect %q: %v)", err, server, reconnectErr)
 	}
 	return client.Call(ctx, tool, args)
 }
@@ -277,7 +277,7 @@ func (m *MCP) renewClient(ctx context.Context, server string, stale Client) (Cli
 	client, ok := m.clients[server]
 	m.mu.Unlock()
 	if !ok {
-		return nil, fmt.Errorf("server %q is not connected", server)
+		return nil, utilsmsg.New(utilsmsg.Unavailable, "server", "%q is not connected", server)
 	}
 	return client, nil
 }

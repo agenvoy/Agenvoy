@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"sort"
 	"time"
@@ -17,12 +16,13 @@ import (
 	scriptadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func NewExecutor(workPath, sessionID string, scanner *runtime.SkillScanner) (*tooltypes.Executor, error) {
 	var tools []go_llm_router.Tool
 	if err := json.Unmarshal(toolregister.JSON(), &tools); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "", err)
 	}
 
 	apiToolbox := apiadapter.New("api_")

@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/configs"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type htmlTemplate struct {
@@ -54,7 +54,7 @@ Fetching any other web page → fetch_page.`,
 				Name string `json:"name"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			switch strings.TrimSpace(params.Mode) {
@@ -63,11 +63,11 @@ Fetching any other web page → fetch_page.`,
 			case "read":
 				name := strings.TrimSpace(params.Name)
 				if name == "" {
-					return "", fmt.Errorf("name is required for mode=read")
+					return "", utilsmsg.New(utilsmsg.Invalid, "name", "required for mode=read")
 				}
 				return readHTMLTemplate(ctx, name)
 			default:
-				return "", fmt.Errorf("unknown mode %q; available: list, read", params.Mode)
+				return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown mode %q; available: list, read", params.Mode)
 			}
 		},
 	})
@@ -78,15 +78,15 @@ func listHTMLTemplate(ctx context.Context) (string, error) {
 		Templates []htmlTemplate `json:"templates"`
 	}](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/list", nil)
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_http.GET: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.GET", "", err)
 	}
 	if len(body.Templates) == 0 {
-		return "", fmt.Errorf("html_template list: empty")
+		return "", utilsmsg.New(utilsmsg.Upstream, "html_template", "list is empty")
 	}
 
 	raw, err := json.Marshal(body.Templates)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
@@ -94,7 +94,7 @@ func listHTMLTemplate(ctx context.Context) (string, error) {
 func readHTMLTemplate(ctx context.Context, name string) (string, error) {
 	body, _, err := go_pkg_http.GET[string](ctx, http.DefaultClient, configs.ENDPOINT_HTML_TEMPLATE+"/view/"+url.PathEscape(name), nil)
 	if err != nil {
-		return "", fmt.Errorf("go_pkg_http.GET %s: %w; call mode=list for valid names", name, err)
+		return "", utilsmsg.New(utilsmsg.Upstream, "go_pkg_http.GET", "%s: %w; call mode=list for valid names", name, err)
 	}
 	return body, nil
 }

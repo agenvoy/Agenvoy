@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -377,13 +378,13 @@ func (t TUI) finalizeMcpAdd() (TUI, tea.Cmd) {
 	existing, err := mcp.Load()
 	if err != nil {
 		return t, func() tea.Msg {
-			return McpAddSaved{name: d.name, err: fmt.Errorf("mcp.Load: %w", err)}
+			return McpAddSaved{name: d.name, err: utilsmsg.Trace("mcp.Load", "", err)}
 		}
 	}
 	existing.Servers[d.name] = cfg
 	if err := mcp.Save(existing); err != nil {
 		return t, func() tea.Msg {
-			return McpAddSaved{name: d.name, err: fmt.Errorf("mcp.Save: %w", err)}
+			return McpAddSaved{name: d.name, err: utilsmsg.Trace("mcp.Save", "", err)}
 		}
 	}
 	return t, func() tea.Msg { return McpAddSaved{name: d.name, oauth: cfg.IsOAuth()} }

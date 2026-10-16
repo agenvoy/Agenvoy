@@ -2,12 +2,12 @@ package toolSearcher
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strings"
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func isMCPExposed(name string) bool {
@@ -39,7 +39,7 @@ func listTools(e *tooltypes.Executor, mcpOnly, system bool) (string, error) {
 
 	raw, err := json.Marshal(list)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }

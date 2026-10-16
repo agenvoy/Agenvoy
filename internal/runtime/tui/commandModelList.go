@@ -13,6 +13,7 @@ import (
 	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const sessionModelPrefix = "model:"
@@ -88,7 +89,7 @@ type ModelOrderSave struct {
 func saveModelOrder(names []string) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("config.Load: %w", err)
+		return utilsmsg.Trace("config.Load", "", err)
 	}
 	var slots []int
 	for i, m := range cfg.Models {
@@ -97,13 +98,13 @@ func saveModelOrder(names []string) error {
 		}
 	}
 	if len(slots) != len(names) {
-		return fmt.Errorf("model list changed, reorder again")
+		return utilsmsg.New(utilsmsg.Conflict, "model list", "changed, reorder again")
 	}
 	for k, i := range slots {
 		cfg.Models[i] = config.ModelEntry{Name: names[k]}
 	}
 	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("config.Save: %w", err)
+		return utilsmsg.Trace("config.Save", "", err)
 	}
 	agents.Reload()
 	return nil

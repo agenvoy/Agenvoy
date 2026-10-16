@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Request struct {
@@ -111,13 +111,13 @@ func resolveWorkDir(input string) (string, error) {
 
 	resolved, err := go_pkg_filesystem.AbsPath(home, dir, go_pkg_filesystem.AbsPathOption{})
 	if err != nil {
-		return "", fmt.Errorf("[Invalid] work_dir %q: cannot be resolved: %w", dir, err)
+		return "", utilsmsg.New(utilsmsg.Invalid, "work_dir", "%q cannot be resolved: %w", dir, err)
 	}
 	if !go_pkg_filesystem_reader.Exists(resolved) {
-		return "", fmt.Errorf("[Not found] work_dir: %q", dir)
+		return "", utilsmsg.New(utilsmsg.NotFound, "work_dir", "%q", dir)
 	}
 	if !go_pkg_filesystem_reader.IsDir(resolved) {
-		return "", fmt.Errorf("[Invalid] work_dir %q: not a directory", dir)
+		return "", utilsmsg.New(utilsmsg.Invalid, "work_dir", "%q: not a directory", dir)
 	}
 	return resolved, nil
 }

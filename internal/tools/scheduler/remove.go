@@ -8,6 +8,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func removeSchedule(ctx context.Context, e *tooltypes.Executor, target, skillName string) (string, error) {
@@ -20,7 +21,7 @@ func removeSchedule(ctx context.Context, e *tooltypes.Executor, target, skillNam
 	case "cron":
 		removed, err = runtime.RemoveCron(skillName)
 	default:
-		return "", fmt.Errorf("target must be 'task' or 'cron' (got %q)", target)
+		return "", utilsmsg.New(utilsmsg.Invalid, "target", "must be 'task' or 'cron' (got %q)", target)
 	}
 	if err != nil {
 		return "", err
@@ -29,7 +30,7 @@ func removeSchedule(ctx context.Context, e *tooltypes.Executor, target, skillNam
 		return fmt.Sprintf("no %s found for skill %q", target, skillName), nil
 	}
 	if err := skill.TrashSchedule(ctx, skillName, historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask}); err != nil {
-		return "", fmt.Errorf("TrashScheduleSkill: %w", err)
+		return "", utilsmsg.Trace("skill.TrashSchedule", skillName, err)
 	}
 	return fmt.Sprintf("removed %d %s(s) for skill %q and moved skill to .Trash", removed, target, skillName), nil
 }

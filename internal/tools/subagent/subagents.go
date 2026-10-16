@@ -3,13 +3,13 @@ package subagent
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -83,7 +83,7 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 			var params invokeParams
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("json.Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -100,11 +100,11 @@ One job per leg, one call per leg, three at a time. Protocol and model tiers →
 				return invokeSubagent(ctx, e, params)
 			case "list":
 				if strings.TrimSpace(params.SelfID) == "" {
-					return "", fmt.Errorf("self_id is required when mode=list")
+					return "", utilsmsg.New(utilsmsg.Invalid, "self_id", "required when mode=list")
 				}
 				return listSessions(params.SelfID), nil
 			}
-			return "", fmt.Errorf("unknown mode %q; available: invoke, list", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown mode %q; available: invoke, list", mode)
 		},
 	})
 }

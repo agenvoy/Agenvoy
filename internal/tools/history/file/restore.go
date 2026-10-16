@@ -7,6 +7,7 @@ import (
 
 	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Restore(ctx context.Context, e *tooltypes.Executor, version int64, taskID0 string, paths []string) (string, error) {
@@ -25,11 +26,11 @@ func Restore(ctx context.Context, e *tooltypes.Executor, version int64, taskID0 
 	case version > 0:
 		out, err := historystore.RestoreTo(ctx, version, meta)
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/store: RestoreTo [%d]: %w", version, err)
+			return "", utilsmsg.Trace("historystore.RestoreTo", fmt.Sprintf("%d", version), err)
 		}
 		return out, nil
 	case taskID == "":
-		return "", fmt.Errorf("version or task_id is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "version", "version or task_id is required")
 	}
 
 	filters := []historystore.Filter{{TaskID: taskID}}
@@ -48,7 +49,7 @@ func Restore(ctx context.Context, e *tooltypes.Executor, version int64, taskID0 
 	for _, filter := range filters {
 		lines, err := historystore.Undo(ctx, filter, meta)
 		if err != nil {
-			return "", fmt.Errorf("internal/runtime/store: Undo: %w", err)
+			return "", utilsmsg.Trace("historystore.Undo", "", err)
 		}
 		if len(lines) == 0 {
 			if filter.Path != "" {

@@ -1,13 +1,13 @@
 package subagent
 
 import (
-	"fmt"
 	"strings"
 
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func ensureSession(sessionID string) (string, error) {
@@ -24,7 +24,7 @@ func ensureSession(sessionID string) (string, error) {
 	// * no idle exist, create new temp
 	newID, err := session.New("temp-")
 	if err != nil {
-		return "", fmt.Errorf("create temp session: %w", err)
+		return "", utilsmsg.Trace("create temp session", "", err)
 	}
 	return newID, nil
 }

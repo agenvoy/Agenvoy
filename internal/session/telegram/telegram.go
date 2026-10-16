@@ -10,6 +10,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func New(chatID int64) (string, error) {
@@ -27,14 +28,14 @@ func New(chatID int64) (string, error) {
 		configbot.ReplaceDefault(sessionID, botName)
 	}
 	if err := configbot.SetChannel(sessionID, strconv.FormatInt(chatID, 10), "", "", ""); err != nil {
-		return "", fmt.Errorf("configbot.SetChannel: %w", err)
+		return "", utilsmsg.Trace("configbot.SetChannel", "", err)
 	}
 	return sessionID, nil
 }
 
 func GetChat(sessionID string) (string, error) {
 	if sessionID == "" {
-		return "", fmt.Errorf("sessionID is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
 	chatID, _, _, _ := configbot.GetChannel(sessionID)

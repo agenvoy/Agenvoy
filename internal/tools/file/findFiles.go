@@ -10,6 +10,7 @@ import (
 
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const maxFindResultBytes = 1 << 17
@@ -153,10 +154,10 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 				Queries   []findQuery `json:"queries"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Queries) == 0 {
-				return "", fmt.Errorf("queries is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "queries", "required")
 			}
 
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))
@@ -182,7 +183,7 @@ A path you are unsure of comes from here, never from a guess. Contents → read_
 				}
 				return searchBatch(ctx, e, params.Queries, output, params.Offset, params.Limit, params.Context, params.Multiline)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: list, glob, search", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: list, glob, search", mode)
 		},
 	})
 }
@@ -204,7 +205,7 @@ func inferMode(queries []findQuery) string {
 func requirePattern(queries []findQuery, mode string) error {
 	for _, q := range queries {
 		if strings.TrimSpace(q.Pattern) == "" {
-			return fmt.Errorf("every query needs a pattern when mode=%s", mode)
+			return utilsmsg.New(utilsmsg.Invalid, "pattern", "every query needs a pattern when mode=%s", mode)
 		}
 	}
 	return nil

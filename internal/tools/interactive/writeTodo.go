@@ -13,6 +13,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type todoInput struct {
@@ -65,10 +66,10 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 				Todos []todoInput `json:"todos"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Todos) == 0 {
-				return "", fmt.Errorf("todos must contain at least one item")
+				return "", utilsmsg.New(utilsmsg.Invalid, "todos", "must contain at least one item")
 			}
 
 			todos := make([]agenttypes.TodoItem, 0, len(params.Todos))
@@ -76,7 +77,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 			for i, in := range params.Todos {
 				content := strings.TrimSpace(in.Content)
 				if content == "" {
-					return "", fmt.Errorf("todo #%d has empty content", i+1)
+					return "", utilsmsg.New(utilsmsg.Invalid, "todos", "#%d has empty content", i+1)
 				}
 				status := strings.TrimSpace(in.Status)
 				switch status {
@@ -88,7 +89,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 					status = agenttypes.TodoPending
 					pending++
 				default:
-					return "", fmt.Errorf("todo #%d has invalid status %q (want pending / in_progress / completed)", i+1, in.Status)
+					return "", utilsmsg.New(utilsmsg.Invalid, "todos", "#%d has invalid status %q (want pending / in_progress / completed)", i+1, in.Status)
 				}
 				todos = append(todos, agenttypes.TodoItem{
 					Content:    content,
@@ -97,7 +98,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 				})
 			}
 			if doing > 1 {
-				return "", fmt.Errorf("only one todo may be in_progress at a time, got %d", doing)
+				return "", utilsmsg.New(utilsmsg.Invalid, "todos", "only one may be in_progress at a time, got %d", doing)
 			}
 
 			sessionID, taskHash := "", ""
@@ -106,7 +107,7 @@ Smalltalk, or a single lookup answered straight from one call's result → skip 
 			}
 			if taskHash != "" {
 				if err := WriteTodos(sessionID, taskHash, todos); err != nil {
-					return "", fmt.Errorf("WriteTodos: %w", err)
+					return "", utilsmsg.Trace("WriteTodos", "", err)
 				}
 			}
 
@@ -142,7 +143,7 @@ func WriteTodos(sessionID, taskHash string, todos []agenttypes.TodoItem) error {
 	}
 	meta.Todos = todos
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-		return fmt.Errorf("writePending: %w", writeErr)
+		return utilsmsg.Trace("writePending", "", writeErr)
 	}
 	return nil
 }

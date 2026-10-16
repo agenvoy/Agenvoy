@@ -18,6 +18,7 @@ import (
 	agentstypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/session/summary"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -30,7 +31,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionhistory.
 	// * caller supplies no agent, Send layers the summary model preference on top
 	agent := agents.ModelSet().Fallback
 	if agent == nil {
-		return fmt.Errorf("[Unavailable] summary model: none registered")
+		return utilsmsg.New(utilsmsg.Unavailable, "summary model", "none registered")
 	}
 
 	summaryCtx := agentstypes.WithSessionID(ctx, sessionID)
@@ -57,7 +58,7 @@ func Generate(ctx context.Context, sessionID string, histories []sessionhistory.
 	for i, chunk := range chunks {
 		newDic := generateSmmary(summaryCtx, agent, oldSummary, chunk)
 		if newDic == nil {
-			return fmt.Errorf("[Upstream] summary chunk %d/%d: empty or unparseable reply", i+1, len(chunks))
+			return utilsmsg.New(utilsmsg.Upstream, "summary chunk", "%d/%d: empty or unparseable reply", i+1, len(chunks))
 		}
 
 		if raw, err := json.Marshal(newDic); err == nil {

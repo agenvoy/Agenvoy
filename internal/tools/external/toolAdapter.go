@@ -3,12 +3,12 @@ package external
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb"
 	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
 	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -74,7 +74,7 @@ HTML meant to be read → fetch_page; a binary file → download_file; an endpoi
 				Force       bool              `json:"force"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			if !params.Force && toolcache.IsIdempotentRequest(string(args)) {

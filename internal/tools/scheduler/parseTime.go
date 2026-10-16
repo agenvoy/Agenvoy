@@ -1,9 +1,10 @@
 package scheduler
 
 import (
-	"fmt"
 	"strings"
 	"time"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func ParseTime(text string) (time.Time, error) {
@@ -12,7 +13,7 @@ func ParseTime(text string) (time.Time, error) {
 	if strings.HasPrefix(text, "+") {
 		duration, err := time.ParseDuration(text[1:])
 		if err != nil {
-			return time.Time{}, fmt.Errorf("time.ParseDuration: %w", err)
+			return time.Time{}, utilsmsg.Wrap(utilsmsg.Invalid, "time.ParseDuration", "", err)
 		}
 		return time.Now().Add(duration), nil
 	}
@@ -29,10 +30,10 @@ func ParseTime(text string) (time.Time, error) {
 		now := time.Now()
 		result := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, time.Local)
 		if !result.After(now) {
-			return time.Time{}, fmt.Errorf("already gone: %q", text)
+			return time.Time{}, utilsmsg.New(utilsmsg.Invalid, "time", "already gone: %q", text)
 		}
 		return result, nil
 	}
 
-	return time.Time{}, fmt.Errorf("unrecognized time format: %q", text)
+	return time.Time{}, utilsmsg.New(utilsmsg.Invalid, "time", "unrecognized time format: %q", text)
 }

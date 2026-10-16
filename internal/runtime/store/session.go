@@ -3,9 +3,10 @@ package historyStore
 import (
 	"context"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -45,10 +46,10 @@ func ValidSelfID(selfID string) error {
 		return nil
 	}
 	if len([]rune(selfID)) > SelfIDLimit {
-		return fmt.Errorf("self_id is limited to %d characters", SelfIDLimit)
+		return utilsmsg.New(utilsmsg.Limit, "self_id", "limited to %d characters", SelfIDLimit)
 	}
 	if !selfIDRegex.MatchString(selfID) {
-		return fmt.Errorf("self_id allows A-Z a-z 0-9 _ - only")
+		return utilsmsg.New(utilsmsg.Invalid, "self_id", "allows A-Z a-z 0-9 _ - only")
 	}
 	return nil
 }
@@ -65,17 +66,17 @@ func scanSession(rows interface {
 	var one SessionRow
 	if err := rows.Scan(&one.SessionID, &one.SelfID, &one.Name, &one.Model, &one.Reasoning, &one.Role,
 		&one.ChatID, &one.GuildID, &one.ChannelID, &one.UserID); err != nil {
-		return SessionRow{}, fmt.Errorf("sql.Rows Scan [SELECT session]: %w", err)
+		return SessionRow{}, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Scan", "[SELECT session]", err)
 	}
 	return one, nil
 }
 
 func WriteSession(ctx context.Context, r SessionRow) error {
 	if conn == nil {
-		return fmt.Errorf("internal/runtime/store: New has not run")
+		return utilsmsg.New(utilsmsg.Internal, "internal/runtime/store", "New has not run")
 	}
 	if r.SessionID == "" {
-		return fmt.Errorf("session_id is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session_id", "required")
 	}
 	if r.Model == "" {
 		r.Model = DefaultModel
@@ -105,9 +106,9 @@ func WriteSession(ctx context.Context, r SessionRow) error {
 		r.SessionID, r.SelfID, r.Name, r.Model, r.Reasoning, r.Role, r.Role,
 		r.ChatID, r.GuildID, r.ChannelID, r.UserID); err != nil {
 		if isSelfIDConflict(err) {
-			return fmt.Errorf("%w: %s", ErrDuplicateSelfID, r.SelfID)
+			return utilsmsg.New(utilsmsg.Conflict, "session", "%w: %s", ErrDuplicateSelfID, r.SelfID)
 		}
-		return fmt.Errorf("sql.DB ExecContext [INSERT session]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[INSERT session]", err)
 	}
 	return nil
 }
@@ -120,7 +121,7 @@ func ReadSession(ctx context.Context, sessionID string) (SessionRow, bool, error
 	rows, err := conn.QueryContext(ctx,
 		`SELECT `+sessionSelectColumns+` FROM session WHERE session_id = ?`, sessionID)
 	if err != nil {
-		return SessionRow{}, false, fmt.Errorf("sql.DB QueryContext [SELECT session]: %w", err)
+		return SessionRow{}, false, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT session]", err)
 	}
 	defer rows.Close()
 
@@ -141,7 +142,7 @@ func ListSessionRows(ctx context.Context) (map[string]SessionRow, error) {
 
 	rows, err := conn.QueryContext(ctx, `SELECT `+sessionSelectColumns+` FROM session`)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT session]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT session]", err)
 	}
 	defer rows.Close()
 
@@ -154,7 +155,7 @@ func ListSessionRows(ctx context.Context) (map[string]SessionRow, error) {
 		dic[one.SessionID] = one
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT session]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[SELECT session]", err)
 	}
 	return dic, nil
 }
@@ -199,7 +200,7 @@ func DeleteSession(ctx context.Context, sessionID string) error {
 	}
 
 	if _, err := conn.ExecContext(ctx, `DELETE FROM session WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [DELETE session]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[DELETE session]", err)
 	}
 	return nil
 }

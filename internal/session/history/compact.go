@@ -63,7 +63,7 @@ func compact(sessionID, historyPath string, messages []Record, currentBytes int)
 		return
 	}
 	if err := go_pkg_filesystem.WriteFile(historyPath, string(raw), 0644); err != nil {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem WriteFile",
+		slog.Warn("go_pkg_filesystem.WriteFile",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 		return

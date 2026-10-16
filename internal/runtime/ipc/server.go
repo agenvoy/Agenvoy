@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"maps"
 	"net"
@@ -18,20 +17,21 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/sudo"
 	"github.com/pardnchiu/agenvoy/internal/tools"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Listen(ctx context.Context) (func(), error) {
 	path := filesystem.DaemonSocketPath
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("os.Remove: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "os.Remove", "", err)
 	}
 	listener, err := net.Listen("unix", path)
 	if err != nil {
-		return nil, fmt.Errorf("net.Listen: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "net.Listen", "", err)
 	}
 	if err := os.Chmod(path, 0600); err != nil {
 		listener.Close()
-		return nil, fmt.Errorf("os.Chmod: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "os.Chmod", "", err)
 	}
 
 	tools.WorkDirChangeHook = notifyWorkDir
