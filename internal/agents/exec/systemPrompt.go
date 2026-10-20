@@ -68,6 +68,13 @@ func channelSystemPrompt(sessionID string) string {
 	return ""
 }
 
+func figureScope(sessionID string) string {
+	if strings.HasPrefix(sessionID, "chat-") {
+		return "chat replies and `.md` files"
+	}
+	return "`.md` files only (chat replies in this channel show them as raw source, so they never carry them)"
+}
+
 func mcpInstructionsSection() string {
 	instructions := mcp.Manager().Instructions()
 	if len(instructions) == 0 {
@@ -123,6 +130,7 @@ func getSystemPrompt(workDir string, extraSystemPrompt string, sessionID string,
 		"{{.OfficialGuide}}", officialGuideSection(model),
 		"{{.GuardrailRules}}", guardrailRules,
 		"{{.ExtraSystemPrompt}}", extraSection,
+		"{{.FigureScope}}", figureScope(sessionID),
 	).Replace(configs.SystemPrompt)
 }
 

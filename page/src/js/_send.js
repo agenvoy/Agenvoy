@@ -186,10 +186,7 @@ function taskStream(sessionId, task) {
     return null;
   }
   assistantItems.delete(last);
-  const upgraded = newStreamItem(
-    { model: item.meta.model, trace: item.Reasoning, text: item.content, task: task },
-    sessionId,
-  );
+  const upgraded = newStreamItem({ model: item.meta.model, trace: item.Reasoning, text: item.content, task: task }, sessionId);
   last.replaceWith(upgraded.dom);
   renderTodo(upgraded, item.todos);
   return upgraded;
@@ -252,10 +249,7 @@ async function stopRunning(sessionId) {
 
   const taskId = taskOf(sid) || "current";
   try {
-    const response = await fetch(
-      `${API}/v1/session/${encodeURIComponent(sid)}/cancel/${encodeURIComponent(taskId)}`,
-      { method: "POST" },
-    );
+    const response = await fetch(`${API}/v1/session/${encodeURIComponent(sid)}/cancel/${encodeURIComponent(taskId)}`, { method: "POST" });
     if (!response.ok) {
       pushToast(TOAST_LEVEL.ERROR, `cancel failed: ${response.status}`, nowClock());
     }
@@ -475,17 +469,14 @@ function newStreamItem(init, sessionId) {
   init = init || {};
   const sid = sessionId || currentSessionId;
 
-  const reasoning = _("section.md-render");
-  const think = _("details.reasoning", [
-    _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-    reasoning,
-  ]);
+  const reasoning = _("section.md-render.nanomd", { "data-mode": "light" });
+  const think = _("details.reasoning", [_("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]), reasoning]);
   think.hidden = !init.trace;
   think.open = true;
   think.dataset.streaming = "1";
 
   const model = _("p", init.model || "...");
-  const answer = _("section.md-render");
+  const answer = _("section.md-render.nanomd", { "data-mode": "light" });
   const source = sourceBox(init.text || "");
   const files = fileBox([]);
   const footer = _("footer");
@@ -531,7 +522,8 @@ function newStreamItem(init, sessionId) {
 
 function render(dom, markdown, sessionId) {
   const stick = atBottom(sessionId);
-  dom.innerHTML = renderMarkdownHTML(channelText(markdown, sessionId));
+  dom.innerHTML = MDParser.Parse(channelText(markdown, sessionId)).html();
+  refreshMarkdown(dom);
   if (stick) {
     scrollToBottom(true, sessionId);
   }

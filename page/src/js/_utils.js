@@ -282,7 +282,11 @@ async function openFileInSubview(path) {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.error || response.status);
     }
-    frame.srcdoc = subviewDocument(`<section class="md-render">${renderMarkdownHTML(await response.text())}</section>`);
+    const section = document.createElement("section");
+    section.className = "md-render nanomd";
+    section.dataset.mode = "light";
+    section.innerHTML = MDParser.Parse(await response.text()).html();
+    frame.srcdoc = subviewDocument(section.outerHTML, true);
   } catch (err) {
     console.error("openFileInSubview", err);
     frame.srcdoc = subviewDocument(
@@ -298,8 +302,21 @@ function escapeSubviewText(text) {
     .replace(/>/g, "&gt;");
 }
 
-function subviewDocument(body) {
-  return `<!doctype html><html><head><meta charset="utf-8"><base href="${location.origin}${location.pathname}"><link rel="stylesheet" href="public/index.css"></head><body class="subview">${body}</body></html>`;
+function subviewDocument(body, markdown = false) {
+  const script = markdown
+    ? `<script src="/vendor/nanomd/parser.min.js"></script><script>MDParser.Init({ fileEndpoint: ${JSON.stringify(`${API}/v1/file/open?path={filepath}`)}, enable: { mermaid: true, latex: true, chartjs: true, highlight: true } }).then(() => MDParser.Refresh(document.body)).catch((err) => console.error(err.message))</script>`
+    : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><base href="${location.origin}${location.pathname}"><link rel="stylesheet" href="public/index.css"></head><body class="subview">${body}${script}</body></html>`;
+}
+
+const parserReady = MDParser.Init({
+  fileEndpoint: `${API}/v1/file/open?path={filepath}`,
+  enable: { mermaid: true, latex: true, chartjs: true, highlight: true },
+}).catch((err) => console.error(err.message));
+
+async function refreshMarkdown(root) {
+  await parserReady;
+  return MDParser.Refresh(root).catch((err) => console.error(`[Internal] refreshMarkdown: ${err.message}`));
 }
 
 function openPath(path) {
@@ -310,17 +327,25 @@ function openPath(path) {
   openAgenvoyFile(path);
 }
 
+function bindCodeCopy() {
+  MDParser.OnCopyClick((ok, pre) => {
+    pre.classList.remove("success", "error");
+    pre.classList.add(ok ? "success" : "error");
+    setTimeout(() => pre.classList.remove("success", "error"), 1000);
+  });
+}
+
 function bindFileLink() {
   document.addEventListener(
     "click",
     function (e) {
       const link = e.target.closest("a.md-file-link");
-      if (!link || !isDocumentPath(link.textContent)) {
+      if (!link || !isDocumentPath(link.dataset.path)) {
         return;
       }
       e.preventDefault();
       e.stopPropagation();
-      openFileInSubview(link.textContent);
+      openFileInSubview(link.dataset.path);
     },
     true,
   );

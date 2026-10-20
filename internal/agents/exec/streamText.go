@@ -198,6 +198,7 @@ type lineEmitter struct {
 	headerBytes int
 	deltaHold   strings.Builder
 	sent        bool
+	blank       bool
 	stopped     bool
 }
 
@@ -323,9 +324,17 @@ func (e *lineEmitter) emit(line string) {
 	if e.header(line) {
 		return
 	}
+	if e.kind == agenttypes.EventText && !e.inFence && strings.TrimSpace(line) == "" {
+		e.blank = e.sent
+		return
+	}
 	line, ok := e.normalize(line)
 	if !ok || e.duplicate(line) {
 		return
+	}
+	if e.blank {
+		e.blank = false
+		e.push(agenttypes.Event{Type: e.kind})
 	}
 	e.push(agenttypes.Event{Type: e.kind, Text: line})
 	e.sent = true
