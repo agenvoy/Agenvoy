@@ -341,6 +341,17 @@ func (t TUI) handleAgentEvent(ev agenttypes.Event) (tea.Model, tea.Cmd) {
 			collapse := t.collapseToolBuf()
 			raw := utils.StripFileMarkers(ev.Text)
 
+			if raw == "" {
+				if len(t.tableBuf) == 0 {
+					return t, collapse
+				}
+				cmds := t.flushTableBuf()
+				if collapse != nil {
+					cmds = append([]tea.Cmd{collapse}, cmds...)
+				}
+				return t, tea.Sequence(cmds...)
+			}
+
 			if len(t.tableBuf) > 0 {
 				if strings.Contains(raw, "|") {
 					t.tableBuf = append(t.tableBuf, raw)
