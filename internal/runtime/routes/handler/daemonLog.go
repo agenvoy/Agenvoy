@@ -1,16 +1,17 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -49,14 +50,14 @@ func daemonRange(fromArg, toArg string) (time.Time, time.Time, error) {
 	if arg := strings.TrimSpace(fromArg); arg != "" {
 		at, err := time.ParseInLocation(daemonArgLayout, arg, time.Local)
 		if err != nil {
-			return from, to, fmt.Errorf("from must be yyyy-MM-dd-HH-mm")
+			return from, to, utilsmsg.New(utilsmsg.Invalid, "from", "must be yyyy-MM-dd-HH-mm")
 		}
 		from = at
 	}
 	if arg := strings.TrimSpace(toArg); arg != "" {
 		at, err := time.ParseInLocation(daemonArgLayout, arg, time.Local)
 		if err != nil {
-			return from, to, fmt.Errorf("to must be yyyy-MM-dd-HH-mm")
+			return from, to, utilsmsg.New(utilsmsg.Invalid, "to", "must be yyyy-MM-dd-HH-mm")
 		}
 		to = at
 	}

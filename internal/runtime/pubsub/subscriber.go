@@ -5,18 +5,18 @@ import (
 	"sync"
 	"sync/atomic"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
 type Subscriber struct {
-	channel   chan agentTypes.Event
+	channel   chan agenttypes.Event
 	sessionID string
 	closed    bool
 	dropped   atomic.Int64
 	mu        sync.Mutex
 }
 
-func (s *Subscriber) Events() <-chan agentTypes.Event {
+func (s *Subscriber) Events() <-chan agenttypes.Event {
 	return s.channel
 }
 
@@ -38,7 +38,7 @@ func (s *Subscriber) Close() {
 	s.unsub()
 }
 
-func (s *Subscriber) send(event agentTypes.Event) {
+func (s *Subscriber) send(event agenttypes.Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -53,7 +53,7 @@ func (s *Subscriber) send(event agentTypes.Event) {
 	}
 }
 
-func (s *Subscriber) countDrop(event agentTypes.Event) {
+func (s *Subscriber) countDrop(event agenttypes.Event) {
 	n := s.dropped.Add(1)
 	slog.Debug("pubsub subscriber overflow, event dropped",
 		slog.String("session", s.sessionID),

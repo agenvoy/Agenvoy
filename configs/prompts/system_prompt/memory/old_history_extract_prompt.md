@@ -12,7 +12,7 @@ Completeness on the relevant facts, not brevity: keep every decision/fact/prefer
 
 ## User's Current Question
 
-{{.UserQuestion}}
+{{.Message}}
 
 ## Output
 

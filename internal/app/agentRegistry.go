@@ -4,16 +4,17 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/router"
+
+	"github.com/pardnchiu/agenvoy/configs"
+	execmodel "github.com/pardnchiu/agenvoy/internal/agents/exec/model"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
 )
 
 type resolvedAgent struct {
@@ -24,7 +25,7 @@ func (a *resolvedAgent) Name() string {
 	return a.name
 }
 
-func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
+func (a *resolvedAgent) build(ctx context.Context) (agenttypes.Agent, error) {
 	cfg, err := routerConfig(ctx, a.name)
 	if err != nil {
 		return nil, err
@@ -32,7 +33,7 @@ func (a *resolvedAgent) build(ctx context.Context) (agentTypes.Agent, error) {
 	return router.New(cfg)
 }
 
-func (a *resolvedAgent) Send(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool, reasoning provider.Reasoning, mode provider.Mode) (*provider.Output, int, error) {
+func (a *resolvedAgent) Send(ctx context.Context, messages []go_llm_router.Message, toolDefs []go_llm_router.Tool, reasoning go_llm_router.Reasoning, mode go_llm_router.Mode) (*go_llm_router.Output, int, error) {
 	inner, err := a.build(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -43,20 +44,20 @@ func (a *resolvedAgent) Send(ctx context.Context, messages []provider.Message, t
 	return inner.Send(ctx, messages, toolDefs, reasoning, mode)
 }
 
-func (a *resolvedAgent) SendStream(ctx context.Context, messages []provider.Message, toolDefs []provider.Tool, reasoning provider.Reasoning, mode provider.Mode) (<-chan provider.StreamEvent, error) {
+func (a *resolvedAgent) SendStream(ctx context.Context, messages []go_llm_router.Message, toolDefs []go_llm_router.Tool, reasoning go_llm_router.Reasoning, mode go_llm_router.Mode) (<-chan go_llm_router.StreamEvent, error) {
 	inner, err := a.build(ctx)
 	if err != nil {
 		return nil, err
 	}
-	streamer, ok := inner.(provider.StreamAgent)
+	streamer, ok := inner.(go_llm_router.StreamAgent)
 	if !ok {
-		return nil, provider.ErrStreamUnsupported
+		return nil, go_llm_router.ErrStreamUnsupported
 	}
 	return streamer.SendStream(ctx, messages, toolDefs, reasoning, mode)
 }
 
 func routerConfig(ctx context.Context, name string) (router.Config, error) {
-	cfg, err := agentKeychain.Config(ctx, name)
+	cfg, err := agentkeychain.Config(ctx, name)
 	if err != nil {
 		return router.Config{}, err
 	}
@@ -68,31 +69,31 @@ func routerConfig(ctx context.Context, name string) (router.Config, error) {
 		GatewayID: cfg.GatewayID,
 		BaseURL:   cfg.BaseURL,
 
-		EnableClaude: agentTypes.EnableClaudeCode,
+		EnableClaude: agenttypes.EnableClaudeCode,
 		StateDir:     filesystem.SessionsDir,
 	}, nil
 }
 
 func claudeCodeContext(ctx context.Context) context.Context {
-	sessionID := agentTypes.SessionIDFrom(ctx)
+	sessionID := agenttypes.SessionIDFrom(ctx)
 	if sessionID == "" {
 		return ctx
 	}
-	ctx = provider.WithSessionID(ctx, sessionID)
-	row, ok, err := historyStore.ReadSession(ctx, sessionID)
-	if err != nil || !ok || row.Model == "" || row.Model == historyStore.DefaultModel || row.Reasoning == configs.REASONING_AUTO {
+	ctx = go_llm_router.WithSessionID(ctx, sessionID)
+	row, ok, err := historystore.ReadSession(ctx, sessionID)
+	if err != nil || !ok || row.Model == "" || row.Model == historystore.DefaultModel || row.Reasoning == configs.REASONING_AUTO {
 		return ctx
 	}
-	return provider.WithCacheTTL(ctx, "1h")
+	return go_llm_router.WithCacheTTL(ctx, "1h")
 }
 
-func NewAgentRegistry() agentTypes.AgentRegistry {
-	agentEntries := exec.GetAgent()
-	registry := agentTypes.AgentRegistry{
-		Registry: make(map[string]agentTypes.Agent, len(agentEntries)),
-		Entries:  make([]agentTypes.AgentEntry, 0, len(agentEntries)),
+func NewAgentRegistry() agenttypes.ModelSet {
+	agentEntries := execmodel.List()
+	registry := agenttypes.ModelSet{
+		Registry: make(map[string]agenttypes.Agent, len(agentEntries)),
+		Order:    make([]agenttypes.ModelEntry, 0, len(agentEntries)),
 	}
-	skipClaudeCode := !agentTypes.ClaudeCodeEnabled()
+	skipClaudeCode := !agenttypes.ClaudeCodeEnabled()
 	for _, e := range agentEntries {
 		if skipClaudeCode && claudeCode.Is(e.Name) {
 			continue
@@ -105,7 +106,7 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 			continue
 		}
 		registry.Registry[e.Name] = a
-		registry.Entries = append(registry.Entries, e)
+		registry.Order = append(registry.Order, e)
 		if registry.Fallback == nil {
 			registry.Fallback = a
 		}
@@ -114,7 +115,7 @@ func NewAgentRegistry() agentTypes.AgentRegistry {
 	return registry
 }
 
-func SelectDispatcher(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectDispatcher(registry agenttypes.ModelSet) agenttypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.DispatcherModel != "" {
 		if a, ok := registry.Registry[cfg.DispatcherModel]; ok {
 			return a
@@ -123,7 +124,7 @@ func SelectDispatcher(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return registry.Fallback
 }
 
-func SelectSummary(registry agentTypes.AgentRegistry) agentTypes.Agent {
+func SelectSummary(registry agenttypes.ModelSet) agenttypes.Agent {
 	if cfg, err := config.Load(); err == nil && cfg.SummaryModel != "" {
 		if a, ok := registry.Registry[cfg.SummaryModel]; ok {
 			return a
@@ -132,7 +133,7 @@ func SelectSummary(registry agentTypes.AgentRegistry) agentTypes.Agent {
 	return nil
 }
 
-func RefreshHost() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry) {
+func RefreshHost() (agenttypes.Agent, agenttypes.Agent, agenttypes.ModelSet) {
 	registry := NewAgentRegistry()
 	return SelectDispatcher(registry), SelectSummary(registry), registry
 }

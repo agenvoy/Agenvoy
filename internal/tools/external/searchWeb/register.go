@@ -3,17 +3,16 @@ package searchWeb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/internal/utils"
-
 	"github.com/pardnchiu/agenvoy/internal/tools/external/searchWeb/googleRSS"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var timeRanges = []string{"1h", "6h", "24h", "7d", "30d", "1y"}
@@ -36,7 +35,7 @@ type searchResult struct {
 }
 
 func Register() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "search_web",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -83,7 +82,7 @@ Several URLs from one domain on one topic → the most relevant, plus any that c
 			},
 			"required": []string{"query"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Query     string `json:"query"`
 				Source    string `json:"source"`
@@ -96,7 +95,7 @@ Several URLs from one domain on one topic → the most relevant, plus any that c
 				Q string `json:"q"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			if !params.Force {
@@ -107,7 +106,7 @@ Several URLs from one domain on one topic → the most relevant, plus any that c
 
 			query := firstNonEmpty(params.Query, params.Keyword, params.Q)
 			if query == "" {
-				return "", fmt.Errorf("query is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "query", "required")
 			}
 
 			source := strings.TrimSpace(params.Source)
@@ -148,12 +147,12 @@ Several URLs from one domain on one topic → the most relevant, plus any that c
 			wg.Wait()
 
 			if out.WebError != "" && out.NewsError != "" {
-				return "", fmt.Errorf("web: %s; news: %s", out.WebError, out.NewsError)
+				return "", utilsmsg.New(utilsmsg.Upstream, "search_web", "web: %s; news: %s", out.WebError, out.NewsError)
 			}
 
 			raw, err := utils.MarshalPlain(out)
 			if err != nil {
-				return "", fmt.Errorf("utils.MarshalPlain: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "utils.MarshalPlain", "", err)
 			}
 			return string(raw), nil
 		},

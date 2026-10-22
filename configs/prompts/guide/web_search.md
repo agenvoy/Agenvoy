@@ -1,0 +1,4 @@
+- **Scope**: any non-smalltalk information query — people, organisations, facts, current events, prices, anything time-sensitive. Pure greetings and pure local-project work (code, files, tooling) skip this.
+- **Source**: `search_web` returns web results and news headlines together; a result worth citing → `fetch_page` it.
+- **Live figures** (prices, quotes, current status) come from tool output, never from training knowledge.
+- **Citing**: name the page each figure or claim came from, with a URL that appeared in tool output.

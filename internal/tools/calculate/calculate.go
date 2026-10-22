@@ -2,23 +2,24 @@
 package calculate
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"math"
 	"math/big"
 	"strconv"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Calc(expression string) (string, error) {
 	if expression == "" {
-		return "", fmt.Errorf("expression is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "expression", "required")
 	}
 
 	parseExpr, err := parser.ParseExpr(expression)
 	if err != nil {
-		return "", fmt.Errorf("parser.ParseExpr: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Invalid, "parser.ParseExpr", "", err)
 	}
 
 	result, err := eval(parseExpr)
@@ -58,18 +59,18 @@ func eval(node ast.Expr) (value, error) {
 		if n.Kind == token.INT {
 			i := new(big.Int)
 			if _, ok := i.SetString(n.Value, 10); !ok {
-				return value{}, fmt.Errorf("invalid number: %s", n.Value)
+				return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "invalid number: %s", n.Value)
 			}
 			return intVal(i), nil
 		}
 		if n.Kind == token.FLOAT {
 			f, err := strconv.ParseFloat(n.Value, 64)
 			if err != nil {
-				return value{}, fmt.Errorf("invalid number: %s", n.Value)
+				return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "invalid number: %s", n.Value)
 			}
 			return floatVal(f), nil
 		}
-		return value{}, fmt.Errorf("unsupported literal type: %s", n.Kind)
+		return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported literal type: %s", n.Kind)
 
 	case *ast.UnaryExpr:
 		v, err := eval(n.X)
@@ -85,7 +86,7 @@ func eval(node ast.Expr) (value, error) {
 		case token.ADD:
 			return v, nil
 		}
-		return value{}, fmt.Errorf("unsupported unary operator: %s", n.Op)
+		return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported unary operator: %s", n.Op)
 
 	case *ast.BinaryExpr:
 		left, err := eval(n.X)
@@ -106,18 +107,18 @@ func eval(node ast.Expr) (value, error) {
 				return intVal(new(big.Int).Mul(left.i, right.i)), nil
 			case token.QUO:
 				if right.i.Sign() == 0 {
-					return value{}, fmt.Errorf("division by zero")
+					return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "division by zero")
 				}
 				return intVal(new(big.Int).Quo(left.i, right.i)), nil
 			case token.REM:
 				if right.i.Sign() == 0 {
-					return value{}, fmt.Errorf("modulo by zero")
+					return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "modulo by zero")
 				}
 				return intVal(new(big.Int).Rem(left.i, right.i)), nil
 			case token.XOR:
 				return floatVal(math.Pow(left.toFloat(), right.toFloat())), nil
 			}
-			return value{}, fmt.Errorf("unsupported operator: %s", n.Op)
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported operator: %s", n.Op)
 		}
 		lf, rf := left.toFloat(), right.toFloat()
 		switch n.Op {
@@ -129,18 +130,18 @@ func eval(node ast.Expr) (value, error) {
 			return floatVal(lf * rf), nil
 		case token.QUO:
 			if rf == 0 {
-				return value{}, fmt.Errorf("division by zero")
+				return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "division by zero")
 			}
 			return floatVal(lf / rf), nil
 		case token.REM:
 			if rf == 0 {
-				return value{}, fmt.Errorf("modulo by zero")
+				return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "modulo by zero")
 			}
 			return floatVal(math.Mod(lf, rf)), nil
 		case token.XOR:
 			return floatVal(math.Pow(lf, rf)), nil
 		}
-		return value{}, fmt.Errorf("unsupported operator: %s", n.Op)
+		return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported operator: %s", n.Op)
 
 	case *ast.ParenExpr:
 		return eval(n.X)
@@ -149,17 +150,17 @@ func eval(node ast.Expr) (value, error) {
 		return evalFunc(n)
 	}
 
-	return value{}, fmt.Errorf("unsupported expression type: %T", node)
+	return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported expression type: %T", node)
 }
 
 func evalFunc(call *ast.CallExpr) (value, error) {
 	ident, ok := call.Fun.(*ast.Ident)
 	if !ok {
-		return value{}, fmt.Errorf("unsupported function call")
+		return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unsupported function call")
 	}
 
 	if len(call.Args) == 0 {
-		return value{}, fmt.Errorf("function %s requires arguments", ident.Name)
+		return value{}, utilsmsg.New(utilsmsg.Invalid, ident.Name, "requires arguments")
 	}
 
 	switch ident.Name {
@@ -176,7 +177,7 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 	switch ident.Name {
 	case "sqrt":
 		if arg < 0 {
-			return value{}, fmt.Errorf("sqrt of negative number")
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "sqrt", "negative number")
 		}
 		return floatVal(math.Sqrt(arg)), nil
 	case "abs":
@@ -189,17 +190,17 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 		return floatVal(math.Round(arg)), nil
 	case "log":
 		if arg <= 0 {
-			return value{}, fmt.Errorf("log of non-positive number")
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "log", "non-positive number")
 		}
 		return floatVal(math.Log(arg)), nil
 	case "log2":
 		if arg <= 0 {
-			return value{}, fmt.Errorf("log2 of non-positive number")
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "log2", "non-positive number")
 		}
 		return floatVal(math.Log2(arg)), nil
 	case "log10":
 		if arg <= 0 {
-			return value{}, fmt.Errorf("log10 of non-positive number")
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "log10", "non-positive number")
 		}
 		return floatVal(math.Log10(arg)), nil
 	case "sin":
@@ -210,7 +211,7 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 		return floatVal(math.Tan(arg)), nil
 	case "pow":
 		if len(call.Args) < 2 {
-			return value{}, fmt.Errorf("pow requires 2 arguments")
+			return value{}, utilsmsg.New(utilsmsg.Invalid, "pow", "requires 2 arguments")
 		}
 		e, err := eval(call.Args[1])
 		if err != nil {
@@ -219,7 +220,7 @@ func evalFunc(call *ast.CallExpr) (value, error) {
 		return floatVal(math.Pow(arg, e.toFloat())), nil
 	}
 
-	return value{}, fmt.Errorf("unknown function: %s", ident.Name)
+	return value{}, utilsmsg.New(utilsmsg.Invalid, "expression", "unknown function: %s", ident.Name)
 }
 
 func evalMinMax(name string, args []ast.Expr) (value, error) {

@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionconfigbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 func memoryCtx() (context.Context, context.CancelFunc) {
@@ -27,18 +28,18 @@ func memoryCtx() (context.Context, context.CancelFunc) {
 func sessionParam(c *gin.Context) (string, bool) {
 	sid := strings.TrimSpace(c.Param("session_id"))
 	if sid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] session_id: required"})
 		return "", false
 	}
 	if !go_pkg_filesystem_reader.Exists(filesystem.SessionDir(sid)) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "[Not found] session: " + sid})
 		return "", false
 	}
 	return sid, true
 }
 
 func reasoningLevels() []string {
-	return configBot.ReasoningLevels()
+	return sessionconfigbot.ReasoningLevels()
 }
 
 func SessionMemory() gin.HandlerFunc {
@@ -62,7 +63,7 @@ func SessionMemory() gin.HandlerFunc {
 
 		switch strings.TrimSpace(body.Action) {
 		case "summary":
-			count, err := exec.ForceSummary(ctx, sid)
+			count, err := exec.Summary(ctx, sid)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -85,11 +86,11 @@ func SessionMemory() gin.HandlerFunc {
 			)
 			switch strings.TrimSpace(body.Mode) {
 			case "summary":
-				removed, err = exec.ResetSessionWithSummary(ctx, sid)
+				removed, err = exec.Reset(ctx, sid, true)
 			case "all":
-				removed, err = exec.ResetSessionAll(sid)
+				removed, err = exec.Reset(ctx, sid, false)
 			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be 'summary' or 'all' when action=reset"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] mode: must be 'summary' or 'all' when action=reset"})
 				return
 			}
 			if err != nil {
@@ -98,7 +99,7 @@ func SessionMemory() gin.HandlerFunc {
 			}
 			c.JSON(http.StatusOK, gin.H{"ok": true, "action": "reset", "removed": removed})
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "action must be 'summary', 'compact' or 'reset'"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "[Invalid] action: must be 'summary', 'compact' or 'reset'"})
 		}
 	}
 }

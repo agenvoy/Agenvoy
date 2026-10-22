@@ -3,13 +3,13 @@ package errorHistory
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -22,7 +22,7 @@ func init() {
 }
 
 func registErrorHistory() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "error_history",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -83,7 +83,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode     string   `json:"mode"`
 				Keyword  string   `json:"keyword"`
@@ -98,7 +98,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("json.Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -120,7 +120,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 			case "search":
 				keyword := strings.TrimSpace(params.Keyword)
 				if keyword == "" {
-					return "", fmt.Errorf("keyword is required when mode=search")
+					return "", utilsmsg.New(utilsmsg.Invalid, "keyword", "required when mode=search")
 				}
 				limit := params.Limit
 				if limit <= 0 {
@@ -130,7 +130,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 
 			case "read":
 				if params.Hash == "" {
-					return "", fmt.Errorf("hash is required when mode=read")
+					return "", utilsmsg.New(utilsmsg.Invalid, "hash", "required when mode=read")
 				}
 				return memory.Read(params.Hash), nil
 
@@ -156,7 +156,7 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 				}()
 				return "recorded", nil
 			}
-			return "", fmt.Errorf("unknown mode %q; available: search, read, write", params.Mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: search, read, write", params.Mode)
 		},
 	})
 }
@@ -164,15 +164,15 @@ Only outcome=resolved is stored; failed and abandoned are discarded. A past run'
 func requireRecord(r memory.Record) error {
 	switch {
 	case r.ToolName == "":
-		return fmt.Errorf("tool_name is required when mode=write")
+		return utilsmsg.New(utilsmsg.Invalid, "tool_name", "required when mode=write")
 	case len(r.Keywords) == 0:
-		return fmt.Errorf("keywords is required when mode=write")
+		return utilsmsg.New(utilsmsg.Invalid, "keywords", "required when mode=write")
 	case r.Symptom == "":
-		return fmt.Errorf("symptom is required when mode=write")
+		return utilsmsg.New(utilsmsg.Invalid, "symptom", "required when mode=write")
 	case r.Action == "":
-		return fmt.Errorf("action is required when mode=write")
+		return utilsmsg.New(utilsmsg.Invalid, "action", "required when mode=write")
 	case r.Outcome == "":
-		return fmt.Errorf("outcome is required when mode=write")
+		return utilsmsg.New(utilsmsg.Invalid, "outcome", "required when mode=write")
 	}
 	return nil
 }

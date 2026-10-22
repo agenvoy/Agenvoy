@@ -13,19 +13,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pardnchiu/agenvoy/configs"
-	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	"github.com/pardnchiu/agenvoy/internal/runtime"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	"github.com/pardnchiu/agenvoy/configs"
+	"github.com/pardnchiu/agenvoy/internal/agents"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	"github.com/pardnchiu/agenvoy/internal/runtime"
+	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type askQuestion struct {
@@ -74,7 +76,7 @@ type pendingMeta struct {
 	Answer       []answeredQuestion    `json:"answer,omitempty"`
 	ToolAttempts []ToolAttempt         `json:"tool_attempts,omitempty"`
 	ToolResults  []ToolResult          `json:"tool_results,omitempty"`
-	Todos        []agentTypes.TodoItem `json:"todos,omitempty"`
+	Todos        []agenttypes.TodoItem `json:"todos,omitempty"`
 	Files        []string              `json:"files,omitempty"`
 	Reply        string                `json:"reply,omitempty"`
 	AllowAll     bool                  `json:"allow_all,omitempty"`
@@ -83,15 +85,15 @@ type pendingMeta struct {
 var pendingMu sync.Mutex
 
 func modelAvailable(name string) bool {
-	registry := agents.Registry()
+	registry := agents.ModelSet()
 	agent, ok := registry.Registry[name]
 	return ok && agent != nil
 }
 
 func registAskUser() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "ask_user",
-		Timeout:     toolRegister.NoToolTimeout,
+		Timeout:     toolregister.NoToolTimeout,
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  false,
@@ -157,29 +159,29 @@ A credential is never asked for here → store_secret.`,
 			},
 			"required": []string{"questions", "state"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Questions []askQuestion `json:"questions"`
 				State     askState      `json:"state"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Questions) == 0 {
-				return "", fmt.Errorf("ask_user requires at least one question in 'questions'")
+				return "", utilsmsg.New(utilsmsg.Invalid, "questions", "ask_user requires at least one question in 'questions'")
 			}
 			if strings.TrimSpace(params.State.Objective) == "" {
-				return "", fmt.Errorf("state.objective is required for task resumption")
+				return "", utilsmsg.New(utilsmsg.Invalid, "state.objective", "required for task resumption")
 			}
 			if len(params.State.NextSteps) == 0 {
-				return "", fmt.Errorf("state.next_steps is required for task resumption")
+				return "", utilsmsg.New(utilsmsg.Invalid, "state.next_steps", "required for task resumption")
 			}
 
 			questions := make([]runtime.Question, 0, len(params.Questions))
 			for i, q := range params.Questions {
 				q.Question = strings.TrimSpace(q.Question)
 				if q.Question == "" {
-					return "", fmt.Errorf("question #%d is empty", i+1)
+					return "", utilsmsg.New(utilsmsg.Invalid, "questions", "#%d is empty", i+1)
 				}
 				questions = append(questions, runtime.Question{
 					Question:    q.Question,
@@ -197,7 +199,7 @@ A credential is never asked for here → store_secret.`,
 
 			raw, err := json.Marshal(map[string]any{"answers": answers})
 			if err != nil {
-				return "", fmt.Errorf("json Marshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 			}
 			return string(raw), nil
 		},
@@ -219,11 +221,11 @@ func clampPendingText(text string, limit int) string {
 func readPending(path string) (pendingMeta, error) {
 	raw, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return pendingMeta{}, fmt.Errorf("ReadText: %w", err)
+		return pendingMeta{}, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 	var meta pendingMeta
 	if err := json.NewDecoder(strings.NewReader(raw)).Decode(&meta); err != nil {
-		return pendingMeta{}, fmt.Errorf("json Decode: %w", err)
+		return pendingMeta{}, utilsmsg.Wrap(utilsmsg.Internal, "json.Decode", path, err)
 	}
 	return meta, nil
 }
@@ -231,7 +233,7 @@ func readPending(path string) (pendingMeta, error) {
 func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	dir := filesystem.PendingDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 
 	meta.TaskHash = taskHash
@@ -242,7 +244,7 @@ func writePending(sessionID, taskHash string, meta *pendingMeta) error {
 	}
 
 	if err := go_pkg_filesystem.WriteJSON(filesystem.PendingMetaPath(sessionID, taskHash), meta, false); err != nil {
-		return fmt.Errorf("WriteFile json: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", "", err)
 	}
 	return nil
 }
@@ -328,7 +330,7 @@ func CleanupPending(sessionID, taskHash string) {
 		return
 	}
 
-	var row historyStore.ActionRecord
+	var row historystore.ActionRecord
 	if err := json.Unmarshal([]byte(raw), &row); err != nil {
 		slog.Warn("CleanupPending Unmarshal",
 			slog.String("file", src),
@@ -338,8 +340,8 @@ func CleanupPending(sessionID, taskHash string) {
 	row.TaskHash = taskHash
 	row.EndAt = time.Now()
 
-	if err := historyStore.WriteAction(context.Background(), sessionID, row); err != nil {
-		slog.Warn("historyStore.WriteAction",
+	if err := historystore.WriteAction(context.Background(), sessionID, row); err != nil {
+		slog.Warn("historystore.WriteAction",
 			slog.String("session", sessionID),
 			slog.String("task", taskHash),
 			slog.String("error", err.Error()))
@@ -358,7 +360,7 @@ func CreateExecPending(sessionID, taskHash, objective, messageID, model, reasoni
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 
-	sessionModel, sessionReasoning := configBot.GetModel(sessionID)
+	sessionModel, sessionReasoning := configbot.GetModel(sessionID)
 	if strings.TrimSpace(model) == "" {
 		model = sessionModel
 	}
@@ -532,18 +534,18 @@ func buildResumeAnswer(answer any) string {
 func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, history string, err error) {
 	meta, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash))
 	if err != nil {
-		return "", "", fmt.Errorf("ReadJSON: %w", err)
+		return "", "", utilsmsg.Trace("readPending", "", err)
 	}
 
 	if meta.Model != "" {
 		model := meta.Model
-		if model != configBot.DefaultModel && !modelAvailable(model) {
+		if model != configbot.DefaultModel && !modelAvailable(model) {
 			slog.Info("resume: recorded model is gone, falling back to auto",
 				slog.String("session", sessionID),
 				slog.String("model", meta.Model))
-			model = configBot.DefaultModel
+			model = configbot.DefaultModel
 		}
-		configBot.SetModel(sessionID, model, meta.Reasoning)
+		configbot.SetModel(sessionID, model, meta.Reasoning)
 	}
 
 	var msg strings.Builder
@@ -564,9 +566,9 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 		for _, td := range meta.Todos {
 			mark := "[ ]"
 			switch td.Status {
-			case agentTypes.TodoCompleted:
+			case agenttypes.TodoCompleted:
 				mark = "[x]"
-			case agentTypes.TodoInProgress:
+			case agenttypes.TodoInProgress:
 				mark = "[~]"
 			}
 			msg.WriteString(fmt.Sprintf("- %s %s\n", mark, td.Content))
@@ -672,8 +674,8 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 	}
 
 	runtime.DropTask(sessionID, taskHash)
-	endEvent := agentTypes.Event{
-		Type:           agentTypes.EventPendingEnd,
+	endEvent := agenttypes.Event{
+		Type:           agenttypes.EventPendingEnd,
 		Text:           taskHash,
 		TaskHash:       taskHash,
 		PendingSession: sessionID,
@@ -687,14 +689,14 @@ func LoadResumeMessage(sessionID, taskHash string, answers []any) (full string, 
 }
 
 func deliverFor(ctx context.Context, sessionID string) string {
-	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+	if id := agenttypes.DeliverToFrom(ctx); id != "" {
 		return id
 	}
 	return sessionID
 }
 
 func originFor(ctx context.Context, sessionID string) string {
-	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+	if origin := agenttypes.OriginFrom(ctx); origin != "" {
 		return origin
 	}
 	return runtime.OriginOf(sessionID)
@@ -709,7 +711,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 	pendingMu.Lock()
 	var allResults []ToolResult
 	var messageID, model, reasoning string
-	var todos []agentTypes.TodoItem
+	var todos []agenttypes.TodoItem
 	var allowAll bool
 	allFiles := files
 	if existing, err := readPending(filesystem.PendingMetaPath(sessionID, taskHash)); err == nil {
@@ -733,7 +735,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 		}
 	} else {
 		allResults = toolResults
-		model, reasoning = configBot.GetModel(sessionID)
+		model, reasoning = configbot.GetModel(sessionID)
 	}
 	if err := writePending(sessionID, taskHash, &pendingMeta{
 		MessageID:   messageID,
@@ -786,7 +788,7 @@ func SaveAndEnqueueAskUser(sessionID, origin, deliverTo string, questions []runt
 func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Question) ([]any, error) {
 	origin := originFor(ctx, sessionID)
 	if !runtime.HasListener(ctx, origin) {
-		return nil, fmt.Errorf("ask_user requires an interactive channel (TUI / Telegram / Discord)")
+		return nil, utilsmsg.New(utilsmsg.Unavailable, "ask_user", "requires an interactive channel (TUI / Telegram / Discord)")
 	}
 
 	reply, err := runtime.Ask(ctx, runtime.Request{
@@ -799,10 +801,10 @@ func AskPrompt(ctx context.Context, sessionID string, questions []runtime.Questi
 		Inline:    true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("runtime Ask: %w", err)
+		return nil, utilsmsg.Trace("runtime.Ask", "", err)
 	}
 	if reply.Error != nil {
-		return nil, fmt.Errorf("runtime Ask: %w", reply.Error)
+		return nil, utilsmsg.Trace("runtime.Ask", "", reply.Error)
 	}
 	return reply.Answers, nil
 }

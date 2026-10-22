@@ -6,6 +6,8 @@ import (
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type UpdateConfirm struct{ ok bool }
@@ -29,7 +31,7 @@ func runUpdateExec() tea.Cmd {
 	self, err := os.Executable()
 	if err != nil {
 		return func() tea.Msg {
-			return UpdateDone{err: fmt.Errorf("os.Executable: %w", err)}
+			return UpdateDone{err: utilsmsg.Wrap(utilsmsg.Internal, "os.Executable", "", err)}
 		}
 	}
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("%q stop && %q update", self, self))

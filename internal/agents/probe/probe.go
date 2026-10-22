@@ -2,14 +2,11 @@ package probe
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	go_pkg_http "github.com/pardnchiu/go-pkg/http"
-
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/cloudflare"
@@ -24,69 +21,71 @@ import (
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
+	go_pkg_http "github.com/pardnchiu/go-pkg/http"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-type listFn func(context.Context, provider.Config) ([]string, error)
+type listFn func(context.Context, go_llm_router.Config) ([]string, error)
 
 func lookup(prov string) listFn {
-	filter := provider.ModelFilter{TextOnly: true}
+	filter := go_llm_router.ModelFilter{TextOnly: true}
 	switch prov {
 	case "claude-code":
 		return claudeCode.Models
 	case "openai":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return openai.Models(ctx, cfg, filter)
 		}
 	case "codex":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return openaicodex.Models(ctx, cfg, filter)
 		}
 	case "claude":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return claude.Models(ctx, cfg, filter)
 		}
 	case "gemini":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return gemini.Models(ctx, cfg, filter)
 		}
 	case "grok":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return grok.Models(ctx, cfg, filter)
 		}
 	case "grok-oauth":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return grokoauth.Models(ctx, cfg, filter)
 		}
 	case "copilot":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return copilot.Models(ctx, cfg, filter)
 		}
 	case "deepseek":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return deepseek.Models(ctx, cfg, filter)
 		}
 	case "mistral":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return mistral.Models(ctx, cfg, filter)
 		}
 	case "nvidia":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return nvidia.Models(ctx, cfg, filter)
 		}
 	case "openrouter":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return openrouter.Models(ctx, cfg, filter)
 		}
 	case "ollama-cloud":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return ollamacloud.Models(ctx, cfg, filter)
 		}
 	case "cloudflare":
-		return func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		return func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return cloudflare.Models(ctx, cfg, filter)
 		}
 	default:
@@ -102,15 +101,15 @@ func Models(ctx context.Context, name string) ([]string, error) {
 	prov := Provider(name)
 	fn := lookup(prov)
 	if fn == nil {
-		if _, ok := agentKeychain.CompatInstance(name); !ok {
-			return nil, fmt.Errorf("provider %q does not support model listing", prov)
+		if _, ok := agentkeychain.CompatInstance(name); !ok {
+			return nil, utilsmsg.New(utilsmsg.Invalid, "provider", "%q does not support model listing", prov)
 		}
-		fn = func(ctx context.Context, cfg provider.Config) ([]string, error) {
+		fn = func(ctx context.Context, cfg go_llm_router.Config) ([]string, error) {
 			return CompatModels(ctx, cfg.BaseURL, cfg.APIKey)
 		}
 	}
 	return torii.CachedList(ctx, modelsCacheKey(name), configs.TTL_MODELS_CACHE_SEC, func() ([]string, error) {
-		cfg, err := agentKeychain.Config(ctx, name)
+		cfg, err := agentkeychain.Config(ctx, name)
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +128,7 @@ func DropModelsCache(ctx context.Context, name string) {
 func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {
-		return nil, fmt.Errorf("compat base url is not configured")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "compat base url", "not configured")
 	}
 
 	var headers map[string]string
@@ -140,10 +139,10 @@ func CompatModels(ctx context.Context, baseURL, apiKey string) ([]string, error)
 	client := &http.Client{Timeout: 10 * time.Second}
 	data, status, err := go_pkg_http.GET[compatModelList](ctx, client, baseURL+"/models", headers)
 	if err != nil {
-		return nil, fmt.Errorf("go_pkg_http.GET %s/models: %w", baseURL, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "go_pkg_http.GET", baseURL+"/models", err)
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("%s/models: http %d", baseURL, status)
+		return nil, utilsmsg.New(utilsmsg.Upstream, baseURL+"/models", "http %d", status)
 	}
 
 	ids := make([]string, 0, len(data.Data))

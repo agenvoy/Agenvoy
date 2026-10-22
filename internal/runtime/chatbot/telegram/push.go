@@ -15,7 +15,7 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	sessionTelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
+	sessiontelegram "github.com/pardnchiu/agenvoy/internal/session/telegram"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -32,9 +32,9 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 		return
 	}
 
-	chatIDStr, err := sessionTelegram.GetChat(id)
+	chatIDStr, err := sessiontelegram.GetChat(id)
 	if err != nil {
-		slog.Debug("github.com/pardnchiu/agenvoy/internal/session GetChatID",
+		slog.Debug("session.GetChatID",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -53,14 +53,14 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 
 	token := strings.TrimSpace(keychain.Get(Key))
 	if token == "" {
-		slog.Warn("github.com/pardnchiu/go-pkg/filesystem/keychain Get",
+		slog.Warn("go_pkg_filesystem_keychain.Get",
 			slog.String("session", id),
 			slog.String("key", Key))
 		return
 	}
 	client, err := go_bot_telegram.New(token)
 	if err != nil {
-		slog.Warn("github.com/pardnchiu/go-bot/core/telegram New",
+		slog.Warn("go_bot_telegram.New",
 			slog.String("session", id),
 			slog.String("error", err.Error()))
 		return
@@ -76,7 +76,7 @@ func PushTelegramResult(ctx context.Context, payload exec.PushPayload) {
 		}
 		for _, chunk := range chatbot.Chunk(chatbot.Telegram, chatbot.SanitizeTelegramHTML(message)) {
 			if _, err := client.Send(ctx, chatID, 0, chunk, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML)); err != nil {
-				slog.Warn("github.com/pardnchiu/go-bot/core/telegram Bot.Send",
+				slog.Warn("go_bot_telegram.Bot.Send",
 					slog.String("session", id),
 					slog.String("chat", chatName),
 					slog.String("error", err.Error()))

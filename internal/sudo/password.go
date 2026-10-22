@@ -2,11 +2,12 @@ package sudo
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -31,7 +32,7 @@ func Verify(ctx context.Context, password string) error {
 		return nil
 	}
 	if password == "" {
-		return fmt.Errorf("password is required")
+		return utilsmsg.New(utilsmsg.Invalid, "password", "is required")
 	}
 
 	verifyCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
@@ -44,10 +45,10 @@ func Verify(ctx context.Context, password string) error {
 		return nil
 	}
 	if verifyCtx.Err() != nil {
-		return fmt.Errorf("password check timed out")
+		return utilsmsg.New(utilsmsg.Timeout, "password check", "timed out")
 	}
 	if strings.Contains(strings.ToLower(string(out)), "incorrect password") {
-		return fmt.Errorf("incorrect password")
+		return utilsmsg.New(utilsmsg.Denied, "password", "incorrect password")
 	}
-	return fmt.Errorf("password check failed")
+	return utilsmsg.New(utilsmsg.Internal, "password check", "failed")
 }

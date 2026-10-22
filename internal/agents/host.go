@@ -3,17 +3,17 @@ package agents
 import (
 	"sync"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 )
 
-type RefreshFunc func() (agentTypes.Agent, agentTypes.Agent, agentTypes.AgentRegistry)
+type RefreshFunc func() (agenttypes.Agent, agenttypes.Agent, agenttypes.ModelSet)
 
 var (
 	mu         sync.RWMutex
-	dispatcher agentTypes.Agent
-	summary    agentTypes.Agent
-	registry   agentTypes.AgentRegistry
+	dispatcher agenttypes.Agent
+	summary    agenttypes.Agent
+	registry   agenttypes.ModelSet
 	scanner    *runtime.SkillScanner
 	refresher  RefreshFunc
 
@@ -21,7 +21,7 @@ var (
 	loaded bool
 )
 
-func Set(dispatcherBot agentTypes.Agent, summaryBot agentTypes.Agent, agentRegistry agentTypes.AgentRegistry, skillScanner *runtime.SkillScanner) {
+func Set(dispatcherBot agenttypes.Agent, summaryBot agenttypes.Agent, agentRegistry agenttypes.ModelSet, skillScanner *runtime.SkillScanner) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -88,7 +88,7 @@ func ensureLoaded() {
 	loaded = true
 }
 
-func DispatcherBot() agentTypes.Agent {
+func DispatcherBot() agenttypes.Agent {
 	ensureLoaded()
 
 	mu.RLock()
@@ -96,7 +96,7 @@ func DispatcherBot() agentTypes.Agent {
 	return dispatcher
 }
 
-func SummaryBot() agentTypes.Agent {
+func SummaryBot() agenttypes.Agent {
 	ensureLoaded()
 
 	mu.RLock()
@@ -104,7 +104,7 @@ func SummaryBot() agentTypes.Agent {
 	return summary
 }
 
-func Registry() agentTypes.AgentRegistry {
+func ModelSet() agenttypes.ModelSet {
 	ensureLoaded()
 
 	mu.RLock()

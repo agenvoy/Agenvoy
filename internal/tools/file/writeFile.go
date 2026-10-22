@@ -12,12 +12,13 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content0, tool string) (string, error) {
+func writeFileContent(ctx context.Context, e *tooltypes.Executor, path0, content0, tool string) (string, error) {
 	baseDir := e.WorkDir
 	if baseDir == "" {
 		baseDir = filesystem.DownloadDir
@@ -26,24 +27,24 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 	path := strings.TrimSpace(path0)
 	absPath, err := boundary.Resolve(e.SessionID, baseDir, path)
 	if err != nil {
-		return "", fmt.Errorf("boundary.Resolve: %w", err)
+		return "", utilsmsg.Trace("boundary.Resolve", "", err)
 	}
 	if absPath == "" {
-		return "", fmt.Errorf("path is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "path", "required")
 	}
 
 	content := content0
 	if content == "" {
-		return "", fmt.Errorf("content is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "content", "required")
 	}
 
 	info, err := os.Stat(absPath)
 	isNew := os.IsNotExist(err)
 	if err != nil && !isNew {
-		return "", fmt.Errorf("os.Stat: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", "", err)
 	}
 	if !isNew && info.Size() > configs.MAX_DOCUMENT_BYTES {
-		return "", fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
+		return "", utilsmsg.New(utilsmsg.Limit, "file", "too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 	if !isNew {
 		if err := requireFresh(e, absPath, info.ModTime()); err != nil {
@@ -51,23 +52,23 @@ func writeFileContent(ctx context.Context, e *toolTypes.Executor, path0, content
 		}
 	}
 
-	change, err := historyStore.Capture(absPath)
+	change, err := historystore.Capture(absPath)
 	if err != nil {
-		slog.Debug("historyStore.Capture",
+		slog.Debug("historystore.Capture",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 	}
 
 	if err := go_pkg_filesystem.WriteFile(absPath, content, 0644); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", "", err)
 	}
 
 	var unrecorded string
 	markWritten(e, absPath)
 	e.RecordFile(absPath)
 
-	if err := historyStore.Record(ctx, change.WithCreated(content), historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
-		slog.Debug("historyStore.Record",
+	if err := historystore.Record(ctx, change.WithCreated(content), historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("path", absPath),
 			slog.String("error", err.Error()))
 		unrecorded = fmt.Sprintf("\nthe previous version was not recorded (%v), so this edit cannot be undone", err)

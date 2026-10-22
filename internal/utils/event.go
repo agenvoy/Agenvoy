@@ -9,10 +9,7 @@ import (
 	"strings"
 	"time"
 
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/copilot"
 	"github.com/pardnchiu/go-llm-router/core/deepseek"
@@ -20,6 +17,10 @@ import (
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 )
 
 var eventLabel = map[string]string{
@@ -48,7 +49,7 @@ func parseToolArgs(raw string) map[string]any {
 }
 
 func hideToolEvent(name, mode string) bool {
-	return name == "" || toolRegister.IsSystemUse(name) || mode == "list"
+	return name == "" || toolregister.IsSystemUse(name) || mode == "list"
 }
 
 func HideToolEvent(name, raw string) bool {
@@ -324,7 +325,7 @@ func joinArgv(raw string) string {
 	return strings.Join(parts, " ")
 }
 
-func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning string, usage *provider.Usage) string {
+func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning string, usage *go_llm_router.Usage) string {
 	var parts []string
 	if duration > 0 {
 		elapsed := duration.Round(100 * time.Millisecond).String()
@@ -341,7 +342,7 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning s
 		parts = append(parts, model)
 	}
 
-	if in := agentTypes.FormatInput(agentTypes.InputTotals(usage)); in != "" {
+	if in := agenttypes.FormatInput(agenttypes.InputTotals(usage)); in != "" {
 		parts = append(parts, fmt.Sprintf("↑ %s ↓ %s", in, go_pkg_utils.CompactNumber(usage.Output)))
 	}
 	return strings.Join(parts, "  ")
@@ -349,7 +350,7 @@ func FormatEventFooter(duration, outputElapsed time.Duration, model, reasoning s
 
 type QuotaSource struct {
 	ID string
-	Fn func(context.Context, provider.Config) (provider.UsageRemaining, error)
+	Fn func(context.Context, go_llm_router.Config) (go_llm_router.UsageRemaining, error)
 }
 
 var QuotaSources = []QuotaSource{
@@ -361,7 +362,7 @@ var QuotaSources = []QuotaSource{
 	{"claude-code", claudeCode.Usage},
 }
 
-func FormatQuota(remaining provider.UsageRemaining) string {
+func FormatQuota(remaining go_llm_router.UsageRemaining) string {
 	if remaining.Balance != nil {
 		return fmt.Sprintf("$%.2f", *remaining.Balance)
 	}
@@ -390,7 +391,7 @@ func ModelQuota(ctx context.Context, model string) string {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	cfg, err := agentKeychain.Config(ctx, source.ID)
+	cfg, err := agentkeychain.Config(ctx, source.ID)
 	if err != nil {
 		return ""
 	}

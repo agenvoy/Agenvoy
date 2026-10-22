@@ -6,17 +6,18 @@ import (
 	"math"
 	"strings"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	agentSummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
+	agentsummary "github.com/pardnchiu/agenvoy/internal/agents/exec/summary"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/todo"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentTypes.AgentSession, usage *provider.Usage, taskHash string) bool {
+func ToolHistory(ctx context.Context, agent agenttypes.Agent, session *agenttypes.Session, usage *go_llm_router.Usage, taskHash string) bool {
 	// * step1: check user input is exist or not
-	userInput := extractUserInput(session.UserInput)
-	if userInput == "" {
+	message := extractMessage(session.UserMessage)
+	if message == "" {
 		return false
 	}
 
@@ -27,7 +28,7 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 
 	// * step3: extract todo result and get clean tool histories
 	histories := session.ToolHistories
-	var planPair []provider.Message
+	var planPair []go_llm_router.Message
 	if taskHash != "" {
 		planPair = todo.LastPair(histories)
 		histories = todo.Strip(histories)
@@ -55,23 +56,23 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 
 	// * step7: prepare conpact system prompt
 	prompt := strings.NewReplacer(
-		"{{.UserQuestion}}", userInput,
+		"{{.Message}}", message,
 	).Replace(strings.TrimSpace(configs.CompactExecPrompt))
 
-	messages := []provider.Message{
+	messages := []go_llm_router.Message{
 		{Role: "system", Content: prompt},
 		{Role: "user", Content: raw},
 	}
 
 	// * step8: start to compact tool histories
-	result := agentSummary.Send(ctx, agent, session.ID, usage, messages, provider.ReasoningNone, CheckThreshold)
+	result := agentsummary.Send(ctx, agent, session.ID, usage, messages, go_llm_router.ReasoningNone, CheckThreshold)
 	if result == "" {
 		return false
 	}
 
-	session.OldHistories = nil
-	session.SummaryMessage = provider.Message{}
-	head := []provider.Message{
+	session.ContextHistories = nil
+	session.Summary = go_llm_router.Message{}
+	head := []go_llm_router.Message{
 		{
 			Role:    "user",
 			Content: "Prior tool findings (compacted). Use to answer the original question — user has not been replied to yet:\n\n" + result,
@@ -83,7 +84,7 @@ func ToolHistory(ctx context.Context, agent agentTypes.Agent, session *agentType
 	return true
 }
 
-func getToolCallIndices(histories []provider.Message) []int {
+func getToolCallIndices(histories []go_llm_router.Message) []int {
 	var idx []int
 	for i, e := range histories {
 		if e.Role == "assistant" && len(e.ToolCalls) > 0 {
@@ -93,7 +94,7 @@ func getToolCallIndices(histories []provider.Message) []int {
 	return idx
 }
 
-func formatTool(prefix []provider.Message) string {
+func formatTool(prefix []go_llm_router.Message) string {
 	var sb strings.Builder
 	for _, msg := range prefix {
 		switch {

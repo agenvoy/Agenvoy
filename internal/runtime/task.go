@@ -9,6 +9,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type TaskEntry struct {
@@ -30,7 +31,7 @@ func LoadTasks() ([]TaskEntry, error) {
 
 func SaveTasks(tasks []TaskEntry) error {
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(filesystem.TasksPath), true); err != nil {
-		return fmt.Errorf("CheckDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "CheckDir", "", err)
 	}
 	if tasks == nil {
 		tasks = []TaskEntry{}
@@ -43,7 +44,7 @@ func AppendTask(t TaskEntry) error {
 	key := TaskKey(t)
 	for _, e := range existing {
 		if TaskKey(e) == key {
-			return fmt.Errorf("duplicate task: %s already scheduled at the same time", t.Skill)
+			return utilsmsg.New(utilsmsg.Conflict, "task", "duplicate: %s already scheduled at the same time", t.Skill)
 		}
 	}
 	existing = append(existing, t)

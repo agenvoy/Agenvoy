@@ -2,7 +2,6 @@ package skill
 
 import (
 	"bytes"
-	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Skill struct {
@@ -29,12 +29,12 @@ var (
 func Get(path string) (*Skill, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("filepath.Abs [%s]: %w", path, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "filepath.Abs", path, err)
 	}
 
 	content, err := go_pkg_filesystem.ReadText(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem.ReadText [%s]: %w", path, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 
 	raw := []byte(content)
@@ -59,7 +59,7 @@ func Get(path string) (*Skill, error) {
 func getFront(content []byte) ([]byte, string, error) {
 	matches := configs.FRONTMATTER_REGEX.FindSubmatch(content)
 	if matches == nil {
-		return nil, "", fmt.Errorf("header not found")
+		return nil, "", utilsmsg.New(utilsmsg.NotFound, "frontmatter", "header not found")
 	}
 
 	front := bytes.TrimSpace(matches[1])

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,9 +11,10 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
-	schedulerTool "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	sessionmanager "github.com/pardnchiu/agenvoy/internal/session"
+	toolscheduler "github.com/pardnchiu/agenvoy/internal/tools/scheduler"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var scheduleName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -122,12 +122,12 @@ func (b scheduleBody) values() []string {
 func scheduleTimes(list []string) ([]time.Time, error) {
 	out := make([]time.Time, 0, len(list))
 	for _, one := range list {
-		at, err := schedulerTool.ParseTime(one)
+		at, err := toolscheduler.ParseTime(one)
 		if err != nil {
 			return nil, err
 		}
 		if !at.After(time.Now()) {
-			return nil, fmt.Errorf("already gone: %s", one)
+			return nil, utilsmsg.New(utilsmsg.Invalid, "schedule time", "already gone: %s", one)
 		}
 		out = append(out, at)
 	}
@@ -136,7 +136,7 @@ func scheduleTimes(list []string) ([]time.Time, error) {
 
 func scheduleExpressions(list []string) error {
 	for _, one := range list {
-		if err := schedulerTool.ValidateCron(one); err != nil {
+		if err := toolscheduler.ValidateCron(one); err != nil {
 			return err
 		}
 	}
@@ -156,7 +156,7 @@ func scheduleSession(name, given string) (string, error) {
 			return one.SessionID, nil
 		}
 	}
-	return sessionManager.New("chat-")
+	return sessionmanager.New("chat-")
 }
 
 func prepareSchedule(kind string, list []string) (func(name, sessionID string) error, error) {
@@ -314,7 +314,7 @@ func DeleteSchedule() gin.HandlerFunc {
 		}
 		trashed := false
 		if !bound {
-			if err := skill.TrashSchedule(c.Request.Context(), name, historyStore.Meta{SessionID: sessionID}); err != nil {
+			if err := skill.TrashSchedule(c.Request.Context(), name, historystore.Meta{SessionID: sessionID}); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}

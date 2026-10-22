@@ -3,23 +3,24 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	goRuntime "runtime"
+	goruntime "runtime"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const terminalLaunchTimeout = 10 * time.Second
@@ -73,20 +74,20 @@ func GetSystemUpdate() gin.HandlerFunc {
 func latestRelease(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, latestReleaseURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("http.NewRequestWithContext: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "http.NewRequestWithContext", "", err)
 	}
 	resp, err := releaseClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("resolve latest release: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Unavailable, "resolve latest release", "", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusFound {
-		return "", fmt.Errorf("resolve latest release: github http %d", resp.StatusCode)
+		return "", utilsmsg.New(utilsmsg.Upstream, "resolve latest release", "github http %d", resp.StatusCode)
 	}
 	parts := strings.Split(strings.Trim(resp.Header.Get("Location"), "/"), "/")
 	if len(parts) < 3 || parts[len(parts)-3] != "download" || parts[len(parts)-2] == "" {
-		return "", fmt.Errorf("resolve latest release: unexpected redirect %q", resp.Header.Get("Location"))
+		return "", utilsmsg.New(utilsmsg.Upstream, "resolve latest release", "unexpected redirect %q", resp.Header.Get("Location"))
 	}
 	return parts[len(parts)-2], nil
 }
@@ -103,11 +104,11 @@ func SystemUpdate() gin.HandlerFunc {
 		defer cancel()
 
 		switch {
-		case goRuntime.GOOS == "darwin":
+		case goruntime.GOOS == "darwin":
 			err = openMacTerminal(ctx, exe)
-		case goRuntime.GOOS == "linux" && utils.IsWSL():
+		case goruntime.GOOS == "linux" && utils.IsWSL():
 			err = openWSLTerminal(ctx, exe)
-		case goRuntime.GOOS == "linux":
+		case goruntime.GOOS == "linux":
 			err = openLinuxTerminal(ctx, exe)
 		default:
 			err = errNoTerminal
@@ -132,7 +133,7 @@ func openMacTerminal(ctx context.Context, exe string) error {
 
 	out, err := exec.CommandContext(ctx, "osascript", "-e", script).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("osascript: %w: %s", err, strings.TrimSpace(string(out)))
+		return utilsmsg.New(utilsmsg.Internal, "osascript", "%w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -155,7 +156,7 @@ func openWSLTerminal(ctx context.Context, exe string) error {
 	args = append(args, "--exec", "sh", script, exe)
 
 	if err := exec.CommandContext(ctx, bin, args...).Run(); err != nil {
-		return fmt.Errorf("cmd.exe start: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "cmd.exe start", "", err)
 	}
 	return nil
 }
@@ -163,7 +164,7 @@ func openWSLTerminal(ctx context.Context, exe string) error {
 func writeUpdateTerminalScript() (string, error) {
 	path := filepath.Join(filesystem.AgenvoyDir, "update-terminal.sh")
 	if err := go_pkg_filesystem.WriteFile(path, updateTerminalScript, 0644); err != nil {
-		return "", fmt.Errorf("go_pkg_filesystem.WriteFile: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", "", err)
 	}
 	return path, nil
 }
@@ -171,7 +172,7 @@ func writeUpdateTerminalScript() (string, error) {
 func openLinuxTerminal(ctx context.Context, exe string) error {
 	env := displayEnv(ctx)
 	if envValue(env, "DISPLAY") == "" && envValue(env, "WAYLAND_DISPLAY") == "" {
-		return fmt.Errorf("no graphical session found (DISPLAY and WAYLAND_DISPLAY unset): %w", errNoTerminal)
+		return utilsmsg.New(utilsmsg.Unavailable, "graphical session", "not found (DISPLAY and WAYLAND_DISPLAY unset): %w", errNoTerminal)
 	}
 
 	script, err := writeUpdateTerminalScript()
@@ -195,7 +196,7 @@ func openLinuxTerminal(ctx context.Context, exe string) error {
 		cmd := exec.Command(argv[0], argv[1:]...)
 		cmd.Env = env
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("%s: %w", terminal.bin, err)
+			return utilsmsg.Wrap(utilsmsg.Internal, terminal.bin, "", err)
 		}
 		go func() {
 			if err := cmd.Wait(); err != nil {

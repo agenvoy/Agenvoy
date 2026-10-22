@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/record"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 )
@@ -38,8 +38,8 @@ func (h *daemonLogHandler) Handle(ctx context.Context, r slog.Record) error {
 	})
 
 	select {
-	case daemonLogQueue <- agentTypes.Event{
-		Type:   agentTypes.EventDaemonLog,
+	case daemonLogQueue <- agenttypes.Event{
+		Type:   agenttypes.EventDaemonLog,
 		Source: r.Level.String(),
 		Text:   strings.TrimSpace(sb.String()),
 	}:
@@ -57,7 +57,7 @@ func (h *daemonLogHandler) WithGroup(name string) slog.Handler {
 }
 
 var (
-	daemonLogQueue = make(chan agentTypes.Event, 1024)
+	daemonLogQueue = make(chan agenttypes.Event, 1024)
 	daemonLogOnce  sync.Once
 )
 

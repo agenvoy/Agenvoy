@@ -1,14 +1,14 @@
-package agentTypes
+package types
 
 import (
 	"context"
 	"encoding/json"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 )
 
-type Agent = provider.Agent
+type Agent = go_llm_router.Agent
 
 type sessionIDCtxKey struct{}
 
@@ -54,17 +54,17 @@ func DeliverToFrom(ctx context.Context) string {
 	return sid
 }
 
-type AgentRegistry struct {
+type ModelSet struct {
 	Registry map[string]Agent
-	Entries  []AgentEntry
+	Order    []ModelEntry
 	Fallback Agent
 }
 
-type AgentEntry struct {
+type ModelEntry struct {
 	Name string `json:"name"`
 }
 
-func (a *AgentEntry) UnmarshalJSON(raw []byte) error {
+func (a *ModelEntry) UnmarshalJSON(raw []byte) error {
 	var name string
 	if err := json.Unmarshal(raw, &name); err == nil {
 		a.Name = name
@@ -80,20 +80,19 @@ func (a *AgentEntry) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
-type AgentSession struct {
-	ID             string
-	SystemPrompts  []provider.Message
-	OldHistories   []provider.Message
-	SummaryMessage provider.Message
-	TurnContext    provider.Message
-	UserInput      provider.Message
-	ToolHistories  []provider.Message
-	Tools          []provider.Message
-	Histories      []provider.Message
-	BaseLen        int
-	Sender         string
-	UserSendAt     int64
-	Stateless      bool
+type Session struct {
+	ID               string
+	SystemPrompts    []go_llm_router.Message
+	Summary          go_llm_router.Message
+	TurnContext      go_llm_router.Message
+	UserMessage      go_llm_router.Message
+	ToolHistories    []go_llm_router.Message
+	ToolResults      []go_llm_router.Message
+	RawHistories     []go_llm_router.Message
+	ContextHistories []go_llm_router.Message
+	Sender           string
+	SendAt           int64
+	Stateless        bool
 }
 
 var EnableClaudeCode bool

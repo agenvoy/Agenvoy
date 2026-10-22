@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type QuestionType int
@@ -159,7 +161,7 @@ func (l *Listener[CID, MID]) sendPrompt(ctx context.Context, id string, req Requ
 			slog.String("prefix", l.prefix),
 			slog.String("session", req.DeliverTo),
 			slog.String("error", err.Error()))
-		Resolve(id, Reply{Error: fmt.Errorf("LookupChatID: %w", err)})
+		Resolve(id, Reply{Error: utilsmsg.Trace("LookupChatID", "", err)})
 		return
 	}
 
@@ -169,7 +171,7 @@ func (l *Listener[CID, MID]) sendPrompt(ctx context.Context, id string, req Requ
 	case KindAskUser:
 		l.startAskUser(ctx, id, chatID, req)
 	default:
-		Resolve(id, Reply{Error: fmt.Errorf("unknown pending kind: %s", req.Kind)})
+		Resolve(id, Reply{Error: utilsmsg.New(utilsmsg.Invalid, "pending kind", "unknown %s", req.Kind)})
 	}
 }
 
@@ -177,7 +179,7 @@ func (l *Listener[CID, MID]) startConfirm(ctx context.Context, id string, chatID
 	args, multiline := FormatToolArgs(req.ToolName, req.ToolArgs)
 	msgID, err := l.transport.SendConfirm(ctx, chatID, req.ToolName, args, multiline)
 	if err != nil {
-		Resolve(id, Reply{Error: fmt.Errorf("SendConfirm: %w", err)})
+		Resolve(id, Reply{Error: utilsmsg.Wrap(utilsmsg.Upstream, "SendConfirm", "", err)})
 		return
 	}
 	l.mu.Lock()
@@ -193,7 +195,7 @@ func (l *Listener[CID, MID]) startConfirm(ctx context.Context, id string, chatID
 
 func (l *Listener[CID, MID]) startAskUser(ctx context.Context, id string, chatID CID, req Request) {
 	if req.AskUser == nil || len(req.AskUser.Questions) == 0 {
-		Resolve(id, Reply{Error: fmt.Errorf("ask_user with no questions")})
+		Resolve(id, Reply{Error: utilsmsg.New(utilsmsg.Invalid, "ask_user", "no questions")})
 		return
 	}
 	state := &active[CID, MID]{
@@ -216,7 +218,7 @@ func (l *Listener[CID, MID]) askNext(ctx context.Context, state *active[CID, MID
 	q := state.questions[state.selected]
 	question := strings.TrimSpace(q.Question)
 	if question == "" {
-		return fmt.Errorf("question #%d is empty", state.selected+1)
+		return utilsmsg.New(utilsmsg.Invalid, "question", "#%d is empty", state.selected+1)
 	}
 	header := fmt.Sprintf("(%d/%d) %s", state.selected+1, len(state.questions), question)
 
@@ -224,7 +226,7 @@ func (l *Listener[CID, MID]) askNext(ctx context.Context, state *active[CID, MID
 	case len(q.Options) == 0 && q.Secret:
 		msgID, err := l.transport.SendAskText(ctx, state.chatID, header, true)
 		if err != nil {
-			return fmt.Errorf("SendAskText: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "SendAskText", "", err)
 		}
 		state.kind = TypeAskSecret
 		state.message = msgID
@@ -232,7 +234,7 @@ func (l *Listener[CID, MID]) askNext(ctx context.Context, state *active[CID, MID
 	case len(q.Options) == 0:
 		msgID, err := l.transport.SendAskText(ctx, state.chatID, header, false)
 		if err != nil {
-			return fmt.Errorf("SendAskText: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "SendAskText", "", err)
 		}
 		state.kind = TypeAskText
 		state.message = msgID
@@ -240,7 +242,7 @@ func (l *Listener[CID, MID]) askNext(ctx context.Context, state *active[CID, MID
 	case q.MultiSelect:
 		msgID, err := l.transport.SendAskMulti(ctx, state.chatID, header, q.Options)
 		if err != nil {
-			return fmt.Errorf("SendAskMulti: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "SendAskMulti", "", err)
 		}
 		state.kind = TypeAskMulti
 		state.message = msgID
@@ -248,7 +250,7 @@ func (l *Listener[CID, MID]) askNext(ctx context.Context, state *active[CID, MID
 	default:
 		msgID, err := l.transport.SendAskSingle(ctx, state.chatID, header, q.Options)
 		if err != nil {
-			return fmt.Errorf("SendAskSingle: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Upstream, "SendAskSingle", "", err)
 		}
 		state.kind = TypeAskSingle
 		state.message = msgID
@@ -396,7 +398,7 @@ func confirmReplyFor(data string) (reply Reply, finalize bool) {
 	case "❌ No":
 		return Reply{Approve: false, Skip: true}, true
 	case "⛔ Stop":
-		return Reply{Approve: false, Error: fmt.Errorf("user stopped")}, true
+		return Reply{Approve: false, Error: utilsmsg.New(utilsmsg.Canceled, "confirm", "user stopped")}, true
 	default:
 		return Reply{}, false
 	}

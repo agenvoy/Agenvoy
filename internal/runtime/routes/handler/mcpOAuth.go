@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/mcp"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const mcpOAuthTimeout = 10 * time.Minute
@@ -22,10 +23,10 @@ func mcpOAuthServer(name string) (mcp.ServerConfig, error) {
 	}
 	server, ok := cfg.Servers[name]
 	if !ok {
-		return mcp.ServerConfig{}, fmt.Errorf("server %q not found", name)
+		return mcp.ServerConfig{}, utilsmsg.New(utilsmsg.NotFound, "server", "%q", name)
 	}
 	if !server.Expand().IsHTTP() {
-		return mcp.ServerConfig{}, fmt.Errorf("server %q is not an HTTP server; oauth applies to http/sse transports only", name)
+		return mcp.ServerConfig{}, utilsmsg.New(utilsmsg.Invalid, "server", "%q is not an HTTP server; oauth applies to http/sse transports only", name)
 	}
 	return server, nil
 }

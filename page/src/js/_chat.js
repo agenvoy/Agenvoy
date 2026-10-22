@@ -359,6 +359,19 @@ function newUserItem(item) {
   return dom;
 }
 
+const refreshObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) {
+        continue;
+      }
+      refreshObserver.unobserve(entry.target);
+      refreshMarkdown(entry.target);
+    }
+  },
+  { rootMargin: "128px 0px" },
+);
+
 function newAssisatantItem(item, sessionId) {
   const body = [_("p", (item.meta.model || "") + (item.meta.reasoning ? `/${item.meta.reasoning}` : ""))];
 
@@ -366,13 +379,13 @@ function newAssisatantItem(item, sessionId) {
     body.push(
       _("details.reasoning", [
         _("summary", ["Reasoning", _("span.material-symbols-outlined", "keyboard_arrow_down")]),
-        _("section.md-render", renderMarkdownHTML(channelText(item.Reasoning, sessionId))),
+        _("section.md-render.nanomd", { "data-mode": "light" }, MDParser.Parse(channelText(item.Reasoning, sessionId)).html()),
       ]),
     );
   }
 
   if (item.content) {
-    body.push(_("section.md-render", renderMarkdownHTML(channelText(item.content, sessionId))));
+    body.push(_("section.md-render.nanomd", { "data-mode": "light" }, MDParser.Parse(channelText(item.content, sessionId)).html()));
   }
 
   body.push(sourceBox(item.content));
@@ -380,6 +393,7 @@ function newAssisatantItem(item, sessionId) {
   body.push(assistantFooter(item.meta, sessionId, item.task));
 
   const dom = _("div.assistant", [_("img", { src: "public/logo-min.svg" }), _("section", body)]);
+  refreshObserver.observe(dom);
   if (item.task) {
     dom.dataset.task = item.task;
   }

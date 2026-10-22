@@ -23,6 +23,7 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -84,10 +85,10 @@ func SaveOAuthClient(name, clientID, clientSecret, redirectURI string) error {
 func saveOAuthClient(name string, client oauthClient) error {
 	raw, err := json.Marshal(client)
 	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	if err := keychain.Set(oauthClientKey(name), string(raw)); err != nil {
-		return fmt.Errorf("keychain.Set: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "keychain.Set", "", err)
 	}
 	return nil
 }
@@ -131,10 +132,10 @@ func loadOAuth(name string) (oauthRecord, bool) {
 func saveOAuth(name string, rec oauthRecord) error {
 	raw, err := json.Marshal(rec)
 	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	if err := keychain.Set(oauthKey(name), string(raw)); err != nil {
-		return fmt.Errorf("keychain.Set: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "keychain.Set", "", err)
 	}
 	return nil
 }
@@ -145,7 +146,7 @@ func ClearOAuth(name string) error {
 			continue
 		}
 		if err := keychain.Delete(key); err != nil {
-			return fmt.Errorf("keychain.Delete %s: %w", key, err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "keychain.Delete", key, err)
 		}
 	}
 	return nil
@@ -233,16 +234,16 @@ func (h *oauthHandler) Authorize(ctx context.Context, req *http.Request, resp *h
 
 	switch {
 	case challengeErr == "insufficient_scope":
-		return fmt.Errorf("token is missing required scopes, re-authenticate with /mcp → %s → login%s", h.name, detail)
+		return utilsmsg.New(utilsmsg.Denied, "oauth token", "missing required scopes, re-authenticate with /mcp → %s → login%s", h.name, detail)
 	case resp.StatusCode == http.StatusForbidden:
 		slog.Warn("mcp oauth forbidden",
 			slog.String("server", h.name),
 			slog.String("detail", detail))
 		return nil
 	case HasOAuth(h.name):
-		return fmt.Errorf("oauth token rejected (%s), re-authenticate with /mcp → %s → login%s", resp.Status, h.name, detail)
+		return utilsmsg.New(utilsmsg.Denied, "oauth token", "rejected (%s), re-authenticate with /mcp → %s → login%s", resp.Status, h.name, detail)
 	}
-	return fmt.Errorf("oauth login required, run /mcp → %s → login%s", h.name, detail)
+	return utilsmsg.New(utilsmsg.Denied, "oauth login", "required, run /mcp → %s → login%s", h.name, detail)
 }
 
 type persistTokenSource struct {
@@ -255,7 +256,7 @@ type persistTokenSource struct {
 func (s *persistTokenSource) Token() (*oauth2.Token, error) {
 	token, err := s.base.Token()
 	if err != nil {
-		return nil, fmt.Errorf("oauth token: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "oauth token", "", err)
 	}
 
 	s.mu.Lock()
@@ -284,24 +285,24 @@ var pendingLogin sync.Map
 func SubmitCallback(name, rawURL string) error {
 	value, ok := pendingLogin.Load(name)
 	if !ok {
-		return fmt.Errorf("no oauth login waiting for %q", name)
+		return utilsmsg.New(utilsmsg.NotFound, "oauth login", "none waiting for %q", name)
 	}
 	pending := value.(chan authCodeResult)
 
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil {
-		return fmt.Errorf("parse redirect URL: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "parse", "redirect URL", err)
 	}
 	query := parsed.Query()
 
 	if failure := query.Get("error"); failure != "" {
 		desc := query.Get("error_description")
-		deliver(pending, authCodeResult{err: fmt.Errorf("%s: %s", failure, desc)})
+		deliver(pending, authCodeResult{err: utilsmsg.New(utilsmsg.Denied, failure, "%s", desc)})
 		return nil
 	}
 	code := query.Get("code")
 	if code == "" {
-		return fmt.Errorf("redirect URL carries no code")
+		return utilsmsg.New(utilsmsg.Invalid, "redirect URL", "carries no code")
 	}
 	deliver(pending, authCodeResult{code: code, state: query.Get("state")})
 	return nil
@@ -317,15 +318,15 @@ func deliver(result chan<- authCodeResult, res authCodeResult) {
 func Login(ctx context.Context, name string, onURL func(string)) error {
 	cfg, err := Load()
 	if err != nil {
-		return fmt.Errorf("Load: %w", err)
+		return utilsmsg.Trace("Load", "", err)
 	}
 	server, ok := cfg.Servers[name]
 	if !ok {
-		return fmt.Errorf("server %q not found", name)
+		return utilsmsg.New(utilsmsg.NotFound, "server", "%q", name)
 	}
 	server = server.Expand()
 	if !server.IsHTTP() {
-		return fmt.Errorf("server %q is not an HTTP server", name)
+		return utilsmsg.New(utilsmsg.Invalid, "server", "%q is not an HTTP server", name)
 	}
 	endpoint := strings.TrimSpace(server.URL)
 
@@ -379,7 +380,7 @@ func Login(ctx context.Context, name string, onURL func(string)) error {
 
 	handler, err := mcp_auth.NewAuthorizationCodeHandler(handlerCfg)
 	if err != nil {
-		return fmt.Errorf("NewAuthorizationCodeHandler: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Invalid, "NewAuthorizationCodeHandler", "", err)
 	}
 
 	session, err := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "agenvoy", Version: "1.0.0"}, nil).
@@ -404,21 +405,21 @@ func Login(ctx context.Context, name string, onURL func(string)) error {
 
 	source, err := handler.TokenSource(ctx)
 	if err != nil {
-		return fmt.Errorf("token source: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Upstream, "token source", "", err)
 	}
 	if source == nil {
-		return fmt.Errorf("server %q never requested authorization", name)
+		return utilsmsg.New(utilsmsg.Upstream, "server", "%q never requested authorization", name)
 	}
 	token, err := source.Token()
 	if err != nil {
-		return fmt.Errorf("token: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Upstream, "token", "", err)
 	}
 
 	clientID, clientSecret := stored.ClientID, stored.ClientSecret
 	if !reuseClient {
 		registered := recorder.registration()
 		if registered.ClientID == "" {
-			return fmt.Errorf("registered client id not observed during authorization")
+			return utilsmsg.New(utilsmsg.Upstream, "registered client id", "not observed during authorization")
 		}
 		clientID, clientSecret = registered.ClientID, registered.ClientSecret
 		if err := saveOAuthClient(name, oauthClient{
@@ -433,7 +434,7 @@ func Login(ctx context.Context, name string, onURL func(string)) error {
 
 	tokenURL := recorder.tokenURL()
 	if tokenURL == "" {
-		return fmt.Errorf("token endpoint not observed during authorization")
+		return utilsmsg.New(utilsmsg.Upstream, "token endpoint", "not observed during authorization")
 	}
 
 	rec := oauthRecord{
@@ -450,7 +451,7 @@ func loginError(err error, name string, reuseClient bool) error {
 	if reuseClient {
 		return err
 	}
-	return fmt.Errorf("%w · options: set \"oauth_client_name\" in mcp.json to a name the provider allowlists, open /mcp → %s → client to use a pre-registered client id, or re-add the server with a bearer token", err, name)
+	return utilsmsg.New(utilsmsg.Upstream, "oauth login", "%w · options: set \"oauth_client_name\" in mcp.json to a name the provider allowlists, open /mcp → %s → client to use a pre-registered client id, or re-add the server with a bearer token", err, name)
 }
 
 type callbackServer struct {
@@ -466,10 +467,10 @@ func listenCallback(name string, stored oauthClient, hasClient bool, result chan
 		}
 		parsed, err := url.Parse(redirectURL)
 		if err != nil {
-			return nil, false, fmt.Errorf("parse redirect URI %q: %w", redirectURL, err)
+			return nil, false, utilsmsg.New(utilsmsg.Invalid, "redirect URI", "parse %q: %w", redirectURL, err)
 		}
 		if parsed.Port() == "" {
-			return nil, false, fmt.Errorf("redirect URI %q must include a port", redirectURL)
+			return nil, false, utilsmsg.New(utilsmsg.Invalid, "redirect URI", "%q must include a port", redirectURL)
 		}
 		path := parsed.Path
 		if path == "" {
@@ -480,7 +481,7 @@ func listenCallback(name string, stored oauthClient, hasClient bool, result chan
 			return serveCallback(name, listener, redirectURL, path, result), true, nil
 		}
 		if !stored.Dynamic {
-			return nil, false, fmt.Errorf("net.Listen %s: %w", parsed.Host, err)
+			return nil, false, utilsmsg.Wrap(utilsmsg.Unavailable, "net.Listen", parsed.Host, err)
 		}
 		slog.Debug("mcp oauth cached callback port busy, registering a new client",
 			slog.String("server", name),
@@ -493,7 +494,7 @@ func listenCallback(name string, stored oauthClient, hasClient bool, result chan
 
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
-		return nil, false, fmt.Errorf("net.Listen: %w", err)
+		return nil, false, utilsmsg.Wrap(utilsmsg.Unavailable, "net.Listen", "", err)
 	}
 	redirectURL := fmt.Sprintf("http://localhost:%d%s", listener.Addr().(*net.TCPAddr).Port, oauthCallbackPath)
 	return serveCallback(name, listener, redirectURL, oauthCallbackPath, result), false, nil
@@ -535,12 +536,12 @@ func oauthCallbackHandler(callbackPath string, result chan<- authCodeResult) fun
 
 		if failure := query.Get("error"); failure != "" {
 			desc := query.Get("error_description")
-			fail(fmt.Sprintf("Authorization failed: %s: %s", failure, desc), fmt.Errorf("%s: %s", failure, desc))
+			fail(fmt.Sprintf("Authorization failed: %s: %s", failure, desc), utilsmsg.New(utilsmsg.Denied, failure, "%s", desc))
 			return
 		}
 		code := query.Get("code")
 		if code == "" {
-			fail("Authorization failed: missing code", fmt.Errorf("missing code"))
+			fail("Authorization failed: missing code", utilsmsg.New(utilsmsg.Upstream, "authorization callback", "missing code"))
 			return
 		}
 
@@ -568,7 +569,7 @@ func (r *loginRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
 	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, configs.MAX_DOCUMENT_BYTES))
 	resp.Body.Close()
 	if readErr != nil {
-		return nil, fmt.Errorf("read %s: %w", req.URL, readErr)
+		return nil, utilsmsg.Wrap(utilsmsg.Upstream, "read", req.URL.String(), readErr)
 	}
 	raw = normalizeIssuers(raw)
 	r.observe(req, raw)

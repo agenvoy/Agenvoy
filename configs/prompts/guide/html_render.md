@@ -1,29 +1,31 @@
-One HTML file — report, dashboard, chart, diagram, map. No build step, no local assets, no server. Both branches below render through QuickUI (§2).
+One self-contained HTML file — report, dashboard, chart, diagram, map: no build step, no local assets, no server.
 
-### 1. Check the gallery — always, before writing a tag
+### 1. Gallery first
 
-`html_template(mode="list")` — JSON, one entry per page with `name`, `category`, `title`, `desc`.
-
-Match on **shape**, not subject: what the reader *does* with the page — skim a status, compare options, follow a flow, click through a mock, answer questions before merging. The `unknowns/*` entries are the ones built to surface what the reader has not decided yet.
-
-- Something fits → **§3**. "Close enough" fits.
-- Nothing fits → **§4**, after naming the closest two entries and why each falls short.
-- `html_template` failed → **§4**, nothing to announce.
+- **List** before writing any tag: `html_template(mode="list")` returns one entry per page with `name`, `category`, `title`, `desc`.
+- **Match on shape, not subject**: what the reader does with the page — skim a status, compare options, follow a flow, click through a mock, answer questions before merging. `unknowns/*` entries surface what the reader has not decided yet.
+- **Something fits** (close enough counts) → §3.
+- **Nothing fits** → §4, after naming the two closest entries and why each falls short.
+- **`html_template` failed** → §4 without comment.
 
 ### 2. QuickUI — every page, both branches
 
-The page is a QuickUI template bound to one data object. Every figure, row, label and link the page shows lives in that object; the markup only binds to it. A row typed out per record, or a script that assembles markup, is how a page ships a stale figure, an unescaped string or a silently missing field.
+The page is a QuickUI template bound to one data object: every figure, row, label and link lives in that object and the markup only binds to it.
 
-Mount it once, at the end of `<body>`, after every library script (and `T` on the §4 branch):
+Mount once at the end of `<body>`, after every library script (and after `T` on the §4 branch):
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@pardnchiu/quickui@0/dist/QuickUI.js"></script>
 <script>
-const APP = new QUI({
-  id: "app",
-  data: { /* every figure, row, label and link on the page */ },
-  when: { rendered: () => { /* T.init charts, T.sortable, hljs, KaTeX, Mermaid, MapLibre */ } },
-});
+  const APP = new QUI({
+    id: "app",
+    data: {/* every figure, row, label and link on the page */},
+    when: {
+      rendered: () => {
+        /* T.init charts, T.sortable, hljs, KaTeX, Mermaid, MapLibre */
+      },
+    },
+  });
 </script>
 ```
 
@@ -33,53 +35,47 @@ const APP = new QUI({
 |---|---|
 | Text | `{{ r.name }}`, `{{ list.0.name }}` — dotted paths only |
 | Repeat | `<tr :for="r in rows">`, `<li :for="(k, v) in obj">` — one element, not one per record |
-| Show / hide | `:if` / `:else-if` / `:else`, one comparison: `==` `!=` `>` `<` `>=` `<=`, right side unquoted, keywords `null` `true` `false` `empty`; empty state: `<div :if="rows.length > 0">...</div><p :else>...</p>` |
+| Show / hide | `:if` / `:else-if` / `:else`; empty state: `<div :if="rows.length > 0">...</div><p :else>...</p>` |
 | Attribute | leading colon: `:class="dot {{r.tone}}"`, `:href="{{r.url}}"`, `:id="c-{{r.id}}"` — a plain `id="c-{{r.id}}"` stays literal |
 | Raw HTML | `:html="key"` — only for HTML you built, never for fetched text |
-| Built-ins | `LENGTH(x)`, `UPPER(x)`, `LOWER(x)`, `DATE(ts, YYYY-MM-DD)`, `CALC(x * 1.05)` (one path, one operator `+ - * /`, one number constant — two paths or `%` do not evaluate) |
+| Built-ins | `LENGTH(x)`, `UPPER(x)`, `LOWER(x)`, `DATE(ts, YYYY-MM-DD)`, `CALC(x * 1.05)` (one path, one operator `+ - * /`, one number constant) |
 
-- **Data is an object of plain values.** The root is an object (`{ rows: [...] }`, never a bare array) because `:for` and `{{ }}` read its top-level keys. Values are strings, finite numbers, booleans, arrays and objects only — no functions, `undefined`, `NaN` or `Infinity`. One syntax error in the mount script means QuickUI never mounts and the reader sees raw `{{ }}` everywhere, so keep the literal flat and check it before saving.
-- **Format inside data.** `{{ }}` evaluates nothing — a ternary, `toFixed()`, `&&` or a method call renders as literal text. Store `"$429.9M"`, `"+1.23%"`, `"2026-09-15 17:34 UTC"`.
-- **No null in data.** A null or missing value leaves `{{ key }}` on the page; store `"—"` or `""` and guard optional blocks with `:if`.
-- **`:if` is one comparison on one path**: `==` / `!=` compare as strings and `0` counts as empty; `>` / `<` compare as numbers and a non-number counts as `0`; there is no `&&` / `||`. Precompute a flag in data (`has: true`, then `:if="notes.has == true"`).
-- **Text nodes are trimmed at both ends**: a separator that opens a text node loses its leading space. Put an optional segment into a data string (`" · X until ..."` or `""`) instead of wrapping it in a `:if` span.
-- **Script never writes markup** — no `innerHTML`, `insertAdjacentHTML`, `createElement`, `appendChild`, no HTML built from strings. It draws charts, binds sorting, and changes the page by assigning `APP.data.<key>`; QuickUI redraws about 300 ms later.
-- **Work that needs the DOM starts in `when.rendered`**: `new QUI()` returns before the DOM is patched, and chart containers generated by `:for` exist only after that hook fires.
-- **Every `T.init` id has a container.** Write each chart's `<div class="plot" id="...">` in the template, or `:id="c-{{r.id}}"` inside a `:for`; a missing container draws nothing and raises no error, so the page ships with a silent hole. A container under a false `:if` is absent too — skip its `T.init` or let it return null.
-- **Sortable tables**: rows are `<tr :for="r in rows">`; a click on `<th data-k="field">` sorts a copy and assigns `APP.data.rows = sorted`. `data-k` names a raw number or text kept beside its display string (`score` beside `scoreText`).
+- **Data root is an object of plain values**: `{ rows: [...] }`, never a bare array, since `:for` and `{{ }}` read its top-level keys. Values are strings, finite numbers, booleans, arrays and objects — no functions, `undefined`, `NaN` or `Infinity`. A syntax error in the mount script means QuickUI never mounts and the reader sees raw `{{ }}` everywhere.
+- **Format inside data**: `{{ }}` evaluates nothing — a ternary, `toFixed()`, `&&` or a method call renders as literal text. Store `"$429.9M"`, `"+1.23%"`, `"2026-09-15 17:34 UTC"`.
+- **No null in data**: a null or missing value leaves `{{ key }}` on the page; store `"—"` or `""` and guard optional blocks with `:if`.
+- **`:if` is one comparison on one path**: `==` `!=` `>` `<` `>=` `<=`, right side unquoted, keywords `null` `true` `false` `empty`. `==` / `!=` compare as strings and `0` counts as empty; `>` / `<` compare as numbers and a non-number counts as `0`. No `&&` / `||` — precompute a flag (`has: true`, then `:if="notes.has == true"`).
+- **Text nodes are trimmed at both ends**: a separator opening a text node loses its leading space. Put an optional segment into a data string (`" · X until ..."` or `""`) instead of a `:if` span.
+- **Script never writes markup** — no `innerHTML`, `insertAdjacentHTML`, `appendChild`, `createElement`, no HTML from strings; that is how a page ships a stale figure, an unescaped string or a missing field. Script draws charts, binds sorting, and changes the page by assigning `APP.data.<key>`; QuickUI redraws about 300 ms later.
+- **An element a library takes** (e.g. a MapLibre marker) comes from QuickUI's `_("div#id.class", attrs, children)`. A string `children` is set as HTML, so fetched text goes in as an array (`["text"]`).
+- **DOM work starts in `when.rendered`**: `new QUI()` returns before the DOM is patched, and containers generated by `:for` exist only after that hook. highlight.js, KaTeX, Mermaid and MapLibre initialise there too.
+- **Every `T.init` id has a container**: `<div class="plot" id="...">` in the template, or `:id="c-{{r.id}}"` inside a `:for`. A missing container draws nothing and raises no error; one under a false `:if` is absent too — skip its `T.init`.
+- **Sortable tables**: rows are `<tr :for="r in rows">`; a click on `<th data-k="field">` sorts a copy and assigns `APP.data.rows = sorted`. `data-k` names a raw value kept beside its display string (`score` beside `scoreText`).
 
-### 3. An example fits — copy it, do not design
+### 3. An example fits — copy it
 
-1. Read its HTML: `html_template(mode="read", name=...)`.
+1. `html_template(mode="read", name=...)`.
 2. Copy its `<link rel="stylesheet">` tag into your page.
-3. Replace the content in place, keeping its class names and block order: every figure, row and label moves into the QuickUI data object and the markup binds to it (§2) — the example's repeated blocks become one element with `:for`.
+3. Replace the content in place, keeping class names and block order: every figure, row and label moves into the data object, and repeated blocks become one `:for` element.
 4. Save with `write_result(format="html")`.
 
-**Zero CSS.** No `<style>`, no `style=`, no custom property, no font stack. Redefining one variable — `--accent`, `--ink` — repaints the whole page.
-
-**Zero new class names.** Content that fits no component goes into the nearest one that exists: a stat block, a card, a list, a callout. Inventing `.profile-grid` or `.repo-list` is what forces a stylesheet to be written. If nothing can hold the content, the wrong entry was picked — go back to §1.
-
-**Zero sample data.** The brand and every figure in the example are fictional.
-
-**Zero deliberation.** Typography, palette, spacing and breakpoints arrived with the sheet. §4 and below do not apply on this branch.
-
-The rest is boilerplate: doctype, charset, viewport meta, `<title>`, that one `<link>`, any CDN library the content uses, the QuickUI template and its mount (§2).
+- **Zero new CSS**: no `<style>` block, custom property or font stack; the example's own `style=` attributes stay as they are. Redefining one variable (`--accent`, `--ink`) repaints the whole page.
+- **Zero new class names**: content that fits no component goes into the nearest existing one (stat block, card, list, callout). Nothing can hold it → the wrong entry was picked; back to §1.
+- **Zero sample data**: the example's brand and figures are fictional.
+- **Boilerplate only**: doctype, charset, viewport meta, `<title>`, that one `<link>`, CDN libraries the content uses, the QuickUI template and mount. Typography, palette, spacing and breakpoints come with the sheet.
 
 ### 4. Nothing fits — build it
 
-Everything below applies only here. The stylesheet and a small `T` runtime are yours to write into the file.
+Applies only on this branch: you write the stylesheet and a small `T` runtime into the file.
 
-- **The document is yours end to end** — `<html>`, `<head>`, viewport meta, a real `<title>`, one inline `<style>`, an inline `<script>` defining `T` placed before the QuickUI mount (§2).
-- **Charts** go through `T.init(elementId, option)`; give the container a height (`<div class="plot" id="gex" style="aspect-ratio:2/1">`).
-- **Colours** come from `T`, never a hex literal — `T.series[0..3]`, `T.up`/`T.down`, `T.good`/`T.critical`, `T.ink`/`T.muted`/`T.rule`/`T.surface`, `T.tone(n)`; numbers through `T.fmt`/`T.signed`/`T.si`; sortable tables through `T.sortable(...)`, which sorts the data array and lets QuickUI redraw (§2).
-- **Layout** comes from the house classes — `.masthead`, `.band`, `.stats/.stat`, `.exhibit`, `.plot`, `.note`, `.tw`, `.cols`, `.pill`, `.flag`, `ul.pts`, `.grid/.card`.
-- **Data** goes in the one QuickUI data object (§2).
-- **Chart everything chartable**; tables are for data that resists plotting. Cite sources as `<a href>` using a URL that appeared in tool output, never a constructed one.
-- **Format is not a question to ask.** Produce text unless a page, file, link, html or pdf was asked for; when it was, write the file and return its path instead of also pasting the report back.
+- **Document**: `<html>`, `<head>`, viewport meta, a real `<title>`, one inline `<style>`, an inline `<script>` defining `T` before the QuickUI mount.
+- **Charts** through `T.init(elementId, option)`, container given a height (`<div class="plot" id="gex" style="aspect-ratio:2/1">`). Chart everything chartable; tables are for data that resists plotting.
+- **`T` helpers**: colours `T.series[0..3]`, `T.up`/`T.down`, `T.good`/`T.critical`, `T.ink`/`T.muted`/`T.rule`/`T.surface`, `T.tone(n)`; numbers `T.fmt`/`T.signed`/`T.si`; `T.sortable(...)` sorts the data array and lets QuickUI redraw.
+- **Layout classes**: `.masthead`, `.band`, `.stats/.stat`, `.exhibit`, `.plot`, `.note`, `.tw`, `.cols`, `.pill`, `.flag`, `ul.pts`, `.grid/.card`.
+- **Sources** as `<a href>` with a URL that appeared in tool output; a constructed URL is a fabricated source.
 
 #### Libraries
 
-Load one only when the content uses it. Six exist, nothing else — a chart ECharts cannot draw is a chart to reconsider.
+Load one only when the content uses it. These six are the whole set; a chart ECharts cannot draw is a chart to reconsider.
 
 | Need | Load | CDN |
 |---|---|---|
@@ -90,53 +86,37 @@ Load one only when the content uses it. Six exist, nothing else — a chart ECha
 | Flow / sequence / Gantt | Mermaid 11 | `https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs` (ESM) |
 | Maps | MapLibre GL 4 | `https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js` + `maplibre-gl.css` |
 
-- Major-only paths are safe; never invent a minor version.
-- **CSS matters as much as JS** — MapLibre without its sheet is a blank box, KaTeX without its sheet shows raw boxes.
-- **KaTeX** needs both scripts, then one `renderMathInElement(document.body, {delimiters:[...]})`.
-- **Mermaid** ships 3.5 MB as UMD against 30 KB as ESM — import the ESM entry, `mermaid.initialize({startOnLoad:false})`, then `await mermaid.run()`.
-- highlight.js, KaTeX, Mermaid and MapLibre initialise **after** QuickUI has rendered — inside `when.rendered` (§2).
+- **Versions**: major-only paths as listed; an invented minor version 404s.
+- **Stylesheets are required**: MapLibre without its sheet is a blank box, KaTeX without its sheet shows raw boxes.
+- **KaTeX**: both scripts, then one `renderMathInElement(document.body, {delimiters:[...]})`.
+- **Mermaid**: the ESM entry (30 KB against 3.5 MB UMD), `mermaid.initialize({startOnLoad:false})`, then `await mermaid.run()`.
 
 #### Responsive
 
-Mobile-first. Base styles are the phone; each query widens it.
+Mobile-first: base styles are the phone, each query widens it — `min-width: 480px` (two-up stat tiles, larger type), `640px` (side-by-side content, persistent nav), `1024px` (multi-column grid, fixed max-width).
 
-```css
-/* base — under 480: single column, stacked */
-@media (min-width: 480px)  { /* two-up stat tiles, larger type scale */ }
-@media (min-width: 640px)  { /* side-by-side content, persistent nav */ }
-@media (min-width: 1024px) { /* multi-column grid, fixed max-width */ }
-```
-
-- **The page never scrolls horizontally.** Wide tables, code blocks and timelines scroll inside their own `overflow-x: auto` container.
-- **Charts resize with their container** — ECharts measures once, so call `chart.resize()` from a `ResizeObserver`. The SVG renderer prints better than canvas.
-- **MapLibre needs `map.resize()`** or it stretches.
-- **Every chart, map and canvas needs a height that works at 480px** — a percentage height in an auto-height parent collapses to zero.
-- `img`, `svg`, `canvas`, `iframe` carry `max-width: 100%`. Use `clamp()` for type and spacing.
-- **Anything interactive keeps a visible keyboard focus ring** — sortable headers, links, controls.
+- **No horizontal page scroll**: wide tables, code blocks and timelines scroll inside their own `overflow-x: auto` container.
+- **Charts and maps follow their container**: ECharts measures once, so call `chart.resize()` from a `ResizeObserver`; MapLibre needs `map.resize()`. The SVG renderer prints better than canvas.
+- **Heights work at 480px** for every chart, map and canvas; a percentage height in an auto-height parent collapses to zero.
+- **Media** (`img`, `svg`, `canvas`, `iframe`) carries `max-width: 100%`; type and spacing use `clamp()`.
+- **Focus ring** stays visible on anything interactive — sortable headers, links, controls.
 
 #### Visual direction
 
-Decide before writing markup and state the direction in one line as you build. Without it every page lands on the same default — system sans, blue accent, rounded white cards on grey — which reads as unconsidered however correct the data is. A brief that pins an axis wins on that axis, its own words exactly; the axes it leaves open are yours to choose on.
+An undecided page lands on the same default — system sans, blue accent, rounded white cards on grey — which reads as unconsidered however correct the data. The brief wins on every axis it pins, in its own words; the open axes are yours, chosen from the subject's own world (its instruments, artifacts, vernacular) rather than a palette that fits any dataset.
 
-Name the subject, its reader, and the page's one job before choosing anything. Distinctive choices come out of that subject's own world — its instruments, artifacts and vernacular — rather than out of a palette that would fit any dataset.
-
-- **Typography** — a display face and a body face chosen as a pair, with a scale whose weights and widths are deliberate. The type treatment is part of what makes the page memorable, not a neutral delivery vehicle for the numbers.
-- **Palette** — 4–6 named values: one accent, a neutral ramp, semantic colours kept apart from the accent. Financial, scientific, editorial and monitoring content do not share a palette. They are written once into `T` and read back as `T.*`, so no hex literal appears in the markup.
-- **Spacing** — one rhythm (4px or 8px base) applied to padding, gaps and vertical spacing alike.
-- **Background** — flat white is a default, not a decision. Consider a tinted surface or a dark canvas.
-- **Motion** — one orchestrated moment (a load sequence, a scroll reveal) lands harder than micro-interactions scattered across the page, and the scattered version is what reads as machine-generated. Honour `prefers-reduced-motion`.
-- **Signature** — the one element the page is remembered by. Spend boldness there and keep everything around it quiet.
-
-A look that would arrive whatever the subject is has been chosen by default, not by decision — on a free axis, spend the freedom somewhere the subject asks for it.
-
-Structure carries information: numbering, eyebrows, dividers and labels either encode something true about the content or they decorate it. `01 / 02 / 03` fits a real sequence and misleads on a set of peers.
-
-Match execution to the direction — maximalist needs elaborate follow-through, minimal needs precision in spacing, type and detail.
-
-Labels name what the reader recognises rather than what the pipeline produced, and a panel with no data says what is missing and what would fill it.
+- **Typography**: a display face and a body face chosen as a pair, with deliberate weights, widths and scale.
+- **Palette**: 4–6 named values — one accent, a neutral ramp, semantic colours kept apart from the accent — written once into `T` and read back as `T.*`, so no hex literal appears in the markup. Financial, scientific, editorial and monitoring content do not share a palette.
+- **Spacing**: one rhythm (4px or 8px base) for padding, gaps and vertical spacing alike.
+- **Background**: flat white is a default, not a decision; consider a tinted surface or a dark canvas.
+- **Motion**: one orchestrated moment (a load sequence, a scroll reveal), not micro-interactions scattered across the page. Honour `prefers-reduced-motion`.
+- **Signature**: the one element the page is remembered by; spend boldness there and keep the rest quiet.
+- **Structure carries information**: numbering, eyebrows, dividers and labels encode something true or they only decorate. `01 / 02 / 03` fits a real sequence and misleads on a set of peers.
+- **Execution matches direction**: maximalist needs elaborate follow-through; minimal needs precision in spacing, type and detail.
+- **Labels** name what the reader recognises, not what the pipeline produced; an empty panel says what is missing and what would fill it.
 
 #### Plan, critique, build
 
-Write the token block before any markup: palette values, type roles (display / body / utility), the layout concept in one sentence, the signature element. Read it back against the brief — a part that would come out identical for any other page on this subject is a default, so change it and name what changed. The code then follows the revised plan, every colour and type decision traceable to it.
-
-Keep selector specificity flat as you write: a class rule and an element rule covering the same box (`.section` against `section`) cancel each other, and it surfaces as vertical spacing that silently goes missing between blocks.
+1. **Token block before markup**: palette values, type roles (display / body / utility), the layout concept in one sentence, the signature element; state the direction in one line.
+2. **Critique** it against the brief: a part that would come out identical for any other page on this subject is a default — change it and name what changed.
+3. **Build** from the revised plan; every colour and type decision traces back to it. Keep selector specificity flat: a class rule and an element rule on the same box (`.section` against `section`) cancel each other, and spacing between blocks silently goes missing.

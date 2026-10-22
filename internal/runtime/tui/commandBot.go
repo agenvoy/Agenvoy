@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 )
 
 type BotFieldPick struct {
@@ -37,7 +37,7 @@ type BotSaved struct {
 }
 
 func (t TUI) openBotField(sid, field string) (TUI, tea.Cmd) {
-	selfID, name, body := configBot.GetPersona(sid)
+	selfID, name, body := configbot.GetPersona(sid)
 	if field == "role" {
 		t.botBodyDraft = body
 		return t.showBotPromptPicker(name, selfID)
@@ -64,7 +64,7 @@ func (t TUI) runBotFieldSubmit(msg BotFieldSubmit) (TUI, tea.Cmd) {
 	if sid == "" {
 		return t, notice(msgError("no current session") + "\n")
 	}
-	selfID, name, body := configBot.GetPersona(sid)
+	selfID, name, body := configbot.GetPersona(sid)
 	switch msg.field {
 	case "name":
 		if cmd, ok := t.botCheckConflict(sid, msg.value); !ok {
@@ -88,7 +88,7 @@ func (t TUI) botCheckConflict(sid, name string) (tea.Cmd, bool) {
 }
 
 func (t TUI) botCheckSelfID(sid, selfID string) (tea.Cmd, bool) {
-	if err := historyStore.ValidSelfID(selfID); err != nil {
+	if err := historystore.ValidSelfID(selfID); err != nil {
 		return notice(msgError(""+err.Error()) + "\n"), false
 	}
 	if owner := session.GetSessionIDBySelfID(selfID); owner != "" && owner != sid {
@@ -137,6 +137,6 @@ func (t TUI) showBotCustomPopup(name, selfID string) (TUI, tea.Cmd) {
 }
 
 func (t TUI) botSaveCmd(sid, selfID, name, body string) tea.Cmd {
-	err := configBot.SavePersona(sid, selfID, name, body)
+	err := configbot.SavePersona(sid, selfID, name, body)
 	return func() tea.Msg { return BotSaved{name: name, err: err} }
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type popupType int
@@ -100,7 +101,7 @@ func (t TUI) closePopup() TUI {
 			return t
 		}
 		resolvePending(next.id, runtime.Reply{
-			Error: fmt.Errorf("invalid pending request"),
+			Error: utilsmsg.New(utilsmsg.Invalid, "pending request", "no popup for this request"),
 		})
 	}
 	return t

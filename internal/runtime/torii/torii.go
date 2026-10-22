@@ -2,13 +2,14 @@ package torii
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
 	go_pkg_filesystem_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
 	toriidb_daemon "github.com/pardnchiu/toriidb/core/daemon"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const openAIKeyName = "OPENAI_API_KEY"
@@ -33,12 +34,12 @@ func Init(path string) error {
 	once.Do(func() {
 		d, err := toriidb_daemon.New(path, go_pkg_filesystem_keychain.Get(openAIKeyName))
 		if err != nil {
-			initErr = fmt.Errorf("toriidb.New: %w", err)
+			initErr = utilsmsg.Wrap(utilsmsg.Internal, "toriidb.New", "", err)
 			return
 		}
 		if err := d.Start(); err != nil {
 			d.Close()
-			initErr = fmt.Errorf("toriidb.Start: %w", err)
+			initErr = utilsmsg.Wrap(utilsmsg.Internal, "toriidb.Start", "", err)
 			return
 		}
 		instance = d

@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
-func renderTodoList(todos []agentTypes.TodoItem, spinner string) string {
+func renderTodoList(todos []agenttypes.TodoItem, spinner string) string {
 	if len(todos) == 0 {
 		return ""
 	}
 
 	var done int
 	for _, td := range todos {
-		if td.Status == agentTypes.TodoCompleted {
+		if td.Status == agenttypes.TodoCompleted {
 			done++
 		}
 	}
@@ -30,10 +30,10 @@ func renderTodoList(todos []agentTypes.TodoItem, spinner string) string {
 	for _, td := range todos {
 		sb.WriteByte('\n')
 		switch td.Status {
-		case agentTypes.TodoCompleted:
+		case agenttypes.TodoCompleted:
 			sb.WriteString(okayStyle.Render("  ✔ "))
 			sb.WriteString(hintStyle.Render(td.Content))
-		case agentTypes.TodoInProgress:
+		case agenttypes.TodoInProgress:
 			label := strings.TrimSpace(td.ActiveForm)
 			if label == "" {
 				label = td.Content

@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
+
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type todoInput struct {
@@ -21,20 +23,20 @@ type todoInput struct {
 }
 
 func registWriteTodo() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "write_todo",
 		SystemUse:   true,
 		AlwaysAllow: true,
 		Concurrent:  true,
-		Description: `A task checklist the user watches update in real time.
-Call it the moment work turns multi-step (3+ steps), at the start or halfway through — N fanned-out searches or subagents count as N steps, and 分析 / 研究 / 調查 / 比較 / 彙整 / 週報 / 盤前 always get a plan.
-It records progress and never executes anything. Single-step work, smalltalk, or anything one tool call resolves → skip it.`,
+		Description: `A task checklist the user watches update in real time; it records progress and never executes anything.
+Call it before the first tool call whenever the answer takes more than one round of tool calls, or the moment a running task grows past that; 分析 / 研究 / 調查 / 比較 / 評估 / 彙整 / 週報 / 盤前 always get one, however short the plan looks. N fanned-out searches or subagents are N steps.
+Smalltalk, or a single lookup answered straight from one call's result → skip it.`,
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"todos": map[string]any{
 					"type":        "array",
-					"description": "The whole ordered checklist every call — state is replaced, not merged. Exactly one item in_progress; when a step is genuinely done, flip it completed and set the next in_progress in the same call. While a plan runs the step set stays fixed: only status advances, never reword, reorder, split, merge, add or drop — a step that turns out wrong or missing is told to the user first. A fully completed plan followed by a new objective starts a fresh list, which is expected rather than a change.",
+					"description": "The whole ordered list every call (replaced, not merged), exactly one item in_progress. A finished step flips to completed and the next to in_progress in the same call. Changing the remaining steps mid-run is told to the user first; a new objective after a completed list starts a fresh one.",
 					"minItems":    1,
 					"items": map[string]any{
 						"type": "object",
@@ -45,12 +47,12 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 							},
 							"status": map[string]any{
 								"type":        "string",
-								"enum":        []string{agentTypes.TodoPending, agentTypes.TodoInProgress, agentTypes.TodoCompleted},
+								"enum":        []string{agenttypes.TodoPending, agenttypes.TodoInProgress, agenttypes.TodoCompleted},
 								"description": "pending = not started, in_progress = working now (only one allowed), completed = done.",
 							},
 							"active_form": map[string]any{
 								"type":        "string",
-								"description": "Present-continuous label shown while this step runs (e.g. 'Adding lang toggle'). Optional; falls back to content.",
+								"description": "Optional label shown while the step runs (e.g. 'Adding lang toggle'); defaults to content.",
 							},
 						},
 						"required": []string{"content", "status"},
@@ -59,44 +61,44 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 			},
 			"required": []string{"todos"},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Todos []todoInput `json:"todos"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			if len(params.Todos) == 0 {
-				return "", fmt.Errorf("todos must contain at least one item")
+				return "", utilsmsg.New(utilsmsg.Invalid, "todos", "must contain at least one item")
 			}
 
-			todos := make([]agentTypes.TodoItem, 0, len(params.Todos))
+			todos := make([]agenttypes.TodoItem, 0, len(params.Todos))
 			var done, doing, pending int
 			for i, in := range params.Todos {
 				content := strings.TrimSpace(in.Content)
 				if content == "" {
-					return "", fmt.Errorf("todo #%d has empty content", i+1)
+					return "", utilsmsg.New(utilsmsg.Invalid, "todos", "#%d has empty content", i+1)
 				}
 				status := strings.TrimSpace(in.Status)
 				switch status {
-				case agentTypes.TodoCompleted:
+				case agenttypes.TodoCompleted:
 					done++
-				case agentTypes.TodoInProgress:
+				case agenttypes.TodoInProgress:
 					doing++
-				case agentTypes.TodoPending, "":
-					status = agentTypes.TodoPending
+				case agenttypes.TodoPending, "":
+					status = agenttypes.TodoPending
 					pending++
 				default:
-					return "", fmt.Errorf("todo #%d has invalid status %q (want pending / in_progress / completed)", i+1, in.Status)
+					return "", utilsmsg.New(utilsmsg.Invalid, "todos", "#%d has invalid status %q (want pending / in_progress / completed)", i+1, in.Status)
 				}
-				todos = append(todos, agentTypes.TodoItem{
+				todos = append(todos, agenttypes.TodoItem{
 					Content:    content,
 					Status:     status,
 					ActiveForm: strings.TrimSpace(in.ActiveForm),
 				})
 			}
 			if doing > 1 {
-				return "", fmt.Errorf("only one todo may be in_progress at a time, got %d", doing)
+				return "", utilsmsg.New(utilsmsg.Invalid, "todos", "only one may be in_progress at a time, got %d", doing)
 			}
 
 			sessionID, taskHash := "", ""
@@ -105,7 +107,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 			}
 			if taskHash != "" {
 				if err := WriteTodos(sessionID, taskHash, todos); err != nil {
-					return "", fmt.Errorf("WriteTodos: %w", err)
+					return "", utilsmsg.Trace("WriteTodos", "", err)
 				}
 			}
 
@@ -118,7 +120,7 @@ It records progress and never executes anything. Single-step work, smalltalk, or
 	})
 }
 
-func reportWritten(e *toolTypes.Executor) bool {
+func reportWritten(e *tooltypes.Executor) bool {
 	for _, path := range e.EditedFiles() {
 		name := filepath.Base(path)
 		if strings.HasPrefix(name, "report-") && (strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".html")) {
@@ -128,7 +130,7 @@ func reportWritten(e *toolTypes.Executor) bool {
 	return false
 }
 
-func WriteTodos(sessionID, taskHash string, todos []agentTypes.TodoItem) error {
+func WriteTodos(sessionID, taskHash string, todos []agenttypes.TodoItem) error {
 	if taskHash == "" {
 		return nil
 	}
@@ -141,12 +143,12 @@ func WriteTodos(sessionID, taskHash string, todos []agentTypes.TodoItem) error {
 	}
 	meta.Todos = todos
 	if writeErr := writePending(sessionID, taskHash, &meta); writeErr != nil {
-		return fmt.Errorf("writePending: %w", writeErr)
+		return utilsmsg.Trace("writePending", "", writeErr)
 	}
 	return nil
 }
 
-func LoadTodos(sessionID, taskHash string) []agentTypes.TodoItem {
+func LoadTodos(sessionID, taskHash string) []agenttypes.TodoItem {
 	if taskHash == "" {
 		return nil
 	}

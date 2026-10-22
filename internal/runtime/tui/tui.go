@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/ipc"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var (
@@ -86,7 +86,7 @@ func Run(ctx context.Context) error {
 	go newDaemonLog(ctx)
 
 	if _, err := prog.Run(); err != nil {
-		return fmt.Errorf("prog.Run: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "prog.Run", "", err)
 	}
 	return nil
 }

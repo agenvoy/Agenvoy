@@ -12,11 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	configStatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	internalUtils "github.com/pardnchiu/agenvoy/internal/utils"
+	configstatus "github.com/pardnchiu/agenvoy/internal/session/config/status"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	internalutils "github.com/pardnchiu/agenvoy/internal/utils"
 )
 
 const (
@@ -26,40 +26,40 @@ const (
 
 type taggedEvent struct {
 	Session string `json:"session"`
-	agentTypes.Event
+	agenttypes.Event
 	Display string `json:"tool_display,omitempty"`
 }
 
 type wireEvent struct {
-	agentTypes.Event
+	agenttypes.Event
 	Display string `json:"tool_display,omitempty"`
 }
 
-func skipEvent(ev agentTypes.Event) bool {
+func skipEvent(ev agenttypes.Event) bool {
 	switch ev.Type {
-	case agentTypes.EventToolProgress:
+	case agenttypes.EventToolProgress:
 		return true
 
-	case agentTypes.EventToolCall, agentTypes.EventToolResult, agentTypes.EventToolSkipped,
-		agentTypes.EventToolCallStart, agentTypes.EventToolCallText, agentTypes.EventToolCallEnd,
-		agentTypes.EventToolConfirm:
-		return internalUtils.HideToolEvent(ev.ToolName, ev.ToolArgs)
+	case agenttypes.EventToolCall, agenttypes.EventToolResult, agenttypes.EventToolSkipped,
+		agenttypes.EventToolCallStart, agenttypes.EventToolCallText, agenttypes.EventToolCallEnd,
+		agenttypes.EventToolConfirm:
+		return internalutils.HideToolEvent(ev.ToolName, ev.ToolArgs)
 	}
 	return false
 }
 
-func toWire(ev agentTypes.Event) wireEvent {
+func toWire(ev agenttypes.Event) wireEvent {
 	display := ""
 	switch ev.Type {
-	case agentTypes.EventToolCall:
-		display = internalUtils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
-	case agentTypes.EventToolConfirm:
-		display = internalUtils.FormatToolConfirmArgs(ev.ToolName, ev.ToolArgs)
+	case agenttypes.EventToolCall:
+		display = internalutils.FormatToolEvent(ev.ToolName, ev.ToolArgs)
+	case agenttypes.EventToolConfirm:
+		display = internalutils.FormatToolConfirmArgs(ev.ToolName, ev.ToolArgs)
 	}
 	return wireEvent{Event: ev, Display: display}
 }
 
-func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
+func toTagged(sessionID string, ev agenttypes.Event) taggedEvent {
 	return taggedEvent{
 		Session: sessionID,
 		Event:   ev,
@@ -69,15 +69,15 @@ func toTagged(sessionID string, ev agentTypes.Event) taggedEvent {
 
 type connectedFrame struct {
 	Session string `json:"session,omitempty"`
-	agentTypes.Event
+	agenttypes.Event
 	State string `json:"state,omitempty"`
 }
 
 func newConnectedFrame(sessionID string) connectedFrame {
-	status := configStatus.Get(sessionID)
+	status := configstatus.Get(sessionID)
 	return connectedFrame{
 		Session: sessionID,
-		Event:   agentTypes.Event{Type: agentTypes.EventConnected, Text: sessionID},
+		Event:   agenttypes.Event{Type: agenttypes.EventConnected, Text: sessionID},
 		State:   status.State,
 	}
 }
@@ -92,7 +92,7 @@ func StreamMultiLog() gin.HandlerFunc {
 			}
 		}
 
-		withDaemon := internalUtils.IsLoopback(c.Request.RemoteAddr) && c.DefaultQuery("daemon", "1") != "0"
+		withDaemon := internalutils.IsLoopback(c.Request.RemoteAddr) && c.DefaultQuery("daemon", "1") != "0"
 		if len(sids) == 0 && !withDaemon {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "sessions is required when daemon=0 or the caller is remote"})
 			return
@@ -119,7 +119,7 @@ func StreamMultiLog() gin.HandlerFunc {
 				continue
 			}
 
-			for _, ev := range sessionLog.RecentEvents(sid, 512) {
+			for _, ev := range sessionlog.RecentEvents(sid, 512) {
 				if skipEvent(ev) {
 					continue
 				}
@@ -207,7 +207,7 @@ func StreamMultiLog() gin.HandlerFunc {
 					return
 				}
 				c.Writer.Flush()
-				if te.Type == agentTypes.EventDone {
+				if te.Type == agenttypes.EventDone {
 					dropped := fanInDropped.Swap(0)
 					for _, s := range subs {
 						dropped += s.TakeDropped()

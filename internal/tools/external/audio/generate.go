@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	llmrouter "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Request struct {
@@ -23,23 +24,23 @@ type Request struct {
 func Generate(ctx context.Context, req Request) (string, error) {
 	text := strings.TrimSpace(req.Text)
 	if text == "" {
-		return "", fmt.Errorf("text is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "text", "required")
 	}
 
-	result, agentName, err := Speak(ctx, text, llmrouter.TTSOptions{Voice: strings.TrimSpace(req.Voice), Format: speechFormat})
+	result, agentName, err := Speak(ctx, text, go_llm_router.TTSOptions{Voice: strings.TrimSpace(req.Voice), Format: speechFormat})
 	if err != nil {
 		return "", err
 	}
 	if len(result.Audio) == 0 {
-		return "", fmt.Errorf("%s returned no audio data", agentName)
+		return "", utilsmsg.New(utilsmsg.Upstream, agentName, "returned no audio data")
 	}
 
 	path := outputPath(req.OutputFile, result.MimeType)
 	if err := go_pkg_filesystem.CheckDir(filepath.Dir(path), true); err != nil {
-		return "", fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: CheckDir: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", filepath.Dir(path), err)
 	}
 	if err := os.WriteFile(path, result.Audio, 0644); err != nil {
-		return "", fmt.Errorf("os.WriteFile [%s]: %w", path, err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "os.WriteFile", path, err)
 	}
 
 	return fmt.Sprintf("saved: %s\nmodel: %s\nbytes: %d", path, agentName, len(result.Audio)), nil

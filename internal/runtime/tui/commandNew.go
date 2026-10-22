@@ -13,7 +13,7 @@ import (
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -83,13 +83,13 @@ func (t TUI) runCreateSession(name, body string) (TUI, tea.Cmd) {
 	if name == "" {
 		name = utils.ShortenSessionID(id)
 	}
-	if err := configBot.Save(id, name, body, true); err != nil {
+	if err := configbot.Save(id, name, body, true); err != nil {
 		slog.Debug("sessionBot.Save", slog.String("session", id), slog.String("error", err.Error()))
 	}
 
 	previous := t.currentSessionID
 	t.currentSessionID = id
-	t.currentSessionName, _ = configBot.Get(id)
+	t.currentSessionName, _ = configbot.Get(id)
 
 	t.tokens = 0
 	t.lastIn = 0

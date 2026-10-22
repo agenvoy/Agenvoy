@@ -3,25 +3,25 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/extensions"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	apiAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
-	scriptAdapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	apiadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/api"
+	scriptadapter "github.com/pardnchiu/agenvoy/internal/runtime/toolAdapter/script"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type builtinHandler func(ctx context.Context, args json.RawMessage) (string, error)
 
 type toolbox struct {
-	scriptBox *scriptAdapter.Translator
-	apiBox    *apiAdapter.Adapter
-	extScript *scriptAdapter.Translator
-	extAPI    *apiAdapter.Adapter
+	scriptBox *scriptadapter.Translator
+	apiBox    *apiadapter.Adapter
+	extScript *scriptadapter.Translator
+	extAPI    *apiadapter.Adapter
 	tools     []Tool
 	builtin   map[string]builtinHandler
 }
@@ -29,7 +29,7 @@ type toolbox struct {
 func scanTools() *toolbox {
 	box := &toolbox{builtin: make(map[string]builtinHandler)}
 
-	box.scriptBox = scriptAdapter.New("script_")
+	box.scriptBox = scriptadapter.New("script_")
 	for _, dir := range []string{
 		filesystem.SystemToolsDir,
 		filesystem.ScriptToolsDir,
@@ -42,13 +42,13 @@ func scanTools() *toolbox {
 		}
 	}
 
-	box.extScript = scriptAdapter.New("ext_")
+	box.extScript = scriptadapter.New("ext_")
 	if err := box.extScript.Scan(filesystem.ExtensionScriptToolsDir); err != nil {
 		slog.Warn("extScript.Scan",
 			slog.String("error", err.Error()))
 	}
 
-	box.apiBox = apiAdapter.New("api_")
+	box.apiBox = apiadapter.New("api_")
 	_ = box.apiBox.Builtin(extensions.APIs, "apis")
 	for _, dir := range []string{
 		filesystem.APIToolsDir,
@@ -57,7 +57,7 @@ func scanTools() *toolbox {
 		_ = box.apiBox.Load(dir)
 	}
 
-	box.extAPI = apiAdapter.New("ext_")
+	box.extAPI = apiadapter.New("ext_")
 	_ = box.extAPI.Load(filesystem.ExtensionAPIToolsDir)
 
 	var tools []Tool
@@ -102,7 +102,7 @@ func (b *toolbox) dispatch(ctx context.Context, name string, args json.RawMessag
 		}
 		return b.extAPI.Execute(ctx, name, dic)
 	default:
-		return "", fmt.Errorf("tool not found: %s", name)
+		return "", utilsmsg.New(utilsmsg.NotFound, "tool", "%s", name)
 	}
 }
 
@@ -132,7 +132,7 @@ var bridgedTools = []string{
 
 func addBuiltins(box *toolbox) {
 	for _, name := range bridgedTools {
-		tool := toolRegister.GetTool(name)
+		tool := toolregister.GetTool(name)
 		if tool == nil {
 			continue
 		}
@@ -143,7 +143,7 @@ func addBuiltins(box *toolbox) {
 		})
 		n := name
 		box.builtin[n] = func(ctx context.Context, args json.RawMessage) (string, error) {
-			return toolRegister.Dispatch(ctx, nil, n, args)
+			return toolregister.Dispatch(ctx, nil, n, args)
 		}
 	}
 

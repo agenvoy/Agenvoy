@@ -2,12 +2,12 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type LocalCompat struct {
@@ -86,7 +86,7 @@ func SetModelTag(name, tag string) error {
 		return err
 	}
 	if tag != "" && !slices.Contains(ModelTags, tag) {
-		return fmt.Errorf("unknown model tag %q", tag)
+		return utilsmsg.New(utilsmsg.Invalid, "model tag", "unknown %q", tag)
 	}
 	if tag == "" {
 		delete(cfg.ModelTag, name)

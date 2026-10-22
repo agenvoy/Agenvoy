@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 )
 
 var (
@@ -29,13 +29,13 @@ func With(ctx context.Context, enabled bool) context.Context {
 	return context.WithValue(ctx, ctxKey{}, enabled)
 }
 
-func Mode(ctx context.Context) provider.Mode {
+func Mode(ctx context.Context) go_llm_router.Mode {
 	enabled, ok := ctx.Value(ctxKey{}).(bool)
 	if !ok {
 		enabled = enable.Load()
 	}
 	if enabled {
-		return provider.ModeFast
+		return go_llm_router.ModeFast
 	}
-	return provider.ModeDefault
+	return go_llm_router.ModeDefault
 }

@@ -8,6 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
@@ -15,7 +17,6 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 )
 
 const channelRevokeTimeout = 10 * time.Second

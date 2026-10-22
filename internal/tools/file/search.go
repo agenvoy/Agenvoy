@@ -8,9 +8,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -72,14 +74,14 @@ func countMatches(lines []go_pkg_filesystem_reader.Line) int {
 	return n
 }
 
-func searchBatch(ctx context.Context, e *toolTypes.Executor, queries []findQuery, output string, offset, limit, contextLines int, multiline bool) (string, error) {
+func searchBatch(ctx context.Context, e *tooltypes.Executor, queries []findQuery, output string, offset, limit, contextLines int, multiline bool) (string, error) {
 	switch output {
 	case "files":
 		contextLines = 0
 	case "content":
 		contextLines = max(contextLines, 0)
 	default:
-		return "", fmt.Errorf("unknown output %q; available: files, content", output)
+		return "", utilsmsg.New(utilsmsg.Invalid, "output", "unknown %q; available: files, content", output)
 	}
 
 	seen := make(map[string]struct{})
@@ -139,7 +141,7 @@ func searchFilesPage(merged []go_pkg_filesystem_reader.File, offset, limit int) 
 
 	raw, err := json.Marshal(list)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw) + page.notice("files"), nil
 }
@@ -232,21 +234,21 @@ func searchContentPage(merged []go_pkg_filesystem_reader.File, offset, limit, co
 
 	raw, err := json.Marshal(list)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw) + page.notice("lines"), nil
 }
 
-func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePattern string, contextLines int, multiline bool) ([]go_pkg_filesystem_reader.File, error) {
+func searchOne(ctx context.Context, e *tooltypes.Executor, dir, pattern, filePattern string, contextLines int, multiline bool) ([]go_pkg_filesystem_reader.File, error) {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
-		return nil, fmt.Errorf("pattern is required")
+		return nil, utilsmsg.New(utilsmsg.Invalid, "pattern", "required")
 	}
 
 	dir = strings.TrimSpace(dir)
 	absPath, err := boundary.Resolve(e.SessionID, e.WorkDir, dir)
 	if err != nil {
-		return nil, fmt.Errorf("boundary.Resolve: %w", err)
+		return nil, utilsmsg.Trace("boundary.Resolve", "", err)
 	}
 
 	var filePatterns []string
@@ -262,7 +264,7 @@ func searchOne(ctx context.Context, e *toolTypes.Executor, dir, pattern, filePat
 			Multiline:       multiline,
 		})
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem/reader: SearchFiles: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem_reader.SearchFiles", "", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

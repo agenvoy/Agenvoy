@@ -2,162 +2,163 @@ package keychain
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
-	sessionConfig "github.com/pardnchiu/agenvoy/internal/session/config"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
-	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
-	oauthGrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
+	oauthcodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	oauthcopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
+	oauthgrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
 	go_pkg_keychain "github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	sessionconfig "github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func Config(ctx context.Context, name string) (provider.Config, error) {
+func Config(ctx context.Context, name string) (go_llm_router.Config, error) {
 	providerFull, _, _ := strings.Cut(name, "@")
 	prov, _, _ := strings.Cut(providerFull, "[")
 
 	switch prov {
 	case "claude-code":
 		if err := claudeCode.CheckBinary(); err != nil {
-			return provider.Config{}, err
+			return go_llm_router.Config{}, err
 		}
-		return provider.Config{}, nil
+		return go_llm_router.Config{}, nil
 
 	case "claude":
 		apiKey := go_pkg_keychain.Get("CLAUDE_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: CLAUDE_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain CLAUDE_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "openai":
 		apiKey := go_pkg_keychain.Get("OPENAI_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: OPENAI_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain OPENAI_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "gemini":
 		apiKey := go_pkg_keychain.Get("GEMINI_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: GEMINI_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain GEMINI_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "grok":
 		apiKey := go_pkg_keychain.Get("GROK_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: GROK_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain GROK_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "deepseek":
 		apiKey := go_pkg_keychain.Get("DEEPSEEK_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: DEEPSEEK_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain DEEPSEEK_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "mistral":
 		apiKey := go_pkg_keychain.Get("MISTRAL_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: MISTRAL_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain MISTRAL_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "nvidia":
 		apiKey := go_pkg_keychain.Get("NVIDIA_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: NVIDIA_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain NVIDIA_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "ollama-cloud":
 		apiKey := go_pkg_keychain.Get("OLLAMA-CLOUD_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: OLLAMA-CLOUD_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain OLLAMA-CLOUD_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "openrouter":
 		apiKey := go_pkg_keychain.Get("OPENROUTER_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: OPENROUTER_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain OPENROUTER_API_KEY", "required")
 		}
-		return provider.Config{APIKey: apiKey}, nil
+		return go_llm_router.Config{APIKey: apiKey}, nil
 
 	case "cloudflare":
 		apiKey := go_pkg_keychain.Get("CLOUDFLARE_API_KEY")
 		if apiKey == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: CLOUDFLARE_API_KEY is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain CLOUDFLARE_API_KEY", "required")
 		}
 		accountID := go_pkg_keychain.Get("CLOUDFLARE_ACCOUNT_ID")
 		if accountID == "" {
-			return provider.Config{}, fmt.Errorf("keychain.Get: CLOUDFLARE_ACCOUNT_ID is required")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "keychain CLOUDFLARE_ACCOUNT_ID", "required")
 		}
-		return provider.Config{
+		return go_llm_router.Config{
 			APIKey:    apiKey,
 			AccountID: accountID,
 			GatewayID: go_pkg_keychain.Get("CLOUDFLARE_GATEWAY_ID"),
 		}, nil
 
 	case "copilot":
-		token, err := oauthCopilot.Load()
+		token, err := oauthcopilot.Load()
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("oauthCopilot.Load: %w", err)
+			return go_llm_router.Config{}, utilsmsg.Wrap(utilsmsg.Internal, "oauthcopilot.Load", "", err)
 		}
 		if token == nil {
-			return provider.Config{}, fmt.Errorf("copilot token missing; run `agen model add` to authenticate")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "copilot token", "missing; run `agen model add` to authenticate")
 		}
-		refresh, err := oauthCopilot.EnsureFreshSession(ctx, token, nil)
+		refresh, err := oauthcopilot.EnsureFreshSession(ctx, token, nil)
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("oauthCopilot.EnsureFreshSession: %w", err)
+			return go_llm_router.Config{}, utilsmsg.Wrap(utilsmsg.Upstream, "oauthcopilot.EnsureFreshSession", "", err)
 		}
-		return provider.Config{APIKey: refresh.Token, Token: token}, nil
+		return go_llm_router.Config{APIKey: refresh.Token, Token: token}, nil
 
 	case "codex":
-		token, err := oauthCodex.Load()
+		token, err := oauthcodex.Load()
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("oauthCodex.Load: %w", err)
+			return go_llm_router.Config{}, utilsmsg.Wrap(utilsmsg.Internal, "oauthcodex.Load", "", err)
 		}
 		if token == nil {
-			return provider.Config{}, fmt.Errorf("codex token missing; run `agen model add` to authenticate")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "codex token", "missing; run `agen model add` to authenticate")
 		}
-		token, err = oauthCodex.EnsureFresh(ctx, token)
+		token, err = oauthcodex.EnsureFresh(ctx, token)
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("codex token expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Upstream, "codex token", "expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
 		}
-		return provider.Config{APIKey: token.AccessToken, AccountID: token.AccountID, Token: token}, nil
+		return go_llm_router.Config{APIKey: token.AccessToken, AccountID: token.AccountID, Token: token}, nil
 
 	case "grok-oauth":
-		token, err := oauthGrok.Load()
+		token, err := oauthgrok.Load()
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("oauthGrok.Load: %w", err)
+			return go_llm_router.Config{}, utilsmsg.Wrap(utilsmsg.Internal, "oauthgrok.Load", "", err)
 		}
 		if token == nil {
-			return provider.Config{}, fmt.Errorf("grok-oauth token missing; run `agen model add` to authenticate")
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Denied, "grok-oauth token", "missing; run `agen model add` to authenticate")
 		}
-		token, err = oauthGrok.EnsureFresh(ctx, token)
+		token, err = oauthgrok.EnsureFresh(ctx, token)
 		if err != nil {
-			return provider.Config{}, fmt.Errorf("grok-oauth token expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Upstream, "grok-oauth token", "expired and refresh failed: %w; run `agen model add` to re-authenticate", err)
 		}
-		return provider.Config{APIKey: token.AccessToken, Token: token}, nil
+		return go_llm_router.Config{APIKey: token.AccessToken, Token: token}, nil
 
 	default:
 		instance, ok := CompatInstance(name)
 		if !ok {
-			return provider.Config{}, fmt.Errorf("credential.Resolve: unknown provider %q in %q", prov, name)
+			return go_llm_router.Config{}, utilsmsg.New(utilsmsg.Invalid, "provider", "unknown %q in %q", prov, name)
 		}
 		apiKeyEnvKey := "COMPAT_API_KEY"
 		if instance != "" {
 			apiKeyEnvKey = "COMPAT_" + instance + "_API_KEY"
 		}
-		return provider.Config{
+		return go_llm_router.Config{
 			APIKey:  go_pkg_keychain.Get(apiKeyEnvKey),
-			BaseURL: sessionConfig.GetCompatURL(instance),
+			BaseURL: sessionconfig.GetCompatURL(instance),
 		}, nil
 	}
 }
@@ -175,7 +176,7 @@ func CompatInstance(name string) (string, bool) {
 		instance, _, _ := strings.Cut(rest, "]")
 		return strings.ToUpper(instance), true
 	}
-	if prov == "" || slices.Contains(provider.Providers(), prov) {
+	if prov == "" || slices.Contains(go_llm_router.Providers(), prov) {
 		return "", false
 	}
 	return strings.ToUpper(prov), true

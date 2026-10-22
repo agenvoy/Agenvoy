@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
-	sessionTUI "github.com/pardnchiu/agenvoy/internal/session/tui"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 )
 
 type parsedAction struct {
@@ -47,7 +48,7 @@ func parseActionLine(raw string) (parsedAction, bool) {
 			rest = tail
 		}
 	} else {
-		hash = sessionTUI.Default
+		hash = sessiontui.Default
 		kind = mid
 	}
 
@@ -60,7 +61,7 @@ func parseActionLine(raw string) (parsedAction, bool) {
 }
 
 func renderActionLine(p parsedAction, width int) string {
-	body := strings.ReplaceAll(p.body, sessionLog.ActionNewlineMarker, "\n")
+	body := strings.ReplaceAll(p.body, sessionlog.ActionNewlineMarker, "\n")
 
 	switch p.kind {
 	case "user", "steer":
@@ -79,20 +80,20 @@ func renderActionLine(p parsedAction, width int) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventText, Text: str}, width)
+		return renderEvent(agenttypes.Event{Type: agenttypes.EventText, Text: str}, width)
 
 	case "tool_skipped":
 		name, args, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventToolSkipped,
+		return renderEvent(agenttypes.Event{
+			Type:     agenttypes.EventToolSkipped,
 			ToolName: name,
 			ToolArgs: args,
 		}, width)
 
 	case "error":
 		name, msg, _ := strings.Cut(body, " ")
-		return renderEvent(agentTypes.Event{
-			Type:     agentTypes.EventExecError,
+		return renderEvent(agenttypes.Event{
+			Type:     agenttypes.EventExecError,
 			ToolName: name,
 			Text:     msg,
 			Err:      errors.New(msg),
@@ -103,7 +104,7 @@ func renderActionLine(p parsedAction, width int) string {
 
 	case "canceled":
 		event := formatDone(body)
-		event.Type = agentTypes.EventCanceled
+		event.Type = agenttypes.EventCanceled
 		return renderEvent(event, width, formatLogTimestamp(p.timestamp))
 
 	case "skill_result":
@@ -111,7 +112,7 @@ func renderActionLine(p parsedAction, width int) string {
 		if str == "" {
 			return ""
 		}
-		return renderEvent(agentTypes.Event{Type: agentTypes.EventSkillResult, Text: str}, width)
+		return renderEvent(agenttypes.Event{Type: agenttypes.EventSkillResult, Text: str}, width)
 	}
 	return ""
 }
@@ -142,7 +143,7 @@ func formatLog(raw string, width int) (kind, line string) {
 	return p.kind, renderActionLine(p, width)
 }
 
-func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
+func renderEvent(ev agenttypes.Event, width int, finishedAt ...string) string {
 	ts := ""
 	if len(finishedAt) > 0 {
 		ts = finishedAt[0]
@@ -154,8 +155,8 @@ func renderEvent(ev agentTypes.Event, width int, finishedAt ...string) string {
 	return line
 }
 
-func formatDone(body string) agentTypes.Event {
-	event := agentTypes.Event{Type: agentTypes.EventDone}
+func formatDone(body string) agenttypes.Event {
+	event := agenttypes.Event{Type: agenttypes.EventDone}
 	fields := strings.Fields(body)
 	if len(fields) == 0 {
 		return event
@@ -165,7 +166,7 @@ func formatDone(body string) agentTypes.Event {
 		fields = fields[1:]
 	}
 
-	var usage provider.Usage
+	var usage go_llm_router.Usage
 	var hasUsage bool
 	hitPct := -1
 	for _, f := range fields {

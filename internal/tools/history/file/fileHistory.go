@@ -3,11 +3,11 @@ package fileHistory
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 func registFileHistory() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "file_history",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -63,7 +63,7 @@ Putting a version back → edit_file(mode=restore); what a whole run did → cha
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode   string   `json:"mode"`
 				Path   string   `json:"path"`
@@ -75,7 +75,7 @@ Putting a version back → edit_file(mode=restore); what a whole run did → cha
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -94,7 +94,7 @@ Putting a version back → edit_file(mode=restore); what a whole run did → cha
 					path = params.Paths[0]
 				}
 				if path == "" && len(params.Paths) > 1 {
-					return "", fmt.Errorf("mode=list takes one path; pass them as paths with mode=read, or call once per file")
+					return "", utilsmsg.New(utilsmsg.Invalid, "paths", "mode=list takes one path; pass them as paths with mode=read, or call once per file")
 				}
 				return list(ctx, e, path, params.TaskID, params.From, params.To, params.Limit)
 			case "read":
@@ -103,11 +103,11 @@ Putting a version back → edit_file(mode=restore); what a whole run did → cha
 					paths = []string{params.Path}
 				}
 				if len(paths) == 0 {
-					return "", fmt.Errorf("paths is required when mode=read")
+					return "", utilsmsg.New(utilsmsg.Invalid, "paths", "required when mode=read")
 				}
 				return read(ctx, e, paths)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: list, read", params.Mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: list, read", params.Mode)
 		},
 	})
 }

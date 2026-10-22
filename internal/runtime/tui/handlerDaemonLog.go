@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const daemonLogRetry = 3 * time.Second
@@ -43,16 +43,16 @@ func newDaemonLog(ctx context.Context) {
 func streamDaemonLog(ctx context.Context, client *http.Client) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, daemon.BaseURL()+"/v1/log?daemon=1&replay=0", nil)
 	if err != nil {
-		return fmt.Errorf("http.NewRequestWithContext: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "http.NewRequestWithContext", "", err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("client.Do: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Unavailable, "client.Do", "", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+		return utilsmsg.New(utilsmsg.Upstream, "daemon log", "http %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -78,7 +78,7 @@ func streamDaemonLog(ctx context.Context, client *http.Client) error {
 		})
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scanner.Scan: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Unavailable, "scanner.Scan", "", err)
 	}
 	return nil
 }

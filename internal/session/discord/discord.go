@@ -7,8 +7,9 @@ import (
 	"log/slog"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func New(guildID, channelID, userID string) (string, error) {
@@ -30,26 +31,26 @@ func New(guildID, channelID, userID string) (string, error) {
 	sum := sha256.Sum256([]byte(key))
 	sessionID := "dc-" + hex.EncodeToString(sum[:])
 
-	botName := configBot.FormatName(utils.LookupChatName(filesystem.DiscordAuthPath, channelID))
-	if err := configBot.Save(sessionID, botName, "", false); err != nil {
+	botName := configbot.FormatName(utils.LookupChatName(filesystem.DiscordAuthPath, channelID))
+	if err := configbot.Save(sessionID, botName, "", false); err != nil {
 		slog.Debug("configBot Save",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
 	}
 	if botName != "" {
-		configBot.ReplaceDefault(sessionID, botName)
+		configbot.ReplaceDefault(sessionID, botName)
 	}
-	if err := configBot.SetChannel(sessionID, "", boundGuild, channelID, boundUser); err != nil {
-		return "", fmt.Errorf("configBot.SetChannel: %w", err)
+	if err := configbot.SetChannel(sessionID, "", boundGuild, channelID, boundUser); err != nil {
+		return "", utilsmsg.Trace("configbot.SetChannel", "", err)
 	}
 	return sessionID, nil
 }
 
 func GetChannel(sessionID string) (string, error) {
 	if sessionID == "" {
-		return "", fmt.Errorf("sessionID is required")
+		return "", utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 
-	_, _, channelID, _ := configBot.GetChannel(sessionID)
+	_, _, channelID, _ := configbot.GetChannel(sessionID)
 	return channelID, nil
 }

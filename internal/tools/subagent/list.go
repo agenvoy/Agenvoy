@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pardnchiu/agenvoy/internal/session"
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
+
+	"github.com/pardnchiu/agenvoy/internal/session"
 )
 
 func listSessions(selfID string) string {

@@ -12,15 +12,13 @@ import (
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	go_bot_line "github.com/pardnchiu/go-bot/core/line"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execchatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot"
-	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
 	sessionManager "github.com/pardnchiu/agenvoy/internal/session"
 	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
 	"github.com/pardnchiu/agenvoy/internal/utils"
@@ -164,7 +162,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		slog.Info("LINE Verification Code",
 			slog.String("name", sourceName(in)),
 			slog.String("code", code))
-		exec.NotifyAdminCode(ctx, code, "LINE "+sourceName(in))
+		execchatbot.NotifyAdmin(ctx, code, "LINE "+sourceName(in))
 		pending.Set(target, code, "")
 		if _, err := b.client.Send(ctx, target, "please enter the 6-digit verification code to enable the conversation."); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (verify prompt)",
@@ -253,68 +251,44 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		return fmt.Errorf("os.UserHomeDir: %w", err)
 	}
 
-	scanner := agents.Scanner()
-	if scanner != nil {
-		scanner.Scan()
-	}
-
 	sessionID, err := sessionManager.GetLineSession(in.UserID, in.GroupID, in.RoomID)
 	if err != nil {
 		return fmt.Errorf("github.com/pardnchiu/agenvoy/internal/session GetLineSession: %w", err)
 	}
-	pubsub.Pub(sessionID, agentTypes.Event{Type: agentTypes.EventUserInput, Text: content})
 
-	primary, fallbacks, reasoning, err := exec.ResolveAgent(ctx, "", content, false, "", sessionID)
-	if err != nil {
-		if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ %s", err.Error())); sendErr != nil {
-			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (ResolveAgent error reply)",
-				slog.String("source", target),
-				slog.String("error", sendErr.Error()))
-		}
-		return fmt.Errorf("ResolveAgent: %w", err)
-	}
+	execData := exec.Prepare(exec.ExecuteMeta{
+		WorkDir:       workDir,
+		Task:          content,
+		Input:         content,
+		SessionID:     sessionID,
+		ExcludeTools:  tools.TUIOnlyTools,
+		ExcludeSkills: tools.TUIOnlySkills,
+		AllowAll:      true,
+		Sender:        sourceName(in),
+	})
+	utils.EventLog("[LINE]", agentTypes.Event{}, sessionID, content)
 
-	if primary != nil {
-		agentName := strings.TrimSpace(primary.Name())
-		agentResult := agentTypes.Event{Type: agentTypes.EventAgentResult, Text: agentName, Model: agentName}
-		sessionLog.Record(sessionID, agentResult)
-		pubsub.Pub(sessionID, agentResult)
-	}
+	execCtx := exec.SuppressDcPush(ctx)
+	events, wait := exec.Stream(execCtx, sessionID, 128, func(stream chan<- agentTypes.Event) error {
+		return exec.Run(execCtx, execData, stream, false)
+	})
 
-	execData := exec.ExecuteMeta{
-		Agent:          primary,
-		FallbackAgents: fallbacks,
-		WorkDir:        workDir,
-		Content:        content,
-		ExcludeTools:   tools.TUIOnlyTools,
-		ExcludeSkills:  tools.TUIOnlySkills,
-		AllowAll:       true,
-		Sender:         sourceName(in),
-		Reasoning:      reasoning,
-	}
-
-	sess, err := getSession(ctx, in, content, execData)
-	if err != nil {
-		return fmt.Errorf("getSession: %w", err)
-	}
-	utils.EventLog("[LINE]", agentTypes.Event{}, sess.ID, content)
-
-	events := make(chan agentTypes.Event, 128)
-	// * tee into pubsub so the web view can stream this channel session live
-	wrapped := pubsub.Wrap(ctx, sess.ID, events, 128)
-	go func() {
-		execCtx := exec.SuppressDcPush(ctx)
-		if execErr := exec.Execute(execCtx, execData, sess, wrapped, execData.AllowAll); execErr != nil {
-			slog.Warn("exec",
-				slog.String("session", sess.ID),
-				slog.String("error", execErr.Error()))
-		}
-		close(wrapped)
-	}()
-
-	result := utils.FormatChatbotEvent(events, "[LINE]", sess.ID, func(string) {}, func(toolName, text string) string {
+	result := utils.FormatChatbotEvent(events, "[LINE]", sessionID, func(string) {}, func(toolName, text string) string {
 		return fmt.Sprintf("%s: %s", toolName, text)
 	})
+	if execErr := wait(); execErr != nil {
+		slog.Warn("exec",
+			slog.String("session", sessionID),
+			slog.String("error", execErr.Error()))
+		if strings.TrimSpace(result.ReplyText) == "" {
+			if _, sendErr := b.client.Send(ctx, target, fmt.Sprintf("⚠️ %s", execErr.Error())); sendErr != nil {
+				slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send (exec error reply)",
+					slog.String("source", target),
+					slog.String("error", sendErr.Error()))
+			}
+			return fmt.Errorf("exec: %w", execErr)
+		}
+	}
 
 	replyText, _ := utils.ExtractFileMarkers(strings.TrimSpace(result.ReplyText))
 	replyText = strings.TrimSpace(replyText)
@@ -322,11 +296,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 		return fmt.Errorf("no reply")
 	}
 
-	model := result.Done.Model
-	if model == "" && primary != nil {
-		model = primary.Name()
-	}
-	if footer := utils.FormatEventFooter(result.Done.Duration, result.Done.OutputElapsed, model, result.Done.Reasoning, result.Done.Usage); footer != "" {
+	if footer := utils.FormatEventFooter(result.Done.Duration, result.Done.OutputElapsed, result.Done.Model, result.Done.Reasoning, result.Done.Usage); footer != "" {
 		replyText = replyText + "\n\n" + footer
 	}
 	if len(result.ExecErrors) > 0 {
@@ -336,7 +306,7 @@ func run(ctx context.Context, b *Bot, in go_bot_line.Input, attachInputs []go_bo
 	for _, part := range chunk(replyText) {
 		if _, err := b.client.Send(ctx, target, part); err != nil {
 			slog.Warn("github.com/pardnchiu/go-bot/core/line Bot.Send",
-				slog.String("session", sess.ID),
+				slog.String("session", sessionID),
 				slog.String("source", target),
 				slog.String("error", err.Error()))
 			return nil

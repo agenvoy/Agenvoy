@@ -2,7 +2,6 @@ package variant
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -10,8 +9,9 @@ import (
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func Register() {
@@ -20,55 +20,55 @@ func Register() {
 	registTestTool()
 }
 
-func capture(path string) historyStore.Change {
-	change, err := historyStore.Capture(path)
+func capture(path string) historystore.Change {
+	change, err := historystore.Capture(path)
 	if err != nil {
-		slog.Debug("historyStore.Capture",
+		slog.Debug("historystore.Capture",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}
 	return change
 }
 
-func record(ctx context.Context, e *toolTypes.Executor, change historyStore.Change, created, tool string) {
-	if err := historyStore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
-		slog.Debug("historyStore.Record",
+func record(ctx context.Context, e *tooltypes.Executor, change historystore.Change, created, tool string) {
+	if err := historystore.Record(ctx, change.WithCreated(created), metaOf(e, tool)); err != nil {
+		slog.Debug("historystore.Record",
 			slog.String("tool", tool),
 			slog.String("error", err.Error()))
 	}
 }
 
-func recordRemoval(ctx context.Context, e *toolTypes.Executor, path, trashPath, tool string) {
-	if err := historyStore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
-		slog.Debug("historyStore.RecordDelete",
+func recordRemoval(ctx context.Context, e *tooltypes.Executor, path, trashPath, tool string) {
+	if err := historystore.RecordDelete(ctx, path, trashPath, metaOf(e, tool)); err != nil {
+		slog.Debug("historystore.RecordDelete",
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 	}
 }
 
-func metaOf(e *toolTypes.Executor, tool string) historyStore.Meta {
+func metaOf(e *tooltypes.Executor, tool string) historystore.Meta {
 	if e == nil {
-		return historyStore.Meta{Tool: tool}
+		return historystore.Meta{Tool: tool}
 	}
-	return historyStore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}
+	return historystore.Meta{SessionID: e.SessionID, TaskID: e.PendingTask, Tool: tool}
 }
 
 func patch(path, old, new string, replaceAll bool) error {
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("os.Stat [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.Stat", path, err)
 	}
 	if info.Size() > configs.MAX_DOCUMENT_BYTES {
-		return fmt.Errorf("file too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
+		return utilsmsg.New(utilsmsg.Limit, "file", "too large (%d bytes, max %d MiB)", info.Size(), configs.MAX_DOCUMENT_BYTES>>20)
 	}
 
 	content, err := go_pkg_filesystem.ReadText(path)
 	if err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: ReadText [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadText", path, err)
 	}
 
 	if !strings.Contains(content, old) {
-		return fmt.Errorf("%s is not found in %s", old, path)
+		return utilsmsg.New(utilsmsg.NotFound, "old_string", "%s is not found in %s", old, path)
 	}
 
 	search := old
@@ -83,7 +83,7 @@ func patch(path, old, new string, replaceAll bool) error {
 	}
 
 	if err := go_pkg_filesystem.WriteFile(path, updated, 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem: WriteFile [%s]: %w", path, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", path, err)
 	}
 	return nil
 }

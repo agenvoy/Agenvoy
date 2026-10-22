@@ -2,7 +2,6 @@ package scriptAdapter
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"maps"
 	"os"
@@ -12,6 +11,8 @@ import (
 
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Translator struct {
@@ -52,7 +53,7 @@ func (t *Translator) Scan(dir string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("os.ReadDir: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "os.ReadDir", "", err)
 	}
 
 	for _, entry := range entries {
@@ -137,13 +138,13 @@ func (t *Translator) Timeouts() map[string]int {
 func loadDir(dir string) (*ScriptDoc, string, string, error) {
 	doc, err := go_pkg_filesystem.ReadJSON[ScriptDoc](filepath.Join(dir, "tool.json"))
 	if err != nil {
-		return nil, "", "", fmt.Errorf("go_pkg_filesystem.ReadJSON: %w", err)
+		return nil, "", "", utilsmsg.Wrap(utilsmsg.Invalid, "go_pkg_filesystem.ReadJSON", "", err)
 	}
 	if strings.TrimSpace(doc.Name) == "" {
-		return nil, "", "", fmt.Errorf("script tool name is required")
+		return nil, "", "", utilsmsg.New(utilsmsg.Invalid, "script tool name", "required")
 	}
 	if strings.Contains(doc.Name, "/") || doc.Name == ".." {
-		return nil, "", "", fmt.Errorf("invalid script tool name: %q", doc.Name)
+		return nil, "", "", utilsmsg.New(utilsmsg.Invalid, "script tool name", "%q", doc.Name)
 	}
 
 	scriptPath, lang, err := findScript(dir)
@@ -164,5 +165,5 @@ func findScript(dir string) (string, string, error) {
 			return p, c.lang, nil
 		}
 	}
-	return "", "", fmt.Errorf("script not found in %s", dir)
+	return "", "", utilsmsg.New(utilsmsg.NotFound, "script", "not found in %s", dir)
 }

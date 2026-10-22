@@ -6,43 +6,43 @@ import (
 	"strings"
 	"time"
 
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	tuiHash "github.com/pardnchiu/agenvoy/internal/session/tui"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	sessiontui "github.com/pardnchiu/agenvoy/internal/session/tui"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
-func formatActionEvent(event agentTypes.Event) string {
+func formatActionEvent(event agenttypes.Event) string {
 	hash := event.WindowHash
 	switch event.Type {
-	case agentTypes.EventText:
+	case agenttypes.EventText:
 		str := strings.TrimSpace(event.Text)
 		if str == "" {
 			return ""
 		}
 		return withTimestamp(hash, "assistant", event.TaskHash, flatten(str))
 
-	case agentTypes.EventReasoning:
+	case agenttypes.EventReasoning:
 		str := strings.TrimSpace(event.Text)
 		if str == "" {
 			return ""
 		}
 		return withTimestamp(hash, "thinking", event.TaskHash, flatten(str))
 
-	case agentTypes.EventToolCall:
+	case agenttypes.EventToolCall:
 		display := utils.FormatToolEvent(event.ToolName, event.ToolArgs)
 		if display == "" {
 			return ""
 		}
 		return withTimestamp(hash, "tool_call", event.TaskHash, flatten(display))
 
-	case agentTypes.EventToolResult:
+	case agenttypes.EventToolResult:
 		status := "ok"
 		if event.Err != nil {
 			status = "err"
 		}
 		return withTimestamp(hash, "tool_result", event.TaskHash, fmt.Sprintf("%s %s", event.ToolName, status))
 
-	case agentTypes.EventTodoUpdate:
+	case agenttypes.EventTodoUpdate:
 		if len(event.Todos) == 0 {
 			return ""
 		}
@@ -52,16 +52,16 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp(hash, "todo", event.TaskHash, string(raw))
 
-	case agentTypes.EventToolSkipped:
+	case agenttypes.EventToolSkipped:
 		return withTimestamp(hash, "tool_skipped", event.TaskHash, event.ToolName)
 
-	case agentTypes.EventToolConfirm:
+	case agenttypes.EventToolConfirm:
 		return withTimestamp(hash, "tool_confirm", event.TaskHash, event.ToolName)
 
-	case agentTypes.EventPending:
+	case agenttypes.EventPending:
 		return withTimestamp(hash, "pending", event.TaskHash, event.Text)
 
-	case agentTypes.EventExecError, agentTypes.EventError:
+	case agenttypes.EventExecError, agenttypes.EventError:
 		body := ""
 		if event.Err != nil {
 			body = flatten(event.Err.Error())
@@ -75,7 +75,7 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp(hash, "error", event.TaskHash, body)
 
-	case agentTypes.EventFileChanged:
+	case agenttypes.EventFileChanged:
 		if len(event.Files) == 0 {
 			return ""
 		}
@@ -85,7 +85,7 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp(hash, "edited_files", event.TaskHash, string(raw))
 
-	case agentTypes.EventDone:
+	case agenttypes.EventDone:
 		parts := []string{event.Model}
 		if event.Reasoning != "" {
 			parts = append(parts, "reasoning="+event.Reasoning)
@@ -94,7 +94,7 @@ func formatActionEvent(event agentTypes.Event) string {
 			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
 		}
 		if event.Usage != nil {
-			total, hitPct := agentTypes.InputTotals(event.Usage)
+			total, hitPct := agenttypes.InputTotals(event.Usage)
 			in := fmt.Sprintf("in=%d", total)
 			if hitPct > 0 {
 				in = fmt.Sprintf("%s (%d%%)", in, hitPct)
@@ -106,21 +106,21 @@ func formatActionEvent(event agentTypes.Event) string {
 		}
 		return withTimestamp(hash, "done", event.TaskHash, strings.Join(parts, " "))
 
-	case agentTypes.EventCanceled:
+	case agenttypes.EventCanceled:
 		parts := []string{event.Model}
 		if event.Duration > 0 {
 			parts = append(parts, fmt.Sprintf("dur=%s", event.Duration.Round(time.Millisecond)))
 		}
 		return withTimestamp(hash, "canceled", event.TaskHash, strings.Join(parts, " "))
 
-	case agentTypes.EventSkillResult:
+	case agenttypes.EventSkillResult:
 		str := strings.TrimSpace(event.Text)
 		if str == "" {
 			return ""
 		}
 		return withTimestamp(hash, "skill_result", event.TaskHash, flatten(str))
 
-	case agentTypes.EventAgentResult:
+	case agenttypes.EventAgentResult:
 		str := strings.TrimSpace(event.Text)
 		if str == "" {
 			return ""
@@ -132,7 +132,7 @@ func formatActionEvent(event agentTypes.Event) string {
 
 func withTimestamp(hash, kind, taskHash, body string) string {
 	if hash == "" {
-		hash = tuiHash.Get()
+		hash = sessiontui.Get()
 	}
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	return fmt.Sprintf("[%s][%s][%s][%s] %s", ts, hash, kind, taskHash, body)

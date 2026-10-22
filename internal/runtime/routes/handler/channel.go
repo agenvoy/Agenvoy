@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
-	"github.com/pardnchiu/agenvoy/internal/agents/exec"
+	execchatbot "github.com/pardnchiu/agenvoy/internal/agents/exec/chatbot"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/line"
@@ -261,7 +262,7 @@ func SetAdminChannel() gin.HandlerFunc {
 
 		value := strings.TrimSpace(*body.Value)
 		if value != "" {
-			if _, _, ok := exec.ParseAdminChannel(value); !ok {
+			if _, _, ok := execchatbot.ParseAdmin(value); !ok {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "value must be tg@<chatID>, dc@<channelID> or ln@<sourceID>, or empty to clear"})
 				return
 			}

@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/fast"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 )
 
 var (
@@ -27,7 +28,7 @@ func ShortenSessionID(sid string) string {
 	return sid
 }
 
-func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeout time.Duration) bool {
+func CheckAgentEndpointAlive(ctx context.Context, agent agenttypes.Agent, timeout time.Duration) bool {
 	if agent == nil {
 		return false
 	}
@@ -35,10 +36,10 @@ func CheckAgentEndpointAlive(ctx context.Context, agent agentTypes.Agent, timeou
 	healthCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	resp, _, err := agent.Send(healthCtx, []provider.Message{
+	resp, _, err := agent.Send(healthCtx, []go_llm_router.Message{
 		{Role: "system", Content: "Reply with only: ok"},
 		{Role: "user", Content: "ping"},
-	}, nil, provider.ReasoningNone, fast.Mode(ctx))
+	}, nil, go_llm_router.ReasoningNone, fast.Mode(ctx))
 	if err != nil || resp == nil || len(resp.Choices) == 0 {
 		return false
 	}

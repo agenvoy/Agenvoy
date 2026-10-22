@@ -17,14 +17,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pardnchiu/agenvoy/internal/agents"
-	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
-	"github.com/pardnchiu/agenvoy/internal/agents/probe"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
-	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
-	"github.com/pardnchiu/agenvoy/internal/session/config"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	"github.com/pardnchiu/go-llm-router/core/claude"
 	"github.com/pardnchiu/go-llm-router/core/claudeCode"
 	"github.com/pardnchiu/go-llm-router/core/cloudflare"
@@ -35,14 +28,23 @@ import (
 	grokoauth "github.com/pardnchiu/go-llm-router/core/grokOauth"
 	"github.com/pardnchiu/go-llm-router/core/mistral"
 	"github.com/pardnchiu/go-llm-router/core/nvidia"
-	oauthCodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
-	oauthCopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
-	oauthGrokOauth "github.com/pardnchiu/go-llm-router/core/oauth/grok"
+	oauthcodex "github.com/pardnchiu/go-llm-router/core/oauth/codex"
+	oauthcopilot "github.com/pardnchiu/go-llm-router/core/oauth/copilot"
+	oauthgrok "github.com/pardnchiu/go-llm-router/core/oauth/grok"
 	ollamacloud "github.com/pardnchiu/go-llm-router/core/ollamaCloud"
 	openrouter "github.com/pardnchiu/go-llm-router/core/openRouter"
 	"github.com/pardnchiu/go-llm-router/core/openai"
 	openaicodex "github.com/pardnchiu/go-llm-router/core/openaiCodex"
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
+
+	"github.com/pardnchiu/agenvoy/internal/agents"
+	"github.com/pardnchiu/agenvoy/internal/agents/exec/compact"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	"github.com/pardnchiu/agenvoy/internal/agents/probe"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	"github.com/pardnchiu/agenvoy/internal/runtime/daemon"
+	"github.com/pardnchiu/agenvoy/internal/session/config"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type modelAddItem struct {
@@ -172,7 +174,7 @@ func (t TUI) commandModelAdd() (TUI, tea.Cmd, bool) {
 		details := make([]string, 0, len(methods))
 		values := make([]string, 0, len(methods))
 		for _, m := range methods {
-			if m.value == "claude-code" && !agentTypes.ClaudeCodeEnabled() {
+			if m.value == "claude-code" && !agenttypes.ClaudeCodeEnabled() {
 				continue
 			}
 			keys = append(keys, m.key)
@@ -240,11 +242,11 @@ func (t TUI) modelAddViaOAuth() (TUI, tea.Cmd) {
 	hasToken := false
 	switch prov {
 	case "copilot":
-		hasToken = oauthCopilot.HasToken()
+		hasToken = oauthcopilot.HasToken()
 	case "codex":
-		hasToken = oauthCodex.HasToken()
+		hasToken = oauthcodex.HasToken()
 	case "grok-oauth":
-		hasToken = oauthGrokOauth.HasToken()
+		hasToken = oauthgrok.HasToken()
 	}
 	if hasToken {
 		label := strings.ToUpper(prov[:1]) + prov[1:]
@@ -294,22 +296,22 @@ func runOAuthFlow(ctx context.Context, prov string) {
 	var err error
 	switch prov {
 	case "copilot":
-		_, err = oauthCopilot.LoginWithCallback(ctx, func(code *oauthCopilot.DeviceCode) {
+		_, err = oauthcopilot.LoginWithCallback(ctx, func(code *oauthcopilot.DeviceCode) {
 			send(OAuthInfo{
 				url:      code.VerificationURI,
 				userCode: code.UserCode,
 			})
 		})
 	case "codex":
-		_, err = oauthCodex.LoginWithCallback(ctx, func(url string) {
+		_, err = oauthcodex.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	case "grok-oauth":
-		_, err = oauthGrokOauth.LoginWithCallback(ctx, func(url string) {
+		_, err = oauthgrok.LoginWithCallback(ctx, func(url string) {
 			send(OAuthInfo{url: url})
 		})
 	default:
-		err = fmt.Errorf("unsupported oauth provider: %s", prov)
+		err = utilsmsg.New(utilsmsg.Invalid, "oauth provider", "unsupported %s", prov)
 	}
 	if err != nil {
 		send(OAuthFailed{err: err})
@@ -682,10 +684,10 @@ func (t TUI) openModelAddModelPick() (TUI, tea.Cmd) {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			config, err := agentKeychain.Config(ctx, prov)
+			config, err := agentkeychain.Config(ctx, prov)
 			var ids []string
 			if err == nil {
-				ids, err = fn(ctx, config, provider.ModelFilter{TextOnly: true})
+				ids, err = fn(ctx, config, go_llm_router.ModelFilter{TextOnly: true})
 			}
 			if err != nil {
 				slog.Debug("provider Models",
@@ -875,7 +877,7 @@ func (t TUI) runCompatModelsResult(msg CompatModelsResult) (TUI, tea.Cmd) {
 	return t, nil
 }
 
-var modelsProviders = map[string]func(context.Context, provider.Config, provider.ModelFilter) ([]string, error){
+var modelsProviders = map[string]func(context.Context, go_llm_router.Config, go_llm_router.ModelFilter) ([]string, error){
 	"codex":        openaicodex.Models,
 	"grok-oauth":   grokoauth.Models,
 	"copilot":      copilot.Models,
@@ -889,7 +891,7 @@ var modelsProviders = map[string]func(context.Context, provider.Config, provider
 	"mistral":      mistral.Models,
 	"nvidia":       nvidia.Models,
 	"openrouter":   openrouter.Models,
-	"claude-code": func(ctx context.Context, cfg provider.Config, _ provider.ModelFilter) ([]string, error) {
+	"claude-code": func(ctx context.Context, cfg go_llm_router.Config, _ go_llm_router.ModelFilter) ([]string, error) {
 		return claudeCode.Models(ctx, cfg)
 	},
 }

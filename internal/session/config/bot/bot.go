@@ -2,54 +2,54 @@ package configBot
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"unicode"
 
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
 	go_pkg_filesystem "github.com/pardnchiu/go-pkg/filesystem"
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
-	DefaultModel     = historyStore.DefaultModel
-	DefaultReasoning = historyStore.DefaultReasoning
+	DefaultModel     = historystore.DefaultModel
+	DefaultReasoning = historystore.DefaultReasoning
 )
 
 func ReasoningLevels() []string {
-	out := make([]string, 0, int(provider.ReasoningMax)+2)
+	out := make([]string, 0, int(go_llm_router.ReasoningMax)+2)
 	out = append(out, configs.REASONING_AUTO)
-	for r := provider.ReasoningNone; r <= provider.ReasoningMax; r++ {
+	for r := go_llm_router.ReasoningNone; r <= go_llm_router.ReasoningMax; r++ {
 		out = append(out, r.String())
 	}
 	return out
 }
 
-func read(sessionID string) (historyStore.SessionRow, bool) {
+func read(sessionID string) (historystore.SessionRow, bool) {
 	if sessionID == "" {
-		return historyStore.SessionRow{}, false
+		return historystore.SessionRow{}, false
 	}
 
-	row, ok, err := historyStore.ReadSession(context.Background(), sessionID)
+	row, ok, err := historystore.ReadSession(context.Background(), sessionID)
 	if err != nil {
-		slog.Warn("historyStore.ReadSession",
+		slog.Warn("historystore.ReadSession",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))
-		return historyStore.SessionRow{}, false
+		return historystore.SessionRow{}, false
 	}
 	row.SessionID = sessionID
 	return row, ok
 }
 
-func write(row historyStore.SessionRow) error {
-	if err := historyStore.WriteSession(context.Background(), row); err != nil {
-		return fmt.Errorf("historyStore.WriteSession: %w", err)
+func write(row historystore.SessionRow) error {
+	if err := historystore.WriteSession(context.Background(), row); err != nil {
+		return utilsmsg.Trace("historystore.WriteSession", "", err)
 	}
 	return nil
 }
@@ -66,9 +66,9 @@ func GetPersona(sessionID string) (selfID, name, body string) {
 
 func SavePersona(sessionID, selfID, name, body string) error {
 	if sessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
-	if err := historyStore.ValidSelfID(selfID); err != nil {
+	if err := historystore.ValidSelfID(selfID); err != nil {
 		return err
 	}
 	if body == "" {
@@ -117,7 +117,7 @@ func SetModel(sessionID, model, reasoning string) {
 func SetChannel(sessionID string, chatID, guildID, channelID, userID string) error {
 	row, _ := read(sessionID)
 	if row.SessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	row.ChatID = chatID
 	row.GuildID = guildID
@@ -141,7 +141,7 @@ func FormatName(raw string) string {
 	return sb.String()
 }
 
-func autoNamed(row historyStore.SessionRow) bool {
+func autoNamed(row historystore.SessionRow) bool {
 	return row.Name == "" ||
 		row.Name == row.SessionID ||
 		row.Name == utils.ShortenSessionID(row.SessionID) ||
@@ -186,7 +186,7 @@ func SetTitle(sessionID, title string) error {
 
 	row, _ := read(sessionID)
 	if row.SessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	row.Name = title
 	return write(row)
@@ -194,7 +194,7 @@ func SetTitle(sessionID, title string) error {
 
 func Save(sessionID, name, body string, force bool) error {
 	if sessionID == "" {
-		return fmt.Errorf("sessionID is required")
+		return utilsmsg.New(utilsmsg.Invalid, "session id", "required")
 	}
 	if body == "" {
 		body = configs.DefaultRule
@@ -214,7 +214,7 @@ func Save(sessionID, name, body string, force bool) error {
 
 	dir := filesystem.SessionDir(sessionID)
 	if err := go_pkg_filesystem.CheckDir(dir, true); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem CheckDir [%s]: %w", dir, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.CheckDir", dir, err)
 	}
 	return nil
 }

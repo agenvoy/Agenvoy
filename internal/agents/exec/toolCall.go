@@ -12,21 +12,23 @@ import (
 	"strings"
 	"sync"
 
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
 	"github.com/pardnchiu/agenvoy/configs"
-	allowTool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
+	agentsexecallowtool "github.com/pardnchiu/agenvoy/internal/agents/exec/allow/tool"
 	"github.com/pardnchiu/agenvoy/internal/agents/exec/memory"
-	agentTypes "github.com/pardnchiu/agenvoy/internal/agents/types"
+	agenttypes "github.com/pardnchiu/agenvoy/internal/agents/types"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime"
 	"github.com/pardnchiu/agenvoy/internal/runtime/pubsub"
-	sessionLog "github.com/pardnchiu/agenvoy/internal/session/log"
+	sessionlog "github.com/pardnchiu/agenvoy/internal/session/log"
 	"github.com/pardnchiu/agenvoy/internal/tools"
 	"github.com/pardnchiu/agenvoy/internal/tools/file/boundary"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
 	"github.com/pardnchiu/agenvoy/internal/tools/toolcache"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const foregroundOrigin = "cli-"
@@ -58,8 +60,8 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 	}
 
 	hash := interactive.SaveAndEnqueueAskUser(sessionID, origin, deliverTo, params.Questions, params.State.Objective, params.State.Completed, params.State.NextSteps, toolResults, taskHash, files)
-	event := agentTypes.Event{Type: agentTypes.EventPending, Text: hash, TaskHash: hash, PendingSession: sessionID}
-	sessionLog.Record(sessionID, event)
+	event := agenttypes.Event{Type: agenttypes.EventPending, Text: hash, TaskHash: hash, PendingSession: sessionID}
+	sessionlog.Record(sessionID, event)
 	pubsub.Pub(sessionID, event)
 	if deliverTo != "" && deliverTo != sessionID {
 		pubsub.Pub(deliverTo, event)
@@ -67,14 +69,14 @@ func askUserInBackground(sessionID, origin, deliverTo, taskHash, rawArgs string,
 }
 
 func originFor(ctx context.Context, sessionID string) string {
-	if origin := agentTypes.OriginFrom(ctx); origin != "" {
+	if origin := agenttypes.OriginFrom(ctx); origin != "" {
 		return origin
 	}
 	return runtime.OriginOf(sessionID)
 }
 
 func deliverFor(ctx context.Context, sessionID string) string {
-	if id := agentTypes.DeliverToFrom(ctx); id != "" {
+	if id := agenttypes.DeliverToFrom(ctx); id != "" {
 		return id
 	}
 	return sessionID
@@ -82,7 +84,7 @@ func deliverFor(ctx context.Context, sessionID string) string {
 
 var ErrAskUserInterrupted = errors.New("ask user interrupted")
 
-func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
+func toolResults(session *agenttypes.Session) []interactive.ToolResult {
 	nameByID := make(map[string]string)
 	argsByID := make(map[string]string)
 	for _, msg := range session.ToolHistories {
@@ -93,7 +95,7 @@ func toolResults(session *agentTypes.AgentSession) []interactive.ToolResult {
 	}
 
 	var results []interactive.ToolResult
-	for _, msg := range session.Tools {
+	for _, msg := range session.ToolResults {
 		content, _ := msg.Content.(string)
 		results = append(results, interactive.ToolResult{
 			Name:   nameByID[msg.ToolCallID],
@@ -130,7 +132,7 @@ type toolSlot struct {
 	execErrVal error
 }
 
-func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, turnAllowAll bool) bool {
+func toolNeedsConfirmation(exec *tooltypes.Executor, toolName, toolArgs string, turnAllowAll bool) bool {
 	if toolName == "read_files" && isSensitiveReadFile(toolArgs) {
 		return true
 	}
@@ -140,7 +142,10 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if isDestructiveMode(toolArgs) {
 		return true
 	}
-	if toolRegister.IsReadOnly(toolName) {
+	if toolName == "open_file" && isOpenFileURL(toolArgs) {
+		return true
+	}
+	if toolregister.IsReadOnly(toolName) {
 		return false
 	}
 	if isReadOnlyMode(toolArgs) {
@@ -152,7 +157,7 @@ func toolNeedsConfirmation(exec *toolTypes.Executor, toolName, toolArgs string, 
 	if toolName == "run_command" && isReadOnlyRunCommand(toolArgs) {
 		return false
 	}
-	return !allowTool.Match(allowTool.List(exec.WorkDir), toolName, toolArgs)
+	return !agentsexecallowtool.Match(exec.WorkDir, toolName, toolArgs)
 }
 
 var readOnlyModes = map[string]bool{
@@ -174,6 +179,16 @@ func isDestructiveMode(toolArgs string) bool {
 		return false
 	}
 	return destructiveModes[strings.TrimSpace(p.Mode)]
+}
+
+func isOpenFileURL(toolArgs string) bool {
+	var p struct {
+		Path string `json:"path"`
+	}
+	if json.Unmarshal([]byte(toolArgs), &p) != nil {
+		return false
+	}
+	return tools.IsOpenURL(p.Path)
 }
 
 func isReadOnlyMode(toolArgs string) bool {
@@ -334,7 +349,7 @@ func isGet(argsJSON string) bool {
 	return p.Method == "" || strings.EqualFold(p.Method, "GET")
 }
 
-func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.OutputChoices, sessionData *agentTypes.AgentSession, events chan<- agentTypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agentTypes.AgentSession, map[string]string, error) {
+func toolCall(ctx context.Context, exec *tooltypes.Executor, choice go_llm_router.OutputChoices, sessionData *agenttypes.Session, events chan<- agenttypes.Event, allowAll bool, alreadyCall map[string]string, turnAllowAll *bool) (*agenttypes.Session, map[string]string, error) {
 	sessionData.ToolHistories = append(sessionData.ToolHistories, choice.Message)
 
 	calls := choice.Message.ToolCalls
@@ -388,21 +403,15 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			Args: toolArg,
 		})
 
-		if !wrapped && !slices.ContainsFunc(exec.Tools, func(t provider.Tool) bool { return t.Function.Name == toolName }) {
+		if !wrapped && !slices.ContainsFunc(exec.Tools, func(t go_llm_router.Tool) bool { return t.Function.Name == toolName }) {
 			reason := ""
 			switch {
 			case exec.ExcludeTools[toolName]:
 				reason = fmt.Sprintf("tool=%s failed: %s is not available in this session", toolName, toolName)
-			case slices.ContainsFunc(exec.AllTools, func(t provider.Tool) bool { return t.Function.Name == toolName }):
+			case slices.ContainsFunc(exec.AllTools, func(t go_llm_router.Tool) bool { return t.Function.Name == toolName }):
 				reason = fmt.Sprintf("tool=%s failed: %s is not callable directly. Fetch its schema with find_tools, then call run_tool(name=%s, args=...).", toolName, toolName, toolName)
 			}
 			if reason != "" {
-				events <- agentTypes.Event{
-					Type:     agentTypes.EventToolCall,
-					ToolName: toolName,
-					ToolArgs: toolArg,
-					ToolID:   toolID,
-				}
 				slots[i].state = slotValidateFailed
 				slots[i].preMsg = reason
 				continue
@@ -424,7 +433,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			schema := ""
 			if exec.UnmarkedTools[toolName] {
 				activateArgs, _ := json.Marshal(map[string]any{"mode": "search", "query": "select:" + toolName})
-				out, err := toolRegister.Dispatch(ctx, exec, "find_tools", activateArgs)
+				out, err := toolregister.Dispatch(ctx, exec, "find_tools", activateArgs)
 				if err != nil {
 					slog.Warn("tool schema marking failed",
 						slog.String("name", toolName),
@@ -443,15 +452,28 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			continue
 		}
 
-		if !toolRegister.Exists(toolName) {
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventToolCall,
+		if !toolregister.Exists(toolName) {
+			events <- agenttypes.Event{
+				Type:     agenttypes.EventToolCall,
 				ToolName: toolName,
 				ToolArgs: toolArg,
 				ToolID:   toolID,
 			}
 			slots[i].state = slotValidateFailed
 			slots[i].preMsg = fmt.Sprintf("tool=%s failed: not exist: %s. Look up available tools with find_tools.", toolName, toolName)
+			continue
+		}
+
+		if earlyErr := validateToolArgs(exec, toolName, toolArg); earlyErr != "" {
+			events <- agenttypes.Event{
+				Type:     agenttypes.EventToolCall,
+				ToolName: toolName,
+				ToolArgs: toolArg,
+				ToolID:   toolID,
+			}
+			content := fmt.Sprintf("tool=%s failed: %s", toolName, earlyErr)
+			slots[i].state = slotValidateFailed
+			slots[i].preMsg = content
 			continue
 		}
 
@@ -467,7 +489,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			origin := originFor(ctx, sessionData.ID)
 			if runtime.HasListener(ctx, origin) {
 				askCtx, cancelAsk := context.WithCancel(ctx)
-				if agentTypes.OriginFrom(ctx) != foregroundOrigin {
+				if agenttypes.OriginFrom(ctx) != foregroundOrigin {
 					askCtx, cancelAsk = context.WithTimeout(ctx, configs.CONFIRM_TIMEOUT)
 				}
 				reply, err := runtime.Ask(askCtx, runtime.Request{
@@ -481,8 +503,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				})
 				cancelAsk()
 				if errors.Is(err, context.DeadlineExceeded) {
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventToolSkipped,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventToolSkipped,
 						ToolName: toolName,
 						ToolArgs: toolArg,
 						ToolID:   toolID,
@@ -491,7 +513,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					if exec.CancelExecution != nil {
 						exec.CancelExecution()
 					}
-					return sessionData, alreadyCall, fmt.Errorf("tool confirmation timed out after %s; resume from pending to continue", configs.CONFIRM_TIMEOUT)
+					return sessionData, alreadyCall, utilsmsg.New(utilsmsg.Timeout, "tool confirmation", "timed out after %s; resume from pending to continue", configs.CONFIRM_TIMEOUT)
 				}
 				if errors.Is(err, context.Canceled) {
 					if errors.Is(context.Cause(ctx), runtime.ErrUserCanceled) {
@@ -500,8 +522,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					return sessionData, alreadyCall, err
 				}
 				if err == nil && reply.Error != nil {
-					events <- agentTypes.Event{
-						Type:     agentTypes.EventToolSkipped,
+					events <- agenttypes.Event{
+						Type:     agenttypes.EventToolSkipped,
 						ToolName: toolName,
 						ToolArgs: toolArg,
 						ToolID:   toolID,
@@ -523,7 +545,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					verified = reply.Verified
 					reason = reply.Reason
 					if reply.Approve && reply.Remember {
-						if err = allowTool.Append(exec.WorkDir, toolName, toolArg); err != nil {
+						if _, err = agentsexecallowtool.Toggle(toolName, toolArg, exec.WorkDir); err != nil {
 							slog.Warn("appendAllowListRule",
 								slog.String("session", sessionData.ID),
 								slog.String("error", err.Error()))
@@ -544,8 +566,8 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 				if reason != "" {
 					message = fmt.Sprintf("The user declined this call: %s. Retrying it, or reissuing it with different arguments, produces the same prompt and the same refusal. Continue without it, or use ask_user to agree on another approach.", reason)
 				}
-				events <- agentTypes.Event{
-					Type:     agentTypes.EventToolSkipped,
+				events <- agenttypes.Event{
+					Type:     agenttypes.EventToolSkipped,
 					ToolName: toolName,
 					ToolArgs: toolArg,
 					ToolID:   toolID,
@@ -560,23 +582,11 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			}
 		}
 
-		if earlyErr := validateToolArgs(exec, toolName, toolArg); earlyErr != "" {
-			events <- agentTypes.Event{
-				Type:     agentTypes.EventToolCall,
-				ToolName: toolName,
-				ToolArgs: toolArg,
-				ToolID:   toolID,
-			}
-			content := fmt.Sprintf("tool=%s failed: %s", toolName, earlyErr)
-			slots[i].state = slotValidateFailed
-			slots[i].preMsg = content
-			continue
-		}
 	}
 
 	for i := range slots {
 		slot := &slots[i]
-		if slot.state == slotReady && slot.name == "ask_user" && agentTypes.OriginFrom(ctx) != foregroundOrigin {
+		if slot.state == slotReady && slot.name == "ask_user" && agenttypes.OriginFrom(ctx) != foregroundOrigin {
 			var imageURLs []string
 			for j := range slots {
 				cs := &slots[j]
@@ -584,7 +594,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					continue
 				}
 				content := cs.preMsg
-				msg := provider.Message{
+				msg := go_llm_router.Message{
 					Role:       "tool",
 					Content:    content,
 					ToolCallID: cs.id,
@@ -594,7 +604,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 					imageURLs = append(imageURLs, cs.imageURLs...)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				default:
-					sessionData.Tools = append(sessionData.Tools, msg)
+					sessionData.ToolResults = append(sessionData.ToolResults, msg)
 					sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 				}
 			}
@@ -617,13 +627,13 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if s.state != slotReady {
 			continue
 		}
-		if toolRegister.IsBackground(s.name) {
+		if toolregister.IsBackground(s.name) {
 			go runToolExec(ctx, exec, s, events)
 			s.result = "ok"
 			s.state = slotDispatched
 			continue
 		}
-		if toolRegister.IsConcurrent(s.name) {
+		if toolregister.IsConcurrent(s.name) {
 			wg.Add(1)
 			go func(s *toolSlot) {
 				defer wg.Done()
@@ -654,19 +664,19 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		switch s.state {
 		case slotCached:
 			imageURLs = append(imageURLs, s.imageURLs...)
-			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
+			sessionData.ToolHistories = append(sessionData.ToolHistories, go_llm_router.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
 				ToolCallID: s.id,
 			})
 			continue
 		case slotSkipped, slotSchemaMarked, slotValidateFailed:
-			msg := provider.Message{
+			msg := go_llm_router.Message{
 				Role:       "tool",
 				Content:    s.preMsg,
 				ToolCallID: s.id,
 			}
-			sessionData.Tools = append(sessionData.Tools, msg)
+			sessionData.ToolResults = append(sessionData.ToolResults, msg)
 			sessionData.ToolHistories = append(sessionData.ToolHistories, msg)
 			continue
 		}
@@ -694,13 +704,15 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 		if isWriteLikeTool[s.name] && s.execErr == "" {
 			calls[i].Function.Arguments = truncateWriteArgs(calls[i].Function.Arguments)
 		}
-		alreadyCall[s.hash] = result
+		if !isWriteLikeTool[s.name] || s.execErr == "" {
+			alreadyCall[s.hash] = result
+		}
 		if images, _ := splitImageResult(result); s.execErr == "" && len(images) == 0 && toolcache.IsCacheable(s.name, s.args) {
 			toolcache.Store(exec.SessionID, s.id, s.name, s.args, result)
 		}
 
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolResult,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolResult,
 			ToolName: s.name,
 			ToolArgs: s.args,
 			ToolID:   s.id,
@@ -712,14 +724,14 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 			toolMsgContent = imageLoadedMessage(s.name, len(images), rest)
 			imageURLs = append(imageURLs, images...)
 		}
-		toolMsg := provider.Message{
+		toolMsg := go_llm_router.Message{
 			Role:       "tool",
 			Content:    toolMsgContent,
 			ToolCallID: s.id,
 		}
-		sessionData.Tools = append(sessionData.Tools, toolMsg)
+		sessionData.ToolResults = append(sessionData.ToolResults, toolMsg)
 		if historyResult != "" {
-			sessionData.ToolHistories = append(sessionData.ToolHistories, provider.Message{
+			sessionData.ToolHistories = append(sessionData.ToolHistories, go_llm_router.Message{
 				Role:       "tool",
 				Content:    historyResult,
 				ToolCallID: s.id,
@@ -733,7 +745,7 @@ func toolCall(ctx context.Context, exec *toolTypes.Executor, choice provider.Out
 	return sessionData, alreadyCall, nil
 }
 
-func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event, err error) {
+func failToolEvent(exec *tooltypes.Executor, s *toolSlot, events chan<- agenttypes.Event, err error) {
 	s.execErr = err.Error()
 	s.execErrVal = err
 	go interactive.AppendToolResult(exec.SessionID, exec.PendingTask, interactive.ToolResult{
@@ -742,14 +754,14 @@ func failToolEvent(exec *toolTypes.Executor, s *toolSlot, events chan<- agentTyp
 		Args:   s.args,
 		Result: "error: " + err.Error(),
 	}, exec.EditedFiles())
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallEnd,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
 }
 
-func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, events chan<- agentTypes.Event) {
+func runToolExec(ctx context.Context, exec *tooltypes.Executor, s *toolSlot, events chan<- agenttypes.Event) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -758,29 +770,29 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 		slog.Error("runToolExec panic recovered",
 			slog.String("tool", s.name),
 			slog.Any("panic", r))
-		failToolEvent(exec, s, events, fmt.Errorf("tool %s panicked: %v", s.name, r))
+		failToolEvent(exec, s, events, utilsmsg.New(utilsmsg.Internal, "tool "+s.name, "panicked: %v", r))
 	}()
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCall,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCall,
 		ToolName: s.name,
 		ToolArgs: s.args,
 		ToolID:   s.id,
 	}
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallStart,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallStart,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
 	var progressMu sync.Mutex
 	progressDone := false
-	progressCtx := toolTypes.WithProgress(ctx, func(chunk string) {
+	progressCtx := tooltypes.WithProgress(ctx, func(chunk string) {
 		progressMu.Lock()
 		defer progressMu.Unlock()
 		if progressDone {
 			return
 		}
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolProgress,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolProgress,
 			ToolName: s.name,
 			ToolID:   s.id,
 			Text:     chunk,
@@ -796,8 +808,8 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}
 
 	if result != "" {
-		events <- agentTypes.Event{
-			Type:     agentTypes.EventToolCallText,
+		events <- agenttypes.Event{
+			Type:     agenttypes.EventToolCallText,
 			ToolName: s.name,
 			ToolID:   s.id,
 			Text:     result,
@@ -812,38 +824,38 @@ func runToolExec(ctx context.Context, exec *toolTypes.Executor, s *toolSlot, eve
 	}, exec.EditedFiles())
 	if s.name == "write_todo" {
 		if todos := interactive.LoadTodos(exec.SessionID, exec.PendingTask); len(todos) > 0 {
-			events <- agentTypes.Event{
-				Type:  agentTypes.EventTodoUpdate,
+			events <- agenttypes.Event{
+				Type:  agenttypes.EventTodoUpdate,
 				Todos: todos,
 			}
 		}
 	}
-	events <- agentTypes.Event{
-		Type:     agentTypes.EventToolCallEnd,
+	events <- agenttypes.Event{
+		Type:     agenttypes.EventToolCallEnd,
 		ToolName: s.name,
 		ToolID:   s.id,
 	}
 }
 
-func unwrapRunTool(exec *toolTypes.Executor, args string) (string, string, error) {
+func unwrapRunTool(exec *tooltypes.Executor, args string) (string, string, error) {
 	var params struct {
 		Name string         `json:"name"`
 		Args map[string]any `json:"args"`
 	}
 	if err := json.Unmarshal([]byte(args), &params); err != nil {
-		return "", "", fmt.Errorf("json Unmarshal: %w", err)
+		return "", "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "run_tool args", err)
 	}
 
 	name := strings.TrimSpace(params.Name)
 	switch {
 	case name == "":
-		return "", "", fmt.Errorf("name is required")
+		return "", "", utilsmsg.New(utilsmsg.Invalid, "run_tool name", "required")
 	case name == "run_tool":
-		return "", "", fmt.Errorf("run_tool cannot run itself")
+		return "", "", utilsmsg.New(utilsmsg.Invalid, "run_tool name", "run_tool cannot run itself")
 	case exec.ExcludeTools[name]:
-		return "", "", fmt.Errorf("%s is not available in this session", name)
-	case !slices.ContainsFunc(exec.AllTools, func(t provider.Tool) bool { return t.Function.Name == name }):
-		return "", "", fmt.Errorf("not exist: %s; look it up with find_tools", name)
+		return "", "", utilsmsg.New(utilsmsg.Denied, "tool", "%s is not available in this session", name)
+	case !slices.ContainsFunc(exec.AllTools, func(t go_llm_router.Tool) bool { return t.Function.Name == name }):
+		return "", "", utilsmsg.New(utilsmsg.NotFound, "tool", "not exist: %s; look it up with find_tools", name)
 	}
 
 	if params.Args == nil {
@@ -851,12 +863,12 @@ func unwrapRunTool(exec *toolTypes.Executor, args string) (string, string, error
 	}
 	raw, err := json.Marshal(params.Args)
 	if err != nil {
-		return "", "", fmt.Errorf("json Marshal: %w", err)
+		return "", "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "run_tool args", err)
 	}
 	return name, string(raw), nil
 }
 
-func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {
+func validateToolArgs(exec *tooltypes.Executor, toolName, args string) string {
 	if exec == nil {
 		return ""
 	}
@@ -892,8 +904,8 @@ func validateToolArgs(exec *toolTypes.Executor, toolName, args string) string {
 		strings.Join(missing, ", "), toolName, strings.Join(required, ", "))
 }
 
-func requiredFields(exec *toolTypes.Executor, toolName string) []string {
-	lookup := func(list []provider.Tool) []string {
+func requiredFields(exec *tooltypes.Executor, toolName string) []string {
+	lookup := func(list []go_llm_router.Tool) []string {
 		for _, t := range list {
 			if t.Function.Name != toolName {
 				continue
@@ -960,16 +972,16 @@ func imageLoadedMessage(toolName string, count int, rest string) string {
 	return msg
 }
 
-func appendImageMessage(session *agentTypes.AgentSession, dataURLs []string) {
+func appendImageMessage(session *agenttypes.Session, dataURLs []string) {
 	if len(dataURLs) == 0 {
 		return
 	}
-	parts := make([]provider.ContentPart, 0, len(dataURLs))
+	parts := make([]go_llm_router.ContentPart, 0, len(dataURLs))
 	for _, url := range dataURLs {
-		parts = append(parts, provider.ContentPart{
+		parts = append(parts, go_llm_router.ContentPart{
 			Type:     "image_url",
-			ImageURL: &provider.ImageURL{URL: url, Detail: "auto"},
+			ImageURL: &go_llm_router.ImageURL{URL: url, Detail: "auto"},
 		})
 	}
-	session.ToolHistories = append(session.ToolHistories, provider.Message{Role: "user", Content: parts})
+	session.ToolHistories = append(session.ToolHistories, go_llm_router.Message{Role: "user", Content: parts})
 }

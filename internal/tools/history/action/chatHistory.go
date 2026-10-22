@@ -3,14 +3,14 @@ package actionHistory
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"maps"
 	"slices"
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/configs"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 )
 
 func registChatHistory() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "chat_history",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -80,7 +80,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode      string          `json:"mode"`
 				Scope     string          `json:"scope"`
@@ -94,7 +94,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 			}
 			if len(args) > 0 {
 				if err := json.Unmarshal(args, &params); err != nil {
-					return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
+					return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 				}
 			}
 
@@ -107,7 +107,7 @@ Not the workspace — file listing never reaches them. Versions → file_history
 			case "full":
 				full = true
 			default:
-				return "", fmt.Errorf("unknown scope %q; available: reference, full", params.Scope)
+				return "", utilsmsg.New(utilsmsg.Invalid, "scope", "unknown %q; available: reference, full", params.Scope)
 			}
 			if params.Mode == "" {
 				params.Mode = "list"
@@ -130,13 +130,13 @@ Not the workspace — file listing never reaches them. Versions → file_history
 				return toolContent(e, taskIDs, strings.TrimSpace(params.Name), params.Args)
 			case "read":
 				if len(taskIDs) == 0 {
-					return "", fmt.Errorf("task_id is required when mode=read")
+					return "", utilsmsg.New(utilsmsg.Invalid, "task_id", "required when mode=read")
 				}
 				return read(e, taskIDs, full)
 			case "search":
 				return searchMessages(ctx, e, params.Keyword, params.Match, params.TimeRange, params.Limit)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: list, tools, read, search", params.Mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: list, tools, read, search", params.Mode)
 		},
 	})
 }

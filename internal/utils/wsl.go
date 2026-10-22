@@ -2,7 +2,7 @@ package utils
 
 import (
 	"os"
-	goRuntime "runtime"
+	goruntime "runtime"
 	"strings"
 	"sync"
 
@@ -17,7 +17,7 @@ var (
 
 func WSLTag() string {
 	wslOnce.Do(func() {
-		if goRuntime.GOOS != "linux" {
+		if goruntime.GOOS != "linux" {
 			return
 		}
 		if raw, err := go_pkg_filesystem.ReadText("/proc/sys/kernel/osrelease"); err == nil {

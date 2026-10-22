@@ -2,11 +2,11 @@ package historyStore
 
 import (
 	_ "embed"
-	"fmt"
 
 	go_sqlkit_core "github.com/pardnchiu/go-sqlkit/core"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 //go:embed migrate.sql
@@ -17,13 +17,13 @@ var conn *go_sqlkit_core.Connector
 func New() error {
 	c := filesystem.DB()
 	if c == nil {
-		return fmt.Errorf("internal/filesystem: OpenDB has not run")
+		return utilsmsg.New(utilsmsg.Internal, "internal/filesystem", "OpenDB has not run")
 	}
 	if err := addSessionRole(c); err != nil {
 		return err
 	}
 	if _, err := c.Exec(migrateSQL); err != nil {
-		return fmt.Errorf("sql.DB Exec [migrate]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[migrate]", err)
 	}
 
 	conn = c
@@ -33,7 +33,7 @@ func New() error {
 func addSessionRole(c *go_sqlkit_core.Connector) error {
 	rows, err := c.Query(`PRAGMA table_info(session)`)
 	if err != nil {
-		return fmt.Errorf("sql.DB Query [PRAGMA table_info session]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Query", "[PRAGMA table_info session]", err)
 	}
 	defer rows.Close()
 
@@ -45,7 +45,7 @@ func addSessionRole(c *go_sqlkit_core.Connector) error {
 			defaultValue     any
 		)
 		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("sql.Rows Scan [PRAGMA table_info session]: %w", err)
+			return utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Scan", "[PRAGMA table_info session]", err)
 		}
 		columns++
 		if name == "role" {
@@ -53,17 +53,17 @@ func addSessionRole(c *go_sqlkit_core.Connector) error {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("sql.Rows Err [PRAGMA table_info session]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[PRAGMA table_info session]", err)
 	}
 	if columns == 0 || found > 0 {
 		return nil
 	}
 
 	if _, err := c.Exec(`ALTER TABLE session ADD COLUMN role TEXT NOT NULL DEFAULT ''`); err != nil {
-		return fmt.Errorf("sql.DB Exec [ALTER TABLE session ADD COLUMN role]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[ALTER TABLE session ADD COLUMN role]", err)
 	}
 	if _, err := c.Exec(`UPDATE session SET role = rule WHERE role = '' AND rule <> ''`); err != nil {
-		return fmt.Errorf("sql.DB Exec [UPDATE session SET role]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB Exec", "[UPDATE session SET role]", err)
 	}
 	return nil
 }

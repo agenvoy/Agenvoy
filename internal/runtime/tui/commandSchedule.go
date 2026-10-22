@@ -6,9 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
+
+	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/filesystem/skill"
-	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 )
 
 func (t TUI) commandSchedule(parts []string) (TUI, tea.Cmd, bool) {
@@ -29,10 +31,12 @@ func (t TUI) commandSchedule(parts []string) (TUI, tea.Cmd, bool) {
 	}
 
 	extra := strings.TrimSpace(strings.Join(parts[1:], " "))
-	preamble := fmt.Sprintf("[執行已存在 scheduler skill: %s  此為手動 trigger，不是建立新 schedule]\n依下方 SKILL body instructions 立即執行並輸出結果。**禁止** activate `scheduler-skill-creator`、**禁止** 跑 `init_scheduler_skill.py`、**禁止** schedules(mode=write)——skill 已存在、已綁時間，本次只執行 body。\n\n---\n", name)
-	prompt := preamble + body
+	prompt := strings.NewReplacer(
+		"{{.Name}}", name,
+		"{{.Body}}", body,
+	).Replace(strings.TrimSpace(configs.InjectScheduleRun))
 	if extra != "" {
-		prompt = prompt + "\n\n---\n附加指令：" + extra
+		prompt = prompt + "\n\n---\nAdditional instructions: " + extra
 	}
 	next, cmd := t.dispatchAgent(prompt)
 	return next, cmd, true

@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"slices"
 
@@ -10,6 +9,7 @@ import (
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type Config struct {
@@ -76,7 +76,7 @@ func Load() (*Config, error) {
 
 	cfg, err := go_pkg_filesystem.ReadJSON[Config](filesystem.ConfigPath)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", filesystem.ConfigPath, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadJSON", filesystem.ConfigPath, err)
 	}
 	normalizeModels(&cfg)
 	return &cfg, nil
@@ -85,7 +85,7 @@ func Load() (*Config, error) {
 func Get() (map[string]any, error) {
 	dic, err := go_pkg_filesystem.ReadJSON[map[string]any](filesystem.ConfigPath)
 	if err != nil {
-		return nil, fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem ReadJSON [%s]: %w", filesystem.ConfigPath, err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.ReadJSON", filesystem.ConfigPath, err)
 	}
 	if dic == nil {
 		dic = map[string]any{}
@@ -95,7 +95,7 @@ func Get() (map[string]any, error) {
 
 func Write(dic map[string]any) error {
 	if err := go_pkg_filesystem.WriteJSON(filesystem.ConfigPath, dic, false); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteJSON [%s]: %w", filesystem.ConfigPath, err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteJSON", filesystem.ConfigPath, err)
 	}
 	return nil
 }
@@ -110,11 +110,11 @@ func Save(cfg *Config) error {
 
 	raw, err := json.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("json Marshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "config", err)
 	}
 	var newDic map[string]any
 	if err := json.Unmarshal(raw, &newDic); err != nil {
-		return fmt.Errorf("json Unmarshal %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Unmarshal", "config", err)
 	}
 
 	maps.Copy(oldDic, newDic)

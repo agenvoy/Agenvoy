@@ -3,15 +3,15 @@ package variant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registEditSkill() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "edit_skill",
 		SystemUse:   false,
 		AlwaysAllow: true,
@@ -54,7 +54,7 @@ Running a skill → run_skill; ordinary files → edit_file; building a new skil
 				},
 			},
 		},
-		Handler: func(ctx context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Mode       string `json:"mode"`
 				Path       string `json:"path"`
@@ -65,7 +65,7 @@ Running a skill → run_skill; ordinary files → edit_file; building a new skil
 				Name       string `json:"name"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("encoding/json: Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			mode := strings.ToLower(strings.TrimSpace(params.Mode))
@@ -78,7 +78,7 @@ Running a skill → run_skill; ordinary files → edit_file; building a new skil
 				case strings.TrimSpace(params.Name) != "":
 					mode = "remove"
 				default:
-					return "", fmt.Errorf("mode is required; available: write, patch, remove")
+					return "", utilsmsg.New(utilsmsg.Invalid, "mode", "required; available: write, patch, remove")
 				}
 			}
 
@@ -90,7 +90,7 @@ Running a skill → run_skill; ordinary files → edit_file; building a new skil
 			case "remove":
 				return removeSkillDir(ctx, e, params.Name)
 			}
-			return "", fmt.Errorf("unknown mode %q; available: write, patch, remove", mode)
+			return "", utilsmsg.New(utilsmsg.Invalid, "mode", "unknown %q; available: write, patch, remove", mode)
 		},
 	})
 }

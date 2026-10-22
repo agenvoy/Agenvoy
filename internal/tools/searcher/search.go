@@ -2,14 +2,15 @@ package toolSearcher
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
-	provider "github.com/pardnchiu/go-llm-router/core"
+	go_llm_router "github.com/pardnchiu/go-llm-router/core"
+
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 type ToolMatch struct {
@@ -18,7 +19,7 @@ type ToolMatch struct {
 	TotalTools int    `json:"total_tools"`
 }
 
-func searchTools(e *toolTypes.Executor, query string) (string, error) {
+func searchTools(e *tooltypes.Executor, query string) (string, error) {
 	var matches []Tool
 	if name, ok := strings.CutPrefix(query, "select:"); ok {
 		matches = matchName(name, e.AllTools)
@@ -44,13 +45,13 @@ func searchTools(e *toolTypes.Executor, query string) (string, error) {
 		TotalTools: len(e.AllTools),
 	})
 	if err != nil {
-		return "", fmt.Errorf("json Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
 
-func matchName(names string, tools []provider.Tool) []Tool {
-	dic := make(map[string]provider.Tool, len(tools))
+func matchName(names string, tools []go_llm_router.Tool) []Tool {
+	dic := make(map[string]go_llm_router.Tool, len(tools))
 	for _, tool := range tools {
 		dic[strings.ToLower(tool.Function.Name)] = tool
 	}
@@ -90,7 +91,7 @@ func toolCategory(name string) string {
 	}
 }
 
-func matchKeyword(query string, tools []provider.Tool) []Tool {
+func matchKeyword(query string, tools []go_llm_router.Tool) []Tool {
 	query = strings.ToLower(strings.TrimSpace(query))
 	terms := strings.Fields(query)
 	if len(terms) == 0 {
@@ -106,7 +107,7 @@ func matchKeyword(query string, tools []provider.Tool) []Tool {
 	}
 
 	type scored struct {
-		tool  provider.Tool
+		tool  go_llm_router.Tool
 		score int
 	}
 

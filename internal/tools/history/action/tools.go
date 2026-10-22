@@ -5,12 +5,12 @@ import (
 	"slices"
 	"strings"
 
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
-
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
-func toolList(e *toolTypes.Executor, limit int) (string, error) {
+func toolList(e *tooltypes.Executor, limit int) (string, error) {
 	if limit <= 0 {
 		limit = defaultToolsLimit
 	}
@@ -53,17 +53,17 @@ func toolList(e *toolTypes.Executor, limit int) (string, error) {
 
 	raw, err := utils.MarshalPlain(out)
 	if err != nil {
-		return "", fmt.Errorf("encoding/json: Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
 
-func toolContent(e *toolTypes.Executor, taskIDs []string, name, args string) (string, error) {
+func toolContent(e *tooltypes.Executor, taskIDs []string, name, args string) (string, error) {
 	if len(taskIDs) == 0 {
-		return "", fmt.Errorf("task_id is required when mode=tool")
+		return "", utilsmsg.New(utilsmsg.Invalid, "task_id", "required when mode=tool")
 	}
 	if name == "" {
-		return "", fmt.Errorf("name is required when mode=tool")
+		return "", utilsmsg.New(utilsmsg.Invalid, "name", "required when mode=tool")
 	}
 
 	list, err := entries(e)
@@ -81,7 +81,7 @@ func toolContent(e *toolTypes.Executor, taskIDs []string, name, args string) (st
 		}
 	}
 	if !found {
-		return "", fmt.Errorf("no finished task with id %s in this session", id)
+		return "", utilsmsg.New(utilsmsg.NotFound, "task", "no finished task with id %s in this session", id)
 	}
 
 	r, err := load(item)
@@ -98,7 +98,7 @@ func toolContent(e *toolTypes.Executor, taskIDs []string, name, args string) (st
 		}
 	}
 	if len(named) == 0 {
-		return "", fmt.Errorf("task %s never called %s; it called: %s", id, name, strings.Join(slices.Compact(names), ", "))
+		return "", utilsmsg.New(utilsmsg.NotFound, "name", "task %s never called %s; it called: %s", id, name, strings.Join(slices.Compact(names), ", "))
 	}
 
 	if args = strings.TrimSpace(args); args != "" {
@@ -107,11 +107,11 @@ func toolContent(e *toolTypes.Executor, taskIDs []string, name, args string) (st
 				return t.Result, nil
 			}
 		}
-		return "", fmt.Errorf("task %s called %s %d times but none with those arguments; the ones it used: %s",
+		return "", utilsmsg.New(utilsmsg.NotFound, "args", "task %s called %s %d times but none with those arguments; the ones it used: %s",
 			id, name, len(named), strings.Join(argsOf(named), " | "))
 	}
 	if len(named) > 1 {
-		return "", fmt.Errorf("task %s called %s %d times; pass args to pick one: %s",
+		return "", utilsmsg.New(utilsmsg.Invalid, "args", "task %s called %s %d times; pass args to pick one: %s",
 			id, name, len(named), strings.Join(argsOf(named), " | "))
 	}
 	return named[0].Result, nil

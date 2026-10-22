@@ -7,20 +7,21 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/pardnchiu/go-pkg/filesystem/keychain"
 	go_pkg_filesystem_reader "github.com/pardnchiu/go-pkg/filesystem/reader"
 
 	"github.com/pardnchiu/agenvoy/internal/agents"
-	agentKeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
+	agentkeychain "github.com/pardnchiu/agenvoy/internal/agents/keychain"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/session/config"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	audioTool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
-	imageTool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	audiotool "github.com/pardnchiu/agenvoy/internal/tools/external/audio"
+	imagetool "github.com/pardnchiu/agenvoy/internal/tools/external/image"
 )
 
 func modelNames() []string {
-	names := []string{configBot.DefaultModel}
+	names := []string{configbot.DefaultModel}
 	if cfg, err := config.Load(); err == nil && cfg != nil {
 		for _, m := range cfg.Models {
 			if name := strings.TrimSpace(m.Name); name != "" {
@@ -84,7 +85,7 @@ func validModelPrefix(prefix string) bool {
 	if findProvider(prefix) != nil {
 		return true
 	}
-	instance, ok := agentKeychain.CompatInstance(prefix + "@")
+	instance, ok := agentkeychain.CompatInstance(prefix + "@")
 	return ok && instance != "" && config.GetCompatURL(instance) != ""
 }
 
@@ -111,7 +112,7 @@ func AddModel() gin.HandlerFunc {
 				continue
 			}
 			fullName := prefix + "@" + id
-			if fullName == configBot.DefaultModel {
+			if fullName == configbot.DefaultModel {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "model cannot be the reserved default \"auto\""})
 				return
 			}
@@ -211,8 +212,8 @@ func RemoveModel() gin.HandlerFunc {
 				if strings.HasPrefix(sid, ".") {
 					continue
 				}
-				if model, _ := configBot.GetModel(sid); model == name {
-					configBot.SetModel(sid, configBot.DefaultModel, "")
+				if model, _ := configbot.GetModel(sid); model == name {
+					configbot.SetModel(sid, configbot.DefaultModel, "")
 				}
 			}
 		}
@@ -229,11 +230,11 @@ func modelRouting(c *gin.Context, cfg *config.Config) gin.H {
 		"dispatcher_beta": cfg.DispatcherBeta,
 		"summary":         cfg.SummaryModel,
 		"image":           cfg.ImageGenerator,
-		"image_options":   imageTool.Available(c.Request.Context()),
-		"image_providers": imageTool.Providers,
+		"image_options":   imagetool.Available(c.Request.Context()),
+		"image_providers": imagetool.Providers,
 		"stt":             cfg.STTModel,
 		"tts":             cfg.TTSModel,
-		"audio_providers": audioTool.Providers,
+		"audio_providers": audiotool.Providers,
 	}
 }
 
@@ -241,15 +242,15 @@ func ListAudioModels() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		c.JSON(http.StatusOK, gin.H{
-			"stt_options": audioTool.STTOptions(ctx),
-			"tts_options": audioTool.TTSOptions(ctx),
+			"stt_options": audiotool.STTOptions(ctx),
+			"tts_options": audiotool.TTSOptions(ctx),
 		})
 	}
 }
 
 func GetModelRouting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		imageTool.Prune(c.Request.Context())
+		imagetool.Prune(c.Request.Context())
 
 		cfg, err := config.Load()
 		if err != nil {
@@ -313,8 +314,8 @@ func SetModelRouting() gin.HandlerFunc {
 			if image == "off" {
 				image = ""
 			}
-			if image != "" && !slices.Contains(imageTool.Available(c.Request.Context()), image) {
-				if !slices.Contains(imageTool.Providers, image) {
+			if image != "" && !slices.Contains(imagetool.Available(c.Request.Context()), image) {
+				if !slices.Contains(imagetool.Providers, image) {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "unknown image provider: " + image})
 					return
 				}
@@ -326,14 +327,14 @@ func SetModelRouting() gin.HandlerFunc {
 		stt, tts := "", ""
 		if body.STT != nil {
 			stt = strings.TrimSpace(*body.STT)
-			if stt != "" && !slices.Contains(audioTool.STTOptions(c.Request.Context()), stt) {
+			if stt != "" && !slices.Contains(audiotool.STTOptions(c.Request.Context()), stt) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown speech-to-text model: " + stt})
 				return
 			}
 		}
 		if body.TTS != nil {
 			tts = strings.TrimSpace(*body.TTS)
-			if tts != "" && !slices.Contains(audioTool.TTSOptions(c.Request.Context()), tts) {
+			if tts != "" && !slices.Contains(audiotool.TTSOptions(c.Request.Context()), tts) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unknown text-to-speech model: " + tts})
 				return
 			}

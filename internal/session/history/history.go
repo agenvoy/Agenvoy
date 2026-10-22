@@ -2,7 +2,6 @@ package history
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"sync"
 
@@ -10,7 +9,8 @@ import (
 
 	"github.com/pardnchiu/agenvoy/configs"
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 var muMap sync.Map
@@ -36,20 +36,20 @@ func Append(sessionID string, delta []Record) error {
 
 	raw, err := json.Marshal(latest)
 	if err != nil {
-		return fmt.Errorf("json.Marshal: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	if err := go_pkg_filesystem.WriteFile(historyPath, string(raw), 0644); err != nil {
-		return fmt.Errorf("github.com/pardnchiu/go-pkg/filesystem WriteFile: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "go_pkg_filesystem.WriteFile", historyPath, err)
 	}
 
-	if historyStore.IsReady() && !historyStore.IsExist(sessionID) && len(latest) > len(delta) {
-		if err := historyStore.Write(sessionID, rows(latest)); err != nil {
+	if historystore.IsReady() && !historystore.IsExist(sessionID) && len(latest) > len(delta) {
+		if err := historystore.Write(sessionID, rows(latest)); err != nil {
 			slog.Warn("historyStore Write",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))
 		}
 	} else {
-		if err := historyStore.Write(sessionID, rows(delta)); err != nil {
+		if err := historystore.Write(sessionID, rows(delta)); err != nil {
 			slog.Warn("historyStore Write",
 				slog.String("session", sessionID),
 				slog.String("error", err.Error()))

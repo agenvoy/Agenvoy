@@ -9,12 +9,13 @@ import (
 	go_pkg_utils "github.com/pardnchiu/go-pkg/utils"
 
 	"github.com/pardnchiu/agenvoy/internal/runtime"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registRunSkill() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "run_skill",
 		SystemUse:   true,
 		AlwaysAllow: true,
@@ -32,25 +33,25 @@ What comes back is reference, not a script to execute line by line: take the par
 			},
 			"required": []string{"skill"},
 		},
-		Handler: func(_ context.Context, e *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(_ context.Context, e *tooltypes.Executor, args json.RawMessage) (string, error) {
 			if e.SkillScanner == nil {
-				return "", fmt.Errorf("skill scanner unavailable in this execution")
+				return "", utilsmsg.New(utilsmsg.Unavailable, "skill scanner", "unavailable in this execution")
 			}
 
 			if len(args) < 1 {
-				return "", fmt.Errorf("arguments are required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "arguments", "required")
 			}
 
 			var params struct {
 				Skill string `json:"skill"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 
 			name := strings.TrimSpace(params.Skill)
 			if name == "" {
-				return "", fmt.Errorf("skill is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "skill", "required")
 			}
 			skill, ok := e.SkillScanner.Skills.ByName[name]
 			if !ok {

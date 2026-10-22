@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/pardnchiu/agenvoy/internal/agents/exec"
-	sessionDiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
+	sessiondiscord "github.com/pardnchiu/agenvoy/internal/session/discord"
 	"github.com/pardnchiu/agenvoy/internal/tools/interactive"
 )
 
@@ -15,14 +15,14 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	allowAll := interactive.LoadPendingAllowAll(sessionID, taskHash)
 	full, history, err := interactive.LoadResumeMessage(sessionID, taskHash, answers)
 	if err != nil {
-		channelID, chErr := sessionDiscord.GetChannel(sessionID)
+		channelID, chErr := sessiondiscord.GetChannel(sessionID)
 		if chErr == nil && strings.TrimSpace(channelID) != "" {
 			b.client.Send(context.Background(), strings.TrimSpace(channelID), "", "Pending task already resolved in another session.")
 		}
 		return
 	}
 
-	channelID, err := sessionDiscord.GetChannel(sessionID)
+	channelID, err := sessiondiscord.GetChannel(sessionID)
 	if err != nil || strings.TrimSpace(channelID) == "" {
 		slog.Error("ask_user resume: GetChannel",
 			slog.String("session", sessionID),
@@ -37,7 +37,7 @@ func (b *Bot) resumeFromPending(sessionID, taskHash string, answers []any) {
 	reply.Status("resuming...")
 
 	if err := reply.Run(ctx, exec.ExecuteMeta{
-		Content:        full,
+		Task:           full,
 		Input:          full,
 		Sender:         "user",
 		SessionID:      sessionID,

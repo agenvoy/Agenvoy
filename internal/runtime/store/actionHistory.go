@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
+
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 const actionKeepDays = 3
@@ -40,10 +41,10 @@ func textRaw(text string) json.RawMessage {
 
 func WriteAction(ctx context.Context, sessionID string, r ActionRecord) error {
 	if conn == nil {
-		return fmt.Errorf("internal/runtime/store: New has not run")
+		return utilsmsg.New(utilsmsg.Internal, "internal/runtime/store", "New has not run")
 	}
 	if sessionID == "" || r.TaskHash == "" {
-		return fmt.Errorf("session_id and task_hash are required")
+		return utilsmsg.New(utilsmsg.Invalid, "session_id and task_hash", "required")
 	}
 
 	if _, err := conn.ExecContext(ctx, `
@@ -59,7 +60,7 @@ func WriteAction(ctx context.Context, sessionID string, r ActionRecord) error {
 		reply         = excluded.reply`,
 		sessionID, r.TaskHash, r.EndAt.UnixNano(), r.Model, r.Reasoning, r.Objective,
 		rawText(r.ToolResults), r.Reply); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [INSERT action_history]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[INSERT action_history]", err)
 	}
 	return nil
 }
@@ -76,7 +77,7 @@ func scanAction(rows interface {
 	)
 	if err := rows.Scan(&one.TaskHash, &endAt, &one.Model, &one.Reasoning, &one.Objective,
 		&toolResults, &one.Reply); err != nil {
-		return ActionRecord{}, fmt.Errorf("sql.Rows Scan [SELECT action_history]: %w", err)
+		return ActionRecord{}, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Scan", "[SELECT action_history]", err)
 	}
 
 	one.EndAt = time.Unix(0, endAt)
@@ -95,7 +96,7 @@ func ListAction(ctx context.Context, sessionID string) ([]ActionRecord, error) {
 	WHERE session_id = ?
 	ORDER BY end_at DESC, id DESC`, sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("sql.DB QueryContext [SELECT action_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT action_history]", err)
 	}
 	defer rows.Close()
 
@@ -108,7 +109,7 @@ func ListAction(ctx context.Context, sessionID string) ([]ActionRecord, error) {
 		list = append(list, one)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sql.Rows Err [SELECT action_history]: %w", err)
+		return nil, utilsmsg.Wrap(utilsmsg.Internal, "sql.Rows Err", "[SELECT action_history]", err)
 	}
 	return list, nil
 }
@@ -123,7 +124,7 @@ func ReadAction(ctx context.Context, sessionID, taskHash string) (ActionRecord, 
 	FROM action_history
 	WHERE session_id = ? AND task_hash = ?`, sessionID, taskHash)
 	if err != nil {
-		return ActionRecord{}, false, fmt.Errorf("sql.DB QueryContext [SELECT action_history]: %w", err)
+		return ActionRecord{}, false, utilsmsg.Wrap(utilsmsg.Internal, "sql.DB QueryContext", "[SELECT action_history]", err)
 	}
 	defer rows.Close()
 
@@ -144,7 +145,7 @@ func ClearAction(ctx context.Context, sessionID string) error {
 
 	if _, err := conn.ExecContext(ctx,
 		`DELETE FROM action_history WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [DELETE action_history]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[DELETE action_history]", err)
 	}
 	return nil
 }
@@ -157,7 +158,7 @@ func PruneAction(ctx context.Context) error {
 	cutoff := time.Now().AddDate(0, 0, -actionKeepDays).UnixNano()
 	if _, err := conn.ExecContext(ctx,
 		`DELETE FROM action_history WHERE end_at < ?`, cutoff); err != nil {
-		return fmt.Errorf("sql.DB ExecContext [DELETE action_history]: %w", err)
+		return utilsmsg.Wrap(utilsmsg.Internal, "sql.DB ExecContext", "[DELETE action_history]", err)
 	}
 	return nil
 }

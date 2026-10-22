@@ -10,11 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
-	historyStore "github.com/pardnchiu/agenvoy/internal/runtime/store"
+	historystore "github.com/pardnchiu/agenvoy/internal/runtime/store"
 	"github.com/pardnchiu/agenvoy/internal/runtime/torii"
 	"github.com/pardnchiu/agenvoy/internal/session"
-	configBot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
-	sessionHistory "github.com/pardnchiu/agenvoy/internal/session/history"
+	configbot "github.com/pardnchiu/agenvoy/internal/session/config/bot"
+	sessionhistory "github.com/pardnchiu/agenvoy/internal/session/history"
 	"github.com/pardnchiu/agenvoy/internal/utils"
 )
 
@@ -27,7 +27,7 @@ type RemoveSessionConfirm struct {
 
 func (t TUI) openSessionDeleteConfirm(id string) (TUI, tea.Cmd) {
 	label := utils.ShortenSessionID(id)
-	if name, _ := configBot.Get(id); name != "" && name != id {
+	if name, _ := configbot.Get(id); name != "" && name != id {
 		label = name + " (" + label + ")"
 	}
 
@@ -57,13 +57,13 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 	var removed []string
 	for _, sid := range msg.ids {
 		deleteSessionHistKeys(sid)
-		historyStore.Clear(sid)
-		if err := historyStore.DeleteSession(context.Background(), sid); err != nil {
-			slog.Warn("historyStore.DeleteSession",
+		historystore.Clear(sid)
+		if err := historystore.DeleteSession(context.Background(), sid); err != nil {
+			slog.Warn("historystore.DeleteSession",
 				slog.String("session", sid),
 				slog.String("error", err.Error()))
 		}
-		sessionHistory.ClearMutex(sid)
+		sessionhistory.ClearMutex(sid)
 		if err := os.RemoveAll(filesystem.SessionDir(sid)); err != nil {
 			continue
 		}
@@ -87,7 +87,7 @@ func (t TUI) runRemoveSessionConfirm(msg RemoveSessionConfirm) (TUI, tea.Cmd) {
 			fallback = created
 		}
 		t.currentSessionID = fallback
-		t.currentSessionName, _ = configBot.Get(fallback)
+		t.currentSessionName, _ = configbot.Get(fallback)
 		t = t.restartTailer()
 		t.tokens = 0
 		t.lastIn = 0

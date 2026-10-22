@@ -3,7 +3,6 @@ package tool
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -17,13 +16,14 @@ import (
 	"github.com/pardnchiu/agenvoy/internal/filesystem"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/discord"
 	"github.com/pardnchiu/agenvoy/internal/runtime/chatbot/telegram"
-	toolRegister "github.com/pardnchiu/agenvoy/internal/tools/register"
-	toolTypes "github.com/pardnchiu/agenvoy/internal/tools/types"
+	toolregister "github.com/pardnchiu/agenvoy/internal/tools/register"
+	tooltypes "github.com/pardnchiu/agenvoy/internal/tools/types"
 	"github.com/pardnchiu/agenvoy/internal/utils"
+	utilsmsg "github.com/pardnchiu/agenvoy/internal/utils/msg"
 )
 
 func registSendToChatbot() {
-	toolRegister.Regist(toolRegister.Def{
+	toolregister.Regist(toolregister.Def{
 		Name:        "send_to_chatbot",
 		SystemUse:   false,
 		AlwaysAllow: false,
@@ -44,14 +44,14 @@ func registSendToChatbot() {
 			},
 			"required": []string{"platform", "target_id", "message"},
 		},
-		Handler: func(ctx context.Context, _ *toolTypes.Executor, args json.RawMessage) (string, error) {
+		Handler: func(ctx context.Context, _ *tooltypes.Executor, args json.RawMessage) (string, error) {
 			var params struct {
 				Platform string `json:"platform"`
 				TargetID string `json:"target_id"`
 				Message  string `json:"message"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
-				return "", fmt.Errorf("json.Unmarshal: %w", err)
+				return "", utilsmsg.Wrap(utilsmsg.Invalid, "json.Unmarshal", "", err)
 			}
 			platform, err := parsePlatform(strings.TrimSpace(params.Platform))
 			if err != nil {
@@ -60,10 +60,10 @@ func registSendToChatbot() {
 			targetID := strings.TrimSpace(params.TargetID)
 			message := strings.TrimSpace(params.Message)
 			if targetID == "" {
-				return "", fmt.Errorf("target_id is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "target_id", "is required")
 			}
 			if message == "" {
-				return "", fmt.Errorf("message is required")
+				return "", utilsmsg.New(utilsmsg.Invalid, "message", "is required")
 			}
 
 			switch platform {
@@ -72,7 +72,7 @@ func registSendToChatbot() {
 			case platformDiscord:
 				return sendDiscord(ctx, targetID, message)
 			}
-			return "", fmt.Errorf("unreachable platform %q", platform)
+			return "", utilsmsg.New(utilsmsg.Internal, "platform", "unreachable %q", platform)
 		},
 	})
 }
@@ -93,29 +93,29 @@ func sendToChatbotDescription() string {
 
 func sendTelegram(ctx context.Context, chatIDStr, message string) (string, error) {
 	if !utils.IsAuthorized(filesystem.TelegramAuthPath, chatIDStr) {
-		return "", fmt.Errorf("chat_id %q is not authorized; call list_chatbot with platform=telegram", chatIDStr)
+		return "", utilsmsg.New(utilsmsg.Denied, "chat_id", "%q is not authorized; call list_chatbot with platform=telegram", chatIDStr)
 	}
 
 	chatID, err := strconv.ParseInt(chatIDStr, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("strconv.ParseInt: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Invalid, "strconv.ParseInt", "", err)
 	}
 
 	token := strings.TrimSpace(keychain.Get(telegram.Key))
 	if token == "" {
-		return "", fmt.Errorf("keychain entry %q missing; enable Telegram via TUI /telegram", telegram.Key)
+		return "", utilsmsg.New(utilsmsg.Denied, "keychain", "entry %q missing; enable Telegram via TUI /telegram", telegram.Key)
 	}
 
 	client, err := go_bot_telegram.New(token,
 		go_bot_telegram.WithHTTPClient(&http.Client{Timeout: 5 * time.Minute}),
 	)
 	if err != nil {
-		return "", fmt.Errorf("go-bot/telegram New: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.New", "", err)
 	}
 
 	msg, err := client.Send(ctx, chatID, 0, message, go_bot_telegram.WithSendType(go_bot_telegram.TypeHTML))
 	if err != nil {
-		return "", fmt.Errorf("go-bot/telegram Send: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_telegram.Send", "", err)
 	}
 	recordOutbound(resolveChatbotSession("tg-", "chat_id", chatIDStr), message)
 
@@ -125,29 +125,29 @@ func sendTelegram(ctx context.Context, chatIDStr, message string) (string, error
 		"message_id": msg.ID,
 	})
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
 
 func sendDiscord(ctx context.Context, channelID, message string) (string, error) {
 	if !utils.IsAuthorized(filesystem.DiscordAuthPath, channelID) {
-		return "", fmt.Errorf("channel_id %q is not authorized; call list_chatbot with platform=discord", channelID)
+		return "", utilsmsg.New(utilsmsg.Denied, "channel_id", "%q is not authorized; call list_chatbot with platform=discord", channelID)
 	}
 
 	token := strings.TrimSpace(keychain.Get(discord.Key))
 	if token == "" {
-		return "", fmt.Errorf("keychain entry %q missing; enable Discord via TUI /discord", discord.Key)
+		return "", utilsmsg.New(utilsmsg.Denied, "keychain", "entry %q missing; enable Discord via TUI /discord", discord.Key)
 	}
 
 	client, err := go_bot_discord.New(token)
 	if err != nil {
-		return "", fmt.Errorf("go-bot/discord New: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.New", "", err)
 	}
 
 	msg, err := client.Send(ctx, channelID, "", message)
 	if err != nil {
-		return "", fmt.Errorf("go-bot/discord Send: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Upstream, "go_bot_discord.Send", "", err)
 	}
 	recordOutbound(resolveChatbotSession("dc-", "channel_id", channelID), message)
 
@@ -157,7 +157,7 @@ func sendDiscord(ctx context.Context, channelID, message string) (string, error)
 		"message_id": msg.ID,
 	})
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", utilsmsg.Wrap(utilsmsg.Internal, "json.Marshal", "", err)
 	}
 	return string(raw), nil
 }
