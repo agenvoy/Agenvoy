@@ -283,6 +283,7 @@ A cost-effective model setup to get started:
 | Tool Market          | Share and install tools                                                  |
 | Image generation     | Generate images through a configured provider                            |
 | Live command output  | Stream `run_command` progress to the TUI and Web dashboard               |
+| Rich chat rendering  | Web chat renders charts, Mermaid diagrams, math, and highlighted code    |
 | Secure file boundary | Confirm sensitive paths and out-of-home access before granting them      |
 | MCP OAuth            | Log in to HTTP MCP servers and persist tokens in the OS keychain         |
 | Transcription        | Audio and video to text                                                  |

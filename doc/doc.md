@@ -305,6 +305,8 @@ Running `agen` starts the local daemon when it is not already running.
 
 The backend preserves `[SEND_FILE:...]` markers while events move through result, SSE, pending, and multilog handlers so delivery metadata remains available to channel consumers. The web dashboard removes those markers only when rendering message text; users see the response body without the internal transport marker.
 
+The web chat renders replies as rich markdown: ```` ```chartjs ```` blocks become charts (bar, line, pie, doughnut, radar, polarArea, scatter, bubble), ```` ```mermaid ```` blocks become diagrams (flowchart, sequenceDiagram, stateDiagram-v2, classDiagram, erDiagram, gantt, timeline), ```` ```math ```` blocks and inline `$...$` render as KaTeX, and other code blocks are syntax-highlighted. A block that fails to parse shows its source instead. Telegram and Discord receive plain markdown only.
+
 ### Local HTTP API
 
 The daemon listens on `127.0.0.1:17989` and `[::1]:17989`. The port is fixed and not configurable.

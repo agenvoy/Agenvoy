@@ -317,6 +317,8 @@ printf '%s\n' \
 
 後端會在 result、SSE、pending 與 multilog handler 間保留 `[SEND_FILE:...]` 標記，讓頻道 consumer 仍可取得檔案傳遞 metadata。Web dashboard 只在顯示訊息文字時移除標記，因此使用者看到的是回應內容，不會看到內部傳輸標記。
 
+Web 對話以豐富格式渲染回覆：```` ```chartjs ```` 區塊顯示為圖表（bar、line、pie、doughnut、radar、polarArea、scatter、bubble），```` ```mermaid ```` 區塊顯示為圖（flowchart、sequenceDiagram、stateDiagram-v2、classDiagram、erDiagram、gantt、timeline），```` ```math ```` 區塊與行內 `$...$` 以 KaTeX 顯示數學公式，其餘程式碼區塊套用語法高亮；無法解析的區塊改顯示原始碼。Telegram 與 Discord 只收到純 markdown。
+
 ### HTTP API
 
 Daemon 監聽 `127.0.0.1:17989` 與 `[::1]:17989`，連接埠固定不可調整：
